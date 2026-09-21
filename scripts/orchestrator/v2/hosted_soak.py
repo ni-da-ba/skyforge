@@ -544,8 +544,10 @@ def _make_driver(
     # ordinary remote effects to the disposable world.
     original_build = factory.build
 
-    def build():
-        deps = original_build()
+    def build(*, defer_worker_execution=False):
+        deps = original_build(
+            defer_worker_execution=defer_worker_execution
+        )
         return type(deps)(
             classifier_provider=deps.classifier_provider,
             worker_provider=deps.worker_provider,
@@ -559,6 +561,7 @@ def _make_driver(
             external_claims=deps.external_claims,
             runner=runner,
             remote_factory=DisposableRemoteFactory(world),
+            defer_worker_execution=deps.defer_worker_execution,
         )
 
     factory.build = build

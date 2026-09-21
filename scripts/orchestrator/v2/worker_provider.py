@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import threading
 from typing import Any, Mapping, Protocol
 
 from .identity import canonical_digest
@@ -16,6 +17,7 @@ from .state_store import JsonStateStoreAdapter
 
 WORKER_RUNS_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json"
 WORKER_RUNS_BACKUP_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json.bak"
+_WORKER_RUN_LOCK = threading.RLock()
 
 
 class WorkerTier(str, Enum):
@@ -414,6 +416,24 @@ class WorkerAdvanceResult:
         })
 
 
+def interrupt_running_worker_attempt(
+    *,
+    root: Path,
+    attempt_id: str,
+) -> WorkerRunRecord | None:
+    """Durably fence one stale RUNNING attempt after process restart."""
+    with _WORKER_RUN_LOCK:
+        store = WorkerRunStore.for_root(Path(root).resolve())
+        ledger = store.load()
+        current = ledger.find_attempt(attempt_id)
+        if current is None:
+            return None
+        if current.status is WorkerRunStatus.RUNNING:
+            current = replace(current, status=WorkerRunStatus.INTERRUPTED)
+            store.save(ledger.put(current))
+        return current
+
+
 def advance_worker_run(
     *,
     spec: FrozenWorkerSpec,
@@ -424,77 +444,101 @@ def advance_worker_run(
 ) -> WorkerAdvanceResult:
     resolved = Path(worktree).resolve()
     cfg = config or provider_config_for_tier(spec.tier)
-    ledger = store.load()
-    current = ledger.find_attempt(spec.attempt_id)
 
-    if current is not None:
-        if current.spec.digest != spec.digest or Path(current.worktree).resolve() != resolved or current.config != cfg:
-            raise ValueError("worker attempt identity drifted")
-        if current.status is WorkerRunStatus.HANDOFF_READY:
-            return WorkerAdvanceResult(
-                WorkerAdvanceDisposition.ALREADY_READY,
-                "worker handoff is already durably ready",
-                current,
+    # Durable preparation/RUNNING transition is serialized, but the provider call is
+    # deliberately outside the lock so disjoint attempts may execute concurrently.
+    with _WORKER_RUN_LOCK:
+        ledger = store.load()
+        current = ledger.find_attempt(spec.attempt_id)
+
+        if current is not None:
+            if (
+                current.spec.digest != spec.digest
+                or Path(current.worktree).resolve() != resolved
+                or current.config != cfg
+            ):
+                raise ValueError("worker attempt identity drifted")
+            if current.status is WorkerRunStatus.HANDOFF_READY:
+                return WorkerAdvanceResult(
+                    WorkerAdvanceDisposition.ALREADY_READY,
+                    "worker handoff is already durably ready",
+                    current,
+                )
+            if current.status is WorkerRunStatus.RUNNING:
+                interrupted = replace(current, status=WorkerRunStatus.INTERRUPTED)
+                store.save(ledger.put(interrupted))
+                return WorkerAdvanceResult(
+                    WorkerAdvanceDisposition.RECOVERY_REQUIRED,
+                    "worker process restarted with RUNNING state; preserve worktree and do not re-call provider",
+                    interrupted,
+                )
+            if current.status is WorkerRunStatus.INTERRUPTED:
+                return WorkerAdvanceResult(
+                    WorkerAdvanceDisposition.RECOVERY_REQUIRED,
+                    "interrupted worker requires explicit reconciliation before another provider call",
+                    current,
+                )
+            if current.status is WorkerRunStatus.FAILED:
+                return WorkerAdvanceResult(
+                    WorkerAdvanceDisposition.FAILED,
+                    "failed worker remains durable; retry requires a new explicit attempt/revision",
+                    current,
+                )
+            prepared = current
+        else:
+            prepared = WorkerRunRecord(
+                spec=spec,
+                worktree=str(resolved),
+                config=cfg,
+                status=WorkerRunStatus.PREPARED,
             )
-        if current.status is WorkerRunStatus.RUNNING:
-            interrupted = replace(current, status=WorkerRunStatus.INTERRUPTED)
-            store.save(ledger.put(interrupted))
-            return WorkerAdvanceResult(
-                WorkerAdvanceDisposition.RECOVERY_REQUIRED,
-                "worker process restarted with RUNNING state; preserve worktree and do not re-call provider",
-                interrupted,
-            )
-        if current.status is WorkerRunStatus.INTERRUPTED:
-            return WorkerAdvanceResult(
-                WorkerAdvanceDisposition.RECOVERY_REQUIRED,
-                "interrupted worker requires explicit reconciliation before another provider call",
-                current,
-            )
-        if current.status is WorkerRunStatus.FAILED:
-            return WorkerAdvanceResult(
-                WorkerAdvanceDisposition.FAILED,
-                "failed worker remains durable; retry requires a new explicit attempt/revision",
-                current,
-            )
-        prepared = current
-    else:
-        prepared = WorkerRunRecord(
-            spec=spec,
-            worktree=str(resolved),
-            config=cfg,
-            status=WorkerRunStatus.PREPARED,
-        )
-        ledger = ledger.put(prepared)
+            ledger = ledger.put(prepared)
+            store.save(ledger)
+
+        running = replace(prepared, status=WorkerRunStatus.RUNNING)
+        ledger = store.load().put(running)
         store.save(ledger)
-
-    running = replace(prepared, status=WorkerRunStatus.RUNNING)
-    ledger = ledger.put(running)
-    store.save(ledger)
 
     try:
         summary = provider.run(spec=spec, worktree=resolved, config=cfg)
     except WorkerProviderError as exc:
-        failed = replace(
-            running,
-            status=WorkerRunStatus.FAILED,
-            failure_kind=exc.kind,
-            retry_after_seconds=exc.retry_after_seconds,
-        )
-        store.save(ledger.put(failed))
+        with _WORKER_RUN_LOCK:
+            latest = store.load()
+            current = latest.find_attempt(spec.attempt_id)
+            if current is None or current.run_id != running.run_id:
+                raise ValueError("worker attempt disappeared or changed during provider failure")
+            failed = replace(
+                current,
+                status=WorkerRunStatus.FAILED,
+                failure_kind=exc.kind,
+                retry_after_seconds=exc.retry_after_seconds,
+            )
+            store.save(latest.put(failed))
         return WorkerAdvanceResult(
             WorkerAdvanceDisposition.FAILED,
             str(exc),
             failed,
         )
 
-    ready = replace(
-        running,
-        status=WorkerRunStatus.HANDOFF_READY,
-        summary=summary[:8000],
-        failure_kind="",
-        retry_after_seconds=0,
-    )
-    store.save(ledger.put(ready))
+    with _WORKER_RUN_LOCK:
+        latest = store.load()
+        current = latest.find_attempt(spec.attempt_id)
+        if current is None or current.run_id != running.run_id:
+            raise ValueError("worker attempt disappeared or changed during provider execution")
+        if current.status is not WorkerRunStatus.RUNNING:
+            return WorkerAdvanceResult(
+                WorkerAdvanceDisposition.RECOVERY_REQUIRED,
+                "worker durable state changed while provider was running; preserve output and fail closed",
+                current,
+            )
+        ready = replace(
+            current,
+            status=WorkerRunStatus.HANDOFF_READY,
+            summary=summary[:8000],
+            failure_kind="",
+            retry_after_seconds=0,
+        )
+        store.save(latest.put(ready))
     return WorkerAdvanceResult(
         WorkerAdvanceDisposition.HANDOFF_READY,
         "worker provider completed and handoff state is durable",

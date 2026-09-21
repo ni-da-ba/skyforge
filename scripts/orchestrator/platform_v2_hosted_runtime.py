@@ -27,7 +27,9 @@ from v2.concurrency_claims import ConcurrencyClaimStore
 from v2.development_read_model import (
     build_development_snapshot,
     load_local_commit_read_records,
+    load_worker_scheduler_read_records,
 )
+from v2.hosted_policy import HOSTED_WORKER_CONCURRENCY_LIMIT
 from v2.hosted_admission import (
     HostedAdmissionAdvanceResult,
     HostedAdmissionStore,
@@ -483,6 +485,7 @@ class HostedV2Substrate:
             admission_ledger = self.admission_store.load()
             admission = admission_ledger.record
             local_commit_records = load_local_commit_read_records(self.root)
+            scheduler_records = load_worker_scheduler_read_records(self.root)
             completions = HostedCompletionStore.for_root(self.root).load()
             pending_completion = completions.pending()
             objective_ledger = self.objective_proposal_store.load()
@@ -597,9 +600,19 @@ class HostedV2Substrate:
                 "hosted_task_plan_count": len(task_plan.records),
                 "hosted_admission_count": len(admission_ledger.records),
                 "hosted_local_commit_count": len(local_commit_records),
+                "hosted_worker_scheduler_count": len(scheduler_records),
+                "hosted_worker_executing_count": sum(
+                    record.get("state") == "EXECUTING"
+                    for record in scheduler_records
+                ),
+                "hosted_worker_waiting_count": sum(
+                    str(record.get("state") or "").startswith("WAIT_")
+                    or record.get("state") == "RECOVERY_REQUIRED"
+                    for record in scheduler_records
+                ),
                 "active_concurrency_claim_count": len(concurrency_claims.active),
                 "retired_concurrency_claim_count": len(concurrency_claims.retired),
-                "hosted_execution_concurrency_limit": 1,
+                "hosted_execution_concurrency_limit": HOSTED_WORKER_CONCURRENCY_LIMIT,
                 "hosted_completion_count": len(completions.records),
                 "hosted_completion_cleaned_count": sum(
                     record.status is HostedCompletionStatus.CLEANED
@@ -645,6 +658,7 @@ class HostedV2Substrate:
             admissions = self.admission_store.load()
             admission = admissions.record
             local_commit_records = load_local_commit_read_records(self.root)
+            scheduler_records = load_worker_scheduler_read_records(self.root)
             worker_raw = self.worker_read_store.load().as_dict()
             if worker_raw not in ({}, None) and worker_raw.get("schema_version") != 1:
                 raise ValueError("invalid worker-run read ledger")
@@ -719,6 +733,15 @@ class HostedV2Substrate:
                 "hosted_task_plan_count": health["hosted_task_plan_count"],
                 "hosted_admission_count": health["hosted_admission_count"],
                 "hosted_local_commit_count": health["hosted_local_commit_count"],
+                "hosted_worker_scheduler_count": health[
+                    "hosted_worker_scheduler_count"
+                ],
+                "hosted_worker_executing_count": health[
+                    "hosted_worker_executing_count"
+                ],
+                "hosted_worker_waiting_count": health[
+                    "hosted_worker_waiting_count"
+                ],
             }
             snapshot = build_development_snapshot(
                 repo=self.repo,
@@ -736,6 +759,7 @@ class HostedV2Substrate:
                     record.as_dict() for record in admissions.records
                 ),
                 local_commit_records=local_commit_records,
+                worker_scheduler_records=scheduler_records,
                 concurrency_claims=(
                     claim.as_dict() for claim in concurrency_claims.active
                 ),

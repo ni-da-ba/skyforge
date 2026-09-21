@@ -62,6 +62,10 @@ from .hosted_completion import (
     record_completed_managed_task,
 )
 from .hosted_state import HostedStateStore
+from .hosted_worker_scheduler import (
+    HostedWorkerScheduleState,
+    HostedWorkerSchedulerStore,
+)
 from .hosted_task_plan import (
     HostedTaskPlanDisposition,
     HostedTaskPlanLedger,
@@ -378,6 +382,7 @@ class HostedExecutionDependencies:
     external_claims: tuple[ExternalProducerClaim, ...] = ()
     runner: Callable[..., Any] = subprocess.run
     remote_factory: Callable[[Path, OrdinaryEffectBinding], Any] | None = None
+    defer_worker_execution: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.classifier_local_budget, LocalBudgetObservation):
@@ -388,6 +393,8 @@ class HostedExecutionDependencies:
             raise ValueError("attempt_number must be >= 1")
         if not isinstance(self.external_claims, tuple):
             raise ValueError("external_claims must be tuple")
+        if not isinstance(self.defer_worker_execution, bool):
+            raise ValueError("defer_worker_execution must be boolean")
 
 
 class HostedExecutionAdvanceDisposition(str, Enum):
@@ -399,6 +406,8 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
     TASK_REVISION_ACCEPTED = "TASK_REVISION_ACCEPTED"
     ADMISSION_ADVANCED = "ADMISSION_ADVANCED"
+    WORKER_RUNNABLE = "WORKER_RUNNABLE"
+    WORKER_EXECUTING = "WORKER_EXECUTING"
     WORKER_ADVANCED = "WORKER_ADVANCED"
     LOCAL_COMMIT_ADVANCED = "LOCAL_COMMIT_ADVANCED"
     REMOTE_HANDOFF_ADVANCED = "REMOTE_HANDOFF_ADVANCED"
@@ -502,7 +511,22 @@ def select_hosted_execution_plan(
             and admission.worker_spec is not None
             and admission.attempt is not None
         ):
-            active_claim = claims.active_for_attempt(admission.attempt.attempt_id)
+            attempt_id = admission.attempt.attempt_id
+            run = WorkerRunStore.for_root(root).load().find_attempt(attempt_id)
+            schedule = HostedWorkerSchedulerStore.for_root(root).load().get(attempt_id)
+            if run is not None and run.status is WorkerRunStatus.HANDOFF_READY:
+                return (3, plan.plan_id)
+            if (
+                schedule is not None
+                and schedule.state is HostedWorkerScheduleState.EXECUTING
+            ) or (run is not None and run.status is WorkerRunStatus.RUNNING):
+                return (7, plan.plan_id)
+            if run is not None and run.status in {
+                WorkerRunStatus.INTERRUPTED,
+                WorkerRunStatus.FAILED,
+            }:
+                return (9, plan.plan_id)
+            active_claim = claims.active_for_attempt(attempt_id)
             if active_claim is not None:
                 return (3, plan.plan_id)
             decision = classify_concurrency_claim(claims, admission.worker_spec)
@@ -1057,6 +1081,26 @@ class HostedExecutionCoordinator:
         worker_store = WorkerRunStore.for_root(self.root)
         worker_run = worker_store.load().find_attempt(admission.attempt.attempt_id)
         if worker_run is None or worker_run.status is not WorkerRunStatus.HANDOFF_READY:
+            if worker_run is not None and worker_run.status is WorkerRunStatus.RUNNING:
+                return HostedExecutionAdvanceResult(
+                    HostedExecutionAdvanceDisposition.WORKER_EXECUTING,
+                    "exact admitted worker attempt is already executing",
+                    self.gate.digest,
+                    admission.attempt.attempt_id,
+                )
+            if (
+                deps.defer_worker_execution
+                and (
+                    worker_run is None
+                    or worker_run.status is WorkerRunStatus.PREPARED
+                )
+            ):
+                return HostedExecutionAdvanceResult(
+                    HostedExecutionAdvanceDisposition.WORKER_RUNNABLE,
+                    "exact admitted worker attempt is runnable for bounded scheduler",
+                    self.gate.digest,
+                    admission.attempt.attempt_id,
+                )
             result = advance_dormant_admitted_worker(
                 root=self.root,
                 provider=deps.worker_provider,

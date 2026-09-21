@@ -15,6 +15,7 @@ from .dormant_handoff_commit import (
 from .hosted_admission import HostedAdmissionLedger, HostedAdmissionStore
 from .hosted_state import HostedIngressState, HostedStateStore
 from .hosted_task_plan import HostedTaskPlanLedger, HostedTaskPlanStore
+from .hosted_worker_scheduler import retire_hosted_worker_schedule
 from .identity import canonical_digest
 from .inbox import InboxState
 from .ordinary_pipeline import OrdinaryPipelineStore
@@ -329,6 +330,15 @@ def advance_hosted_completion_cleanup(*, root: Path) -> HostedCompletionResult:
         if commit.admission_record_id != pending.admission_record_id:
             raise RuntimeError("completion cleanup found mismatched dormant commit identity")
         commit_store.save(commits.remove_attempt(pending.attempt_id))
+
+    # Retire scheduler ownership while exact admission identity is still available.
+    # This is attempt-scoped and leaves unrelated executing/waiting workers untouched.
+    retire_hosted_worker_schedule(
+        root=root,
+        attempt_id=pending.attempt_id,
+        admission_record_id=pending.admission_record_id,
+        reason="completed hosted workflow retired exact scheduler attempt",
+    )
 
     admission_store = HostedAdmissionStore.for_root(root)
     admissions = admission_store.load()

@@ -92,6 +92,7 @@ def advance_dormant_admitted_worker(
     config: WorkerProviderConfig | None = None,
     workspace_runner=None,
     attempt_id: str | None = None,
+    local_budget_reserved: bool = False,
 ) -> DormantWorkerResult:
     """Advance one frozen admitted worker locally, without any remote side effects."""
 
@@ -205,7 +206,14 @@ def advance_dormant_admitted_worker(
 
     # There is no durable worker spend yet. Re-check provider/local quota before
     # creating even the local worktree, so a blocked attempt does not mutate Git state.
-    quota = classify_quota_admission(provider_quota, local_budget)
+    quota = classify_quota_admission(
+        provider_quota,
+        (
+            LocalBudgetObservation(calls_used=0, daily_limit=1)
+            if local_budget_reserved
+            else local_budget
+        ),
+    )
     if quota.disposition in {
         QuotaAdmissionDisposition.BLOCK_PROVIDER,
         QuotaAdmissionDisposition.BLOCK_LOCAL,
