@@ -540,7 +540,10 @@ def select_hosted_execution_plan(
                 return (9, plan.plan_id)
             active_claim = claims.active_for_attempt(attempt_id)
             if active_claim is not None:
-                return (3, plan.plan_id)
+                # An admitted attempt that already owns its exact mutation claim but
+                # has not started a worker is runnable. Keep it ahead of handoff-ready
+                # work so a human-gated PR cannot strand an available worker slot.
+                return (2, plan.plan_id)
             decision = classify_concurrency_claim(claims, admission.worker_spec)
             if decision.disposition in {
                 ConcurrencyClaimDisposition.ADMIT,
