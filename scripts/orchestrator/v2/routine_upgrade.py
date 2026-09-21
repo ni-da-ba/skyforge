@@ -29,6 +29,7 @@ from .cutover import (
     LegacyOperationalProjection,
     WriterAuthority,
 )
+from .events import DurableEvent
 from .hosted_execution_runtime import production_activation_input_from_mapping
 from .identity import canonical_digest
 from .operator_cutover import (
@@ -306,19 +307,76 @@ class RoutineUpgradeController:
             "legacy fallback state",
         )
 
-    def _legacy_projection_blockers(self) -> list[str]:
+    def _legacy_projection_blockers(
+        self,
+        *,
+        allow_model_free_reconcile: bool = False,
+    ) -> list[str]:
         blockers: list[str] = []
         try:
-            projection = LegacyOperationalProjection.from_legacy_mapping(self._legacy_state())
+            raw = self._legacy_state()
+            projection = LegacyOperationalProjection.from_legacy_mapping(raw)
             if not projection.paused:
                 blockers.append("legacy fallback state is not paused")
-            if not projection.quiescent:
+            if projection.blocked_kind is not None:
+                blockers.append("legacy fallback state has an explicit blocker")
+            if projection.pending_worker is not None or projection.pending_decision is not None:
+                blockers.append("legacy fallback state has in-flight worker/decision authority")
+            if projection.managed:
+                blockers.append("legacy fallback state has managed repository authority")
+            events = tuple(
+                DurableEvent.from_legacy_mapping(value)
+                for value in (raw.get("pending_events") or [])
+            )
+            protected = tuple(
+                event
+                for event in events
+                if event.event == "roadmap" or event.protected_authority
+            )
+            model_free_reconcile = tuple(
+                event
+                for event in events
+                if (
+                    event.event == "reconcile"
+                    and event.action in {"startup", "periodic"}
+                    and event.source_id is None
+                    and event.pr_number is None
+                    and event.signal_kind is None
+                    and event.signal_text is None
+                )
+            )
+            if protected:
                 blockers.append(
-                    "legacy fallback state is not quiescent; explicit reconciliation/transfer required"
+                    "legacy fallback state has protected pending authority; explicit reconciliation/transfer required"
+                )
+            elif events and len(model_free_reconcile) != len(events):
+                blockers.append(
+                    "legacy fallback state has ordinary pending work that is not bounded model-free reconcile noise"
+                )
+            elif events and not allow_model_free_reconcile:
+                blockers.append(
+                    "legacy fallback state is not quiescent; model-free reconciliation still pending"
                 )
         except Exception as exc:
             blockers.append(f"legacy fallback state invalid: {type(exc).__name__}: {exc}")
         return blockers
+
+    def _wait_for_legacy_quiescence(
+        self,
+        *,
+        attempts: int = 30,
+        interval_seconds: float = 0.5,
+    ) -> list[str]:
+        last: list[str] = []
+        for _ in range(max(1, attempts)):
+            last = self._legacy_projection_blockers()
+            if not last:
+                return []
+            hard = self._legacy_projection_blockers(allow_model_free_reconcile=True)
+            if hard:
+                return hard
+            self.operator.sleep(interval_seconds)
+        return last
 
     def _special_path_changes(self, older: str, newer: str) -> tuple[str, ...]:
         result = self._git(
@@ -402,7 +460,9 @@ class RoutineUpgradeController:
         except Exception as exc:
             blockers.append(f"service upgrade preflight failed: {type(exc).__name__}: {exc}")
 
-        blockers.extend(self._legacy_projection_blockers())
+        blockers.extend(
+            self._legacy_projection_blockers(allow_model_free_reconcile=True)
+        )
         return RoutineUpgradeReport(
             RoutineUpgradeDisposition.READY if not blockers else RoutineUpgradeDisposition.BLOCKED,
             authority,
@@ -532,7 +592,7 @@ class RoutineUpgradeController:
                 )
             self._record(events, "ROLLBACK_TO_LEGACY_COMPLETE")
 
-            blockers = self._legacy_projection_blockers()
+            blockers = self._wait_for_legacy_quiescence()
             if blockers:
                 return RoutineUpgradeReport(
                     RoutineUpgradeDisposition.FAILED_SAFE_LEGACY,
@@ -552,7 +612,7 @@ class RoutineUpgradeController:
             self._restart_legacy_at_target()
             self._record(events, "LEGACY_RESTARTED_AT_TARGET", plan.target_sha)
 
-            blockers = self._legacy_projection_blockers()
+            blockers = self._wait_for_legacy_quiescence()
             if blockers:
                 return RoutineUpgradeReport(
                     RoutineUpgradeDisposition.FAILED_SAFE_LEGACY,

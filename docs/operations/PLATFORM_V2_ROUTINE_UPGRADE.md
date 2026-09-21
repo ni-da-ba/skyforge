@@ -64,7 +64,9 @@ The normal path requires:
 - target descending from the last accepted activation baseline;
 - no unaccepted deployment/dependency-contract changes requiring unit restaging;
 - Platform-v2 active/enabled and legacy inactive/disabled before the operation;
-- paused and quiescent durable legacy fallback state.
+- paused durable legacy fallback state with no protected/in-flight/managed authority. A bounded
+  startup/periodic `reconcile` wake with no issue/source/signal authority may be present; the routine
+  path waits for the paused legacy runtime to drain that model-free noise before proceeding.
 
 The current checkout normally must be an ancestor of the target. One tightly bounded exception exists:
 a divergent checkout may be replaced when every current-only changed path is confined to non-runtime
