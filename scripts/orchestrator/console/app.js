@@ -107,6 +107,18 @@
     return values.length ? values[values.length - 1] : null;
   }
 
+  function currentHumanGate(state) {
+    const gates = state.human_gates || [];
+    const progression = state.program_progression || {};
+    const active = progression.active_session || {};
+    const gateId = active.disposition === "WAIT_HUMAN" ? String(active.gate_id || "") : "";
+    if (gateId) {
+      const exact = gates.find((gate) => gate.gate_id === gateId);
+      if (exact) return exact;
+    }
+    return gates.length ? gates[gates.length - 1] : null;
+  }
+
   function kv(entries) {
     const dl = el("dl", null, "kv");
     for (const [key, value] of entries) {
@@ -181,18 +193,15 @@
       activityDetail = waiting + " worker" + (waiting === 1 ? "" : "s") + " waiting for a safe execution condition.";
     }
 
+    const gate = currentHumanGate(state);
     const review = latestReview(state);
-    let product = "No review recorded";
+    let product = "No review needed";
     let productSeverity = "";
-    let productDetail = "No human review history is available.";
-    if (review) {
-      product = friendlyStatus(review.verdict);
-      productSeverity = severityFor(review.verdict);
-      productDetail = review.next_boundary || "See Product / human review.";
-    } else if ((state.human_gates || []).length) {
+    let productDetail = review ? "Latest recorded review: " + friendlyStatus(review.verdict) + "." : "No human review action is currently reported.";
+    if (gate) {
       product = "Review needed";
       productSeverity = "warn";
-      productDetail = "A human gate is awaiting judgment.";
+      productDetail = gate.message || gate.blocked_reason || "A human gate is awaiting judgment.";
     }
 
     grid.append(
@@ -229,16 +238,13 @@
       items.push(["Worker recovery required", scheduler.recovery_required + " scheduler record(s) require recovery.", "bad"]);
     }
 
-    const review = latestReview(state);
-    if (review && review.verdict === "CHANGES_REQUIRED") {
+    const gate = currentHumanGate(state);
+    if (gate) {
       items.push([
-        "Product review requires changes",
-        review.next_boundary || "A human-reviewed product issue remains unresolved.",
+        "Human review needed",
+        gate.message || gate.blocked_reason || gate.gate_id || "A product gate awaits review.",
         "warn",
       ]);
-    } else if (!review && (state.human_gates || []).length) {
-      const gate = state.human_gates[state.human_gates.length - 1] || {};
-      items.push(["Human review needed", gate.message || gate.blocked_reason || gate.gate_id || "A product gate awaits review.", "warn"]);
     }
 
     count.textContent = items.length ? items.length + " item" + (items.length === 1 ? "" : "s") : "Clear";
@@ -556,22 +562,44 @@
     clear(node);
     const reviews = state.human_reviews || [];
     const review = latestReview(state);
-    const gates = state.human_gates || [];
+    const gate = currentHumanGate(state);
     $("review-count").textContent = reviews.length ? reviews.length + " recorded" : "";
 
-    if (!review) {
-      if (!gates.length) {
-        node.append(emptyState("No current human review action is recorded."));
-        return;
-      }
-      const gate = gates[gates.length - 1] || {};
+    if (gate) {
       const banner = el("div", null, "state-banner");
       const body = el("div");
-      body.append(el("div", "Review needed", "headline"),
-        el("div", gate.message || gate.blocked_reason || "A product gate is waiting for human judgment.", "explanation"));
+      body.append(
+        el("div", "Review needed", "headline"),
+        el("div", gate.message || gate.blocked_reason || "A product gate is waiting for human judgment.", "explanation")
+      );
       banner.append(body, pill("Needs review", "warn"));
       node.append(banner);
-      node.append(technicalDetails([["Gate", gate.gate_id], ["Lane", gate.lane], ["Blocked reason", gate.blocked_reason]]));
+
+      if (review) {
+        const context = el("div", null, "item compact");
+        context.append(
+          el("h3", "Previous review"),
+          el("div", friendlyStatus(review.verdict) + (review.next_boundary ? " · " + review.next_boundary : ""), "secondary-line")
+        );
+        context.append(technicalDetails([
+          ["Review gate", review.gate_id],
+          ["Review ID", review.review_id],
+          ["Artifact", review.artifact_id],
+          ["Source SHA", review.source_sha],
+        ], "Previous review details"));
+        node.append(context);
+      }
+
+      node.append(technicalDetails([
+        ["Current gate", gate.gate_id],
+        ["Lane", gate.lane],
+        ["Blocked reason", gate.blocked_reason],
+      ], "Current gate details"));
+      return;
+    }
+
+    if (!review) {
+      node.append(emptyState("No current human review action is recorded."));
       return;
     }
 
