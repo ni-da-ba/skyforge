@@ -113,6 +113,52 @@ class ObjectiveApiTest(unittest.TestCase):
             self.assertEqual(objective["source"]["client"], "operations-console")
             self.assertEqual(objective["source"]["actor"], WRITE_ACTOR)
 
+    def test_objective_trace_get_is_authenticated_and_matches_backend_projector(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            base = self.serve(runtime)
+            status, submitted = self.post(
+                base,
+                {
+                    "request_id": "objective-trace-1001",
+                    "objective": "Investigate landing gear",
+                },
+            )
+            self.assertEqual(status, 202)
+            correlation_id = submitted["proposal_id"]
+
+            expected_status, expected = runtime.handle_objective_trace(
+                f"Bearer {API_TOKEN}",
+                correlation_id,
+            )
+            self.assertEqual(expected_status, 200)
+            request = urllib.request.Request(
+                base + f"/api/v1/objectives/{correlation_id}/trace",
+                headers={"Authorization": f"Bearer {API_TOKEN}"},
+            )
+            with urllib.request.urlopen(request, timeout=3) as response:
+                actual = json.loads(response.read().decode("utf-8"))
+            self.assertEqual(actual, expected)
+            self.assertEqual(actual["correlation_id"], correlation_id)
+            self.assertEqual(actual["terminal_stage"], "OBJECTIVE")
+            self.assertEqual(actual["stages"][0]["identities"]["proposal_id"], correlation_id)
+
+            denied = urllib.request.Request(
+                base + f"/api/v1/objectives/{correlation_id}/trace"
+            )
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(denied, timeout=3)
+            self.assertEqual(raised.exception.code, 401)
+
+            missing = urllib.request.Request(
+                base + f"/api/v1/objectives/{'0' * 64}/trace",
+                headers={"Authorization": f"Bearer {API_TOKEN}"},
+            )
+            with self.assertRaises(urllib.error.HTTPError) as raised:
+                urllib.request.urlopen(missing, timeout=3)
+            self.assertEqual(raised.exception.code, 404)
+
     def test_continue_objective_compiles_against_current_human_gate_without_bypass(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

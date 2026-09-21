@@ -80,6 +80,7 @@ from v2.objective_command import (
     reconcile_pending_objective_commands,
 )
 from v2.objective_intake import load_manifest
+from v2.objective_trace import build_objective_trace
 from v2.mcp_adapter import McpAdapter, SUPPORTED_PROTOCOL_VERSIONS
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
@@ -832,6 +833,36 @@ class HostedV2Substrate:
         ) as exc:
             return 503, {
                 "error": "development state is unavailable",
+                "failure_kind": type(exc).__name__,
+            }
+
+    def handle_objective_trace(
+        self,
+        authorization: str | None,
+        correlation_id: str,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_api_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        try:
+            trace = build_objective_trace(
+                root=self.root,
+                correlation_id=correlation_id,
+            )
+            if trace is None:
+                return 404, {
+                    "error": "objective correlation not found",
+                    "correlation_id": str(correlation_id or ""),
+                }
+            return 200, trace
+        except (
+            OSError,
+            RuntimeError,
+            StateStoreError,
+            ValueError,
+        ) as exc:
+            return 503, {
+                "error": "objective trace is unavailable",
                 "failure_kind": type(exc).__name__,
             }
 
@@ -1777,6 +1808,18 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 self._respond_json(status, payload)
             return
+        objective_prefix = "/api/v1/objectives/"
+        if path.startswith(objective_prefix) and path.endswith("/trace"):
+            correlation_id = unquote(
+                path[len(objective_prefix):-len("/trace")]
+            ).strip("/")
+            if correlation_id and "/" not in correlation_id:
+                status, payload = self.runtime.handle_objective_trace(
+                    authorization,
+                    correlation_id,
+                )
+                self._respond_json(status, payload)
+                return
         if path == "/api/v1/artifacts":
             status, payload = self.runtime.handle_artifact_list(authorization)
             self._respond_json(status, payload)

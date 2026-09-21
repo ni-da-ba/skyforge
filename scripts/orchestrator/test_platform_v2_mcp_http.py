@@ -126,6 +126,7 @@ class McpHttpTest(unittest.TestCase):
                 names,
                 [
                     "get_development_state",
+                    "get_objective_trace",
                     "list_review_artifacts",
                     "get_review_artifact",
                     "get_file_artifact",
