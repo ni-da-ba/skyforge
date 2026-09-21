@@ -312,6 +312,66 @@ class HostedExecutionDriverTest(unittest.TestCase):
                 HostedExecutionAdvanceDisposition.IDLE.value,
             )
 
+    def test_one_wake_launches_two_independent_runnable_workers(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runnable_one = HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_RUNNABLE,
+                "first worker runnable",
+                "a" * 64,
+                "1" * 64,
+            )
+            runnable_two = HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_RUNNABLE,
+                "second worker runnable",
+                "a" * 64,
+                "2" * 64,
+            )
+            runtime = _FakeRuntime(
+                root,
+                [
+                    runnable_one,
+                    runnable_two,
+                    result(HostedExecutionAdvanceDisposition.IDLE),
+                ],
+            )
+            deps = _FakeDependencies()
+            driver = HostedExecutionDriver(
+                runtime=runtime,
+                dependencies=deps,
+                periodic_seconds=60,
+                max_boundaries_per_wake=8,
+            )
+            launched_one = HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_EXECUTING,
+                "first launched",
+                "a" * 64,
+                "1" * 64,
+            )
+            launched_two = HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_EXECUTING,
+                "second launched",
+                "a" * 64,
+                "2" * 64,
+            )
+            with mock.patch.object(
+                driver,
+                "_launch_runnable_worker",
+                side_effect=[launched_one, launched_two],
+            ) as launch:
+                driver._drain_one_wake()
+
+            self.assertEqual(
+                [call.args[0] for call in launch.call_args_list],
+                ["1" * 64, "2" * 64],
+            )
+            self.assertEqual(runtime.calls, 3)
+            self.assertEqual(deps.builds, 3)
+            self.assertEqual(
+                driver.snapshot().last_disposition,
+                HostedExecutionAdvanceDisposition.IDLE.value,
+            )
+
     def test_background_start_wakes_once_and_idle_does_not_spin(self):
         with tempfile.TemporaryDirectory() as td:
             runtime = _FakeRuntime(

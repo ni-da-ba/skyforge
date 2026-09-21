@@ -791,6 +791,8 @@ def advance_objective_scoping(
                 "an active hosted task plan already exists",
                 "an active hosted admission record already exists",
                 "candidate issue already has an active external ownership claim",
+                "another active task authority overlaps candidate mutation scope",
+                "hosted task-authority concurrency capacity is fully reserved",
             }
             if promotion.blockers and set(promotion.blockers).issubset(transient):
                 return ObjectiveScopingAdvanceResult(

@@ -11,7 +11,9 @@ from typing import Any, Callable, Mapping
 
 from .context_package import ContextPackage, ContextPackageDisposition, ContextPackageStore, repository_identity
 from .context_retrieval import ContextRetrievalDisposition, ContextRetrievalRecord, ContextRetrievalStore, observe_issue
+from .concurrency_claims import ConcurrencyClaimStore
 from .hosted_admission import HostedAdmissionStore
+from .hosted_policy import HOSTED_WORKER_CONCURRENCY_LIMIT
 from .hosted_state import HostedStateStore
 from .hosted_task_plan import HostedTaskPlanStore
 from .identity import canonical_digest
@@ -23,8 +25,10 @@ from .objective_ingress import (
 )
 from .program_projection import program_candidate_for_identity
 from .objective_intake import ObjectiveCompileDisposition, compile_objective
+from .path_scope import overlapping_scope_pairs
 from .state_store import JsonStateStoreAdapter
 from .task_authority import TASK_AUTHORITY_MARKER, TaskAuthorityDisposition, TypedTaskDirective, parse_typed_task_directive
+from .task_event_composition import TaskAuthorityEventStore
 
 PROMOTIONS_RELATIVE_PATH = Path('.skyforge-platform-v2/objective-promotions.json')
 PROMOTIONS_BACKUP_RELATIVE_PATH = Path('.skyforge-platform-v2/objective-promotions.json.bak')
@@ -299,16 +303,111 @@ def _active_external_conflict(root: Path, issue_number: int) -> bool:
     return False
 
 
-def _control_blockers(root: Path) -> tuple[str, ...]:
+def _typed_event_scope(root: Path, event_id: str, event=None) -> tuple[str, ...]:
+    record = TaskAuthorityEventStore.for_root(root).load().get(event_id)
+    if record is None:
+        raise ValueError('pending task authority lacks durable typed provenance')
+    if event is not None:
+        if event.signal_kind != 'task':
+            raise ValueError('protected pending authority is not a task authority')
+        if record.reference.issue_number != event.task_issue_number:
+            raise ValueError('task authority event issue differs from durable provenance')
+        if str(record.reference.comment_id) != str(event.source_id or ''):
+            raise ValueError('task authority source comment differs from durable provenance')
+        if record.reference.body != str(event.signal_text or ''):
+            raise ValueError('task authority body differs from durable provenance')
+    parsed = parse_typed_task_directive(record.reference.body)
+    if (
+        parsed.disposition is not TaskAuthorityDisposition.EXECUTABLE_V2
+        or parsed.directive is None
+    ):
+        raise ValueError('pending task authority typed directive is not executable')
+    return tuple(parsed.directive.allowed_paths)
+
+
+def _seed_scope(plan) -> tuple[str, ...] | None:
+    if plan.seed is None:
+        return None
+    semantic = plan.seed.classifier_request.semantic_input
+    if not isinstance(semantic, Mapping):
+        raise ValueError('hosted plan classifier semantic input is malformed')
+    authority = semantic.get('task_authority')
+    if not isinstance(authority, Mapping):
+        raise ValueError('hosted plan lacks frozen task-authority semantic input')
+    values = authority.get('allowed_paths')
+    if not isinstance(values, list) or not values:
+        raise ValueError('hosted plan frozen task authority lacks allowed paths')
+    return tuple(str(value) for value in values)
+
+
+def _control_blockers(root: Path, candidate_paths: tuple[str, ...]) -> tuple[str, ...]:
     blockers: list[str] = []
+    transient: list[str] = []
+    reservations: dict[str, tuple[str, ...]] = {}
+
     state = HostedStateStore.for_root(root).load()
-    if any(event.protected_authority for event in state.inbox.pending_events):
-        blockers.append('another protected task authority is pending')
-    if HostedTaskPlanStore.for_root(root).load().active is not None:
-        blockers.append('an active hosted task plan already exists')
-    if HostedAdmissionStore.for_root(root).load().record is not None:
-        blockers.append('an active hosted admission record already exists')
-    return tuple(blockers)
+    for event in state.inbox.pending_events:
+        if not event.protected_authority:
+            continue
+        if event.signal_kind != 'task':
+            blockers.append('non-task protected authority is pending')
+            continue
+        try:
+            paths = _typed_event_scope(root, event.event_id, event)
+        except ValueError as exc:
+            blockers.append(str(exc))
+            continue
+        reservations[event.event_id] = paths
+
+    plans = HostedTaskPlanStore.for_root(root).load()
+    for plan in plans.records:
+        try:
+            paths = _typed_event_scope(root, plan.event_id)
+            seed_paths = _seed_scope(plan)
+            if seed_paths is not None and tuple(sorted(seed_paths)) != tuple(sorted(paths)):
+                raise ValueError('hosted plan scope differs from durable typed task authority')
+        except ValueError as exc:
+            blockers.append(str(exc))
+            continue
+        prior = reservations.get(plan.event_id)
+        if prior is not None and tuple(sorted(prior)) != tuple(sorted(paths)):
+            blockers.append('pending and planned task-authority scopes disagree')
+            continue
+        reservations[plan.event_id] = paths
+
+    admissions = HostedAdmissionStore.for_root(root).load()
+    for admission in admissions.records:
+        plan = plans.get(admission.plan_id)
+        if plan is None:
+            blockers.append('active hosted admission has no matching task plan')
+            continue
+        if admission.event_id != plan.event_id or admission.issue_number != plan.issue_number:
+            blockers.append('active hosted admission differs from matching task plan identity')
+
+    claims = ConcurrencyClaimStore.for_root(root).load()
+    for claim in claims.active:
+        admission = admissions.for_attempt(claim.attempt_id)
+        if admission is None:
+            blockers.append('active concurrency claim has no matching hosted admission')
+            continue
+        if admission.worker_spec is None:
+            blockers.append('active concurrency claim admission lacks frozen worker scope')
+            continue
+        if claim.authority_key != admission.worker_spec.authority_key:
+            blockers.append('active concurrency claim authority differs from hosted admission')
+        if tuple(claim.allowed_paths) != tuple(admission.worker_spec.allowed_paths):
+            blockers.append('active concurrency claim scope differs from hosted admission')
+        if overlapping_scope_pairs(claim.allowed_paths, candidate_paths):
+            transient.append('another active task authority overlaps candidate mutation scope')
+
+    for paths in reservations.values():
+        if overlapping_scope_pairs(paths, candidate_paths):
+            transient.append('another active task authority overlaps candidate mutation scope')
+
+    if len(reservations) >= HOSTED_WORKER_CONCURRENCY_LIMIT:
+        transient.append('hosted task-authority concurrency capacity is fully reserved')
+
+    return tuple(sorted(set(blockers + transient)))
 
 
 def _scoped_authority_paths(
@@ -485,8 +584,6 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
         if _active_external_conflict(root, issue_number):
             blockers.append('candidate issue already has an active external ownership claim')
 
-    blockers.extend(_control_blockers(root))
-
     slice_by_path = {item.path: item for item in retrieval.slices}
     allowed: list[str] = []
     candidate_paths = (
@@ -524,6 +621,8 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
         allowed.append(path)
     if not allowed:
         blockers.append('validated allowed path set is empty')
+    else:
+        blockers.extend(_control_blockers(root, tuple(allowed)))
 
     live_digest = live_issue.digest if live_issue is not None else ''
     if blockers:
