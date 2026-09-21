@@ -413,6 +413,52 @@ class ObjectiveScopingTest(unittest.TestCase):
             )
             self.assertEqual(runner.create_calls, 1)
 
+    def test_scoping_freezes_newer_runtime_compatible_repository_snapshot(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_repo(root)
+            baseline = git(root, "rev-parse", "HEAD")
+
+            context = root / "docs/example-context.md"
+            context.write_text(context.read_text() + "ordinary repository advance\n")
+            git(root, "add", "docs/example-context.md")
+            git(root, "commit", "-qm", "ordinary docs advance")
+            current = git(root, "rev-parse", "HEAD")
+            self.assertNotEqual(current, baseline)
+
+            parent(root)
+            provider = FakeClassifier(safe_decision())
+            budget = LocalBudgetObservation(calls_used=0, daily_limit=10)
+            config = ClassifierProviderConfig(model="test", reasoning_effort="low")
+
+            def remote_main_runner(args, **kwargs):
+                expected = (
+                    "gh", "api", "repos/ni-da-ba/skyforge/commits/main",
+                    "--jq", ".sha",
+                )
+                if tuple(args) != expected:
+                    raise AssertionError(f"unexpected command: {args}")
+                return subprocess.CompletedProcess(
+                    args, 0, stdout=current + "\n", stderr=""
+                )
+
+            result = advance_objective_scoping(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                classifier_provider=provider,
+                classifier_local_budget=budget,
+                classifier_config=config,
+                runner=remote_main_runner,
+                activation_baseline_sha=baseline,
+            )
+
+            self.assertEqual(
+                result.disposition,
+                ObjectiveScopingAdvanceDisposition.PREPARED,
+            )
+            self.assertEqual(result.record.accepted_main_sha, current)
+            self.assertEqual(provider.calls, 0)
+
     def test_scoping_ledger_round_trips(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

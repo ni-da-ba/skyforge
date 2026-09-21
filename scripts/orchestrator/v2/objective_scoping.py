@@ -44,6 +44,7 @@ from .quota import (
     QuotaAdmissionDisposition,
     classify_quota_admission,
 )
+from .repository_sync import sync_repository_snapshot
 from .scope_promotion import PromotionDisposition, PromotionStore, validate_promotion
 from .state_store import JsonStateStoreAdapter
 
@@ -638,6 +639,7 @@ def advance_objective_scoping(
     classifier_provider_quota: ProviderQuotaDecision | None = None,
     classifier_config: ClassifierProviderConfig | None = None,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    activation_baseline_sha: str | None = None,
 ) -> ObjectiveScopingAdvanceResult:
     root = Path(root).resolve()
     store = ObjectiveScopeStore.for_root(root)
@@ -651,6 +653,23 @@ def advance_objective_scoping(
         return ObjectiveScopingAdvanceResult(ObjectiveScopingAdvanceDisposition.WAIT_CONTROL, control.reason, record, False)
 
     if record is None:
+        if activation_baseline_sha:
+            synced = sync_repository_snapshot(
+                root=root,
+                repo=repo,
+                activation_baseline_sha=activation_baseline_sha,
+                remote_runner=runner,
+            )
+            if not synced.ready:
+                detail = synced.reason
+                if synced.changed_runtime_paths:
+                    detail += ": " + ", ".join(synced.changed_runtime_paths)
+                return ObjectiveScopingAdvanceResult(
+                    ObjectiveScopingAdvanceDisposition.BLOCKED,
+                    detail,
+                    None,
+                    False,
+                )
         head, clean = repository_identity(root)
         if not clean:
             return ObjectiveScopingAdvanceResult(ObjectiveScopingAdvanceDisposition.BLOCKED, "tracked checkout is dirty; standalone objective scoping cannot freeze accepted main", None, False)
