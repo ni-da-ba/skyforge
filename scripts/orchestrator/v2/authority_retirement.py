@@ -454,7 +454,8 @@ def inspect_v2_authority_retirement(
                     event_id=event_id,
                     issue_number=issue_number,
                     source_id=source_id,
-                    admission=admission,
+                    admission_record_id=admission.record_id,
+                    authority_digest=admission.authority_digest,
                 )
             )
 
