@@ -6,6 +6,8 @@ from pathlib import Path
 import subprocess
 import tempfile
 import unittest
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from v2.activation_gate import ProductionActivationInput
 from v2.cutover import (
@@ -671,6 +673,83 @@ class OperatorCutoverTest(unittest.TestCase):
         self.assertFalse(services.state[LEGACY_SERVICE]["active"])
         self.assertFalse(services.state[V2_SERVICE]["active"])
         self.assertEqual(report.events[-1].kind, "AUTHORITY_TRANSFER_FAILED_SAFE_NONE")
+
+    def test_v2_authority_retirement_requires_exact_legacy_transfer_evidence(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event(issue=1001, source_id="5764569724")
+        write_legacy_transfer_state(root, retired=(event.event_id,))
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        with patch(
+            "v2.operator_cutover.inspect_v2_authority_retirement",
+            return_value=SimpleNamespace(blockers=(), already_complete=False),
+        ):
+            report = controller.retire_v2_authority(
+                event_key=event.event_id,
+                issue_number=1001,
+                source_id="5764569724",
+                execute=False,
+            )
+
+        self.assertEqual(report.disposition, OperatorDisposition.BLOCKED)
+        self.assertTrue(
+            any("legacy transfer evidence" in item for item in report.blockers)
+        )
+        self.assertEqual(services.log, [])
+
+    def test_v2_authority_retirement_exact_nonexecuted_path_is_idempotent(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        event = task_event(issue=1001, source_id="5764569724")
+        state, backup = write_legacy_transfer_state(root, retired=(event.event_id,))
+        raw = json.loads(state.read_text(encoding="utf-8"))
+        transfer = {
+            "schema_version": 1,
+            "at": "2026-09-21T17:35:00Z",
+            "event_key": event.event_id,
+            "issue_number": 1001,
+            "source_id": "5764569724",
+            "event": event.event,
+            "action": event.action,
+            "signal_kind": "task",
+            "signal_text_digest": "f" * 64,
+            "disposition": "RETIRED_FOR_PLATFORM_V2_TRANSFER",
+            "completed": False,
+        }
+        raw["platform_v2_authority_transfers"] = [transfer]
+        raw["last_platform_v2_authority_transfer"] = transfer
+        payload = json.dumps(raw, sort_keys=True, indent=2) + "\n"
+        state.write_text(payload, encoding="utf-8")
+        backup.write_text(payload, encoding="utf-8")
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        ready = SimpleNamespace(blockers=(), already_complete=False)
+        complete = SimpleNamespace(blockers=(), already_complete=True)
+        retirement = SimpleNamespace(retirement_id="a" * 64)
+
+        with patch(
+            "v2.operator_cutover.inspect_v2_authority_retirement",
+            side_effect=[ready, complete],
+        ), patch(
+            "v2.operator_cutover.retire_terminal_v2_authority",
+            return_value=retirement,
+        ) as retire:
+            report = controller.retire_v2_authority(
+                event_key=event.event_id,
+                issue_number=1001,
+                source_id="5764569724",
+                execute=True,
+            )
+
+        self.assertEqual(
+            report.disposition,
+            OperatorDisposition.V2_AUTHORITY_RETIREMENT_COMPLETE,
+        )
+        self.assertEqual(report.authority, WriterAuthority.LEGACY)
+        self.assertEqual(report.events[0].kind, "V2_AUTHORITY_RETIRED_NONEXECUTED")
+        retire.assert_called_once()
+        self.assertEqual(services.log, [])
 
     def test_dual_writer_observation_blocks_rollback(self):
         td, _root, _main, _template, _evidence, services, controller = self.build()
