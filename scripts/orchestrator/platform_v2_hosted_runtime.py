@@ -1299,7 +1299,14 @@ class HostedV2Substrate:
                             }
 
                 manifest = load_manifest(self.root)
-                roadmap_node = manifest.get(review.gate_id)
+                roadmap_node = next(
+                    (
+                        node
+                        for node in manifest.nodes
+                        if node.node_id == review.gate_id
+                    ),
+                    None,
+                )
                 is_roadmap_gate = (
                     roadmap_node is not None and roadmap_node.kind.value == "gate"
                 )
