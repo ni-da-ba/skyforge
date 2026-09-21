@@ -11,7 +11,7 @@
   <header class="topbar">
     <div>
       <h1>Skyforge Operations Console</h1>
-      <p>Canonical Platform-v2 development state</p>
+      <p>Current product and automation state</p>
     </div>
     <div id="connection" class="pill muted">Disconnected</div>
   </header>
@@ -19,17 +19,17 @@
   <main>
     <section id="auth-panel" class="panel auth-panel">
       <div>
-        <h2>Development API access</h2>
-        <p>The token stays in this browser session and is sent only in the Authorization header.</p>
+        <h2>Console access</h2>
+        <p>Tokens stay in this browser session. A write token is only needed for operator actions.</p>
       </div>
       <form id="auth-form">
         <div class="auth-fields">
           <div>
-            <label for="api-token">Read bearer token</label>
+            <label for="api-token">Read token</label>
             <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
           </div>
           <div>
-            <label for="write-token">Write bearer token (optional)</label>
+            <label for="write-token">Write token (optional)</label>
             <input id="write-token" type="password" autocomplete="off" spellcheck="false">
           </div>
         </div>
@@ -42,153 +42,198 @@
     </section>
 
     <section id="console-content" hidden>
-      <div id="summary-grid" class="grid summary-grid"></div>
+      <nav class="jump-nav" aria-label="Console sections">
+        <a href="#overview">Overview</a>
+        <a href="#current-work">Current work</a>
+        <a href="#product-review">Product review</a>
+        <a href="#operator-controls">Controls</a>
+        <a href="#history">History</a>
+        <a href="#technical">Technical</a>
+      </nav>
 
-      <section class="panel">
-        <div class="section-heading"><h2>Platform scorecard</h2><span class="pill">Observed evidence</span></div>
-        <p class="muted small">Compact counts and latest hosted-value evidence only. Missing telemetry is shown as unavailable; no SLO threshold is invented here.</p>
-        <div id="scorecard" class="stack"></div>
+      <section id="overview">
+        <div id="summary-grid" class="grid summary-grid"></div>
+        <section id="attention-panel" class="panel attention-panel">
+          <div class="section-heading">
+            <div>
+              <h2>Needs attention</h2>
+              <p class="muted small">Only items that may require an operator or human decision appear here.</p>
+            </div>
+            <span id="attention-count" class="pill"></span>
+          </div>
+          <div id="attention" class="stack"></div>
+        </section>
+      </section>
+
+      <section id="current-work" class="panel">
+        <div class="section-heading">
+          <div>
+            <h2>Current work</h2>
+            <p class="muted small">What Skyforge is doing now. Historical worker records are kept below.</p>
+          </div>
+          <span id="worker-count" class="muted"></span>
+        </div>
+        <div class="two-column">
+          <div>
+            <h3>Automation</h3>
+            <div id="execution" class="stack"></div>
+          </div>
+          <div>
+            <h3>Active workers</h3>
+            <div id="workers" class="stack"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="product-review" class="panel">
+        <div class="section-heading">
+          <div>
+            <h2>Product / human review</h2>
+            <p class="muted small">The latest human judgment and the next product action, if any.</p>
+          </div>
+          <span id="review-count" class="muted"></span>
+        </div>
+        <div id="product-review-summary" class="stack"></div>
       </section>
 
       <section class="panel">
-        <div class="section-heading"><h2>Program / roadmap</h2><span id="snapshot-id" class="mono muted"></span></div>
+        <div class="section-heading">
+          <div>
+            <h2>Program state</h2>
+            <p class="muted small">Current roadmap position, without historical bookkeeping.</p>
+          </div>
+        </div>
         <div id="roadmap"></div>
       </section>
 
-      <section class="panel">
-        <div class="section-heading"><h2>Objectives</h2><span id="objective-count" class="muted"></span></div>
-        <div id="objectives" class="stack"></div>
+      <section id="operator-controls">
+        <section id="objective-control" class="panel" hidden>
+          <div class="section-heading">
+            <div>
+              <h2>Start new work</h2>
+              <p class="muted small">Describe the goal normally. Skyforge scopes and validates it before any worker may run.</p>
+            </div>
+            <span class="pill">Objective</span>
+          </div>
+          <form id="objective-form" class="form-grid">
+            <div class="full">
+              <label for="objective-text">What should Skyforge do?</label>
+              <textarea id="objective-text" rows="3" required placeholder="Describe the next development goal…"></textarea>
+            </div>
+            <div class="actions full">
+              <button id="submit-objective" type="submit">Submit objective</button>
+            </div>
+          </form>
+          <p id="objective-status" class="small" aria-live="polite"></p>
+        </section>
+
+        <details id="advanced-controls" class="panel disclosure">
+          <summary>Advanced operator controls</summary>
+          <p class="muted small">Pause, resume, reconcile, cancel, or record an exact human review. These controls preserve durable history.</p>
+
+          <section id="objective-lifecycle-control" class="subpanel" hidden>
+            <div class="section-heading">
+              <h3>Objective lifecycle</h3>
+              <span class="pill warn">Advanced</span>
+            </div>
+            <form id="objective-lifecycle-form" class="form-grid">
+              <div>
+                <label for="objective-lifecycle-id">Objective</label>
+                <select id="objective-lifecycle-id" required></select>
+              </div>
+              <div>
+                <label for="objective-lifecycle-operation">Action</label>
+                <select id="objective-lifecycle-operation" required>
+                  <option value="PAUSE">Pause future progression</option>
+                  <option value="RESUME">Resume progression</option>
+                  <option value="RECONCILE">Re-evaluate current state</option>
+                  <option value="CANCEL">Cancel permanently</option>
+                </select>
+              </div>
+              <div class="full">
+                <label for="objective-lifecycle-reason">Reason</label>
+                <textarea id="objective-lifecycle-reason" rows="2" required></textarea>
+              </div>
+              <label id="objective-cancel-confirm-row" class="checkbox-row full" hidden>
+                <input id="objective-cancel-confirm" type="checkbox">
+                I understand cancellation permanently fences future automatic progression; it does not erase history or remote work.
+              </label>
+              <div class="actions full">
+                <button id="submit-objective-lifecycle" type="submit">Apply action</button>
+              </div>
+            </form>
+            <p id="objective-lifecycle-status" class="small" aria-live="polite"></p>
+          </section>
+
+          <section id="review-control" class="subpanel" hidden>
+            <div class="section-heading">
+              <h3>Record human review</h3>
+              <span class="pill warn">Human judgment</span>
+            </div>
+            <p class="muted small">Record your judgment against the selected gate and artifact. Skyforge never chooses the verdict for you.</p>
+            <div id="review-context" class="item small"></div>
+            <form id="review-form" class="form-grid">
+              <div><label for="review-gate">Review gate</label><select id="review-gate" required></select></div>
+              <div><label for="review-artifact">Artifact</label><select id="review-artifact" required></select></div>
+              <div>
+                <label for="review-verdict">Decision</label>
+                <select id="review-verdict" required>
+                  <option value="">Select a decision</option>
+                  <option value="ACCEPTED">Accept</option>
+                  <option value="CHANGES_REQUIRED">Changes required</option>
+                </select>
+              </div>
+              <div class="full"><label for="review-positive">What looked good? (one per line)</label><textarea id="review-positive" rows="3"></textarea></div>
+              <div class="full"><label for="review-findings">What still needs work? (one per line)</label><textarea id="review-findings" rows="4" required></textarea></div>
+              <div class="full"><label for="review-delta">What did you review?</label><textarea id="review-delta" rows="2" required></textarea></div>
+              <div class="full"><label for="review-next-boundary">What should happen next?</label><textarea id="review-next-boundary" rows="2" required></textarea></div>
+              <label class="checkbox-row full"><input id="review-deferred" type="checkbox"> Defer product work after this judgment</label>
+              <div class="actions full"><button id="submit-review" type="submit">Record review</button></div>
+            </form>
+            <p id="review-status" class="small" aria-live="polite"></p>
+          </section>
+        </details>
       </section>
 
-      <section id="objective-control" class="panel" hidden>
-        <div class="section-heading">
-          <h2>Submit objective</h2>
-          <span class="pill">Typed domain command</span>
-        </div>
-        <p class="muted small">Natural-language intake only. Submission records a non-authoritative objective proposal; it does not create task authority or start a worker directly.</p>
-        <form id="objective-form" class="form-grid">
-          <div class="full">
-            <label for="objective-text">Objective</label>
-            <textarea id="objective-text" rows="3" required placeholder="Investigate, fix, develop, continue, or show…"></textarea>
-          </div>
-          <div class="actions full">
-            <button id="submit-objective" type="submit">Submit objective</button>
-          </div>
-        </form>
-        <p id="objective-status" class="small" aria-live="polite"></p>
-      </section>
+      <section id="history">
+        <details class="panel disclosure">
+          <summary>Objective history <span id="objective-count" class="muted"></span></summary>
+          <p class="muted small">Previous objectives are retained for auditability but stay out of the normal operator view.</p>
+          <div id="objectives" class="stack"></div>
+        </details>
 
-      <section id="objective-lifecycle-control" class="panel" hidden>
-        <div class="section-heading">
-          <h2>Objective lifecycle control</h2>
-          <span class="pill warn">Exact objective</span>
-        </div>
-        <p class="muted small">Pause, resume, cancel, or reconcile one exact durable objective. PAUSE/CANCEL fence future automatic progression only; they do not kill an already-running provider or delete remote work.</p>
-        <form id="objective-lifecycle-form" class="form-grid">
-          <div>
-            <label for="objective-lifecycle-id">Objective</label>
-            <select id="objective-lifecycle-id" required></select>
+        <details class="panel disclosure">
+          <summary>Worker and completion history</summary>
+          <div class="two-column">
+            <div>
+              <h3>Worker history</h3>
+              <div id="worker-history" class="stack"></div>
+            </div>
+            <div>
+              <h3>Recent completions</h3>
+              <div id="completions" class="stack"></div>
+            </div>
           </div>
-          <div>
-            <label for="objective-lifecycle-operation">Operation</label>
-            <select id="objective-lifecycle-operation" required>
-              <option value="PAUSE">PAUSE</option>
-              <option value="RESUME">RESUME</option>
-              <option value="RECONCILE">RECONCILE</option>
-              <option value="CANCEL">CANCEL — terminal fence</option>
-            </select>
-          </div>
-          <div class="full">
-            <label for="objective-lifecycle-reason">Reason</label>
-            <textarea id="objective-lifecycle-reason" rows="2" required></textarea>
-          </div>
-          <label id="objective-cancel-confirm-row" class="checkbox-row full" hidden>
-            <input id="objective-cancel-confirm" type="checkbox">
-            I understand CANCEL is terminal for future automatic progression; it does not erase existing history or remote work.
-          </label>
-          <div class="actions full">
-            <button id="submit-objective-lifecycle" type="submit">Apply objective control</button>
-          </div>
-        </form>
-        <p id="objective-lifecycle-status" class="small" aria-live="polite"></p>
-      </section>
+        </details>
 
-      <section class="panel two-column">
-        <div>
-          <div class="section-heading"><h2>Workers</h2><span id="worker-count" class="muted"></span></div>
-          <div id="workers" class="stack"></div>
-        </div>
-        <div>
-          <div class="section-heading"><h2>Execution</h2></div>
-          <div id="execution" class="stack"></div>
-        </div>
-      </section>
+        <details class="panel disclosure">
+          <summary>Human review history</summary>
+          <div id="reviews" class="stack"></div>
+        </details>
 
-      <section class="panel">
-        <div class="section-heading"><h2>Human reviews</h2><span id="review-count" class="muted"></span></div>
-        <div id="reviews" class="stack"></div>
-      </section>
-
-      <section id="review-control" class="panel" hidden>
-        <div class="section-heading">
-          <h2>Submit human review</h2>
-          <span class="pill warn">Human judgment</span>
-        </div>
-        <p class="muted small">This operation records your judgment against the exact selected gate and artifact. No verdict is selected automatically.</p>
-        <div id="review-context" class="item small"></div>
-        <form id="review-form" class="form-grid">
-          <div>
-            <label for="review-gate">Human gate</label>
-            <select id="review-gate" required></select>
-          </div>
-          <div>
-            <label for="review-artifact">Artifact</label>
-            <select id="review-artifact" required></select>
-          </div>
-          <div>
-            <label for="review-verdict">Verdict</label>
-            <select id="review-verdict" required>
-              <option value="">Select a verdict</option>
-              <option value="ACCEPTED">ACCEPTED</option>
-              <option value="CHANGES_REQUIRED">CHANGES_REQUIRED</option>
-            </select>
-          </div>
-          <div class="full">
-            <label for="review-positive">Positive findings (one per line)</label>
-            <textarea id="review-positive" rows="3"></textarea>
-          </div>
-          <div class="full">
-            <label for="review-findings">Findings / judgment notes (one per line)</label>
-            <textarea id="review-findings" rows="4" required></textarea>
-          </div>
-          <div class="full">
-            <label for="review-delta">Material delta reviewed</label>
-            <textarea id="review-delta" rows="2" required></textarea>
-          </div>
-          <div class="full">
-            <label for="review-next-boundary">Next work boundary</label>
-            <textarea id="review-next-boundary" rows="2" required></textarea>
-          </div>
-          <label class="checkbox-row full">
-            <input id="review-deferred" type="checkbox">
-            Defer product work after this judgment
-          </label>
-          <div class="actions full">
-            <button id="submit-review" type="submit">Submit exact review</button>
-          </div>
-        </form>
-        <p id="review-status" class="small" aria-live="polite"></p>
-      </section>
-
-      <section class="panel two-column">
-        <div>
-          <div class="section-heading"><h2>External ownership</h2></div>
+        <details class="panel disclosure">
+          <summary>External ownership history</summary>
           <div id="claims" class="stack"></div>
-        </div>
-        <div>
-          <div class="section-heading"><h2>Recent completions</h2></div>
-          <div id="completions" class="stack"></div>
-        </div>
+        </details>
+      </section>
+
+      <section id="technical">
+        <details class="panel disclosure">
+          <summary>Technical platform details</summary>
+          <p class="muted small">Identifiers, budgets, telemetry, and the exact snapshot digest for diagnosis.</p>
+          <div id="scorecard" class="stack"></div>
+          <div class="technical-footer">Snapshot: <span id="snapshot-id" class="mono muted"></span></div>
+        </details>
       </section>
     </section>
   </main>
