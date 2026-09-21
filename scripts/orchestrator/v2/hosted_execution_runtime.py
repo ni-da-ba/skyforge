@@ -508,6 +508,11 @@ def select_hosted_execution_plan(
         return None
     admissions = HostedAdmissionStore.for_root(root).load()
     claims = ConcurrencyClaimStore.for_root(root).load()
+    managed_handoffs = OrdinaryPipelineStore.for_root(root).load().reconstructible_managed_handoffs()
+    managed_handoffs_by_attempt: dict[str, tuple] = {}
+    for handoff in managed_handoffs:
+        current = managed_handoffs_by_attempt.get(handoff.scope.attempt_id, ())
+        managed_handoffs_by_attempt[handoff.scope.attempt_id] = current + (handoff,)
 
     def rank(plan):
         admission = admissions.for_plan(plan.plan_id)
@@ -529,7 +534,12 @@ def select_hosted_execution_plan(
             run = WorkerRunStore.for_root(root).load().find_attempt(attempt_id)
             schedule = HostedWorkerSchedulerStore.for_root(root).load().get(attempt_id)
             if run is not None and run.status is WorkerRunStatus.HANDOFF_READY:
-                return (3, plan.plan_id)
+                matches = managed_handoffs_by_attempt.get(attempt_id, ())
+                if not matches:
+                    # A completed worker that still needs its branch/PR handoff outranks
+                    # an older task already parked at a managed human-review boundary.
+                    return (3, plan.plan_id)
+                return (5, plan.plan_id)
             if (
                 schedule is not None
                 and schedule.state is HostedWorkerScheduleState.EXECUTING
@@ -580,6 +590,14 @@ def select_hosted_execution_plan(
             )
         if already_running:
             eligible.append(plan)
+            continue
+        if (
+            admission is not None
+            and admission.attempt is not None
+            and len(managed_handoffs_by_attempt.get(admission.attempt.attempt_id, ())) > 1
+        ):
+            # Multiple durable managed handoffs for one attempt are ambiguous.
+            # Fence that plan while independent exact workflows remain eligible.
             continue
         try:
             proposal_id = proposal_id_for_task_event(
