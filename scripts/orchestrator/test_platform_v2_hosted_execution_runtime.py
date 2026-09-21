@@ -759,7 +759,7 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             )
             self.assertNotEqual(app.task_plan_store.load().active.event_id, old_event_id)
 
-    def test_checkout_head_drift_blocks_before_any_lifecycle_mutation(self):
+    def test_docs_only_checkout_advance_preserves_reviewed_runtime_gate(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             base = make_repo(root)
@@ -767,10 +767,37 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             gate = ready_gate(base)
             app = self.restart(root, gate)
 
-            # Change only the controller checkout after activation evidence was accepted.
             (root / "docs/operations/drift.txt").write_text("drift\n", encoding="utf-8")
             git(root, "add", "docs/operations/drift.txt")
-            git(root, "commit", "-m", "unexpected main drift")
+            git(root, "commit", "-m", "ordinary docs advance")
+
+            deps = HostedExecutionDependencies(
+                classifier_provider=FakeClassifier(),
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                runner=CompositeReadRunner(base),
+            )
+            result = app.advance_one_execution_step(deps)
+            self.assertNotEqual(
+                result.disposition,
+                HostedExecutionAdvanceDisposition.GATE_BLOCKED,
+            )
+            self.assertEqual(len(OrdinaryEffectStore.for_root(root).load().records), 0)
+
+    def test_runtime_checkout_advance_blocks_before_any_lifecycle_mutation(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            runtime = root / "scripts" / "orchestrator" / "v2" / "drift.py"
+            runtime.parent.mkdir(parents=True, exist_ok=True)
+            runtime.write_text("# changed runtime\n", encoding="utf-8")
+            git(root, "add", "scripts/orchestrator/v2/drift.py")
+            git(root, "commit", "-m", "runtime drift")
 
             deps = HostedExecutionDependencies(
                 classifier_provider=FakeClassifier(),
@@ -784,7 +811,8 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
                 result.disposition,
                 HostedExecutionAdvanceDisposition.GATE_BLOCKED,
             )
-            self.assertIn("checkout HEAD moved", result.reason)
+            self.assertIn("runtime/deployment", result.reason)
+            self.assertIn("scripts/orchestrator/v2/drift.py", result.reason)
             self.assertEqual(len(OrdinaryEffectStore.for_root(root).load().records), 0)
 
 

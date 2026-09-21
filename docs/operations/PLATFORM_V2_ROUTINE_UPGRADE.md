@@ -26,6 +26,29 @@ V2
 It does not create a second authority model and does not bypass
 `platform_v2_operator_cutover.py`.
 
+## Repository work snapshot vs runtime activation
+
+The reviewed production activation SHA identifies the Platform-v2 runtime/deployment baseline. It is
+not required to become stale merely because ordinary product or documentation work merges afterward.
+
+Before a fresh standalone objective freezes repository scope, Platform-v2 may model-free fast-forward
+its **tracked-clean production repository snapshot** to current GitHub `main` when all of the following
+remain true:
+
+- the current checkout descends from the reviewed activation baseline;
+- current GitHub `main` is a fast-forward descendant of that checkout;
+- the exact fetched `origin/main` matches the GitHub main observation;
+- no Platform-v2 runtime, dependency, service, install, staging, operator-cutover, or routine-upgrade
+  surface differs from the reviewed activation baseline.
+
+The runtime gate accepts such a newer checkout only while that activation-critical tree remains
+equivalent to the reviewed baseline. This lets ordinary repository work become the next worker/context
+snapshot without restarting the controller after every merge.
+
+If any activation-critical path changes, automatic repository sync refuses to move the checkout and
+the normal reviewed routine-upgrade/staging boundary remains required. Dirty or divergent production
+checkouts are never discarded by this sync.
+
 ## Commands
 
 Read-only plan against fetched `origin/main`:

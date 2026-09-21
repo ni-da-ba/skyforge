@@ -106,6 +106,7 @@ from .program_progression import (
     ProgramContinuationStore,
     advance_program_continuation,
 )
+from .repository_sync import checkout_is_activation_compatible
 from .roadmap_shadow import ShadowRoadmapManifest, ShadowRoadmapState
 from .task_event_composition import TaskAuthorityEventStore
 from .terminal_gate import TerminalGateDisposition, classify_terminal_gate_quiescence
@@ -627,12 +628,26 @@ class HostedExecutionCoordinator:
             )
         current = read_checkout_head(self.root, runner=runner)
         if current != self.gate.accepted_main_sha:
-            return HostedExecutionAdvanceResult(
-                HostedExecutionAdvanceDisposition.GATE_BLOCKED,
-                "hosted checkout HEAD moved after activation evidence was accepted",
-                self.gate.digest,
-                current,
-            )
+            try:
+                compatible, changed_paths, reason = checkout_is_activation_compatible(
+                    root=self.root,
+                    activation_baseline_sha=self.gate.accepted_main_sha,
+                    checkout_sha=current,
+                )
+            except Exception as exc:
+                compatible = False
+                changed_paths = ()
+                reason = f"activation-compatibility check failed: {type(exc).__name__}: {exc}"
+            if not compatible:
+                detail = reason
+                if changed_paths:
+                    detail += ": " + ", ".join(changed_paths)
+                return HostedExecutionAdvanceResult(
+                    HostedExecutionAdvanceDisposition.GATE_BLOCKED,
+                    detail,
+                    self.gate.digest,
+                    current,
+                )
         return None
 
     def _claims(
@@ -967,6 +982,7 @@ class HostedExecutionCoordinator:
             classifier_provider_quota=deps.classifier_provider_quota,
             classifier_config=deps.classifier_config,
             runner=deps.runner,
+            activation_baseline_sha=self.gate.accepted_main_sha,
         )
         if scoping_result.changed:
             return HostedExecutionAdvanceResult(
