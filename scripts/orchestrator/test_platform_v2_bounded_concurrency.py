@@ -8,7 +8,7 @@ import time
 import unittest
 from unittest import mock
 
-from test_platform_v2_multi_workflow_authority import admitted, plan
+from test_platform_v2_multi_workflow_authority import BASE, HEAD, admitted, plan
 from v2.concurrency_claims import (
     ConcurrencyClaimDisposition,
     ConcurrencyClaimLedger,
@@ -30,6 +30,14 @@ from v2.hosted_worker_scheduler import (
     reserve_hosted_worker,
     update_hosted_worker_schedule,
 )
+from v2.ordinary_effects import OrdinaryMutationScope
+from v2.ordinary_pipeline import (
+    OrdinaryPipelineLedger,
+    OrdinaryPipelineRecord,
+    OrdinaryPipelineStage,
+    OrdinaryPipelineStore,
+)
+from v2.ordinary_service import ManagedOrdinaryHandoff
 from v2.quota import LocalBudgetObservation
 from v2.worker_provider import (
     WorkerAdvanceDisposition,
@@ -245,6 +253,141 @@ class HostedPlanSelectionConcurrencyTest(unittest.TestCase):
             selected = select_hosted_execution_plan(root=root)
             self.assertIsNotNone(selected)
             self.assertEqual(selected.plan_id, runnable_plan.plan_id)
+
+    def test_handoff_without_managed_pr_outranks_lower_id_handoff_already_parked_at_pr(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            candidates = []
+            for offset, name in enumerate(("a", "b", "c", "d")):
+                _event, plan_record = plan(name, 1201 + offset)
+                candidates.append((plan_record.plan_id, name, plan_record))
+            candidates.sort(key=lambda value: value[0])
+            _low_id, parked_name, parked_plan = candidates[0]
+            _high_id, fresh_name, fresh_plan = candidates[-1]
+
+            parked = admitted(parked_name, parked_plan, "docs/parked/**")
+            fresh = admitted(fresh_name, fresh_plan, "docs/fresh/**")
+            HostedTaskPlanStore.for_root(root).save(
+                HostedTaskPlanLedger((parked_plan, fresh_plan))
+            )
+            HostedAdmissionStore.for_root(root).save(
+                HostedAdmissionLedger((parked, fresh))
+            )
+
+            claims = acquire_concurrency_claim(
+                ConcurrencyClaimLedger(), parked.worker_spec
+            )
+            claims = acquire_concurrency_claim(claims.ledger, fresh.worker_spec)
+            self.assertEqual(
+                claims.decision.disposition,
+                ConcurrencyClaimDisposition.ADMIT,
+            )
+            ConcurrencyClaimStore.for_root(root).save(claims.ledger)
+
+            parked_config = WorkerProviderConfig(
+                parked.worker_spec.tier, "fixture", "low"
+            )
+            fresh_config = WorkerProviderConfig(
+                fresh.worker_spec.tier, "fixture", "low"
+            )
+            WorkerRunStore.for_root(root).save(
+                WorkerRunLedger(
+                    (
+                        WorkerRunRecord(
+                            spec=parked.worker_spec,
+                            worktree=str(root / "parked-worktree"),
+                            config=parked_config,
+                            status=WorkerRunStatus.HANDOFF_READY,
+                            summary="parked handoff ready",
+                        ),
+                        WorkerRunRecord(
+                            spec=fresh.worker_spec,
+                            worktree=str(root / "fresh-worktree"),
+                            config=fresh_config,
+                            status=WorkerRunStatus.HANDOFF_READY,
+                            summary="fresh handoff ready",
+                        ),
+                    )
+                )
+            )
+
+            parked_handoff = ManagedOrdinaryHandoff(
+                task_id=parked.worker_spec.task_id,
+                authority_key=parked.worker_spec.authority_key,
+                task_spec_hash=parked.worker_spec.task_spec_hash,
+                lane=parked.worker_spec.lane,
+                scope=OrdinaryMutationScope(
+                    attempt_id=parked.attempt.attempt_id,
+                    repo="ni-da-ba/skyforge",
+                    base_sha=BASE,
+                    branch=parked.worker_spec.branch,
+                    expected_head_sha=HEAD,
+                    pr_title="parked fixture",
+                    pr_body="parked fixture body",
+                    issue_number=parked.issue_number,
+                ),
+                pr_number=1301,
+                changed_paths=("docs/parked/result.txt",),
+                auto_merge_eligible=False,
+            )
+            OrdinaryPipelineStore.for_root(root).save(
+                OrdinaryPipelineLedger(
+                    (
+                        OrdinaryPipelineRecord(
+                            pipeline_id="pipeline-parked",
+                            classifier_request_id=parked.classifier_request_id,
+                            authority_digest=parked.authority_digest,
+                            stage=OrdinaryPipelineStage.COMPLETE,
+                            reason="managed PR already exists",
+                            task_spec_hash=parked.worker_spec.task_spec_hash,
+                            attempt_id=parked.attempt.attempt_id,
+                            handoff_digest=parked_handoff.digest,
+                            pr_number=parked_handoff.pr_number,
+                            managed_handoff=parked_handoff,
+                        ),
+                    )
+                )
+            )
+
+            selected = select_hosted_execution_plan(root=root)
+            self.assertIsNotNone(selected)
+            self.assertEqual(selected.plan_id, fresh_plan.plan_id)
+
+            duplicate = OrdinaryPipelineRecord(
+                pipeline_id="pipeline-parked-duplicate",
+                classifier_request_id=parked.classifier_request_id,
+                authority_digest=parked.authority_digest,
+                stage=OrdinaryPipelineStage.COMPLETE,
+                reason="ambiguous duplicate managed PR",
+                task_spec_hash=parked.worker_spec.task_spec_hash,
+                attempt_id=parked.attempt.attempt_id,
+                handoff_digest=parked_handoff.digest,
+                pr_number=parked_handoff.pr_number,
+                managed_handoff=parked_handoff,
+            )
+            pipeline = OrdinaryPipelineStore.for_root(root).load()
+            OrdinaryPipelineStore.for_root(root).save(pipeline.put(duplicate))
+            HostedTaskPlanStore.for_root(root).save(
+                HostedTaskPlanLedger((parked_plan,))
+            )
+            HostedAdmissionStore.for_root(root).save(
+                HostedAdmissionLedger((parked,))
+            )
+            WorkerRunStore.for_root(root).save(
+                WorkerRunLedger(
+                    (
+                        WorkerRunRecord(
+                            spec=parked.worker_spec,
+                            worktree=str(root / "parked-worktree"),
+                            config=parked_config,
+                            status=WorkerRunStatus.HANDOFF_READY,
+                            summary="parked handoff ready",
+                        ),
+                    )
+                )
+            )
+
+            self.assertIsNone(select_hosted_execution_plan(root=root))
 
 
 class SharedWorkerLedgerConcurrencyTest(unittest.TestCase):
