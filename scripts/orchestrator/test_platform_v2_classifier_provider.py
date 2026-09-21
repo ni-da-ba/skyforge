@@ -81,6 +81,8 @@ class ClassifierProviderTest(unittest.TestCase):
         self.assertIn("DISPATCH requires lane", prompt)
         self.assertIn("Never copy task_issue_numbers", prompt)
         self.assertIn("for issue-defined new work it must be null", prompt)
+        self.assertIn("EXACTLY byte-for-byte", prompt)
+        self.assertIn("do not summarize, normalize, shorten", prompt)
 
     def test_request_fingerprint_changes_with_semantic_input_or_main(self):
         first = request()

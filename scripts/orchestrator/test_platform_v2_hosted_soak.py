@@ -6,7 +6,9 @@ import unittest
 from v2.hosted_soak import run_fresh_disposable_soak
 
 
-EXPECTED_SOAK_DIGEST = "8facc71b9d3e451d2ae2b3d9fdad873e1e6621effe4948f013098aa5d72acee0"
+# Current-runtime reproducibility sentinel. Historical R5C27 evidence retains its
+# original accepted digest under docs/operations/evidence/.
+EXPECTED_SOAK_DIGEST = "583534a105d9e059b4f8363146391a17e093a62193d9bf6819d7eaf9fb542a14"
 EXPECTED_FAILURE_DIGEST = "f5da73a30607260753386ba2cdd6da44bf076a0dc0c1bd306f978046bce22064"
 
 

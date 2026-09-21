@@ -8,6 +8,7 @@ import tempfile
 import unittest
 
 from v2.classifier_provider import ClassifierProviderConfig
+from v2.context_retrieval import ContextRetrievalStore
 from v2.decision import ClassifierDecision, DecisionKind, WorkerTier
 from v2.objective_ingress import (
     DevelopmentApiObjectiveSource,
@@ -29,6 +30,7 @@ from v2.objective_scoping import (
     ensure_scoped_issue,
 )
 from v2.quota import LocalBudgetObservation
+from v2.scope_promotion import PromotionStore
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CONTEXT_FILES = (
@@ -55,6 +57,10 @@ def prepare_repo(root: Path) -> None:
     for rel, text in {
         "src/example.py": "def current():\n    return 1\n",
         "tests/test_example.py": "def test_current():\n    assert True\n",
+        "docs/example-context.md": (
+            "example implementation product semantics scoped source test changes "
+            "normal validation context only\n"
+        ),
         "scripts/orchestrator/example_control.py": "# protected control plane\n",
     }.items():
         path = root / rel
@@ -392,6 +398,19 @@ class ObjectiveScopingTest(unittest.TestCase):
             self.assertTrue(final.package_id)
             self.assertTrue(final.retrieval_id)
             self.assertTrue(final.promotion_id)
+            retrieval = next(
+                value
+                for value in ContextRetrievalStore.for_root(root).load().records
+                if value.retrieval_id == final.retrieval_id
+            )
+            self.assertIn("docs/example-context.md", retrieval.scope_proposal.paths)
+            promotion = PromotionStore.for_root(root).load().get(final.package_id)
+            self.assertIsNotNone(promotion)
+            self.assertIsNotNone(promotion.result.draft)
+            self.assertEqual(
+                promotion.result.draft.allowed_paths,
+                ("src/example.py", "tests/test_example.py"),
+            )
             self.assertEqual(runner.create_calls, 1)
 
     def test_scoping_ledger_round_trips(self):
