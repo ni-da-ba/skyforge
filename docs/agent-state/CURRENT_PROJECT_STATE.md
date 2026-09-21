@@ -6,8 +6,8 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 
 | Item | Current state |
 | --- | --- |
-| Repository `main` | **407f9b973e9d90b99f12319f6d197cf9dd9e67e3** |
-| Live production checkout | **407f9b973e9d90b99f12319f6d197cf9dd9e67e3** |
+| Repository truth | current GitHub `main`; fetch/verify it when an exact SHA matters |
+| Verified runtime baseline | **407f9b973e9d90b99f12319f6d197cf9dd9e67e3** after the OPT-2Q production upgrade |
 | Production writer | **Platform-v2 active + enabled** |
 | Legacy writer | **inactive + disabled**; retained for rollback/upgrade recovery |
 | Production execution | gate clear; driver running and idle; **0 active concurrency claims** |
@@ -52,4 +52,4 @@ DR-70 remains **CHANGES REQUIRED / DEFERRED**. Its migration hold was waived onl
 
 ## Bootstrap rule
 
-Fresh agents should verify current GitHub `main`, live checkout/service ownership, current issue/PR authority, and accepted evidence before acting. If this cache is stale, newer authoritative state wins.
+Fresh agents should verify current GitHub `main`, live checkout/service ownership, current issue/PR authority, and accepted evidence before acting. Ordinary activation-equivalent repository work may move the live repository snapshot beyond the runtime baseline above; if this cache is stale, newer authoritative state wins.
