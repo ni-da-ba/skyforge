@@ -82,6 +82,8 @@ from .ordinary_pipeline import (
     OrdinaryPipelineStage,
     OrdinaryPipelineStore,
 )
+from .objective_lifecycle import effective_objective_progression
+from .objective_trace import proposal_id_for_task_event
 from .ordinary_remote import (
     GhGitOrdinaryEffectAdapter,
     OrdinaryEffectBinding,
