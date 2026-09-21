@@ -326,46 +326,49 @@ def effective_objective_progression(
     root: Path,
     proposal_id: str,
 ) -> ObjectiveProgressionDecision:
-    """Return exact lifecycle authority including one persisted PROGRAM parent.
+    """Return exact lifecycle authority across the persisted PROGRAM ancestry.
 
-    A ProgramObjectiveSource child inherits a PAUSED/CANCELLED parent fence. This
-    prevents a Continue Skyforge parent from being cancelled while a not-yet-running
-    child silently continues through worker execution.
+    PAUSED/CANCELLED controls fence the exact objective and every not-yet-executing
+    PROGRAM descendant. Missing, duplicate, or cyclic ancestry fails closed rather
+    than guessing which objective owns authority.
     """
     root = Path(root).resolve()
     proposal_id = _sha64(proposal_id, "proposal_id")
-    proposals = [
-        value
-        for value in ObjectiveProposalStore.for_root(root).load().records
-        if value.proposal_id == proposal_id
-    ]
-    if len(proposals) != 1:
-        raise ValueError("objective proposal is unavailable or ambiguous")
-    proposal = proposals[0]
-    ledger = ObjectiveLifecycleStore.for_root(root).load()
-    own = ledger.status(proposal_id)
-    if own.blocks_automatic_progression:
-        return ObjectiveProgressionDecision(
-            proposal_id,
-            False,
-            own.state,
-            proposal_id,
-            f"objective is {own.state.value.lower()}",
-        )
+    records = ObjectiveProposalStore.for_root(root).load().records
+    by_id: dict[str, list[Any]] = {}
+    for record in records:
+        by_id.setdefault(record.proposal_id, []).append(record)
 
-    if isinstance(proposal.source, ProgramObjectiveSource):
-        parent = ledger.status(proposal.source.parent_proposal_id)
-        if parent.blocks_automatic_progression:
+    def exact(key: str):
+        matches = by_id.get(key, [])
+        if len(matches) != 1:
+            raise ValueError("objective proposal ancestry is unavailable or ambiguous")
+        return matches[0]
+
+    ledger = ObjectiveLifecycleStore.for_root(root).load()
+    current_id = proposal_id
+    visited: set[str] = set()
+    first = True
+    while True:
+        if current_id in visited:
+            raise ValueError("objective proposal ancestry contains a cycle")
+        visited.add(current_id)
+        record = exact(current_id)
+        status = ledger.status(current_id)
+        if status.blocks_automatic_progression:
+            subject = "objective" if first else "program ancestor objective"
             return ObjectiveProgressionDecision(
                 proposal_id,
                 False,
-                parent.state,
-                proposal.source.parent_proposal_id,
-                (
-                    "program parent objective is "
-                    f"{parent.state.value.lower()}"
-                ),
+                status.state,
+                current_id,
+                f"{subject} is {status.state.value.lower()}",
             )
+        source = record.source
+        if not isinstance(source, ProgramObjectiveSource):
+            break
+        current_id = source.parent_proposal_id
+        first = False
 
     return ObjectiveProgressionDecision(
         proposal_id,
