@@ -24,6 +24,12 @@ from v2.cutover import (
     WriterAuthority,
 )
 from v2.events import DurableEvent
+from v2.dormant_handoff_commit import (
+    DormantCommitOutcome,
+    DormantHandoffCommitLedger,
+    DormantHandoffCommitRecord,
+    DormantHandoffCommitStore,
+)
 from v2.hosted_execution_runtime import (
     HostedExecutionActivationInput,
     HostedExecutionAdvanceDisposition,
@@ -445,6 +451,70 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
 
             idle = app.advance_one_execution_step(deps)
             self.assertEqual(idle.disposition, HostedExecutionAdvanceDisposition.IDLE)
+
+    def test_terminal_gate_quiesces_with_retained_stale_handoff_evidence(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            make_repo(root)
+            write_legacy(root)
+            base = install_terminal_roadmap(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            historical = DormantHandoffCommitRecord(
+                admission_record_id="a" * 64,
+                worker_run_id="b" * 64,
+                attempt_id="c" * 64,
+                branch="codex/stale-history",
+                base_sha=base,
+                outcome=DormantCommitOutcome.COMMITTED,
+                reason="retained stale completion evidence",
+                head_sha="d" * 40,
+                changed_paths=("docs/operations/stale-history.md",),
+            )
+            DormantHandoffCommitStore.for_root(root).save(
+                DormantHandoffCommitLedger((historical,))
+            )
+
+            ordinary = DurableEvent(
+                actionable=True,
+                reason="closed PR lifecycle noise",
+                event="pull_request",
+                action="closed",
+                head_sha=base,
+                pr_number=1032,
+            )
+            current = app.store.load()
+            app.store.save(
+                replace(
+                    current,
+                    inbox=InboxState(pending_events=(ordinary,)),
+                )
+            )
+
+            classifier = FakeClassifier()
+            worker = FakeWorker()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=worker,
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                runner=CompositeReadRunner(base),
+            )
+            result = app.advance_one_execution_step(deps)
+
+            self.assertEqual(
+                result.disposition,
+                HostedExecutionAdvanceDisposition.ORDINARY_QUIESCED,
+            )
+            self.assertEqual(classifier.calls, 0)
+            self.assertEqual(worker.calls, 0)
+            state = HostedStateStore.for_root(root).load()
+            self.assertEqual(state.inbox.pending_events, ())
+            self.assertIn(ordinary.event_id, state.inbox.retired_event_keys)
+
+            retained = DormantHandoffCommitStore.for_root(root).load()
+            self.assertEqual(retained.for_attempt(historical.attempt_id), historical)
 
     def test_waiting_continue_skyforge_gate_does_not_block_unrelated_task_claim(self):
         with tempfile.TemporaryDirectory() as td:

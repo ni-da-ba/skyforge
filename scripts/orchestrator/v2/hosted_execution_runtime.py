@@ -699,8 +699,9 @@ class HostedExecutionCoordinator:
             return None
         if HostedAdmissionStore.for_root(self.root).load().record is not None:
             return None
-        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
-            return None
+        # Stale-base completion intentionally retains dormant local-commit records as
+        # immutable evidence. Those historical records are not live execution authority;
+        # active admission ownership above is the fence that must block quiescence.
 
         projection = state.legacy_projection
         if not isinstance(projection, Mapping):
