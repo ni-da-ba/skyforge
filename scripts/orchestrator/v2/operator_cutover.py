@@ -24,6 +24,10 @@ from typing import Any, Callable, Mapping
 from urllib.request import urlopen
 
 from .activation_gate import evaluate_production_activation
+from .authority_retirement import (
+    inspect_v2_authority_retirement,
+    retire_v2_authority as retire_terminal_v2_authority,
+)
 from .cutover import WriterAuthority
 from .hosted_execution_runtime import (
     HostedExecutionGateDisposition,
@@ -48,6 +52,8 @@ class OperatorDisposition(str, Enum):
     ROLLBACK_COMPLETE = "ROLLBACK_COMPLETE"
     AUTHORITY_TRANSFER_READY = "AUTHORITY_TRANSFER_READY"
     AUTHORITY_TRANSFER_COMPLETE = "AUTHORITY_TRANSFER_COMPLETE"
+    V2_AUTHORITY_RETIREMENT_READY = "V2_AUTHORITY_RETIREMENT_READY"
+    V2_AUTHORITY_RETIREMENT_COMPLETE = "V2_AUTHORITY_RETIREMENT_COMPLETE"
     FAILED_SAFE_LEGACY = "FAILED_SAFE_LEGACY"
     FAILED_SAFE_NONE = "FAILED_SAFE_NONE"
 
@@ -947,6 +953,204 @@ class OperatorCutoverController:
                 last_error = f"{type(exc).__name__}: {exc}"
                 self.sleep(0.5)
         raise RuntimeError(f"legacy transfer verification timed out: {last_error}")
+
+    def _legacy_transfer_evidence_blockers(
+        self,
+        *,
+        event_key: str,
+        issue_number: int,
+        source_id: str,
+    ) -> list[str]:
+        blockers: list[str] = []
+        try:
+            state_path, _backup_path = _legacy_state_paths(self.root)
+            raw = _load_json_mapping(state_path, "legacy state")
+            retired = _legacy_key_set(raw, "retired_event_keys")
+            completed = _legacy_key_set(raw, "completed_authority_event_keys")
+            if event_key not in retired:
+                blockers.append("legacy has not retired the exact authority for Platform-v2 transfer")
+            if event_key in completed:
+                blockers.append("legacy authority is marked completed rather than transferred")
+            for event in _legacy_pending_events(raw):
+                if event.event_id == event_key:
+                    blockers.append("transferred legacy authority is still pending")
+            transfers = raw.get("platform_v2_authority_transfers") or []
+            if not isinstance(transfers, list):
+                blockers.append("legacy authority transfer evidence is malformed")
+            else:
+                matches = [
+                    value
+                    for value in transfers
+                    if isinstance(value, Mapping)
+                    and str(value.get("event_key") or "") == event_key
+                    and value.get("issue_number") == issue_number
+                    and str(value.get("source_id") or "") == str(source_id)
+                    and value.get("disposition") == "RETIRED_FOR_PLATFORM_V2_TRANSFER"
+                    and value.get("completed") is False
+                ]
+                if len(matches) != 1:
+                    blockers.append("exact legacy transfer evidence is unavailable or ambiguous")
+        except Exception as exc:
+            blockers.append(f"legacy transfer evidence unavailable: {type(exc).__name__}: {exc}")
+        return blockers
+
+    def _v2_authority_retirement_preflight(
+        self,
+        *,
+        event_key: str,
+        issue_number: int,
+        source_id: str,
+    ) -> tuple[list[str], bool]:
+        blockers: list[str] = []
+        try:
+            legacy, v2 = self._observations()
+            if not legacy.loaded or not legacy.active:
+                blockers.append("legacy writer must be loaded and active before V2 authority retirement")
+            if not v2.loaded:
+                blockers.append("Platform-v2 service is not loaded")
+            if v2.active:
+                blockers.append("Platform-v2 must be inactive before V2 authority retirement")
+        except Exception as exc:
+            blockers.append(f"service observation failed: {type(exc).__name__}: {exc}")
+
+        try:
+            health = self.health_probe()
+            if health.get("status") != "ok":
+                blockers.append("legacy health endpoint is not healthy")
+            if health.get("paused") is not True:
+                blockers.append("legacy controller must be paused before V2 authority retirement")
+            if health.get("pending_worker"):
+                blockers.append("legacy worker is in flight")
+            if health.get("pending_decision"):
+                blockers.append("legacy pending decision is in flight")
+        except Exception as exc:
+            blockers.append(f"legacy health preflight failed: {type(exc).__name__}: {exc}")
+
+        blockers.extend(
+            self._legacy_transfer_evidence_blockers(
+                event_key=event_key,
+                issue_number=issue_number,
+                source_id=source_id,
+            )
+        )
+
+        already_complete = False
+        try:
+            inspection = inspect_v2_authority_retirement(
+                root=self.root,
+                event_id=event_key,
+                issue_number=issue_number,
+                source_id=source_id,
+            )
+            blockers.extend(inspection.blockers)
+            already_complete = inspection.already_complete
+        except Exception as exc:
+            blockers.append(
+                f"V2 authority retirement preflight failed: {type(exc).__name__}: {exc}"
+            )
+        return blockers, already_complete
+
+    def retire_v2_authority(
+        self,
+        *,
+        event_key: str,
+        issue_number: int,
+        source_id: str,
+        execute: bool = False,
+    ) -> OperatorReport:
+        accepted_main = self._rollback_accepted_main()
+        blockers, already_complete = self._v2_authority_retirement_preflight(
+            event_key=event_key,
+            issue_number=issue_number,
+            source_id=source_id,
+        )
+        if blockers:
+            return OperatorReport(
+                OperatorDisposition.BLOCKED,
+                WriterAuthority.LEGACY,
+                tuple(sorted(set(blockers))),
+                accepted_main,
+            )
+        if not execute:
+            return OperatorReport(
+                OperatorDisposition.V2_AUTHORITY_RETIREMENT_READY,
+                WriterAuthority.LEGACY,
+                (),
+                accepted_main,
+                (
+                    OperatorEvent(
+                        1,
+                        (
+                            "V2_AUTHORITY_ALREADY_RETIRED"
+                            if already_complete
+                            else "V2_AUTHORITY_RETIREMENT_PREFLIGHT"
+                        ),
+                        WriterAuthority.LEGACY,
+                        event_key,
+                    ),
+                ),
+            )
+        if self.geteuid() != 0:
+            return OperatorReport(
+                OperatorDisposition.BLOCKED,
+                WriterAuthority.LEGACY,
+                ("live V2 authority retirement requires a root operator",),
+                accepted_main,
+            )
+
+        try:
+            record = retire_terminal_v2_authority(
+                root=self.root,
+                event_id=event_key,
+                issue_number=issue_number,
+                source_id=source_id,
+            )
+            post, complete = self._v2_authority_retirement_preflight(
+                event_key=event_key,
+                issue_number=issue_number,
+                source_id=source_id,
+            )
+            if post or not complete:
+                raise RuntimeError(
+                    "post-retirement verification failed: "
+                    + "; ".join(post or ("retirement evidence is not complete",))
+                )
+            return OperatorReport(
+                OperatorDisposition.V2_AUTHORITY_RETIREMENT_COMPLETE,
+                WriterAuthority.LEGACY,
+                (),
+                accepted_main,
+                (
+                    OperatorEvent(
+                        1,
+                        (
+                            "V2_AUTHORITY_ALREADY_RETIRED"
+                            if already_complete
+                            else "V2_AUTHORITY_RETIRED_NONEXECUTED"
+                        ),
+                        WriterAuthority.LEGACY,
+                        record.retirement_id,
+                    ),
+                ),
+            )
+        except Exception as exc:
+            try:
+                legacy, v2 = self._observations()
+                if legacy.active and not v2.active:
+                    return OperatorReport(
+                        OperatorDisposition.FAILED_SAFE_LEGACY,
+                        WriterAuthority.LEGACY,
+                        (f"{type(exc).__name__}: {exc}",),
+                        accepted_main,
+                    )
+            except Exception:
+                pass
+            return OperatorReport(
+                OperatorDisposition.BLOCKED,
+                WriterAuthority.NONE,
+                (f"V2 authority retirement failed: {type(exc).__name__}: {exc}",),
+                accepted_main,
+            )
 
     def transfer_authority(
         self,

@@ -130,6 +130,26 @@ A repeated command for an already-recorded transfer is idempotent after the same
 
 The transfer record preserves the GitHub issue/comment source identity needed to locate/redeliver the original signed webhook. The operator must still use a real signed GitHub delivery (or a newer signed task revision) to create V2 task authority; the transfer command never fabricates ingress.
 
+### Retiring terminal non-executed Platform-v2 authority
+
+A task may also already exist in Platform-v2 but be terminally non-executable (for example, a fail-closed `BLOCKED` admission) while legacy has rediscovered the same protected source during rollback. In that case the operator must first use `transfer-authority` above. Only after the exact legacy transfer is durable may `retire-v2-authority` release the matching Platform-v2 singleton ownership.
+
+`retire-v2-authority` is intentionally narrower than completion cleanup. It requires:
+
+- legacy active, healthy, paused, with Platform-v2 inactive;
+- exact matching legacy `RETIRED_FOR_PLATFORM_V2_TRANSFER` evidence with `completed=false`;
+- the exact V2 pending task event, task-authority provenance, task plan, and admission;
+- a terminal non-executed admission (`BLOCKED`, `RECLASSIFY`, or `NOT_DISPATCH`);
+- `consume_attempt=false` and no frozen task, attempt, or worker specification;
+- no worker run, concurrency history, worker-scheduler record, dormant handoff commit, ordinary execution pipeline, or hosted completion for that authority;
+- the authority absent from `completed_authority_event_keys`.
+
+Execution writes a durable PREPARED retirement record first, moves only the exact V2 event to `retired_event_keys`, removes only its matching non-executed admission and plan, then records COMPLETE evidence with `completed=false` and `executed=false`. Task-authority and classifier provenance remain durable. The operation is replay-safe and never marks the task completed.
+
+The guarded stale-authority recovery order is therefore:
+
+`legacy transfer-authority -> retire-v2-authority -> routine upgrade/cutover`
+
 ## DR-70
 
 DR-70 remains **deferred**, not passed.

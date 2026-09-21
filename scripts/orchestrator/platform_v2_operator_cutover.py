@@ -12,7 +12,16 @@ from v2.operator_cutover import OperatorCutoverController, OperatorDisposition
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("preflight", "cutover", "rollback", "transfer-authority"))
+    parser.add_argument(
+        "command",
+        choices=(
+            "preflight",
+            "cutover",
+            "rollback",
+            "transfer-authority",
+            "retire-v2-authority",
+        ),
+    )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--activation-template", type=Path)
     parser.add_argument("--event-key")
@@ -38,9 +47,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         parser.error("preflight is always read-only")
     if args.command in {"preflight", "cutover"} and args.activation_template is None:
         parser.error("--activation-template is required for preflight/cutover")
-    if args.command == "transfer-authority":
+    if args.command in {"transfer-authority", "retire-v2-authority"}:
         if not args.event_key or args.issue_number is None or not args.source_id:
-            parser.error("transfer-authority requires --event-key, --issue-number, and --source-id")
+            parser.error(
+                f"{args.command} requires --event-key, --issue-number, and --source-id"
+            )
     return args
 
 
@@ -64,6 +75,13 @@ def main(argv: list[str] | None = None) -> int:
             signal_kind=args.signal_kind,
             execute=args.execute,
         )
+    elif args.command == "retire-v2-authority":
+        report = controller.retire_v2_authority(
+            event_key=args.event_key,
+            issue_number=args.issue_number,
+            source_id=args.source_id,
+            execute=args.execute,
+        )
     else:
         report = controller.cutover(execute=args.command == "cutover" and args.execute)
     print(json.dumps(report.as_dict(), sort_keys=True, indent=2))
@@ -73,6 +91,8 @@ def main(argv: list[str] | None = None) -> int:
         OperatorDisposition.ROLLBACK_COMPLETE,
         OperatorDisposition.AUTHORITY_TRANSFER_READY,
         OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE,
+        OperatorDisposition.V2_AUTHORITY_RETIREMENT_READY,
+        OperatorDisposition.V2_AUTHORITY_RETIREMENT_COMPLETE,
     } else 1
 
 
