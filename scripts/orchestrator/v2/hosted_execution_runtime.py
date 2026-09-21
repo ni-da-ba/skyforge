@@ -22,6 +22,7 @@ from .activation_gate import (
 from .classifier_provider import (
     ClassifierProvider,
     ClassifierProviderConfig,
+    ClassifierRequest,
     ClassifierRunStatus,
     ClassifierRunStore,
 )
@@ -110,7 +111,7 @@ from .program_progression import (
 )
 from .repository_sync import checkout_is_activation_compatible
 from .roadmap_shadow import ShadowRoadmapManifest, ShadowRoadmapState
-from .task_event_composition import TaskAuthorityEventStore
+from .task_event_composition import TaskAuthorityEventStore, TaskPipelineSeed
 from .terminal_gate import TerminalGateDisposition, classify_terminal_gate_quiescence
 from .worker_provider import (
     WorkerProvider,
@@ -418,6 +419,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
+    CLASSIFIER_RETRY_ACCEPTED = "CLASSIFIER_RETRY_ACCEPTED"
     TASK_REVISION_ACCEPTED = "TASK_REVISION_ACCEPTED"
     ADMISSION_ADVANCED = "ADMISSION_ADVANCED"
     WORKER_RUNNABLE = "WORKER_RUNNABLE"
@@ -754,6 +756,100 @@ class HostedExecutionCoordinator:
             ),
             self.gate.digest,
             decision.digest,
+        )
+
+    def _retry_nonexecuted_classifier_block(
+        self,
+        *,
+        plan_store,
+        plan,
+        admission,
+    ) -> HostedExecutionAdvanceResult | None:
+        """Retry one classifier proposal-validation failure against exact same authority.
+
+        The rejected classifier run remains immutable evidence.  No worker attempt,
+        concurrency claim, frozen task, or mutation authority may exist.  Only failures
+        caused by the classifier proposal violating repository-owned task constraints are
+        eligible, and exactly one retry is allowed.
+        """
+        if admission.outcome is not HostedAdmissionOutcome.BLOCKED:
+            return None
+        if (
+            admission.consume_attempt
+            or admission.frozen_task is not None
+            or admission.attempt is not None
+            or admission.worker_spec is not None
+        ):
+            return self._blocked(
+                "blocked classifier admission unexpectedly carries executable authority"
+            )
+        if plan.seed is None:
+            return self._blocked("blocked classifier admission lacks classifier seed")
+
+        retryable_prefixes = (
+            "classifier lane differs from repository task authority",
+            "classifier objective differs from repository task authority",
+            "classifier stop boundary differs from repository task authority",
+            "classifier decision issue authority differs from repository task authority",
+            "classifier path scope widens repository authority:",
+            "effective worker path scope is empty",
+        )
+        if not any(admission.reason.startswith(value) for value in retryable_prefixes):
+            return None
+
+        request = plan.seed.classifier_request
+        semantic_input = dict(request.semantic_input)
+        retry_key = "classifier_validation_retry"
+        if retry_key in semantic_input:
+            return self._blocked(
+                admission.reason
+                + "; bounded classifier validation retry already exhausted"
+            )
+
+        semantic_input[retry_key] = {
+            "ordinal": 1,
+            "prior_request_id": request.request_id,
+            "prior_classifier_run_id": admission.classifier_run_id,
+            "rejection_reason": admission.reason,
+            "constraint": (
+                "The prior proposal was rejected before execution by repository-owned "
+                "authority validation. Return a fresh proposal. For DISPATCH, copy "
+                "task_authority lane, objective, and stop_boundary exactly; allowed_paths "
+                "must be null or an exact subset of task_authority.allowed_paths. Do not "
+                "infer, rewrite, or duplicate path segments."
+            ),
+        }
+        retry_request = ClassifierRequest(
+            current_main=request.current_main,
+            semantic_input=semantic_input,
+            instructions_version=request.instructions_version,
+        )
+        retry_seed = TaskPipelineSeed(
+            event_id=plan.seed.event_id,
+            authority_identity_digest=plan.seed.authority_identity_digest,
+            authority_digest=plan.seed.authority_digest,
+            classifier_request=retry_request,
+            issue_number=plan.seed.issue_number,
+        )
+        retry_plan = replace(
+            plan,
+            reason=(
+                "one bounded classifier validation retry is ready against unchanged "
+                "repository task authority"
+            ),
+            seed=retry_seed,
+        )
+
+        admission_store = HostedAdmissionStore.for_root(self.root)
+        # Remove the non-executed admission first.  A crash before the plan update only
+        # recreates the same safe blocked admission; it cannot launch a worker.
+        admission_store.save(admission_store.load().remove_plan(plan.plan_id))
+        plan_store.save(plan_store.load().put(retry_plan))
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_ACCEPTED,
+            "rejected classifier proposal preserved; one bounded retry prepared",
+            self.gate.digest,
+            retry_request.request_id,
         )
 
     def _supersede_failed_classifier_plan(
@@ -1193,6 +1289,14 @@ class HostedExecutionCoordinator:
                 admission.record_id,
             )
 
+        if admission.outcome is HostedAdmissionOutcome.BLOCKED:
+            retry = self._retry_nonexecuted_classifier_block(
+                plan_store=plan_store,
+                plan=plan,
+                admission=admission,
+            )
+            if retry is not None:
+                return retry
         if admission.outcome is HostedAdmissionOutcome.RECLASSIFY:
             revision = self._supersede_reclassify_admission(
                 state=state,
