@@ -82,10 +82,10 @@ def _read_annotations() -> dict[str, bool]:
     }
 
 
-def _write_annotations() -> dict[str, bool]:
+def _write_annotations(*, destructive: bool = False) -> dict[str, bool]:
     return {
         "readOnlyHint": False,
-        "destructiveHint": False,
+        "destructiveHint": destructive,
         "idempotentHint": True,
         "openWorldHint": False,
     }
@@ -192,6 +192,78 @@ WRITE_TOOLS: tuple[dict[str, Any], ...] = (
                 "objective": _string_schema("Natural-language Skyforge development objective."),
             },
             required=("request_id", "objective"),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _write_annotations(),
+    },
+    {
+        "name": "pause_objective",
+        "title": "Pause Skyforge objective",
+        "description": (
+            "Pause future automatic progression for one exact objective at the next safe durable "
+            "boundary. This does not kill an already-running provider process or mutate remote authority."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "request_id": _string_schema("Immutable client-generated idempotency identifier."),
+                "proposal_id": _string_schema("Exact durable objective proposal/correlation identifier."),
+                "reason": _string_schema("Operator reason for pausing this objective."),
+            },
+            required=("request_id", "proposal_id", "reason"),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _write_annotations(),
+    },
+    {
+        "name": "resume_objective",
+        "title": "Resume Skyforge objective",
+        "description": (
+            "Remove the pause from one exact non-cancelled objective and wake ordinary model-free "
+            "reconciliation. Existing authority, quota, recovery, and human gates still apply."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "request_id": _string_schema("Immutable client-generated idempotency identifier."),
+                "proposal_id": _string_schema("Exact durable objective proposal/correlation identifier."),
+                "reason": _string_schema("Operator reason for resuming this objective."),
+            },
+            required=("request_id", "proposal_id", "reason"),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _write_annotations(),
+    },
+    {
+        "name": "cancel_objective",
+        "title": "Cancel Skyforge objective",
+        "description": (
+            "Terminally fence future automatic progression for one exact objective and its "
+            "not-yet-executing program descendants. This does not delete remote work or completed history."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "request_id": _string_schema("Immutable client-generated idempotency identifier."),
+                "proposal_id": _string_schema("Exact durable objective proposal/correlation identifier."),
+                "reason": _string_schema("Explicit operator reason for cancellation."),
+            },
+            required=("request_id", "proposal_id", "reason"),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _write_annotations(destructive=True),
+    },
+    {
+        "name": "reconcile_objective",
+        "title": "Reconcile Skyforge objective",
+        "description": (
+            "Wake model-free reconciliation for one exact objective without changing its lifecycle "
+            "state. Exactly-once, claim, quota, recovery, and human-gate boundaries remain authoritative."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "request_id": _string_schema("Immutable client-generated idempotency identifier."),
+                "proposal_id": _string_schema("Exact durable objective proposal/correlation identifier."),
+                "reason": _string_schema("Reason for requesting reconciliation."),
+            },
+            required=("request_id", "proposal_id", "reason"),
         ),
         "outputSchema": {"type": "object"},
         "annotations": _write_annotations(),
@@ -515,6 +587,31 @@ class McpAdapter:
                 (
                     f"Durable Skyforge objective proposal {payload.get('proposal_id', '')} reconciled "
                     f"with disposition {payload.get('objective_disposition', '')}."
+                ),
+            )
+
+        lifecycle_operations = {
+            "pause_objective": "PAUSE",
+            "resume_objective": "RESUME",
+            "cancel_objective": "CANCEL",
+            "reconcile_objective": "RECONCILE",
+        }
+        if name in lifecycle_operations:
+            request = dict(arguments)
+            request["operation"] = lifecycle_operations[name]
+            status, payload = self.runtime.handle_objective_control(
+                self._write_authorization(),
+                request,
+                client="chatgpt-mcp",
+            )
+            if status not in {200, 202}:
+                return self._tool_error(status, payload)
+            return self._tool_ok(
+                payload,
+                (
+                    f"Skyforge objective {payload.get('proposal_id', '')} "
+                    f"{payload.get('operation', '').lower()} command reconciled; "
+                    f"state={payload.get('state', '')}."
                 ),
             )
 

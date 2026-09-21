@@ -8,6 +8,7 @@ from test_platform_v2_scope_promotion import prepare, candidate_bundle, runner_f
 from v2.context_package import ContextPackageStore
 from v2.context_retrieval import ContextRetrievalStore
 from v2.effects import EffectStatus
+from v2.objective_lifecycle import ObjectiveLifecycleOperation, ObjectiveLifecycleStore
 from v2.objective_promotion_effect import (
     ObjectivePromotionPostDisposition,
     _effect_scope,
@@ -99,6 +100,25 @@ class ObjectivePromotionEffectTest(unittest.TestCase):
             self.assertEqual(records[0].status,EffectStatus.COMPLETE)
             self.assertEqual(records[0].remote_identity,'comment:9001')
             self.assertEqual(len(TaskAuthorityEventStore.for_root(root).load().records),0)
+
+    def test_paused_objective_blocks_new_authority_post(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); prepare(root)
+            _promotion, package, _retrieval, payload=freeze_ready_promotion(root)
+            ObjectiveLifecycleStore.for_root(root).apply(
+                root=root,
+                request_id="pause-promotion-0001",
+                proposal_id=package.proposal_id,
+                operation=ObjectiveLifecycleOperation.PAUSE,
+                reason="hold before authority post",
+                actor="ni-da-ba",
+                client="test",
+            )
+            remote=FakeRemote(root=root,accepted_main=package.accepted_main_sha,issue_payload=payload)
+            result=execute_frozen_promotion_post(root=root,repo='ni-da-ba/skyforge',runner=remote)
+            self.assertEqual(result.disposition,ObjectivePromotionPostDisposition.BLOCKED)
+            self.assertIn("objective lifecycle control",result.reason)
+            self.assertEqual(remote.comment_exec_count,0)
 
     def test_crash_after_remote_execute_reconciles_without_duplicate(self):
         with tempfile.TemporaryDirectory() as td:

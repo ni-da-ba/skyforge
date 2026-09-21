@@ -367,6 +367,8 @@ class DevelopmentSnapshot:
     human_gates: tuple[Mapping[str, Any], ...]
     objectives: tuple[Mapping[str, Any], ...]
     objective_count: int
+    objective_controls: tuple[Mapping[str, Any], ...]
+    scorecard: Mapping[str, Any]
     active_plan: Mapping[str, Any] | None
     admission: Mapping[str, Any] | None
     plans: tuple[Mapping[str, Any], ...]
@@ -400,6 +402,10 @@ class DevelopmentSnapshot:
             "human_gates": [dict(value) for value in self.human_gates],
             "objectives": [dict(value) for value in self.objectives],
             "objective_count": self.objective_count,
+            "objective_controls": [
+                dict(value) for value in self.objective_controls
+            ],
+            "scorecard": _json_value(dict(self.scorecard), "scorecard"),
             "execution": {
                 "active_plan": (
                     None if self.active_plan is None else dict(self.active_plan)
@@ -469,6 +475,7 @@ def build_development_snapshot(
     checkout_head_sha: str,
     legacy_projection: Mapping[str, Any],
     objective_records: Iterable[Mapping[str, Any]] = (),
+    objective_controls: Iterable[Mapping[str, Any]] = (),
     active_plan: Mapping[str, Any] | None = None,
     admission: Mapping[str, Any] | None = None,
     plan_records: Iterable[Mapping[str, Any]] = (),
@@ -483,6 +490,7 @@ def build_development_snapshot(
     human_reviews: Iterable[Mapping[str, Any]] = (),
     human_gates: Iterable[Mapping[str, Any]] = (),
     program_progression: Mapping[str, Any] | None = None,
+    scorecard: Mapping[str, Any] | None = None,
     runtime: Mapping[str, Any],
 ) -> DevelopmentSnapshot:
     repository = str(repo or "").strip()
@@ -493,6 +501,10 @@ def build_development_snapshot(
     roadmap = _mapping(projection.get("roadmap") or {}, "legacy roadmap projection")
 
     objectives_all = tuple(_objective(_mapping(value, "objective")) for value in objective_records)
+    controls_all = tuple(
+        _json_value(dict(_mapping(value, "objective control")), "objective control")
+        for value in objective_controls
+    )
     plans_all = tuple(
         _plan(_mapping(value, "plan"))
         for value in plan_records
@@ -551,6 +563,8 @@ def build_development_snapshot(
         human_gates=gates,
         objectives=_recent(objectives_all),
         objective_count=len(objectives_all),
+        objective_controls=controls_all,
+        scorecard=_json_value(dict(scorecard or {}), "scorecard"),
         active_plan=_plan(active_plan),
         admission=_admission(admission),
         plans=tuple(value for value in plans_all if value is not None),

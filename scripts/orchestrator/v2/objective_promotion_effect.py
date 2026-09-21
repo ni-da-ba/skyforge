@@ -11,6 +11,7 @@ from typing import Callable, Sequence
 from .context_package import ContextPackageStore
 from .context_retrieval import ContextRetrievalStore
 from .effects import EffectStatus, RemoteEffectPresence
+from .objective_lifecycle import effective_objective_progression
 from .ordinary_effect_executor import (
     OrdinaryEffectExecutionDisposition,
     OrdinaryEffectExecutionResult,
@@ -281,8 +282,19 @@ def execute_frozen_promotion_post(
             )
             return _map_effect_result(promotion=frozen, effect=effect)
 
-    # First execution (or a PENDING effect still provably absent) must revalidate all
-    # promotion preconditions immediately before mutation.
+    # First execution (or a PENDING effect still provably absent) must honor exact
+    # objective lifecycle control before any new remote mutation.
+    control = effective_objective_progression(root, package.proposal_id)
+    if not control.allowed:
+        return ObjectivePromotionPostResult(
+            ObjectivePromotionPostDisposition.BLOCKED,
+            f"objective lifecycle control blocks task-authority post: {control.reason}",
+            frozen.digest,
+            frozen.draft.digest,
+            effect_id=identity.effect_id,
+        )
+
+    # Revalidate all promotion preconditions immediately before mutation.
     revalidated = validate_promotion(
         root=root,
         repo=repo,

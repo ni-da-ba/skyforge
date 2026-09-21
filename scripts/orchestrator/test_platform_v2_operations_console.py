@@ -127,6 +127,7 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn("setInterval(refresh, POLL_MS)", app)
         self.assertIn("/api/v1/objectives", app)
         self.assertIn("/api/v1/human-reviews", app)
+        self.assertIn("/api/v1/objective-controls", app)
         self.assertIn("X-Skyforge-Client", app)
         self.assertIn("WRITE_TOKEN_KEY", app)
         self.assertNotIn("innerHTML", app)
@@ -143,12 +144,18 @@ class OperationsConsoleTest(unittest.TestCase):
         ).read_text(encoding="utf-8")
         for section in (
             'id="roadmap"',
+            'id="scorecard"',
             'id="objectives"',
             'id="workers"',
             'id="execution"',
             'id="objective-control"',
             'id="objective-form"',
             'id="objective-text"',
+            'id="objective-lifecycle-control"',
+            'id="objective-lifecycle-form"',
+            'id="objective-lifecycle-id"',
+            'id="objective-lifecycle-operation"',
+            'id="objective-cancel-confirm"',
             'id="reviews"',
             'id="review-control"',
             'id="review-form"',
@@ -164,9 +171,10 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn("non-authoritative objective proposal", lowered)
         self.assertIn("submit human review", lowered)
         self.assertIn("no verdict is selected automatically", lowered)
-        self.assertNotIn("pause objective", lowered)
-        self.assertNotIn("cancel objective", lowered)
-        self.assertNotIn("continue skyforge", lowered)
+        self.assertIn("objective lifecycle control", lowered)
+        self.assertIn("cancel — terminal fence", lowered)
+        self.assertIn("does not kill an already-running provider", lowered)
+        self.assertNotIn("arbitrary terminal", lowered)
 
     def test_post_console_route_is_not_a_mutation_surface(self):
         with tempfile.TemporaryDirectory() as td:
