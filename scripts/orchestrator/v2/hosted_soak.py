@@ -729,18 +729,21 @@ def run_disposable_hosted_soak(root: Path) -> HostedSoakReport:
             == HostedExecutionAdvanceDisposition.REMOTE_HANDOFF_ADVANCED.value,
             label="task2 remote handoff",
         )
-        wake_at_handoff = driver.snapshot().wake_count
-        _wait_for(lambda: _completion_count(root) == 2, timeout=5, label="task2 periodic cleanup")
+        # No second external event is sent. OPT-5C worker completion may wake
+        # the driver before the periodic timer; either internal completion wake or the
+        # bounded periodic wake may finish lifecycle/cleanup.
+        _wait_for(lambda: _completion_count(root) == 2, timeout=5, label="task2 cleanup")
         _wait_for(
             lambda: driver.snapshot().last_disposition
             == HostedExecutionAdvanceDisposition.IDLE.value,
-            label="task2 periodic idle",
+            label="task2 reusable idle",
         )
-        if driver.snapshot().wake_count <= wake_at_handoff:
-            raise RuntimeError("task2 completion did not require a later periodic wake")
         budget_after_task2 = budget_store.load()
+        wake_after_cleanup = driver.snapshot().wake_count
         time.sleep(1.15)
         budget_after_idle = budget_store.load()
+        if driver.snapshot().wake_count <= wake_after_cleanup:
+            raise RuntimeError("idle periodic wake did not occur")
         if budget_after_idle != budget_after_task2:
             raise RuntimeError("idle periodic wake changed provider budget")
 
