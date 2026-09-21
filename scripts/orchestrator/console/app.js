@@ -375,7 +375,7 @@
     }, "No objective history recorded.");
   }
 
-  function renderObjectiveControl(state) {  function renderObjectiveControl(state) {
+  function renderObjectiveControl(state) {
     const panel = $("objective-control");
     const enabled = Boolean(
       writeToken
@@ -508,7 +508,7 @@
     ]));
   }
 
-  async function downloadArtifact  async function downloadArtifact(artifact) {
+  async function downloadArtifact(artifact) {
     const response = await api(`/api/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`);
     if (!response.ok) throw new Error(`Artifact fetch failed (${response.status})`);
     const blob = await response.blob();
@@ -627,7 +627,7 @@
     }, "No human review history recorded.");
   }
 
-  function populateSelect  function populateSelect(select, values, valueOf, labelOf) {
+  function populateSelect(select, values, valueOf, labelOf) {
     const previous = select.value;
     clear(select);
     for (const value of values) {
@@ -760,7 +760,7 @@
     renderScorecard(state);
   }
 
-  async function refresh()  async function refresh() {
+  async function refresh() {
     if (!token) return;
     try {
       const response = await api("/api/v1/development-state", { etag: lastDigest });
