@@ -168,13 +168,44 @@ class OperationsConsoleTest(unittest.TestCase):
             self.assertIn(section, html)
         lowered = html.lower()
         self.assertIn("submit objective", lowered)
-        self.assertIn("non-authoritative objective proposal", lowered)
-        self.assertIn("submit human review", lowered)
-        self.assertIn("no verdict is selected automatically", lowered)
-        self.assertIn("objective lifecycle control", lowered)
-        self.assertIn("cancel — terminal fence", lowered)
-        self.assertIn("do not kill an already-running provider", lowered)
+        self.assertIn("scopes and validates it before any worker may run", lowered)
+        self.assertIn("record human review", lowered)
+        self.assertIn("never chooses the verdict for you", lowered)
+        self.assertIn("objective lifecycle", lowered)
+        self.assertIn("cancel permanently", lowered)
+        self.assertIn("does not erase history or remote work", lowered)
         self.assertNotIn("arbitrary terminal", lowered)
+
+
+    def test_console_prioritizes_human_operator_state_over_history(self):
+        root = Path(hosted.__file__).resolve().parent / "console"
+        html = (root / "index.html").read_text(encoding="utf-8")
+        app = (root / "app.js").read_text(encoding="utf-8")
+
+        for operator_surface in (
+            'id="overview"',
+            'id="attention-panel"',
+            'id="current-work"',
+            'id="product-review"',
+            'id="operator-controls"',
+            'id="history"',
+            'id="technical"',
+            'id="worker-history"',
+        ):
+            self.assertIn(operator_surface, html)
+
+        self.assertIn("Needs attention", html)
+        self.assertIn("Current work", html)
+        self.assertIn("Product / human review", html)
+        self.assertIn("Objective history", html)
+        self.assertIn("Technical platform details", html)
+        self.assertIn("FRIENDLY_STATUS", app)
+        self.assertIn("renderAttention(state)", app)
+        self.assertIn("renderProductReview(state)", app)
+        self.assertIn("No worker is currently running.", app)
+        self.assertIn("Stale PR preserved safely", app)
+        self.assertIn("technicalDetails", app)
+        self.assertNotIn('innerHTML', app)
 
     def test_post_console_route_is_not_a_mutation_surface(self):
         with tempfile.TemporaryDirectory() as td:
