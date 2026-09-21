@@ -12,19 +12,23 @@ from v2.roadmap_recovery import (
     RoadmapIssueState,
 )
 from v2.roadmap_service import (
+    HumanGateReviewDisposition,
     RoadmapApplyDisposition,
     RoadmapAuthorityLedger,
     RoadmapAuthorityStore,
+    apply_human_gate_review,
     apply_roadmap_decision,
     bind_active_pr,
     record_gate_visibility,
     reconcile_active_issue,
+    roadmap_gate_record,
 )
 from v2.roadmap_shadow import (
     RoadmapControlObservation,
     RoadmapIssueTruth,
     ShadowRoadmapManifest,
     evaluate_roadmap_shadow,
+    select_shadow_next_node,
 )
 from v2.terminal_gate import (
     TerminalGateDisposition,
@@ -457,3 +461,166 @@ class TerminalGateCompositionTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class HumanGateReviewReducerTest(unittest.TestCase):
+    def blocked_gate(self, *, extra_block=False):
+        m = manifest(
+            [
+                task("repair", 754, max_runs=1),
+                gate(
+                    "review",
+                    prereq=("repair",),
+                    message="Review exact artifact; machines must not self-pass.",
+                ),
+                task("later", 900, priority=10, prereq=("review",)),
+            ]
+        )
+        blocked = {"review": "awaiting exact human review"}
+        if extra_block:
+            blocked["later"] = "independent downstream block"
+        ledger = RoadmapAuthorityLedger.from_legacy_projection(
+            legacy_projection(
+                m,
+                completed={"repair": 1},
+                blocked=blocked,
+            ),
+            m,
+        )
+        visible = record_gate_visibility(ledger, roadmap_gate_record(
+            next(node for node in m.nodes if node.node_id == "review")
+        ))
+        return m, visible
+
+    def test_accepted_review_completes_exact_gate_and_retires_only_its_block(self):
+        m, ledger = self.blocked_gate(extra_block=True)
+        result = apply_human_gate_review(
+            ledger=ledger,
+            manifest=m,
+            gate_id="review",
+            verdict="ACCEPTED",
+            review_id="review-accepted-1",
+        )
+        self.assertEqual(result.disposition, HumanGateReviewDisposition.ACCEPTED)
+        self.assertEqual(dict(result.ledger.completed_runs)["review"], 1)
+        self.assertIsNone(result.ledger.block_for("review"))
+        self.assertIsNotNone(result.ledger.block_for("later"))
+        self.assertIsNone(result.ledger.active)
+        self.assertEqual(len(result.ledger.human_gate_records), 0)
+
+        state = result.ledger.shadow_state(m)
+        next_node = select_shadow_next_node(
+            m,
+            completed_runs=dict(state.completed_runs),
+            blocked_nodes=set(state.blocked_nodes),
+        )
+        self.assertIsNone(next_node)
+
+    def test_changes_required_keeps_gate_blocked_and_does_not_complete_it(self):
+        m, ledger = self.blocked_gate()
+        result = apply_human_gate_review(
+            ledger=ledger,
+            manifest=m,
+            gate_id="review",
+            verdict="CHANGES_REQUIRED",
+            review_id="review-changes-1",
+        )
+        self.assertEqual(
+            result.disposition,
+            HumanGateReviewDisposition.CHANGES_REQUIRED,
+        )
+        self.assertNotIn("review", dict(result.ledger.completed_runs))
+        self.assertIn("review-changes-1", result.ledger.block_for("review").reason)
+        self.assertEqual(result.ledger.human_gate_records, ledger.human_gate_records)
+
+    def test_wrong_or_non_gate_node_is_blocked_without_mutation(self):
+        m, ledger = self.blocked_gate()
+        missing = apply_human_gate_review(
+            ledger=ledger,
+            manifest=m,
+            gate_id="missing",
+            verdict="ACCEPTED",
+            review_id="review-missing",
+        )
+        task_result = apply_human_gate_review(
+            ledger=ledger,
+            manifest=m,
+            gate_id="repair",
+            verdict="ACCEPTED",
+            review_id="review-task",
+        )
+        self.assertEqual(missing.disposition, HumanGateReviewDisposition.BLOCKED)
+        self.assertEqual(task_result.disposition, HumanGateReviewDisposition.BLOCKED)
+        self.assertEqual(missing.ledger, ledger)
+        self.assertEqual(task_result.ledger, ledger)
+
+    def test_acceptance_is_idempotent_but_cannot_be_reversed(self):
+        m, ledger = self.blocked_gate()
+        first = apply_human_gate_review(
+            ledger=ledger,
+            manifest=m,
+            gate_id="review",
+            verdict="ACCEPTED",
+            review_id="review-first",
+        )
+        again = apply_human_gate_review(
+            ledger=first.ledger,
+            manifest=m,
+            gate_id="review",
+            verdict="ACCEPTED",
+            review_id="review-replay",
+        )
+        reverse = apply_human_gate_review(
+            ledger=first.ledger,
+            manifest=m,
+            gate_id="review",
+            verdict="CHANGES_REQUIRED",
+            review_id="review-reverse",
+        )
+        self.assertEqual(
+            again.disposition,
+            HumanGateReviewDisposition.ALREADY_ACCEPTED,
+        )
+        self.assertEqual(again.ledger, first.ledger)
+        self.assertEqual(reverse.disposition, HumanGateReviewDisposition.BLOCKED)
+        self.assertEqual(reverse.ledger, first.ledger)
+
+    def test_review_is_blocked_while_unrelated_active_task_authority_exists(self):
+        m, ledger = self.blocked_gate()
+        active_manifest = manifest([task("active", 1)])
+        active_ledger = RoadmapAuthorityLedger.from_legacy_projection(
+            legacy_projection(active_manifest),
+            active_manifest,
+        )
+        decision = evaluate_roadmap_shadow(
+            manifest=active_manifest,
+            state=active_ledger.shadow_state(active_manifest),
+            issue_truth={1: RoadmapIssueTruth.OPEN},
+            control=RoadmapControlObservation(),
+        )
+        seeded = apply_roadmap_decision(
+            ledger=active_ledger,
+            manifest=active_manifest,
+            decision=decision,
+            utc_day="2026-09-20",
+        ).ledger
+        grafted = RoadmapAuthorityLedger(
+            roadmap_id=ledger.roadmap_id,
+            manifest_fingerprint=ledger.manifest_fingerprint,
+            completed_runs=ledger.completed_runs,
+            blocked_nodes=ledger.blocked_nodes,
+            active=seeded.active,
+            claims_day=ledger.claims_day,
+            claims_today=ledger.claims_today,
+            human_gate_records=ledger.human_gate_records,
+        )
+        result = apply_human_gate_review(
+            ledger=grafted,
+            manifest=m,
+            gate_id="review",
+            verdict="ACCEPTED",
+            review_id="review-active",
+        )
+        self.assertEqual(result.disposition, HumanGateReviewDisposition.BLOCKED)
+        self.assertIn("active task authority", result.reason)
+        self.assertEqual(result.ledger, grafted)

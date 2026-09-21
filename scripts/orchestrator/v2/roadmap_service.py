@@ -747,3 +747,159 @@ def reconcile_active_issue(
         reason=decision.reason,
         ledger=updated,
     )
+
+
+class HumanGateReviewDisposition(str, Enum):
+    ACCEPTED = "ACCEPTED"
+    CHANGES_REQUIRED = "CHANGES_REQUIRED"
+    ALREADY_ACCEPTED = "ALREADY_ACCEPTED"
+    BLOCKED = "BLOCKED"
+
+
+@dataclass(frozen=True)
+class HumanGateReviewResult:
+    disposition: HumanGateReviewDisposition
+    reason: str
+    ledger: RoadmapAuthorityLedger
+    gate_id: str
+    review_id: str
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(
+            {
+                "disposition": self.disposition.value,
+                "reason": self.reason,
+                "ledger_digest": self.ledger.digest,
+                "gate_id": self.gate_id,
+                "review_id": self.review_id,
+            }
+        )
+
+
+def apply_human_gate_review(
+    *,
+    ledger: RoadmapAuthorityLedger,
+    manifest: ShadowRoadmapManifest,
+    gate_id: str,
+    verdict: str,
+    review_id: str,
+) -> HumanGateReviewResult:
+    """Reconcile one durable human judgment into roadmap authority.
+
+    This reducer never creates human judgment. It consumes an already-durable review
+    identity and changes only the exact accepted gate node named by that review.
+    """
+
+    ledger.validate_manifest(manifest)
+    gate = _required(gate_id, "gate_id")
+    review = _required(review_id, "review_id")
+    normalized_verdict = _required(verdict, "verdict").upper()
+    if normalized_verdict not in {"ACCEPTED", "CHANGES_REQUIRED"}:
+        raise ValueError("verdict must be ACCEPTED or CHANGES_REQUIRED")
+
+    node = next((item for item in manifest.nodes if item.node_id == gate), None)
+    if node is None:
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.BLOCKED,
+            "human review references an unknown roadmap node",
+            ledger,
+            gate,
+            review,
+        )
+    if node.kind is not RoadmapNodeKind.GATE:
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.BLOCKED,
+            "human review may reconcile only a roadmap gate node",
+            ledger,
+            gate,
+            review,
+        )
+    if ledger.active is not None:
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.BLOCKED,
+            "roadmap has active task authority; human gate review cannot rewrite concurrent authority",
+            ledger,
+            gate,
+            review,
+        )
+
+    completed = dict(ledger.completed_runs)
+    completed_count = int(completed.get(gate) or 0)
+    if completed_count >= node.max_runs:
+        if normalized_verdict == "ACCEPTED":
+            return HumanGateReviewResult(
+                HumanGateReviewDisposition.ALREADY_ACCEPTED,
+                "roadmap gate is already complete",
+                ledger,
+                gate,
+                review,
+            )
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.BLOCKED,
+            "completed roadmap gate cannot be changed back to CHANGES_REQUIRED",
+            ledger,
+            gate,
+            review,
+        )
+
+    current_block = ledger.block_for(gate)
+    if current_block is None:
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.BLOCKED,
+            "roadmap gate is not currently blocked for human review",
+            ledger,
+            gate,
+            review,
+        )
+
+    if normalized_verdict == "CHANGES_REQUIRED":
+        blocks = [
+            record for record in ledger.blocked_nodes if record.node_id != gate
+        ]
+        blocks.append(
+            RoadmapBlockRecord(
+                node_id=gate,
+                reason=f"human review CHANGES_REQUIRED; durable review {review}",
+            )
+        )
+        updated = _replace(ledger, blocked_nodes=tuple(blocks))
+        return HumanGateReviewResult(
+            HumanGateReviewDisposition.CHANGES_REQUIRED,
+            "durable human review requires changes; gate remains blocked",
+            updated,
+            gate,
+            review,
+        )
+
+    completed[gate] = max(completed_count, node.max_runs)
+    blocks = tuple(
+        record for record in ledger.blocked_nodes if record.node_id != gate
+    )
+
+    # Human-gate visibility is a current-state projection, not history. Once this
+    # exact gate is accepted, retire only the matching visibility record. The
+    # authoritative human judgment remains in the append-only review ledger.
+    expected_gate = roadmap_gate_record(node)
+    gate_records = tuple(
+        record
+        for record in ledger.human_gate_records
+        if not (
+            record.key == expected_gate.key
+            and record.token == expected_gate.token
+            and record.target == expected_gate.target
+        )
+    )
+    updated = _replace(
+        ledger,
+        completed_runs=tuple(completed.items()),
+        blocked_nodes=blocks,
+        human_gate_records=gate_records,
+    )
+    return HumanGateReviewResult(
+        HumanGateReviewDisposition.ACCEPTED,
+        "durable human review accepted the exact blocked gate",
+        updated,
+        gate,
+        review,
+    )

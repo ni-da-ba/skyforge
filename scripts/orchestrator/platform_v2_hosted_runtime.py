@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import hmac
 import json
@@ -64,7 +65,22 @@ from v2.objective_ingress import (
     ObjectiveProposalStore,
     parse_objective_comment,
 )
-from v2.human_review import HumanReviewStore, parse_human_review_comment
+from v2.objective_intake import load_manifest
+from v2.human_review import (
+    DevelopmentApiHumanReviewSource,
+    HumanReviewStore,
+    HumanReviewSubmission,
+    HumanReviewVerdict,
+    evaluate_repeat_review_readiness,
+    parse_human_review_comment,
+)
+from v2.human_review_command import (
+    HumanReviewCommandPhase,
+    HumanReviewCommandStore,
+    advance_human_review_command,
+    prepare_human_review_command,
+    reconcile_pending_human_review_commands,
+)
 from v2.events import DurableEvent
 from v2.external import ControllerIssueOwner
 from v2.external_service import (
@@ -88,6 +104,7 @@ from v2.review_artifacts import (
     retrieve_file_artifact,
     validate_artifact_source,
 )
+from v2.roadmap_service import RoadmapAuthorityStore
 from v2.state_store import JsonStateStoreAdapter, StateStoreError
 from v2.task_event_composition import (
     TaskAuthorityEventStore,
@@ -98,6 +115,7 @@ from v2.task_event_composition import (
 DEFAULT_REPO = "ni-da-ba/skyforge"
 DEFAULT_PORT = 3000
 MAX_PAYLOAD_BYTES = 5_000_000
+MAX_DOMAIN_PAYLOAD_BYTES = 256_000
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
@@ -116,6 +134,24 @@ def _read_legacy_projection(root: Path) -> LegacyOperationalProjection:
     return LegacyOperationalProjection.from_legacy_mapping(snapshot.as_dict())
 
 
+def _review_text_tuple(
+    value: Any,
+    label: str,
+    *,
+    required: bool,
+) -> tuple[str, ...]:
+    if value is None and not required:
+        return ()
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a list")
+    result = tuple(str(item or "").strip() for item in value)
+    if any(not item for item in result):
+        raise ValueError(f"{label} entries must be non-empty strings")
+    if required and not result:
+        raise ValueError(f"{label} must not be empty")
+    return result
+
+
 class HostedV2Substrate:
     def __init__(
         self,
@@ -126,6 +162,8 @@ class HostedV2Substrate:
         startup_reconcile: bool,
         webhook_secret: str | None = None,
         development_api_token: str | None = None,
+        development_write_token: str | None = None,
+        development_write_actor: str | None = None,
         trusted_actors: tuple[str, ...] | None = None,
         production_execution_requested: bool = False,
         execution_gate: HostedExecutionGateDecision | None = None,
@@ -140,6 +178,16 @@ class HostedV2Substrate:
             if development_api_token is not None
             else os.environ.get("SKYFORGE_DEVELOPMENT_API_TOKEN", "")
         ).strip()
+        self.development_write_token = (
+            development_write_token
+            if development_write_token is not None
+            else os.environ.get("SKYFORGE_DEVELOPMENT_WRITE_TOKEN", "")
+        ).strip()
+        self.development_write_actor = (
+            development_write_actor
+            if development_write_actor is not None
+            else os.environ.get("SKYFORGE_DEVELOPMENT_WRITE_ACTOR", "")
+        ).strip().lower()
         self.trusted_actors = trusted_actors or _trusted_actors()
         self.production_execution_requested = bool(production_execution_requested)
         self.execution_gate = execution_gate
@@ -162,6 +210,8 @@ class HostedV2Substrate:
         self.external_claim_store = ExternalClaimStore.for_root(self.root)
         self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
         self.human_review_store = HumanReviewStore.for_root(self.root)
+        self.human_review_command_store = HumanReviewCommandStore.for_root(self.root)
+        self.roadmap_authority_store = RoadmapAuthorityStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
         worker_state_dir = self.root / ".skyforge-platform-v2"
@@ -175,6 +225,9 @@ class HostedV2Substrate:
         self.validate_environment()
         self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.startup_external_claim_migrations = self._migrate_external_claims_once()
+        self.startup_human_review_command_reconciliations = (
+            self._reconcile_pending_human_review_commands()
+        )
         self.refresh_legacy_projection()
 
     def validate_environment(self) -> None:
@@ -195,6 +248,60 @@ class HostedV2Substrate:
             raise RuntimeError(
                 "SKYFORGE_DEVELOPMENT_API_TOKEN must be at least 32 characters when configured."
             )
+        if bool(self.development_write_token) != bool(self.development_write_actor):
+            raise RuntimeError(
+                "SKYFORGE_DEVELOPMENT_WRITE_TOKEN and "
+                "SKYFORGE_DEVELOPMENT_WRITE_ACTOR must be configured together."
+            )
+        if self.development_write_token and len(self.development_write_token) < 32:
+            raise RuntimeError(
+                "SKYFORGE_DEVELOPMENT_WRITE_TOKEN must be at least 32 characters when configured."
+            )
+        if (
+            self.development_write_actor
+            and self.development_write_actor not in self.trusted_actors
+        ):
+            raise RuntimeError(
+                "SKYFORGE_DEVELOPMENT_WRITE_ACTOR must be a trusted configured actor."
+            )
+
+    def _reconcile_pending_human_review_commands(self) -> int:
+        """Finish any crash-interrupted review -> roadmap transition on startup."""
+        pending = self.human_review_command_store.load().pending
+        if not pending:
+            return 0
+        manifest = load_manifest(self.root)
+        reconciled = reconcile_pending_human_review_commands(
+            command_store=self.human_review_command_store,
+            review_store=self.human_review_store,
+            roadmap_store=self.roadmap_authority_store,
+            manifest=manifest,
+        )
+        return len(reconciled)
+
+    def _effective_legacy_projection(self) -> dict[str, Any]:
+        """Overlay canonical v2 roadmap authority onto the cutover projection when present."""
+        projection = dict(self.state.legacy_projection or {})
+        if not self.roadmap_authority_store.adapter.path.is_file():
+            return projection
+        manifest = load_manifest(self.root)
+        ledger = self.roadmap_authority_store.load()
+        ledger.validate_manifest(manifest)
+        projection["roadmap"] = {
+            "roadmap_id": ledger.roadmap_id,
+            "manifest_fingerprint": ledger.manifest_fingerprint,
+            "completed_runs": dict(ledger.completed_runs),
+            "blocked_nodes": {
+                record.node_id: {"reason": record.reason}
+                for record in ledger.blocked_nodes
+            },
+            "active": (
+                ledger.active.as_dict() if ledger.active is not None else None
+            ),
+            "claims_day": ledger.claims_day,
+            "claims_today": ledger.claims_today,
+        }
+        return projection
 
     def _migrate_pending_audit_signals(self) -> int:
         """Apply current deterministic Audit parsing to durable pre-upgrade events."""
@@ -326,7 +433,7 @@ class HostedV2Substrate:
     def health_snapshot(self) -> dict[str, Any]:
         with self._lock:
             state = self.state
-            projection = state.legacy_projection or {}
+            projection = self._effective_legacy_projection()
             external = [claim.as_dict() for claim in self.external_claim_store.load().claims]
             roadmap = projection.get("roadmap") or {}
             authority_ledger = self.task_authority_store.load()
@@ -358,6 +465,9 @@ class HostedV2Substrate:
                 "legacy_classifier_adapter": True,
                 "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
                 "startup_external_claim_migrations": self.startup_external_claim_migrations,
+                "startup_human_review_command_reconciliations": (
+                    self.startup_human_review_command_reconciliations
+                ),
                 "state_digest": state.digest,
                 "pending_event_count": len(state.inbox.pending_events),
                 "seen_delivery_count": len(state.seen_deliveries),
@@ -379,6 +489,10 @@ class HostedV2Substrate:
                 ),
                 "human_review_ingress_enabled": True,
                 "development_read_api_enabled": bool(self.development_api_token),
+                "development_write_api_enabled": bool(self.development_write_token),
+                "pending_human_review_command_count": len(
+                    self.human_review_command_store.load().pending
+                ),
                 "human_review_count": len(human_review_ledger.records),
                 "latest_human_review_id": (
                     latest_human_review.review_id if latest_human_review else ""
@@ -464,7 +578,7 @@ class HostedV2Substrate:
         with self._lock:
             health = self.health_snapshot()
             state = self.state
-            projection = state.legacy_projection or {}
+            projection = self._effective_legacy_projection()
             objectives = self.objective_proposal_store.load()
             reviews = self.human_review_store.load()
             plan = self.task_plan_store.load().active
@@ -481,6 +595,37 @@ class HostedV2Substrate:
             for artifact in artifacts.records:
                 validate_artifact_source(self.root, artifact)
 
+            human_gates: list[dict[str, Any]] = []
+            manifest_path = (
+                self.root / "docs" / "agent-state" / "ORCHESTRATOR_ROADMAP.json"
+            )
+            if manifest_path.is_file():
+                manifest = load_manifest(self.root)
+                roadmap_view = projection.get("roadmap") or {}
+                blocked = roadmap_view.get("blocked_nodes") or {}
+                completed = roadmap_view.get("completed_runs") or {}
+                if not isinstance(blocked, Mapping) or not isinstance(completed, Mapping):
+                    raise ValueError("projected roadmap block/completion state is invalid")
+                for node in manifest.nodes:
+                    if node.kind.value != "gate" or node.node_id not in blocked:
+                        continue
+                    if int(completed.get(node.node_id) or 0) >= node.max_runs:
+                        continue
+                    block = blocked.get(node.node_id)
+                    reason = (
+                        str(block.get("reason") or "")
+                        if isinstance(block, Mapping)
+                        else str(block or "")
+                    )
+                    human_gates.append(
+                        {
+                            "gate_id": node.node_id,
+                            "lane": str(node.lane or ""),
+                            "message": str(node.human_message or ""),
+                            "blocked_reason": reason,
+                        }
+                    )
+
             runtime = {
                 "status": health["status"],
                 "controller": health["controller"],
@@ -488,6 +633,9 @@ class HostedV2Substrate:
                 "state_digest": health["state_digest"],
                 "pending_event_count": health["pending_event_count"],
                 "production_execution_enabled": health["production_execution_enabled"],
+                "development_write_api_enabled": health[
+                    "development_write_api_enabled"
+                ],
                 "production_execution_gate_digest": health[
                     "production_execution_gate_digest"
                 ],
@@ -521,6 +669,7 @@ class HostedV2Substrate:
                 human_reviews=(
                     record.as_dict() for record in reviews.records
                 ),
+                human_gates=human_gates,
                 runtime=runtime,
             )
             return snapshot.as_dict()
@@ -536,6 +685,20 @@ class HostedV2Substrate:
         expected = f"Bearer {token}"
         if not hmac.compare_digest(supplied, expected):
             return 401, {"error": "development API authorization required"}
+        return None
+
+    def _development_write_auth_error(
+        self,
+        authorization: str | None,
+    ) -> tuple[int, dict[str, Any]] | None:
+        token = self.development_write_token
+        actor = self.development_write_actor
+        if not token or not actor:
+            return 503, {"error": "development write API is not configured"}
+        supplied = str(authorization or "")
+        expected = f"Bearer {token}"
+        if not hmac.compare_digest(supplied, expected):
+            return 401, {"error": "development write authorization required"}
         return None
 
     def _validated_artifact_catalog(self) -> ReviewArtifactCatalog:
@@ -631,6 +794,170 @@ class HostedV2Substrate:
                 "error": "artifact content is unavailable",
                 "failure_kind": type(exc).__name__,
             }
+
+    def handle_human_review_submit(
+        self,
+        authorization: str | None,
+        payload: Mapping[str, Any],
+        *,
+        client: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_write_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        if not isinstance(payload, Mapping):
+            return 400, {"error": "human review payload must be an object"}
+        if "actor" in payload or "source" in payload:
+            return 400, {"error": "human review actor/source identity is server-bound"}
+
+        try:
+            request_id = str(payload.get("request_id") or "").strip()
+            existing = self.human_review_command_store.load().get(request_id)
+            submitted_at = (
+                existing.review.source.submitted_at
+                if existing is not None
+                and isinstance(existing.review.source, DevelopmentApiHumanReviewSource)
+                else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            )
+            source = DevelopmentApiHumanReviewSource(
+                repo=self.repo,
+                request_id=request_id,
+                actor=self.development_write_actor,
+                client=str(client or "development-api").strip().lower(),
+                submitted_at=submitted_at,
+            )
+            deferred = payload.get("deferred_product_work")
+            if not isinstance(deferred, bool):
+                raise ValueError("deferred_product_work must be a boolean")
+            prior_review_id = payload.get("prior_review_id")
+            if prior_review_id is not None:
+                prior_review_id = str(prior_review_id).strip() or None
+            review = HumanReviewSubmission(
+                source=source,
+                gate_id=payload.get("gate_id"),
+                artifact_id=payload.get("artifact_id"),
+                source_sha=payload.get("source_sha"),
+                verdict=HumanReviewVerdict(str(payload.get("verdict") or "")),
+                findings=_review_text_tuple(
+                    payload.get("findings"),
+                    "findings",
+                    required=True,
+                ),
+                positive_findings=_review_text_tuple(
+                    payload.get("positive_findings"),
+                    "positive_findings",
+                    required=False,
+                ),
+                material_delta=payload.get("material_delta"),
+                next_boundary=payload.get("next_boundary"),
+                deferred_product_work=deferred,
+                prior_review_id=prior_review_id,
+            )
+        except (TypeError, ValueError) as exc:
+            return 400, {"error": f"invalid human review payload: {exc}"}
+
+        with self._lock:
+            try:
+                existing = self.human_review_command_store.load().get(request_id)
+                was_reconciled = (
+                    existing is not None
+                    and existing.phase is HumanReviewCommandPhase.RECONCILED
+                )
+                if existing is None:
+                    catalog = ReviewArtifactCatalog.for_root(self.root)
+                    artifact = catalog.get(review.artifact_id)
+                    if artifact is None:
+                        return 409, {"error": "human review artifact is not registered"}
+                    if artifact.source_sha != review.source_sha:
+                        return 409, {
+                            "error": (
+                                "human review source SHA does not match registered artifact"
+                            )
+                        }
+                    validate_artifact_source(self.root, artifact)
+
+                    latest = self.human_review_store.load().latest_for_gate(
+                        review.gate_id
+                    )
+                    if latest is not None:
+                        readiness = evaluate_repeat_review_readiness(
+                            self.human_review_store.load(),
+                            gate_id=review.gate_id,
+                            artifact_id=review.artifact_id,
+                            source_sha=review.source_sha,
+                            material_delta=review.material_delta,
+                            prior_review_id=review.prior_review_id,
+                        )
+                        if not readiness.ready:
+                            return 409, {
+                                "error": readiness.reason,
+                                "repeat_review_disposition": (
+                                    readiness.disposition.value
+                                ),
+                                "prior_review_id": readiness.prior_review_id,
+                            }
+
+                manifest = load_manifest(self.root)
+                if not self.roadmap_authority_store.adapter.path.is_file():
+                    return 409, {
+                        "error": (
+                            "canonical Platform-v2 roadmap authority is unavailable"
+                        )
+                    }
+                roadmap = self.roadmap_authority_store.load()
+                prepared = prepare_human_review_command(
+                    store=self.human_review_command_store,
+                    review=review,
+                    roadmap=roadmap,
+                    manifest=manifest,
+                )
+                complete = advance_human_review_command(
+                    command_store=self.human_review_command_store,
+                    review_store=self.human_review_store,
+                    roadmap_store=self.roadmap_authority_store,
+                    manifest=manifest,
+                    request_id=request_id,
+                )
+            except ReviewArtifactError as exc:
+                return 503, {
+                    "error": "human review artifact provenance is unavailable",
+                    "failure_kind": type(exc).__name__,
+                }
+            except StateStoreError as exc:
+                return 503, {
+                    "error": "human review durable state is unavailable",
+                    "failure_kind": type(exc).__name__,
+                }
+            except ValueError as exc:
+                phase = None
+                durable = self.human_review_command_store.load().get(request_id)
+                if durable is not None:
+                    phase = durable.phase.value
+                return 409, {
+                    "error": str(exc),
+                    "command_phase": phase,
+                }
+
+        if (
+            complete.phase is HumanReviewCommandPhase.RECONCILED
+            and not was_reconciled
+        ):
+            self._signal_execution_driver()
+        return (200 if existing is not None else 202), {
+            "accepted": True,
+            "idempotent_replay": existing is not None,
+            "request_id": request_id,
+            "command_id": complete.command_id,
+            "command_phase": complete.phase.value,
+            "review_id": complete.review.review_id,
+            "gate_id": complete.review.gate_id,
+            "artifact_id": complete.review.artifact_id,
+            "source_sha": complete.review.source_sha,
+            "verdict": complete.review.verdict.value,
+            "roadmap_disposition": complete.roadmap_disposition.value,
+            "actor": complete.review.source.actor,
+            "client": complete.review.source.client,
+        }
 
     def handle_webhook(
         self,
@@ -1249,7 +1576,37 @@ class Handler(BaseHTTPRequestHandler):
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
-        if self.path != "/webhook":
+        path = urlsplit(self.path).path
+        if path == "/api/v1/human-reviews":
+            try:
+                size = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            if size <= 0 or size > MAX_DOMAIN_PAYLOAD_BYTES:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            content_type = str(self.headers.get("Content-Type") or "").split(";", 1)[0].strip().lower()
+            if content_type != "application/json":
+                self._respond_json(415, {"error": "human review endpoint requires application/json"})
+                return
+            try:
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._respond_json(400, {"error": "invalid JSON payload"})
+                return
+            if not isinstance(payload, Mapping):
+                self._respond_json(400, {"error": "human review payload must be an object"})
+                return
+            status, response = self.runtime.handle_human_review_submit(
+                self.headers.get("Authorization"),
+                payload,
+                client=self.headers.get("X-Skyforge-Client"),
+            )
+            self._respond_json(status, response)
+            return
+
+        if path != "/webhook":
             self.send_error(404)
             return
         try:

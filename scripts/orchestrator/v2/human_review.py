@@ -16,6 +16,8 @@ HUMAN_REVIEW_MARKER = "SKYFORGE HUMAN REVIEW"
 HUMAN_REVIEWS_RELATIVE_PATH = Path(".skyforge-platform-v2/human-reviews.json")
 HUMAN_REVIEWS_BACKUP_RELATIVE_PATH = Path(".skyforge-platform-v2/human-reviews.json.bak")
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
+_API_REQUEST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
+_CLIENT_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 
 
 def _required(value: Any, label: str) -> str:
@@ -84,8 +86,48 @@ class HumanReviewSource:
 
 
 @dataclass(frozen=True)
+class DevelopmentApiHumanReviewSource:
+    repo: str
+    request_id: str
+    actor: str
+    client: str
+    submitted_at: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "repo", _required(self.repo, "review repo"))
+        request_id = _required(self.request_id, "review request_id")
+        if not _API_REQUEST_RE.fullmatch(request_id):
+            raise ValueError("review request_id has invalid characters or length")
+        object.__setattr__(self, "request_id", request_id)
+        object.__setattr__(self, "actor", _required(self.actor, "review actor").lower())
+        client = _required(self.client, "review client").lower()
+        if not _CLIENT_RE.fullmatch(client):
+            raise ValueError("review client has invalid characters or length")
+        object.__setattr__(self, "client", client)
+        object.__setattr__(
+            self,
+            "submitted_at",
+            _required(self.submitted_at, "review submitted_at"),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": "DEVELOPMENT_API",
+            "repo": self.repo,
+            "request_id": self.request_id,
+            "actor": self.actor,
+            "client": self.client,
+            "submitted_at": self.submitted_at,
+        }
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(self.as_dict())
+
+
+@dataclass(frozen=True)
 class HumanReviewSubmission:
-    source: HumanReviewSource
+    source: HumanReviewSource | DevelopmentApiHumanReviewSource
     gate_id: str
     artifact_id: str
     source_sha: str
@@ -147,14 +189,25 @@ class HumanReviewSubmission:
         src = raw.get("source")
         if not isinstance(src, Mapping):
             raise ValueError("human review source must be an object")
-        source = HumanReviewSource(
-            repo=src.get("repo"),
-            issue_number=src.get("issue_number"),
-            comment_id=src.get("comment_id"),
-            actor=src.get("actor"),
-            created_at=src.get("created_at"),
-            updated_at=src.get("updated_at"),
-        )
+        if src.get("kind") == "DEVELOPMENT_API":
+            source = DevelopmentApiHumanReviewSource(
+                repo=src.get("repo"),
+                request_id=src.get("request_id"),
+                actor=src.get("actor"),
+                client=src.get("client"),
+                submitted_at=src.get("submitted_at"),
+            )
+        else:
+            # Preserve the historical GitHub source serialization exactly. Existing
+            # durable source digests/review ids depend on this field set.
+            source = HumanReviewSource(
+                repo=src.get("repo"),
+                issue_number=src.get("issue_number"),
+                comment_id=src.get("comment_id"),
+                actor=src.get("actor"),
+                created_at=src.get("created_at"),
+                updated_at=src.get("updated_at"),
+            )
         record = cls(
             source=source,
             gate_id=raw.get("gate_id"),

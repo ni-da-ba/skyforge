@@ -16,9 +16,12 @@ main { max-width: 1500px; margin: 0 auto; padding: 1.25rem; }
 .panel { background: #111923; border: 1px solid #263140; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
 .auth-panel { display: flex; align-items: end; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .auth-panel p { color: #91a0b4; margin-bottom: 0; }
-.auth-row { display: flex; gap: .5rem; min-width: min(680px, 100%); }
+.auth-fields { display: grid; grid-template-columns: repeat(2, minmax(220px, 1fr)); gap: .65rem; margin-bottom: .55rem; }
+.auth-row { display: flex; gap: .5rem; }
 label { display: block; font-size: .8rem; color: #91a0b4; margin-bottom: .35rem; }
-input { flex: 1; min-width: 14rem; background: #0b1119; border: 1px solid #36465b; border-radius: 6px; color: #f3f4f6; padding: .55rem .65rem; }
+input, select, textarea { width: 100%; background: #0b1119; border: 1px solid #36465b; border-radius: 6px; color: #f3f4f6; padding: .55rem .65rem; font: inherit; }
+textarea { resize: vertical; }
+select { min-height: 2.25rem; }
 button { border: 1px solid #4c7cad; background: #1d4e7a; color: white; border-radius: 6px; padding: .55rem .8rem; cursor: pointer; }
 button.secondary { background: #17212c; border-color: #36465b; }
 button:disabled { opacity: .45; cursor: default; }
@@ -44,5 +47,9 @@ ul.clean { margin: .35rem 0 0; padding-left: 1.2rem; }
 .artifact { margin-top: .7rem; border-top: 1px solid #263140; padding-top: .6rem; }
 .command { display: block; background: #090e14; border: 1px solid #263140; border-radius: 5px; padding: .4rem .5rem; margin-top: .3rem; overflow-wrap: anywhere; }
 .actions { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem; }
+.form-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .75rem; margin-top: .8rem; }
+.form-grid .full { grid-column: 1 / -1; }
+.checkbox-row { display: flex; gap: .55rem; align-items: center; color: #d4d9e1; }
+.checkbox-row input { width: auto; }
 .small { font-size: .78rem; }
-@media (max-width: 850px) { .two-column { grid-template-columns: 1fr; } .auth-row { min-width: 100%; flex-wrap: wrap; } input { min-width: 100%; } }
+@media (max-width: 850px) { .two-column, .auth-fields, .form-grid { grid-template-columns: 1fr; } .form-grid .full { grid-column: auto; } .auth-row { flex-wrap: wrap; } }

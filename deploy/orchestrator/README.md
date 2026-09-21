@@ -117,6 +117,18 @@ credential; the webhook secret authenticates signed GitHub deliveries. The insta
 existing development API token across repeat deployments unless the operator explicitly supplies a
 replacement.
 
+State-changing development-domain operations use a second, distinct credential plus a server-bound
+trusted actor identity. To enable human-review submission, configure both:
+
+```text
+SKYFORGE_DEVELOPMENT_WRITE_TOKEN=<different high-entropy token, at least 32 characters>
+SKYFORGE_DEVELOPMENT_WRITE_ACTOR=ni-da-ba
+```
+
+The write actor must be present in `SKYFORGE_TRUSTED_GITHUB_ACTORS`. Request bodies cannot override
+that actor identity. The installer preserves the write token/actor pair across repeat deployments.
+Read credentials never imply write authority, and the write credential does not grant read access.
+
 Authenticated read surfaces currently include:
 
 ```text
@@ -132,11 +144,17 @@ The bounded Operations Console is served at:
 GET /console
 ```
 
-The console is a thin read-only client. Enter the development API bearer token in the browser to
-connect; the token is kept in browser session scope and is sent only in the Authorization header.
+The console is a thin client of the same canonical backend. Enter the read bearer token in the
+browser to connect; optionally enter the distinct write bearer token to enable the one currently
+admitted state-changing operation: artifact-bound human review. Tokens remain in browser session
+scope and are sent only in Authorization headers.
+
 The console polls the canonical development snapshot every few seconds and uses its digest as an
-ETag so unchanged state returns HTTP 304 and is not rerendered. Static console assets contain no
-project data, credentials, or mutation controls.
+ETag so unchanged state returns HTTP 304 and is not rerendered. Human-review submission uses
+`POST /api/v1/human-reviews`, binds the exact current gate + registered artifact + source SHA, and
+requires the human to select the verdict and write the findings/material delta. The backend applies
+the same X-4 repeat-review, idempotence, artifact-provenance, and roadmap reconciliation rules for
+every client. No pause/cancel/raw shell/Git/database mutation control is exposed by this surface.
 
 Artifact manifests are source-controlled in `docs/agent-state/REVIEW_ARTIFACTS.json`. Interactive
 specimens expose exact launch/preparation identity but deliberately have no direct `/content` bytes.

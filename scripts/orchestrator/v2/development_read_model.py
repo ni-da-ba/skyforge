@@ -115,10 +115,14 @@ def _human_review(
         "deferred_product_work": raw.get("deferred_product_work") is True,
         "prior_review_id": raw.get("prior_review_id"),
         "source": {
+            "kind": str(source.get("kind") or "GITHUB_COMMENT"),
             "issue_number": source.get("issue_number"),
             "comment_id": source.get("comment_id"),
+            "request_id": source.get("request_id"),
+            "client": source.get("client"),
             "actor": str(source.get("actor") or ""),
             "created_at": str(source.get("created_at") or ""),
+            "submitted_at": str(source.get("submitted_at") or ""),
         },
     }
 
@@ -212,11 +216,24 @@ def _claim(raw: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _human_gate(raw: Mapping[str, Any]) -> dict[str, Any]:
+    gate_id = str(raw.get("gate_id") or "").strip()
+    if not gate_id:
+        raise ValueError("human gate gate_id is required")
+    return {
+        "gate_id": gate_id,
+        "lane": str(raw.get("lane") or ""),
+        "message": str(raw.get("message") or ""),
+        "blocked_reason": str(raw.get("blocked_reason") or ""),
+    }
+
+
 @dataclass(frozen=True)
 class DevelopmentSnapshot:
     repo: str
     checkout_head_sha: str
     roadmap: Mapping[str, Any]
+    human_gates: tuple[Mapping[str, Any], ...]
     objectives: tuple[Mapping[str, Any], ...]
     objective_count: int
     active_plan: Mapping[str, Any] | None
@@ -238,6 +255,7 @@ class DevelopmentSnapshot:
             "repo": self.repo,
             "checkout_head_sha": self.checkout_head_sha,
             "roadmap": _json_value(dict(self.roadmap), "roadmap"),
+            "human_gates": [dict(value) for value in self.human_gates],
             "objectives": [dict(value) for value in self.objectives],
             "objective_count": self.objective_count,
             "execution": {
@@ -281,6 +299,7 @@ def build_development_snapshot(
     external_claims: Iterable[Mapping[str, Any]] = (),
     artifact_records: Iterable[Mapping[str, Any]] = (),
     human_reviews: Iterable[Mapping[str, Any]] = (),
+    human_gates: Iterable[Mapping[str, Any]] = (),
     runtime: Mapping[str, Any],
 ) -> DevelopmentSnapshot:
     repository = str(repo or "").strip()
@@ -308,6 +327,7 @@ def build_development_snapshot(
         for value in human_reviews
     )
     claims = tuple(_claim(_mapping(value, "external claim")) for value in external_claims)
+    gates = tuple(_human_gate(_mapping(value, "human gate")) for value in human_gates)
 
     return DevelopmentSnapshot(
         repo=repository,
@@ -325,6 +345,7 @@ def build_development_snapshot(
             "claims_day": roadmap.get("claims_day"),
             "claims_today": roadmap.get("claims_today", 0),
         },
+        human_gates=gates,
         objectives=_recent(objectives_all),
         objective_count=len(objectives_all),
         active_plan=_plan(active_plan),
