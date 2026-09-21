@@ -488,6 +488,7 @@ def should_continue_after(
 ) -> bool:
     disposition = result.disposition
     if disposition in {
+        HostedExecutionAdvanceDisposition.PROGRAM_ADVANCED,
         HostedExecutionAdvanceDisposition.TASK_CLAIMED,
         HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
         HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,

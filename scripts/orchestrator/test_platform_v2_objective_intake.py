@@ -38,7 +38,7 @@ class ObjectiveIntakeTest(unittest.TestCase):
         self.assertEqual(result.disposition, ObjectiveCompileDisposition.AMBIGUOUS)
         self.assertIsNone(result.request)
 
-    def test_continue_skyforge_is_reserved_for_opt6(self):
+    def test_continue_skyforge_is_admitted_to_opt6_without_task_authority(self):
         manifest = load_manifest(REPO_ROOT)
         state = ShadowRoadmapState(
             roadmap_id=manifest.roadmap_id,
@@ -49,8 +49,14 @@ class ObjectiveIntakeTest(unittest.TestCase):
         )
         parsed = parse_objective("Continue Skyforge").request
         result = compile_continue_objective(parsed, manifest=manifest, state=state)
-        self.assertEqual(result.disposition, ObjectiveCompileDisposition.BLOCKED)
+        self.assertEqual(
+            result.disposition,
+            ObjectiveCompileDisposition.PROGRAM_CONTINUE,
+        )
         self.assertIn("OPT-6", result.reason)
+        self.assertIsNone(result.candidate_task)
+        self.assertIsNone(result.human_gate)
+        self.assertFalse(result.as_dict()["executable_task_authority"])
 
     def test_continue_dr70_resolves_latest_reached_human_rereview_gate(self):
         manifest = load_manifest(REPO_ROOT)

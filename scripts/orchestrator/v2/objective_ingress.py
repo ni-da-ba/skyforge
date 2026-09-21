@@ -110,8 +110,48 @@ class DevelopmentApiObjectiveSource:
 
 
 @dataclass(frozen=True)
+class ProgramObjectiveSource:
+    repo: str
+    parent_proposal_id: str
+    program_id: str
+    node_id: str
+    projection_digest: str
+    objective_text: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "repo", _required(self.repo, "repo"))
+        for name in ("parent_proposal_id", "projection_digest"):
+            value = _required(getattr(self, name), name).lower()
+            if len(value) != 64 or any(ch not in "0123456789abcdef" for ch in value):
+                raise ValueError(f"{name} must be lowercase SHA-256 hex")
+            object.__setattr__(self, name, value)
+        object.__setattr__(self, "program_id", _required(self.program_id, "program_id"))
+        object.__setattr__(self, "node_id", _required(self.node_id, "node_id"))
+        object.__setattr__(
+            self,
+            "objective_text",
+            _required(self.objective_text, "objective_text"),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": "PROGRAM",
+            "repo": self.repo,
+            "parent_proposal_id": self.parent_proposal_id,
+            "program_id": self.program_id,
+            "node_id": self.node_id,
+            "projection_digest": self.projection_digest,
+            "objective_text": self.objective_text,
+        }
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(self.as_dict())
+
+
+@dataclass(frozen=True)
 class ObjectiveProposalRecord:
-    source: ObjectiveSourceReference | DevelopmentApiObjectiveSource
+    source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource
     delivery_id: str
     compiled: ObjectiveCompileResult
 
@@ -147,6 +187,15 @@ class ObjectiveProposalRecord:
                 actor=src.get("actor"),
                 client=src.get("client"),
                 submitted_at=src.get("submitted_at"),
+                objective_text=src.get("objective_text"),
+            )
+        elif src.get("kind") == "PROGRAM":
+            source = ProgramObjectiveSource(
+                repo=src.get("repo"),
+                parent_proposal_id=src.get("parent_proposal_id"),
+                program_id=src.get("program_id"),
+                node_id=src.get("node_id"),
+                projection_digest=src.get("projection_digest"),
                 objective_text=src.get("objective_text"),
             )
         else:
@@ -247,7 +296,7 @@ class ObjectiveProposalStore:
     def capture(
         self,
         *,
-        source: ObjectiveSourceReference | DevelopmentApiObjectiveSource,
+        source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource,
         delivery_id: str,
         root: Path,
     ) -> ObjectiveCaptureResult:

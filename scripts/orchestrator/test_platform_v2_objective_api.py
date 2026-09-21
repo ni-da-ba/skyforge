@@ -181,6 +181,30 @@ class ObjectiveApiTest(unittest.TestCase):
             self.assertIsNone(result["candidate_task"])
             self.assertEqual(len(runtime.task_authority_store.load().records), 0)
 
+    def test_continue_skyforge_is_typed_program_parent_and_wakes_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            wake = WakeCounter()
+            runtime.execution_driver = wake
+            base = self.serve(runtime)
+            status, result = self.post(
+                base,
+                {
+                    "request_id": "objective-program-1001",
+                    "objective": "Continue Skyforge",
+                },
+            )
+            self.assertEqual(status, 202)
+            self.assertEqual(result["objective_disposition"], "PROGRAM_CONTINUE")
+            self.assertFalse(result["executable_task_authority"])
+            self.assertFalse(result["task_authority_recorded"])
+            self.assertIsNone(result["candidate_task"])
+            self.assertIsNone(result["human_gate"])
+            self.assertEqual(wake.count, 1)
+            self.assertEqual(len(runtime.task_authority_store.load().records), 0)
+            self.assertEqual(len(runtime.state.inbox.pending_events), 0)
+
     def test_identical_request_is_idempotent_conflict_is_409_and_wakes_once(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

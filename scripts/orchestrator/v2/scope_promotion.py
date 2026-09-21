@@ -15,7 +15,8 @@ from .hosted_admission import HostedAdmissionStore
 from .hosted_state import HostedStateStore
 from .hosted_task_plan import HostedTaskPlanStore
 from .identity import canonical_digest
-from .objective_ingress import ObjectiveProposalRecord, ObjectiveProposalStore
+from .objective_ingress import ObjectiveProposalRecord, ObjectiveProposalStore, ProgramObjectiveSource
+from .program_projection import program_candidate_for_identity
 from .objective_intake import ObjectiveCompileDisposition, compile_objective
 from .state_store import JsonStateStoreAdapter
 from .task_authority import TASK_AUTHORITY_MARKER, TaskAuthorityDisposition, TypedTaskDirective, parse_typed_task_directive
@@ -25,11 +26,13 @@ PROMOTIONS_BACKUP_RELATIVE_PATH = Path('.skyforge-platform-v2/objective-promotio
 PROTECTED_PATHS = (
     '.github/**','deploy/orchestrator/**','scripts/orchestrator/**',
     'docs/agent-state/ORCHESTRATOR_ROADMAP.json',
+    'docs/agent-state/PROGRAM_PROGRESSION.json',
     'docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md',
 )
 _PROTECTED_PREFIXES = ('.github/','deploy/orchestrator/','scripts/orchestrator/')
 _PROTECTED_EXACT = {
     'docs/agent-state/ORCHESTRATOR_ROADMAP.json',
+    'docs/agent-state/PROGRAM_PROGRESSION.json',
     'docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md',
 }
 
@@ -339,13 +342,39 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
     except ValueError as exc:
         blockers.append(str(exc))
     if proposal is not None:
-        current = compile_objective(proposal.source.objective_text, root=root)
-        if current.disposition is not ObjectiveCompileDisposition.CANDIDATE_TASK:
-            blockers.append('current objective compilation no longer selects a candidate task')
-        elif proposal.compiled.candidate_task is None or current.candidate_task is None:
-            blockers.append('candidate task metadata is missing')
-        elif current.candidate_task.as_dict() != proposal.compiled.candidate_task.as_dict():
-            blockers.append('current roadmap candidate differs from frozen objective proposal')
+        if isinstance(proposal.source, ProgramObjectiveSource):
+            try:
+                current_candidate = program_candidate_for_identity(
+                    root=root,
+                    program_id=proposal.source.program_id,
+                    node_id=proposal.source.node_id,
+                    projection_digest=proposal.source.projection_digest,
+                )
+            except ValueError as exc:
+                blockers.append(str(exc))
+                current_candidate = None
+            if (
+                proposal.compiled.disposition
+                is not ObjectiveCompileDisposition.CANDIDATE_TASK
+                or proposal.compiled.candidate_task is None
+                or current_candidate is None
+            ):
+                blockers.append('program objective no longer selects a candidate task')
+            elif (
+                current_candidate.as_dict()
+                != proposal.compiled.candidate_task.as_dict()
+            ):
+                blockers.append(
+                    'current program candidate differs from frozen objective proposal'
+                )
+        else:
+            current = compile_objective(proposal.source.objective_text, root=root)
+            if current.disposition is not ObjectiveCompileDisposition.CANDIDATE_TASK:
+                blockers.append('current objective compilation no longer selects a candidate task')
+            elif proposal.compiled.candidate_task is None or current.candidate_task is None:
+                blockers.append('candidate task metadata is missing')
+            elif current.candidate_task.as_dict() != proposal.compiled.candidate_task.as_dict():
+                blockers.append('current roadmap candidate differs from frozen objective proposal')
 
     issue_number = package.issue_number
     live_issue = None

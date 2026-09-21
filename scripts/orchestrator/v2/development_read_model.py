@@ -388,6 +388,7 @@ class DevelopmentSnapshot:
     artifact_count: int
     human_reviews: tuple[Mapping[str, Any], ...]
     human_review_count: int
+    program_progression: Mapping[str, Any]
     runtime: Mapping[str, Any]
 
     def payload(self) -> dict[str, Any]:
@@ -447,6 +448,10 @@ class DevelopmentSnapshot:
             "artifact_count": self.artifact_count,
             "human_reviews": [dict(value) for value in self.human_reviews],
             "human_review_count": self.human_review_count,
+            "program_progression": _json_value(
+                dict(self.program_progression),
+                "program_progression",
+            ),
             "runtime": _json_value(dict(self.runtime), "runtime"),
         }
 
@@ -477,6 +482,7 @@ def build_development_snapshot(
     artifact_records: Iterable[Mapping[str, Any]] = (),
     human_reviews: Iterable[Mapping[str, Any]] = (),
     human_gates: Iterable[Mapping[str, Any]] = (),
+    program_progression: Mapping[str, Any] | None = None,
     runtime: Mapping[str, Any],
 ) -> DevelopmentSnapshot:
     repository = str(repo or "").strip()
@@ -566,5 +572,9 @@ def build_development_snapshot(
         artifact_count=len(artifacts_all),
         human_reviews=_recent(reviews_all),
         human_review_count=len(reviews_all),
+        program_progression=_json_value(
+            dict(program_progression or {}),
+            "program_progression",
+        ),
         runtime=_json_value(runtime, "runtime"),
     )
