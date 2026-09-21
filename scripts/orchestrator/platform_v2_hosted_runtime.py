@@ -23,6 +23,7 @@ from typing import Any, Mapping
 from urllib.parse import unquote, urlsplit
 
 from v2.cutover import LegacyOperationalProjection
+from v2.concurrency_claims import ConcurrencyClaimStore
 from v2.development_read_model import build_development_snapshot
 from v2.hosted_admission import (
     HostedAdmissionAdvanceResult,
@@ -222,6 +223,7 @@ class HostedV2Substrate:
         self.objective_command_store = ObjectiveCommandStore.for_root(self.root)
         self.human_review_store = HumanReviewStore.for_root(self.root)
         self.human_review_command_store = HumanReviewCommandStore.for_root(self.root)
+        self.concurrency_claim_store = ConcurrencyClaimStore.for_root(self.root)
         self.roadmap_authority_store = RoadmapAuthorityStore.for_root(self.root)
         self.task_plan_store = HostedTaskPlanStore.for_root(self.root)
         self.admission_store = HostedAdmissionStore.for_root(self.root)
@@ -483,6 +485,7 @@ class HostedV2Substrate:
             objective_ledger = self.objective_proposal_store.load()
             latest_objective = objective_ledger.records[-1] if objective_ledger.records else None
             human_review_ledger = self.human_review_store.load()
+            concurrency_claims = self.concurrency_claim_store.load()
             latest_human_review = (
                 human_review_ledger.records[-1] if human_review_ledger.records else None
             )
@@ -588,6 +591,9 @@ class HostedV2Substrate:
                 "active_task_plan_status": (
                     active_plan.status.value if active_plan is not None else ""
                 ),
+                "active_concurrency_claim_count": len(concurrency_claims.active),
+                "retired_concurrency_claim_count": len(concurrency_claims.retired),
+                "hosted_execution_concurrency_limit": 1,
                 "hosted_completion_count": len(completions.records),
                 "hosted_completion_cleaned_count": sum(
                     record.status is HostedCompletionStatus.CLEANED
@@ -638,6 +644,7 @@ class HostedV2Substrate:
                 raise ValueError("worker-run read records must be a list")
             completions = HostedCompletionStore.for_root(self.root).load()
             external = self.external_claim_store.load()
+            concurrency_claims = self.concurrency_claim_store.load()
             artifacts = ReviewArtifactCatalog.for_root(self.root)
             for artifact in artifacts.records:
                 validate_artifact_source(self.root, artifact)
@@ -694,6 +701,12 @@ class HostedV2Substrate:
                 ),
                 "production_execution_driver": health["production_execution_driver"],
                 "production_execution_budget": health["production_execution_budget"],
+                "active_concurrency_claim_count": health[
+                    "active_concurrency_claim_count"
+                ],
+                "hosted_execution_concurrency_limit": health[
+                    "hosted_execution_concurrency_limit"
+                ],
             }
             snapshot = build_development_snapshot(
                 repo=self.repo,
@@ -705,6 +718,9 @@ class HostedV2Substrate:
                 active_plan=(plan.as_dict() if plan is not None else None),
                 admission=(
                     admission.as_dict() if admission is not None else None
+                ),
+                concurrency_claims=(
+                    claim.as_dict() for claim in concurrency_claims.active
                 ),
                 worker_records=worker_records,
                 completion_records=(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from http.server import ThreadingHTTPServer
 import subprocess
@@ -12,6 +13,8 @@ import unittest
 
 import platform_v2_hosted_runtime as hosted
 from test_platform_v2_hosted_runtime import SECRET, write_legacy
+from v2.concurrency_claims import ConcurrencyClaimLedger, acquire_concurrency_claim
+from v2.worker_provider import FrozenWorkerSpec, WorkerTier
 
 
 API_TOKEN = "development-api-test-token-0123456789abcdef"
@@ -111,6 +114,59 @@ class DevelopmentReadApiTest(unittest.TestCase):
             self.assertEqual(payload["runtime"]["status"], "ok")
             self.assertEqual(payload["snapshot_digest"], direct["snapshot_digest"])
             self.assertNotIn(API_TOKEN, json.dumps(payload, sort_keys=True))
+
+
+    def test_persisted_concurrency_claim_is_visible_while_execution_remains_singleton(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            worker = FrozenWorkerSpec(
+                task_id="claim-read-test",
+                authority_key="authority:claim-read-test",
+                task_spec_hash=hashlib.sha256(b"claim-read-spec").hexdigest(),
+                attempt_id=hashlib.sha256(b"claim-read-attempt").hexdigest(),
+                lane="Implementation",
+                objective="prove claim visibility",
+                stop_boundary="stop after claim visibility",
+                base_sha="a" * 40,
+                allowed_paths=("docs/claims/**",),
+                tier=WorkerTier.TERRA,
+                context_text="private claim context must not leak",
+            )
+            acquired = acquire_concurrency_claim(ConcurrencyClaimLedger(), worker)
+            runtime.concurrency_claim_store.save(acquired.ledger)
+
+            status, payload = runtime.handle_development_read(
+                f"Bearer {API_TOKEN}"
+            )
+            self.assertEqual(status, 200)
+            claims = payload["execution"]["concurrency_claims"]
+            self.assertEqual(payload["execution"]["concurrency_claim_count"], 1)
+            self.assertEqual(claims[0]["attempt_id"], worker.attempt_id)
+            self.assertEqual(claims[0]["allowed_paths"], ["docs/claims/**"])
+            self.assertNotIn(worker.context_text, json.dumps(payload))
+
+            health = runtime.health_snapshot()
+            self.assertEqual(health["active_concurrency_claim_count"], 1)
+            self.assertEqual(health["hosted_execution_concurrency_limit"], 1)
+            self.assertEqual(
+                payload["runtime"]["hosted_execution_concurrency_limit"],
+                1,
+            )
+
+    def test_corrupt_concurrency_claim_state_makes_development_read_fail_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            store = runtime.concurrency_claim_store
+            store.save(ConcurrencyClaimLedger())
+            store.adapter.path.write_text("not-json", encoding="utf-8")
+            store.adapter.backup_path.write_text("also-not-json", encoding="utf-8")
+            status, payload = runtime.handle_development_read(
+                f"Bearer {API_TOKEN}"
+            )
+            self.assertEqual(status, 503)
+            self.assertEqual(payload["error"], "development state is unavailable")
 
     def test_unauthorized_endpoint_is_401_and_does_not_return_state(self):
         with tempfile.TemporaryDirectory() as td:

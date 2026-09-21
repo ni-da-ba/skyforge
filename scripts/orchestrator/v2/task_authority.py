@@ -16,6 +16,7 @@ from typing import Any, Iterable, Mapping, Sequence
 
 from .dispatch_admission import RepositoryTaskAuthority
 from .identity import canonical_digest
+from .path_scope import normalize_mutation_scope
 
 
 TASK_AUTHORITY_MARKER = "[SKYFORGE TASK AUTHORITY]"
@@ -50,19 +51,7 @@ def _repo(value: Any) -> str:
 
 
 def _task_path(value: Any, label: str) -> str:
-    text = _required_text(value, label).replace("\\", "/")
-    if (
-        text.startswith("/")
-        or text.startswith("./")
-        or re.match(r"^[A-Za-z]:/", text)
-        or any(part in {"", ".", ".."} for part in text.split("/"))
-    ):
-        raise ValueError(f"{label} must be a normalized repository-relative path")
-    if "*" in text and not text.endswith("/**"):
-        raise ValueError(f"{label} supports only a trailing /** scope wildcard")
-    if text.endswith("/**") and "*" in text[:-3]:
-        raise ValueError(f"{label} contains unsupported wildcard syntax")
-    return text
+    return normalize_mutation_scope(value, label=label)
 
 
 def _path_tuple(value: Any, label: str, *, require_nonempty: bool) -> tuple[str, ...]:
