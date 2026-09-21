@@ -4,6 +4,41 @@
 **Authority:** operator/root for execution; read-only by default
 **Product impact:** none; DR-70 remains CHANGES REQUIRED / DEFERRED
 
+## Operator view
+
+Use this runbook for a **normal accepted-main Platform-v2 source update** when Platform-v2 is already the production writer.
+
+### Normal path
+
+1. Fetch current `main`.
+2. Run the read-only plan.
+3. Continue only when the plan says **`READY`** with **no blockers**.
+4. Run the privileged upgrade and verify the final target/writer state.
+
+For the operator decision, the command output is machine-readable, but only these fields normally matter:
+
+| Field | What you need to see |
+| --- | --- |
+| `disposition` | `READY` before execution; `COMPLETE` after execution |
+| `blockers` | `[]` |
+| `authority` | `V2` on the normal path |
+| `target_sha` | the exact fetched/accepted `origin/main` SHA |
+| `previous_head_sha` | informational: the checkout being replaced |
+
+If the result is `BLOCKED` or `FAILED_SAFE_LEGACY`, **stop and read `blockers`**. Do not force the transition or manually reconstruct the writer choreography.
+
+### Expected end state
+
+A successful routine upgrade ends with:
+
+- checkout `HEAD == target_sha`;
+- Platform-v2 **active + enabled**;
+- legacy **inactive + disabled**;
+- production execution gate ready;
+- production driver running.
+
+Everything below documents why those checks are safe and what the command does internally.
+
 ## Purpose
 
 A normal accepted Platform-v2 control-plane update should not require an operator to manually

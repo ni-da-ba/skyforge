@@ -7,6 +7,8 @@
 
 This is the privileged writer-transition runbook. It is **not** the normal accepted-main source-upgrade runbook; routine upgrades use **PLATFORM_V2_ROUTINE_UPGRADE.md**.
 
+**Operator rule:** if the task is only “deploy the latest accepted `main`,” stop here and use the routine-upgrade runbook. This document is for writer transitions, rollback, and explicit protected-authority recovery.
+
 ## Operator quick map
 
 | Situation | Use |
@@ -19,6 +21,20 @@ This is the privileged writer-transition runbook. It is **not** the normal accep
 | Matching terminal non-executed V2 ownership after legacy transfer | retire-v2-authority |
 
 All mutating service transitions are root/operator actions. Read-only/default paths do not change writer authority.
+
+### What to read in operator output
+
+The CLI emits structured JSON so automation can consume the same result. For a human operator, read these fields first and ignore the rest unless diagnosing a failure:
+
+| Field | Meaning |
+| --- | --- |
+| `disposition` | whether the requested step is ready, complete, or blocked |
+| `blockers` | the reason to stop; an empty list means no reported blocker |
+| `authority` | which writer currently owns mutation authority: `V2`, `LEGACY`, or `NONE` |
+| `accepted_main_sha` / `target_sha` | the exact repository revision involved |
+| `events` | diagnostic transition history; normally not needed for the go/no-go decision |
+
+**Do not infer success from a long event list.** The operator decision comes from `disposition`, `blockers`, writer authority, and the exact SHA.
 
 ## Non-negotiable authority invariant
 
