@@ -116,7 +116,21 @@
       const exact = gates.find((gate) => gate.gate_id === gateId);
       if (exact) return exact;
     }
-    return gates.length ? gates[gates.length - 1] : null;
+
+    const fallback = gates.length ? gates[gates.length - 1] : null;
+    const review = latestReview(state);
+    if (
+      fallback
+      && review
+      && review.gate_id === fallback.gate_id
+      && review.verdict === "CHANGES_REQUIRED"
+    ) {
+      // A migrated/legacy blocked gate with a durable failed review is historical
+      // product state, not a fresh request. A future active WAIT_HUMAN session may
+      // legitimately resurface the same gate after a new repair/material delta.
+      return null;
+    }
+    return fallback;
   }
 
   function kv(entries) {
