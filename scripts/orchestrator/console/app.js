@@ -209,9 +209,13 @@
 
     const gate = currentHumanGate(state);
     const review = latestReview(state);
-    let product = "No review needed";
-    let productSeverity = "";
-    let productDetail = review ? "Latest recorded review: " + friendlyStatus(review.verdict) + "." : "No human review action is currently reported.";
+    let product = review ? friendlyStatus(review.verdict) : "No review needed";
+    let productSeverity = review ? severityFor(review.verdict) : "";
+    let productDetail = review
+      ? (review.deferred_product_work
+          ? "Product work was deferred after the latest review; resume from the recorded repair boundary."
+          : (review.next_boundary || "See Product / human review."))
+      : "No human review action is currently reported.";
     if (gate) {
       product = "Review needed";
       productSeverity = "warn";
