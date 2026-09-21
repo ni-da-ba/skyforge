@@ -12,12 +12,14 @@ from v2.context_package import (
     package_proposal,
 )
 from v2.objective_ingress import (
+    DevelopmentApiObjectiveSource,
     ObjectiveProposalRecord,
     ObjectiveProposalStore,
     ObjectiveSourceReference,
 )
 from v2.objective_intake import (
     compile_continue_objective,
+    compile_objective,
     load_manifest,
     parse_objective,
 )
@@ -163,6 +165,34 @@ class ContextPackageTest(unittest.TestCase):
             self.assertFalse(created2)
             self.assertEqual(first,second)
             self.assertEqual(len(ContextPackageStore.for_root(root).load().records),1)
+
+
+    def test_api_read_only_objective_packages_without_github_issue_identity(self):
+        with tempfile.TemporaryDirectory() as td:
+            root=Path(td); prepare_repo(root)
+            manifest=load_manifest(root)
+            completed={node.node_id:node.max_runs for node in manifest.nodes if node.kind.value=='task'}
+            blocked={'dr-human-exploration-rereview':{'reason':'current'}}
+            write_legacy_roadmap(root,completed=completed,blocked=blocked)
+            source=DevelopmentApiObjectiveSource(
+                repo='ni-da-ba/skyforge',
+                request_id='objective-request-ctx-01',
+                actor='ni-da-ba',
+                client='chatgpt-mcp',
+                submitted_at='2026-09-21T00:45:00Z',
+                objective_text='Investigate landing gear',
+            )
+            prop=ObjectiveProposalRecord(
+                source=source,
+                delivery_id='',
+                compiled=compile_objective(source.objective_text,root=root),
+            )
+            package=build_context_package(root=root,proposal=prop)
+            self.assertEqual(package.disposition,ContextPackageDisposition.READY_READ_ONLY)
+            self.assertIsNone(package.issue_number)
+            self.assertIsNone(package.lane)
+            self.assertEqual(package.path_scope.disposition,'NOT_REQUIRED')
+            self.assertFalse(package.as_dict()['executable_task_authority'])
 
     def test_tracked_dirty_checkout_blocks_authoritative_package(self):
         with tempfile.TemporaryDirectory() as td:

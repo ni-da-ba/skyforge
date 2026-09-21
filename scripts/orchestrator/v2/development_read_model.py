@@ -53,10 +53,14 @@ def _objective(raw: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "proposal_id": str(raw.get("proposal_id") or ""),
         "source": {
+            "kind": str(source.get("kind") or "GITHUB_COMMENT"),
             "issue_number": source.get("issue_number"),
             "comment_id": source.get("comment_id"),
+            "request_id": source.get("request_id"),
+            "client": source.get("client"),
             "actor": str(source.get("actor") or ""),
             "created_at": str(source.get("created_at") or ""),
+            "submitted_at": str(source.get("submitted_at") or ""),
             "objective_text": str(source.get("objective_text") or ""),
         },
         "disposition": str(compiled.get("disposition") or ""),

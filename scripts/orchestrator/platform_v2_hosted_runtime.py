@@ -62,8 +62,16 @@ from v2.hosted_task_preflight import (
 )
 from v2.identity import canonical_digest
 from v2.objective_ingress import (
+    DevelopmentApiObjectiveSource,
     ObjectiveProposalStore,
     parse_objective_comment,
+)
+from v2.objective_command import (
+    ObjectiveCommandPhase,
+    ObjectiveCommandStore,
+    advance_objective_command,
+    prepare_objective_command,
+    reconcile_pending_objective_commands,
 )
 from v2.objective_intake import load_manifest
 from v2.human_review import (
@@ -209,6 +217,7 @@ class HostedV2Substrate:
         self.task_authority_store = TaskAuthorityEventStore.for_root(self.root)
         self.external_claim_store = ExternalClaimStore.for_root(self.root)
         self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
+        self.objective_command_store = ObjectiveCommandStore.for_root(self.root)
         self.human_review_store = HumanReviewStore.for_root(self.root)
         self.human_review_command_store = HumanReviewCommandStore.for_root(self.root)
         self.roadmap_authority_store = RoadmapAuthorityStore.for_root(self.root)
@@ -225,6 +234,9 @@ class HostedV2Substrate:
         self.validate_environment()
         self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.startup_external_claim_migrations = self._migrate_external_claims_once()
+        self.startup_objective_command_reconciliations = (
+            self._reconcile_pending_objective_commands()
+        )
         self.startup_human_review_command_reconciliations = (
             self._reconcile_pending_human_review_commands()
         )
@@ -264,6 +276,17 @@ class HostedV2Substrate:
             raise RuntimeError(
                 "SKYFORGE_DEVELOPMENT_WRITE_ACTOR must be a trusted configured actor."
             )
+
+    def _reconcile_pending_objective_commands(self) -> int:
+        """Finish crash-interrupted objective proposal persistence on startup."""
+        pending = self.objective_command_store.load().pending
+        if not pending:
+            return 0
+        reconciled = reconcile_pending_objective_commands(
+            command_store=self.objective_command_store,
+            proposal_store=self.objective_proposal_store,
+        )
+        return len(reconciled)
 
     def _reconcile_pending_human_review_commands(self) -> int:
         """Finish any crash-interrupted review -> roadmap transition on startup."""
@@ -465,6 +488,9 @@ class HostedV2Substrate:
                 "legacy_classifier_adapter": True,
                 "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
                 "startup_external_claim_migrations": self.startup_external_claim_migrations,
+                "startup_objective_command_reconciliations": (
+                    self.startup_objective_command_reconciliations
+                ),
                 "startup_human_review_command_reconciliations": (
                     self.startup_human_review_command_reconciliations
                 ),
@@ -480,6 +506,9 @@ class HostedV2Substrate:
                 "task_authority_capture_enabled": True,
                 "task_authority_record_count": len(authority_ledger.records),
                 "objective_intake_enabled": True,
+                "pending_objective_command_count": len(
+                    self.objective_command_store.load().pending
+                ),
                 "objective_proposal_count": len(objective_ledger.records),
                 "latest_objective_disposition": (
                     latest_objective.compiled.disposition.value if latest_objective else ""
@@ -794,6 +823,112 @@ class HostedV2Substrate:
                 "error": "artifact content is unavailable",
                 "failure_kind": type(exc).__name__,
             }
+
+    def handle_objective_submit(
+        self,
+        authorization: str | None,
+        payload: Mapping[str, Any],
+        *,
+        client: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_write_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        if not isinstance(payload, Mapping):
+            return 400, {"error": "objective payload must be an object"}
+
+        allowed = {"request_id", "objective"}
+        unknown = sorted(str(key) for key in payload if key not in allowed)
+        if unknown:
+            return 400, {
+                "error": "objective payload contains unsupported fields",
+                "unsupported_fields": unknown,
+            }
+
+        try:
+            request_id = str(payload.get("request_id") or "").strip()
+            existing = self.objective_command_store.load().get(request_id)
+            submitted_at = (
+                existing.proposal.source.submitted_at
+                if existing is not None
+                and isinstance(
+                    existing.proposal.source,
+                    DevelopmentApiObjectiveSource,
+                )
+                else datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+            )
+            source = DevelopmentApiObjectiveSource(
+                repo=self.repo,
+                request_id=request_id,
+                actor=self.development_write_actor,
+                client=str(client or "development-api").strip().lower(),
+                submitted_at=submitted_at,
+                objective_text=payload.get("objective"),
+            )
+        except (TypeError, ValueError) as exc:
+            return 400, {"error": f"invalid objective payload: {exc}"}
+
+        with self._lock:
+            try:
+                existing = self.objective_command_store.load().get(request_id)
+                was_reconciled = (
+                    existing is not None
+                    and existing.phase is ObjectiveCommandPhase.RECONCILED
+                )
+                prepare_objective_command(
+                    store=self.objective_command_store,
+                    source=source,
+                    root=self.root,
+                )
+                complete = advance_objective_command(
+                    command_store=self.objective_command_store,
+                    proposal_store=self.objective_proposal_store,
+                    request_id=request_id,
+                )
+            except StateStoreError as exc:
+                return 503, {
+                    "error": "objective durable state is unavailable",
+                    "failure_kind": type(exc).__name__,
+                }
+            except (OSError, RuntimeError) as exc:
+                return 503, {
+                    "error": "objective compilation state is unavailable",
+                    "failure_kind": type(exc).__name__,
+                }
+            except ValueError as exc:
+                phase = None
+                durable = self.objective_command_store.load().get(request_id)
+                if durable is not None:
+                    phase = durable.phase.value
+                return 409, {
+                    "error": str(exc),
+                    "command_phase": phase,
+                }
+
+        if (
+            complete.phase is ObjectiveCommandPhase.RECONCILED
+            and not was_reconciled
+        ):
+            self._signal_execution_driver()
+
+        compiled = complete.proposal.compiled.as_dict()
+        return (200 if existing is not None else 202), {
+            "accepted": True,
+            "idempotent_replay": existing is not None,
+            "request_id": request_id,
+            "command_id": complete.command_id,
+            "command_phase": complete.phase.value,
+            "proposal_id": complete.proposal.proposal_id,
+            "objective": complete.proposal.source.objective_text,
+            "objective_disposition": complete.proposal.compiled.disposition.value,
+            "reason": complete.proposal.compiled.reason,
+            "candidate_task": compiled.get("candidate_task"),
+            "human_gate": compiled.get("human_gate"),
+            "executable_task_authority": False,
+            "task_authority_recorded": False,
+            "actor": complete.proposal.source.actor,
+            "client": complete.proposal.source.client,
+        }
 
     def handle_human_review_submit(
         self,
@@ -1577,6 +1712,46 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         path = urlsplit(self.path).path
+        if path == "/api/v1/objectives":
+            try:
+                size = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            if size <= 0 or size > MAX_DOMAIN_PAYLOAD_BYTES:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            content_type = (
+                str(self.headers.get("Content-Type") or "")
+                .split(";", 1)[0]
+                .strip()
+                .lower()
+            )
+            if content_type != "application/json":
+                self._respond_json(
+                    415,
+                    {"error": "objective endpoint requires application/json"},
+                )
+                return
+            try:
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._respond_json(400, {"error": "invalid JSON payload"})
+                return
+            if not isinstance(payload, Mapping):
+                self._respond_json(
+                    400,
+                    {"error": "objective payload must be an object"},
+                )
+                return
+            status, response = self.runtime.handle_objective_submit(
+                self.headers.get("Authorization"),
+                payload,
+                client=self.headers.get("X-Skyforge-Client"),
+            )
+            self._respond_json(status, response)
+            return
+
         if path == "/api/v1/human-reviews":
             try:
                 size = int(self.headers.get("Content-Length") or "0")

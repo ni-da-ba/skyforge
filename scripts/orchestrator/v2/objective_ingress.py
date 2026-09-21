@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import re
 from typing import Any, Mapping
 
 from .identity import canonical_digest
@@ -13,6 +14,8 @@ from .state_store import JsonStateStoreAdapter
 OBJECTIVE_MARKER = "SKYFORGE OBJECTIVE"
 OBJECTIVE_PROPOSALS_RELATIVE_PATH = Path(".skyforge-platform-v2/objective-proposals.json")
 OBJECTIVE_PROPOSALS_BACKUP_RELATIVE_PATH = Path(".skyforge-platform-v2/objective-proposals.json.bak")
+_API_REQUEST_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$")
+_CLIENT_RE = re.compile(r"^[a-z0-9][a-z0-9._-]{1,63}$")
 
 
 def _required(value: Any, label: str) -> str:
@@ -64,8 +67,51 @@ class ObjectiveSourceReference:
 
 
 @dataclass(frozen=True)
+class DevelopmentApiObjectiveSource:
+    repo: str
+    request_id: str
+    actor: str
+    client: str
+    submitted_at: str
+    objective_text: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "repo", _required(self.repo, "repo"))
+        request_id = _required(self.request_id, "objective request_id")
+        if not _API_REQUEST_RE.fullmatch(request_id):
+            raise ValueError("objective request_id has invalid characters or length")
+        object.__setattr__(self, "request_id", request_id)
+        object.__setattr__(self, "actor", _required(self.actor, "actor").lower())
+        client = _required(self.client, "objective client").lower()
+        if not _CLIENT_RE.fullmatch(client):
+            raise ValueError("objective client has invalid characters or length")
+        object.__setattr__(self, "client", client)
+        object.__setattr__(self, "submitted_at", _required(self.submitted_at, "submitted_at"))
+        object.__setattr__(
+            self,
+            "objective_text",
+            _required(self.objective_text, "objective_text"),
+        )
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": "DEVELOPMENT_API",
+            "repo": self.repo,
+            "request_id": self.request_id,
+            "actor": self.actor,
+            "client": self.client,
+            "submitted_at": self.submitted_at,
+            "objective_text": self.objective_text,
+        }
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(self.as_dict())
+
+
+@dataclass(frozen=True)
 class ObjectiveProposalRecord:
-    source: ObjectiveSourceReference
+    source: ObjectiveSourceReference | DevelopmentApiObjectiveSource
     delivery_id: str
     compiled: ObjectiveCompileResult
 
@@ -94,15 +140,27 @@ class ObjectiveProposalRecord:
         comp = raw.get("compiled")
         if not isinstance(src, Mapping) or not isinstance(comp, Mapping):
             raise ValueError("objective proposal record is malformed")
-        source = ObjectiveSourceReference(
-            repo=src.get("repo"),
-            issue_number=src.get("issue_number"),
-            comment_id=src.get("comment_id"),
-            actor=src.get("actor"),
-            created_at=src.get("created_at"),
-            updated_at=src.get("updated_at"),
-            objective_text=src.get("objective_text"),
-        )
+        if src.get("kind") == "DEVELOPMENT_API":
+            source = DevelopmentApiObjectiveSource(
+                repo=src.get("repo"),
+                request_id=src.get("request_id"),
+                actor=src.get("actor"),
+                client=src.get("client"),
+                submitted_at=src.get("submitted_at"),
+                objective_text=src.get("objective_text"),
+            )
+        else:
+            # Preserve the historical GitHub source serialization exactly. Existing
+            # source digests/proposal ids depend on this field set.
+            source = ObjectiveSourceReference(
+                repo=src.get("repo"),
+                issue_number=src.get("issue_number"),
+                comment_id=src.get("comment_id"),
+                actor=src.get("actor"),
+                created_at=src.get("created_at"),
+                updated_at=src.get("updated_at"),
+                objective_text=src.get("objective_text"),
+            )
         compiled = ObjectiveCompileResult.from_mapping(comp)
         record = cls(source=source, delivery_id=str(raw.get("delivery_id") or ""), compiled=compiled)
         if str(raw.get("source_digest") or "") != source.digest:
@@ -174,7 +232,27 @@ class ObjectiveProposalStore:
     def save(self, ledger: ObjectiveProposalLedger) -> None:
         self.adapter.save(ledger.as_dict())
 
-    def capture(self, *, source: ObjectiveSourceReference, delivery_id: str, root: Path) -> ObjectiveCaptureResult:
+    def capture_record(self, record: ObjectiveProposalRecord) -> ObjectiveCaptureResult:
+        ledger = self.load()
+        existing = ledger.by_source_digest(record.source.digest)
+        if existing is not None:
+            if existing != record:
+                raise ValueError(
+                    "conflicting objective proposal for immutable source revision"
+                )
+            return ObjectiveCaptureResult(existing, False)
+        self.save(ledger.put(record))
+        return ObjectiveCaptureResult(record, True)
+
+    def capture(
+        self,
+        *,
+        source: ObjectiveSourceReference | DevelopmentApiObjectiveSource,
+        delivery_id: str,
+        root: Path,
+    ) -> ObjectiveCaptureResult:
+        # Preserve historical webhook redelivery semantics: immutable source identity,
+        # not transport delivery id, is the idempotence boundary.
         ledger = self.load()
         existing = ledger.by_source_digest(source.digest)
         if existing is not None:

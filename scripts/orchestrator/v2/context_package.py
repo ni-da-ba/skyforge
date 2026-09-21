@@ -314,7 +314,11 @@ def build_context_package(*, root: Path, proposal: ObjectiveProposalRecord) -> C
         roadmap_state_digest=roadmap_state.digest,
         manifest_fingerprint=manifest.fingerprint,
         lane=lane,
-        issue_number=candidate.issue_number if candidate else proposal.source.issue_number,
+        issue_number=(
+            candidate.issue_number
+            if candidate
+            else getattr(proposal.source, "issue_number", None)
+        ),
         node_id=candidate.node_id if candidate else (gate.node_id if gate else None),
         objective=candidate.objective if candidate else None,
         stop_boundary=candidate.stop_boundary if candidate else None,
