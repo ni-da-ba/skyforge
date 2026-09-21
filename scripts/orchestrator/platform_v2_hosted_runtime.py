@@ -1788,10 +1788,21 @@ class HostedV2Substrate:
             trusted_actors=self.trusted_actors,
             gate=self.execution_gate,
         )
+
+        # Completion cleanup mutates hosted-state.json directly. Serialize only that
+        # short model-free boundary with HTTP ingress so a concurrent webhook cannot
+        # persist stale cached self.state between cleanup and the accepted reload.
+        with self._lock:
+            pending_completion = HostedCompletionStore.for_root(self.root).load().pending()
+            if pending_completion is not None:
+                result = coordinator.advance_once(dependencies)
+                self.state = self.store.load()
+                return result
+
         result = coordinator.advance_once(dependencies)
-        # Execution completion may retire an inbox event directly through the durable
-        # store. Reload it here so webhook/health state cannot later overwrite that
-        # accepted retirement with a stale in-memory snapshot.
+        # Other execution boundaries may also update durable state directly. Refresh
+        # the cache after each boundary, but do not hold the HTTP lock across model,
+        # worker, or remote-effect calls.
         with self._lock:
             self.state = self.store.load()
         return result

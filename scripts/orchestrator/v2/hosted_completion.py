@@ -9,18 +9,24 @@ from typing import Any, Mapping
 
 from .concurrency_claims import ConcurrencyClaimStore
 from .dormant_handoff_commit import (
+    DormantCommitOutcome,
     DormantHandoffCommitLedger,
     DormantHandoffCommitStore,
 )
-from .hosted_admission import HostedAdmissionLedger, HostedAdmissionStore
+from .hosted_admission import (
+    HostedAdmissionLedger,
+    HostedAdmissionOutcome,
+    HostedAdmissionStore,
+)
 from .hosted_state import HostedIngressState, HostedStateStore
 from .hosted_task_plan import HostedTaskPlanLedger, HostedTaskPlanStore
 from .hosted_worker_scheduler import retire_hosted_worker_schedule
 from .identity import canonical_digest
 from .inbox import InboxState
+from .ordinary_effects import OrdinaryEffectStore
 from .ordinary_pipeline import OrdinaryPipelineStore
 from .state_store import JsonStateStoreAdapter
-from .worker_provider import WorkerRunStore
+from .worker_provider import WorkerRunStatus, WorkerRunStore
 
 
 HOSTED_COMPLETION_RELATIVE_PATH = Path(".skyforge-platform-v2") / "hosted-completions.json"
@@ -278,6 +284,101 @@ def record_completed_managed_task(
     return HostedCompletionResult(
         HostedCompletionDisposition.RECORDED,
         "hosted managed task completion durably recorded before cleanup",
+        record,
+    )
+
+
+def record_completed_no_change_task(
+    *,
+    root: Path,
+    plan_id: str | None = None,
+) -> HostedCompletionResult:
+    """Persist exact no-change completion identity before singleton cleanup."""
+
+    root = Path(root).resolve()
+    plans = HostedTaskPlanStore.for_root(root).load()
+    plan = plans.get(plan_id) if plan_id is not None else plans.active
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = admissions.for_plan(plan.plan_id) if plan is not None else None
+    if plan is None or admission is None:
+        raise RuntimeError("cannot record no-change completion without active plan/admission")
+    if admission.outcome is not HostedAdmissionOutcome.ADMITTED:
+        raise RuntimeError("no-change completion requires an admitted task")
+    if admission.plan_id != plan.plan_id:
+        raise RuntimeError("no-change completion plan/admission identity mismatch")
+    if admission.attempt is None:
+        raise RuntimeError("no-change completion admission lacks attempt identity")
+
+    worker = WorkerRunStore.for_root(root).load().find_attempt(admission.attempt.attempt_id)
+    if worker is None or worker.status is not WorkerRunStatus.HANDOFF_READY:
+        raise RuntimeError("no-change completion requires exact HANDOFF_READY worker evidence")
+    if worker.spec.attempt_id != admission.attempt.attempt_id:
+        raise RuntimeError("no-change completion worker attempt identity mismatch")
+
+    commit = DormantHandoffCommitStore.for_root(root).load().for_attempt(
+        admission.attempt.attempt_id
+    )
+    if commit is None or commit.outcome is not DormantCommitOutcome.NO_CHANGE:
+        raise RuntimeError("no-change completion requires exact NO_CHANGE commit evidence")
+    if commit.admission_record_id != admission.record_id:
+        raise RuntimeError("no-change completion commit/admission identity mismatch")
+    if commit.head_sha != commit.base_sha or commit.changed_paths:
+        raise RuntimeError("no-change completion evidence contains repository delta")
+
+    effects = OrdinaryEffectStore.for_root(root).load()
+    if any(
+        value.identity.attempt_id == admission.attempt.attempt_id
+        for value in effects.records
+    ):
+        raise RuntimeError("no-change completion cannot follow a remote effect")
+
+    pipelines = OrdinaryPipelineStore.for_root(root).load()
+    if any(
+        value.attempt_id == admission.attempt.attempt_id
+        for value in pipelines.records
+    ):
+        raise RuntimeError("no-change completion cannot follow a managed handoff")
+
+    evidence_digest = canonical_digest(
+        {
+            "kind": "NO_CHANGE",
+            "commit_record_id": commit.record_id,
+            "worker_run_id": worker.run_id,
+            "attempt_id": admission.attempt.attempt_id,
+            "base_sha": commit.base_sha,
+        }
+    )
+    record = HostedCompletionRecord(
+        plan_id=plan.plan_id,
+        event_id=plan.event_id,
+        issue_number=plan.issue_number,
+        admission_record_id=admission.record_id,
+        attempt_id=admission.attempt.attempt_id,
+        worker_run_id=worker.run_id,
+        # HostedCompletionRecord predates no-change completion. For this path the
+        # handoff field binds the exact durable no-change commit record instead.
+        handoff_digest=commit.record_id,
+        lifecycle_digest=evidence_digest,
+        status=HostedCompletionStatus.RECORDED,
+    )
+
+    store = HostedCompletionStore.for_root(root)
+    ledger = store.load()
+    current = ledger.get(record.completion_id)
+    if current is not None:
+        if current.as_dict() != record.as_dict():
+            raise RuntimeError("no-change completion identity drifted")
+        return HostedCompletionResult(
+            HostedCompletionDisposition.ALREADY_RECORDED,
+            "hosted no-change completion identity is already durable",
+            current,
+        )
+    if ledger.pending() is not None:
+        raise RuntimeError("another hosted completion still requires cleanup")
+    store.save(ledger.put(record))
+    return HostedCompletionResult(
+        HostedCompletionDisposition.RECORDED,
+        "hosted no-change task completion durably recorded before cleanup",
         record,
     )
 

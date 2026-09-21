@@ -60,6 +60,7 @@ from .hosted_completion import (
     HostedCompletionStore,
     advance_hosted_completion_cleanup,
     record_completed_managed_task,
+    record_completed_no_change_task,
 )
 from .hosted_state import HostedStateStore
 from .hosted_worker_scheduler import (
@@ -1220,6 +1221,17 @@ class HostedExecutionCoordinator:
                 result.reason,
                 self.gate.digest,
                 identity,
+            )
+        if commit_record.outcome is DormantCommitOutcome.NO_CHANGE:
+            completion = record_completed_no_change_task(
+                root=self.root,
+                plan_id=plan.plan_id,
+            )
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,
+                completion.reason,
+                self.gate.digest,
+                completion.record.completion_id if completion.record is not None else "",
             )
         if commit_record.outcome is not DormantCommitOutcome.COMMITTED:
             return self._blocked(commit_record.reason)
