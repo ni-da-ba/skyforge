@@ -29,10 +29,82 @@
     return el("span", text || "—", `pill ${severity}`.trim());
   }
 
-  function card(label, value) {
-    const node = el("div", null, "summary-card");
-    node.append(el("div", label, "label"), el("div", value ?? "—", "value"));
+  function card(label, value, severity = "", subvalue = "") {
+    const node = el("div", null, `summary-card ${severity}`.trim());
+    node.append(el("div", label, "label"), el("div", value ?? "—", "value health-value"));
+    if (subvalue) node.append(el("div", subvalue, "subvalue"));
     return node;
+  }
+
+  const FRIENDLY_STATUS = {
+    ok: "Healthy",
+    IDLE: "Idle",
+    RUNNING: "Running",
+    STOPPED: "Stopped",
+    ACTIVE: "Active",
+    PAUSED: "Paused",
+    CANCELLED: "Cancelled",
+    COMPLETED: "Completed",
+    CLEANED: "Cleaned up",
+    HANDOFF_READY: "Ready for handoff",
+    EXECUTING: "Running",
+    RUNNABLE: "Ready",
+    WAIT_LIMIT: "Waiting for capacity",
+    WAIT_CLAIM: "Waiting for ownership",
+    WAIT_QUOTA: "Waiting for quota",
+    RECOVERY_REQUIRED: "Recovery required",
+    FAILED: "Failed",
+    INTERRUPTED: "Interrupted",
+    ACCEPTED: "Accepted",
+    CHANGES_REQUIRED: "Changes required",
+    STALE_BASE: "Safely retired — main advanced",
+    STALE_MANAGED_BASE: "Stale PR preserved safely",
+    BLOCKED: "Blocked",
+    RECLASSIFY: "Reclassified",
+    NOT_DISPATCH: "Not dispatched",
+    MANAGED_PR_ADVANCED: "PR advanced",
+    WAIT_CI: "Waiting for CI",
+  };
+
+  function friendlyStatus(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "—";
+    if (FRIENDLY_STATUS[raw]) return FRIENDLY_STATUS[raw];
+    return raw.toLowerCase().replaceAll("_", " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
+  function severityFor(value) {
+    const raw = String(value || "").toUpperCase();
+    if (["FAILED", "INTERRUPTED", "RECOVERY_REQUIRED", "STOPPED"].includes(raw)) return "bad";
+    if (["BLOCKED", "CHANGES_REQUIRED", "WAIT_LIMIT", "WAIT_CLAIM", "WAIT_QUOTA", "WAIT_CI"].includes(raw)) return "warn";
+    if (["OK", "HEALTHY", "ACCEPTED", "COMPLETED", "CLEANED", "IDLE", "RUNNING"].includes(raw)) return "good";
+    return "";
+  }
+
+  function shortSha(value) {
+    const text = String(value || "");
+    return /^[0-9a-f]{40}$/.test(text) ? text.slice(0, 10) + "…" : (text || "—");
+  }
+
+  function truncate(value, limit = 150) {
+    const text = String(value || "").trim();
+    return text.length > limit ? text.slice(0, limit - 1) + "…" : text;
+  }
+
+  function technicalDetails(entries, title = "Technical details") {
+    const details = el("details", null, "technical-details");
+    details.append(el("summary", title));
+    details.append(kv(entries));
+    return details;
+  }
+
+  function emptyState(text) {
+    return el("div", text, "empty-state");
+  }
+
+  function latestReview(state) {
+    const values = state.human_reviews || [];
+    return values.length ? values[values.length - 1] : null;
   }
 
   function kv(entries) {
@@ -85,14 +157,107 @@
     clear(grid);
     const runtime = state.runtime || {};
     const driver = runtime.production_execution_driver || {};
+    const score = state.scorecard || {};
+    const scheduler = score.scheduler || {};
+    const blockers = runtime.production_execution_gate_blockers || [];
+    const healthy = runtime.status === "ok"
+      && driver.running === true
+      && blockers.length === 0
+      && Number(scheduler.recovery_required || 0) === 0;
+
+    const executing = Number(scheduler.executing || 0);
+    const waiting = Number(scheduler.waiting || 0);
+    const activePlan = Boolean((state.execution || {}).active_plan);
+    let activity = "Idle";
+    let activityDetail = "No worker is currently executing.";
+    if (executing > 0) {
+      activity = executing === 1 ? "1 worker running" : executing + " workers running";
+      activityDetail = "Automation is actively executing work.";
+    } else if (activePlan) {
+      activity = "Preparing work";
+      activityDetail = "A task is admitted or being classified.";
+    } else if (waiting > 0) {
+      activity = "Waiting";
+      activityDetail = waiting + " worker" + (waiting === 1 ? "" : "s") + " waiting for a safe execution condition.";
+    }
+
+    const review = latestReview(state);
+    let product = "No review recorded";
+    let productSeverity = "";
+    let productDetail = "No human review history is available.";
+    if (review) {
+      product = friendlyStatus(review.verdict);
+      productSeverity = severityFor(review.verdict);
+      productDetail = review.next_boundary || "See Product / human review.";
+    } else if ((state.human_gates || []).length) {
+      product = "Review needed";
+      productSeverity = "warn";
+      productDetail = "A human gate is awaiting judgment.";
+    }
+
     grid.append(
-      card("Checkout", state.checkout_head_sha),
-      card("Controller", runtime.controller),
-      card("Runtime", runtime.runtime_mode),
-      card("Status", runtime.status),
-      card("Pending events", runtime.pending_event_count),
-      card("Execution", driver.last_disposition || (driver.running ? "RUNNING" : "STOPPED"))
+      card("System", healthy ? "Healthy" : "Needs attention", healthy ? "good" : "warn",
+        healthy ? "Platform-v2 is running normally." : "See Needs attention below."),
+      card("Current activity", activity, executing > 0 ? "good" : "", activityDetail),
+      card("Product state", product, productSeverity, truncate(productDetail, 100)),
+      card("Checkout", shortSha(state.checkout_head_sha), "", "Exact SHA is available in Technical details.")
     );
+  }
+
+  function renderAttention(state) {
+    const panel = $("attention-panel");
+    const node = $("attention");
+    const count = $("attention-count");
+    clear(node);
+    const items = [];
+    const runtime = state.runtime || {};
+    const driver = runtime.production_execution_driver || {};
+    const score = state.scorecard || {};
+    const scheduler = score.scheduler || {};
+    const blockers = runtime.production_execution_gate_blockers || [];
+
+    if (runtime.status !== "ok") {
+      items.push(["Controller health", "The Platform-v2 runtime is not reporting a healthy status.", "bad"]);
+    }
+    if (driver.running !== true) {
+      items.push(["Automation driver stopped", "Production execution is enabled but the driver is not running.", "bad"]);
+    }
+    for (const blocker of blockers) {
+      items.push(["Execution blocked", String(blocker), "warn"]);
+    }
+    if (Number(scheduler.recovery_required || 0) > 0) {
+      items.push(["Worker recovery required", scheduler.recovery_required + " scheduler record(s) require recovery.", "bad"]);
+    }
+
+    const review = latestReview(state);
+    if (review && review.verdict === "CHANGES_REQUIRED") {
+      items.push([
+        "Product review requires changes",
+        review.next_boundary || "A human-reviewed product issue remains unresolved.",
+        "warn",
+      ]);
+    } else if (!review && (state.human_gates || []).length) {
+      const gate = state.human_gates[state.human_gates.length - 1] || {};
+      items.push(["Human review needed", gate.message || gate.blocked_reason || gate.gate_id || "A product gate awaits review.", "warn"]);
+    }
+
+    count.textContent = items.length ? items.length + " item" + (items.length === 1 ? "" : "s") : "Clear";
+    count.className = "pill " + (items.some((item) => item[2] === "bad") ? "bad" : items.length ? "warn" : "good");
+    panel.classList.toggle("clear", items.length === 0);
+    panel.classList.toggle("needs-attention", items.length > 0);
+
+    if (!items.length) {
+      node.append(emptyState("Nothing needs operator attention. Automation is nominal and no unresolved human action is reported."));
+      return;
+    }
+    for (const [title, detail, severity] of items) {
+      const item = el("div", null, "attention-item");
+      item.append(pill(severity === "bad" ? "!" : "•", severity));
+      const body = el("div");
+      body.append(el("h3", title), el("div", detail, "small"));
+      item.append(body);
+      node.append(item);
+    }
   }
 
   function renderScorecard(state) {
@@ -109,29 +274,36 @@
     const providerBudget = budgets.provider || {};
     const localUsage = localBudget.usage || {};
     const hosted = score.hosted_value || {};
-    node.append(kv([
-      ["Objectives", objectives.total],
-      ["Paused / cancelled", String(objectives.paused ?? "—") + " / " + String(objectives.cancelled ?? "—")],
-      ["Workers", workers.total],
-      ["Handoff / failed / interrupted", String(workers.handoff_ready ?? "—") + " / " + String(workers.failed ?? "—") + " / " + String(workers.interrupted ?? "—")],
-      ["Completions", (score.completions || {}).total],
-      ["Scheduler executing / waiting / recovery", String(scheduler.executing ?? "—") + " / " + String(scheduler.waiting ?? "—") + " / " + String(scheduler.recovery_required ?? "—")],
-      ["Human review accepted / changes required", String(reviews.accepted ?? "—") + " / " + String(reviews.changes_required ?? "—")],
-      ["External claims", claims.active],
-      ["Local budget classifier / Luna / Terra", localBudget.available
-        ? String(localUsage.classifier_calls ?? "—") + " / " + String(localUsage.luna_worker_calls ?? "—") + " / " + String(localUsage.terra_worker_calls ?? "—")
-        : "unavailable: " + (localBudget.reason || "not reported")],
-      ["Provider quota telemetry", providerBudget.available
-        ? "available"
-        : "unavailable: " + (providerBudget.reason || "not durably persisted")],
-      ["Hosted value telemetry", hosted.available ? (hosted.report_file || "available") : "unavailable: " + (hosted.reason || "not reported")],
-      ["Hosted cost", hosted.available && hosted.cost ? JSON.stringify(hosted.cost) : "unavailable"],
-      ["Hosted trailing window", hosted.available && hosted.trailing_window ? JSON.stringify(hosted.trailing_window) : "unavailable"],
-      ["Hosted period/recovery signals", hosted.available && hosted.metric_deltas ? JSON.stringify(hosted.metric_deltas) : "unavailable"],
-      ["Hosted queue pressure", hosted.available && hosted.queue_pressure ? JSON.stringify(hosted.queue_pressure) : "unavailable"],
-      ["Hosted evaluation", hosted.available && hosted.evaluation ? JSON.stringify(hosted.evaluation) : "unavailable"],
-    ]));
-    if (score.slo_note) node.append(el("div", score.slo_note, "small muted"));
+
+    const metrics = el("div", null, "metric-grid");
+    const metric = (label, value) => {
+      const box = el("div", null, "metric");
+      box.append(el("div", label, "label"), el("div", value ?? "—", "value"));
+      return box;
+    };
+    metrics.append(
+      metric("Objectives recorded", objectives.total),
+      metric("Workers recorded", workers.total),
+      metric("Completions", (score.completions || {}).total),
+      metric("Scheduler now", (scheduler.executing || 0) + " running · " + (scheduler.waiting || 0) + " waiting"),
+      metric("Human reviews", (reviews.accepted || 0) + " accepted · " + (reviews.changes_required || 0) + " changes required"),
+      metric("External claims", claims.active ?? 0),
+      metric("Local Codex use", localBudget.available
+        ? (localUsage.classifier_calls ?? 0) + " classifier · " + (localUsage.luna_worker_calls ?? 0) + " Luna · " + (localUsage.terra_worker_calls ?? 0) + " Terra"
+        : "Unavailable"),
+      metric("Provider quota telemetry", providerBudget.available ? "Available" : "Unavailable")
+    );
+    node.append(metrics);
+
+    const telemetry = el("details", null, "technical-details");
+    telemetry.append(el("summary", "Hosted telemetry and raw diagnostic values"));
+    const raw = {
+      hosted_value: hosted,
+      provider_budget: providerBudget,
+      slo_note: score.slo_note || null,
+    };
+    telemetry.append(el("pre", JSON.stringify(raw, null, 2), "raw-json"));
+    node.append(telemetry);
   }
 
   function renderRoadmap(state) {
@@ -140,57 +312,70 @@
     const blocked = roadmap.blocked_nodes || {};
     const node = $("roadmap");
     clear(node);
-    node.append(kv([
-      ["Roadmap", roadmap.roadmap_id],
-      ["Active node", active.node_id || active.issue_number || "none"],
-      ["Claims today", roadmap.claims_today],
-      ["Blocked nodes", Object.keys(blocked).length],
-      ["Completed nodes", Object.keys(roadmap.completed_runs || {}).length],
-    ]));
+
+    const activeLabel = active.node_id || active.issue_number;
+    const banner = el("div", null, "state-banner");
+    const body = el("div");
+    body.append(
+      el("div", activeLabel ? "Development node active" : "No roadmap task is currently active", "headline"),
+      el("div", activeLabel ? String(activeLabel) : "Skyforge is not presently executing a roadmap node.", "explanation")
+    );
+    banner.append(body, pill(activeLabel ? "Active" : "Idle", activeLabel ? "good" : ""));
+    node.append(banner);
+
     if (Object.keys(blocked).length) {
-      const list = el("ul", null, "clean");
-      for (const [name, value] of Object.entries(blocked)) {
-        list.append(el("li", `${name}: ${(value && value.reason) || "blocked"}`));
-      }
-      node.append(list);
+      node.append(technicalDetails([
+        ["Roadmap", roadmap.roadmap_id],
+        ["Blocked nodes", Object.keys(blocked).length],
+        ["Completed nodes", Object.keys(roadmap.completed_runs || {}).length],
+        ["Claims today", roadmap.claims_today],
+      ], "Roadmap bookkeeping"));
+    } else {
+      node.append(technicalDetails([
+        ["Roadmap", roadmap.roadmap_id],
+        ["Completed nodes", Object.keys(roadmap.completed_runs || {}).length],
+        ["Claims today", roadmap.claims_today],
+      ], "Roadmap bookkeeping"));
     }
   }
 
   function renderObjectives(state) {
-    $("objective-count").textContent = `${state.objective_count || 0} total`;
-    renderList($("objectives"), state.objectives || [], (objective) => {
-      const node = el("article", null, "item");
+    const objectives = state.objectives || [];
+    $("objective-count").textContent = objectives.length ? "(" + objectives.length + ")" : "";
+    const controls = state.objective_controls || [];
+    const scopes = state.objective_scopes || [];
+    renderList($("objectives"), [...objectives].reverse(), (objective) => {
+      const node = el("article", null, "item compact");
       const source = objective.source || {};
-      node.append(el("h3", source.objective_text || objective.proposal_id || "Objective"));
-      const control = (state.objective_controls || []).find(
-        (value) => value.proposal_id === objective.proposal_id
-      );
-      const scope = (state.objective_scopes || []).find(
-        (value) => value.parent_proposal_id === objective.proposal_id
-      );
-      node.append(kv([
+      const control = controls.find((value) => value.proposal_id === objective.proposal_id);
+      const scope = scopes.find((value) => value.parent_proposal_id === objective.proposal_id);
+      const lifecycle = control ? control.state : "ACTIVE";
+      const title = truncate(source.objective_text || objective.proposal_id || "Objective", 180);
+      const heading = el("div", null, "primary-line");
+      heading.append(el("h3", title), pill(friendlyStatus(lifecycle), severityFor(lifecycle)));
+      node.append(heading);
+      const issue = (scope && scope.issue_number) || source.issue_number;
+      const lane = (scope && scope.lane) || (objective.candidate_task && objective.candidate_task.lane) || "";
+      node.append(el("div",
+        [lane, issue ? "#" + issue : "", friendlyStatus(objective.disposition)].filter(Boolean).join(" · "),
+        "secondary-line"
+      ));
+      node.append(technicalDetails([
+        ["Proposal", objective.proposal_id],
         ["Disposition", objective.disposition],
         ["Scoping", scope ? scope.status : "not started"],
         ["Scope reason", scope ? scope.reason : "—"],
-        ["Scoped lane", scope ? scope.lane : "—"],
-        ["Scoped issue", scope ? scope.issue_number : "—"],
-        ["Lifecycle", control ? control.state : "ACTIVE"],
+        ["Lifecycle", lifecycle],
         ["Last control", control ? control.last_operation : "none"],
         ["Reason", objective.reason],
-        ["Issue", source.issue_number],
         ["Actor", source.actor],
+        ["Full objective", source.objective_text],
       ]));
-      if (objective.candidate_task) {
-        node.append(el("div", `Candidate: ${objective.candidate_task.node_id || objective.candidate_task.objective}`, "small muted"));
-      }
-      if (objective.human_gate) {
-        node.append(el("div", `Human gate: ${objective.human_gate.node_id} — ${objective.human_gate.message || ""}`, "small muted"));
-      }
       return node;
-    }, "No objective proposals recorded.");
+    }, "No objective history recorded.");
   }
 
-  function renderObjectiveControl(state) {
+  function renderObjectiveControl(state) {  function renderObjectiveControl(state) {
     const panel = $("objective-control");
     const enabled = Boolean(
       writeToken
@@ -232,7 +417,7 @@
         const control = controls.find((value) => value.proposal_id === objective.proposal_id);
         const stateLabel = control ? control.state : "ACTIVE";
         const label = source.objective_text || objective.proposal_id;
-        return stateLabel + " — " + label;
+        return friendlyStatus(stateLabel) + " — " + truncate(label, 120);
       }
     );
     updateLifecycleWarning();
@@ -240,20 +425,44 @@
 
   function renderWorkers(state) {
     const execution = state.execution || {};
-    $("worker-count").textContent = `${execution.worker_count || 0} total`;
-    renderList($("workers"), execution.workers || [], (worker) => {
-      const node = el("article", null, "item");
-      node.append(el("h3", worker.objective || worker.task_id || "Worker"));
-      node.append(kv([
-        ["Status", worker.status],
-        ["Lane", worker.lane],
+    const workers = execution.workers || [];
+    const activeStates = new Set(["RUNNING", "EXECUTING", "RUNNABLE", "WAIT_LIMIT", "WAIT_CLAIM", "WAIT_QUOTA", "RECOVERY_REQUIRED"]);
+    const active = workers.filter((worker) => activeStates.has(String(worker.status || "").toUpperCase()));
+    $("worker-count").textContent = active.length + " active";
+
+    renderList($("workers"), active, (worker) => {
+      const node = el("article", null, "item compact");
+      const heading = el("div", null, "primary-line");
+      heading.append(el("h3", truncate(worker.objective || worker.task_id || "Worker", 140)),
+        pill(friendlyStatus(worker.status), severityFor(worker.status)));
+      node.append(heading);
+      node.append(el("div", [worker.lane, worker.model].filter(Boolean).join(" · "), "secondary-line"));
+      if (worker.summary) node.append(el("div", truncate(worker.summary, 220), "small"));
+      node.append(technicalDetails([
+        ["Task", worker.task_id],
+        ["Attempt", worker.attempt_id],
         ["Branch", worker.branch],
-        ["Model", worker.model],
-        ["Summary", worker.summary],
-        ["Failure", worker.failure_kind],
+        ["Base", worker.base_sha],
+        ["Failure kind", worker.failure_kind || "none"],
       ]));
       return node;
-    }, "No worker records.");
+    }, "No worker is currently running.");
+
+    renderList($("worker-history"), [...workers].reverse(), (worker) => {
+      const node = el("article", null, "item compact");
+      const heading = el("div", null, "primary-line");
+      heading.append(el("h3", truncate(worker.objective || worker.task_id || "Worker", 120)),
+        pill(friendlyStatus(worker.status), severityFor(worker.status)));
+      node.append(heading);
+      node.append(el("div", [worker.lane, worker.model, worker.summary && truncate(worker.summary, 120)].filter(Boolean).join(" · "), "secondary-line"));
+      node.append(technicalDetails([
+        ["Task", worker.task_id],
+        ["Attempt", worker.attempt_id],
+        ["Branch", worker.branch],
+        ["Failure", worker.failure_kind || "none"],
+      ]));
+      return node;
+    }, "No worker history recorded.");
   }
 
   function renderExecution(state) {
@@ -265,22 +474,41 @@
     const admission = execution.admission || {};
     const driver = runtime.production_execution_driver || {};
     const blockers = runtime.production_execution_gate_blockers || [];
-    node.append(kv([
+
+    let headline = "Idle";
+    let explanation = "No task is currently executing.";
+    let severity = "good";
+    if (driver.running !== true) {
+      headline = "Driver stopped";
+      explanation = "Automation is not currently running.";
+      severity = "bad";
+    } else if (blockers.length) {
+      headline = "Blocked";
+      explanation = blockers[0];
+      severity = "warn";
+    } else if (plan.plan_id) {
+      headline = "Preparing or executing work";
+      explanation = plan.issue_number ? "Issue #" + plan.issue_number : friendlyStatus(plan.status);
+      severity = "good";
+    }
+
+    const banner = el("div", null, "state-banner");
+    const body = el("div");
+    body.append(el("div", headline, "headline"), el("div", explanation, "explanation"));
+    banner.append(body, pill(friendlyStatus(driver.last_disposition || (driver.running ? "RUNNING" : "STOPPED")), severity));
+    node.append(banner);
+    node.append(technicalDetails([
       ["Plan", plan.plan_id || "none"],
       ["Plan status", plan.status || "—"],
       ["Admission", admission.outcome || "none"],
       ["Attempt", admission.attempt_id || "—"],
-      ["Driver", driver.last_disposition || (driver.running ? "RUNNING" : "STOPPED")],
+      ["Driver disposition", driver.last_disposition || "—"],
       ["Gate digest", runtime.production_execution_gate_digest || "—"],
+      ["Gate blockers", blockers.length ? blockers.join("; ") : "none"],
     ]));
-    if (blockers.length) {
-      const list = el("ul", null, "clean");
-      for (const blocker of blockers) list.append(el("li", blocker));
-      node.append(list);
-    }
   }
 
-  async function downloadArtifact(artifact) {
+  async function downloadArtifact  async function downloadArtifact(artifact) {
     const response = await api(`/api/v1/artifacts/${encodeURIComponent(artifact.artifact_id)}/content`);
     if (!response.ok) throw new Error(`Artifact fetch failed (${response.status})`);
     const blob = await response.blob();
@@ -323,39 +551,83 @@
     return node;
   }
 
+  function renderProductReview(state) {
+    const node = $("product-review-summary");
+    clear(node);
+    const reviews = state.human_reviews || [];
+    const review = latestReview(state);
+    const gates = state.human_gates || [];
+    $("review-count").textContent = reviews.length ? reviews.length + " recorded" : "";
+
+    if (!review) {
+      if (!gates.length) {
+        node.append(emptyState("No current human review action is recorded."));
+        return;
+      }
+      const gate = gates[gates.length - 1] || {};
+      const banner = el("div", null, "state-banner");
+      const body = el("div");
+      body.append(el("div", "Review needed", "headline"),
+        el("div", gate.message || gate.blocked_reason || "A product gate is waiting for human judgment.", "explanation"));
+      banner.append(body, pill("Needs review", "warn"));
+      node.append(banner);
+      node.append(technicalDetails([["Gate", gate.gate_id], ["Lane", gate.lane], ["Blocked reason", gate.blocked_reason]]));
+      return;
+    }
+
+    const banner = el("div", null, "state-banner");
+    const body = el("div");
+    body.append(
+      el("div", friendlyStatus(review.verdict), "headline"),
+      el("div", review.next_boundary || "No next boundary recorded.", "explanation")
+    );
+    banner.append(body, pill(friendlyStatus(review.verdict), severityFor(review.verdict)));
+    node.append(banner);
+
+    if ((review.positive_findings || []).length) {
+      node.append(el("h3", "What looked good"));
+      const list = el("ul", null, "clean");
+      for (const finding of review.positive_findings) list.append(el("li", finding));
+      node.append(list);
+    }
+    if ((review.findings || []).length) {
+      node.append(el("h3", review.verdict === "CHANGES_REQUIRED" ? "What still needs work" : "Review notes"));
+      const list = el("ul", null, "clean");
+      for (const finding of review.findings) list.append(el("li", finding));
+      node.append(list);
+    }
+    node.append(technicalDetails([
+      ["Gate", review.gate_id],
+      ["Artifact", review.artifact_id],
+      ["Source SHA", review.source_sha],
+      ["Material delta", review.material_delta],
+      ["Deferred", review.deferred_product_work ? "yes" : "no"],
+      ["Review ID", review.review_id],
+    ]));
+    if (review.artifact) node.append(renderArtifact(review.artifact));
+  }
+
   function renderReviews(state) {
-    $("review-count").textContent = `${state.human_review_count || 0} total`;
-    renderList($("reviews"), state.human_reviews || [], (review) => {
-      const node = el("article", null, "item");
-      const severity = review.verdict === "ACCEPTED" ? "good" : "warn";
-      const heading = el("div", null, "section-heading");
-      heading.append(el("h3", review.gate_id || "Human review"), pill(review.verdict, severity));
+    const reviews = state.human_reviews || [];
+    renderList($("reviews"), [...reviews].reverse(), (review) => {
+      const node = el("article", null, "item compact");
+      const heading = el("div", null, "primary-line");
+      heading.append(el("h3", review.gate_id || "Human review"), pill(friendlyStatus(review.verdict), severityFor(review.verdict)));
       node.append(heading);
-      node.append(kv([
+      node.append(el("div", truncate(review.next_boundary || review.material_delta || "", 180), "secondary-line"));
+      node.append(technicalDetails([
         ["Artifact", review.artifact_id],
         ["Source SHA", review.source_sha],
         ["Material delta", review.material_delta],
         ["Next boundary", review.next_boundary],
         ["Deferred", review.deferred_product_work ? "yes" : "no"],
+        ["Review ID", review.review_id],
       ]));
-      if ((review.positive_findings || []).length) {
-        node.append(el("div", "Positive findings", "small muted"));
-        const list = el("ul", null, "clean");
-        for (const finding of review.positive_findings) list.append(el("li", finding));
-        node.append(list);
-      }
-      if ((review.findings || []).length) {
-        node.append(el("div", "Required changes / findings", "small muted"));
-        const list = el("ul", null, "clean");
-        for (const finding of review.findings) list.append(el("li", finding));
-        node.append(list);
-      }
-      if (review.artifact) node.append(renderArtifact(review.artifact));
       return node;
-    }, "No human reviews recorded.");
+    }, "No human review history recorded.");
   }
 
-  function populateSelect(select, values, valueOf, labelOf) {
+  function populateSelect  function populateSelect(select, values, valueOf, labelOf) {
     const previous = select.value;
     clear(select);
     for (const value of values) {
@@ -424,11 +696,18 @@
   }
 
   function renderClaims(state) {
-    renderList($("claims"), state.external_claims || [], (claim) => {
-      const node = el("article", null, "item");
-      node.append(kv([
-        ["Issue", claim.issue_number], ["Lane", claim.lane], ["Branch", claim.branch],
-        ["PR", claim.pr_number], ["Owner", claim.claimed_by], ["State", claim.state],
+    renderList($("claims"), [...(state.external_claims || [])].reverse(), (claim) => {
+      const node = el("article", null, "item compact");
+      const heading = el("div", null, "primary-line");
+      heading.append(el("h3", claim.issue_number ? "Issue #" + claim.issue_number : "External work"),
+        pill(friendlyStatus(claim.state), severityFor(claim.state)));
+      node.append(heading);
+      node.append(el("div", [claim.lane, claim.claimed_by].filter(Boolean).join(" · "), "secondary-line"));
+      node.append(technicalDetails([
+        ["Branch", claim.branch],
+        ["PR", claim.pr_number],
+        ["Owner", claim.claimed_by],
+        ["Raw state", claim.state],
       ]));
       return node;
     }, "No external ownership claims.");
@@ -436,11 +715,26 @@
 
   function renderCompletions(state) {
     const execution = state.execution || {};
-    renderList($("completions"), execution.completions || [], (completion) => {
-      const node = el("article", null, "item");
-      node.append(kv([
-        ["Status", completion.status], ["Issue", completion.issue_number],
-        ["Attempt", completion.attempt_id], ["Worker", completion.worker_run_id],
+    renderList($("completions"), [...(execution.completions || [])].reverse(), (completion) => {
+      const node = el("article", null, "item compact");
+      const heading = el("div", null, "primary-line");
+      heading.append(
+        el("h3", completion.issue_number ? "Issue #" + completion.issue_number : "Completed work"),
+        pill(friendlyStatus(completion.outcome || completion.status), severityFor(completion.outcome || completion.status))
+      );
+      node.append(heading);
+      const outcome = completion.outcome || completion.status;
+      let explanation = "";
+      if (outcome === "STALE_MANAGED_BASE") explanation = "A stale managed PR was preserved without rebasing or merging.";
+      else if (outcome === "STALE_BASE") explanation = "The task was safely retired because main advanced before handoff.";
+      else if (outcome) explanation = friendlyStatus(outcome);
+      if (explanation) node.append(el("div", explanation, "secondary-line"));
+      node.append(technicalDetails([
+        ["Status", completion.status],
+        ["Outcome", completion.outcome || "—"],
+        ["Attempt", completion.attempt_id],
+        ["Worker", completion.worker_run_id],
+        ["Completion", completion.completion_id],
       ]));
       return node;
     }, "No completion records.");
@@ -449,22 +743,24 @@
   function render(state) {
     latestState = state;
     $("console-content").hidden = false;
-    $("snapshot-id").textContent = `snapshot ${state.snapshot_digest || "—"}`;
+    $("snapshot-id").textContent = state.snapshot_digest || "—";
     renderSummary(state);
-    renderScorecard(state);
+    renderAttention(state);
+    renderExecution(state);
+    renderWorkers(state);
+    renderProductReview(state);
     renderRoadmap(state);
     renderObjectives(state);
     renderObjectiveControl(state);
     renderObjectiveLifecycleControl(state);
-    renderWorkers(state);
-    renderExecution(state);
     renderReviews(state);
     renderReviewControl(state);
     renderClaims(state);
     renderCompletions(state);
+    renderScorecard(state);
   }
 
-  async function refresh() {
+  async function refresh()  async function refresh() {
     if (!token) return;
     try {
       const response = await api("/api/v1/development-state", { etag: lastDigest });
@@ -538,10 +834,7 @@
         throw new Error(result.error || "Objective submission failed (" + response.status + ")");
       }
       statusNode.textContent =
-        "Durable objective proposal reconciled: "
-        + result.objective_disposition
-        + " / "
-        + result.proposal_id;
+        "Objective recorded for scoping. Current state: " + friendlyStatus(result.objective_disposition) + ".";
       statusNode.className = "small";
       pendingObjectiveRequestId = "";
       pendingObjectiveText = "";
@@ -611,7 +904,7 @@
         throw new Error(result.error || "Objective lifecycle command failed (" + response.status + ")");
       }
       statusNode.textContent =
-        result.operation + " reconciled for " + result.proposal_id + "; state=" + result.state + ".";
+        friendlyStatus(result.operation) + " applied. Current state: " + friendlyStatus(result.state) + ".";
       pendingLifecycleRequestId = "";
       pendingLifecycleSignature = "";
       $("objective-lifecycle-reason").value = "";
@@ -699,7 +992,7 @@
         throw new Error(result.error || "Human review submission failed (" + response.status + ")");
       }
       statusNode.textContent =
-        "Durable " + result.verdict + " review reconciled: " + result.review_id;
+        "Review recorded: " + friendlyStatus(result.verdict) + ".";
       statusNode.className = "small";
       pendingReviewRequestId = "";
       $("review-verdict").value = "";
