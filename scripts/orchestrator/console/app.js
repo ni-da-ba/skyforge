@@ -116,7 +116,21 @@
       const exact = gates.find((gate) => gate.gate_id === gateId);
       if (exact) return exact;
     }
-    return gates.length ? gates[gates.length - 1] : null;
+
+    const fallback = gates.length ? gates[gates.length - 1] : null;
+    const review = latestReview(state);
+    if (
+      fallback
+      && review
+      && review.gate_id === fallback.gate_id
+      && review.verdict === "CHANGES_REQUIRED"
+    ) {
+      // A migrated/legacy blocked gate with a durable failed review is historical
+      // product state, not a fresh request. A future active WAIT_HUMAN session may
+      // legitimately resurface the same gate after a new repair/material delta.
+      return null;
+    }
+    return fallback;
   }
 
   function kv(entries) {
@@ -195,9 +209,13 @@
 
     const gate = currentHumanGate(state);
     const review = latestReview(state);
-    let product = "No review needed";
-    let productSeverity = "";
-    let productDetail = review ? "Latest recorded review: " + friendlyStatus(review.verdict) + "." : "No human review action is currently reported.";
+    let product = review ? friendlyStatus(review.verdict) : "No review needed";
+    let productSeverity = review ? severityFor(review.verdict) : "";
+    let productDetail = review
+      ? (review.deferred_product_work
+          ? "Product work was deferred after the latest review; resume from the recorded repair boundary."
+          : (review.next_boundary || "See Product / human review."))
+      : "No human review action is currently reported.";
     if (gate) {
       product = "Review needed";
       productSeverity = "warn";

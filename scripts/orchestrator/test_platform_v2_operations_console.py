@@ -204,6 +204,8 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn("renderProductReview(state)", app)
         self.assertIn("currentHumanGate(state)", app)
         self.assertIn('active.disposition === "WAIT_HUMAN"', app)
+        self.assertIn('review.verdict === "CHANGES_REQUIRED"', app)
+        self.assertIn("migrated/legacy blocked gate", app)
         self.assertIn("Previous review", app)
         self.assertIn("No worker is currently running.", app)
         self.assertIn("Stale PR preserved safely", app)
