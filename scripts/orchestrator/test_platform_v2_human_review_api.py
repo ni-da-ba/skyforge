@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from http.server import ThreadingHTTPServer
 from pathlib import Path
@@ -26,6 +27,13 @@ from v2.human_review_command import (
     prepare_human_review_command,
 )
 from v2.objective_intake import ObjectiveCompileDisposition, compile_objective
+from v2.program_progression import (
+    ProgramContinuationLedger,
+    ProgramContinuationSession,
+    ProgramContinuationStore,
+    ProgramSessionDisposition,
+)
+from v2.program_projection import load_program_projection
 from v2.roadmap_service import RoadmapAuthorityLedger, RoadmapAuthorityStore
 
 
@@ -131,6 +139,57 @@ def prepare_root(root: Path):
     )
     RoadmapAuthorityStore.for_root(root).save(ledger)
     return m, source_sha
+
+
+def install_program_gate(root: Path):
+    roadmap_path = root / "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+    digest = hashlib.sha256(roadmap_path.read_bytes()).hexdigest()
+    projection_path = root / "docs/agent-state/PROGRAM_PROGRESSION.json"
+    projection_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "program_id": "test-program",
+                "semantic_sources": [
+                    {
+                        "path": "docs/agent-state/ORCHESTRATOR_ROADMAP.json",
+                        "sha256": digest,
+                    }
+                ],
+                "nodes": [
+                    {
+                        "id": "program-review",
+                        "kind": "human_gate",
+                        "message": "Review the program-level platform gate.",
+                        "prerequisites": [],
+                        "review_gate_id": "program-review",
+                    }
+                ],
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    git(root, "add", "docs/agent-state/PROGRAM_PROGRESSION.json")
+    git(root, "commit", "-m", "program gate fixture")
+    projection = load_program_projection(root)
+    parent = "f" * 64
+    session = ProgramContinuationSession(
+        parent_proposal_id=parent,
+        invocation_proposal_ids=(parent,),
+        program_id=projection.program_id,
+        projection_digest=projection.digest,
+        current_node_id="program-review",
+        disposition=ProgramSessionDisposition.WAIT_HUMAN,
+        reason="program progression waits for explicit owner review",
+        gate_id="program-review",
+    )
+    ProgramContinuationStore.for_root(root).save(
+        ProgramContinuationLedger((session,))
+    )
+    return projection
 
 
 def payload(source_sha: str, *, request_id="review-request-0001", verdict="ACCEPTED"):
@@ -241,6 +300,92 @@ class HumanReviewApiTest(unittest.TestCase):
             state = runtime.development_snapshot()
             self.assertIn("review", state["roadmap"]["blocked_nodes"])
             self.assertIn(result["review_id"], state["roadmap"]["blocked_nodes"]["review"]["reason"])
+
+    def test_active_program_gate_review_persists_without_mutating_dr_roadmap(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _m, source_sha = prepare_root(root)
+            projection = install_program_gate(root)
+            runtime = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                development_api_token=API_TOKEN,
+                development_write_token=WRITE_TOKEN,
+                development_write_actor=WRITE_ACTOR,
+                trusted_actors=(WRITE_ACTOR,),
+            )
+            base = self.serve(runtime)
+            road_before = RoadmapAuthorityStore.for_root(root).load().digest
+            body = payload(source_sha, request_id="program-review-request-0001")
+            body["gate_id"] = "program-review"
+            body["material_delta"] = "exact program platform-gate evidence"
+            body["next_boundary"] = "resume bounded product work"
+
+            status, result = self.post(base, body)
+            self.assertEqual(status, 202)
+            self.assertEqual(result["command_phase"], "RECONCILED")
+            self.assertEqual(result["authority_scope"], "PROGRAM")
+            self.assertEqual(result["roadmap_disposition"], "ACCEPTED")
+            self.assertEqual(
+                RoadmapAuthorityStore.for_root(root).load().digest,
+                road_before,
+                "program review must not mutate the subordinate DR roadmap",
+            )
+            reviews = HumanReviewStore.for_root(root).load()
+            self.assertEqual(reviews.latest_for_gate("program-review").verdict.value, "ACCEPTED")
+            command = HumanReviewCommandStore.for_root(root).load().get(
+                "program-review-request-0001"
+            )
+            self.assertEqual(command.authority_scope.value, "PROGRAM")
+            self.assertEqual(command.roadmap_before_digest, projection.digest)
+            self.assertEqual(command.roadmap_after_digest, projection.digest)
+
+    def test_inactive_program_gate_cannot_be_preaccepted(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            _m, source_sha = prepare_root(root)
+            install_program_gate(root)
+            store = ProgramContinuationStore.for_root(root)
+            active = store.load().active
+            store.save(
+                ProgramContinuationLedger(
+                    (
+                        ProgramContinuationSession(
+                            parent_proposal_id=active.parent_proposal_id,
+                            invocation_proposal_ids=active.invocation_proposal_ids,
+                            program_id=active.program_id,
+                            projection_digest=active.projection_digest,
+                            current_node_id=active.current_node_id,
+                            disposition=ProgramSessionDisposition.ADVANCING,
+                            reason="not at human boundary",
+                            gate_id="",
+                        ),
+                    )
+                )
+            )
+            runtime = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                development_api_token=API_TOKEN,
+                development_write_token=WRITE_TOKEN,
+                development_write_actor=WRITE_ACTOR,
+                trusted_actors=(WRITE_ACTOR,),
+            )
+            base = self.serve(runtime)
+            body = payload(source_sha, request_id="program-review-request-0002")
+            body["gate_id"] = "program-review"
+            status, result = self.post(base, body)
+            self.assertEqual(status, 409)
+            self.assertIn("neither an active program gate", result["error"])
+            self.assertIsNone(
+                HumanReviewStore.for_root(root).load().latest_for_gate("program-review")
+            )
 
     def test_read_token_cannot_write_and_write_token_does_not_gain_read_access(self):
         with tempfile.TemporaryDirectory() as td:
