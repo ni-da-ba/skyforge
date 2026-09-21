@@ -76,6 +76,7 @@ def advance_hosted_classifier_proposal(
     provider_quota: ProviderQuotaDecision | None,
     local_budget: LocalBudgetObservation,
     config: ClassifierProviderConfig | None = None,
+    plan_id: str | None = None,
 ) -> HostedClassifierResult:
     """Advance exactly one hosted plan through durable classifier proposal only."""
 
@@ -88,7 +89,7 @@ def advance_hosted_classifier_proposal(
     ):
         raise ValueError("provider_quota must be ProviderQuotaDecision or null")
 
-    plan = plan_ledger.active
+    plan = plan_ledger.get(plan_id) if plan_id is not None else plan_ledger.active
     if plan is None:
         return HostedClassifierResult(
             HostedClassifierDisposition.NO_ACTIVE_PLAN,

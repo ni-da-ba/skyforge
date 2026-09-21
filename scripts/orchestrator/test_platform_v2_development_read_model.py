@@ -73,6 +73,69 @@ def sample_kwargs():
                 "context_text": "must not leak",
             },
         },
+        "plan_records": (
+            {
+                "plan_id": "plan-1",
+                "event_id": "event-1",
+                "issue_number": 961,
+                "status": "READY_FOR_CLASSIFIER",
+                "reason": "ready",
+            },
+            {
+                "plan_id": "plan-2",
+                "event_id": "event-2",
+                "issue_number": 962,
+                "status": "CLAIMED",
+                "reason": "claimed",
+            },
+        ),
+        "admission_records": (
+            {
+                "record_id": "admission-1",
+                "plan_id": "plan-1",
+                "event_id": "event-1",
+                "issue_number": 961,
+                "current_main": SHA,
+                "attempt_number": 1,
+                "outcome": "ADMITTED",
+                "reason": "admitted",
+                "attempt": {"attempt_id": "attempt-1"},
+                "worker_spec": {
+                    "task_id": "task-1",
+                    "lane": "Audit",
+                    "branch": "codex/audit-task",
+                    "base_sha": SHA,
+                    "tier": "TERRA",
+                    "context_text": "multi admission private context",
+                },
+            },
+            {
+                "record_id": "admission-2",
+                "plan_id": "plan-2",
+                "event_id": "event-2",
+                "issue_number": 962,
+                "current_main": SHA,
+                "attempt_number": 1,
+                "outcome": "BLOCKED",
+                "reason": "serialized",
+                "attempt": None,
+                "worker_spec": None,
+            },
+        ),
+        "local_commit_records": (
+            {
+                "record_id": "commit-1",
+                "admission_record_id": "admission-1",
+                "worker_run_id": "worker-1",
+                "attempt_id": "attempt-1",
+                "branch": "codex/audit-task",
+                "base_sha": SHA,
+                "outcome": "COMMITTED",
+                "reason": "committed",
+                "head_sha": "b" * 40,
+                "changed_paths": ["docs/operations/result.md"],
+            },
+        ),
         "concurrency_claims": (
             {
                 "claim_id": "c" * 64,
@@ -210,6 +273,14 @@ class DevelopmentReadModelTest(unittest.TestCase):
             2885,
         )
         self.assertEqual(raw["execution"]["workers"][0]["branch"], "codex/audit-task")
+        self.assertEqual(raw["execution"]["plan_count"], 2)
+        self.assertEqual(raw["execution"]["admission_count"], 2)
+        self.assertEqual(raw["execution"]["local_commit_count"], 1)
+        self.assertEqual(raw["execution"]["plans"][1]["issue_number"], 962)
+        self.assertEqual(
+            raw["execution"]["local_commits"][0]["attempt_id"],
+            "attempt-1",
+        )
         self.assertEqual(raw["execution"]["concurrency_claim_count"], 1)
         self.assertEqual(
             raw["execution"]["concurrency_claims"][0]["claim_id"],

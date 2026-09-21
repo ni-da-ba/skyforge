@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
+from .concurrency_claims import ConcurrencyClaimRecord, ConcurrencyClaimStore
 from .hosted_admission import (
     HostedAdmissionOutcome,
     HostedAdmissionStore,
@@ -90,6 +91,7 @@ def advance_dormant_admitted_worker(
     local_budget: LocalBudgetObservation,
     config: WorkerProviderConfig | None = None,
     workspace_runner=None,
+    attempt_id: str | None = None,
 ) -> DormantWorkerResult:
     """Advance one frozen admitted worker locally, without any remote side effects."""
 
@@ -102,7 +104,12 @@ def advance_dormant_admitted_worker(
     ):
         raise ValueError("provider_quota must be ProviderQuotaDecision or null")
 
-    admission = HostedAdmissionStore.for_root(root).load().record
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = (
+        admissions.for_attempt(attempt_id)
+        if attempt_id is not None
+        else admissions.record
+    )
     if admission is None:
         return DormantWorkerResult(
             DormantWorkerDisposition.NO_ADMISSION,
@@ -121,6 +128,23 @@ def advance_dormant_admitted_worker(
         )
 
     spec = admission.worker_spec
+    claim = ConcurrencyClaimStore.for_root(root).load().active_for_attempt(
+        spec.attempt_id
+    )
+    if claim is None:
+        return DormantWorkerResult(
+            DormantWorkerDisposition.CONFLICT,
+            "admitted worker lacks active concurrency claim",
+            admission_record_id=admission.record_id,
+        )
+    expected_claim = ConcurrencyClaimRecord.from_worker(spec)
+    if claim.claim_id != expected_claim.claim_id:
+        return DormantWorkerResult(
+            DormantWorkerDisposition.CONFLICT,
+            "active concurrency claim differs from admitted frozen worker",
+            admission_record_id=admission.record_id,
+        )
+
     run_store = WorkerRunStore.for_root(root)
     ledger = run_store.load()
     current = ledger.find_attempt(spec.attempt_id)

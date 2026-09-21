@@ -16,6 +16,7 @@ from v2.dormant_handoff_commit import (
     DormantCommitDisposition,
     DormantCommitOutcome,
     DormantHandoffCommitLedger,
+    DormantHandoffCommitRecord,
     DormantHandoffCommitStore,
     advance_dormant_handoff_commit,
 )
@@ -142,6 +143,36 @@ class DormantLocalCommitTest(unittest.TestCase):
                 store.adapter.backup_path.read_bytes(),
             )
 
+    def test_exact_attempt_commit_preserves_unrelated_commit_record(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            admission, _provider = ready_worker(root)
+            unrelated = DormantHandoffCommitRecord(
+                admission_record_id="f" * 64,
+                worker_run_id="e" * 64,
+                attempt_id="d" * 64,
+                branch="codex/unrelated",
+                base_sha=admission.current_main,
+                outcome=DormantCommitOutcome.BLOCKED,
+                reason="unrelated blocked commit",
+            )
+            store = DormantHandoffCommitStore.for_root(root)
+            store.save(DormantHandoffCommitLedger((unrelated,)))
+
+            result = advance_dormant_handoff_commit(
+                root=root,
+                attempt_id=admission.attempt.attempt_id,
+            )
+            self.assertEqual(result.disposition, DormantCommitDisposition.RECORDED)
+            self.assertEqual(len(result.ledger.records), 2)
+            self.assertEqual(
+                result.ledger.for_attempt(unrelated.attempt_id),
+                unrelated,
+            )
+            exact = result.ledger.for_attempt(admission.attempt.attempt_id)
+            self.assertIsNotNone(exact)
+            self.assertEqual(exact.outcome, DormantCommitOutcome.COMMITTED)
+
     def test_no_change_records_terminal_no_change_without_commit(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
@@ -266,18 +297,18 @@ class DormantLocalCommitTest(unittest.TestCase):
             raw = result.ledger.as_dict()
 
             bad_head = {
-                "schema_version": 1,
-                "record": dict(raw["record"]),
+                "schema_version": 2,
+                "records": [dict(raw["records"][0])],
             }
-            bad_head["record"]["head_sha"] = "0" * 40
+            bad_head["records"][0]["head_sha"] = "0" * 40
             with self.assertRaises(ValueError):
                 DormantHandoffCommitLedger.from_mapping(bad_head)
 
             bad_id = {
-                "schema_version": 1,
-                "record": dict(raw["record"]),
+                "schema_version": 2,
+                "records": [dict(raw["records"][0])],
             }
-            bad_id["record"]["record_id"] = "f" * 64
+            bad_id["records"][0]["record_id"] = "f" * 64
             with self.assertRaises(ValueError):
                 DormantHandoffCommitLedger.from_mapping(bad_id)
 

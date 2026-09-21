@@ -5,6 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
+from v2.concurrency_claims import ConcurrencyClaimDisposition, ConcurrencyClaimStore
 from v2.decision import (
     ClassifierDecision,
     DecisionFreshnessObservation,
@@ -129,6 +130,8 @@ def admitted_record(root: Path) -> HostedAdmissionRecord:
         worker_spec=admission.worker_spec,
     )
     HostedAdmissionStore.for_root(root).save(HostedAdmissionLedger(record))
+    claim = ConcurrencyClaimStore.for_root(root).acquire(record.worker_spec)
+    assert claim.decision.disposition is ConcurrencyClaimDisposition.ADMIT
     return record
 
 

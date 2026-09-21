@@ -94,6 +94,81 @@ class HostedTaskPlanClaimTest(unittest.TestCase):
             )
             self.assertEqual(second.ledger, first.ledger)
 
+    def test_two_independent_protected_tasks_claim_without_overwrite(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = make_runtime(root)
+
+            first_payload = task_payload()
+            raw, headers = signed(first_payload, delivery="multi-plan-a")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            second_payload = task_payload()
+            second_payload["issue"]["number"] = 901
+            second_payload["issue"]["title"] = "Second bounded task"
+            second_payload["comment"]["id"] = 12346
+            raw, headers = signed(second_payload, delivery="multi-plan-b")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            authority = app.task_authority_store.load()
+            first = claim_next_protected_task(
+                ledger=HostedTaskPlanLedger(),
+                inbox=app.state.inbox,
+                authority_events=authority,
+            )
+            second = claim_next_protected_task(
+                ledger=first.ledger,
+                inbox=app.state.inbox,
+                authority_events=authority,
+            )
+            self.assertEqual(first.disposition, HostedTaskPlanDisposition.CLAIMED)
+            self.assertEqual(second.disposition, HostedTaskPlanDisposition.CLAIMED)
+            self.assertEqual(len(second.ledger.records), 2)
+            self.assertEqual(
+                {value.issue_number for value in second.ledger.records},
+                {900, 901},
+            )
+            self.assertIsNotNone(
+                second.ledger.get(first.ledger.active.plan_id)
+            )
+
+    def test_external_hold_on_first_task_does_not_block_independent_second_task(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = make_runtime(root)
+
+            raw, headers = signed(task_payload(), delivery="held-first-a")
+            status, _ = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+
+            second_payload = task_payload()
+            second_payload["issue"]["number"] = 901
+            second_payload["issue"]["title"] = "Independent task"
+            second_payload["comment"]["id"] = 12346
+            raw, headers = signed(second_payload, delivery="held-first-b")
+            status, _ = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+
+            hold = ExternalProducerClaim(
+                issue_number=900,
+                claimed_by="ni-da-ba",
+                lane="Implementation",
+                branch="manual/900",
+            )
+            result = claim_next_protected_task(
+                ledger=HostedTaskPlanLedger(),
+                inbox=app.state.inbox,
+                authority_events=app.task_authority_store.load(),
+                external_claims=(hold,),
+            )
+            self.assertEqual(result.disposition, HostedTaskPlanDisposition.CLAIMED)
+            self.assertEqual(len(result.ledger.records), 1)
+            self.assertEqual(result.ledger.records[0].issue_number, 901)
+
     def test_external_claim_blocks_before_preflight(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

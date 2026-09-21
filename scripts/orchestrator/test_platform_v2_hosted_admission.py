@@ -16,11 +16,13 @@ from test_platform_v2_hosted_task_preflight import (
     task_payload,
 )
 from v2.classifier_provider import ClassifierProviderConfig, parse_classifier_response
+from v2.concurrency_claims import ConcurrencyClaimStore
 from v2.external import ExternalProducerClaim
 from v2.hosted_admission import (
     HostedAdmissionDisposition,
     HostedAdmissionLedger,
     HostedAdmissionOutcome,
+    HostedAdmissionRecord,
     HostedAdmissionStore,
 )
 from v2.quota import LocalBudgetObservation, ProviderQuotaDecision
@@ -129,6 +131,49 @@ class HostedAdmissionPolicyTest(unittest.TestCase):
             self.assertEqual(health["active_admission_outcome"], "ADMITTED")
             self.assertFalse(health["worker_dispatch_enabled"])
             self.assertFalse(health["mutation_authority"])
+
+    def test_unrelated_existing_admission_is_preserved_and_new_claim_is_acquired(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app = classified_runtime(root)
+            current_plan = app.task_plan_store.load().active
+
+            unrelated = HostedAdmissionRecord(
+                plan_id="f" * 64,
+                event_id="sha256:" + "e" * 64,
+                issue_number=901,
+                classifier_request_id="d" * 64,
+                classifier_run_id="c" * 64,
+                classifier_decision_digest="b" * 64,
+                hydration_digest="a" * 64,
+                authority_digest="9" * 64,
+                current_main=MAIN,
+                attempt_number=1,
+                outcome=HostedAdmissionOutcome.BLOCKED,
+                reason="unrelated serialized admission",
+            )
+            app.admission_store.save(HostedAdmissionLedger((unrelated,)))
+
+            result = app.advance_task_admission(
+                active_external_claims=(),
+                provider_quota=None,
+                local_budget=budget(),
+                attempt_number=1,
+                runner=LiveTruthRunner(),
+            )
+            self.assertEqual(result.disposition, HostedAdmissionDisposition.RECORDED)
+            self.assertEqual(len(result.ledger.records), 2)
+            self.assertEqual(result.ledger.for_plan(unrelated.plan_id), unrelated)
+
+            current = result.ledger.for_plan(current_plan.plan_id)
+            self.assertIsNotNone(current)
+            self.assertEqual(current.outcome, HostedAdmissionOutcome.ADMITTED)
+            self.assertIsNotNone(current.attempt)
+            claim = ConcurrencyClaimStore.for_root(root).load().active_for_attempt(
+                current.attempt.attempt_id
+            )
+            self.assertIsNotNone(claim)
+            self.assertEqual(claim.task_id, current.worker_spec.task_id)
 
     def test_restart_returns_already_recorded_without_remote_reads(self):
         with tempfile.TemporaryDirectory() as td:
@@ -379,22 +424,22 @@ class PersistenceCorruptionTest(unittest.TestCase):
             raw = result.ledger.as_dict()
 
             bad_branch = copy.deepcopy(raw)
-            bad_branch["record"]["worker_spec"]["branch"] = "codex/tampered"
+            bad_branch["records"][0]["worker_spec"]["branch"] = "codex/tampered"
             with self.assertRaises(ValueError):
                 HostedAdmissionLedger.from_mapping(bad_branch)
 
             bad_attempt = copy.deepcopy(raw)
-            bad_attempt["record"]["attempt"]["attempt_id"] = "f" * 64
+            bad_attempt["records"][0]["attempt"]["attempt_id"] = "f" * 64
             with self.assertRaises(ValueError):
                 HostedAdmissionLedger.from_mapping(bad_attempt)
 
             partial = copy.deepcopy(raw)
-            partial["record"]["worker_spec"] = None
+            partial["records"][0]["worker_spec"] = None
             with self.assertRaises(ValueError):
                 HostedAdmissionLedger.from_mapping(partial)
 
             bad_digest = copy.deepcopy(raw)
-            bad_digest["record"]["admission_digest"] = "0" * 64
+            bad_digest["records"][0]["admission_digest"] = "0" * 64
             with self.assertRaises(ValueError):
                 HostedAdmissionLedger.from_mapping(bad_digest)
 

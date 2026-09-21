@@ -25,6 +25,11 @@ from .classifier_provider import (
     ClassifierRunStatus,
     ClassifierRunStore,
 )
+from .concurrency_claims import (
+    ConcurrencyClaimDisposition,
+    ConcurrencyClaimStore,
+    classify_concurrency_claim,
+)
 from .cutover import (
     CutoverReadinessDecision,
     CutoverReadinessDisposition,
@@ -468,6 +473,53 @@ def _pr_body(*, admission, worker_spec) -> str:
     )
 
 
+def select_hosted_execution_plan(
+    *,
+    root: Path,
+    ledger: HostedTaskPlanLedger | None = None,
+):
+    """Select the next exact hosted workflow under the singleton execution policy."""
+    root = Path(root).resolve()
+    plans = ledger or HostedTaskPlanStore.for_root(root).load()
+    if not plans.records:
+        return None
+    admissions = HostedAdmissionStore.for_root(root).load()
+    claims = ConcurrencyClaimStore.for_root(root).load()
+
+    def rank(plan):
+        admission = admissions.for_plan(plan.plan_id)
+        if admission is None:
+            status_rank = {
+                HostedTaskPlanStatus.READY_FOR_CLASSIFIER: 0,
+                HostedTaskPlanStatus.CLAIMED: 1,
+                HostedTaskPlanStatus.WAIT_REMOTE: 2,
+                HostedTaskPlanStatus.BLOCKED: 9,
+            }
+            return (status_rank[plan.status], plan.plan_id)
+
+        if (
+            admission.outcome is HostedAdmissionOutcome.ADMITTED
+            and admission.worker_spec is not None
+            and admission.attempt is not None
+        ):
+            active_claim = claims.active_for_attempt(admission.attempt.attempt_id)
+            if active_claim is not None:
+                return (3, plan.plan_id)
+            decision = classify_concurrency_claim(claims, admission.worker_spec)
+            if decision.disposition in {
+                ConcurrencyClaimDisposition.ADMIT,
+                ConcurrencyClaimDisposition.ALREADY_ACTIVE,
+            }:
+                return (2, plan.plan_id)
+            return (8, plan.plan_id)
+
+        if admission.outcome is HostedAdmissionOutcome.RECLASSIFY:
+            return (4, plan.plan_id)
+        return (7, plan.plan_id)
+
+    return min(plans.records, key=rank)
+
+
 class HostedExecutionCoordinator:
     """Advance at most one accepted durable lifecycle boundary per call."""
 
@@ -517,6 +569,9 @@ class HostedExecutionCoordinator:
         for claim in extra:
             by_issue.setdefault(claim.issue_number, claim)
         return tuple(by_issue[key] for key in sorted(by_issue))
+
+    def _select_plan(self, ledger: HostedTaskPlanLedger):
+        return select_hosted_execution_plan(root=self.root, ledger=ledger)
 
     def _quiesce_terminal_gate_ordinary_events(self, state) -> HostedExecutionAdvanceResult | None:
         """Retire ordinary inbox noise only at an exact projected terminal human gate."""
@@ -604,13 +659,12 @@ class HostedExecutionCoordinator:
         }:
             return None
 
-        if HostedAdmissionStore.for_root(self.root).load().record is not None:
+        if (
+            HostedAdmissionStore.for_root(self.root).load().for_plan(plan.plan_id)
+            is not None
+        ):
             return self._blocked(
-                "failed classifier plan cannot be revised after admission state exists"
-            )
-        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
-            return self._blocked(
-                "failed classifier plan cannot be revised after handoff commit state exists"
+                "failed classifier plan cannot be revised after matching admission state exists"
             )
 
         authority_events = TaskAuthorityEventStore.for_root(self.root).load()
@@ -669,7 +723,7 @@ class HostedExecutionCoordinator:
         HostedStateStore.for_root(self.root).save(replace(state, inbox=new_inbox))
         # State is persisted first: a crash here still suppresses the failed old event,
         # and the surviving plan can deterministically repeat this revision transition.
-        plan_store.save(HostedTaskPlanLedger())
+        plan_store.save(plan_store.load().remove(plan.plan_id))
         return HostedExecutionAdvanceResult(
             HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
             "newer signed task authority superseded failed classifier plan",
@@ -699,11 +753,6 @@ class HostedExecutionCoordinator:
             return self._blocked(
                 "reclassify admission unexpectedly carries executable worker authority"
             )
-        if DormantHandoffCommitStore.for_root(self.root).load().record is not None:
-            return self._blocked(
-                "reclassify admission cannot be revised after handoff commit state exists"
-            )
-
         authority_events = TaskAuthorityEventStore.for_root(self.root).load()
         original = authority_events.get(plan.event_id)
         if original is None:
@@ -759,8 +808,9 @@ class HostedExecutionCoordinator:
         HostedStateStore.for_root(self.root).save(replace(state, inbox=new_inbox))
         # Clear only non-executed active ownership. The immutable classifier run remains
         # durable; the old authority is retired rather than completed.
-        HostedAdmissionStore.for_root(self.root).save(HostedAdmissionLedger())
-        plan_store.save(HostedTaskPlanLedger())
+        admission_store = HostedAdmissionStore.for_root(self.root)
+        admission_store.save(admission_store.load().remove_plan(plan.plan_id))
+        plan_store.save(plan_store.load().remove(plan.plan_id))
         return HostedExecutionAdvanceResult(
             HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
             "newer signed task authority superseded non-executed reclassify admission",
@@ -838,35 +888,45 @@ class HostedExecutionCoordinator:
         state = HostedStateStore.for_root(self.root).load()
         plan_store = HostedTaskPlanStore.for_root(self.root)
         plan_ledger = plan_store.load()
-        plan = plan_ledger.active
 
+        authority_events = TaskAuthorityEventStore.for_root(self.root).load()
+        claim_result = claim_next_protected_task(
+            ledger=plan_ledger,
+            inbox=state.inbox,
+            authority_events=authority_events,
+            external_claims=claims,
+        )
+        if claim_result.ledger != plan_ledger:
+            before_ids = {value.plan_id for value in plan_ledger.records}
+            added = [
+                value
+                for value in claim_result.ledger.records
+                if value.plan_id not in before_ids
+            ]
+            plan_store.save(claim_result.ledger)
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+                claim_result.reason,
+                self.gate.digest,
+                added[0].plan_id if len(added) == 1 else claim_result.ledger.digest,
+            )
+
+        plan_ledger = claim_result.ledger
+        plan = self._select_plan(plan_ledger)
         if plan is None:
             quiesced = self._quiesce_terminal_gate_ordinary_events(state)
             if quiesced is not None:
                 return quiesced
-            authority_events = TaskAuthorityEventStore.for_root(self.root).load()
-            result = claim_next_protected_task(
-                ledger=plan_ledger,
-                inbox=state.inbox,
-                authority_events=authority_events,
-                external_claims=claims,
-            )
-            if result.ledger != plan_ledger:
-                plan_store.save(result.ledger)
-            if result.disposition is HostedTaskPlanDisposition.CLAIMED:
-                return HostedExecutionAdvanceResult(
-                    HostedExecutionAdvanceDisposition.TASK_CLAIMED,
-                    result.reason,
-                    self.gate.digest,
-                    result.ledger.active.plan_id,
-                )
-            if result.disposition is HostedTaskPlanDisposition.NO_PROTECTED_TASK:
+            if claim_result.disposition in {
+                HostedTaskPlanDisposition.NO_PROTECTED_TASK,
+                HostedTaskPlanDisposition.ALREADY_ACTIVE,
+            }:
                 return HostedExecutionAdvanceResult(
                     HostedExecutionAdvanceDisposition.IDLE,
-                    result.reason,
+                    claim_result.reason,
                     self.gate.digest,
                 )
-            return self._blocked(result.reason)
+            return self._blocked(claim_result.reason)
 
         if plan.status in {
             HostedTaskPlanStatus.CLAIMED,
@@ -879,6 +939,7 @@ class HostedExecutionCoordinator:
                 trusted_actors=self.trusted_actors,
                 repo=self.repo,
                 runner=deps.runner,
+                plan_id=plan.plan_id,
             )
             if result.ledger != plan_ledger:
                 plan_store.save(result.ledger)
@@ -886,7 +947,11 @@ class HostedExecutionCoordinator:
                 HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
                 result.reason,
                 self.gate.digest,
-                result.ledger.active.plan_id if result.ledger.active else "",
+                (
+                    result.ledger.get(plan.plan_id).plan_id
+                    if result.ledger.get(plan.plan_id) is not None
+                    else ""
+                ),
             )
 
         if plan.status is HostedTaskPlanStatus.BLOCKED or plan.seed is None:
@@ -914,6 +979,7 @@ class HostedExecutionCoordinator:
                 provider_quota=deps.classifier_provider_quota,
                 local_budget=deps.classifier_local_budget,
                 config=deps.classifier_config,
+                plan_id=plan.plan_id,
             )
             return HostedExecutionAdvanceResult(
                 HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
@@ -923,7 +989,8 @@ class HostedExecutionCoordinator:
             )
 
         admission_store = HostedAdmissionStore.for_root(self.root)
-        admission = admission_store.load().record
+        admission_ledger = admission_store.load()
+        admission = admission_ledger.for_plan(plan.plan_id)
         if admission is None:
             result = advance_hosted_task_admission(
                 root=self.root,
@@ -935,12 +1002,42 @@ class HostedExecutionCoordinator:
                 local_budget=deps.worker_local_budget,
                 attempt_number=deps.attempt_number,
                 runner=deps.runner,
+                plan_id=plan.plan_id,
+            )
+            exact = result.ledger.for_plan(plan.plan_id)
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+                result.reason,
+                self.gate.digest,
+                exact.record_id if exact is not None else plan.plan_id,
+            )
+
+        if (
+            admission.outcome is HostedAdmissionOutcome.ADMITTED
+            and admission.worker_spec is not None
+            and admission.attempt is not None
+            and ConcurrencyClaimStore.for_root(self.root).load().active_for_attempt(
+                admission.attempt.attempt_id
+            )
+            is None
+        ):
+            result = advance_hosted_task_admission(
+                root=self.root,
+                plan_ledger=plan_ledger,
+                trusted_actors=self.trusted_actors,
+                repo=self.repo,
+                active_external_claims=claims,
+                provider_quota=deps.worker_provider_quota,
+                local_budget=deps.worker_local_budget,
+                attempt_number=admission.attempt_number,
+                runner=deps.runner,
+                plan_id=plan.plan_id,
             )
             return HostedExecutionAdvanceResult(
                 HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
                 result.reason,
                 self.gate.digest,
-                result.ledger.record.record_id if result.ledger.record else plan.plan_id,
+                admission.record_id,
             )
 
         if admission.outcome is HostedAdmissionOutcome.RECLASSIFY:
@@ -966,6 +1063,7 @@ class HostedExecutionCoordinator:
                 provider_quota=deps.worker_provider_quota,
                 local_budget=deps.worker_local_budget,
                 config=deps.worker_config,
+                attempt_id=admission.attempt.attempt_id,
             )
             return HostedExecutionAdvanceResult(
                 HostedExecutionAdvanceDisposition.WORKER_ADVANCED,
@@ -975,12 +1073,16 @@ class HostedExecutionCoordinator:
             )
 
         commit_store = DormantHandoffCommitStore.for_root(self.root)
-        commit_record = commit_store.load().record
+        commit_record = commit_store.load().for_attempt(admission.attempt.attempt_id)
         if commit_record is None:
-            result = advance_dormant_handoff_commit(root=self.root)
+            result = advance_dormant_handoff_commit(
+                root=self.root,
+                attempt_id=admission.attempt.attempt_id,
+            )
+            exact_commit = result.ledger.for_attempt(admission.attempt.attempt_id)
             identity = (
-                result.ledger.record.record_id
-                if result.ledger.record is not None
+                exact_commit.record_id
+                if exact_commit is not None
                 else admission.record_id
             )
             return HostedExecutionAdvanceResult(
@@ -1069,6 +1171,7 @@ class HostedExecutionCoordinator:
                 root=self.root,
                 handoff_digest=handoff.digest,
                 lifecycle_digest=result.digest,
+                plan_id=plan.plan_id,
             )
             return HostedExecutionAdvanceResult(
                 HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,

@@ -7,6 +7,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Any, Mapping
 
+from .concurrency_claims import ConcurrencyClaimStore
 from .dormant_handoff_commit import (
     DormantHandoffCommitLedger,
     DormantHandoffCommitStore,
@@ -223,12 +224,15 @@ def record_completed_managed_task(
     root: Path,
     handoff_digest: str,
     lifecycle_digest: str,
+    plan_id: str | None = None,
 ) -> HostedCompletionResult:
     """Persist exact completion identity before any singleton state is retired."""
 
     root = Path(root).resolve()
-    plan = HostedTaskPlanStore.for_root(root).load().active
-    admission = HostedAdmissionStore.for_root(root).load().record
+    plans = HostedTaskPlanStore.for_root(root).load()
+    plan = plans.get(plan_id) if plan_id is not None else plans.active
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = admissions.for_plan(plan.plan_id) if plan is not None else None
     if plan is None or admission is None:
         raise RuntimeError("cannot record hosted completion without active plan/admission")
     if admission.plan_id != plan.plan_id:
@@ -319,30 +323,36 @@ def advance_hosted_completion_cleanup(*, root: Path) -> HostedCompletionResult:
     state_store.save(_complete_ingress_event(state, pending.event_id))
 
     commit_store = DormantHandoffCommitStore.for_root(root)
-    commit = commit_store.load().record
-    if commit is not None and commit.attempt_id != pending.attempt_id:
-        raise RuntimeError("completion cleanup found a different dormant commit owner")
+    commits = commit_store.load()
+    commit = commits.for_attempt(pending.attempt_id)
     if commit is not None:
-        commit_store.save(DormantHandoffCommitLedger())
+        if commit.admission_record_id != pending.admission_record_id:
+            raise RuntimeError("completion cleanup found mismatched dormant commit identity")
+        commit_store.save(commits.remove_attempt(pending.attempt_id))
 
     admission_store = HostedAdmissionStore.for_root(root)
-    admission = admission_store.load().record
-    if admission is not None and admission.record_id != pending.admission_record_id:
-        raise RuntimeError("completion cleanup found a different admission owner")
+    admissions = admission_store.load()
+    admission = admissions.for_plan(pending.plan_id)
     if admission is not None:
-        admission_store.save(HostedAdmissionLedger())
+        if admission.record_id != pending.admission_record_id:
+            raise RuntimeError("completion cleanup found mismatched admission identity")
+        admission_store.save(admissions.remove_plan(pending.plan_id))
 
     plan_store = HostedTaskPlanStore.for_root(root)
-    plan = plan_store.load().active
-    if plan is not None and plan.plan_id != pending.plan_id:
-        raise RuntimeError("completion cleanup found a different task-plan owner")
+    plans = plan_store.load()
+    plan = plans.get(pending.plan_id)
     if plan is not None:
-        plan_store.save(HostedTaskPlanLedger())
+        plan_store.save(plans.remove(pending.plan_id))
+
+    concurrency = ConcurrencyClaimStore.for_root(root)
+    claim = concurrency.load().active_for_attempt(pending.attempt_id)
+    if claim is not None:
+        concurrency.retire(pending.attempt_id)
 
     cleaned = replace(pending, status=HostedCompletionStatus.CLEANED)
     store.save(store.load().put(cleaned))
     return HostedCompletionResult(
         HostedCompletionDisposition.CLEANED,
-        "completed hosted task retired; runtime singleton slots are reusable",
+        "completed hosted task retired without altering unrelated workflow authority",
         cleaned,
     )
