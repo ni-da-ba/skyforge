@@ -710,6 +710,15 @@ class HostedV2Substrate:
             for artifact in artifacts.records:
                 validate_artifact_source(self.root, artifact)
 
+            program_progression = program_progression_snapshot(self.root)
+            active_program = program_progression.get("active_session")
+            active_program_gate_id = (
+                str(active_program.get("gate_id") or "").strip()
+                if isinstance(active_program, Mapping)
+                and active_program.get("disposition") == "WAIT_HUMAN"
+                else ""
+            )
+
             human_gates: list[dict[str, Any]] = []
             manifest_path = (
                 self.root / "docs" / "agent-state" / "ORCHESTRATOR_ROADMAP.json"
@@ -726,6 +735,16 @@ class HostedV2Substrate:
                         continue
                     if int(completed.get(node.node_id) or 0) >= node.max_runs:
                         continue
+                    latest_review = reviews.latest_for_gate(node.node_id)
+                    if (
+                        latest_review is not None
+                        and node.node_id != active_program_gate_id
+                    ):
+                        # Durable review history makes the unchanged legacy block
+                        # historical operator context, not a fresh actionable gate.
+                        # A program WAIT_HUMAN on the same gate deliberately resurfaces
+                        # it only after successor work reaches a new review boundary.
+                        continue
                     block = blocked.get(node.node_id)
                     reason = (
                         str(block.get("reason") or "")
@@ -741,8 +760,6 @@ class HostedV2Substrate:
                         }
                     )
 
-            program_progression = program_progression_snapshot(self.root)
-            active_program = program_progression.get("active_session")
             if (
                 isinstance(active_program, Mapping)
                 and active_program.get("disposition") == "WAIT_HUMAN"
