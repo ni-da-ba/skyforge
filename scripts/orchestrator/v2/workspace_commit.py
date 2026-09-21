@@ -13,6 +13,7 @@ import subprocess
 from typing import Callable, Sequence
 
 from .identity import canonical_digest
+from .path_scope import path_is_allowed
 
 
 ATTEMPT_TRAILER = "Skyforge-Attempt"
@@ -23,16 +24,7 @@ def _normalize(path: str) -> str:
 
 
 def _allowed(path: str, scopes: tuple[str, ...]) -> bool:
-    value = _normalize(path)
-    for raw in scopes:
-        scope = _normalize(raw)
-        if scope.endswith("/**"):
-            prefix = scope[:-3].rstrip("/") + "/"
-            if value.startswith(prefix):
-                return True
-        elif value == scope:
-            return True
-    return False
+    return path_is_allowed(_normalize(path), scopes)
 
 
 @dataclass(frozen=True)

@@ -15,6 +15,7 @@ from .decision import (
 )
 from .external import ExternalProducerClaim, classify_external_dispatch_hold
 from .identity import FrozenTaskSpec, TaskAttemptIdentity, canonical_digest
+from .path_scope import normalize_mutation_scope, scope_contains
 from .quota import (
     LocalBudgetObservation,
     ProviderQuotaDecision,
@@ -47,23 +48,11 @@ def _positive_issue_tuple(values: Iterable[int]) -> tuple[int, ...]:
 
 
 def _path(value: str) -> str:
-    text = str(value or "").replace("\\", "/").strip().lstrip("./")
-    if not text or text.startswith("/") or ".." in text.split("/"):
-        raise ValueError("task path scope is malformed")
-    return text
+    return normalize_mutation_scope(value, label="task path scope")
 
 
 def _scope_subset(candidate: str, authority: str) -> bool:
-    child = _path(candidate)
-    parent = _path(authority)
-    if child == parent:
-        return True
-    if parent.endswith("/**"):
-        prefix = parent[:-3].rstrip("/")
-        if child == prefix:
-            return False
-        return child.startswith(prefix + "/")
-    return False
+    return scope_contains(candidate, authority)
 
 
 @dataclass(frozen=True)

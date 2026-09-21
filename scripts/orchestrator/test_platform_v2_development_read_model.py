@@ -73,6 +73,18 @@ def sample_kwargs():
                 "context_text": "must not leak",
             },
         },
+        "concurrency_claims": (
+            {
+                "claim_id": "c" * 64,
+                "attempt_id": "d" * 64,
+                "task_id": "task-claim-1",
+                "authority_key": "authority:claim-1",
+                "task_spec_hash": "e" * 64,
+                "base_sha": SHA,
+                "lane": "Implementation",
+                "allowed_paths": ["docs/operations/**"],
+            },
+        ),
         "worker_records": (
             {
                 "run_id": "worker-1",
@@ -198,6 +210,15 @@ class DevelopmentReadModelTest(unittest.TestCase):
             2885,
         )
         self.assertEqual(raw["execution"]["workers"][0]["branch"], "codex/audit-task")
+        self.assertEqual(raw["execution"]["concurrency_claim_count"], 1)
+        self.assertEqual(
+            raw["execution"]["concurrency_claims"][0]["claim_id"],
+            "c" * 64,
+        )
+        self.assertEqual(
+            raw["execution"]["concurrency_claims"][0]["allowed_paths"],
+            ["docs/operations/**"],
+        )
 
         encoded = str(raw)
         self.assertNotIn("must-not-leak", encoded)

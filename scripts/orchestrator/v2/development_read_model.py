@@ -209,6 +209,21 @@ def _completion(raw: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _concurrency_claim(raw: Mapping[str, Any]) -> dict[str, Any]:
+    paths = raw.get("allowed_paths")
+    if not isinstance(paths, list) or not paths:
+        raise ValueError("concurrency claim allowed_paths must be a non-empty list")
+    return {
+        "claim_id": str(raw.get("claim_id") or ""),
+        "attempt_id": str(raw.get("attempt_id") or ""),
+        "task_id": str(raw.get("task_id") or ""),
+        "authority_key": str(raw.get("authority_key") or ""),
+        "base_sha": str(raw.get("base_sha") or ""),
+        "lane": str(raw.get("lane") or ""),
+        "allowed_paths": [str(value) for value in paths],
+    }
+
+
 def _claim(raw: Mapping[str, Any]) -> dict[str, Any]:
     return {
         "issue_number": raw.get("issue_number"),
@@ -242,6 +257,8 @@ class DevelopmentSnapshot:
     objective_count: int
     active_plan: Mapping[str, Any] | None
     admission: Mapping[str, Any] | None
+    concurrency_claims: tuple[Mapping[str, Any], ...]
+    concurrency_claim_count: int
     workers: tuple[Mapping[str, Any], ...]
     worker_count: int
     completions: tuple[Mapping[str, Any], ...]
@@ -269,6 +286,10 @@ class DevelopmentSnapshot:
                 "admission": (
                     None if self.admission is None else dict(self.admission)
                 ),
+                "concurrency_claims": [
+                    dict(value) for value in self.concurrency_claims
+                ],
+                "concurrency_claim_count": self.concurrency_claim_count,
                 "workers": [dict(value) for value in self.workers],
                 "worker_count": self.worker_count,
                 "completions": [dict(value) for value in self.completions],
@@ -298,6 +319,7 @@ def build_development_snapshot(
     objective_records: Iterable[Mapping[str, Any]] = (),
     active_plan: Mapping[str, Any] | None = None,
     admission: Mapping[str, Any] | None = None,
+    concurrency_claims: Iterable[Mapping[str, Any]] = (),
     worker_records: Iterable[Mapping[str, Any]] = (),
     completion_records: Iterable[Mapping[str, Any]] = (),
     external_claims: Iterable[Mapping[str, Any]] = (),
@@ -314,6 +336,10 @@ def build_development_snapshot(
     roadmap = _mapping(projection.get("roadmap") or {}, "legacy roadmap projection")
 
     objectives_all = tuple(_objective(_mapping(value, "objective")) for value in objective_records)
+    claims_all = tuple(
+        _concurrency_claim(_mapping(value, "concurrency claim"))
+        for value in concurrency_claims
+    )
     workers_all = tuple(_worker(_mapping(value, "worker")) for value in worker_records)
     completions_all = tuple(
         _completion(_mapping(value, "completion")) for value in completion_records
@@ -354,6 +380,8 @@ def build_development_snapshot(
         objective_count=len(objectives_all),
         active_plan=_plan(active_plan),
         admission=_admission(admission),
+        concurrency_claims=claims_all,
+        concurrency_claim_count=len(claims_all),
         workers=_recent(workers_all),
         worker_count=len(workers_all),
         completions=_recent(completions_all),

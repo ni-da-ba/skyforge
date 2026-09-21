@@ -1,12 +1,18 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import hashlib
 import json
 from pathlib import Path
 import random
 import tempfile
 import unittest
 
+from v2.concurrency_claims import (
+    ConcurrencyClaimDisposition,
+    ConcurrencyClaimLedger,
+    acquire_concurrency_claim,
+    retire_concurrency_claim,
+)
 from v2.decision import SourcePRState
 from v2.external import ExternalProducerClaim
 from v2.external_service import ExternalClaimLedger, refresh_external_claims
@@ -52,6 +58,7 @@ from v2.worker import (
     WorkerRecoveryObservation,
     classify_worker_recovery,
 )
+from v2.worker_provider import FrozenWorkerSpec, WorkerTier
 
 
 BRANCH = "platform/x6-lifecycle-worker"
@@ -116,10 +123,25 @@ def event(name: str, *, signal_kind: str = "task") -> DurableEvent:
     )
 
 
-@dataclass(frozen=True)
-class ModeledClaim:
-    objective_id: str
-    resource: str
+def concurrency_worker(objective_id: str) -> FrozenWorkerSpec:
+    config = {
+        "A": ("hydrology", "worldgen/hydrology/**"),
+        "B": ("canopy", "worldgen/canopy/**"),
+        "C": ("channel", "worldgen/hydrology/channel.py"),
+    }
+    name, scope = config[objective_id]
+    return FrozenWorkerSpec(
+        task_id=f"x6-{name}",
+        authority_key=f"x6-authority:{name}",
+        task_spec_hash=hashlib.sha256(f"spec:{name}".encode()).hexdigest(),
+        attempt_id=hashlib.sha256(f"attempt:{name}".encode()).hexdigest(),
+        lane="Implementation",
+        objective=f"x6 {name}",
+        stop_boundary=f"stop after x6 {name}",
+        base_sha=SHA_A,
+        allowed_paths=(scope,),
+        tier=WorkerTier.TERRA,
+    )
 
 
 class LifecycleMachine:
@@ -203,7 +225,10 @@ class LifecycleMachine:
         self.worker_retired = False
         self.worker_branch_drift = False
 
-        self.claims: dict[str, ModeledClaim] = {}
+        self.claim_ledger = ConcurrencyClaimLedger()
+        self.claim_workers = {
+            key: concurrency_worker(key) for key in ("A", "B", "C")
+        }
         self.conflict_blocks = 0
         self.max_parallel_claims = 0
         self.trace: list[str] = []
@@ -355,18 +380,31 @@ class LifecycleMachine:
         self.last_human_verdict = selected
         self.last_review_id = review_id
 
-    def _claim(self, objective_id: str, resource: str) -> None:
-        prior = self.claims.get(resource)
-        if prior is None:
-            self.claims[resource] = ModeledClaim(objective_id, resource)
-        elif prior.objective_id != objective_id:
+    def _claim(self, objective_id: str) -> None:
+        result = acquire_concurrency_claim(
+            self.claim_ledger,
+            self.claim_workers[objective_id],
+        )
+        if result.decision.disposition is ConcurrencyClaimDisposition.CONFLICT:
             self.conflict_blocks += 1
-        self.max_parallel_claims = max(self.max_parallel_claims, len(self.claims))
+        else:
+            assert result.decision.disposition in {
+                ConcurrencyClaimDisposition.ADMIT,
+                ConcurrencyClaimDisposition.ALREADY_ACTIVE,
+                ConcurrencyClaimDisposition.RETIRED_REPLAY,
+            }
+        self.claim_ledger = result.ledger
+        self.max_parallel_claims = max(
+            self.max_parallel_claims,
+            len(self.claim_ledger.active),
+        )
 
-    def _release(self, objective_id: str, resource: str) -> None:
-        prior = self.claims.get(resource)
-        if prior is not None and prior.objective_id == objective_id:
-            del self.claims[resource]
+    def _release(self, objective_id: str) -> None:
+        worker = self.claim_workers[objective_id]
+        self.claim_ledger = retire_concurrency_claim(
+            self.claim_ledger,
+            worker.attempt_id,
+        ).ledger
 
     def _restart_round_trip(self) -> None:
         ingress = HostedIngressState.from_mapping(self.ingress.as_dict())
@@ -394,6 +432,10 @@ class LifecycleMachine:
         assert effect.digest == self.effect.digest
         self.effect = effect
 
+        claims = ConcurrencyClaimLedger.from_mapping(self.claim_ledger.as_dict())
+        assert claims.digest == self.claim_ledger.digest
+        self.claim_ledger = claims
+
     def _assert_invariants(self) -> None:
         actual_pending = {value.event_id for value in self.ingress.inbox.pending_events}
         assert actual_pending == self.model_pending_event_ids
@@ -413,9 +455,9 @@ class LifecycleMachine:
             assert completed.get("review", 0) == 0
             assert self.roadmap.block_for("review") is not None
 
-        hydro = self.claims.get("hydrology")
-        assert hydro is None or hydro.objective_id in {"A", "C"}
-        assert len(self.claims) <= 2
+        active_tasks = {claim.task_id for claim in self.claim_ledger.active}
+        assert active_tasks <= {"x6-hydrology", "x6-canopy", "x6-channel"}
+        assert len(self.claim_ledger.active) <= 2
         # Restart/reload at every transition is itself an X-6 invariant.
         self._restart_round_trip()
 
@@ -486,17 +528,17 @@ class LifecycleMachine:
         elif action == "human_replay":
             self._human_review("ACCEPTED", replay=True)
         elif action == "claim_a":
-            self._claim("A", "hydrology")
+            self._claim("A")
         elif action == "claim_b":
-            self._claim("B", "canopy")
+            self._claim("B")
         elif action == "claim_conflict":
-            self._claim("C", "hydrology")
+            self._claim("C")
         elif action == "release_a":
-            self._release("A", "hydrology")
+            self._release("A")
         elif action == "release_b":
-            self._release("B", "canopy")
+            self._release("B")
         elif action == "release_conflict":
-            self._release("C", "hydrology")
+            self._release("C")
         elif action == "restart":
             self._restart_round_trip()
         else:
@@ -527,9 +569,9 @@ class PlatformV2LifecycleStateMachineTest(unittest.TestCase):
         machine.step("claim_a")
         machine.step("claim_b")
         self.assertEqual(machine.max_parallel_claims, 2)
-        before = dict(machine.claims)
+        before = machine.claim_ledger
         machine.step("claim_conflict")
-        self.assertEqual(machine.claims, before)
+        self.assertEqual(machine.claim_ledger, before)
         self.assertEqual(machine.conflict_blocks, 1)
 
     def test_crash_after_external_effect_never_reexecutes(self) -> None:
