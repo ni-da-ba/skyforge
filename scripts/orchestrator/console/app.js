@@ -127,6 +127,8 @@
       ["Hosted value telemetry", hosted.available ? (hosted.report_file || "available") : "unavailable: " + (hosted.reason || "not reported")],
       ["Hosted cost", hosted.available && hosted.cost ? JSON.stringify(hosted.cost) : "unavailable"],
       ["Hosted trailing window", hosted.available && hosted.trailing_window ? JSON.stringify(hosted.trailing_window) : "unavailable"],
+      ["Hosted period/recovery signals", hosted.available && hosted.metric_deltas ? JSON.stringify(hosted.metric_deltas) : "unavailable"],
+      ["Hosted queue pressure", hosted.available && hosted.queue_pressure ? JSON.stringify(hosted.queue_pressure) : "unavailable"],
       ["Hosted evaluation", hosted.available && hosted.evaluation ? JSON.stringify(hosted.evaluation) : "unavailable"],
     ]));
     if (score.slo_note) node.append(el("div", score.slo_note, "small muted"));

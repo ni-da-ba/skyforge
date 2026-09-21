@@ -30,6 +30,8 @@ def load_latest_value_report(root: Path) -> dict[str, Any]:
     trailing = raw.get("trailing_window")
     evaluation = raw.get("evaluation")
     cost = raw.get("cost")
+    metric_deltas = raw.get("metric_deltas")
+    queue_pressure = raw.get("queue_pressure")
     return {
         "available": True,
         "report_file": path.name,
@@ -37,6 +39,12 @@ def load_latest_value_report(root: Path) -> dict[str, Any]:
         "cost": dict(cost) if isinstance(cost, Mapping) else None,
         "trailing_window": dict(trailing) if isinstance(trailing, Mapping) else None,
         "evaluation": dict(evaluation) if isinstance(evaluation, Mapping) else None,
+        "metric_deltas": (
+            dict(metric_deltas) if isinstance(metric_deltas, Mapping) else None
+        ),
+        "queue_pressure": (
+            dict(queue_pressure) if isinstance(queue_pressure, Mapping) else None
+        ),
     }
 
 
