@@ -435,9 +435,23 @@ def _issue_list_command(repo: str) -> tuple[str, ...]:
         "gh",
         "api",
         f"repos/{repo}/issues?state=all&per_page=100",
+        "-H",
+        "Cache-Control: no-cache",
         "--paginate",
         "--jq",
         ".[] | {number: .number, title: .title, body: .body}",
+    )
+
+
+def _issue_get_command(repo: str, issue_number: int) -> tuple[str, ...]:
+    if isinstance(issue_number, bool) or not isinstance(issue_number, int) or issue_number <= 0:
+        raise ValueError("issue_number must be a positive integer")
+    return (
+        "gh",
+        "api",
+        f"repos/{repo}/issues/{issue_number}",
+        "--jq",
+        "{number: .number, title: .title, body: .body}",
     )
 
 
@@ -503,6 +517,35 @@ def observe_scoped_issue(
     return number
 
 
+def observe_exact_issue(
+    *,
+    root: Path,
+    repo: str,
+    issue_number: int,
+    title: str,
+    body: str,
+    scope_digest: str,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> int:
+    command = _issue_get_command(repo, issue_number)
+    output = _run_exact(root=root, args=command, expected=command, runner=runner)
+    try:
+        item = json.loads(output or "{}")
+    except json.JSONDecodeError as exc:
+        raise ValueError("objective exact issue observation returned malformed JSON") from exc
+    if not isinstance(item, Mapping):
+        raise ValueError("objective exact issue observation returned malformed shape")
+    marker = _issue_marker(scope_digest)
+    if marker not in str(item.get("body") or ""):
+        raise ValueError("objective exact issue marker differs from expected scope identity")
+    if str(item.get("title") or "") != title or str(item.get("body") or "") != body:
+        raise ValueError("objective exact issue title/body differs from expected scope identity")
+    number = item.get("number")
+    if number != issue_number:
+        raise ValueError("objective exact issue number differs from create result")
+    return issue_number
+
+
 def ensure_scoped_issue(
     *,
     root: Path,
@@ -524,10 +567,15 @@ def ensure_scoped_issue(
         raise ValueError("objective issue creation returned malformed issue number") from exc
     if created <= 0:
         raise ValueError("objective issue creation returned invalid issue number")
-    observed = observe_scoped_issue(root=root, repo=repo, title=title, body=body, scope_digest=record.scope_digest, runner=runner)
-    if observed != created:
-        raise ValueError("objective issue post-mutation observation differs from create result")
-    return created
+    return observe_exact_issue(
+        root=root,
+        repo=repo,
+        issue_number=created,
+        title=title,
+        body=body,
+        scope_digest=record.scope_digest,
+        runner=runner,
+    )
 
 
 def _child_record(parent: ObjectiveProposalRecord, record: ObjectiveScopeRecord) -> ObjectiveProposalRecord:
