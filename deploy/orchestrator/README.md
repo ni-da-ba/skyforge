@@ -146,6 +146,61 @@ result once, persists it through an exactly-once command journal, and never crea
 authority directly. Ambiguous, blocked, read-only, candidate-task, and human-gate outcomes retain the
 same existing compiler semantics.
 
+
+### Remote MCP / ChatGPT surface
+
+The same hosted runtime serves a dependency-free Streamable HTTP MCP endpoint:
+
+```text
+POST /mcp
+```
+
+The adapter owns no project state and does not reconstruct truth from GitHub or conversation history.
+It calls the same canonical development-state/artifact/domain-command methods used by the HTTP API and
+Operations Console.
+
+Protocol compatibility:
+
+- MCP `2026-07-28`: stateless `server/discover`, per-request protocol metadata, and required
+  `MCP-Protocol-Version` / `Mcp-Method` routing headers (`Mcp-Name` for tool calls);
+- MCP `2025-11-25`: `initialize` handshake fallback with stateless JSON responses;
+- no `Mcp-Session-Id` or server-held protocol session state;
+- JSON-RPC notifications return an empty HTTP 202;
+- `GET /mcp` returns 405 because this bounded adapter does not expose server-push/SSE notifications.
+
+The read bearer exposes only:
+
+```text
+get_development_state
+list_review_artifacts
+get_review_artifact
+get_file_artifact
+get_human_gate
+```
+
+The distinct write bearer exposes only:
+
+```text
+submit_objective
+submit_human_review
+```
+
+This split intentionally preserves the existing least-privilege invariant: possession of the write
+credential does not silently grant project-read authority, and possession of the read credential does
+not grant mutation authority. Until a client-facing OAuth/scope layer is introduced, MCP clients that
+need both roles should configure separate read and write connections. Adding OAuth later must not
+change Skyforge domain-command semantics.
+
+MCP file retrieval reuses the exact source-SHA/path/size/SHA-256 artifact checks. Registered file
+artifacts up to 8 MiB may be returned inline; larger artifacts fail closed and remain available through
+the authenticated HTTP artifact endpoint. Interactive specimens return their deterministic
+preparation/launch/review metadata and never fabricate file bytes.
+
+The MCP endpoint rejects browser `Origin` requests, arbitrary filesystem/URL access, unknown generic
+commands, raw shell/Git/database operations, and client-supplied actor identity. Backend idempotence,
+ownership, X-4 material-delta, artifact-provenance, and roadmap reconciliation rules remain
+authoritative for every MCP write.
+
 The bounded Operations Console is served at:
 
 ```text
@@ -153,9 +208,9 @@ GET /console
 ```
 
 The console is a thin client of the same canonical backend. Enter the read bearer token in the
-browser to connect; optionally enter the distinct write bearer token to enable the one currently
-admitted state-changing operation: artifact-bound human review. Tokens remain in browser session
-scope and are sent only in Authorization headers.
+browser to connect; optionally enter the distinct write bearer token to enable the admitted typed
+development commands: objective submission and artifact-bound human review. Tokens remain in browser
+session scope and are sent only in Authorization headers.
 
 The console polls the canonical development snapshot every few seconds and uses its digest as an
 ETag so unchanged state returns HTTP 304 and is not rerendered. Human-review submission uses
