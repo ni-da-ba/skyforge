@@ -21,6 +21,7 @@ This is the privileged writer-transition runbook. It is **not** the normal accep
 | Matching terminal non-executed V2 ownership after legacy transfer | retire-v2-authority |
 
 All mutating service transitions are root/operator actions. Read-only/default paths do not change writer authority.
+
 ### What to read in operator output
 
 The CLI emits structured JSON so automation can consume the same result. For a human operator, read these fields first and ignore the rest unless diagnosing a failure:
