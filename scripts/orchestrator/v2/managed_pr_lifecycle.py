@@ -200,16 +200,6 @@ class ManagedLifecycleEffectAdapter:
 
         scope = self.handoff.scope
         number = self.handoff.pr_number
-        current_base_sha = _current_base_sha(
-            root=self.root,
-            handoff=self.handoff,
-            runner=self.runner,
-        )
-        if current_base_sha != scope.base_sha:
-            raise OrdinaryFrozenBaseMoved(
-                f"managed PR base moved from {scope.base_sha} to {current_base_sha}"
-            )
-
         if identity.kind is EffectKind.UPDATE_PR:
             if truth.remote_state == "MERGED":
                 return RemoteEffectObservation(
@@ -250,6 +240,15 @@ class ManagedLifecycleEffectAdapter:
 
         scope = self.handoff.scope
         number = self.handoff.pr_number
+        current_base_sha = _current_base_sha(
+            root=self.root,
+            handoff=self.handoff,
+            runner=self.runner,
+        )
+        if current_base_sha != scope.base_sha:
+            raise OrdinaryFrozenBaseMoved(
+                f"managed PR base moved from {scope.base_sha} to {current_base_sha}"
+            )
 
         if identity.kind is EffectKind.UPDATE_PR:
             if truth.remote_state != "OPEN" or not truth.is_draft:
