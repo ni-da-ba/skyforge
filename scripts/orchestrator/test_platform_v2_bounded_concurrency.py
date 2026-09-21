@@ -19,8 +19,9 @@ from v2.dormant_worker import DormantWorkerDisposition, DormantWorkerResult
 from v2.hosted_admission import HostedAdmissionLedger, HostedAdmissionStore
 from v2.hosted_budget import HostedBudgetStore
 from v2.hosted_execution_driver import HostedExecutionDriver
-from v2.hosted_execution_runtime import HostedExecutionDependencies
+from v2.hosted_execution_runtime import HostedExecutionDependencies, select_hosted_execution_plan
 from v2.hosted_policy import HOSTED_WORKER_CONCURRENCY_LIMIT
+from v2.hosted_task_plan import HostedTaskPlanLedger, HostedTaskPlanStore
 from v2.hosted_worker_scheduler import (
     HostedWorkerReservationDisposition,
     HostedWorkerScheduleState,
@@ -191,6 +192,59 @@ class HostedWorkerSchedulerTest(unittest.TestCase):
                     .status,
                     WorkerRunStatus.INTERRUPTED,
                 )
+
+
+class HostedPlanSelectionConcurrencyTest(unittest.TestCase):
+    def test_runnable_claim_outranks_handoff_ready_plan_even_when_plan_id_sorts_later(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            candidates = []
+            for offset, name in enumerate(("a", "b", "c", "d")):
+                _event, plan_record = plan(name, 1101 + offset)
+                candidates.append((plan_record.plan_id, name, plan_record))
+            candidates.sort(key=lambda value: value[0])
+            _low_id, handoff_name, handoff_plan = candidates[0]
+            _high_id, runnable_name, runnable_plan = candidates[-1]
+
+            handoff = admitted(handoff_name, handoff_plan, "docs/handoff/**")
+            runnable = admitted(runnable_name, runnable_plan, "docs/runnable/**")
+            HostedTaskPlanStore.for_root(root).save(
+                HostedTaskPlanLedger((handoff_plan, runnable_plan))
+            )
+            HostedAdmissionStore.for_root(root).save(
+                HostedAdmissionLedger((handoff, runnable))
+            )
+
+            claims = acquire_concurrency_claim(
+                ConcurrencyClaimLedger(), handoff.worker_spec
+            )
+            claims = acquire_concurrency_claim(claims.ledger, runnable.worker_spec)
+            self.assertEqual(
+                claims.decision.disposition,
+                ConcurrencyClaimDisposition.ADMIT,
+            )
+            ConcurrencyClaimStore.for_root(root).save(claims.ledger)
+
+            config = WorkerProviderConfig(
+                handoff.worker_spec.tier, "fixture", "low"
+            )
+            WorkerRunStore.for_root(root).save(
+                WorkerRunLedger(
+                    (
+                        WorkerRunRecord(
+                            spec=handoff.worker_spec,
+                            worktree=str(root / "handoff-worktree"),
+                            config=config,
+                            status=WorkerRunStatus.HANDOFF_READY,
+                            summary="fixture handoff ready",
+                        ),
+                    )
+                )
+            )
+
+            selected = select_hosted_execution_plan(root=root)
+            self.assertIsNotNone(selected)
+            self.assertEqual(selected.plan_id, runnable_plan.plan_id)
 
 
 class SharedWorkerLedgerConcurrencyTest(unittest.TestCase):
