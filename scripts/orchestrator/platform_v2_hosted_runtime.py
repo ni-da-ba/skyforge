@@ -89,6 +89,7 @@ from v2.platform_scorecard import build_compact_scorecard, load_latest_value_rep
 from v2.hosted_budget import HostedBudgetStore
 from v2.objective_trace import build_objective_trace
 from v2.program_progression import program_progression_snapshot
+from v2.program_projection import ProgramNodeKind, load_program_projection
 from v2.mcp_adapter import McpAdapter, SUPPORTED_PROTOCOL_VERSIONS
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
@@ -99,6 +100,7 @@ from v2.human_review import (
     parse_human_review_comment,
 )
 from v2.human_review_command import (
+    HumanReviewAuthorityScope,
     HumanReviewCommandPhase,
     HumanReviewCommandStore,
     advance_human_review_command,
@@ -329,16 +331,29 @@ class HostedV2Substrate:
         return len(reconciled)
 
     def _reconcile_pending_human_review_commands(self) -> int:
-        """Finish any crash-interrupted review -> roadmap transition on startup."""
+        """Finish crash-interrupted typed human-review reconciliation on startup."""
         pending = self.human_review_command_store.load().pending
         if not pending:
             return 0
-        manifest = load_manifest(self.root)
+
+        needs_roadmap = any(
+            record.authority_scope is HumanReviewAuthorityScope.ROADMAP
+            for record in pending
+        )
+        needs_program = any(
+            record.authority_scope is HumanReviewAuthorityScope.PROGRAM
+            for record in pending
+        )
+        manifest = load_manifest(self.root) if needs_roadmap else None
+        program_projection_digest = (
+            load_program_projection(self.root).digest if needs_program else ""
+        )
         reconciled = reconcile_pending_human_review_commands(
             command_store=self.human_review_command_store,
             review_store=self.human_review_store,
-            roadmap_store=self.roadmap_authority_store,
+            roadmap_store=(self.roadmap_authority_store if needs_roadmap else None),
             manifest=manifest,
+            program_projection_digest=program_projection_digest,
         )
         return len(reconciled)
 
@@ -1284,25 +1299,65 @@ class HostedV2Substrate:
                             }
 
                 manifest = load_manifest(self.root)
-                if not self.roadmap_authority_store.adapter.path.is_file():
-                    return 409, {
-                        "error": (
-                            "canonical Platform-v2 roadmap authority is unavailable"
-                        )
-                    }
-                roadmap = self.roadmap_authority_store.load()
+                roadmap_node = manifest.get(review.gate_id)
+                is_roadmap_gate = (
+                    roadmap_node is not None and roadmap_node.kind.value == "gate"
+                )
+
+                authority_scope = HumanReviewAuthorityScope.ROADMAP
+                roadmap = None
+                program_projection_digest = ""
+                if is_roadmap_gate:
+                    if not self.roadmap_authority_store.adapter.path.is_file():
+                        return 409, {
+                            "error": (
+                                "canonical Platform-v2 roadmap authority is unavailable"
+                            )
+                        }
+                    roadmap = self.roadmap_authority_store.load()
+                else:
+                    progression = program_progression_snapshot(self.root)
+                    active_program = progression.get("active_session")
+                    active_gate_id = (
+                        str(active_program.get("gate_id") or "").strip()
+                        if isinstance(active_program, Mapping)
+                        and active_program.get("disposition") == "WAIT_HUMAN"
+                        else ""
+                    )
+                    projection = load_program_projection(self.root)
+                    program_node = projection.get(review.gate_id)
+                    if (
+                        active_gate_id != review.gate_id
+                        or program_node is None
+                        or program_node.kind is not ProgramNodeKind.HUMAN_GATE
+                        or program_node.review_gate_id != review.gate_id
+                    ):
+                        return 409, {
+                            "error": (
+                                "human review gate is neither an active program gate "
+                                "nor a canonical roadmap gate"
+                            )
+                        }
+                    authority_scope = HumanReviewAuthorityScope.PROGRAM
+                    program_projection_digest = projection.digest
+
                 prepared = prepare_human_review_command(
                     store=self.human_review_command_store,
                     review=review,
                     roadmap=roadmap,
-                    manifest=manifest,
+                    manifest=(manifest if is_roadmap_gate else None),
+                    authority_scope=authority_scope,
+                    program_projection_digest=program_projection_digest,
                 )
                 complete = advance_human_review_command(
                     command_store=self.human_review_command_store,
                     review_store=self.human_review_store,
-                    roadmap_store=self.roadmap_authority_store,
-                    manifest=manifest,
+                    roadmap_store=(
+                        self.roadmap_authority_store if is_roadmap_gate else None
+                    ),
+                    manifest=(manifest if is_roadmap_gate else None),
                     request_id=request_id,
+                    program_projection_digest=program_projection_digest,
                 )
             except ReviewArtifactError as exc:
                 return 503, {
@@ -1341,6 +1396,7 @@ class HostedV2Substrate:
             "source_sha": complete.review.source_sha,
             "verdict": complete.review.verdict.value,
             "roadmap_disposition": complete.roadmap_disposition.value,
+            "authority_scope": complete.authority_scope.value,
             "actor": complete.review.source.actor,
             "client": complete.review.source.client,
         }
