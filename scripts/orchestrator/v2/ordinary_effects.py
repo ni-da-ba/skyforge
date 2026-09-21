@@ -257,6 +257,18 @@ class OrdinaryEffectLedger:
             records=self.records + (RemoteEffectRecord.begin(identity),)
         )
 
+    def abandon(self, identity: RemoteEffectIdentity) -> "OrdinaryEffectLedger":
+        existing = self.get(identity)
+        if existing is None:
+            raise ValueError("cannot abandon effect before durable begin")
+        abandoned = existing.abandon()
+        return OrdinaryEffectLedger(
+            records=tuple(
+                abandoned if record.identity.effect_id == identity.effect_id else record
+                for record in self.records
+            )
+        )
+
     def complete(
         self,
         identity: RemoteEffectIdentity,

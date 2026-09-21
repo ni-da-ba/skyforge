@@ -15,7 +15,7 @@ from .effects import (
     RemoteEffectObservation,
     RemoteEffectPresence,
 )
-from .ordinary_effect_executor import OrdinaryRemoteUnavailable
+from .ordinary_effect_executor import OrdinaryFrozenBaseMoved, OrdinaryRemoteUnavailable
 from .ordinary_effects import OrdinaryMutationScope
 
 
@@ -411,7 +411,7 @@ class GhGitOrdinaryEffectAdapter:
             # Close the stale-read window immediately before PR creation.  The PR is
             # meaningful only against the frozen base/head pair.
             if self._current_base() != scope.base_sha:
-                raise OrdinaryRemoteUnavailable(
+                raise OrdinaryFrozenBaseMoved(
                     (
                         "current main moved from frozen ordinary-task base"
                         if scope.base_ref == "main"

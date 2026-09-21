@@ -61,6 +61,7 @@ from .hosted_completion import (
     advance_hosted_completion_cleanup,
     record_completed_managed_task,
     record_completed_no_change_task,
+    record_stale_base_task,
 )
 from .hosted_state import HostedStateStore
 from .hosted_worker_scheduler import (
@@ -425,6 +426,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     REMOTE_HANDOFF_ADVANCED = "REMOTE_HANDOFF_ADVANCED"
     MANAGED_PR_ADVANCED = "MANAGED_PR_ADVANCED"
     TASK_COMPLETION_RECORDED = "TASK_COMPLETION_RECORDED"
+    TASK_STALE_RECORDED = "TASK_STALE_RECORDED"
     TASK_COMPLETED = "TASK_COMPLETED"
     BLOCKED = "BLOCKED"
 
@@ -1308,6 +1310,17 @@ class HostedExecutionCoordinator:
                 store=OrdinaryEffectStore.for_root(self.root),
                 remote_factory=remote_factory,
             )
+            if result.disposition is OrdinaryServiceDisposition.STALE_BASE:
+                terminal = record_stale_base_task(
+                    root=self.root,
+                    plan_id=plan.plan_id,
+                )
+                return HostedExecutionAdvanceResult(
+                    HostedExecutionAdvanceDisposition.TASK_STALE_RECORDED,
+                    terminal.reason,
+                    self.gate.digest,
+                    terminal.record.completion_id if terminal.record is not None else "",
+                )
             if result.disposition is OrdinaryServiceDisposition.COMPLETE and result.handoff:
                 self._persist_handoff(
                     admission=admission,

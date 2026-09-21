@@ -18,10 +18,12 @@ from test_platform_v2_hosted_execution_runtime import (
 )
 from test_platform_v2_hosted_runtime import SECRET, write_legacy
 from test_platform_v2_hosted_task_preflight import signed, task_payload
-from v2.dormant_handoff_commit import DormantHandoffCommitStore
+from v2.concurrency_claims import ConcurrencyClaimStore
+from v2.dormant_handoff_commit import DormantCommitOutcome, DormantHandoffCommitStore
 from v2.hosted_admission import HostedAdmissionStore
 from v2.hosted_completion import (
     HostedCompletionDisposition,
+    HostedCompletionOutcome,
     HostedCompletionStatus,
     HostedCompletionStore,
     advance_hosted_completion_cleanup,
@@ -37,8 +39,11 @@ from v2.hosted_worker_scheduler import (
     HostedWorkerSchedulerStore,
     update_hosted_worker_schedule,
 )
+from v2.effects import EffectKind, EffectStatus
+from v2.ordinary_effect_executor import OrdinaryFrozenBaseMoved
 from v2.ordinary_effects import OrdinaryEffectStore
 from v2.ordinary_pipeline import OrdinaryPipelineStore
+from test_platform_v2_ordinary_service import FakeBoundRemote
 from v2.worker_provider import WorkerProviderConfig, WorkerTier
 from v2.classifier_provider import ClassifierProviderConfig
 
@@ -50,6 +55,24 @@ class NoChangeWorker:
     def run(self, *, spec, worktree, config):
         self.calls += 1
         return "requested repository state is already satisfied"
+
+
+class StaleBaseBoundRemote(FakeBoundRemote):
+    def execute(self, identity):
+        if identity.kind is EffectKind.CREATE_PR:
+            self.factory.execute_calls[identity.effect_id] = (
+                self.factory.execute_calls.get(identity.effect_id, 0) + 1
+            )
+            raise OrdinaryFrozenBaseMoved(
+                "current main moved from frozen ordinary-task base"
+            )
+        return super().execute(identity)
+
+
+class StaleBaseRemoteFactory(FakeRemoteFactory):
+    def __call__(self, binding):
+        self.bindings.append(binding)
+        return StaleBaseBoundRemote(self, binding)
 
 
 class HostedCompletionTest(unittest.TestCase):
@@ -205,6 +228,96 @@ class HostedCompletionTest(unittest.TestCase):
             state = app.store.load()
             self.assertEqual(state.inbox.pending_events, ())
             self.assertIn(completion.event_id, state.inbox.completed_authority_event_keys)
+
+
+    def test_stale_base_records_terminal_outcome_and_releases_execution_ownership(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self._runtime(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c27-stale-base")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["accepted"])
+
+            remote = StaleBaseRemoteFactory()
+            deps = HostedExecutionDependencies(
+                classifier_provider=FakeClassifier(),
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                worker_config=WorkerProviderConfig(WorkerTier.LUNA, "fixture-worker", "low"),
+                runner=CompositeReadRunner(base),
+                remote_factory=lambda _worktree, binding: remote(binding),
+            )
+            expected = (
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+                HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+                HostedExecutionAdvanceDisposition.WORKER_ADVANCED,
+                HostedExecutionAdvanceDisposition.LOCAL_COMMIT_ADVANCED,
+                HostedExecutionAdvanceDisposition.TASK_STALE_RECORDED,
+                HostedExecutionAdvanceDisposition.TASK_COMPLETED,
+            )
+            for disposition in expected:
+                result = app.advance_one_execution_step(deps)
+                self.assertEqual(result.disposition, disposition)
+
+            self.assertIsNone(HostedTaskPlanStore.for_root(root).load().active)
+            self.assertIsNone(HostedAdmissionStore.for_root(root).load().record)
+            self.assertEqual(
+                ConcurrencyClaimStore.for_root(root).load().active,
+                (),
+            )
+
+            commit = DormantHandoffCommitStore.for_root(root).load().record
+            self.assertIsNotNone(commit)
+            self.assertEqual(commit.outcome, DormantCommitOutcome.COMMITTED)
+
+            completion = HostedCompletionStore.for_root(root).load().records[-1]
+            self.assertEqual(completion.status, HostedCompletionStatus.CLEANED)
+            self.assertEqual(completion.outcome, HostedCompletionOutcome.STALE_BASE)
+            self.assertEqual(completion.handoff_digest, commit.record_id)
+
+            effects = OrdinaryEffectStore.for_root(root).load().records
+            attempt_effects = [
+                value for value in effects
+                if value.identity.attempt_id == completion.attempt_id
+            ]
+            push = [
+                value for value in attempt_effects
+                if value.identity.kind is EffectKind.PUSH_BRANCH
+            ]
+            create = [
+                value for value in attempt_effects
+                if value.identity.kind is EffectKind.CREATE_PR
+            ]
+            self.assertEqual(len(push), 1)
+            self.assertEqual(push[0].status, EffectStatus.COMPLETE)
+            self.assertEqual(len(create), 1)
+            self.assertEqual(create[0].status, EffectStatus.ABANDONED)
+            self.assertEqual(
+                OrdinaryPipelineStore.for_root(root).load().reconstructible_managed_handoffs(),
+                (),
+            )
+
+            state = app.store.load()
+            self.assertEqual(state.inbox.pending_events, ())
+            self.assertIn(completion.event_id, state.inbox.completed_authority_event_keys)
+
+            restarted = self._runtime(root, gate)
+            raw, headers = signed(
+                task_payload(),
+                delivery="r5c27-stale-base-replay",
+            )
+            status, response = restarted.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["semantic_replay_suppressed"])
+            self.assertEqual(restarted.store.load().inbox.pending_events, ())
 
     def test_completion_cleanup_holds_runtime_lock_against_webhook_stale_state_overwrite(self):
         with tempfile.TemporaryDirectory() as td:

@@ -23,6 +23,7 @@ from .hosted_task_plan import HostedTaskPlanLedger, HostedTaskPlanStore
 from .hosted_worker_scheduler import retire_hosted_worker_schedule
 from .identity import canonical_digest
 from .inbox import InboxState
+from .effects import EffectKind, EffectStatus
 from .ordinary_effects import OrdinaryEffectStore
 from .ordinary_pipeline import OrdinaryPipelineStore
 from .state_store import JsonStateStoreAdapter
@@ -50,6 +51,12 @@ class HostedCompletionStatus(str, Enum):
     CLEANED = "CLEANED"
 
 
+class HostedCompletionOutcome(str, Enum):
+    MANAGED = "MANAGED"
+    NO_CHANGE = "NO_CHANGE"
+    STALE_BASE = "STALE_BASE"
+
+
 class HostedCompletionDisposition(str, Enum):
     RECORDED = "RECORDED"
     ALREADY_RECORDED = "ALREADY_RECORDED"
@@ -69,6 +76,7 @@ class HostedCompletionRecord:
     handoff_digest: str
     lifecycle_digest: str
     status: HostedCompletionStatus
+    outcome: HostedCompletionOutcome = HostedCompletionOutcome.MANAGED
 
     def __post_init__(self) -> None:
         for name in (
@@ -84,6 +92,8 @@ class HostedCompletionRecord:
         _positive(self.issue_number, "issue_number")
         if not isinstance(self.status, HostedCompletionStatus):
             raise ValueError("status must be HostedCompletionStatus")
+        if not isinstance(self.outcome, HostedCompletionOutcome):
+            raise ValueError("outcome must be HostedCompletionOutcome")
 
     @property
     def completion_id(self) -> str:
@@ -109,6 +119,7 @@ class HostedCompletionRecord:
             "handoff_digest": self.handoff_digest,
             "lifecycle_digest": self.lifecycle_digest,
             "status": self.status.value,
+            "outcome": self.outcome.value,
             "completion_id": self.completion_id,
         }
 
@@ -126,6 +137,7 @@ class HostedCompletionRecord:
             handoff_digest=raw.get("handoff_digest"),
             lifecycle_digest=raw.get("lifecycle_digest"),
             status=HostedCompletionStatus(str(raw.get("status") or "")),
+            outcome=HostedCompletionOutcome(str(raw.get("outcome") or "MANAGED")),
         )
         if raw.get("completion_id") != record.completion_id:
             raise ValueError("hosted completion identity mismatch")
@@ -360,6 +372,7 @@ def record_completed_no_change_task(
         handoff_digest=commit.record_id,
         lifecycle_digest=evidence_digest,
         status=HostedCompletionStatus.RECORDED,
+        outcome=HostedCompletionOutcome.NO_CHANGE,
     )
 
     store = HostedCompletionStore.for_root(root)
@@ -382,6 +395,118 @@ def record_completed_no_change_task(
         record,
     )
 
+
+
+def record_stale_base_task(
+    *,
+    root: Path,
+    plan_id: str | None = None,
+) -> HostedCompletionResult:
+    """Persist terminal stale-base evidence before releasing execution ownership."""
+
+    root = Path(root).resolve()
+    plans = HostedTaskPlanStore.for_root(root).load()
+    plan = plans.get(plan_id) if plan_id is not None else plans.active
+    admissions = HostedAdmissionStore.for_root(root).load()
+    admission = admissions.for_plan(plan.plan_id) if plan is not None else None
+    if plan is None or admission is None:
+        raise RuntimeError("cannot record stale-base terminal state without active plan/admission")
+    if admission.outcome is not HostedAdmissionOutcome.ADMITTED:
+        raise RuntimeError("stale-base terminal state requires an admitted task")
+    if admission.attempt is None or admission.worker_spec is None:
+        raise RuntimeError("stale-base terminal state lacks frozen attempt/worker identity")
+
+    worker = WorkerRunStore.for_root(root).load().find_attempt(admission.attempt.attempt_id)
+    if worker is None or worker.status is not WorkerRunStatus.HANDOFF_READY:
+        raise RuntimeError("stale-base terminal state requires exact HANDOFF_READY worker evidence")
+
+    commit = DormantHandoffCommitStore.for_root(root).load().for_attempt(
+        admission.attempt.attempt_id
+    )
+    if commit is None or commit.outcome is not DormantCommitOutcome.COMMITTED:
+        raise RuntimeError("stale-base terminal state requires exact committed worker delta")
+    if commit.admission_record_id != admission.record_id:
+        raise RuntimeError("stale-base commit/admission identity mismatch")
+    if commit.head_sha == commit.base_sha or not commit.changed_paths:
+        raise RuntimeError("stale-base terminal state requires a non-empty committed delta")
+
+    effects = OrdinaryEffectStore.for_root(root).load()
+    attempt_effects = [
+        value
+        for value in effects.records
+        if value.identity.attempt_id == admission.attempt.attempt_id
+    ]
+    pushes = [
+        value for value in attempt_effects
+        if value.identity.kind is EffectKind.PUSH_BRANCH
+    ]
+    creates = [
+        value for value in attempt_effects
+        if value.identity.kind is EffectKind.CREATE_PR
+    ]
+    if len(pushes) != 1 or pushes[0].status is not EffectStatus.COMPLETE:
+        raise RuntimeError("stale-base terminal state requires exact completed branch push")
+    if len(creates) != 1 or creates[0].status is not EffectStatus.ABANDONED:
+        raise RuntimeError("stale-base terminal state requires exact abandoned CREATE_PR effect")
+    if (
+        admission.worker_spec.branch not in pushes[0].remote_identity
+        or commit.head_sha not in pushes[0].remote_identity
+    ):
+        raise RuntimeError("stale-base branch-push evidence does not match committed worker head")
+
+    handoffs = [
+        value
+        for value in OrdinaryPipelineStore.for_root(root).load().reconstructible_managed_handoffs()
+        if value.scope.attempt_id == admission.attempt.attempt_id
+    ]
+    if handoffs:
+        raise RuntimeError("stale-base terminal state cannot follow a managed PR handoff")
+
+    evidence_digest = canonical_digest(
+        {
+            "kind": "STALE_BASE",
+            "attempt_id": admission.attempt.attempt_id,
+            "base_sha": commit.base_sha,
+            "head_sha": commit.head_sha,
+            "commit_record_id": commit.record_id,
+            "worker_run_id": worker.run_id,
+            "push_effect_digest": pushes[0].digest,
+            "create_pr_effect_digest": creates[0].digest,
+        }
+    )
+    record = HostedCompletionRecord(
+        plan_id=plan.plan_id,
+        event_id=plan.event_id,
+        issue_number=plan.issue_number,
+        admission_record_id=admission.record_id,
+        attempt_id=admission.attempt.attempt_id,
+        worker_run_id=worker.run_id,
+        # No managed PR exists. Bind terminal evidence to the immutable worker commit.
+        handoff_digest=commit.record_id,
+        lifecycle_digest=evidence_digest,
+        status=HostedCompletionStatus.RECORDED,
+        outcome=HostedCompletionOutcome.STALE_BASE,
+    )
+
+    store = HostedCompletionStore.for_root(root)
+    ledger = store.load()
+    current = ledger.get(record.completion_id)
+    if current is not None:
+        if current.as_dict() != record.as_dict():
+            raise RuntimeError("stale-base terminal identity drifted")
+        return HostedCompletionResult(
+            HostedCompletionDisposition.ALREADY_RECORDED,
+            "hosted stale-base terminal identity is already durable",
+            current,
+        )
+    if ledger.pending() is not None:
+        raise RuntimeError("another hosted completion still requires cleanup")
+    store.save(ledger.put(record))
+    return HostedCompletionResult(
+        HostedCompletionDisposition.RECORDED,
+        "hosted stale-base attempt durably recorded before ownership cleanup",
+        record,
+    )
 
 def _complete_ingress_event(state: HostedIngressState, event_id: str) -> HostedIngressState:
     inbox = state.inbox
@@ -430,7 +555,8 @@ def advance_hosted_completion_cleanup(*, root: Path) -> HostedCompletionResult:
     if commit is not None:
         if commit.admission_record_id != pending.admission_record_id:
             raise RuntimeError("completion cleanup found mismatched dormant commit identity")
-        commit_store.save(commits.remove_attempt(pending.attempt_id))
+        if pending.outcome is not HostedCompletionOutcome.STALE_BASE:
+            commit_store.save(commits.remove_attempt(pending.attempt_id))
 
     # Retire scheduler ownership while exact admission identity is still available.
     # This is attempt-scoped and leaves unrelated executing/waiting workers untouched.
@@ -438,7 +564,11 @@ def advance_hosted_completion_cleanup(*, root: Path) -> HostedCompletionResult:
         root=root,
         attempt_id=pending.attempt_id,
         admission_record_id=pending.admission_record_id,
-        reason="completed hosted workflow retired exact scheduler attempt",
+        reason=(
+            "stale-base hosted workflow retired exact scheduler attempt"
+            if pending.outcome is HostedCompletionOutcome.STALE_BASE
+            else "completed hosted workflow retired exact scheduler attempt"
+        ),
     )
 
     admission_store = HostedAdmissionStore.for_root(root)
@@ -464,6 +594,10 @@ def advance_hosted_completion_cleanup(*, root: Path) -> HostedCompletionResult:
     store.save(store.load().put(cleaned))
     return HostedCompletionResult(
         HostedCompletionDisposition.CLEANED,
-        "completed hosted task retired without altering unrelated workflow authority",
+        (
+            "stale-base hosted attempt retired without claiming task success"
+            if cleaned.outcome is HostedCompletionOutcome.STALE_BASE
+            else "completed hosted task retired without altering unrelated workflow authority"
+        ),
         cleaned,
     )

@@ -493,6 +493,7 @@ def should_continue_after(
         HostedExecutionAdvanceDisposition.TASK_CLAIMED,
         HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
         HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,
+        HostedExecutionAdvanceDisposition.TASK_STALE_RECORDED,
         HostedExecutionAdvanceDisposition.TASK_COMPLETED,
     }:
         return True
