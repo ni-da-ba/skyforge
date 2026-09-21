@@ -189,13 +189,8 @@ class ScopePromotionTest(unittest.TestCase):
  def test_disjoint_pending_typed_task_does_not_block_promotion(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
-   candidate=set(retrieval.scope_proposal.paths)
-   choices=[
-    'docs/agent-state/CURRENT_PROJECT_STATE.md',
-    'docs/agent-state/AUTHORSHIP_STATE.md',
-    'docs/authorship/hydrology-channel.md',
-   ]
-   disjoint=next(path for path in choices if path not in candidate)
+   disjoint='docs/concurrency-reservations/alpha.md'
+   self.assertNotIn(disjoint,retrieval.scope_proposal.paths)
    event=typed_pending_task(root,issue_number=999,comment_id=7101,allowed_paths=(disjoint,))
    HostedStateStore.for_root(root).save(
     HostedIngressState(inbox=InboxState(pending_events=(event,)))
@@ -228,14 +223,12 @@ class ScopePromotionTest(unittest.TestCase):
  def test_two_disjoint_pending_task_authorities_fill_capacity(self):
   with tempfile.TemporaryDirectory() as td:
    root=Path(td); prepare(root); _,package,retrieval,payload=candidate_bundle(root)
-   candidate=set(retrieval.scope_proposal.paths)
-   choices=[
-    'docs/agent-state/CURRENT_PROJECT_STATE.md',
-    'docs/agent-state/AUTHORSHIP_STATE.md',
-    'docs/authorship/hydrology-channel.md',
-   ]
-   disjoint=[path for path in choices if path not in candidate][:2]
-   self.assertEqual(len(disjoint),2)
+   disjoint=(
+    'docs/concurrency-reservations/alpha.md',
+    'docs/concurrency-reservations/beta.md',
+   )
+   for path in disjoint:
+    self.assertNotIn(path,retrieval.scope_proposal.paths)
    first=typed_pending_task(root,issue_number=998,comment_id=7103,allowed_paths=(disjoint[0],))
    second=typed_pending_task(root,issue_number=999,comment_id=7104,allowed_paths=(disjoint[1],))
    HostedStateStore.for_root(root).save(
