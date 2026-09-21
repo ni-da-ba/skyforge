@@ -194,7 +194,7 @@ class _FakeDependencies:
         self.legacy_reader = lambda _root: {}
         self.environ = {}
 
-    def build(self):
+    def build(self, *, defer_worker_execution=False):
         self.builds += 1
         return object()
 

@@ -14,6 +14,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import os
+import queue
 from pathlib import Path
 import threading
 import time
@@ -29,6 +30,7 @@ from .classifier_provider import (
     classifier_provider_config,
 )
 from .dormant_handoff_commit import DormantCommitOutcome, DormantHandoffCommitStore
+from .dormant_worker import DormantWorkerDisposition, advance_dormant_admitted_worker
 from .hosted_admission import HostedAdmissionOutcome, HostedAdmissionStore
 from .hosted_budget import HostedBudgetLedger, HostedBudgetStore, utc_day
 from .hosted_execution_runtime import (
@@ -38,13 +40,27 @@ from .hosted_execution_runtime import (
     select_hosted_execution_plan,
 )
 from .hosted_task_plan import HostedTaskPlanStatus, HostedTaskPlanStore
-from .quota import ProviderQuotaDecision
+from .hosted_worker_scheduler import (
+    HOSTED_WORKER_CONCURRENCY_LIMIT,
+    HostedWorkerReservationDisposition,
+    HostedWorkerScheduleState,
+    HostedWorkerSchedulerStore,
+    reconcile_hosted_worker_scheduler_after_restart,
+    reserve_hosted_worker,
+    update_hosted_worker_schedule,
+)
+from .quota import (
+    ProviderQuotaDecision,
+    QuotaAdmissionDisposition,
+    classify_quota_admission,
+)
 from .state_store import JsonStateStoreAdapter
 from .worker_provider import (
     CodexWorkerProvider,
     WorkerProviderConfig,
     WorkerRunStatus,
     WorkerRunStore,
+    provider_config_for_tier,
 )
 
 
@@ -192,6 +208,7 @@ class BudgetedWorkerProvider:
             kind,
             day=self.day_reader(),
             legacy_state=self.legacy_reader(self.root),
+            attempt_id=getattr(spec, "attempt_id", None),
         )
         return self.delegate.run(spec=spec, worktree=worktree, config=config)
 
@@ -332,7 +349,11 @@ class ProductionHostedDependencyFactory:
         )
         return ledger, luna_limit, terra_limit
 
-    def build(self) -> HostedExecutionDependencies:
+    def build(
+        self,
+        *,
+        defer_worker_execution: bool = False,
+    ) -> HostedExecutionDependencies:
         ledger, luna_limit, terra_limit = self.budget_snapshot()
         worker_kind = _active_worker_budget_kind(self.root)
         provider = self._quota()
@@ -352,7 +373,82 @@ class ProductionHostedDependencyFactory:
             classifier_provider_quota=provider,
             worker_provider_quota=provider,
             classifier_config=classifier_provider_config(self.environ),
+            defer_worker_execution=defer_worker_execution,
         )
+
+    def reserve_and_build_worker_attempt(
+        self,
+        attempt_id: str,
+    ) -> tuple[HostedExecutionDependencies | None, str]:
+        """Atomically admit exact local spend for one reserved worker attempt."""
+        admissions = HostedAdmissionStore.for_root(self.root).load()
+        admission = admissions.for_attempt(attempt_id)
+        if (
+            admission is None
+            or admission.outcome is not HostedAdmissionOutcome.ADMITTED
+            or admission.worker_spec is None
+            or admission.attempt is None
+        ):
+            return None, "attempt lacks admitted worker authority"
+
+        ledger, luna_limit, terra_limit = self.budget_snapshot()
+        kind = (
+            "luna_worker"
+            if admission.worker_spec.tier.value == "LUNA"
+            else "terra_worker"
+        )
+        local = ledger.observation(
+            kind,
+            luna_limit=luna_limit,
+            terra_limit=terra_limit,
+        )
+        provider = (
+            self._quota_reader()
+            if self._quota_reader is not None
+            else provider_quota_decision(environ=self.environ)
+        )
+        decision = classify_quota_admission(provider, local)
+        if decision.disposition in {
+            QuotaAdmissionDisposition.BLOCK_PROVIDER,
+            QuotaAdmissionDisposition.BLOCK_LOCAL,
+        }:
+            return None, decision.reason
+
+        daily_limit = (
+            luna_limit if kind == "luna_worker" else terra_limit
+        )
+        reserved_ledger, admitted = self.store.reserve_worker_attempt(
+            attempt_id=attempt_id,
+            kind=kind,
+            day=self.day_reader(),
+            daily_limit=daily_limit,
+            legacy_state=self.legacy_reader(self.root),
+        )
+        if not admitted:
+            return None, "local worker budget exhausted during atomic reservation"
+
+        return HostedExecutionDependencies(
+            classifier_provider=self.classifier_provider,
+            worker_provider=self.worker_provider,
+            classifier_local_budget=reserved_ledger.observation(
+                "classifier",
+                luna_limit=luna_limit,
+                terra_limit=terra_limit,
+            ),
+            worker_local_budget=reserved_ledger.observation(
+                kind,
+                luna_limit=luna_limit,
+                terra_limit=terra_limit,
+            ),
+            classifier_provider_quota=provider,
+            worker_provider_quota=provider,
+            classifier_config=classifier_provider_config(self.environ),
+            worker_config=provider_config_for_tier(
+                admission.worker_spec.tier,
+                self.environ,
+            ),
+            defer_worker_execution=False,
+        ), "exact worker budget/provider admission reserved"
 
 
 @dataclass(frozen=True)
@@ -473,6 +569,9 @@ class HostedExecutionDriver:
         self._stop = threading.Event()
         self._lock = threading.RLock()
         self._thread: threading.Thread | None = None
+        self._worker_threads: dict[str, threading.Thread] = {}
+        self._worker_results: queue.Queue[tuple[str, object, Exception | None]] = queue.Queue()
+        reconcile_hosted_worker_scheduler_after_restart(root=self.root)
         self._snapshot = HostedExecutionDriverSnapshot(enabled=True, running=False)
 
     def snapshot(self) -> HostedExecutionDriverSnapshot:
@@ -563,16 +662,164 @@ class HostedExecutionDriver:
                 last_error=f"{type(exc).__name__}: {exc}",
             )
 
+    def _worker_target(
+        self,
+        attempt_id: str,
+        dependencies: HostedExecutionDependencies,
+    ) -> None:
+        try:
+            result = advance_dormant_admitted_worker(
+                root=self.root,
+                provider=dependencies.worker_provider,
+                provider_quota=dependencies.worker_provider_quota,
+                local_budget=dependencies.worker_local_budget,
+                config=dependencies.worker_config,
+                attempt_id=attempt_id,
+                local_budget_reserved=True,
+            )
+            self._worker_results.put((attempt_id, result, None))
+        except Exception as exc:
+            self._worker_results.put((attempt_id, None, exc))
+        finally:
+            self._wake.set()
+
+    def _launch_runnable_worker(
+        self,
+        attempt_id: str,
+    ) -> HostedExecutionAdvanceResult:
+        reservation = reserve_hosted_worker(
+            root=self.root,
+            attempt_id=attempt_id,
+        )
+        if reservation.disposition is HostedWorkerReservationDisposition.LIMIT_REACHED:
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_RUNNABLE,
+                reservation.reason,
+                self.runtime.execution_gate.digest,
+                attempt_id,
+            )
+        if reservation.disposition is HostedWorkerReservationDisposition.ALREADY_EXECUTING:
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_EXECUTING,
+                reservation.reason,
+                self.runtime.execution_gate.digest,
+                attempt_id,
+            )
+        if reservation.disposition is not HostedWorkerReservationDisposition.RESERVED:
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.BLOCKED,
+                reservation.reason,
+                self.runtime.execution_gate.digest,
+                attempt_id,
+            )
+
+        dependencies, reason = self.dependencies.reserve_and_build_worker_attempt(
+            attempt_id
+        )
+        if dependencies is None:
+            update_hosted_worker_schedule(
+                root=self.root,
+                attempt_id=attempt_id,
+                state=HostedWorkerScheduleState.WAIT_QUOTA,
+                reason=reason,
+            )
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.WORKER_RUNNABLE,
+                reason,
+                self.runtime.execution_gate.digest,
+                attempt_id,
+            )
+
+        thread = threading.Thread(
+            target=self._worker_target,
+            args=(attempt_id, dependencies),
+            name=f"skyforge-v2-worker-{attempt_id[:10]}",
+            daemon=True,
+        )
+        with self._lock:
+            self._worker_threads[attempt_id] = thread
+        thread.start()
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.WORKER_EXECUTING,
+            "exact admitted worker launched under bounded concurrency slot",
+            self.runtime.execution_gate.digest,
+            attempt_id,
+        )
+
+    def _reap_worker_results(self) -> int:
+        reaped = 0
+        while True:
+            try:
+                attempt_id, result, error = self._worker_results.get_nowait()
+            except queue.Empty:
+                break
+            reaped += 1
+            with self._lock:
+                self._worker_threads.pop(attempt_id, None)
+            if error is not None:
+                update_hosted_worker_schedule(
+                    root=self.root,
+                    attempt_id=attempt_id,
+                    state=HostedWorkerScheduleState.RECOVERY_REQUIRED,
+                    reason=f"worker thread failed closed: {type(error).__name__}: {error}",
+                )
+                self._record_error(error)
+                continue
+
+            disposition = result.disposition
+            if disposition in {
+                DormantWorkerDisposition.HANDOFF_READY,
+                DormantWorkerDisposition.ALREADY_READY,
+            }:
+                state = HostedWorkerScheduleState.COMPLETED
+            elif disposition is DormantWorkerDisposition.QUOTA_BLOCKED:
+                state = HostedWorkerScheduleState.WAIT_QUOTA
+            elif disposition is DormantWorkerDisposition.CONFLICT:
+                state = HostedWorkerScheduleState.WAIT_CLAIM
+            else:
+                state = HostedWorkerScheduleState.RECOVERY_REQUIRED
+            update_hosted_worker_schedule(
+                root=self.root,
+                attempt_id=attempt_id,
+                state=state,
+                reason=result.reason,
+            )
+            self._record_result(
+                HostedExecutionAdvanceResult(
+                    HostedExecutionAdvanceDisposition.WORKER_ADVANCED,
+                    result.reason,
+                    self.runtime.execution_gate.digest,
+                    result.worker_run_id or attempt_id,
+                )
+            )
+        return reaped
+
     def _drain_one_wake(self) -> None:
+        self._reap_worker_results()
         for _ in range(self.max_boundaries_per_wake):
             if self._stop.is_set():
                 return
             result = self.runtime.advance_one_execution_step(
-                self.dependencies.build()
+                self.dependencies.build(defer_worker_execution=True)
             )
+            if result.disposition is HostedExecutionAdvanceDisposition.WORKER_RUNNABLE:
+                launched = self._launch_runnable_worker(result.durable_identity)
+                self._record_result(launched)
+                if (
+                    launched.disposition
+                    is HostedExecutionAdvanceDisposition.WORKER_EXECUTING
+                ):
+                    # Continue the same wake so a second independent runnable attempt
+                    # can claim the remaining slot.
+                    continue
+                return
+
             self._record_result(result)
+            if result.disposition is HostedExecutionAdvanceDisposition.WORKER_EXECUTING:
+                return
             if not should_continue_after(result, root=self.root):
                 return
+            self._reap_worker_results()
         raise RuntimeError("hosted execution driver exceeded bounded lifecycle drain")
 
     def _run(self) -> None:

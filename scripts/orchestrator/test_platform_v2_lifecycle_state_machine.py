@@ -38,6 +38,12 @@ from v2.hosted_task_plan import (
     HostedTaskPlanLedger,
     HostedTaskPlanStatus,
 )
+from v2.hosted_policy import HOSTED_WORKER_CONCURRENCY_LIMIT
+from v2.hosted_worker_scheduler import (
+    HostedWorkerScheduleRecord,
+    HostedWorkerScheduleState,
+    HostedWorkerSchedulerLedger,
+)
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
     HumanReviewLedger,
@@ -231,6 +237,12 @@ class LifecycleMachine:
         "release_a",
         "release_b",
         "release_conflict",
+        "launch_a",
+        "launch_b",
+        "launch_conflict",
+        "complete_a",
+        "complete_b",
+        "complete_conflict",
         "plan_a",
         "plan_b",
         "admit_a",
@@ -300,6 +312,8 @@ class LifecycleMachine:
         }
         self.conflict_blocks = 0
         self.max_parallel_claims = 0
+        self.worker_scheduler = HostedWorkerSchedulerLedger()
+        self.max_parallel_workers = 0
         self.trace: list[str] = []
 
     def _deliver(self, name: str, *, exact_duplicate: bool = False) -> None:
@@ -489,12 +503,96 @@ class LifecycleMachine:
             len(self.claim_ledger.active),
         )
 
+    def _schedule_record(
+        self,
+        objective_id: str,
+        state: HostedWorkerScheduleState,
+        reason: str,
+    ) -> HostedWorkerScheduleRecord:
+        worker = self.claim_workers[objective_id]
+        claim = self.claim_ledger.active_for_attempt(worker.attempt_id)
+        return HostedWorkerScheduleRecord(
+            attempt_id=worker.attempt_id,
+            admission_record_id=hashlib.sha256(
+                f"x6-scheduler-admission:{objective_id}".encode()
+            ).hexdigest(),
+            state=state,
+            reason=reason,
+            claim_id=claim.claim_id if claim is not None else "",
+            tier=worker.tier.value,
+        )
+
+    def _schedule_launch(self, objective_id: str) -> None:
+        worker = self.claim_workers[objective_id]
+        current = self.worker_scheduler.get(worker.attempt_id)
+        if (
+            current is not None
+            and current.state is HostedWorkerScheduleState.EXECUTING
+        ):
+            return
+        claim = self.claim_ledger.active_for_attempt(worker.attempt_id)
+        if claim is None:
+            self.worker_scheduler = self.worker_scheduler.put(
+                self._schedule_record(
+                    objective_id,
+                    HostedWorkerScheduleState.WAIT_CLAIM,
+                    "x6 scheduler waits for exact claim",
+                )
+            )
+            return
+        if len(self.worker_scheduler.executing) >= HOSTED_WORKER_CONCURRENCY_LIMIT:
+            self.worker_scheduler = self.worker_scheduler.put(
+                self._schedule_record(
+                    objective_id,
+                    HostedWorkerScheduleState.WAIT_LIMIT,
+                    "x6 scheduler bounded by execution limit",
+                )
+            )
+            return
+        self.worker_scheduler = self.worker_scheduler.put(
+            self._schedule_record(
+                objective_id,
+                HostedWorkerScheduleState.EXECUTING,
+                "x6 scheduler launched exact claimed attempt",
+            )
+        )
+        self.max_parallel_workers = max(
+            self.max_parallel_workers,
+            len(self.worker_scheduler.executing),
+        )
+
+    def _schedule_complete(self, objective_id: str) -> None:
+        worker = self.claim_workers[objective_id]
+        current = self.worker_scheduler.get(worker.attempt_id)
+        if current is None or current.state is not HostedWorkerScheduleState.EXECUTING:
+            return
+        self.worker_scheduler = self.worker_scheduler.put(
+            self._schedule_record(
+                objective_id,
+                HostedWorkerScheduleState.COMPLETED,
+                "x6 exact worker completion",
+            )
+        )
+
     def _release(self, objective_id: str) -> None:
         worker = self.claim_workers[objective_id]
         self.claim_ledger = retire_concurrency_claim(
             self.claim_ledger,
             worker.attempt_id,
         ).ledger
+        current = self.worker_scheduler.get(worker.attempt_id)
+        if current is not None:
+            self.worker_scheduler = self.worker_scheduler.put(
+                HostedWorkerScheduleRecord(
+                    attempt_id=current.attempt_id,
+                    admission_record_id=current.admission_record_id,
+                    state=HostedWorkerScheduleState.RETIRED,
+                    reason="x6 exact attempt retired",
+                    claim_id=current.claim_id,
+                    worker_run_id=current.worker_run_id,
+                    tier=current.tier,
+                )
+            )
 
     def _restart_round_trip(self) -> None:
         ingress = HostedIngressState.from_mapping(self.ingress.as_dict())
@@ -536,6 +634,12 @@ class LifecycleMachine:
         assert admissions.digest == self.workflow_admissions.digest
         self.workflow_admissions = admissions
 
+        scheduler = HostedWorkerSchedulerLedger.from_mapping(
+            self.worker_scheduler.as_dict()
+        )
+        assert scheduler.digest == self.worker_scheduler.digest
+        self.worker_scheduler = scheduler
+
     def _assert_invariants(self) -> None:
         actual_pending = {value.event_id for value in self.ingress.inbox.pending_events}
         assert actual_pending == self.model_pending_event_ids
@@ -570,6 +674,13 @@ class LifecycleMachine:
         active_tasks = {claim.task_id for claim in self.claim_ledger.active}
         assert active_tasks <= {"x6-hydrology", "x6-canopy", "x6-channel"}
         assert len(self.claim_ledger.active) <= 2
+        assert len(self.worker_scheduler.executing) <= HOSTED_WORKER_CONCURRENCY_LIMIT
+        for scheduled in self.worker_scheduler.executing:
+            active_claim = self.claim_ledger.active_for_attempt(
+                scheduled.attempt_id
+            )
+            assert active_claim is not None
+            assert active_claim.claim_id == scheduled.claim_id
         # Restart/reload at every transition is itself an X-6 invariant.
         self._restart_round_trip()
 
@@ -651,6 +762,18 @@ class LifecycleMachine:
             self._release("B")
         elif action == "release_conflict":
             self._release("C")
+        elif action == "launch_a":
+            self._schedule_launch("A")
+        elif action == "launch_b":
+            self._schedule_launch("B")
+        elif action == "launch_conflict":
+            self._schedule_launch("C")
+        elif action == "complete_a":
+            self._schedule_complete("A")
+        elif action == "complete_b":
+            self._schedule_complete("B")
+        elif action == "complete_conflict":
+            self._schedule_complete("C")
         elif action == "plan_a":
             self._plan_workflow("a")
         elif action == "plan_b":
@@ -697,6 +820,47 @@ class PlatformV2LifecycleStateMachineTest(unittest.TestCase):
         machine.step("claim_conflict")
         self.assertEqual(machine.claim_ledger, before)
         self.assertEqual(machine.conflict_blocks, 1)
+
+    def test_bounded_scheduler_releases_one_slot_without_disturbing_other_worker(self) -> None:
+        machine = LifecycleMachine()
+        machine.step("claim_a")
+        machine.step("claim_b")
+        machine.step("launch_a")
+        machine.step("launch_b")
+        self.assertEqual(len(machine.worker_scheduler.executing), 2)
+        self.assertEqual(machine.max_parallel_workers, 2)
+
+        machine.step("claim_conflict")
+        machine.step("launch_conflict")
+        conflict = machine.worker_scheduler.get(
+            machine.claim_workers["C"].attempt_id
+        )
+        self.assertEqual(conflict.state, HostedWorkerScheduleState.WAIT_CLAIM)
+
+        b_before = machine.worker_scheduler.get(
+            machine.claim_workers["B"].attempt_id
+        )
+        machine.step("complete_a")
+        machine.step("release_a")
+        machine.step("claim_conflict")
+        machine.step("launch_conflict")
+        self.assertEqual(
+            machine.worker_scheduler.get(
+                machine.claim_workers["C"].attempt_id
+            ).state,
+            HostedWorkerScheduleState.EXECUTING,
+        )
+        self.assertEqual(
+            machine.worker_scheduler.get(
+                machine.claim_workers["B"].attempt_id
+            ),
+            b_before,
+        )
+        machine.step("restart")
+        self.assertLessEqual(
+            len(machine.worker_scheduler.executing),
+            HOSTED_WORKER_CONCURRENCY_LIMIT,
+        )
 
     def test_real_multi_workflow_ledgers_survive_restart_and_exact_retirement(self) -> None:
         machine = LifecycleMachine()

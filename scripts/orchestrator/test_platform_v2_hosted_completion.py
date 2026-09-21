@@ -30,6 +30,11 @@ from v2.hosted_execution_runtime import (
     HostedExecutionDependencies,
 )
 from v2.hosted_task_plan import HostedTaskPlanStore
+from v2.hosted_worker_scheduler import (
+    HostedWorkerScheduleState,
+    HostedWorkerSchedulerStore,
+    update_hosted_worker_schedule,
+)
 from v2.ordinary_pipeline import OrdinaryPipelineStore
 from v2.worker_provider import WorkerProviderConfig, WorkerTier
 from v2.classifier_provider import ClassifierProviderConfig
@@ -91,6 +96,14 @@ class HostedCompletionTest(unittest.TestCase):
             plan = HostedTaskPlanStore.for_root(root).load().active
             self.assertIsNotNone(plan)
 
+            admission = HostedAdmissionStore.for_root(root).load().record
+            update_hosted_worker_schedule(
+                root=root,
+                attempt_id=admission.attempt.attempt_id,
+                state=HostedWorkerScheduleState.COMPLETED,
+                reason="fixture worker completed",
+            )
+
             recorded = record_completed_managed_task(
                 root=root,
                 handoff_digest=handoff.digest,
@@ -105,6 +118,11 @@ class HostedCompletionTest(unittest.TestCase):
             self.assertIsNone(HostedTaskPlanStore.for_root(root).load().active)
             self.assertIsNone(HostedAdmissionStore.for_root(root).load().record)
             self.assertIsNone(DormantHandoffCommitStore.for_root(root).load().record)
+            scheduler = HostedWorkerSchedulerStore.for_root(root).load()
+            self.assertEqual(
+                scheduler.get(admission.attempt.attempt_id).state,
+                HostedWorkerScheduleState.RETIRED,
+            )
 
             state = app.store.load()
             self.assertEqual(state.inbox.pending_events, ())

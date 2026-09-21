@@ -9,6 +9,7 @@ import re
 from typing import Any, Iterable, Mapping
 
 from .identity import canonical_digest
+from .hosted_policy import HOSTED_WORKER_CONCURRENCY_LIMIT
 from .state_store import JsonStateStoreAdapter
 
 _SHA40_RE = re.compile(r"^[0-9a-f]{40}$")
@@ -199,6 +200,62 @@ def _plan(raw: Mapping[str, Any] | None) -> dict[str, Any] | None:
     }
 
 
+def load_worker_scheduler_read_records(
+    root: Path,
+) -> tuple[Mapping[str, Any], ...]:
+    """Read scheduler truth without importing mutation-capable scheduler code."""
+    root = Path(root).resolve()
+    state_dir = root / ".skyforge-platform-v2"
+    adapter = JsonStateStoreAdapter(
+        path=state_dir / "worker-scheduler.json",
+        backup_path=state_dir / "worker-scheduler.json.bak",
+    )
+    raw = adapter.load().as_dict()
+    if raw in ({}, None):
+        return ()
+    if not isinstance(raw, Mapping) or raw.get("schema_version") != 1:
+        raise ValueError("invalid worker scheduler read ledger")
+    if raw.get("concurrency_limit") != HOSTED_WORKER_CONCURRENCY_LIMIT:
+        raise ValueError("worker scheduler concurrency policy mismatch")
+    values = raw.get("records")
+    if not isinstance(values, list):
+        raise ValueError("worker scheduler read records must be a list")
+    normalized = []
+    seen: set[str] = set()
+    allowed_states = {
+        "RUNNABLE",
+        "EXECUTING",
+        "WAIT_LIMIT",
+        "WAIT_CLAIM",
+        "WAIT_QUOTA",
+        "RECOVERY_REQUIRED",
+        "COMPLETED",
+        "RETIRED",
+    }
+    for value in values:
+        item = _mapping(value, "worker scheduler record")
+        attempt_id = str(item.get("attempt_id") or "")
+        admission_record_id = str(item.get("admission_record_id") or "")
+        state = str(item.get("state") or "")
+        if not attempt_id or attempt_id in seen:
+            raise ValueError("duplicate or missing scheduler attempt identity")
+        if not admission_record_id or state not in allowed_states:
+            raise ValueError("invalid scheduler admission/state")
+        seen.add(attempt_id)
+        normalized.append(
+            {
+                "attempt_id": attempt_id,
+                "admission_record_id": admission_record_id,
+                "state": state,
+                "reason": str(item.get("reason") or ""),
+                "claim_id": str(item.get("claim_id") or ""),
+                "worker_run_id": str(item.get("worker_run_id") or ""),
+                "tier": str(item.get("tier") or ""),
+            }
+        )
+    return tuple(sorted(normalized, key=lambda value: value["attempt_id"]))
+
+
 def load_local_commit_read_records(root: Path) -> tuple[Mapping[str, Any], ...]:
     """Read local-commit durable state without importing its mutation-capable service."""
     root = Path(root).resolve()
@@ -318,6 +375,8 @@ class DevelopmentSnapshot:
     admission_count: int
     local_commits: tuple[Mapping[str, Any], ...]
     local_commit_count: int
+    worker_scheduler: tuple[Mapping[str, Any], ...]
+    worker_scheduler_count: int
     concurrency_claims: tuple[Mapping[str, Any], ...]
     concurrency_claim_count: int
     workers: tuple[Mapping[str, Any], ...]
@@ -353,6 +412,27 @@ class DevelopmentSnapshot:
                 "admission_count": self.admission_count,
                 "local_commits": [dict(value) for value in self.local_commits],
                 "local_commit_count": self.local_commit_count,
+                "worker_concurrency_limit": HOSTED_WORKER_CONCURRENCY_LIMIT,
+                "worker_scheduler": [
+                    dict(value) for value in self.worker_scheduler
+                ],
+                "worker_scheduler_count": self.worker_scheduler_count,
+                "executing_attempts": [
+                    dict(value)
+                    for value in self.worker_scheduler
+                    if value.get("state") == "EXECUTING"
+                ],
+                "runnable_attempts": [
+                    dict(value)
+                    for value in self.worker_scheduler
+                    if value.get("state") == "RUNNABLE"
+                ],
+                "waiting_attempts": [
+                    dict(value)
+                    for value in self.worker_scheduler
+                    if str(value.get("state") or "").startswith("WAIT_")
+                    or value.get("state") == "RECOVERY_REQUIRED"
+                ],
                 "concurrency_claims": [
                     dict(value) for value in self.concurrency_claims
                 ],
@@ -389,6 +469,7 @@ def build_development_snapshot(
     plan_records: Iterable[Mapping[str, Any]] = (),
     admission_records: Iterable[Mapping[str, Any]] = (),
     local_commit_records: Iterable[Mapping[str, Any]] = (),
+    worker_scheduler_records: Iterable[Mapping[str, Any]] = (),
     concurrency_claims: Iterable[Mapping[str, Any]] = (),
     worker_records: Iterable[Mapping[str, Any]] = (),
     completion_records: Iterable[Mapping[str, Any]] = (),
@@ -417,6 +498,10 @@ def build_development_snapshot(
     local_commits_all = tuple(
         _local_commit(_mapping(value, "local commit"))
         for value in local_commit_records
+    )
+    scheduler_all = tuple(
+        dict(_mapping(value, "worker scheduler record"))
+        for value in worker_scheduler_records
     )
     claims_all = tuple(
         _concurrency_claim(_mapping(value, "concurrency claim"))
@@ -468,6 +553,8 @@ def build_development_snapshot(
         admission_count=len(admissions_all),
         local_commits=local_commits_all,
         local_commit_count=len(local_commits_all),
+        worker_scheduler=scheduler_all,
+        worker_scheduler_count=len(scheduler_all),
         concurrency_claims=claims_all,
         concurrency_claim_count=len(claims_all),
         workers=_recent(workers_all),

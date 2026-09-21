@@ -6,10 +6,13 @@ from dataclasses import dataclass
 from pathlib import Path
 import re
 import subprocess
+import threading
 from typing import Callable, Sequence
 
 from .identity import canonical_digest
 from .worker_provider import FrozenWorkerSpec
+
+_WORKTREE_MUTATION_LOCK = threading.RLock()
 
 
 def _slug(branch: str) -> str:
@@ -181,43 +184,44 @@ class WorkerWorkspaceManager:
         return WorkerWorkspace(self.root, actual, spec.branch, spec.base_sha)
 
     def prepare(self, spec: FrozenWorkerSpec) -> WorkerWorkspace:
-        if not self.root.is_dir():
-            raise RuntimeError("controller repository root does not exist")
-        worktree = self.expected_path(spec)
-        if worktree == self.root:
-            raise RuntimeError("controller checkout cannot be worker worktree")
+        # Git worktree metadata is shared repository state. Serialize only this short
+        # preparation boundary; provider execution remains independently concurrent.
+        with _WORKTREE_MUTATION_LOCK:
+            if not self.root.is_dir():
+                raise RuntimeError("controller repository root does not exist")
+            worktree = self.expected_path(spec)
+            if worktree == self.root:
+                raise RuntimeError("controller checkout cannot be worker worktree")
 
-        if worktree.exists():
-            return self._verify_existing(spec, worktree)
+            if worktree.exists():
+                return self._verify_existing(spec, worktree)
 
-        worktree.parent.mkdir(parents=True, exist_ok=True)
-        self._run(["git", "cat-file", "-e", f"{spec.base_sha}^{{commit}}"], spec=spec)
+            worktree.parent.mkdir(parents=True, exist_ok=True)
+            self._run(["git", "cat-file", "-e", f"{spec.base_sha}^{{commit}}"], spec=spec)
 
-        branch_probe = self._run(
-            ["git", "show-ref", "--verify", f"refs/heads/{spec.branch}"],
-            spec=spec,
-            check=False,
-        )
-        if branch_probe.returncode == 0:
-            # A deterministic branch collision without its expected worktree is
-            # ambiguous. Do not force-reset it; preserve it for inspection.
-            raise RuntimeError(
-                "deterministic worker branch already exists without expected worktree"
+            branch_probe = self._run(
+                ["git", "show-ref", "--verify", f"refs/heads/{spec.branch}"],
+                spec=spec,
+                check=False,
             )
+            if branch_probe.returncode == 0:
+                raise RuntimeError(
+                    "deterministic worker branch already exists without expected worktree"
+                )
 
-        self._run(
-            [
-                "git",
-                "worktree",
-                "add",
-                "-b",
-                spec.branch,
-                str(worktree),
-                spec.base_sha,
-            ],
-            spec=spec,
-        )
-        return self._verify_existing(spec, worktree)
+            self._run(
+                [
+                    "git",
+                    "worktree",
+                    "add",
+                    "-b",
+                    spec.branch,
+                    str(worktree),
+                    spec.base_sha,
+                ],
+                spec=spec,
+            )
+            return self._verify_existing(spec, worktree)
 
     def verify_for_run(self, spec: FrozenWorkerSpec, worktree: Path) -> WorkerWorkspace:
         expected = self.expected_path(spec)

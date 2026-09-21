@@ -116,7 +116,7 @@ class DevelopmentReadApiTest(unittest.TestCase):
             self.assertNotIn(API_TOKEN, json.dumps(payload, sort_keys=True))
 
 
-    def test_persisted_concurrency_claim_is_visible_while_execution_remains_singleton(self):
+    def test_persisted_concurrency_claim_is_visible_with_bounded_execution(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             runtime = self.runtime(root)
@@ -148,10 +148,10 @@ class DevelopmentReadApiTest(unittest.TestCase):
 
             health = runtime.health_snapshot()
             self.assertEqual(health["active_concurrency_claim_count"], 1)
-            self.assertEqual(health["hosted_execution_concurrency_limit"], 1)
+            self.assertEqual(health["hosted_execution_concurrency_limit"], 2)
             self.assertEqual(
                 payload["runtime"]["hosted_execution_concurrency_limit"],
-                1,
+                2,
             )
 
     def test_corrupt_concurrency_claim_state_makes_development_read_fail_closed(self):

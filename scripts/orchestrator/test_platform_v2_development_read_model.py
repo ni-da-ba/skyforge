@@ -136,6 +136,26 @@ def sample_kwargs():
                 "changed_paths": ["docs/operations/result.md"],
             },
         ),
+        "worker_scheduler_records": (
+            {
+                "attempt_id": "a" * 64,
+                "admission_record_id": "b" * 64,
+                "state": "EXECUTING",
+                "reason": "running",
+                "claim_id": "c" * 64,
+                "worker_run_id": "d" * 64,
+                "tier": "TERRA",
+            },
+            {
+                "attempt_id": "e" * 64,
+                "admission_record_id": "f" * 64,
+                "state": "WAIT_LIMIT",
+                "reason": "bounded",
+                "claim_id": "1" * 64,
+                "worker_run_id": "",
+                "tier": "LUNA",
+            },
+        ),
         "concurrency_claims": (
             {
                 "claim_id": "c" * 64,
@@ -276,6 +296,14 @@ class DevelopmentReadModelTest(unittest.TestCase):
         self.assertEqual(raw["execution"]["plan_count"], 2)
         self.assertEqual(raw["execution"]["admission_count"], 2)
         self.assertEqual(raw["execution"]["local_commit_count"], 1)
+        self.assertEqual(raw["execution"]["worker_concurrency_limit"], 2)
+        self.assertEqual(raw["execution"]["worker_scheduler_count"], 2)
+        self.assertEqual(len(raw["execution"]["executing_attempts"]), 1)
+        self.assertEqual(len(raw["execution"]["waiting_attempts"]), 1)
+        self.assertEqual(
+            raw["execution"]["executing_attempts"][0]["attempt_id"],
+            "a" * 64,
+        )
         self.assertEqual(raw["execution"]["plans"][1]["issue_number"], 962)
         self.assertEqual(
             raw["execution"]["local_commits"][0]["attempt_id"],
