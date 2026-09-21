@@ -118,7 +118,7 @@ existing development API token across repeat deployments unless the operator exp
 replacement.
 
 State-changing development-domain operations use a second, distinct credential plus a server-bound
-trusted actor identity. To enable human-review submission, configure both:
+trusted actor identity. To enable typed objective or human-review submission, configure both:
 
 ```text
 SKYFORGE_DEVELOPMENT_WRITE_TOKEN=<different high-entropy token, at least 32 characters>
@@ -129,14 +129,22 @@ The write actor must be present in `SKYFORGE_TRUSTED_GITHUB_ACTORS`. Request bod
 that actor identity. The installer preserves the write token/actor pair across repeat deployments.
 Read credentials never imply write authority, and the write credential does not grant read access.
 
-Authenticated read surfaces currently include:
+Authenticated development-domain surfaces currently include:
 
 ```text
-GET /api/v1/development-state
-GET /api/v1/artifacts
-GET /api/v1/artifacts/<artifact-id>
-GET /api/v1/artifacts/<artifact-id>/content
+GET  /api/v1/development-state
+GET  /api/v1/artifacts
+GET  /api/v1/artifacts/<artifact-id>
+GET  /api/v1/artifacts/<artifact-id>/content
+POST /api/v1/objectives
+POST /api/v1/human-reviews
 ```
+
+`POST /api/v1/objectives` accepts only an immutable client request id plus natural-language objective.
+The backend binds actor/client provenance server-side, freezes the existing objective-intake compile
+result once, persists it through an exactly-once command journal, and never creates executable task
+authority directly. Ambiguous, blocked, read-only, candidate-task, and human-gate outcomes retain the
+same existing compiler semantics.
 
 The bounded Operations Console is served at:
 
@@ -154,7 +162,13 @@ ETag so unchanged state returns HTTP 304 and is not rerendered. Human-review sub
 `POST /api/v1/human-reviews`, binds the exact current gate + registered artifact + source SHA, and
 requires the human to select the verdict and write the findings/material delta. The backend applies
 the same X-4 repeat-review, idempotence, artifact-provenance, and roadmap reconciliation rules for
-every client. No pause/cancel/raw shell/Git/database mutation control is exposed by this surface.
+every client.
+
+The console exposes exactly two typed development-domain mutations: objective submission through
+`POST /api/v1/objectives` and artifact-bound human review through `POST /api/v1/human-reviews`.
+Objective submission records only the compiler's non-authoritative proposal; it does not create task
+authority or start a worker directly. No pause/cancel/raw shell/Git/database mutation control is
+exposed by the console.
 
 Artifact manifests are source-controlled in `docs/agent-state/REVIEW_ARTIFACTS.json`. Interactive
 specimens expose exact launch/preparation identity but deliberately have no direct `/content` bytes.

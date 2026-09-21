@@ -9,6 +9,8 @@
   let lastDigest = "";
   let latestState = null;
   let pollHandle = null;
+  let pendingObjectiveRequestId = "";
+  let pendingObjectiveText = "";
   let pendingReviewRequestId = "";
 
   const $ = (id) => document.getElementById(id);
@@ -47,7 +49,7 @@
   }
 
   async function writeApi(path, options = {}) {
-    if (!writeToken) throw new Error("Write bearer token is required for human review submission.");
+    if (!writeToken) throw new Error("Write bearer token is required for development commands.");
     const headers = new Headers(options.headers || {});
     headers.set("Authorization", `Bearer ${writeToken}`);
     headers.set("X-Skyforge-Client", "operations-console");
@@ -133,6 +135,20 @@
       }
       return node;
     }, "No objective proposals recorded.");
+  }
+
+  function renderObjectiveControl(state) {
+    const panel = $("objective-control");
+    const enabled = Boolean(
+      writeToken
+      && state
+      && state.runtime
+      && state.runtime.development_write_api_enabled
+    );
+    panel.hidden = !enabled;
+    if (!enabled) {
+      $("objective-status").textContent = "";
+    }
   }
 
   function renderWorkers(state) {
@@ -350,6 +366,7 @@
     renderSummary(state);
     renderRoadmap(state);
     renderObjectives(state);
+    renderObjectiveControl(state);
     renderWorkers(state);
     renderExecution(state);
     renderReviews(state);
@@ -386,6 +403,68 @@
   function schedulePolling() {
     if (pollHandle) clearInterval(pollHandle);
     pollHandle = setInterval(refresh, POLL_MS);
+  }
+
+  function nextObjectiveRequestId() {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+      return globalThis.crypto.randomUUID();
+    }
+    return "objective-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  async function submitObjective(event) {
+    event.preventDefault();
+    const statusNode = $("objective-status");
+    statusNode.className = "small";
+    statusNode.textContent = "";
+
+    if (!writeToken) {
+      statusNode.textContent = "Enter the distinct write bearer token and reconnect first.";
+      statusNode.className = "small error";
+      return;
+    }
+    const objective = $("objective-text").value.trim();
+    if (!objective) {
+      statusNode.textContent = "Objective text is required.";
+      statusNode.className = "small error";
+      return;
+    }
+    if (!pendingObjectiveRequestId || pendingObjectiveText !== objective) {
+      pendingObjectiveRequestId = nextObjectiveRequestId();
+      pendingObjectiveText = objective;
+    }
+
+    $("submit-objective").disabled = true;
+    try {
+      const response = await writeApi("/api/v1/objectives", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          request_id: pendingObjectiveRequestId,
+          objective,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Objective submission failed (" + response.status + ")");
+      }
+      statusNode.textContent =
+        "Durable objective proposal reconciled: "
+        + result.objective_disposition
+        + " / "
+        + result.proposal_id;
+      statusNode.className = "small";
+      pendingObjectiveRequestId = "";
+      pendingObjectiveText = "";
+      $("objective-text").value = "";
+      lastDigest = "";
+      await refresh();
+    } catch (error) {
+      statusNode.textContent = error.message;
+      statusNode.className = "small error";
+    } finally {
+      $("submit-objective").disabled = false;
+    }
   }
 
   function nextReviewRequestId() {
@@ -480,6 +559,7 @@
     }
   }
 
+  $("objective-form").addEventListener("submit", submitObjective);
   $("review-gate").addEventListener("change", updateReviewContext);
   $("review-artifact").addEventListener("change", updateReviewContext);
   $("review-form").addEventListener("submit", submitHumanReview);
@@ -506,6 +586,9 @@
     $("write-token").value = "";
     $("console-content").hidden = true;
     latestState = null;
+    pendingObjectiveRequestId = "";
+    pendingObjectiveText = "";
+    pendingReviewRequestId = "";
     lastDigest = "";
     if (pollHandle) clearInterval(pollHandle);
     pollHandle = null;

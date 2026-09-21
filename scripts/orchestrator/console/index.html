@@ -54,6 +54,24 @@
         <div id="objectives" class="stack"></div>
       </section>
 
+      <section id="objective-control" class="panel" hidden>
+        <div class="section-heading">
+          <h2>Submit objective</h2>
+          <span class="pill">Typed domain command</span>
+        </div>
+        <p class="muted small">Natural-language intake only. Submission records a non-authoritative objective proposal; it does not create task authority or start a worker directly.</p>
+        <form id="objective-form" class="form-grid">
+          <div class="full">
+            <label for="objective-text">Objective</label>
+            <textarea id="objective-text" rows="3" required placeholder="Investigate, fix, develop, continue, or show…"></textarea>
+          </div>
+          <div class="actions full">
+            <button id="submit-objective" type="submit">Submit objective</button>
+          </div>
+        </form>
+        <p id="objective-status" class="small" aria-live="polite"></p>
+      </section>
+
       <section class="panel two-column">
         <div>
           <div class="section-heading"><h2>Workers</h2><span id="worker-count" class="muted"></span></div>
