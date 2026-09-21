@@ -153,9 +153,9 @@ GET /console
 ```
 
 The console is a thin client of the same canonical backend. Enter the read bearer token in the
-browser to connect; optionally enter the distinct write bearer token to enable the one currently
-admitted state-changing operation: artifact-bound human review. Tokens remain in browser session
-scope and are sent only in Authorization headers.
+browser to connect; optionally enter the distinct write bearer token to enable the currently
+admitted typed state-changing operations: objective submission and artifact-bound human review.
+Tokens remain in browser session scope and are sent only in Authorization headers.
 
 The console polls the canonical development snapshot every few seconds and uses its digest as an
 ETag so unchanged state returns HTTP 304 and is not rerendered. Human-review submission uses
@@ -174,6 +174,47 @@ Artifact manifests are source-controlled in `docs/agent-state/REVIEW_ARTIFACTS.j
 specimens expose exact launch/preparation identity but deliberately have no direct `/content` bytes.
 File artifacts are served only from an exact source-SHA repository blob after manifest size and
 SHA-256 verification. The API never proxies arbitrary URLs or reads arbitrary host paths.
+
+### ChatGPT / MCP sidecar
+
+The bounded MCP adapter is a **client of the same development API**. It does not read Platform-v2
+state files, repository paths, Git, shell, or databases directly. Its project authority is exactly
+the authority exposed by the fixed REST endpoints above.
+
+Install the localhost-only sidecar after the hosted development API is configured:
+
+```bash
+scripts/orchestrator/install_mcp_adapter.sh
+```
+
+The managed service listens at:
+
+```text
+http://127.0.0.1:3001/mcp
+```
+
+It uses MCP Streamable HTTP and the pinned official Python MCP SDK. The read token is required. When
+the existing development write token is configured, the adapter additionally exposes the two typed
+write tools; otherwise it is read-only.
+
+Read tools:
+- `get_development_state`
+- `list_review_artifacts`
+- `get_review_artifact`
+- `read_review_artifact_content`
+
+Optional typed write tools:
+- `submit_objective`
+- `submit_human_review`
+
+The sidecar is intentionally **not** routed by the production Caddy configuration. A remote ChatGPT
+or other MCP client must use an approved secure MCP tunnel/proxy and its own transport authentication.
+Backend tokens never appear in MCP tool arguments, schemas, or results.
+
+Repository tests prove protocol behavior independently of any ChatGPT plan/workspace entitlement.
+A real supported ChatGPT-client query/retrieval remains a separate pre-Bootstrap acceptance
+demonstration.
+
 
 The installer is deliberately repeatable:
 

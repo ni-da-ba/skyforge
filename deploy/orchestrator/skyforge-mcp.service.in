@@ -1,0 +1,39 @@
+[Unit]
+Description=Skyforge bounded MCP development adapter
+After=network-online.target skyforge-orchestrator-v2.service skyforge-orchestrator.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@@USER@@
+WorkingDirectory=@@ROOT@@
+Environment=HOME=@@HOME@@
+EnvironmentFile=/etc/skyforge-orchestrator/env
+Environment=SKYFORGE_MCP_BACKEND_URL=http://127.0.0.1:3000
+ExecStartPre=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/sync_runtime_dependencies.py --root @@ROOT@@
+ExecStart=@@VENV_PYTHON@@ @@ROOT@@/scripts/orchestrator/platform_v2_mcp_server.py --bind 127.0.0.1 --port 3001
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+UMask=0077
+
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectControlGroups=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+
+MemoryHigh=256M
+MemoryMax=512M
+CPUQuota=25%
+TasksMax=96
+
+[Install]
+WantedBy=multi-user.target
