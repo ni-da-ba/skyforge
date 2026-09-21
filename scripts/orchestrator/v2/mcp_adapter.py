@@ -105,6 +105,25 @@ READ_TOOLS: tuple[dict[str, Any], ...] = (
         "annotations": _read_annotations(),
     },
     {
+        "name": "get_objective_trace",
+        "title": "Get Skyforge objective trace",
+        "description": (
+            "Read one exact durable objective correlation trace from objective proposal through "
+            "context, task authority, worker, repository effects, and completion where those "
+            "persisted stages exist. No fuzzy title/text matching or client-side correlation occurs."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "correlation_id": _string_schema(
+                    "Exact durable objective correlation/proposal identifier."
+                )
+            },
+            required=("correlation_id",),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _read_annotations(),
+    },
+    {
         "name": "list_review_artifacts",
         "title": "List Skyforge review artifacts",
         "description": (
@@ -345,6 +364,28 @@ class McpAdapter:
             return self._tool_ok(
                 payload,
                 f"Canonical Skyforge development snapshot {payload.get('snapshot_digest', '')}.",
+            )
+
+        if name == "get_objective_trace":
+            correlation_id = str(arguments.get("correlation_id") or "").strip()
+            if not correlation_id:
+                return self._tool_error(
+                    400,
+                    {"error": "correlation_id is required"},
+                )
+            status, payload = self.runtime.handle_objective_trace(
+                self._read_authorization(),
+                correlation_id,
+            )
+            if status != 200:
+                return self._tool_error(status, payload)
+            return self._tool_ok(
+                payload,
+                (
+                    f"Skyforge objective trace {payload.get('correlation_id', '')}: "
+                    f"{payload.get('terminal_stage', '')}/"
+                    f"{payload.get('terminal_status', '')}."
+                ),
             )
 
         if name == "list_review_artifacts":

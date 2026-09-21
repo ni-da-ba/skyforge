@@ -262,6 +262,44 @@ class McpProtocolTest(unittest.TestCase):
             self.assertEqual(actual, expected)
             self.assertEqual(actual["snapshot_digest"], expected["snapshot_digest"])
 
+    def test_objective_trace_tool_matches_canonical_backend_trace(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime, _ = self.runtime(root)
+            submit_status, submitted = runtime.handle_objective_submit(
+                f"Bearer {WRITE_TOKEN}",
+                {
+                    "request_id": "objective-mcp-trace-0001",
+                    "objective": "Investigate landing gear",
+                },
+                client="trace-fixture",
+            )
+            self.assertEqual(submit_status, 202)
+            correlation_id = submitted["proposal_id"]
+            status, expected = runtime.handle_objective_trace(
+                f"Bearer {API_TOKEN}",
+                correlation_id,
+            )
+            self.assertEqual(status, 200)
+
+            adapter = McpAdapter(runtime)
+            result = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    params={
+                        "name": "get_objective_trace",
+                        "arguments": {"correlation_id": correlation_id},
+                    },
+                ),
+                authorization=f"Bearer {API_TOKEN}",
+                headers={},
+            )
+            actual = result.payload["result"]["structuredContent"]
+            self.assertEqual(actual, expected)
+            self.assertEqual(actual["trace_digest"], expected["trace_digest"])
+            self.assertNotIn(API_TOKEN, json.dumps(result.payload))
+            self.assertNotIn(WRITE_TOKEN, json.dumps(result.payload))
+
     def test_human_gate_tool_joins_current_gate_without_inventing_review(self):
         with tempfile.TemporaryDirectory() as td:
             runtime, _ = self.runtime(Path(td))
