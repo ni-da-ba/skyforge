@@ -145,10 +145,11 @@ def protected_decision() -> ClassifierDecision:
 
 
 class IssueRunner:
-    def __init__(self):
+    def __init__(self, *, stale_list_after_create: bool = False):
         self.issue = None
         self.create_calls = 0
         self.list_calls = 0
+        self.stale_list_after_create = stale_list_after_create
 
     def assert_supported_issue_list_command(self, command):
         self.list_calls += 1
@@ -156,13 +157,20 @@ class IssueRunner:
             raise AssertionError("deployed gh CLI does not support --slurp")
         if "--paginate" not in command or "--jq" not in command:
             raise AssertionError("issue discovery must remain paginated and bounded to exact fields")
+        if "Cache-Control: no-cache" not in command:
+            raise AssertionError("issue discovery must force cache revalidation")
 
     def __call__(self, args, **kwargs):
         command = tuple(args)
         if command[:3] == ("gh", "api", "repos/ni-da-ba/skyforge/issues?state=all&per_page=100"):
             self.assert_supported_issue_list_command(command)
-            output = "" if self.issue is None else json.dumps(self.issue) + "\n"
+            visible = self.issue is not None and not self.stale_list_after_create
+            output = json.dumps(self.issue) + "\n" if visible else ""
             return subprocess.CompletedProcess(args, 0, stdout=output, stderr="")
+        if command[:3] == ("gh", "api", "repos/ni-da-ba/skyforge/issues/1200"):
+            if self.issue is None:
+                raise AssertionError("exact issue observation requires successful create")
+            return subprocess.CompletedProcess(args, 0, stdout=json.dumps(self.issue), stderr="")
         if command[:4] == ("gh", "api", "--method", "POST"):
             self.create_calls += 1
             title = next(value.removeprefix("title=") for value in args if value.startswith("title="))
@@ -245,6 +253,36 @@ class ObjectiveScopingTest(unittest.TestCase):
             self.assertEqual(result.disposition, ObjectiveScopingAdvanceDisposition.HUMAN_GATE)
             self.assertEqual(result.record.status, ObjectiveScopeStatus.HUMAN_GATE)
             self.assertIn("protected control-plane paths", result.reason)
+
+    def test_post_create_verifies_exact_issue_even_if_repository_list_is_stale(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_repo(root)
+            proposal = parent(root)
+            provider = FakeClassifier(safe_decision())
+            budget = LocalBudgetObservation(calls_used=0, daily_limit=10)
+            config = ClassifierProviderConfig(model="test", reasoning_effort="low")
+            advance_objective_scoping(
+                root=root, repo="ni-da-ba/skyforge", classifier_provider=provider,
+                classifier_local_budget=budget, classifier_config=config,
+            )
+            scoped = advance_objective_scoping(
+                root=root, repo="ni-da-ba/skyforge", classifier_provider=provider,
+                classifier_local_budget=budget, classifier_config=config,
+            ).record
+            runner = IssueRunner(stale_list_after_create=True)
+
+            issue = ensure_scoped_issue(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                parent=proposal,
+                record=scoped,
+                runner=runner,
+            )
+
+            self.assertEqual(issue, 1200)
+            self.assertEqual(runner.create_calls, 1)
+            self.assertEqual(runner.list_calls, 1)
 
     def test_scope_issue_is_exact_and_idempotent_then_child_inherits_parent_control(self):
         with tempfile.TemporaryDirectory() as td:
