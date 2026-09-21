@@ -31,7 +31,7 @@ The score exists to develop a coherent musical language for exploration, altitud
 | 02 | **The Lord of Empty Miles** — legendary dragon territory / awe / panic | Frozen; BBCSO percussion repair accepted | corrected MIDI + repaired BBCSO render record |
 | 03 | **Count the Leagues** — lonely / ponderous exploration | Frozen / complete | accepted 72-bar Second Horizon MIDI + BBCSO master record |
 | 06 | storm / weather traversal | Composition frozen at Draft 02.3; exact canonical MIDI missing | accepted BBCSO-render review + development record |
-| — | principal Skyforge theme candidate | Motif captured; composition pending | user-approved voice-transcription source |
+| — | principal Skyforge theme candidate | Motif captured; composition may resume when Music priority permits | user-approved voice-transcription source |
 
 ## Canonical MIDI identities
 
@@ -76,13 +76,13 @@ Machine-readable record:
 
 Track 00 source repair and qualitative repaired-render acceptance are closed.
 
-Remaining pre-composition maintenance:
+Remaining archival/provenance maintenance:
 
-1. recover Track 11 Harp/Celeste plugin state for the frozen cues when original CWP files are available;
-2. recover and verify the exact accepted Track 06 Draft 02.3 MIDI;
+1. preserve the recovered CWP bundle and manifest unchanged;
+2. recover and verify the exact accepted Track 06 Draft 02.3 MIDI if it is discovered later;
 3. leave Track 01 and Track 03 note data untouched;
 4. create final Track 00 GAME/OST masters only when packaging or release work requires them;
-5. resume principal-theme composition after the persistence boundary is closed.
+5. preserve the unresolved exact Track 00 CWP identity caveat.
 
 Adaptive implementation remains downstream of accepted linear compositions.
 
