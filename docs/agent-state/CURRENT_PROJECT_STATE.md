@@ -4,11 +4,11 @@ This file is a compact bootstrap cache for disposable/manual/hosted agents. It d
 
 ## Snapshot boundary
 
-- Platform-v2 is the active production orchestrator at accepted SHA `42124c184602f58c99819463fe0a833752da3743`.
+- Platform-v2 is the active production orchestrator at accepted SHA `24fd6b3eb0aa9ead0818122146bab6231f1080c4`.
 - The production activation gate is healthy, and Platform-v2 owns writer authority.
 - Legacy is inactive and boot-disabled; it remains an emergency/upgrade rollback path while Platform-v2 is authoritative.
-- The accepted production platform includes the post-merge replay/no-change lifecycle correction in #1009.
-- Standalone objective acceptance completed the autonomous #1006 → PR #1007 development cycle through normal repository validation and handoff.
+- The accepted production platform includes the post-merge replay/no-change lifecycle correction in #1009, followed by the standalone-objective development path and reliability work: OPT-2K separates repository snapshots from reviewed runtime activation; OPT-2L permits bounded concurrency for disjoint task authorities; OPT-2M prioritizes runnable admitted workers; OPT-2N cleans up terminal stale-base handoffs; and OPT-2O performs atomic multi-authority rollback transfer.
+- Standalone objective acceptance completed the autonomous #1006 → PR #1007 development cycle through normal repository validation and handoff. The Presentation formatting objective completed through PR #1023; the earlier #1022 bootstrap attempt was correctly terminalized as `STALE_BASE` after concurrent main advancement and did not constitute accepted document output.
 - Protected-authority transfer is productized through `platform_v2_operator_cutover.py transfer-authority` and has been exercised in production.
 
 Before using this snapshot, verify current `main`, live orchestrator state, and current issue/PR ownership. If they materially supersede this file, follow the newer authority and update this checkpoint in the same bounded tranche when practical.
@@ -21,7 +21,7 @@ Before using this snapshot, verify current `main`, live orchestrator state, and 
 
 ## Active convergence tranche
 
-The Platform-v2 migration/soak tranche is complete. The canonical post-migration optimization plan is `docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md`. OPT-1A/1B natural objective intake is accepted in live production: signed `Continue DR-70` resolves durably to the explicit DR-70 human re-review gate without creating task/worker authority. The current platform work remains bounded context and exact-scope packaging, now exercised by the accepted #1006 → PR #1007 cycle. Platform optimization and product development should proceed as one workload-driven loop.
+The Platform-v2 migration/soak tranche and the accepted standalone-objective development path are complete. The canonical post-migration optimization plan is `docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md`. OPT-1A/1B natural objective intake is accepted in live production: signed `Continue DR-70` resolves durably to the explicit DR-70 human re-review gate without creating task/worker authority. Platform optimization and product development should proceed as one workload-driven loop through the accepted orchestration boundary and current product/lane authority.
 
 ## Orchestration boundary
 
