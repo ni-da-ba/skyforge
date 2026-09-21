@@ -50,7 +50,10 @@ class PlatformScorecardTest(unittest.TestCase):
         self.assertEqual(score["scheduler"]["waiting"], 1)
         self.assertEqual(score["human_reviews"]["accepted"], 1)
         self.assertEqual(score["external_claims"]["active"], 1)
-        self.assertEqual(score["budget"]["used"], 2)
+        self.assertTrue(score["budget"]["local"]["available"])
+        self.assertEqual(score["budget"]["local"]["usage"]["used"], 2)
+        self.assertFalse(score["budget"]["provider"]["available"])
+        self.assertIn("not durably persisted", score["budget"]["provider"]["reason"])
         self.assertFalse(score["hosted_value"]["available"])
         self.assertIn("No arbitrary SLO thresholds", score["slo_note"])
 

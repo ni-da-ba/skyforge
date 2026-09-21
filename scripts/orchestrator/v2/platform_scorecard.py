@@ -97,7 +97,17 @@ def build_compact_scorecard(
                 for value in claim_values
             )
         },
-        "budget": dict(budget) if isinstance(budget, Mapping) else None,
+        "budget": {
+            "local": (
+                {"available": True, "usage": dict(budget)}
+                if isinstance(budget, Mapping)
+                else {"available": False, "reason": "durable local budget is unavailable"}
+            ),
+            "provider": {
+                "available": False,
+                "reason": "provider quota telemetry is not durably persisted in the canonical backend",
+            },
+        },
         "hosted_value": dict(hosted_value),
         "slo_note": (
             "No arbitrary SLO thresholds are inferred; scorecard surfaces observed "

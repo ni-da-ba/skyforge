@@ -104,6 +104,10 @@
     const scheduler = score.scheduler || {};
     const reviews = score.human_reviews || {};
     const claims = score.external_claims || {};
+    const budgets = score.budget || {};
+    const localBudget = budgets.local || {};
+    const providerBudget = budgets.provider || {};
+    const localUsage = localBudget.usage || {};
     const hosted = score.hosted_value || {};
     node.append(kv([
       ["Objectives", objectives.total],
@@ -114,7 +118,16 @@
       ["Scheduler executing / waiting / recovery", String(scheduler.executing ?? "—") + " / " + String(scheduler.waiting ?? "—") + " / " + String(scheduler.recovery_required ?? "—")],
       ["Human review accepted / changes required", String(reviews.accepted ?? "—") + " / " + String(reviews.changes_required ?? "—")],
       ["External claims", claims.active],
+      ["Local budget classifier / Luna / Terra", localBudget.available
+        ? String(localUsage.classifier_calls ?? "—") + " / " + String(localUsage.luna_worker_calls ?? "—") + " / " + String(localUsage.terra_worker_calls ?? "—")
+        : "unavailable: " + (localBudget.reason || "not reported")],
+      ["Provider quota telemetry", providerBudget.available
+        ? "available"
+        : "unavailable: " + (providerBudget.reason || "not durably persisted")],
       ["Hosted value telemetry", hosted.available ? (hosted.report_file || "available") : "unavailable: " + (hosted.reason || "not reported")],
+      ["Hosted cost", hosted.available && hosted.cost ? JSON.stringify(hosted.cost) : "unavailable"],
+      ["Hosted trailing window", hosted.available && hosted.trailing_window ? JSON.stringify(hosted.trailing_window) : "unavailable"],
+      ["Hosted evaluation", hosted.available && hosted.evaluation ? JSON.stringify(hosted.evaluation) : "unavailable"],
     ]));
     if (score.slo_note) node.append(el("div", score.slo_note, "small muted"));
   }
