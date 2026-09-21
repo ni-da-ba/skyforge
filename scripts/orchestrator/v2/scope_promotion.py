@@ -15,7 +15,12 @@ from .hosted_admission import HostedAdmissionStore
 from .hosted_state import HostedStateStore
 from .hosted_task_plan import HostedTaskPlanStore
 from .identity import canonical_digest
-from .objective_ingress import ObjectiveProposalRecord, ObjectiveProposalStore, ProgramObjectiveSource
+from .objective_ingress import (
+    ObjectiveProposalRecord,
+    ObjectiveProposalStore,
+    ProgramObjectiveSource,
+    ScopedObjectiveSource,
+)
 from .program_projection import program_candidate_for_identity
 from .objective_intake import ObjectiveCompileDisposition, compile_objective
 from .state_store import JsonStateStoreAdapter
@@ -367,6 +372,37 @@ def validate_promotion(*, root: Path, repo: str, package: ContextPackage, retrie
                 blockers.append(
                     'current program candidate differs from frozen objective proposal'
                 )
+        elif isinstance(proposal.source, ScopedObjectiveSource):
+            parent_matches = [
+                value
+                for value in ObjectiveProposalStore.for_root(root).load().records
+                if value.proposal_id == proposal.source.parent_proposal_id
+            ]
+            candidate = proposal.compiled.candidate_task
+            if len(parent_matches) != 1:
+                blockers.append('scoped objective parent proposal is unavailable or ambiguous')
+            elif (
+                parent_matches[0].compiled.disposition
+                is not ObjectiveCompileDisposition.NEEDS_SCOPING
+            ):
+                blockers.append('scoped objective parent no longer represents a scoping request')
+            elif parent_matches[0].source.objective_text != proposal.source.objective_text:
+                blockers.append('scoped objective parent text differs from frozen child source')
+            elif (
+                proposal.compiled.disposition
+                is not ObjectiveCompileDisposition.CANDIDATE_TASK
+                or candidate is None
+            ):
+                blockers.append('scoped objective child no longer carries a candidate task')
+            elif (
+                candidate.issue_number != proposal.source.issue_number
+                or candidate.lane != proposal.source.lane
+                or candidate.objective != proposal.source.objective_text
+                or candidate.stop_boundary != proposal.source.stop_boundary
+            ):
+                blockers.append('scoped objective candidate differs from frozen source identity')
+            elif proposal.source.accepted_main_sha != package.accepted_main_sha:
+                blockers.append('scoped objective accepted-main identity differs from frozen package')
         else:
             current = compile_objective(proposal.source.objective_text, root=root)
             if current.disposition is not ObjectiveCompileDisposition.CANDIDATE_TASK:

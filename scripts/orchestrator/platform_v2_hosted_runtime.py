@@ -84,6 +84,7 @@ from v2.objective_lifecycle import (
     ObjectiveLifecycleOperation,
     ObjectiveLifecycleStore,
 )
+from v2.objective_scoping import ObjectiveScopeStore
 from v2.platform_scorecard import build_compact_scorecard, load_latest_value_report
 from v2.hosted_budget import HostedBudgetStore
 from v2.objective_trace import build_objective_trace
@@ -662,6 +663,7 @@ class HostedV2Substrate:
             projection = self._effective_legacy_projection()
             objectives = self.objective_proposal_store.load()
             objective_controls = self.objective_lifecycle_store.load().statuses()
+            objective_scopes = ObjectiveScopeStore.for_root(self.root).load()
             reviews = self.human_review_store.load()
             plans = self.task_plan_store.load()
             plan = plans.active
@@ -817,6 +819,9 @@ class HostedV2Substrate:
                 ),
                 objective_controls=(
                     value.as_dict() for value in objective_controls
+                ),
+                objective_scopes=(
+                    value.as_dict() for value in objective_scopes.records
                 ),
                 active_plan=(plan.as_dict() if plan is not None else None),
                 admission=(

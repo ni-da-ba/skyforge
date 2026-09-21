@@ -19,6 +19,7 @@ from .hosted_completion import HostedCompletionStore
 from .hosted_task_plan import HostedTaskPlanStore
 from .identity import canonical_digest
 from .objective_ingress import ObjectiveProposalStore
+from .objective_scoping import ObjectiveScopeStore
 from .ordinary_effects import OrdinaryEffectStore
 from .ordinary_pipeline import OrdinaryPipelineStore
 from .ordinary_remote import comment_payload
@@ -138,7 +139,38 @@ def build_objective_trace(*, root: Path, correlation_id: str) -> dict[str, Any] 
         )
     ]
 
-    package = ContextPackageStore.for_root(root).load().get(proposal.proposal_id)
+    workflow_proposal = proposal
+    scope = ObjectiveScopeStore.for_root(root).load().get(proposal.proposal_id)
+    if scope is not None:
+        stages.append(
+            _stage(
+                "OBJECTIVE_SCOPING",
+                scope.status.value,
+                parent_proposal_id=scope.parent_proposal_id,
+                classifier_request_id=scope.classifier_request_id,
+                classifier_run_id=scope.classifier_run_id,
+                lane=scope.lane,
+                issue_number=scope.issue_number,
+                child_proposal_id=scope.child_proposal_id,
+                package_id=scope.package_id,
+                retrieval_id=scope.retrieval_id,
+                promotion_id=scope.promotion_id,
+                scope_digest=scope.scope_digest,
+            )
+        )
+        if scope.child_proposal_id:
+            workflow_proposal = _exact_one(
+                (
+                    value
+                    for value in proposals.records
+                    if value.proposal_id == scope.child_proposal_id
+                ),
+                "scoped child objective proposal",
+            )
+            if workflow_proposal is None:
+                raise ValueError("scoped child objective proposal disappeared")
+
+    package = ContextPackageStore.for_root(root).load().get(workflow_proposal.proposal_id)
     if package is None:
         return _trace_payload(proposal.proposal_id, stages)
     stages.append(
@@ -156,7 +188,7 @@ def build_objective_trace(*, root: Path, correlation_id: str) -> dict[str, Any] 
     retrieval = ContextRetrievalStore.for_root(root).load().get(package.package_id)
     if retrieval is None:
         return _trace_payload(proposal.proposal_id, stages)
-    if retrieval.proposal_id != proposal.proposal_id:
+    if retrieval.proposal_id != workflow_proposal.proposal_id:
         raise ValueError("context retrieval proposal correlation mismatch")
     stages.append(
         _stage(

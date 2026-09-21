@@ -64,6 +64,9 @@ def _objective(raw: Mapping[str, Any]) -> dict[str, Any]:
             "actor": str(source.get("actor") or ""),
             "created_at": str(source.get("created_at") or ""),
             "submitted_at": str(source.get("submitted_at") or ""),
+            "parent_proposal_id": str(source.get("parent_proposal_id") or ""),
+            "lane": str(source.get("lane") or ""),
+            "scope_digest": str(source.get("scope_digest") or ""),
             "objective_text": str(source.get("objective_text") or ""),
         },
         "disposition": str(compiled.get("disposition") or ""),
@@ -368,6 +371,7 @@ class DevelopmentSnapshot:
     objectives: tuple[Mapping[str, Any], ...]
     objective_count: int
     objective_controls: tuple[Mapping[str, Any], ...]
+    objective_scopes: tuple[Mapping[str, Any], ...]
     scorecard: Mapping[str, Any]
     active_plan: Mapping[str, Any] | None
     admission: Mapping[str, Any] | None
@@ -404,6 +408,9 @@ class DevelopmentSnapshot:
             "objective_count": self.objective_count,
             "objective_controls": [
                 dict(value) for value in self.objective_controls
+            ],
+            "objective_scopes": [
+                dict(value) for value in self.objective_scopes
             ],
             "scorecard": _json_value(dict(self.scorecard), "scorecard"),
             "execution": {
@@ -476,6 +483,7 @@ def build_development_snapshot(
     legacy_projection: Mapping[str, Any],
     objective_records: Iterable[Mapping[str, Any]] = (),
     objective_controls: Iterable[Mapping[str, Any]] = (),
+    objective_scopes: Iterable[Mapping[str, Any]] = (),
     active_plan: Mapping[str, Any] | None = None,
     admission: Mapping[str, Any] | None = None,
     plan_records: Iterable[Mapping[str, Any]] = (),
@@ -504,6 +512,10 @@ def build_development_snapshot(
     controls_all = tuple(
         _json_value(dict(_mapping(value, "objective control")), "objective control")
         for value in objective_controls
+    )
+    scopes_all = tuple(
+        _json_value(dict(_mapping(value, "objective scope")), "objective scope")
+        for value in objective_scopes
     )
     plans_all = tuple(
         _plan(_mapping(value, "plan"))
@@ -564,6 +576,7 @@ def build_development_snapshot(
         objectives=_recent(objectives_all),
         objective_count=len(objectives_all),
         objective_controls=controls_all,
+        objective_scopes=_recent(scopes_all),
         scorecard=_json_value(dict(scorecard or {}), "scorecard"),
         active_plan=_plan(active_plan),
         admission=_admission(admission),

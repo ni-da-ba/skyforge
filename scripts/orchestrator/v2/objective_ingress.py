@@ -150,8 +150,56 @@ class ProgramObjectiveSource:
 
 
 @dataclass(frozen=True)
+class ScopedObjectiveSource:
+    repo: str
+    parent_proposal_id: str
+    issue_number: int
+    accepted_main_sha: str
+    lane: str
+    stop_boundary: str
+    scope_digest: str
+    objective_text: str
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "repo", _required(self.repo, "repo"))
+        parent = _required(self.parent_proposal_id, "parent_proposal_id").lower()
+        if len(parent) != 64 or any(ch not in "0123456789abcdef" for ch in parent):
+            raise ValueError("parent_proposal_id must be lowercase SHA-256 hex")
+        object.__setattr__(self, "parent_proposal_id", parent)
+        object.__setattr__(self, "issue_number", _positive(self.issue_number, "issue_number"))
+        sha = _required(self.accepted_main_sha, "accepted_main_sha").lower()
+        if len(sha) != 40 or any(ch not in "0123456789abcdef" for ch in sha):
+            raise ValueError("accepted_main_sha must be lowercase 40-character Git SHA")
+        object.__setattr__(self, "accepted_main_sha", sha)
+        object.__setattr__(self, "lane", _required(self.lane, "lane"))
+        object.__setattr__(self, "stop_boundary", _required(self.stop_boundary, "stop_boundary"))
+        scope = _required(self.scope_digest, "scope_digest").lower()
+        if len(scope) != 64 or any(ch not in "0123456789abcdef" for ch in scope):
+            raise ValueError("scope_digest must be lowercase SHA-256 hex")
+        object.__setattr__(self, "scope_digest", scope)
+        object.__setattr__(self, "objective_text", _required(self.objective_text, "objective_text"))
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "kind": "SCOPED_OBJECTIVE",
+            "repo": self.repo,
+            "parent_proposal_id": self.parent_proposal_id,
+            "issue_number": self.issue_number,
+            "accepted_main_sha": self.accepted_main_sha,
+            "lane": self.lane,
+            "stop_boundary": self.stop_boundary,
+            "scope_digest": self.scope_digest,
+            "objective_text": self.objective_text,
+        }
+
+    @property
+    def digest(self) -> str:
+        return canonical_digest(self.as_dict())
+
+
+@dataclass(frozen=True)
 class ObjectiveProposalRecord:
-    source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource
+    source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource | ScopedObjectiveSource
     delivery_id: str
     compiled: ObjectiveCompileResult
 
@@ -180,7 +228,18 @@ class ObjectiveProposalRecord:
         comp = raw.get("compiled")
         if not isinstance(src, Mapping) or not isinstance(comp, Mapping):
             raise ValueError("objective proposal record is malformed")
-        if src.get("kind") == "DEVELOPMENT_API":
+        if src.get("kind") == "SCOPED_OBJECTIVE":
+            source = ScopedObjectiveSource(
+                repo=src.get("repo"),
+                parent_proposal_id=src.get("parent_proposal_id"),
+                issue_number=src.get("issue_number"),
+                accepted_main_sha=src.get("accepted_main_sha"),
+                lane=src.get("lane"),
+                stop_boundary=src.get("stop_boundary"),
+                scope_digest=src.get("scope_digest"),
+                objective_text=src.get("objective_text"),
+            )
+        elif src.get("kind") == "DEVELOPMENT_API":
             source = DevelopmentApiObjectiveSource(
                 repo=src.get("repo"),
                 request_id=src.get("request_id"),
@@ -296,7 +355,7 @@ class ObjectiveProposalStore:
     def capture(
         self,
         *,
-        source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource,
+        source: ObjectiveSourceReference | DevelopmentApiObjectiveSource | ProgramObjectiveSource | ScopedObjectiveSource,
         delivery_id: str,
         root: Path,
     ) -> ObjectiveCaptureResult:

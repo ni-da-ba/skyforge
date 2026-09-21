@@ -14,7 +14,11 @@ import threading
 from typing import Any, Mapping
 
 from .identity import canonical_digest
-from .objective_ingress import ObjectiveProposalStore, ProgramObjectiveSource
+from .objective_ingress import (
+    ObjectiveProposalStore,
+    ProgramObjectiveSource,
+    ScopedObjectiveSource,
+)
 from .state_store import JsonStateStoreAdapter
 
 OBJECTIVE_LIFECYCLE_RELATIVE_PATH = (
@@ -326,11 +330,12 @@ def effective_objective_progression(
     root: Path,
     proposal_id: str,
 ) -> ObjectiveProgressionDecision:
-    """Return exact lifecycle authority across the persisted PROGRAM ancestry.
+    """Return exact lifecycle authority across persisted objective ancestry.
 
     PAUSED/CANCELLED controls fence the exact objective and every not-yet-executing
-    PROGRAM descendant. Missing, duplicate, or cyclic ancestry fails closed rather
-    than guessing which objective owns authority.
+    durable descendant, including PROGRAM and standalone scoped children. Missing,
+    duplicate, or cyclic ancestry fails closed rather than guessing which objective
+    owns authority.
     """
     root = Path(root).resolve()
     proposal_id = _sha64(proposal_id, "proposal_id")
@@ -356,7 +361,7 @@ def effective_objective_progression(
         record = exact(current_id)
         status = ledger.status(current_id)
         if status.blocks_automatic_progression:
-            subject = "objective" if first else "program ancestor objective"
+            subject = "objective" if first else "ancestor objective"
             return ObjectiveProgressionDecision(
                 proposal_id,
                 False,
@@ -365,10 +370,11 @@ def effective_objective_progression(
                 f"{subject} is {status.state.value.lower()}",
             )
         source = record.source
-        if not isinstance(source, ProgramObjectiveSource):
-            break
-        current_id = source.parent_proposal_id
-        first = False
+        if isinstance(source, (ProgramObjectiveSource, ScopedObjectiveSource)):
+            current_id = source.parent_proposal_id
+            first = False
+            continue
+        break
 
     return ObjectiveProgressionDecision(
         proposal_id,
