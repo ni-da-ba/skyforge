@@ -524,6 +524,57 @@ class HostedSubstrateTest(unittest.TestCase):
             self.assertEqual(reloaded.state.digest, digest)
             self.assertEqual(len(reloaded.state.inbox.pending_events), 1)
 
+    def test_restart_backfills_canonical_historical_human_review_once(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            write_legacy(root)
+            source = (
+                Path(__file__).resolve().parents[2]
+                / "docs/agent-state/REVIEW_ARTIFACTS.json"
+            )
+            target = root / "docs/agent-state/REVIEW_ARTIFACTS.json"
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(source.read_bytes())
+
+            migrated = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            health = migrated.health_snapshot()
+            self.assertEqual(migrated.startup_historical_human_review_migrations, 1)
+            self.assertEqual(
+                health["startup_historical_human_review_migrations"],
+                1,
+            )
+            self.assertEqual(health["human_review_count"], 1)
+            self.assertEqual(
+                health["latest_human_review_gate_id"],
+                "dr-human-exploration-rereview",
+            )
+            self.assertEqual(
+                health["latest_human_review_artifact_id"],
+                "dr70:key-2885",
+            )
+            self.assertEqual(
+                health["latest_human_review_verdict"],
+                "CHANGES_REQUIRED",
+            )
+
+            restarted = hosted.HostedV2Substrate(
+                root,
+                repo="ni-da-ba/skyforge",
+                require_webhook_secret=True,
+                startup_reconcile=True,
+                webhook_secret=SECRET,
+                trusted_actors=("ni-da-ba",),
+            )
+            self.assertEqual(restarted.startup_historical_human_review_migrations, 0)
+            self.assertEqual(restarted.health_snapshot()["human_review_count"], 1)
+
     def test_restart_migrates_stale_false_protected_audit_signal_once(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
