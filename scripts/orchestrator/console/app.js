@@ -165,8 +165,15 @@
       const control = (state.objective_controls || []).find(
         (value) => value.proposal_id === objective.proposal_id
       );
+      const scope = (state.objective_scopes || []).find(
+        (value) => value.parent_proposal_id === objective.proposal_id
+      );
       node.append(kv([
         ["Disposition", objective.disposition],
+        ["Scoping", scope ? scope.status : "not started"],
+        ["Scope reason", scope ? scope.reason : "—"],
+        ["Scoped lane", scope ? scope.lane : "—"],
+        ["Scoped issue", scope ? scope.issue_number : "—"],
         ["Lifecycle", control ? control.state : "ACTIVE"],
         ["Last control", control ? control.last_operation : "none"],
         ["Reason", objective.reason],

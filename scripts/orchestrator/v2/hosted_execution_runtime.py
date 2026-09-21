@@ -83,6 +83,7 @@ from .ordinary_pipeline import (
     OrdinaryPipelineStore,
 )
 from .objective_lifecycle import effective_objective_progression
+from .objective_scoping import advance_objective_scoping
 from .objective_trace import proposal_id_for_task_event
 from .ordinary_remote import (
     GhGitOrdinaryEffectAdapter,
@@ -408,6 +409,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     GATE_BLOCKED = "GATE_BLOCKED"
     IDLE = "IDLE"
     ORDINARY_QUIESCED = "ORDINARY_QUIESCED"
+    OBJECTIVE_SCOPING_ADVANCED = "OBJECTIVE_SCOPING_ADVANCED"
     PROGRAM_ADVANCED = "PROGRAM_ADVANCED"
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
@@ -954,6 +956,23 @@ class HostedExecutionCoordinator:
                 cleaned.reason,
                 self.gate.digest,
                 cleaned.record.completion_id if cleaned.record is not None else "",
+            )
+
+        scoping_result = advance_objective_scoping(
+            root=self.root,
+            repo=self.repo,
+            classifier_provider=deps.classifier_provider,
+            classifier_local_budget=deps.classifier_local_budget,
+            classifier_provider_quota=deps.classifier_provider_quota,
+            classifier_config=deps.classifier_config,
+            runner=deps.runner,
+        )
+        if scoping_result.changed:
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.OBJECTIVE_SCOPING_ADVANCED,
+                scoping_result.reason,
+                self.gate.digest,
+                scoping_result.durable_identity,
             )
 
         program_store = ProgramContinuationStore.for_root(self.root)
