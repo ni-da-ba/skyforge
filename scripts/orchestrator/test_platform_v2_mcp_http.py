@@ -195,7 +195,14 @@ class McpHttpTest(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(
                 [tool["name"] for tool in listing["result"]["tools"]],
-                ["submit_objective", "submit_human_review"],
+                [
+                    "submit_objective",
+                    "pause_objective",
+                    "resume_objective",
+                    "cancel_objective",
+                    "reconcile_objective",
+                    "submit_human_review",
+                ],
             )
 
             call = {

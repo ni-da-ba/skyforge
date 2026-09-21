@@ -12,6 +12,8 @@
   let pendingObjectiveRequestId = "";
   let pendingObjectiveText = "";
   let pendingReviewRequestId = "";
+  let pendingLifecycleRequestId = "";
+  let pendingLifecycleSignature = "";
 
   const $ = (id) => document.getElementById(id);
   const el = (tag, text, className) => {
@@ -93,6 +95,45 @@
     );
   }
 
+  function renderScorecard(state) {
+    const node = $("scorecard");
+    clear(node);
+    const score = state.scorecard || {};
+    const objectives = score.objectives || {};
+    const workers = score.workers || {};
+    const scheduler = score.scheduler || {};
+    const reviews = score.human_reviews || {};
+    const claims = score.external_claims || {};
+    const budgets = score.budget || {};
+    const localBudget = budgets.local || {};
+    const providerBudget = budgets.provider || {};
+    const localUsage = localBudget.usage || {};
+    const hosted = score.hosted_value || {};
+    node.append(kv([
+      ["Objectives", objectives.total],
+      ["Paused / cancelled", String(objectives.paused ?? "—") + " / " + String(objectives.cancelled ?? "—")],
+      ["Workers", workers.total],
+      ["Handoff / failed / interrupted", String(workers.handoff_ready ?? "—") + " / " + String(workers.failed ?? "—") + " / " + String(workers.interrupted ?? "—")],
+      ["Completions", (score.completions || {}).total],
+      ["Scheduler executing / waiting / recovery", String(scheduler.executing ?? "—") + " / " + String(scheduler.waiting ?? "—") + " / " + String(scheduler.recovery_required ?? "—")],
+      ["Human review accepted / changes required", String(reviews.accepted ?? "—") + " / " + String(reviews.changes_required ?? "—")],
+      ["External claims", claims.active],
+      ["Local budget classifier / Luna / Terra", localBudget.available
+        ? String(localUsage.classifier_calls ?? "—") + " / " + String(localUsage.luna_worker_calls ?? "—") + " / " + String(localUsage.terra_worker_calls ?? "—")
+        : "unavailable: " + (localBudget.reason || "not reported")],
+      ["Provider quota telemetry", providerBudget.available
+        ? "available"
+        : "unavailable: " + (providerBudget.reason || "not durably persisted")],
+      ["Hosted value telemetry", hosted.available ? (hosted.report_file || "available") : "unavailable: " + (hosted.reason || "not reported")],
+      ["Hosted cost", hosted.available && hosted.cost ? JSON.stringify(hosted.cost) : "unavailable"],
+      ["Hosted trailing window", hosted.available && hosted.trailing_window ? JSON.stringify(hosted.trailing_window) : "unavailable"],
+      ["Hosted period/recovery signals", hosted.available && hosted.metric_deltas ? JSON.stringify(hosted.metric_deltas) : "unavailable"],
+      ["Hosted queue pressure", hosted.available && hosted.queue_pressure ? JSON.stringify(hosted.queue_pressure) : "unavailable"],
+      ["Hosted evaluation", hosted.available && hosted.evaluation ? JSON.stringify(hosted.evaluation) : "unavailable"],
+    ]));
+    if (score.slo_note) node.append(el("div", score.slo_note, "small muted"));
+  }
+
   function renderRoadmap(state) {
     const roadmap = state.roadmap || {};
     const active = roadmap.active || {};
@@ -121,8 +162,13 @@
       const node = el("article", null, "item");
       const source = objective.source || {};
       node.append(el("h3", source.objective_text || objective.proposal_id || "Objective"));
+      const control = (state.objective_controls || []).find(
+        (value) => value.proposal_id === objective.proposal_id
+      );
       node.append(kv([
         ["Disposition", objective.disposition],
+        ["Lifecycle", control ? control.state : "ACTIVE"],
+        ["Last control", control ? control.last_operation : "none"],
         ["Reason", objective.reason],
         ["Issue", source.issue_number],
         ["Actor", source.actor],
@@ -146,9 +192,43 @@
       && state.runtime.development_write_api_enabled
     );
     panel.hidden = !enabled;
+    if (!enabled) $("objective-status").textContent = "";
+  }
+
+  function updateLifecycleWarning() {
+    const cancelling = $("objective-lifecycle-operation").value === "CANCEL";
+    $("objective-cancel-confirm-row").hidden = !cancelling;
+    if (!cancelling) $("objective-cancel-confirm").checked = false;
+  }
+
+  function renderObjectiveLifecycleControl(state) {
+    const panel = $("objective-lifecycle-control");
+    const objectives = state.objectives || [];
+    const enabled = Boolean(
+      writeToken
+      && objectives.length
+      && state.runtime
+      && state.runtime.development_write_api_enabled
+    );
+    panel.hidden = !enabled;
     if (!enabled) {
-      $("objective-status").textContent = "";
+      $("objective-lifecycle-status").textContent = "";
+      return;
     }
+    const controls = state.objective_controls || [];
+    populateSelect(
+      $("objective-lifecycle-id"),
+      objectives,
+      (objective) => objective.proposal_id,
+      (objective) => {
+        const source = objective.source || {};
+        const control = controls.find((value) => value.proposal_id === objective.proposal_id);
+        const stateLabel = control ? control.state : "ACTIVE";
+        const label = source.objective_text || objective.proposal_id;
+        return stateLabel + " — " + label;
+      }
+    );
+    updateLifecycleWarning();
   }
 
   function renderWorkers(state) {
@@ -364,9 +444,11 @@
     $("console-content").hidden = false;
     $("snapshot-id").textContent = `snapshot ${state.snapshot_digest || "—"}`;
     renderSummary(state);
+    renderScorecard(state);
     renderRoadmap(state);
     renderObjectives(state);
     renderObjectiveControl(state);
+    renderObjectiveLifecycleControl(state);
     renderWorkers(state);
     renderExecution(state);
     renderReviews(state);
@@ -467,6 +549,76 @@
     }
   }
 
+  function nextLifecycleRequestId() {
+    if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
+      return globalThis.crypto.randomUUID();
+    }
+    return "objective-control-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  async function submitObjectiveLifecycle(event) {
+    event.preventDefault();
+    const statusNode = $("objective-lifecycle-status");
+    statusNode.className = "small";
+    statusNode.textContent = "";
+    if (!writeToken || !latestState) {
+      statusNode.textContent = "A current snapshot and write bearer token are required.";
+      statusNode.className = "small error";
+      return;
+    }
+
+    const proposalId = $("objective-lifecycle-id").value;
+    const operation = $("objective-lifecycle-operation").value;
+    const reason = $("objective-lifecycle-reason").value.trim();
+    if (!proposalId || !operation || !reason) {
+      statusNode.textContent = "Exact objective, operation, and reason are required.";
+      statusNode.className = "small error";
+      return;
+    }
+    if (operation === "CANCEL" && !$("objective-cancel-confirm").checked) {
+      statusNode.textContent = "Explicitly confirm the terminal CANCEL fence.";
+      statusNode.className = "small error";
+      return;
+    }
+
+    const signature = JSON.stringify({proposal_id: proposalId, operation, reason});
+    if (!pendingLifecycleRequestId || pendingLifecycleSignature !== signature) {
+      pendingLifecycleRequestId = nextLifecycleRequestId();
+      pendingLifecycleSignature = signature;
+    }
+
+    $("submit-objective-lifecycle").disabled = true;
+    try {
+      const response = await writeApi("/api/v1/objective-controls", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          request_id: pendingLifecycleRequestId,
+          proposal_id: proposalId,
+          operation,
+          reason,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Objective lifecycle command failed (" + response.status + ")");
+      }
+      statusNode.textContent =
+        result.operation + " reconciled for " + result.proposal_id + "; state=" + result.state + ".";
+      pendingLifecycleRequestId = "";
+      pendingLifecycleSignature = "";
+      $("objective-lifecycle-reason").value = "";
+      $("objective-cancel-confirm").checked = false;
+      lastDigest = "";
+      await refresh();
+    } catch (error) {
+      statusNode.textContent = error.message;
+      statusNode.className = "small error";
+    } finally {
+      $("submit-objective-lifecycle").disabled = false;
+    }
+  }
+
   function nextReviewRequestId() {
     if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
       return globalThis.crypto.randomUUID();
@@ -560,6 +712,8 @@
   }
 
   $("objective-form").addEventListener("submit", submitObjective);
+  $("objective-lifecycle-operation").addEventListener("change", updateLifecycleWarning);
+  $("objective-lifecycle-form").addEventListener("submit", submitObjectiveLifecycle);
   $("review-gate").addEventListener("change", updateReviewContext);
   $("review-artifact").addEventListener("change", updateReviewContext);
   $("review-form").addEventListener("submit", submitHumanReview);
@@ -589,6 +743,8 @@
     pendingObjectiveRequestId = "";
     pendingObjectiveText = "";
     pendingReviewRequestId = "";
+    pendingLifecycleRequestId = "";
+    pendingLifecycleSignature = "";
     lastDigest = "";
     if (pollHandle) clearInterval(pollHandle);
     pollHandle = null;

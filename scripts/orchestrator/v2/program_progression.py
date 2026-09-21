@@ -26,6 +26,7 @@ from .objective_ingress import (
     ObjectiveProposalStore,
     ProgramObjectiveSource,
 )
+from .objective_lifecycle import effective_objective_progression
 from .objective_intake import (
     ObjectiveCompileDisposition,
     ObjectiveCompileResult,
@@ -79,6 +80,7 @@ class ProgramSessionDisposition(str, Enum):
     WAIT_AUTHORITY = "WAIT_AUTHORITY"
     WAIT_CHILD = "WAIT_CHILD"
     WAIT_STRATEGIC = "WAIT_STRATEGIC"
+    WAIT_CONTROL = "WAIT_CONTROL"
     BLOCKED = "BLOCKED"
     COMPLETE = "COMPLETE"
 
@@ -354,6 +356,7 @@ class ProgramAdvanceDisposition(str, Enum):
     WAIT_AUTHORITY = "WAIT_AUTHORITY"
     WAIT_CHILD = "WAIT_CHILD"
     WAIT_STRATEGIC = "WAIT_STRATEGIC"
+    WAIT_CONTROL = "WAIT_CONTROL"
     BLOCKED = "BLOCKED"
     COMPLETE = "COMPLETE"
 
@@ -560,6 +563,19 @@ def advance_program_continuation(
                     active = active.attach_invocation(parent.proposal_id)
             active = _save_session(root, active)
 
+        parent_control = effective_objective_progression(
+            root,
+            active.parent_proposal_id,
+        )
+        if not parent_control.allowed:
+            active = replace(
+                active,
+                disposition=ProgramSessionDisposition.WAIT_CONTROL,
+                reason=parent_control.reason,
+            )
+            active = _save_session(root, active)
+            return _session_result(ProgramAdvanceDisposition.WAIT_CONTROL, active)
+
         try:
             projection = load_program_projection(root)
         except (OSError, ValueError) as exc:
@@ -741,6 +757,19 @@ def advance_program_continuation(
                 active = _save_session(root, active)
 
             child_id = active.child_proposal_id
+            child_control = effective_objective_progression(root, child_id)
+            if not child_control.allowed:
+                active = replace(
+                    active,
+                    disposition=ProgramSessionDisposition.WAIT_CONTROL,
+                    reason=child_control.reason,
+                )
+                active = _save_session(root, active)
+                return _session_result(
+                    ProgramAdvanceDisposition.WAIT_CONTROL,
+                    active,
+                )
+
             package, _ = package_proposal(root=root, proposal_id=child_id)
             if package.disposition is not ContextPackageDisposition.SCOPE_UNRESOLVED:
                 active = replace(

@@ -82,6 +82,8 @@ from .ordinary_pipeline import (
     OrdinaryPipelineStage,
     OrdinaryPipelineStore,
 )
+from .objective_lifecycle import effective_objective_progression
+from .objective_trace import proposal_id_for_task_event
 from .ordinary_remote import (
     GhGitOrdinaryEffectAdapter,
     OrdinaryEffectBinding,
@@ -547,7 +549,47 @@ def select_hosted_execution_plan(
             return (4, plan.plan_id)
         return (7, plan.plan_id)
 
-    return min(plans.records, key=rank)
+    eligible = []
+    scheduler = HostedWorkerSchedulerStore.for_root(root).load()
+    worker_runs = WorkerRunStore.for_root(root).load()
+    for plan in plans.records:
+        admission = admissions.for_plan(plan.plan_id)
+        already_running = False
+        if (
+            admission is not None
+            and admission.attempt is not None
+        ):
+            attempt_id = admission.attempt.attempt_id
+            run = worker_runs.find_attempt(attempt_id)
+            scheduled = scheduler.get(attempt_id)
+            already_running = (
+                (run is not None and run.status is WorkerRunStatus.RUNNING)
+                or (
+                    scheduled is not None
+                    and scheduled.state is HostedWorkerScheduleState.EXECUTING
+                )
+            )
+        if already_running:
+            eligible.append(plan)
+            continue
+        try:
+            proposal_id = proposal_id_for_task_event(
+                root=root,
+                event_id=plan.event_id,
+            )
+            if proposal_id is not None:
+                control = effective_objective_progression(root, proposal_id)
+                if not control.allowed:
+                    continue
+        except ValueError:
+            # Ambiguous correlation fails closed for this plan while independent
+            # exact workflows remain eligible.
+            continue
+        eligible.append(plan)
+
+    if not eligible:
+        return None
+    return min(eligible, key=rank)
 
 
 class HostedExecutionCoordinator:

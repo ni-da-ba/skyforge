@@ -80,6 +80,12 @@ from v2.objective_command import (
     reconcile_pending_objective_commands,
 )
 from v2.objective_intake import load_manifest
+from v2.objective_lifecycle import (
+    ObjectiveLifecycleOperation,
+    ObjectiveLifecycleStore,
+)
+from v2.platform_scorecard import build_compact_scorecard, load_latest_value_report
+from v2.hosted_budget import HostedBudgetStore
 from v2.objective_trace import build_objective_trace
 from v2.program_progression import program_progression_snapshot
 from v2.mcp_adapter import McpAdapter, SUPPORTED_PROTOCOL_VERSIONS
@@ -228,6 +234,7 @@ class HostedV2Substrate:
         self.external_claim_store = ExternalClaimStore.for_root(self.root)
         self.objective_proposal_store = ObjectiveProposalStore.for_root(self.root)
         self.objective_command_store = ObjectiveCommandStore.for_root(self.root)
+        self.objective_lifecycle_store = ObjectiveLifecycleStore.for_root(self.root)
         self.human_review_store = HumanReviewStore.for_root(self.root)
         self.human_review_command_store = HumanReviewCommandStore.for_root(self.root)
         self.concurrency_claim_store = ConcurrencyClaimStore.for_root(self.root)
@@ -654,6 +661,7 @@ class HostedV2Substrate:
             state = self.state
             projection = self._effective_legacy_projection()
             objectives = self.objective_proposal_store.load()
+            objective_controls = self.objective_lifecycle_store.load().statuses()
             reviews = self.human_review_store.load()
             plans = self.task_plan_store.load()
             plan = plans.active
@@ -788,12 +796,27 @@ class HostedV2Substrate:
                     "hosted_worker_waiting_count"
                 ],
             }
+            scorecard = build_compact_scorecard(
+                objectives=(record.as_dict() for record in objectives.records),
+                objective_controls=(value.as_dict() for value in objective_controls),
+                workers=worker_records,
+                completions=(record.as_dict() for record in completions.records),
+                scheduler=scheduler_records,
+                reviews=(record.as_dict() for record in reviews.records),
+                external_claims=(claim.as_dict() for claim in external.claims),
+                budget=HostedBudgetStore.for_root(self.root).load().as_dict(),
+                hosted_value=load_latest_value_report(self.root),
+            )
+
             snapshot = build_development_snapshot(
                 repo=self.repo,
                 checkout_head_sha=read_checkout_head(self.root),
                 legacy_projection=projection,
                 objective_records=(
                     record.as_dict() for record in objectives.records
+                ),
+                objective_controls=(
+                    value.as_dict() for value in objective_controls
                 ),
                 active_plan=(plan.as_dict() if plan is not None else None),
                 admission=(
@@ -823,6 +846,7 @@ class HostedV2Substrate:
                 ),
                 human_gates=human_gates,
                 program_progression=program_progression,
+                scorecard=scorecard,
                 runtime=runtime,
             )
             return snapshot.as_dict()
@@ -1082,6 +1106,63 @@ class HostedV2Substrate:
             "task_authority_recorded": False,
             "actor": complete.proposal.source.actor,
             "client": complete.proposal.source.client,
+        }
+
+    def handle_objective_control(
+        self,
+        authorization: str | None,
+        payload: Mapping[str, Any],
+        *,
+        client: str | None,
+    ) -> tuple[int, dict[str, Any]]:
+        auth_error = self._development_write_auth_error(authorization)
+        if auth_error is not None:
+            return auth_error
+        if not isinstance(payload, Mapping):
+            return 400, {"error": "objective control payload must be an object"}
+        allowed = {"request_id", "proposal_id", "operation", "reason"}
+        unknown = sorted(str(key) for key in payload if key not in allowed)
+        if unknown:
+            return 400, {
+                "error": "objective control payload contains unsupported fields",
+                "unsupported_fields": unknown,
+            }
+        try:
+            operation = ObjectiveLifecycleOperation(
+                str(payload.get("operation") or "").strip().upper()
+            )
+            command, status, created = self.objective_lifecycle_store.apply(
+                root=self.root,
+                request_id=payload.get("request_id"),
+                proposal_id=payload.get("proposal_id"),
+                operation=operation,
+                reason=payload.get("reason"),
+                actor=self.development_write_actor,
+                client=str(client or "development-api").strip().lower(),
+            )
+        except ValueError as exc:
+            return 409, {"error": str(exc)}
+        except (OSError, StateStoreError) as exc:
+            return 503, {
+                "error": "objective lifecycle state is unavailable",
+                "failure_kind": type(exc).__name__,
+            }
+
+        # Every lifecycle operation wakes model-free reconciliation. PAUSE/CANCEL
+        # will be observed at the next safe boundary; RESUME/RECONCILE may advance.
+        self._signal_execution_driver()
+        return (202 if created else 200), {
+            "accepted": True,
+            "idempotent_replay": not created,
+            "request_id": command.request_id,
+            "command_id": command.command_id,
+            "proposal_id": command.proposal_id,
+            "operation": command.operation.value,
+            "state": status.state.value,
+            "blocks_automatic_progression": status.blocks_automatic_progression,
+            "reason": command.reason,
+            "actor": command.actor,
+            "client": command.client,
         }
 
     def handle_human_review_submit(
@@ -2004,6 +2085,43 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 return
             status, response = self.runtime.handle_objective_submit(
+                self.headers.get("Authorization"),
+                payload,
+                client=self.headers.get("X-Skyforge-Client"),
+            )
+            self._respond_json(status, response)
+            return
+
+        if path == "/api/v1/objective-controls":
+            try:
+                size = int(self.headers.get("Content-Length") or "0")
+            except ValueError:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            if size <= 0 or size > MAX_DOMAIN_PAYLOAD_BYTES:
+                self._respond_json(400, {"error": "invalid payload size"})
+                return
+            content_type = str(
+                self.headers.get("Content-Type") or ""
+            ).split(";", 1)[0].strip().lower()
+            if content_type != "application/json":
+                self._respond_json(
+                    415,
+                    {"error": "objective control endpoint requires application/json"},
+                )
+                return
+            try:
+                payload = json.loads(self.rfile.read(size).decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._respond_json(400, {"error": "invalid JSON payload"})
+                return
+            if not isinstance(payload, Mapping):
+                self._respond_json(
+                    400,
+                    {"error": "objective control payload must be an object"},
+                )
+                return
+            status, response = self.runtime.handle_objective_control(
                 self.headers.get("Authorization"),
                 payload,
                 client=self.headers.get("X-Skyforge-Client"),

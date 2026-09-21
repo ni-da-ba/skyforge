@@ -159,6 +159,68 @@ class ObjectiveApiTest(unittest.TestCase):
                 urllib.request.urlopen(missing, timeout=3)
             self.assertEqual(raised.exception.code, 404)
 
+    def test_objective_lifecycle_control_is_exact_durable_and_idempotent(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime = self.runtime(root)
+            _status, submitted = runtime.handle_objective_submit(
+                f"Bearer {WRITE_TOKEN}",
+                {
+                    "request_id": "objective-control-http-seed",
+                    "objective": "Investigate landing gear",
+                },
+                client="test",
+            )
+            proposal_id = submitted["proposal_id"]
+            base = self.serve(runtime)
+            body = json.dumps(
+                {
+                    "request_id": "objective-control-http-0001",
+                    "proposal_id": proposal_id,
+                    "operation": "PAUSE",
+                    "reason": "bounded operator hold",
+                },
+                separators=(",", ":"),
+            ).encode("utf-8")
+            def invoke(payload=body):
+                request = urllib.request.Request(
+                    base + "/api/v1/objective-controls",
+                    data=payload,
+                    method="POST",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {WRITE_TOKEN}",
+                        "X-Skyforge-Client": "operations-console",
+                    },
+                )
+                try:
+                    with urllib.request.urlopen(request, timeout=3) as response:
+                        return response.status, json.loads(response.read().decode("utf-8"))
+                except urllib.error.HTTPError as exc:
+                    return exc.code, json.loads(exc.read().decode("utf-8"))
+
+            first_status, first = invoke()
+            replay_status, replay = invoke()
+            self.assertEqual(first_status, 202)
+            self.assertEqual(replay_status, 200)
+            self.assertEqual(first["proposal_id"], proposal_id)
+            self.assertEqual(first["state"], "PAUSED")
+            self.assertFalse(first["idempotent_replay"])
+            self.assertTrue(replay["idempotent_replay"])
+
+            changed = json.dumps(
+                {
+                    "request_id": "objective-control-http-0001",
+                    "proposal_id": proposal_id,
+                    "operation": "CANCEL",
+                    "reason": "changed replay",
+                },
+                separators=(",", ":"),
+            ).encode("utf-8")
+            conflict_status, conflict = invoke(changed)
+            self.assertEqual(conflict_status, 409)
+            self.assertIn("replay changed payload", conflict["error"])
+
     def test_continue_objective_compiles_against_current_human_gate_without_bypass(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

@@ -45,6 +45,12 @@
       <div id="summary-grid" class="grid summary-grid"></div>
 
       <section class="panel">
+        <div class="section-heading"><h2>Platform scorecard</h2><span class="pill">Observed evidence</span></div>
+        <p class="muted small">Compact counts and latest hosted-value evidence only. Missing telemetry is shown as unavailable; no SLO threshold is invented here.</p>
+        <div id="scorecard" class="stack"></div>
+      </section>
+
+      <section class="panel">
         <div class="section-heading"><h2>Program / roadmap</h2><span id="snapshot-id" class="mono muted"></span></div>
         <div id="roadmap"></div>
       </section>
@@ -70,6 +76,41 @@
           </div>
         </form>
         <p id="objective-status" class="small" aria-live="polite"></p>
+      </section>
+
+      <section id="objective-lifecycle-control" class="panel" hidden>
+        <div class="section-heading">
+          <h2>Objective lifecycle control</h2>
+          <span class="pill warn">Exact objective</span>
+        </div>
+        <p class="muted small">Pause, resume, cancel, or reconcile one exact durable objective. PAUSE/CANCEL fence future automatic progression only; they do not kill an already-running provider or delete remote work.</p>
+        <form id="objective-lifecycle-form" class="form-grid">
+          <div>
+            <label for="objective-lifecycle-id">Objective</label>
+            <select id="objective-lifecycle-id" required></select>
+          </div>
+          <div>
+            <label for="objective-lifecycle-operation">Operation</label>
+            <select id="objective-lifecycle-operation" required>
+              <option value="PAUSE">PAUSE</option>
+              <option value="RESUME">RESUME</option>
+              <option value="RECONCILE">RECONCILE</option>
+              <option value="CANCEL">CANCEL — terminal fence</option>
+            </select>
+          </div>
+          <div class="full">
+            <label for="objective-lifecycle-reason">Reason</label>
+            <textarea id="objective-lifecycle-reason" rows="2" required></textarea>
+          </div>
+          <label id="objective-cancel-confirm-row" class="checkbox-row full" hidden>
+            <input id="objective-cancel-confirm" type="checkbox">
+            I understand CANCEL is terminal for future automatic progression; it does not erase existing history or remote work.
+          </label>
+          <div class="actions full">
+            <button id="submit-objective-lifecycle" type="submit">Apply objective control</button>
+          </div>
+        </form>
+        <p id="objective-lifecycle-status" class="small" aria-live="polite"></p>
       </section>
 
       <section class="panel two-column">

@@ -362,6 +362,67 @@ class McpProtocolTest(unittest.TestCase):
             self.assertTrue(spoof.payload["result"]["isError"])
             self.assertEqual(spoof.payload["result"]["structuredContent"]["status"], 400)
 
+    def test_objective_lifecycle_tools_use_same_backend_and_mark_cancel_destructive(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            runtime, _ = self.runtime(root)
+            status, submitted = runtime.handle_objective_submit(
+                f"Bearer {WRITE_TOKEN}",
+                {
+                    "request_id": "objective-control-seed-0001",
+                    "objective": "Investigate landing gear",
+                },
+                client="test",
+            )
+            self.assertIn(status, {200, 202})
+            proposal_id = submitted["proposal_id"]
+            adapter = McpAdapter(runtime)
+
+            cancel_tool = next(tool for tool in WRITE_TOOLS if tool["name"] == "cancel_objective")
+            self.assertTrue(cancel_tool["annotations"]["destructiveHint"])
+            pause_tool = next(tool for tool in WRITE_TOOLS if tool["name"] == "pause_objective")
+            self.assertFalse(pause_tool["annotations"]["destructiveHint"])
+
+            result = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    params={
+                        "name": "pause_objective",
+                        "arguments": {
+                            "request_id": "objective-control-mcp-0001",
+                            "proposal_id": proposal_id,
+                            "reason": "hold exact objective",
+                        },
+                    },
+                ),
+                authorization=f"Bearer {WRITE_TOKEN}",
+                headers={},
+            )
+            self.assertFalse(result.payload["result"]["isError"])
+            value = result.payload["result"]["structuredContent"]
+            self.assertEqual(value["proposal_id"], proposal_id)
+            self.assertEqual(value["operation"], "PAUSE")
+            self.assertEqual(value["state"], "PAUSED")
+            self.assertEqual(value["client"], "chatgpt-mcp")
+
+            replay = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    request_id=2,
+                    params={
+                        "name": "pause_objective",
+                        "arguments": {
+                            "request_id": "objective-control-mcp-0001",
+                            "proposal_id": proposal_id,
+                            "reason": "hold exact objective",
+                        },
+                    },
+                ),
+                authorization=f"Bearer {WRITE_TOKEN}",
+                headers={},
+            )
+            self.assertTrue(replay.payload["result"]["structuredContent"]["idempotent_replay"])
+
     def test_submit_human_review_matches_backend_reconciliation(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

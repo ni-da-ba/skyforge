@@ -31,6 +31,7 @@ from v2.human_review import (
     HumanReviewSubmission,
     HumanReviewVerdict,
 )
+from v2.objective_lifecycle import ObjectiveLifecycleOperation, ObjectiveLifecycleStore
 from v2.objective_ingress import (
     DevelopmentApiObjectiveSource,
     ObjectiveProposalRecord,
@@ -328,6 +329,33 @@ class ProgramProgressionTest(unittest.TestCase):
                 len(OrdinaryEffectStore.for_root(root).load().records),
                 0,
             )
+
+    def test_paused_program_parent_waits_without_touching_child(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            parent = parent_proposal(root, "continue-program-paused-0001")
+            ObjectiveLifecycleStore.for_root(root).apply(
+                root=root,
+                request_id="pause-program-0001",
+                proposal_id=parent.proposal_id,
+                operation=ObjectiveLifecycleOperation.PAUSE,
+                reason="operator hold",
+                actor="ni-da-ba",
+                client="test",
+            )
+
+            def forbidden(*args, **kwargs):
+                raise AssertionError("paused program must not touch GitHub")
+
+            result = advance_program_continuation(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                runner=forbidden,
+            )
+            self.assertEqual(result.disposition, ProgramAdvanceDisposition.WAIT_CONTROL)
+            self.assertEqual(result.session.child_proposal_id, "")
+            self.assertIn("paused", result.reason)
 
     def test_changes_required_does_not_unlock_dr70(self):
         with tempfile.TemporaryDirectory() as td:

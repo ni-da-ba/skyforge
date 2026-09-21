@@ -59,6 +59,62 @@ def _proposal_source_identity(proposal) -> dict[str, Any]:
     return value
 
 
+def proposal_id_for_task_event(*, root: Path, event_id: str) -> str | None:
+    """Reverse-correlate one exact captured task event to its objective proposal.
+
+    Only immutable GitHub comment/effect/promotion/package identities are accepted.
+    Ambiguous or mismatched historical evidence fails closed.
+    """
+    root = Path(root).resolve()
+    task_event = TaskAuthorityEventStore.for_root(root).load().get(event_id)
+    if task_event is None:
+        return None
+
+    remote_identity = f"comment:{task_event.reference.comment_id}"
+    effects = tuple(
+        value
+        for value in OrdinaryEffectStore.for_root(root).load().records
+        if value.identity.kind is EffectKind.POST_COMMENT
+        and value.remote_identity == remote_identity
+        and value.identity.attempt_id.startswith("objective-promotion:")
+    )
+    promotion_effect = _exact_one(effects, "task event promotion effect")
+    if promotion_effect is None:
+        return None
+
+    promotion_id = promotion_effect.identity.attempt_id.removeprefix(
+        "objective-promotion:"
+    )
+    promotions = tuple(
+        value
+        for value in PromotionStore.for_root(root).load().records
+        if value.promotion_id == promotion_id
+    )
+    promotion = _exact_one(promotions, "task event promotion")
+    if promotion is None or promotion.result.draft is None:
+        return None
+
+    draft = promotion.result.draft
+    expected_body = comment_payload(promotion_effect.identity, draft.body)
+    if (
+        task_event.reference.issue_number != draft.issue_number
+        or task_event.reference.body != expected_body
+    ):
+        raise ValueError("task event differs from exact objective promotion")
+
+    packages = tuple(
+        value
+        for value in ContextPackageStore.for_root(root).load().records
+        if value.package_id == promotion.result.package_id
+    )
+    package = _exact_one(packages, "task event context package")
+    if package is None:
+        return None
+    if package.package_id != promotion.result.package_id:
+        raise ValueError("task event package correlation mismatch")
+    return package.proposal_id
+
+
 def build_objective_trace(*, root: Path, correlation_id: str) -> dict[str, Any] | None:
     root = Path(root).resolve()
     correlation_id = str(correlation_id or "").strip().lower()
