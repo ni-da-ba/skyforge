@@ -14,7 +14,7 @@
           "province_key": 8,
           "cluster_key": 81,
           "island_key": 2885,
-          "suspension_y": 220.0
+          "suspension_y": 220
         },
         "preparation_entry_points": [
           ":skyforge-neoforge-1211:dr70HydrologyReviewAcceptance"
@@ -25,6 +25,20 @@
           "/tp @s 0 320 0"
         ],
         "associated_artifact_ids": []
+      }
+    },
+    {
+      "artifact_id": "platform:pre-bootstrap-gate",
+      "kind": "FILE",
+      "source_sha": "8c0374a5f76208373cdc6b88b397007a4cf4fa4b",
+      "title": "Pre-Bootstrap development-platform gate evidence snapshot",
+      "description": "Exact owner-approved pre-Bootstrap platform gate contract and acceptance criteria at the post-Platform-v2 DR-70 reconciliation boundary. Use this artifact for the explicit owner decision to accept or reject the platform gate; it does not encode the verdict.",
+      "file": {
+        "source": "REPOSITORY_BLOB",
+        "repository_path": "docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md",
+        "media_type": "text/markdown",
+        "byte_size": 11278,
+        "sha256": "ef15baf2accbc40298a9390e81391aefad8c7a1c87bd78d6f68b38c5145d40a9"
       }
     }
   ]
