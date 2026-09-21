@@ -261,6 +261,32 @@ class HostedExecutionDriverTest(unittest.TestCase):
             self.assertEqual(deps.builds, 3)
             self.assertEqual(driver.snapshot().advance_count, 3)
 
+    def test_one_wake_drains_objective_scoping_advances_until_real_stop(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime = _FakeRuntime(
+                Path(td),
+                [
+                    result(HostedExecutionAdvanceDisposition.OBJECTIVE_SCOPING_ADVANCED),
+                    result(HostedExecutionAdvanceDisposition.OBJECTIVE_SCOPING_ADVANCED),
+                    result(HostedExecutionAdvanceDisposition.IDLE),
+                ],
+            )
+            deps = _FakeDependencies()
+            driver = HostedExecutionDriver(
+                runtime=runtime,
+                dependencies=deps,
+                periodic_seconds=60,
+                max_boundaries_per_wake=8,
+            )
+            driver._drain_one_wake()
+            self.assertEqual(runtime.calls, 3)
+            self.assertEqual(deps.builds, 3)
+            self.assertEqual(driver.snapshot().advance_count, 3)
+            self.assertEqual(
+                driver.snapshot().last_disposition,
+                HostedExecutionAdvanceDisposition.IDLE.value,
+            )
+
     def test_one_wake_drains_program_advances_until_real_stop(self):
         with tempfile.TemporaryDirectory() as td:
             runtime = _FakeRuntime(
