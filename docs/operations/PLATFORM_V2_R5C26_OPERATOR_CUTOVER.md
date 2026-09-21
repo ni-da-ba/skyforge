@@ -130,6 +130,8 @@ A repeated command for an already-recorded transfer is idempotent after the same
 
 The transfer record preserves the GitHub issue/comment source identity needed to locate/redeliver the original signed webhook. The operator must still use a real signed GitHub delivery (or a newer signed task revision) to create V2 task authority; the transfer command never fabricates ingress.
 
+The singleton transfer-authority flow remains correct when exactly one protected legacy authority is pending. When concurrent Platform-v2 work causes rollback reconciliation to rediscover multiple protected authorities, use transfer-authority-batch with a JSON manifest whose schema_version is 1 and whose authorities list enumerates each exact event_key, issue_number, source_id, and signal_kind identity. The batch must exactly equal the complete pending protected legacy-authority set: missing, extra, duplicate, mismatched, or partially transferred authority fails closed, while ordinary non-protected pending events are preserved. Legacy crosses one NONE-writer boundary, retires exactly that set as transferred (never completed), restarts once, and verifies that none reappear.
+
 ### Retiring terminal non-executed Platform-v2 authority
 
 A task may also already exist in Platform-v2 but be terminally non-executable (for example, a fail-closed `BLOCKED` admission) while legacy has rediscovered the same protected source during rollback. In that case the operator must first use `transfer-authority` above. Only after the exact legacy transfer is durable may `retire-v2-authority` release the matching Platform-v2 singleton ownership.
@@ -205,6 +207,9 @@ sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-autho
   --source-id <github-comment-id> \
   --execute
 ```
+
+
+For that multi-authority recovery, pass the manifest to transfer-authority-batch (read-only first, then repeat with --execute): `sudo python3 scripts/orchestrator/platform_v2_operator_cutover.py transfer-authority-batch --root /home/skyforge/skyforge --batch-manifest /path/to/protected-authority-batch.json`. The manifest is the exact complete pending protected set; do not use this command for ordinary pending events.
 
 Do not run mutating operator commands merely to test the package.
 
