@@ -21,6 +21,7 @@ from .identity import canonical_digest
 from .objective_ingress import ObjectiveProposalStore
 from .ordinary_effects import OrdinaryEffectStore
 from .ordinary_pipeline import OrdinaryPipelineStore
+from .ordinary_remote import comment_payload
 from .scope_promotion import PromotionStore
 from .task_event_composition import TaskAuthorityEventStore
 from .worker_provider import WorkerRunStore
@@ -168,9 +169,13 @@ def build_objective_trace(*, root: Path, correlation_id: str) -> dict[str, Any] 
     )
     if task_event is None:
         return _trace_payload(proposal.proposal_id, stages)
+    expected_task_body = comment_payload(
+        promotion_effect.identity,
+        draft.body,
+    )
     if (
         task_event.reference.issue_number != draft.issue_number
-        or task_event.reference.body != draft.body
+        or task_event.reference.body != expected_task_body
     ):
         raise ValueError("captured task authority differs from exact objective promotion")
     stages.append(

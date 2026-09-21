@@ -38,6 +38,7 @@ class ObjectiveCompileDisposition(str, Enum):
     NEEDS_SCOPING = "NEEDS_SCOPING"
     CANDIDATE_TASK = "CANDIDATE_TASK"
     HUMAN_GATE = "HUMAN_GATE"
+    PROGRAM_CONTINUE = "PROGRAM_CONTINUE"
     BLOCKED = "BLOCKED"
     AMBIGUOUS = "AMBIGUOUS"
 
@@ -335,9 +336,12 @@ def compile_continue_objective(
         )
     if target == "PROGRAM":
         return ObjectiveCompileResult(
-            ObjectiveCompileDisposition.BLOCKED,
+            ObjectiveCompileDisposition.PROGRAM_CONTINUE,
             request,
-            "program-wide Continue Skyforge selection is reserved for OPT-6; OPT-1 may not invent program work",
+            (
+                "program-wide Continue Skyforge accepted for OPT-6 durable progression; "
+                "this parent proposal carries no executable task authority"
+            ),
         )
     if state.roadmap_id != manifest.roadmap_id or state.manifest_fingerprint != manifest.fingerprint:
         return ObjectiveCompileResult(

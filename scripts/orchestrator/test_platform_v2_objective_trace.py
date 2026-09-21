@@ -41,6 +41,7 @@ from v2.ordinary_effects import (
     OrdinaryMutationScope,
 )
 from v2.quota import LocalBudgetObservation
+from v2.ordinary_remote import comment_payload
 from v2.scope_promotion import PromotionStore, validate_promotion
 from v2.task_authority import TaskAuthorityWakeReference
 from v2.task_event_composition import (
@@ -111,7 +112,7 @@ def install_trace(root: Path, *, comment_id: int = 88001):
         issue_number=draft.issue_number,
         comment_id=comment_id,
         actor="ni-da-ba",
-        body=draft.body,
+        body=comment_payload(comment_identity, draft.body),
         created_at=created_at,
         updated_at=created_at,
     )

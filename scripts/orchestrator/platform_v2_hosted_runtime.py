@@ -81,6 +81,7 @@ from v2.objective_command import (
 )
 from v2.objective_intake import load_manifest
 from v2.objective_trace import build_objective_trace
+from v2.program_progression import program_progression_snapshot
 from v2.mcp_adapter import McpAdapter, SUPPORTED_PROTOCOL_VERSIONS
 from v2.human_review import (
     DevelopmentApiHumanReviewSource,
@@ -704,6 +705,49 @@ class HostedV2Substrate:
                         }
                     )
 
+            program_progression = program_progression_snapshot(self.root)
+            active_program = program_progression.get("active_session")
+            if (
+                isinstance(active_program, Mapping)
+                and active_program.get("disposition") == "WAIT_HUMAN"
+            ):
+                gate_id = str(active_program.get("gate_id") or "").strip()
+                projection_nodes = (
+                    program_progression.get("projection", {}).get("nodes", [])
+                    if isinstance(program_progression.get("projection"), Mapping)
+                    else []
+                )
+                program_node = next(
+                    (
+                        value
+                        for value in projection_nodes
+                        if isinstance(value, Mapping)
+                        and str(value.get("review_gate_id") or value.get("node_id") or "")
+                        == gate_id
+                    ),
+                    None,
+                )
+                if gate_id and not any(
+                    str(value.get("gate_id") or "") == gate_id
+                    for value in human_gates
+                ):
+                    human_gates.append(
+                        {
+                            "gate_id": gate_id,
+                            "lane": (
+                                str(program_node.get("lane") or "")
+                                if isinstance(program_node, Mapping)
+                                else ""
+                            ),
+                            "message": (
+                                str(program_node.get("message") or "")
+                                if isinstance(program_node, Mapping)
+                                else str(active_program.get("reason") or "")
+                            ),
+                            "blocked_reason": str(active_program.get("reason") or ""),
+                        }
+                    )
+
             runtime = {
                 "status": health["status"],
                 "controller": health["controller"],
@@ -778,6 +822,7 @@ class HostedV2Substrate:
                     record.as_dict() for record in reviews.records
                 ),
                 human_gates=human_gates,
+                program_progression=program_progression,
                 runtime=runtime,
             )
             return snapshot.as_dict()

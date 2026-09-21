@@ -97,6 +97,11 @@ from .managed_pr_lifecycle import (
     advance_managed_pr_lifecycle,
 )
 from .quota import LocalBudgetObservation, ProviderQuotaDecision
+from .program_progression import (
+    ProgramAdvanceDisposition,
+    ProgramContinuationStore,
+    advance_program_continuation,
+)
 from .roadmap_shadow import ShadowRoadmapManifest, ShadowRoadmapState
 from .task_event_composition import TaskAuthorityEventStore
 from .terminal_gate import TerminalGateDisposition, classify_terminal_gate_quiescence
@@ -401,6 +406,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     GATE_BLOCKED = "GATE_BLOCKED"
     IDLE = "IDLE"
     ORDINARY_QUIESCED = "ORDINARY_QUIESCED"
+    PROGRAM_ADVANCED = "PROGRAM_ADVANCED"
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
@@ -906,6 +912,25 @@ class HostedExecutionCoordinator:
                 cleaned.reason,
                 self.gate.digest,
                 cleaned.record.completion_id if cleaned.record is not None else "",
+            )
+
+        program_store = ProgramContinuationStore.for_root(self.root)
+        program_before = program_store.load().digest
+        program_result = advance_program_continuation(
+            root=self.root,
+            repo=self.repo,
+            runner=deps.runner,
+        )
+        program_after = program_store.load().digest
+        if (
+            program_result.disposition is not ProgramAdvanceDisposition.NO_SESSION
+            and program_after != program_before
+        ):
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.PROGRAM_ADVANCED,
+                program_result.reason,
+                self.gate.digest,
+                program_result.durable_identity,
             )
 
         claims = self._claims(deps.external_claims)

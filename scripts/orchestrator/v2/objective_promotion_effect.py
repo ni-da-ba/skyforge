@@ -161,6 +161,7 @@ def execute_frozen_promotion_post(
     repo: str,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
     crash_after_execute: bool = False,
+    promotion_id: str | None = None,
 ) -> ObjectivePromotionPostResult:
     """Post one frozen objective promotion exactly once.
 
@@ -182,7 +183,22 @@ def execute_frozen_promotion_post(
             "",
             "",
         )
-    frozen_record = promotions.records[-1]
+    if promotion_id is None:
+        frozen_record = promotions.records[-1]
+    else:
+        matches = [
+            record
+            for record in promotions.records
+            if record.promotion_id == str(promotion_id).strip()
+        ]
+        if len(matches) != 1:
+            return ObjectivePromotionPostResult(
+                ObjectivePromotionPostDisposition.BLOCKED,
+                "exact frozen objective promotion identity is unavailable or ambiguous",
+                str(promotion_id or ""),
+                "",
+            )
+        frozen_record = matches[0]
     frozen = frozen_record.result
     if (
         frozen.disposition is not PromotionDisposition.READY_FOR_TASK_AUTHORITY_POST

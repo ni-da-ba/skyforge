@@ -43,6 +43,7 @@ _EXCLUDED_SCOPE_PREFIXES = (
 )
 _EXCLUDED_SCOPE_EXACT = {
     'docs/agent-state/ORCHESTRATOR_ROADMAP.json',
+    'docs/agent-state/PROGRAM_PROGRESSION.json',
     'docs/agent-state/PLATFORM_V2_RELEASE5_GATE.json',
     'docs/architecture/SKYFORGE_DEVELOPMENT_PLATFORM_OPTIMIZATION_ROADMAP.md',
 }

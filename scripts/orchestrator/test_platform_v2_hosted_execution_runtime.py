@@ -15,6 +15,7 @@ from test_platform_v2_hosted_task_preflight import (
     task_payload,
 )
 from test_platform_v2_ordinary_service import FakeRemoteFactory
+from test_platform_v2_scope_promotion import write_state
 from v2.activation_gate import ProductionActivationInput
 from v2.classifier_provider import ClassifierProviderConfig, ClassifierProviderError, ClassifierRunStatus, ClassifierRunStore, parse_classifier_response
 from v2.cutover import (
@@ -34,6 +35,7 @@ from v2.hosted_execution_runtime import (
 from v2.hosted_state import HostedStateStore
 from v2.inbox import InboxState
 from v2.ordinary_effects import OrdinaryEffectStore
+from v2.objective_ingress import DevelopmentApiObjectiveSource, ObjectiveProposalStore
 from v2.ordinary_pipeline import OrdinaryPipelineStore
 from v2.quota import LocalBudgetObservation
 from v2.roadmap_shadow import ShadowRoadmapManifest
@@ -443,6 +445,94 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
 
             idle = app.advance_one_execution_step(deps)
             self.assertEqual(idle.disposition, HostedExecutionAdvanceDisposition.IDLE)
+
+    def test_waiting_continue_skyforge_gate_does_not_block_unrelated_task_claim(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            make_repo(root)
+            write_legacy(root)
+
+            repo_root = Path(__file__).resolve().parents[2]
+            for rel in (
+                "docs/agent-state/PROGRAM_ROADMAP.md",
+                "docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md",
+                "docs/agent-state/ORCHESTRATOR_ROADMAP.json",
+                "docs/agent-state/PROGRAM_PROGRESSION.json",
+            ):
+                source = repo_root / rel
+                target = root / rel
+                target.parent.mkdir(parents=True, exist_ok=True)
+                target.write_bytes(source.read_bytes())
+            artifact_manifest = root / "docs/agent-state/REVIEW_ARTIFACTS.json"
+            artifact_manifest.write_text(
+                json.dumps({"schema_version": 1, "artifacts": []}),
+                encoding="utf-8",
+            )
+            git(root, "add", "docs")
+            git(root, "commit", "-m", "install canonical program projection")
+            write_state(root, gate=False)
+            base = git(root, "rev-parse", "HEAD")
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            source = DevelopmentApiObjectiveSource(
+                repo="ni-da-ba/skyforge",
+                request_id="continue-runtime-0001",
+                actor="ni-da-ba",
+                client="runtime-test",
+                submitted_at="2026-09-21T03:45:00Z",
+                objective_text="Continue Skyforge",
+            )
+            captured = ObjectiveProposalStore.for_root(root).capture(
+                source=source,
+                delivery_id="runtime-program",
+                root=root,
+            )
+            self.assertEqual(
+                captured.record.compiled.disposition.value,
+                "PROGRAM_CONTINUE",
+            )
+
+            raw, headers = signed(task_payload(), delivery="r5c24-program-wait")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            deps = HostedExecutionDependencies(
+                classifier_provider=FakeClassifier(),
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                runner=CompositeReadRunner(base),
+            )
+            first = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                first.disposition,
+                HostedExecutionAdvanceDisposition.PROGRAM_ADVANCED,
+            )
+            second = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                second.disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+
+            snapshot = app.development_snapshot()
+            program = snapshot["program_progression"]
+            self.assertEqual(
+                program["active_session"]["disposition"],
+                "WAIT_HUMAN",
+            )
+            self.assertEqual(
+                program["active_session"]["gate_id"],
+                "pre-bootstrap-development-platform-gate",
+            )
+            self.assertTrue(
+                any(
+                    value["gate_id"]
+                    == "pre-bootstrap-development-platform-gate"
+                    for value in snapshot["human_gates"]
+                )
+            )
 
     def test_restart_at_each_boundary_reaches_exact_draft_pr_handoff(self):
         with tempfile.TemporaryDirectory() as td:
