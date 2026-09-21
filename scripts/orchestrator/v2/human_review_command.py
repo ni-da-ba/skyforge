@@ -32,11 +32,17 @@ class HumanReviewCommandPhase(str, Enum):
     RECONCILED = "RECONCILED"
 
 
+class HumanReviewAuthorityScope(str, Enum):
+    ROADMAP = "ROADMAP"
+    PROGRAM = "PROGRAM"
+
+
 @dataclass(frozen=True)
 class HumanReviewCommandRecord:
     request_id: str
     request_digest: str
     review: HumanReviewSubmission
+    authority_scope: HumanReviewAuthorityScope
     roadmap_before_digest: str
     roadmap_after_digest: str
     roadmap_disposition: HumanGateReviewDisposition
@@ -47,6 +53,12 @@ class HumanReviewCommandRecord:
             raise ValueError("human-review command requires DEVELOPMENT_API review source")
         if self.review.source.request_id != self.request_id:
             raise ValueError("command request_id must match review source")
+        if not isinstance(self.authority_scope, HumanReviewAuthorityScope):
+            object.__setattr__(
+                self,
+                "authority_scope",
+                HumanReviewAuthorityScope(str(self.authority_scope)),
+            )
         expected_request_digest = canonical_digest(self.review.as_dict())
         if self.request_digest != expected_request_digest:
             raise ValueError("human-review command request digest mismatch")
@@ -79,6 +91,7 @@ class HumanReviewCommandRecord:
             "request_id": self.request_id,
             "request_digest": self.request_digest,
             "review": self.review.as_dict(),
+            "authority_scope": self.authority_scope.value,
             "roadmap_before_digest": self.roadmap_before_digest,
             "roadmap_after_digest": self.roadmap_after_digest,
             "roadmap_disposition": self.roadmap_disposition.value,
@@ -93,6 +106,9 @@ class HumanReviewCommandRecord:
             request_id=str(raw.get("request_id") or ""),
             request_digest=str(raw.get("request_digest") or ""),
             review=HumanReviewSubmission.from_mapping(raw.get("review")),
+            authority_scope=HumanReviewAuthorityScope(
+                str(raw.get("authority_scope") or "ROADMAP")
+            ),
             roadmap_before_digest=str(raw.get("roadmap_before_digest") or ""),
             roadmap_after_digest=str(raw.get("roadmap_after_digest") or ""),
             roadmap_disposition=HumanGateReviewDisposition(
@@ -140,6 +156,7 @@ class HumanReviewCommandLedger:
             if (
                 existing.command_id != record.command_id
                 or existing.request_digest != record.request_digest
+                or existing.authority_scope is not record.authority_scope
             ):
                 raise ValueError("conflicting human-review command request_id")
             values = tuple(
@@ -201,8 +218,10 @@ def prepare_human_review_command(
     *,
     store: HumanReviewCommandStore,
     review: HumanReviewSubmission,
-    roadmap: RoadmapAuthorityLedger,
-    manifest: ShadowRoadmapManifest,
+    roadmap: RoadmapAuthorityLedger | None = None,
+    manifest: ShadowRoadmapManifest | None = None,
+    authority_scope: HumanReviewAuthorityScope = HumanReviewAuthorityScope.ROADMAP,
+    program_projection_digest: str = "",
 ) -> HumanReviewCommandRecord:
     if not isinstance(review.source, DevelopmentApiHumanReviewSource):
         raise ValueError("prepared human-review command requires API review source")
@@ -220,26 +239,49 @@ def prepare_human_review_command(
             "another human-review command is pending durable reconciliation"
         )
 
-    reduction = apply_human_gate_review(
-        ledger=roadmap,
-        manifest=manifest,
-        gate_id=review.gate_id,
-        verdict=review.verdict.value,
-        review_id=review.review_id,
-    )
-    if reduction.disposition not in {
-        HumanGateReviewDisposition.ACCEPTED,
-        HumanGateReviewDisposition.CHANGES_REQUIRED,
-    }:
-        raise ValueError(f"human-review roadmap reconciliation blocked: {reduction.reason}")
+    if not isinstance(authority_scope, HumanReviewAuthorityScope):
+        authority_scope = HumanReviewAuthorityScope(str(authority_scope))
+
+    if authority_scope is HumanReviewAuthorityScope.PROGRAM:
+        projection_digest = str(program_projection_digest or "").strip().lower()
+        if len(projection_digest) != 64 or any(
+            ch not in "0123456789abcdef" for ch in projection_digest
+        ):
+            raise ValueError(
+                "program human-review command requires exact program projection digest"
+            )
+        disposition = HumanGateReviewDisposition(review.verdict.value)
+        before_digest = projection_digest
+        after_digest = projection_digest
+    else:
+        if roadmap is None or manifest is None:
+            raise ValueError("roadmap human-review command requires roadmap authority")
+        reduction = apply_human_gate_review(
+            ledger=roadmap,
+            manifest=manifest,
+            gate_id=review.gate_id,
+            verdict=review.verdict.value,
+            review_id=review.review_id,
+        )
+        if reduction.disposition not in {
+            HumanGateReviewDisposition.ACCEPTED,
+            HumanGateReviewDisposition.CHANGES_REQUIRED,
+        }:
+            raise ValueError(
+                f"human-review roadmap reconciliation blocked: {reduction.reason}"
+            )
+        disposition = reduction.disposition
+        before_digest = roadmap.digest
+        after_digest = reduction.ledger.digest
 
     record = HumanReviewCommandRecord(
         request_id=review.source.request_id,
         request_digest=request_digest,
         review=review,
-        roadmap_before_digest=roadmap.digest,
-        roadmap_after_digest=reduction.ledger.digest,
-        roadmap_disposition=reduction.disposition,
+        authority_scope=authority_scope,
+        roadmap_before_digest=before_digest,
+        roadmap_after_digest=after_digest,
+        roadmap_disposition=disposition,
         phase=HumanReviewCommandPhase.PREPARED,
     )
     return store.put(record)
@@ -249,9 +291,10 @@ def advance_human_review_command(
     *,
     command_store: HumanReviewCommandStore,
     review_store: HumanReviewStore,
-    roadmap_store: RoadmapAuthorityStore,
-    manifest: ShadowRoadmapManifest,
+    roadmap_store: RoadmapAuthorityStore | None = None,
+    manifest: ShadowRoadmapManifest | None = None,
     request_id: str,
+    program_projection_digest: str = "",
 ) -> HumanReviewCommandRecord:
     ledger = command_store.load()
     record = ledger.get(request_id)
@@ -269,6 +312,18 @@ def advance_human_review_command(
             record.with_phase(HumanReviewCommandPhase.REVIEW_PERSISTED)
         )
 
+    if record.authority_scope is HumanReviewAuthorityScope.PROGRAM:
+        current_digest = str(program_projection_digest or "").strip().lower()
+        if current_digest != record.roadmap_before_digest:
+            raise ValueError(
+                "program projection changed during human-review command; refusing stale reconciliation"
+            )
+        return command_store.put(
+            record.with_phase(HumanReviewCommandPhase.RECONCILED)
+        )
+
+    if roadmap_store is None or manifest is None:
+        raise ValueError("roadmap human-review reconciliation requires roadmap authority")
     roadmap = roadmap_store.load()
     if roadmap.digest == record.roadmap_after_digest:
         return command_store.put(
@@ -301,8 +356,9 @@ def reconcile_pending_human_review_commands(
     *,
     command_store: HumanReviewCommandStore,
     review_store: HumanReviewStore,
-    roadmap_store: RoadmapAuthorityStore,
-    manifest: ShadowRoadmapManifest,
+    roadmap_store: RoadmapAuthorityStore | None = None,
+    manifest: ShadowRoadmapManifest | None = None,
+    program_projection_digest: str = "",
 ) -> tuple[HumanReviewCommandRecord, ...]:
     reconciled: list[HumanReviewCommandRecord] = []
     for record in command_store.load().pending:
@@ -313,6 +369,7 @@ def reconcile_pending_human_review_commands(
                 roadmap_store=roadmap_store,
                 manifest=manifest,
                 request_id=record.request_id,
+                program_projection_digest=program_projection_digest,
             )
         )
     return tuple(reconciled)
