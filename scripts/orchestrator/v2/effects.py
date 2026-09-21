@@ -21,6 +21,7 @@ class EffectKind(str, Enum):
 class EffectStatus(str, Enum):
     PENDING = "PENDING"
     COMPLETE = "COMPLETE"
+    ABANDONED = "ABANDONED"
 
 
 class RemoteEffectPresence(str, Enum):
@@ -86,8 +87,8 @@ class RemoteEffectRecord:
             raise ValueError("status must be EffectStatus")
         if not isinstance(self.remote_identity, str):
             raise ValueError("remote_identity must be a string")
-        if self.status is EffectStatus.PENDING and self.remote_identity:
-            raise ValueError("pending effect cannot already carry remote_identity")
+        if self.status in {EffectStatus.PENDING, EffectStatus.ABANDONED} and self.remote_identity:
+            raise ValueError("non-complete effect cannot carry remote_identity")
         if self.status is EffectStatus.COMPLETE and not self.remote_identity.strip():
             raise ValueError("completed effect requires remote_identity")
 
@@ -96,6 +97,8 @@ class RemoteEffectRecord:
         return cls(identity=identity, status=EffectStatus.PENDING)
 
     def complete(self, remote_identity: str) -> "RemoteEffectRecord":
+        if self.status is EffectStatus.ABANDONED:
+            raise ValueError("abandoned effect cannot be completed")
         remote_identity = str(remote_identity).strip()
         if not remote_identity:
             raise ValueError("remote_identity is required for a completed effect")
@@ -104,6 +107,11 @@ class RemoteEffectRecord:
             status=EffectStatus.COMPLETE,
             remote_identity=remote_identity,
         )
+
+    def abandon(self) -> "RemoteEffectRecord":
+        if self.status is EffectStatus.COMPLETE:
+            raise ValueError("completed effect cannot be abandoned")
+        return replace(self, status=EffectStatus.ABANDONED, remote_identity="")
 
     @property
     def digest(self) -> str:
@@ -166,6 +174,14 @@ def reconcile_remote_effect(
     record: RemoteEffectRecord,
     observation: RemoteEffectObservation,
 ) -> EffectReconcileDecision:
+    if record.status is EffectStatus.ABANDONED:
+        return EffectReconcileDecision(
+            EffectReconcileDisposition.BLOCK,
+            "effect is terminally abandoned and must never be executed",
+            record.digest,
+            observation.digest,
+        )
+
     if record.status is EffectStatus.COMPLETE:
         return EffectReconcileDecision(
             EffectReconcileDisposition.NOOP_COMPLETE,

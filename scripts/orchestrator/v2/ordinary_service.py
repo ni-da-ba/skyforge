@@ -190,6 +190,7 @@ class ManagedOrdinaryHandoff:
 
 class OrdinaryServiceDisposition(str, Enum):
     COMPLETE = "COMPLETE"
+    STALE_BASE = "STALE_BASE"
     BLOCKED = "BLOCKED"
     NOT_ELIGIBLE = "NOT_ELIGIBLE"
 
@@ -319,6 +320,14 @@ def advance_prepared_handoff(
         identity=create_binding.identity,
         adapter=create_adapter,
     )
+    if create.disposition is OrdinaryEffectExecutionDisposition.STALE_BASE:
+        return OrdinaryHandoffResult(
+            OrdinaryServiceDisposition.STALE_BASE,
+            create.reason,
+            "CREATE_PR",
+            commit,
+            effect_result=create,
+        )
     if not _effect_ok(create):
         return OrdinaryHandoffResult(
             OrdinaryServiceDisposition.BLOCKED,

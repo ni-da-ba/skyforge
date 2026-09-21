@@ -12,6 +12,7 @@ from v2.effects import (
 )
 from v2.ordinary_effect_executor import (
     OrdinaryEffectExecutionDisposition,
+    OrdinaryFrozenBaseMoved,
     OrdinaryRemoteUnavailable,
     advance_remote_effect,
 )
@@ -54,6 +55,7 @@ class FakeRemote:
         self.conflict = False
         self.execute_calls = 0
         self.fail_execute = False
+        self.stale_base = False
 
     def observe(self, identity):
         if self.conflict:
@@ -67,6 +69,8 @@ class FakeRemote:
 
     def execute(self, identity):
         self.execute_calls += 1
+        if self.stale_base:
+            raise OrdinaryFrozenBaseMoved("current main moved from frozen ordinary-task base")
         if self.fail_execute:
             raise OrdinaryRemoteUnavailable("unknown outcome")
         self.present = True
@@ -126,6 +130,37 @@ class OrdinaryEffectExecutorTest(unittest.TestCase):
                 OrdinaryEffectExecutionDisposition.BLOCKED,
             )
             self.assertEqual(store.load().get(identity).status.value, "PENDING")
+            self.assertEqual(remote.execute_calls, 1)
+
+    def test_frozen_base_move_abandons_effect_and_never_reexecutes(self):
+        with tempfile.TemporaryDirectory() as td:
+            store = OrdinaryEffectStore.for_root(Path(td))
+            identity = scope().create_pr_identity()
+            remote = FakeRemote()
+            remote.stale_base = True
+
+            result = advance_remote_effect(
+                store=store,
+                identity=identity,
+                adapter=remote,
+            )
+            self.assertEqual(
+                result.disposition,
+                OrdinaryEffectExecutionDisposition.STALE_BASE,
+            )
+            self.assertIn("frozen ordinary-task base", result.reason)
+            self.assertEqual(store.load().get(identity).status.value, "ABANDONED")
+            self.assertEqual(remote.execute_calls, 1)
+
+            again = advance_remote_effect(
+                store=store,
+                identity=identity,
+                adapter=remote,
+            )
+            self.assertEqual(
+                again.disposition,
+                OrdinaryEffectExecutionDisposition.STALE_BASE,
+            )
             self.assertEqual(remote.execute_calls, 1)
 
     def test_conflicting_remote_identity_blocks_without_execution(self):

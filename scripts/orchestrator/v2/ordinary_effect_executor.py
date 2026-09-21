@@ -21,10 +21,15 @@ class OrdinaryRemoteUnavailable(RuntimeError):
     """Exact remote truth or mutation outcome could not be established."""
 
 
+class OrdinaryFrozenBaseMoved(OrdinaryRemoteUnavailable):
+    """The frozen task base is provably stale before a PR mutation."""
+
+
 class OrdinaryEffectExecutionDisposition(str, Enum):
     EXECUTED = "EXECUTED"
     RECONCILED = "RECONCILED"
     ALREADY_COMPLETE = "ALREADY_COMPLETE"
+    STALE_BASE = "STALE_BASE"
     BLOCKED = "BLOCKED"
 
 
@@ -68,6 +73,14 @@ def advance_remote_effect(
         store.save(ledger)
         record = ledger.get(identity)
         assert record is not None
+
+    if record.status.value == "ABANDONED":
+        return OrdinaryEffectExecutionResult(
+            OrdinaryEffectExecutionDisposition.STALE_BASE,
+            "effect is terminally abandoned after frozen base moved",
+            record,
+            ledger.digest,
+        )
 
     try:
         observation = adapter.observe(identity)
@@ -140,6 +153,17 @@ def advance_remote_effect(
 
     try:
         remote_identity = adapter.execute(identity)
+    except OrdinaryFrozenBaseMoved as exc:
+        ledger = ledger.abandon(identity)
+        store.save(ledger)
+        abandoned = ledger.get(identity)
+        assert abandoned is not None
+        return OrdinaryEffectExecutionResult(
+            OrdinaryEffectExecutionDisposition.STALE_BASE,
+            str(exc),
+            abandoned,
+            ledger.digest,
+        )
     except OrdinaryRemoteUnavailable:
         return OrdinaryEffectExecutionResult(
             OrdinaryEffectExecutionDisposition.BLOCKED,
