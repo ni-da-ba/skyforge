@@ -14,6 +14,7 @@ from v2.human_review import (
     parse_human_review_comment,
 )
 from v2.human_review_command import (
+    HumanReviewAuthorityScope,
     HumanReviewCommandPhase,
     HumanReviewCommandStore,
     advance_human_review_command,
@@ -265,6 +266,99 @@ class HumanReviewCommandTest(unittest.TestCase):
                 )
             self.assertEqual(len(review_store.load().records), 1)
             self.assertEqual(command_store.load().pending[0].phase, HumanReviewCommandPhase.REVIEW_PERSISTED)
+
+    def test_program_gate_command_persists_without_roadmap_authority(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            command_store = HumanReviewCommandStore.for_root(root)
+            review_store = HumanReviewStore.for_root(root)
+            review = HumanReviewSubmission(
+                source=DevelopmentApiHumanReviewSource(
+                    repo="ni-da-ba/skyforge",
+                    request_id="program-review-0001",
+                    actor="ni-da-ba",
+                    client="operations-console",
+                    submitted_at="2026-09-21T23:40:00Z",
+                ),
+                gate_id="pre-bootstrap-development-platform-gate",
+                artifact_id="platform:pre-bootstrap-gate",
+                source_sha="b" * 40,
+                verdict=HumanReviewVerdict.ACCEPTED,
+                findings=("platform gate reviewed against exact evidence",),
+                positive_findings=("workflow gate criteria demonstrated",),
+                material_delta="Platform-v2 gate evidence snapshot",
+                next_boundary="resume bounded DR-70 repair",
+                deferred_product_work=False,
+            )
+            digest = "d" * 64
+            prepared = prepare_human_review_command(
+                store=command_store,
+                review=review,
+                authority_scope=HumanReviewAuthorityScope.PROGRAM,
+                program_projection_digest=digest,
+            )
+            self.assertEqual(
+                prepared.authority_scope,
+                HumanReviewAuthorityScope.PROGRAM,
+            )
+            self.assertEqual(prepared.roadmap_before_digest, digest)
+            self.assertEqual(prepared.roadmap_after_digest, digest)
+
+            complete = advance_human_review_command(
+                command_store=command_store,
+                review_store=review_store,
+                request_id=review.source.request_id,
+                program_projection_digest=digest,
+            )
+            self.assertEqual(complete.phase, HumanReviewCommandPhase.RECONCILED)
+            self.assertEqual(len(review_store.load().records), 1)
+            self.assertEqual(
+                review_store.load().records[0].review_id,
+                review.review_id,
+            )
+            self.assertFalse(
+                RoadmapAuthorityStore.for_root(root).adapter.path.exists()
+            )
+
+    def test_program_gate_restart_rejects_projection_drift(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            command_store = HumanReviewCommandStore.for_root(root)
+            review_store = HumanReviewStore.for_root(root)
+            review = HumanReviewSubmission(
+                source=DevelopmentApiHumanReviewSource(
+                    repo="ni-da-ba/skyforge",
+                    request_id="program-review-0002",
+                    actor="ni-da-ba",
+                    client="operations-console",
+                    submitted_at="2026-09-21T23:41:00Z",
+                ),
+                gate_id="pre-bootstrap-development-platform-gate",
+                artifact_id="platform:pre-bootstrap-gate",
+                source_sha="b" * 40,
+                verdict=HumanReviewVerdict.ACCEPTED,
+                findings=("reviewed",),
+                positive_findings=(),
+                material_delta="exact platform gate evidence",
+                next_boundary="resume DR-70",
+                deferred_product_work=False,
+            )
+            prepared = prepare_human_review_command(
+                store=command_store,
+                review=review,
+                authority_scope=HumanReviewAuthorityScope.PROGRAM,
+                program_projection_digest="d" * 64,
+            )
+            review_store.capture(review)
+            command_store.put(
+                prepared.with_phase(HumanReviewCommandPhase.REVIEW_PERSISTED)
+            )
+            with self.assertRaisesRegex(ValueError, "program projection changed"):
+                reconcile_pending_human_review_commands(
+                    command_store=command_store,
+                    review_store=review_store,
+                    program_projection_digest="e" * 64,
+                )
 
     def test_legacy_github_review_identity_remains_exact(self):
         import json
