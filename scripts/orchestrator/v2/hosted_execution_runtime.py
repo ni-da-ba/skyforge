@@ -62,6 +62,7 @@ from .hosted_completion import (
     record_completed_managed_task,
     record_completed_no_change_task,
     record_stale_base_task,
+    record_stale_managed_base_task,
 )
 from .hosted_state import HostedStateStore
 from .hosted_worker_scheduler import (
@@ -427,6 +428,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     MANAGED_PR_ADVANCED = "MANAGED_PR_ADVANCED"
     TASK_COMPLETION_RECORDED = "TASK_COMPLETION_RECORDED"
     TASK_STALE_RECORDED = "TASK_STALE_RECORDED"
+    TASK_STALE_MANAGED_RECORDED = "TASK_STALE_MANAGED_RECORDED"
     TASK_COMPLETED = "TASK_COMPLETED"
     BLOCKED = "BLOCKED"
 
@@ -1358,6 +1360,19 @@ class HostedExecutionCoordinator:
             store=OrdinaryEffectStore.for_root(self.root),
             runner=deps.runner,
         )
+        if result.disposition is ManagedLifecycleDisposition.STALE_MANAGED_BASE:
+            terminal = record_stale_managed_base_task(
+                root=self.root,
+                handoff_digest=handoff.digest,
+                lifecycle_digest=result.digest,
+                plan_id=plan.plan_id,
+            )
+            return HostedExecutionAdvanceResult(
+                HostedExecutionAdvanceDisposition.TASK_STALE_MANAGED_RECORDED,
+                terminal.reason,
+                self.gate.digest,
+                terminal.record.completion_id if terminal.record is not None else "",
+            )
         if result.disposition is ManagedLifecycleDisposition.COMPLETE:
             completion = record_completed_managed_task(
                 root=self.root,

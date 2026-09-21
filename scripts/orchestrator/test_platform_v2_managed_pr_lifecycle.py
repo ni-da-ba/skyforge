@@ -76,6 +76,8 @@ class FakeGitHub:
         self.view_calls = 0
         self.commands = []
         self.flip_review_after_views = None
+        self.current_base = BASE
+        self.fail_base_truth = False
 
     def _pr(self):
         self.view_calls += 1
@@ -102,6 +104,12 @@ class FakeGitHub:
     def __call__(self, args, **kwargs):
         command = tuple(args)
         self.commands.append(command)
+        if command == (
+            "gh", "api", "repos/ni-da-ba/skyforge/commits/main", "--jq", ".sha"
+        ):
+            if self.fail_base_truth:
+                raise subprocess.CalledProcessError(1, args, stderr="network unavailable")
+            return FakeResult(self.current_base + "\n")
         if args[:3] == ["gh", "pr", "view"]:
             return FakeResult(json.dumps(self._pr()))
         if args[:3] == ["gh", "pr", "diff"]:
@@ -212,11 +220,16 @@ class ManagedLifecycleTest(unittest.TestCase):
             remote.draft = False
             remote.state = "MERGED"
             remote.merged_at = "2026-09-18T04:10:00Z"
+            remote.current_base = "f" * 40
 
             result = self.advance(root, remote)
             self.assertEqual(result.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 0)
             self.assertEqual(remote.merge_calls, 0)
+            self.assertNotIn(
+                ("gh", "api", "repos/ni-da-ba/skyforge/commits/main", "--jq", ".sha"),
+                remote.commands,
+            )
             self.assertEqual(
                 OrdinaryEffectStore.for_root(root)
                 .load()
@@ -224,6 +237,37 @@ class ManagedLifecycleTest(unittest.TestCase):
                 .status,
                 EffectStatus.COMPLETE,
             )
+
+    def test_open_managed_pr_with_advanced_frozen_base_terminalizes_without_mutation(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            remote = FakeGitHub()
+            remote.current_base = "f" * 40
+
+            result = self.advance(root, remote)
+
+            self.assertEqual(
+                result.disposition,
+                ManagedLifecycleDisposition.STALE_MANAGED_BASE,
+            )
+            self.assertEqual(result.current_base_sha, "f" * 40)
+            self.assertEqual(remote.ready_calls, 0)
+            self.assertEqual(remote.merge_calls, 0)
+            self.assertEqual(OrdinaryEffectStore.for_root(root).load().records, ())
+
+    def test_managed_pr_base_truth_ambiguity_blocks_without_mutation(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            remote = FakeGitHub()
+            remote.fail_base_truth = True
+
+            result = self.advance(root, remote)
+
+            self.assertEqual(result.disposition, ManagedLifecycleDisposition.BLOCKED)
+            self.assertIn("base truth unavailable", result.reason)
+            self.assertEqual(remote.ready_calls, 0)
+            self.assertEqual(remote.merge_calls, 0)
+            self.assertEqual(OrdinaryEffectStore.for_root(root).load().records, ())
 
     def test_human_gate_pending_ci_failure_and_drift_do_not_mutate(self):
         cases = []
@@ -279,6 +323,33 @@ class ManagedLifecycleTest(unittest.TestCase):
             self.assertNotEqual(result.disposition, ManagedLifecycleDisposition.COMPLETE)
             self.assertEqual(remote.ready_calls, 1)
             self.assertEqual(remote.merge_calls, 0)
+
+    def test_merge_adapter_rechecks_base_inside_mutation_boundary(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            remote = FakeGitHub()
+            remote.draft = False
+            remote.current_base = "f" * 40
+            identity = handoff().scope.merge_identity(904)
+            result = advance_remote_effect(
+                store=OrdinaryEffectStore.for_root(root),
+                identity=identity,
+                adapter=ManagedLifecycleEffectAdapter(
+                    root=root,
+                    handoff=handoff(),
+                    identity=identity,
+                    runner=remote,
+                ),
+            )
+            self.assertEqual(
+                result.disposition,
+                OrdinaryEffectExecutionDisposition.STALE_BASE,
+            )
+            self.assertEqual(remote.merge_calls, 0)
+            self.assertEqual(
+                OrdinaryEffectStore.for_root(root).load().get(identity).status,
+                EffectStatus.ABANDONED,
+            )
 
     def test_merge_adapter_rechecks_full_truth_inside_execute_boundary(self):
         with tempfile.TemporaryDirectory() as td:

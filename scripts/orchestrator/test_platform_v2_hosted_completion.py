@@ -28,6 +28,7 @@ from v2.hosted_completion import (
     HostedCompletionStore,
     advance_hosted_completion_cleanup,
     record_completed_managed_task,
+    record_stale_managed_base_task,
 )
 from v2.hosted_execution_runtime import (
     HostedExecutionAdvanceDisposition,
@@ -318,6 +319,89 @@ class HostedCompletionTest(unittest.TestCase):
             self.assertEqual(status, 202)
             self.assertTrue(response["semantic_replay_suppressed"])
             self.assertEqual(restarted.store.load().inbox.pending_events, ())
+
+    def test_stale_managed_base_cleanup_preserves_forcing_evidence_and_allows_revision(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            app, gate, handoff = self._reach_handoff(root)
+            admission = HostedAdmissionStore.for_root(root).load().record
+            plan = HostedTaskPlanStore.for_root(root).load().active
+            commit = DormantHandoffCommitStore.for_root(root).load().for_attempt(
+                admission.attempt.attempt_id
+            )
+            effects_before = OrdinaryEffectStore.for_root(root).load().records
+            pipelines_before = OrdinaryPipelineStore.for_root(root).load().records
+
+            recorded = record_stale_managed_base_task(
+                root=root,
+                handoff_digest=handoff.digest,
+                lifecycle_digest="stale-managed-lifecycle-fixture",
+            )
+            self.assertEqual(recorded.disposition, HostedCompletionDisposition.RECORDED)
+            self.assertEqual(
+                recorded.record.outcome,
+                HostedCompletionOutcome.STALE_MANAGED_BASE,
+            )
+
+            cleaned = advance_hosted_completion_cleanup(root=root)
+            self.assertEqual(cleaned.disposition, HostedCompletionDisposition.CLEANED)
+            self.assertEqual(
+                cleaned.record.outcome,
+                HostedCompletionOutcome.STALE_MANAGED_BASE,
+            )
+            self.assertIsNone(HostedTaskPlanStore.for_root(root).load().active)
+            self.assertIsNone(HostedAdmissionStore.for_root(root).load().record)
+            self.assertEqual(ConcurrencyClaimStore.for_root(root).load().active, ())
+            self.assertEqual(
+                DormantHandoffCommitStore.for_root(root).load().for_attempt(
+                    admission.attempt.attempt_id
+                ),
+                commit,
+            )
+            self.assertEqual(OrdinaryEffectStore.for_root(root).load().records, effects_before)
+            self.assertEqual(OrdinaryPipelineStore.for_root(root).load().records, pipelines_before)
+            self.assertEqual(
+                OrdinaryPipelineStore.for_root(root).load().reconstructible_managed_handoffs()[0].digest,
+                handoff.digest,
+            )
+
+            restarted = self._runtime(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c27-stale-managed-replay")
+            status, response = restarted.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["semantic_replay_suppressed"])
+
+            revised = task_payload()
+            revised["comment"]["id"] = 12349
+            revised["comment"]["created_at"] = "2026-09-18T03:03:00Z"
+            revised["comment"]["updated_at"] = "2026-09-18T03:03:00Z"
+            revised["comment"]["body"] = revised["comment"]["body"].replace(
+                "Implement bounded feature", "Implement bounded feature after stale managed base"
+            )
+            raw2, headers2 = signed(revised, delivery="r5c27-stale-managed-revision")
+            status2, response2 = restarted.handle_webhook(headers=headers2, raw=raw2)
+            self.assertEqual(status2, 202)
+            self.assertTrue(response2["task_authority_recorded"])
+            self.assertFalse(response2["semantic_replay_suppressed"])
+
+            deps = HostedExecutionDependencies(
+                classifier_provider=FakeClassifier(),
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                worker_config=WorkerProviderConfig(WorkerTier.LUNA, "fixture-worker", "low"),
+                runner=CompositeReadRunner(gate.accepted_main_sha),
+            )
+            claimed = restarted.advance_one_execution_step(deps)
+            self.assertEqual(
+                claimed.disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertNotEqual(
+                HostedTaskPlanStore.for_root(root).load().active.event_id,
+                plan.event_id,
+            )
 
     def test_completion_cleanup_holds_runtime_lock_against_webhook_stale_state_overwrite(self):
         with tempfile.TemporaryDirectory() as td:
