@@ -36,7 +36,6 @@ The CLI emits structured JSON so automation can consume the same result. For a h
 
 **Do not infer success from a long event list.** The operator decision comes from `disposition`, `blockers`, writer authority, and the exact SHA.
 
-
 ## Non-negotiable authority invariant
 
 Forward transition:
