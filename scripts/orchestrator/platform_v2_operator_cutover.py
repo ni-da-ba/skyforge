@@ -7,7 +7,7 @@ import argparse
 import json
 from pathlib import Path
 
-from v2.operator_cutover import OperatorCutoverController, OperatorDisposition
+from v2.operator_cutover import AuthorityTransferSpec, OperatorCutoverController, OperatorDisposition
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -19,12 +19,18 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "cutover",
             "rollback",
             "transfer-authority",
+            "transfer-authority-batch",
             "retire-v2-authority",
         ),
     )
     parser.add_argument("--root", type=Path, default=Path.cwd())
     parser.add_argument("--activation-template", type=Path)
     parser.add_argument("--event-key")
+    parser.add_argument(
+        "--batch-manifest",
+        type=Path,
+        help="JSON manifest containing the exact full protected-authority transfer set.",
+    )
     parser.add_argument("--issue-number", type=int)
     parser.add_argument("--source-id")
     parser.add_argument(
@@ -52,6 +58,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             parser.error(
                 f"{args.command} requires --event-key, --issue-number, and --source-id"
             )
+    if args.command == "transfer-authority-batch" and args.batch_manifest is None:
+        parser.error("transfer-authority-batch requires --batch-manifest")
     return args
 
 
@@ -75,6 +83,15 @@ def main(argv: list[str] | None = None) -> int:
             signal_kind=args.signal_kind,
             execute=args.execute,
         )
+    elif args.command == "transfer-authority-batch":
+        raw = json.loads(args.batch_manifest.read_text(encoding="utf-8"))
+        if not isinstance(raw, dict) or raw.get("schema_version") != 1:
+            raise SystemExit("batch manifest must be a schema_version=1 JSON object")
+        values = raw.get("authorities")
+        if not isinstance(values, list) or not values:
+            raise SystemExit("batch manifest authorities must be a non-empty list")
+        specs = tuple(AuthorityTransferSpec.from_mapping(value) for value in values)
+        report = controller.transfer_authorities(specs=specs, execute=args.execute)
     elif args.command == "retire-v2-authority":
         report = controller.retire_v2_authority(
             event_key=args.event_key,

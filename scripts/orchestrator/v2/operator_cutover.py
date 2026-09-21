@@ -125,6 +125,40 @@ class OperatorReport:
 
 
 @dataclass(frozen=True)
+class AuthorityTransferSpec:
+    event_key: str
+    issue_number: int
+    source_id: str
+    signal_kind: str = "task"
+
+    @classmethod
+    def from_mapping(cls, raw: Mapping[str, Any]) -> "AuthorityTransferSpec":
+        if not isinstance(raw, Mapping):
+            raise ValueError("authority transfer spec must be an object")
+        event_key = str(raw.get("event_key") or "").strip()
+        issue_number = raw.get("issue_number")
+        source_id = str(raw.get("source_id") or "").strip()
+        signal_kind = str(raw.get("signal_kind") or "task").strip()
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", event_key):
+            raise ValueError("authority transfer event_key must be canonical sha256 identity")
+        if isinstance(issue_number, bool) or not isinstance(issue_number, int) or issue_number <= 0:
+            raise ValueError("authority transfer issue_number must be positive integer")
+        if not source_id:
+            raise ValueError("authority transfer source_id is required")
+        if signal_kind not in PROTECTED_AUTHORITY_SIGNAL_KINDS:
+            raise ValueError("authority transfer signal_kind must be protected")
+        return cls(event_key, issue_number, source_id, signal_kind)
+
+    def as_dict(self) -> dict[str, object]:
+        return {
+            "event_key": self.event_key,
+            "issue_number": self.issue_number,
+            "source_id": self.source_id,
+            "signal_kind": self.signal_kind,
+        }
+
+
+@dataclass(frozen=True)
 class ActivationTemplate:
     raw_production_input: Mapping[str, Any]
     production_input_digest: str
@@ -841,6 +875,302 @@ class OperatorCutoverController:
         except Exception as exc:
             blockers.append(f"legacy authority preflight failed: {type(exc).__name__}: {exc}")
         return blockers, already_transferred
+
+    def _batch_transfer_preflight(
+        self,
+        specs: tuple[AuthorityTransferSpec, ...],
+    ) -> tuple[list[str], bool]:
+        blockers: list[str] = []
+        if not specs:
+            return ["authority transfer batch must not be empty"], False
+        identities = [
+            (spec.event_key, spec.issue_number, spec.source_id, spec.signal_kind)
+            for spec in specs
+        ]
+        if len(set(identities)) != len(identities):
+            blockers.append("authority transfer batch contains duplicate identities")
+
+        try:
+            legacy, v2 = self._observations()
+            if not legacy.loaded:
+                blockers.append("legacy systemd service is not loaded")
+            if not v2.loaded:
+                blockers.append("Platform-v2 systemd service is not loaded")
+            if not legacy.active:
+                blockers.append("legacy writer must be active before authority transfer")
+            if v2.active:
+                blockers.append("Platform-v2 writer must be inactive before authority transfer")
+        except Exception as exc:
+            blockers.append(f"service observation failed: {type(exc).__name__}: {exc}")
+
+        try:
+            health = self.health_probe()
+            if health.get("status") != "ok":
+                blockers.append("legacy health endpoint is not healthy")
+            if health.get("paused") is not True:
+                blockers.append("legacy controller must be paused before authority transfer")
+            if health.get("pending_worker"):
+                blockers.append("legacy worker is in flight")
+            if health.get("pending_decision"):
+                blockers.append("legacy pending decision is in flight")
+        except Exception as exc:
+            blockers.append(f"legacy health preflight failed: {type(exc).__name__}: {exc}")
+
+        already_flags: list[bool] = []
+        try:
+            state_path, _backup_path = _legacy_state_paths(self.root)
+            raw = _load_json_mapping(state_path, "legacy state")
+            if raw.get("paused") is not True:
+                blockers.append("legacy durable state is not paused")
+            if raw.get("pending_worker"):
+                blockers.append("legacy durable state has a pending worker")
+            if raw.get("pending_decision"):
+                blockers.append("legacy durable state has a pending decision")
+            protected = tuple(
+                event
+                for event in _legacy_pending_events(raw)
+                if event.signal_kind in PROTECTED_AUTHORITY_SIGNAL_KINDS
+            )
+            targets: list[DurableEvent] = []
+            for spec in specs:
+                target, _all_protected, already = _find_transfer_target(
+                    raw,
+                    event_key=spec.event_key,
+                    issue_number=spec.issue_number,
+                    source_id=spec.source_id,
+                    signal_kind=spec.signal_kind,
+                )
+                already_flags.append(already)
+                if target is not None:
+                    targets.append(target)
+            if any(already_flags) and not all(already_flags):
+                blockers.append("authority transfer batch is only partially already transferred")
+            elif all(already_flags):
+                if protected:
+                    blockers.append(
+                        "already-transferred batch cannot coexist with pending protected authority"
+                    )
+            else:
+                pending_ids = {event.event_id for event in protected}
+                target_ids = {event.event_id for event in targets}
+                if len(targets) != len(specs) or target_ids != pending_ids:
+                    blockers.append(
+                        "authority transfer batch must exactly match all pending protected legacy authority"
+                    )
+        except Exception as exc:
+            blockers.append(f"legacy authority preflight failed: {type(exc).__name__}: {exc}")
+        return blockers, bool(already_flags) and all(already_flags)
+
+    def _retire_legacy_authorities_for_v2(
+        self,
+        specs: tuple[AuthorityTransferSpec, ...],
+    ) -> tuple[Mapping[str, Any], ...]:
+        state_path, backup_path = _legacy_state_paths(self.root)
+        raw = _load_json_mapping(state_path, "legacy state")
+        if raw.get("paused") is not True:
+            raise RuntimeError("legacy durable state is not paused")
+        if raw.get("pending_worker") or raw.get("pending_decision"):
+            raise RuntimeError("legacy has in-flight worker/decision authority")
+
+        protected = tuple(
+            event
+            for event in _legacy_pending_events(raw)
+            if event.signal_kind in PROTECTED_AUTHORITY_SIGNAL_KINDS
+        )
+        targets: list[tuple[AuthorityTransferSpec, DurableEvent]] = []
+        for spec in specs:
+            target, _all_protected, already = _find_transfer_target(
+                raw,
+                event_key=spec.event_key,
+                issue_number=spec.issue_number,
+                source_id=spec.source_id,
+                signal_kind=spec.signal_kind,
+            )
+            if already:
+                raise RuntimeError("authority batch contains already-transferred identity")
+            assert target is not None
+            targets.append((spec, target))
+        if {event.event_id for event in protected} != {event.event_id for _, event in targets}:
+            raise RuntimeError("authority transfer batch no longer matches pending protected authority")
+
+        retired = [
+            normalize_legacy_event_key(value)
+            for value in (raw.get("retired_event_keys") or [])
+            if str(value or "")
+        ]
+        target_ids = {spec.event_key for spec, _ in targets}
+        for event_key in target_ids:
+            if event_key not in retired:
+                retired.append(event_key)
+        raw["retired_event_keys"] = retired[-LEGACY_MAX_RETIRED_EVENT_KEYS:]
+        raw["pending_events"] = [
+            value
+            for value in (raw.get("pending_events") or [])
+            if DurableEvent.from_legacy_mapping(value).event_id not in target_ids
+        ]
+
+        at = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        transfers: list[Mapping[str, Any]] = []
+        for spec, target in targets:
+            transfers.append({
+                "schema_version": 1,
+                "at": at,
+                "event_key": spec.event_key,
+                "issue_number": spec.issue_number,
+                "source_id": spec.source_id,
+                "event": target.event,
+                "action": target.action,
+                "signal_kind": target.signal_kind,
+                "signal_text_digest": canonical_digest(str(target.signal_text or "")),
+                "disposition": "RETIRED_FOR_PLATFORM_V2_TRANSFER",
+                "completed": False,
+            })
+        prior = list(raw.get("platform_v2_authority_transfers") or [])
+        prior.extend(transfers)
+        raw["platform_v2_authority_transfers"] = prior[-50:]
+        raw["last_platform_v2_authority_transfer"] = transfers[-1]
+
+        primary_stat = state_path.stat()
+        _atomic_write_json_preserving_metadata(state_path, raw)
+        _atomic_write_json_preserving_metadata(
+            backup_path,
+            raw,
+            fallback_stat=primary_stat,
+        )
+        return tuple(transfers)
+
+    def transfer_authorities(
+        self,
+        *,
+        specs: tuple[AuthorityTransferSpec, ...],
+        execute: bool = False,
+    ) -> OperatorReport:
+        accepted_main = self._rollback_accepted_main()
+        blockers, already_transferred = self._batch_transfer_preflight(specs)
+        if blockers:
+            return OperatorReport(
+                OperatorDisposition.BLOCKED,
+                WriterAuthority.LEGACY,
+                tuple(blockers),
+                accepted_main,
+            )
+        detail = canonical_digest([spec.as_dict() for spec in specs])
+        if not execute:
+            return OperatorReport(
+                OperatorDisposition.AUTHORITY_TRANSFER_READY,
+                WriterAuthority.LEGACY,
+                (),
+                accepted_main,
+                (
+                    OperatorEvent(
+                        1,
+                        "AUTHORITY_BATCH_ALREADY_TRANSFERRED"
+                        if already_transferred
+                        else "AUTHORITY_BATCH_TRANSFER_PREFLIGHT",
+                        WriterAuthority.LEGACY,
+                        detail,
+                    ),
+                ),
+            )
+        if self.geteuid() != 0:
+            return OperatorReport(
+                OperatorDisposition.BLOCKED,
+                WriterAuthority.LEGACY,
+                ("live authority transfer requires a root operator",),
+                accepted_main,
+            )
+        if already_transferred:
+            try:
+                for spec in specs:
+                    self._verify_transferred_legacy_health(event_key=spec.event_key)
+            except Exception as exc:
+                return OperatorReport(
+                    OperatorDisposition.FAILED_SAFE_LEGACY,
+                    WriterAuthority.LEGACY,
+                    (f"{type(exc).__name__}: {exc}",),
+                    accepted_main,
+                )
+            return OperatorReport(
+                OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE,
+                WriterAuthority.LEGACY,
+                (),
+                accepted_main,
+                (OperatorEvent(1, "AUTHORITY_BATCH_ALREADY_TRANSFERRED", WriterAuthority.LEGACY, detail),),
+            )
+
+        events: list[OperatorEvent] = []
+        authority = WriterAuthority.LEGACY
+        def record(kind: str, detail_value: str = "") -> None:
+            events.append(OperatorEvent(len(events) + 1, kind, authority, detail_value))
+        try:
+            self.services.stop(LEGACY_SERVICE)
+            self._wait_service(LEGACY_SERVICE, active=False)
+            authority = WriterAuthority.NONE
+            if self.services.observe(V2_SERVICE).active:
+                raise RuntimeError("Platform-v2 became active during authority transfer")
+            record("AUTHORITY_BATCH_TRANSFER_WRITER_NONE", "legacy writer observably inactive")
+
+            transfers = self._retire_legacy_authorities_for_v2(specs)
+            record(
+                "AUTHORITIES_RETIRED_FOR_V2_TRANSFER",
+                json.dumps(list(transfers), sort_keys=True),
+            )
+
+            self.services.start(LEGACY_SERVICE)
+            self._wait_service(LEGACY_SERVICE, active=True)
+            if self.services.observe(V2_SERVICE).active:
+                raise RuntimeError("Platform-v2 became active while legacy restarted")
+            authority = WriterAuthority.LEGACY
+            for spec in specs:
+                self._verify_transferred_legacy_health(event_key=spec.event_key)
+            record(
+                "AUTHORITY_BATCH_TRANSFER_LEGACY_READY",
+                "startup reconciliation preserved all transfer suppressions",
+            )
+            return OperatorReport(
+                OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE,
+                authority,
+                (),
+                accepted_main,
+                tuple(events),
+            )
+        except Exception as exc:
+            try:
+                legacy_now, v2_now = self._observations()
+                if v2_now.active:
+                    return OperatorReport(
+                        OperatorDisposition.BLOCKED,
+                        WriterAuthority.NONE,
+                        (
+                            f"authority batch transfer failed: {type(exc).__name__}: {exc}",
+                            "Platform-v2 unexpectedly active; manual incident handling required",
+                        ),
+                        accepted_main,
+                        tuple(events),
+                    )
+                if legacy_now.active:
+                    self.services.stop(LEGACY_SERVICE)
+                    self._wait_service(LEGACY_SERVICE, active=False)
+                authority = WriterAuthority.NONE
+                record("AUTHORITY_BATCH_TRANSFER_FAILED_SAFE_NONE", f"{type(exc).__name__}: {exc}")
+                return OperatorReport(
+                    OperatorDisposition.FAILED_SAFE_NONE,
+                    authority,
+                    (f"{type(exc).__name__}: {exc}",),
+                    accepted_main,
+                    tuple(events),
+                )
+            except Exception as observe_exc:
+                return OperatorReport(
+                    OperatorDisposition.BLOCKED,
+                    WriterAuthority.NONE,
+                    (
+                        f"authority batch transfer failed: {type(exc).__name__}: {exc}",
+                        f"post-failure observation failed: {type(observe_exc).__name__}: {observe_exc}",
+                    ),
+                    accepted_main,
+                    tuple(events),
+                )
 
     def _retire_legacy_authority_for_v2(
         self,

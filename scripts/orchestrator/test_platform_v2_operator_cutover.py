@@ -19,6 +19,7 @@ from v2.events import DurableEvent
 from v2.operator_cutover import (
     LEGACY_SERVICE,
     V2_SERVICE,
+    AuthorityTransferSpec,
     OperatorCutoverController,
     OperatorDisposition,
     ServiceObservation,
@@ -627,6 +628,109 @@ class OperatorCutoverTest(unittest.TestCase):
         self.assertEqual(report.disposition, OperatorDisposition.BLOCKED)
         self.assertTrue(any("other protected legacy authority" in value for value in report.blockers))
         self.assertEqual(services.log, [])
+
+    def test_authority_batch_transfer_retires_exact_full_set_and_preserves_ordinary_events(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        first = task_event(issue=916, source_id="source-one", text="AUDIT NEW TASK one")
+        second = task_event(issue=917, source_id="source-two", text="AUDIT NEW TASK two")
+        ordinary = DurableEvent(
+            actionable=True,
+            reason="repository state changed",
+            event="reconcile",
+            action="startup",
+            head_sha="a" * 40,
+        )
+        state, backup = write_legacy_transfer_state(root, first, second, ordinary)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+        specs = (
+            AuthorityTransferSpec(first.event_id, 916, "source-one", "task"),
+            AuthorityTransferSpec(second.event_id, 917, "source-two", "task"),
+        )
+
+        preflight = controller.transfer_authorities(specs=specs, execute=False)
+        self.assertEqual(preflight.disposition, OperatorDisposition.AUTHORITY_TRANSFER_READY)
+        self.assertEqual(services.log, [])
+
+        report = controller.transfer_authorities(specs=specs, execute=True)
+        self.assertEqual(report.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        self.assertEqual(
+            services.log,
+            [("stop", LEGACY_SERVICE), ("start", LEGACY_SERVICE)],
+        )
+        raw = json.loads(state.read_text(encoding="utf-8"))
+        pending = [DurableEvent.from_legacy_mapping(value) for value in raw["pending_events"]]
+        self.assertEqual([event.event_id for event in pending], [ordinary.event_id])
+        for event in (first, second):
+            self.assertIn(event.event_id, raw["retired_event_keys"])
+            self.assertNotIn(event.event_id, raw["completed_authority_event_keys"])
+        transfers = raw["platform_v2_authority_transfers"]
+        self.assertEqual({item["event_key"] for item in transfers}, {first.event_id, second.event_id})
+        self.assertTrue(all(item["completed"] is False for item in transfers))
+        self.assertEqual(json.loads(backup.read_text(encoding="utf-8")), raw)
+
+        before = list(services.log)
+        replay = controller.transfer_authorities(specs=specs, execute=True)
+        self.assertEqual(replay.disposition, OperatorDisposition.AUTHORITY_TRANSFER_COMPLETE)
+        self.assertEqual(replay.events[0].kind, "AUTHORITY_BATCH_ALREADY_TRANSFERRED")
+        self.assertEqual(services.log, before)
+
+    def test_authority_batch_transfer_requires_exact_full_protected_set(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        first = task_event(issue=916, source_id="source-one", text="AUDIT NEW TASK one")
+        second = task_event(issue=917, source_id="source-two", text="AUDIT NEW TASK two")
+        write_legacy_transfer_state(root, first, second)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+
+        missing = controller.transfer_authorities(
+            specs=(AuthorityTransferSpec(first.event_id, 916, "source-one", "task"),),
+            execute=True,
+        )
+        self.assertEqual(missing.disposition, OperatorDisposition.BLOCKED)
+        self.assertTrue(any("exactly match all pending protected" in value for value in missing.blockers))
+
+        wrong = controller.transfer_authorities(
+            specs=(
+                AuthorityTransferSpec(first.event_id, 916, "wrong-source", "task"),
+                AuthorityTransferSpec(second.event_id, 917, "source-two", "task"),
+            ),
+            execute=True,
+        )
+        self.assertEqual(wrong.disposition, OperatorDisposition.BLOCKED)
+
+        duplicate = controller.transfer_authorities(
+            specs=(
+                AuthorityTransferSpec(first.event_id, 916, "source-one", "task"),
+                AuthorityTransferSpec(first.event_id, 916, "source-one", "task"),
+            ),
+            execute=True,
+        )
+        self.assertEqual(duplicate.disposition, OperatorDisposition.BLOCKED)
+        self.assertTrue(any("duplicate identities" in value for value in duplicate.blockers))
+        self.assertEqual(services.log, [])
+
+    def test_authority_batch_transfer_verification_failure_returns_to_none(self):
+        td, root, _main, _template, _evidence, services, controller = self.build()
+        self.addCleanup(td.cleanup)
+        first = task_event(issue=916, source_id="source-one", text="AUDIT NEW TASK one")
+        second = task_event(issue=917, source_id="source-two", text="AUDIT NEW TASK two")
+        write_legacy_transfer_state(root, first, second)
+        controller.health_probe = lambda: legacy_transfer_health(root)
+        controller._verify_transferred_legacy_health = lambda **_kwargs: (_ for _ in ()).throw(
+            RuntimeError("injected batch verification failure")
+        )
+        specs = (
+            AuthorityTransferSpec(first.event_id, 916, "source-one", "task"),
+            AuthorityTransferSpec(second.event_id, 917, "source-two", "task"),
+        )
+
+        report = controller.transfer_authorities(specs=specs, execute=True)
+        self.assertEqual(report.disposition, OperatorDisposition.FAILED_SAFE_NONE)
+        self.assertEqual(report.authority, WriterAuthority.NONE)
+        self.assertFalse(services.state[LEGACY_SERVICE]["active"])
+        self.assertFalse(services.state[V2_SERVICE]["active"])
+        self.assertEqual(report.events[-1].kind, "AUTHORITY_BATCH_TRANSFER_FAILED_SAFE_NONE")
 
     def test_authority_transfer_is_idempotent_after_success(self):
         td, root, _main, _template, _evidence, services, controller = self.build()
