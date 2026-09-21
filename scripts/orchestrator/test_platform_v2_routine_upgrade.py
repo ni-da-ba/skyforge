@@ -13,6 +13,7 @@ from test_platform_v2_operator_cutover import (
     write_template,
 )
 from v2.cutover import WriterAuthority
+from v2.events import DurableEvent
 from v2.operator_cutover import (
     LEGACY_SERVICE,
     V2_SERVICE,
@@ -57,6 +58,16 @@ def write_quiescent_legacy_state(root: Path, *, events=()) -> Path:
     state.write_text(payload, encoding="utf-8")
     backup.write_text(payload, encoding="utf-8")
     return state
+
+
+def ordinary_reconcile_event(*, source: str = "periodic") -> DurableEvent:
+    return DurableEvent(
+        actionable=True,
+        reason="repository state changed since previous controller observation",
+        event="reconcile",
+        action=source,
+        head_sha="e" * 40,
+    )
 
 
 class RoutineUpgradeTest(unittest.TestCase):
@@ -132,6 +143,67 @@ class RoutineUpgradeTest(unittest.TestCase):
         self.assertEqual(services.state, service_before)
         self.assertEqual(git(root, "rev-parse", "HEAD"), target)
         self.assertTrue(template.is_file())
+
+    def test_read_only_plan_allows_only_model_free_reconcile_noise(self):
+        td, root, _accepted, target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        write_quiescent_legacy_state(
+            root,
+            events=(ordinary_reconcile_event(),),
+        )
+
+        report = controller.upgrade(target, execute=False)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.READY)
+        self.assertEqual(report.authority, WriterAuthority.V2)
+
+    def test_read_only_plan_rejects_other_ordinary_pending_work(self):
+        td, root, _accepted, target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        other = DurableEvent(
+            actionable=True,
+            reason="workflow completed",
+            event="workflow_run",
+            action="completed",
+            source_id="ordinary-work",
+        )
+        write_quiescent_legacy_state(root, events=(other,))
+
+        report = controller.upgrade(target, execute=False)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.BLOCKED)
+        self.assertTrue(
+            any("not bounded model-free reconcile noise" in item for item in report.blockers)
+        )
+
+    def test_upgrade_waits_for_model_free_reconcile_after_rollback(self):
+        td, root, _accepted, target, _template, _evidence, _state, _services, operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        real_rollback = operator.rollback
+        sleeps = []
+
+        def rollback_with_reconcile(*, execute=False):
+            report = real_rollback(execute=execute)
+            if execute and report.disposition is OperatorDisposition.ROLLBACK_COMPLETE:
+                write_quiescent_legacy_state(
+                    root,
+                    events=(ordinary_reconcile_event(),),
+                )
+            return report
+
+        def drain_on_sleep(seconds):
+            sleeps.append(seconds)
+            write_quiescent_legacy_state(root)
+
+        operator.rollback = rollback_with_reconcile
+        operator.sleep = drain_on_sleep
+
+        report = controller.upgrade(target, execute=True)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.COMPLETE)
+        self.assertEqual(report.authority, WriterAuthority.V2)
+        self.assertTrue(sleeps)
+        self.assertEqual(git(root, "rev-parse", "HEAD"), target)
 
     def test_successful_upgrade_rebuilds_template_and_restores_exclusive_v2(self):
         td, root, accepted, target, template, evidence, _state, services, _operator, controller = self.build()
