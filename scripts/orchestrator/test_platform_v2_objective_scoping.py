@@ -148,12 +148,21 @@ class IssueRunner:
     def __init__(self):
         self.issue = None
         self.create_calls = 0
+        self.list_calls = 0
+
+    def assert_supported_issue_list_command(self, command):
+        self.list_calls += 1
+        if "--slurp" in command:
+            raise AssertionError("deployed gh CLI does not support --slurp")
+        if "--paginate" not in command or "--jq" not in command:
+            raise AssertionError("issue discovery must remain paginated and bounded to exact fields")
 
     def __call__(self, args, **kwargs):
         command = tuple(args)
         if command[:3] == ("gh", "api", "repos/ni-da-ba/skyforge/issues?state=all&per_page=100"):
-            page = [] if self.issue is None else [self.issue]
-            return subprocess.CompletedProcess(args, 0, stdout=json.dumps([page]), stderr="")
+            self.assert_supported_issue_list_command(command)
+            output = "" if self.issue is None else json.dumps(self.issue) + "\n"
+            return subprocess.CompletedProcess(args, 0, stdout=output, stderr="")
         if command[:4] == ("gh", "api", "--method", "POST"):
             self.create_calls += 1
             title = next(value.removeprefix("title=") for value in args if value.startswith("title="))

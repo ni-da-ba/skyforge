@@ -431,7 +431,14 @@ def _issue_body(parent: ObjectiveProposalRecord, record: ObjectiveScopeRecord) -
 
 
 def _issue_list_command(repo: str) -> tuple[str, ...]:
-    return ("gh", "api", f"repos/{repo}/issues?state=all&per_page=100", "--paginate", "--slurp")
+    return (
+        "gh",
+        "api",
+        f"repos/{repo}/issues?state=all&per_page=100",
+        "--paginate",
+        "--jq",
+        ".[] | {number: .number, title: .title, body: .body}",
+    )
 
 
 def _issue_create_command(repo: str, title: str, body: str) -> tuple[str, ...]:
@@ -471,18 +478,18 @@ def observe_scoped_issue(
 ) -> int | None:
     command = _issue_list_command(repo)
     output = _run_exact(root=root, args=command, expected=command, runner=runner)
-    try:
-        pages = json.loads(output or "[]")
-    except json.JSONDecodeError as exc:
-        raise ValueError("objective issue observation returned malformed JSON") from exc
     items: list[Mapping[str, Any]] = []
-    if not isinstance(pages, list):
-        raise ValueError("objective issue observation returned malformed shape")
-    for page in pages:
-        if isinstance(page, list):
-            items.extend(item for item in page if isinstance(item, Mapping))
-        elif isinstance(page, Mapping):
-            items.append(page)
+    for line in output.splitlines():
+        text = line.strip()
+        if not text:
+            continue
+        try:
+            item = json.loads(text)
+        except json.JSONDecodeError as exc:
+            raise ValueError("objective issue observation returned malformed JSON line") from exc
+        if not isinstance(item, Mapping):
+            raise ValueError("objective issue observation returned malformed shape")
+        items.append(item)
     marker = _issue_marker(scope_digest)
     marked = [item for item in items if marker in str(item.get("body") or "")]
     if not marked:
