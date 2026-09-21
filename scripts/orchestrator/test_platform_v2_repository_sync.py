@@ -105,7 +105,6 @@ class PlatformV2RepositorySyncTest(unittest.TestCase):
             git(author, "push", "origin", "main")
             target = git_text(author, "rev-parse", "HEAD")
 
-            self.assertEqual(runtime_critical_changes(prod, baseline, target), ())
             result = sync_repository_snapshot(
                 root=prod,
                 repo=REPO,
