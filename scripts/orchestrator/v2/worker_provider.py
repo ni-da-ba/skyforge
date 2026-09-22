@@ -392,11 +392,11 @@ def _patch_paths(patch: str) -> tuple[str, ...]:
     for line in patch.splitlines():
         if not line.startswith("diff --git "):
             continue
-        match = re.fullmatch(r"diff --git a/([^\\t\\r\\n]+) b/([^\\t\\r\\n]+)", line)
+        match = re.fullmatch(r"diff --git a/([^\t\r\n]+) b/([^\t\r\n]+)", line)
         if match is None:
             raise WorkerProviderError("invalid_patch", 0, f"unsupported git patch header: {line[:200]}")
         for raw in match.groups():
-            normalized = raw.replace("\\\\", "/")
+            normalized = raw.replace("\\", "/")
             if (
                 not normalized or normalized.startswith("/")
                 or normalized.startswith("../") or "/../" in normalized
@@ -424,7 +424,7 @@ def _changed_paths(worktree: Path) -> tuple[str, ...]:
         raw = line[2:].lstrip() if len(line) > 2 else line
         if " -> " in raw:
             raw = raw.split(" -> ", 1)[1]
-        normalized = raw.strip().replace("\\\\", "/").lstrip("./")
+        normalized = raw.strip().replace("\\", "/").lstrip("./")
         if normalized:
             paths.add(normalized)
     return tuple(sorted(paths))
