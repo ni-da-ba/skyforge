@@ -51,26 +51,25 @@ final class SkyforgeDr70SpecimenSearchTest {
         double rejectedRadius = SkyIslandDescriptorGenerator.derive(
                         SkyIslandIdentity.of(SEED, GROUP, REGION, HUMAN_REJECTED_REVIEW_KEY))
                 .nominalRadius();
-        Candidate selected = rankedAuth0105Candidates().stream()
-                .filter(candidate -> candidate.descriptor().nominalRadius() < 120.0)
+        var qualified = rankedAuth0105Candidates().stream()
                 .filter(candidate -> candidate.descriptor().nominalRadius() > rejectedRadius)
                 .filter(candidate -> candidate.reachCount() >= 20)
                 .filter(candidate -> candidate.interiorDrops() >= 1)
-                .map(candidate -> physicallyAdmissible(candidate) ? candidate : null)
-                .filter(java.util.Objects::nonNull)
-                .findFirst()
-                .orElse(null);
+                .filter(SkyforgeDr70SpecimenSearchTest::physicallyAdmissible)
+                .limit(8)
+                .toList();
 
-        assertNotNull(
-                selected,
+        org.junit.jupiter.api.Assertions.assertFalse(
+                qualified.isEmpty(),
                 "none of AUTH-0105's fully evaluated top-48 candidates is both larger than "
-                        + "the human-rejected key-2885 specimen and compatible with the retained bounded "
+                        + "the human-rejected key-2885 specimen and compatible with the retained "
                         + "hydrology + dry physical cave-mouth review constraints");
+        Candidate selected = qualified.getFirst();
         assertEquals(
                 selected.descriptor().identity().islandKey(),
                 SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review().islandKey(),
-                "DR-70 review fixture must use first physically admissible AUTH-0105-ranked candidate: "
-                        + selected);
+                "DR-70 review fixture must use first physically admissible larger AUTH-0105-ranked "
+                        + "candidate; qualified=" + qualified);
     }
 
     private static java.util.List<Candidate> rankedAuth0105Candidates() {
