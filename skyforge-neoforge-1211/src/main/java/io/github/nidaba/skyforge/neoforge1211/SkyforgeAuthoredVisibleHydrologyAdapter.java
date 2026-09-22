@@ -11,6 +11,7 @@ import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -177,7 +178,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
-        for (var candidate : candidateColumnDistances(volume, reach).entrySet()) {
+        var candidates = candidateColumnDistances(volume, reach).entrySet().stream()
+                .sorted(Comparator
+                        .comparingInt((java.util.Map.Entry<Column, Double> entry) -> entry.getKey().z())
+                        .thenComparingInt(entry -> entry.getKey().x()))
+                .toList();
+        for (var candidate : candidates) {
             Column column = candidate.getKey();
             SkyIslandLocalPosition local = localPosition(volume, column);
             double distance = candidate.getValue();
