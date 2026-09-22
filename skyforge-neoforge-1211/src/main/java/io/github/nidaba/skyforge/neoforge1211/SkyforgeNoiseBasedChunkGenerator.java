@@ -508,8 +508,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         // pre-decoration native-surface profile: no trees, structures or placed features can be
         // mistaken for terrain representation on a later retry/reload.
         if (SkyforgeDr70HumanReviewAtlasRuntime.enabled()
-                && level instanceof WorldGenRegion region
-                && SkyforgeDr70HumanReviewAtlasRuntime.isSurfaceDonor(region)) {
+                && settings.is(NoiseGeneratorSettings.OVERWORLD)) {
             return;
         }
 

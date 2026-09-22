@@ -81,11 +81,6 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         return Boolean.getBoolean(ENABLE_PROPERTY);
     }
 
-    static boolean isSurfaceDonor(net.minecraft.server.level.WorldGenRegion level) {
-        Objects.requireNonNull(level, "level");
-        return level.getLevel().dimension().location().equals(SURFACE_DONOR_DIMENSION);
-    }
-
     static synchronized void installFromSystemProperty() {
         if (!enabled()) {
             return;
