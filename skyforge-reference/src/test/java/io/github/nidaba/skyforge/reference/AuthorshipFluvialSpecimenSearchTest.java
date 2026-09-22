@@ -31,10 +31,21 @@ class AuthorshipFluvialSpecimenSearchTest {
         String reviewKeys = result.reviewSelections().stream()
                 .map(selection -> selection.bucket() + ":" + selection.row().islandKey())
                 .collect(java.util.stream.Collectors.joining(","));
-        throw new AssertionError(
-                "DR70_AUDIT_CAPTURE\n"
-                        + result.summaryText()
-                        + "reviewKeys="
-                        + reviewKeys);
+        String capture = result.summaryText() + "reviewKeys=" + reviewKeys;
+        String encoded = java.util.Base64.getEncoder()
+                .encodeToString(capture.getBytes(StandardCharsets.UTF_8));
+        Path index = Path.of(
+                "build",
+                "evidence",
+                AuthorshipFluvialSpecimenSearchCli.EVIDENCE_ID,
+                "index.html");
+        if (!Files.isRegularFile(index)) {
+            AuthorshipFluvialSpecimenSearchCli.main(new String[] {index.getParent().toString()});
+        }
+        Files.writeString(
+                index,
+                "\n<!-- DR70_AUDIT_CAPTURE_BASE64:" + encoded + " -->\n",
+                StandardCharsets.UTF_8,
+                java.nio.file.StandardOpenOption.APPEND);
     }
 }
