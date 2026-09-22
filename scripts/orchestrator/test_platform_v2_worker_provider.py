@@ -363,6 +363,25 @@ class CodexProviderAdapterTest(unittest.TestCase):
                 "changed\\n",
             )
 
+    def test_controller_rejects_patch_outside_frozen_scope(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = self.make_patch_repo(root)
+            s = spec(base_sha=base)
+            patch = """diff --git a/outside.txt b/outside.txt
+--- a/outside.txt
++++ b/outside.txt
+@@ -1 +1 @@
+-outside
++forbidden
+"""
+            with self.assertRaisesRegex(WorkerProviderError, "exceeds frozen scope"):
+                _apply_controller_patch(spec=s, worktree=root, patch=patch)
+            self.assertEqual(
+                (root / "outside.txt").read_text(encoding="utf-8"),
+                "outside\\n",
+            )
+
     def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
