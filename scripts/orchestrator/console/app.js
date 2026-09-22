@@ -57,6 +57,13 @@
     INTERRUPTED: "Interrupted",
     ACCEPTED: "Accepted",
     CHANGES_REQUIRED: "Changes required",
+    CHANGES_REQUIRED_DEFERRED: "Changes required · deferred",
+    REVIEW_REQUIRED: "Human review required",
+    STRATEGIC_REVIEW_REQUIRED: "Strategic review required",
+    WORK_IN_PROGRESS: "Work in progress",
+    WAITING_FOR_AUTHORITY: "Waiting for authority",
+    ADVANCING: "Advancing",
+    NO_PRODUCT_REVIEW: "No product review",
     STALE_BASE: "Safely retired — main advanced",
     STALE_MANAGED_BASE: "Stale PR preserved safely",
     BLOCKED: "Blocked",
@@ -76,7 +83,7 @@
   function severityFor(value) {
     const raw = String(value || "").toUpperCase();
     if (["FAILED", "INTERRUPTED", "RECOVERY_REQUIRED", "STOPPED"].includes(raw)) return "bad";
-    if (["BLOCKED", "CHANGES_REQUIRED", "WAIT_LIMIT", "WAIT_CLAIM", "WAIT_QUOTA", "WAIT_CI"].includes(raw)) return "warn";
+    if (["BLOCKED", "CHANGES_REQUIRED", "CHANGES_REQUIRED_DEFERRED", "REVIEW_REQUIRED", "STRATEGIC_REVIEW_REQUIRED", "WAITING_FOR_AUTHORITY", "WAIT_LIMIT", "WAIT_CLAIM", "WAIT_QUOTA", "WAIT_CI"].includes(raw)) return "warn";
     if (["OK", "HEALTHY", "ACCEPTED", "COMPLETED", "CLEANED", "IDLE", "RUNNING"].includes(raw)) return "good";
     return "";
   }
@@ -105,6 +112,10 @@
   function latestReview(state) {
     const values = state.human_reviews || [];
     return values.length ? values[values.length - 1] : null;
+  }
+
+  function currentProductState(state) {
+    return state.current_product_state || {};
   }
 
   function currentHumanGate(state) {
@@ -209,15 +220,21 @@
 
     const gate = currentHumanGate(state);
     const review = latestReview(state);
-    let product = review ? friendlyStatus(review.verdict) : "No review needed";
-    let productSeverity = review ? severityFor(review.verdict) : "";
-    let productDetail = review
-      ? (review.deferred_product_work
-          ? "Product work was deferred after the latest review; resume from the recorded repair boundary."
-          : (review.next_boundary || "See Product / human review."))
-      : "No human review action is currently reported.";
+    const productState = currentProductState(state);
+    let product = "No review needed";
+    let productSeverity = "";
+    let productDetail = "No human review action is currently reported.";
+    if (productState.status) {
+      product = friendlyStatus(productState.status);
+      productSeverity = severityFor(productState.status);
+      productDetail = productState.reason || "See Product / human review.";
+    } else if (review) {
+      product = friendlyStatus(review.verdict);
+      productSeverity = severityFor(review.verdict);
+      productDetail = review.next_boundary || "See Product / human review.";
+    }
     if (gate) {
-      product = "Review needed";
+      product = "Human review required";
       productSeverity = "warn";
       productDetail = gate.message || gate.blocked_reason || "A human gate is awaiting judgment.";
     }
@@ -334,8 +351,37 @@
     const roadmap = state.roadmap || {};
     const active = roadmap.active || {};
     const blocked = roadmap.blocked_nodes || {};
+    const progression = state.program_progression || {};
+    const program = progression.active_session || null;
     const node = $("roadmap");
     clear(node);
+
+    if (program) {
+      const programBanner = el("div", null, "state-banner");
+      const programBody = el("div");
+      programBody.append(
+        el("div", "Continue Skyforge", "headline"),
+        el(
+          "div",
+          (program.current_node_id ? program.current_node_id + " · " : "")
+            + (program.reason || "Program continuation is active."),
+          "explanation"
+        )
+      );
+      programBanner.append(
+        programBody,
+        pill(friendlyStatus(program.disposition), severityFor(program.disposition))
+      );
+      node.append(programBanner);
+      node.append(technicalDetails([
+        ["Program", program.program_id],
+        ["Current node", program.current_node_id],
+        ["Disposition", program.disposition],
+        ["Human gate", program.gate_id || "none"],
+        ["Child objective", program.child_proposal_id || "none"],
+        ["Session", program.session_id],
+      ], "Continue Skyforge details"));
+    }
 
     const activeLabel = active.node_id || active.issue_number;
     const banner = el("div", null, "state-banner");
@@ -581,6 +627,7 @@
     const reviews = state.human_reviews || [];
     const review = latestReview(state);
     const gate = currentHumanGate(state);
+    const productState = currentProductState(state);
     $("review-count").textContent = reviews.length ? reviews.length + " recorded" : "";
 
     if (gate) {
@@ -613,6 +660,60 @@
         ["Lane", gate.lane],
         ["Blocked reason", gate.blocked_reason],
       ], "Current gate details"));
+      return;
+    }
+
+    if (
+      productState.source === "PROGRAM_CONTINUATION"
+      && productState.status !== "REVIEW_REQUIRED"
+    ) {
+      const banner = el("div", null, "state-banner");
+      const body = el("div");
+      body.append(
+        el("div", friendlyStatus(productState.status), "headline"),
+        el("div", productState.reason || "Program continuation is active.", "explanation")
+      );
+      banner.append(body, pill(friendlyStatus(productState.status), severityFor(productState.status)));
+      node.append(banner);
+      node.append(technicalDetails([
+        ["Current program node", productState.node_id || "—"],
+        ["Issue", productState.issue_number ? "#" + productState.issue_number : "—"],
+        ["Program disposition", productState.disposition || "—"],
+        ["Current gate", productState.gate_id || "none"],
+      ], "Current product boundary"));
+
+      if (!review) return;
+      const prior = el("div", null, "item compact");
+      prior.append(
+        el("h3", "Latest historical review"),
+        el(
+          "div",
+          friendlyStatus(review.verdict)
+            + (review.next_boundary ? " · " + truncate(review.next_boundary, 180) : ""),
+          "secondary-line"
+        )
+      );
+      prior.append(technicalDetails([
+        ["Gate", review.gate_id],
+        ["Artifact", review.artifact_id],
+        ["Review ID", review.review_id],
+        ["Review time", (review.source || {}).created_at || "—"],
+        ["Material delta", review.material_delta],
+      ], "Historical review details"));
+      node.append(prior);
+      if ((review.positive_findings || []).length) {
+        node.append(el("h3", "Prior review — what looked good"));
+        const list = el("ul", null, "clean");
+        for (const finding of review.positive_findings) list.append(el("li", finding));
+        node.append(list);
+      }
+      if ((review.findings || []).length) {
+        node.append(el("h3", "Prior review — findings"));
+        const list = el("ul", null, "clean");
+        for (const finding of review.findings) list.append(el("li", finding));
+        node.append(list);
+      }
+      if (review.artifact) node.append(renderArtifact(review.artifact));
       return;
     }
 
