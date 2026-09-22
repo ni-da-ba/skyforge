@@ -491,6 +491,7 @@ def should_continue_after(
         HostedExecutionAdvanceDisposition.OBJECTIVE_SCOPING_ADVANCED,
         HostedExecutionAdvanceDisposition.PROGRAM_ADVANCED,
         HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+        HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_ACCEPTED,
         HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
         HostedExecutionAdvanceDisposition.TASK_COMPLETION_RECORDED,
         HostedExecutionAdvanceDisposition.TASK_STALE_RECORDED,
