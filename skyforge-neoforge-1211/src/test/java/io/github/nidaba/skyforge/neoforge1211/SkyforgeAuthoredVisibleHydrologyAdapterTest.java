@@ -112,6 +112,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .map(range -> position.getY() == range.maximumY())
                         .orElse(true)),
                 "wet channel realization must never consume the original top-surface voxel");
+
+        for (var deployment : deployments) {
+            for (var wet : deployment.positions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), wet)
+                        .orElseThrow();
+                assertTrue(state.is(Blocks.WATER));
+            }
+            for (var dry : deployment.carvedPositions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), dry)
+                        .orElseThrow();
+                assertTrue(state.isAir());
+            }
+        }
     }
 
     @Test
@@ -143,26 +156,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 assertTrue(
                         distanceToPath(local, path) <= reach.wetHalfWidth() + 1.0e-9,
                         "one channel deployment must not borrow a neighboring reach's water surface");
-            }
-        }
-    }
-
-    @Test
-    void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
-
-        for (var deployment : deployments) {
-            for (var wet : deployment.positions()) {
-                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), wet)
-                        .orElseThrow();
-                assertTrue(state.is(Blocks.WATER));
-            }
-            for (var dry : deployment.carvedPositions()) {
-                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), dry)
-                        .orElseThrow();
-                assertTrue(state.isAir());
             }
         }
     }
