@@ -39,6 +39,11 @@ def migrate_canonical_roadmap_authority(
     if target_store.adapter.path.is_file():
         return 0
 
+    manifest_path = root / "docs/agent-state/ORCHESTRATOR_ROADMAP.json"
+    if not manifest_path.is_file():
+        # Minimal unit/integration roots legitimately omit product roadmap authority.
+        return 0
+
     manifest = load_manifest(root)
     if manifest.fingerprint != _POST_REFRESH_FINGERPRINT:
         return 0
