@@ -108,15 +108,17 @@ class HistoricalRoadmapAuthorityMigrationTest(unittest.TestCase):
             state = load_authoritative_roadmap_state(root, manifest)
             self.assertEqual(state.manifest_fingerprint, manifest.fingerprint)
 
-    def test_unexpected_predecessor_fails_closed(self):
+    def test_unexpected_predecessor_is_ignored_without_mutation(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             prepare_root(root, fingerprint="f" * 64)
-            with self.assertRaisesRegex(RuntimeError, "accepted predecessor"):
+            self.assertEqual(
                 migrate_canonical_roadmap_authority(
                     root=root,
                     repo="ni-da-ba/skyforge",
-                )
+                ),
+                0,
+            )
             self.assertFalse(
                 RoadmapAuthorityStore.for_root(root).adapter.path.exists()
             )
