@@ -229,6 +229,49 @@ final class SkyforgeNativeSurfacePopulationStage {
         return binding == null ? 0 : binding.coordinator().completedPhaseCount();
     }
 
+    static boolean populationCompleted(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            return true;
+        }
+        var plan = resolvePlans(binding, chunkPos, minimumY, height).stream()
+                .filter(candidate -> candidate.volumeId().equals(volumeId))
+                .findFirst();
+        return plan.isEmpty()
+                || binding.coordinator().completed(
+                        volumeId,
+                        chunkPos.toLong(),
+                        plan.orElseThrow().phases());
+    }
+
+    static int populationAttachmentChunkRadius(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null || !SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
+            return 0;
+        }
+        var plan = resolvePlans(binding, chunkPos, minimumY, height).stream()
+                .filter(candidate -> candidate.volumeId().equals(volumeId))
+                .findFirst();
+        if (plan.isEmpty()) {
+            return 0;
+        }
+        int maximumWriterReach = SkyforgeNativeBiomePopulationRunner.treeAttachmentDepth(
+                plan.orElseThrow().maximumAttachmentDepth());
+        return (maximumWriterReach + 15) / 16;
+    }
+
     static List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
             SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
