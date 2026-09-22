@@ -35,6 +35,12 @@ tasks.withType<Test>().configureEach {
     // Static development-resource guards must resolve module-local fixtures independently of
     // whichever repository directory a CI workflow chooses as the Test task working directory.
     systemProperty("skyforge.test.projectDirectory", layout.projectDirectory.asFile.absolutePath)
+    // The exhaustive DR-70 physical specimen selector is deliberately skipped by ordinary CI.
+    // A manual run of the retained long-running performance workflow provides a bounded,
+    // workflow-file-neutral qualification lane while #754 keeps .github/** protected.
+    if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization") {
+        systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+    }
     // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
     // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
     // collapsing into Gradle's outer InvocationTargetException.
