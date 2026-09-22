@@ -850,7 +850,7 @@ The orchestrator should therefore:
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
 
-**Current transition:** RM-R06 is the active program-level transition gate. The 2026-09-20 key-2885 DR-70 review returned CHANGES REQUIRED but demonstrated real channel geomorphology; further DR-70 work is deliberately deferred until RM-R06 materially improves workflow throughput/evidence economy. After RM-R06 acceptance, resume the bounded DR-70 repair and obtain human acceptance before Phase 3 may become PRIMARY_ACTIVE.
+**Current transition:** RM-R06 has been explicitly accepted by the project owner. The 2026-09-20 key-2885 DR-70 review remains CHANGES REQUIRED while preserving the positive proof of real channel geomorphology. The active program boundary is now the bounded post-platform #754 repair: resolve the failed ocean-biome/presentation context, poor visible water/material dressing, and inadequate small review specimen while preserving the proven channel and accepted canopy/cave/exterior-fluid improvements. A new qualified material delta must return to human review before Phase 3 may become PRIMARY_ACTIVE.
 
 ## 20. Maintenance rule
 
