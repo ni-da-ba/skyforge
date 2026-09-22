@@ -382,6 +382,13 @@ class CodexProviderAdapterTest(unittest.TestCase):
                 "outside\\n",
             )
 
+    def test_controller_patch_markers_are_mandatory(self):
+        with self.assertRaisesRegex(
+            WorkerProviderError,
+            "exactly one controller patch marker pair",
+        ):
+            _extract_controller_patch("bounded summary without markers")
+
     def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
