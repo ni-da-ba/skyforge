@@ -5545,6 +5545,9 @@ val dr70HumanReviewAtlasServerProperties = """
 """.trimIndent() + "\n"
 
 tasks.named("runDr70HumanReviewAtlasPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and DR-70 atlas bootstrap are intentionally runtime-bound.",
+    )
     doFirst {
         val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v3").asFile
         directory.mkdirs()
@@ -5554,6 +5557,9 @@ tasks.named("runDr70HumanReviewAtlasPrepare").configure {
 }
 
 tasks.named("runDr70HumanReviewAtlasClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
     mustRunAfter("runDr70HumanReviewAtlasPrepare")
     doFirst {
         val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v3").asFile

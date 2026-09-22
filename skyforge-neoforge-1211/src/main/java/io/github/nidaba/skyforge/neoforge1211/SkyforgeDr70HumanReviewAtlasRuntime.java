@@ -28,6 +28,7 @@ import net.minecraft.server.level.TicketType;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -201,7 +202,8 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             long key = active.chunkKeys().get(active.cursor());
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
             level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
-            level.getChunk(pos.x, pos.z);
+            LevelChunk chunk = level.getChunk(pos.x, pos.z);
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
             active.advance();
             warmed++;
         }
