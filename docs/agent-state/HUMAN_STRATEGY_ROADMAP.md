@@ -256,7 +256,7 @@ The next evidence should be a deterministic backend-neutral role-graph specimen 
 
 **Resolved direction:** do not make full Bootstrap Province—or another expensive DR-70 retry—the primary convergence workload while the development workflow still imposes high coordination/reconstruction/CI overhead.
 
-The 2026-09-20 key-2885 DR-70 human review returned CHANGES REQUIRED while confirming real channel geomorphology. By owner direction, run the bounded pre-Bootstrap development-platform gate now; then resume DR-70 and obtain its human acceptance before Phase 3 becomes PRIMARY_ACTIVE.
+The 2026-09-20 key-2885 DR-70 human review returned CHANGES REQUIRED while confirming real channel geomorphology. The bounded pre-Bootstrap development-platform gate has now been explicitly accepted by the project owner. Resume DR-70 from the persisted key-2885 failures—ocean-biome/presentation context, poor visible water/material dressing, and an inadequate small review specimen—while preserving the proven channel and earlier canopy/cave/exterior-fluid improvements; obtain human acceptance before Phase 3 becomes PRIMARY_ACTIVE.
 
 Canonical gate:
 `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md`.
@@ -273,7 +273,7 @@ The accepted principles are:
 - minimum viable `Continue Skyforge` should remove repeated manual `proceed` coordination for already-authorized work;
 - full Studio polish, IDE replacement, exhaustive dashboards, and speculative platform engineering are not pre-Bootstrap requirements.
 
-This decision is explicitly **active now**. DR-70 remains open but deferred; the optimization work must preserve the recorded DR-70 findings and must not reinterpret deferral as acceptance.
+This decision has crossed its platform gate. DR-70 remains open and is now the active bounded product-repair boundary; the recorded key-2885 findings remain authoritative and must not be reinterpreted as acceptance.
 
 ---
 
