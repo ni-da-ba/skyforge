@@ -11,17 +11,6 @@
         "settings": "skyforge:dr70_review_void"
       }
     },
-    "skyforge:dr70_surface_donor": {
-      "type": "minecraft:overworld",
-      "generator": {
-        "type": "skyforge:noise_overlay",
-        "biome_source": {
-          "type": "minecraft:multi_noise",
-          "preset": "minecraft:overworld"
-        },
-        "settings": "minecraft:overworld"
-      }
-    },
     "minecraft:the_nether": {
       "type": "minecraft:the_nether",
       "generator": {

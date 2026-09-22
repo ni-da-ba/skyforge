@@ -253,6 +253,9 @@ final class SkyforgePhysicalVolumeCatchupService {
                         || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
                     continue;
                 }
+                for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                    SkyforgeAuthoredNativeSurfaceStage.apply(level, chunk, generator, volumeId);
+                }
                 SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
             }
 
