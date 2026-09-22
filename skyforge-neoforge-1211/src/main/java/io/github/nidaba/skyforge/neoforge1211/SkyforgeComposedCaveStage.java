@@ -160,6 +160,17 @@ final class SkyforgeComposedCaveStage {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)) {
                 continue;
             }
+            // Surface ecology and its persistent biome presentation are a whole-volume lifecycle
+            // phase. A composed cave in an early ready chunk must not mutate live terrain while a
+            // later chunk can still execute native surface population, otherwise near-surface cave
+            // AIR becomes a scheduler-dependent input to trees and other cross-chunk features.
+            // Biome-presentation obligations cover the exact admitted footprint and are completed
+            // only after this tick's deferred surface-population call for the same ready chunk.
+            if (!SkyforgePhysicalVolumeAdmissionStage
+                    .pendingBiomePresentationChunks(volumeId)
+                    .isEmpty()) {
+                continue;
+            }
             if (SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId, chunk.getPos())) {
                 continue;
             }

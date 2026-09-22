@@ -100,8 +100,11 @@ final class SkyforgeNativeCarverCursor {
     private int standaloneAnchors;
     private int writeAttempts;
     private int acceptedWrites;
+    private int acceptedUniquePositions;
+    private long acceptedPositionDigest = FNV_OFFSET_BASIS;
     private int rejectedWrites;
     private int rejectedFluidWrites;
+    private int rejectedHydrologyWrites;
     private int changedBlocks;
     private long transformDigest = FNV_OFFSET_BASIS;
     private long changedPositionDigest = FNV_OFFSET_BASIS;
@@ -280,9 +283,15 @@ final class SkyforgeNativeCarverCursor {
                 standaloneAnchors, verticalSnapshot.standaloneAnchors());
         writeAttempts = Math.addExact(writeAttempts, writeSnapshot.writeAttempts());
         acceptedWrites = Math.addExact(acceptedWrites, writeSnapshot.acceptedWriteAttempts());
+        acceptedUniquePositions = Math.addExact(
+                acceptedUniquePositions, writeSnapshot.acceptedUniquePositions());
+        acceptedPositionDigest = mix(
+                acceptedPositionDigest, writeSnapshot.acceptedPositionDigest());
         rejectedWrites = Math.addExact(rejectedWrites, writeSnapshot.rejectedWriteAttempts());
         rejectedFluidWrites = Math.addExact(
                 rejectedFluidWrites, writeSnapshot.rejectedFluidWriteAttempts());
+        rejectedHydrologyWrites = Math.addExact(
+                rejectedHydrologyWrites, writeSnapshot.rejectedHydrologyWriteAttempts());
         changedBlocks = Math.addExact(changedBlocks, writeSnapshot.changedBlocks());
         transformDigest = mix(transformDigest, verticalSnapshot.transformDigest());
         changedPositionDigest = mix(changedPositionDigest, writeSnapshot.changedPositionDigest());
@@ -342,8 +351,11 @@ final class SkyforgeNativeCarverCursor {
                 standaloneAnchors,
                 writeAttempts,
                 acceptedWrites,
+                acceptedUniquePositions,
+                acceptedPositionDigest,
                 rejectedWrites,
                 rejectedFluidWrites,
+                rejectedHydrologyWrites,
                 changedBlocks,
                 transformDigest,
                 changedPositionDigest,

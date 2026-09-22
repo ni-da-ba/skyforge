@@ -34,7 +34,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
     }
 
     private static SkyIslandWorldVolumeId canonicalVolumeId() {
-        return SkyforgeNeoForge1211ProductionComposedCaveFixture.single().volume().id();
+        return SkyforgeNeoForge1211ProductionComposedCaveFixture.activeSingle().volume().id();
     }
 
     static Map<String, Object> collect(
@@ -140,9 +140,10 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                     throw new IllegalStateException("DR-50 authored hydrology escaped exact volume ownership");
                 }
                 BlockState state = level.getBlockState(position);
-                if (!state.is(Blocks.WATER)) {
+                if (!SkyforgeAuthoredVisibleHydrologyAdapter.isWaterBearing(state)) {
                     throw new IllegalStateException(
-                            "DR-50 later lifecycle overwrote authored hydrology at " + position + ": " + state);
+                            "DR-50 later lifecycle removed authored water-bearing hydrology at "
+                                    + position + ": " + state);
                 }
                 positions.add(position.immutable());
                 digest = mix(digest, position.asLong());

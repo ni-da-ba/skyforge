@@ -29,6 +29,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 
 /**
  * First concrete Minecraft-facing Skyforge realization seam.
@@ -48,7 +50,11 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>
+            authoredHydrologyDeploymentsByVolumeId = new ConcurrentHashMap<>();
     private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId =
+            new ConcurrentHashMap<>();
+    private final Map<SkyIslandWorldVolumeId, Map<Long, BlockState>> authoredHydrologyPopulationStatesByVolumeId =
             new ConcurrentHashMap<>();
 
     public SkyforgeNeoForge1211ChunkAdapter(
@@ -98,10 +104,13 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
      * Cached positions therefore survive ordinary save/reload without introducing a second fluid
      * topology or mutable backend policy.
      */
-    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+    Optional<SkyIslandWorldVolumeId> authoredVisibleHydrologyVolumeId(BlockPos position) {
         Objects.requireNonNull(position, "position");
-        for (var entry : authoredDescriptorsByVolumeId.entrySet()) {
-            SkyIslandWorldVolumeId volumeId = entry.getKey();
+        for (SkyIslandWorldVolume volume : catalog.volumes()) {
+            SkyIslandWorldVolumeId volumeId = volume.id();
+            if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+                continue;
+            }
             WorldBounds bounds = boundsByVolumeId.get(volumeId);
             if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
                 continue;
@@ -110,10 +119,83 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                     volumeId,
                     this::deriveAuthoredHydrologyPositions);
             if (positions.contains(position.asLong())) {
-                return true;
+                return Optional.of(volumeId);
             }
         }
-        return false;
+        return Optional.empty();
+    }
+
+    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        return authoredVisibleHydrologyVolumeId(position).isPresent();
+    }
+
+    /**
+     * Returns the deterministic authored hydrology state visible to native surface ecology.
+     *
+     * <p>This is derived from immutable AUTH-0086 realization intent, not the live chunk. Water cells
+     * therefore read as WATER and dry channel-clearance cells read as AIR even while deferred chunk
+     * catch-up is still materializing neighboring parts of the same channel.
+     */
+    Optional<BlockState> authoredHydrologyPopulationState(
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(position, "position");
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(authoredHydrologyPopulationStatesByVolumeId
+                .computeIfAbsent(volumeId, this::deriveAuthoredHydrologyPopulationStates)
+                .get(position.asLong()));
+    }
+
+    boolean isAuthoredHydrologyPopulationPosition(
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
+        return authoredHydrologyPopulationState(volumeId, position).isPresent();
+    }
+
+    List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> authoredHydrologyDeployments(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return List.of();
+        }
+        return authoredHydrologyDeploymentsByVolumeId.computeIfAbsent(
+                volumeId,
+                this::deriveAuthoredHydrologyDeployments);
+    }
+
+    private List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deriveAuthoredHydrologyDeployments(
+            SkyIslandWorldVolumeId volumeId) {
+        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
+        if (descriptor == null) {
+            return List.of();
+        }
+        SkyIslandWorldVolume volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "authored hydrology references unknown runtime volume " + volumeId.path()));
+        return List.copyOf(SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this));
+    }
+
+    private Map<Long, BlockState> deriveAuthoredHydrologyPopulationStates(
+            SkyIslandWorldVolumeId volumeId) {
+        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
+        if (descriptor == null) {
+            return Map.of();
+        }
+        var states = new LinkedHashMap<Long, BlockState>();
+        for (var deployment : authoredHydrologyDeployments(volumeId)) {
+            for (BlockPos carved : deployment.carvedPositions()) {
+                states.put(carved.asLong(), Blocks.AIR.defaultBlockState());
+            }
+            for (BlockPos wet : deployment.positions()) {
+                states.put(wet.asLong(), Blocks.WATER.defaultBlockState());
+            }
+        }
+        return Map.copyOf(states);
     }
 
     private Set<Long> deriveAuthoredHydrologyPositions(SkyIslandWorldVolumeId volumeId) {
@@ -121,12 +203,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         if (descriptor == null) {
             return Set.of();
         }
-        SkyIslandWorldVolume volume = catalog.volumes().stream()
-                .filter(candidate -> candidate.id().equals(volumeId))
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException(
-                        "authored hydrology references unknown runtime volume " + volumeId.path()));
-        return SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this).stream()
+        return authoredHydrologyDeployments(volumeId).stream()
                 .flatMap(deployment -> deployment.positions().stream())
                 .map(BlockPos::asLong)
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());

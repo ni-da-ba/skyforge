@@ -26,16 +26,29 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
     }
 
     @Test
-    void authoredVisibleWaterTicksFailClosedInsteadOfInventingIncidentalDischarge() throws IOException {
+    void authoredVisibleWaterTicksUseExactAuthoredHydrologyDomain() throws IOException {
         String stage = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
         String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeFlowingFluidDomainMixin.java"));
-        assertTrue(stage.contains("SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position)"));
-        assertTrue(stage.contains("state.getType() == Fluids.WATER"));
-        assertTrue(stage.contains("return false;"));
+        assertTrue(stage.contains("authoredVisibleHydrologyVolumeId(position)"));
+        assertTrue(stage.contains("BoundaryPolicy.AUTHORED_HYDROLOGY"));
+        assertTrue(stage.contains(".filter(volumeId::equals)"));
+        assertTrue(stage.contains("return true;"));
         assertTrue(mixin.contains("if (!SkyforgeGeneratedFluidPropagationStage.beginFluidTick"));
         assertTrue(mixin.contains("callback.cancel();"));
+    }
+
+    @Test
+    void authoredWaterTicksWaitForDeterministicCatchupThenRemainScheduled() throws IOException {
+        String stage = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
+        assertTrue(stage.contains("SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId)"));
+        assertTrue(stage.contains("SkyforgeComposedCaveStage.snapshot(volumeId)"));
+        assertTrue(stage.contains("SkyforgeNativeInteriorPopulationStage.snapshot(volumeId)"));
+        assertTrue(stage.contains("serverLevel.scheduleTick(position, state.getType(), 20)"));
+        assertTrue(stage.contains("BoundaryPolicy.AUTHORED_HYDROLOGY"));
+        assertTrue(stage.contains("return false;"));
     }
 
     @Test

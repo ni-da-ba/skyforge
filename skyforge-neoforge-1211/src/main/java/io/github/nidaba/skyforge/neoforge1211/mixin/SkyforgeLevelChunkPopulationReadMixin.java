@@ -28,8 +28,15 @@ abstract class SkyforgeLevelChunkPopulationReadMixin {
     private void skyforge$readPopulationVirtualBlock(
             BlockPos position,
             CallbackInfoReturnable<BlockState> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.populationActive()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.populationActive()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position));
         }
     }
@@ -41,8 +48,15 @@ abstract class SkyforgeLevelChunkPopulationReadMixin {
     private void skyforge$readPopulationVirtualFluid(
             BlockPos position,
             CallbackInfoReturnable<FluidState> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.populationActive()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.populationActive()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow().getFluidState());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
         }
     }

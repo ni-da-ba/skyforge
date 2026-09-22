@@ -37,8 +37,19 @@ abstract class SkyforgeLevelDomainMixin {
             callback.setReturnValue(Blocks.BEDROCK.defaultBlockState());
             return;
         }
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.populationActive()) {
+            if (SkyforgeWorldGenRegionDomainBridge.active()
+                    && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+                callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position));
+            }
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position));
         }
     }
@@ -55,8 +66,19 @@ abstract class SkyforgeLevelDomainMixin {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
             return;
         }
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.populationActive()) {
+            if (SkyforgeWorldGenRegionDomainBridge.active()
+                    && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+                callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
+            }
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow().getFluidState());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
         }
     }

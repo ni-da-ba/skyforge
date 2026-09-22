@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,6 +15,36 @@ import org.junit.jupiter.api.Test;
 /** Bounded machine evidence for the post-DR-60 canopy/hydrology repair tranche. */
 final class SkyforgeDr70ReviewRepairTest {
     private static final int PRODUCTION_ATTACHMENT_DEPTH = 24;
+
+    @Test
+    void selectedReviewSpecimenIsBoundedAndExercisesHydrologyAndCaves() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        assertEquals(2885L, fixture.islandKey());
+        assertTrue(fixture.descriptor().nominalRadius() < 120.0,
+                "DR-70 review specimen must remain near the accepted bounded runtime workload");
+        assertTrue(fixture.field().exposureGeometry().connectionCount() > 0,
+                "DR-70 review specimen must preserve authored cave connectivity");
+
+        var visible = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor());
+        assertTrue(visible.channels().size() >= 20,
+                "review specimen must exercise a substantial connected channel system");
+        assertTrue(visible.drops().stream().filter(drop ->
+                drop.kind() != io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
+                .count() >= 1,
+                "review specimen must exercise at least one interior drop");
+
+        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                java.util.Map.of(fixture.volume().id(), fixture.descriptor()));
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        assertTrue(deployments.stream().anyMatch(deployment ->
+                deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL
+                        && !deployment.positions().isEmpty()
+                        && !deployment.carvedPositions().isEmpty()),
+                "review specimen must project AUTH-0105 into both wet and dry Minecraft terrain");
+    }
 
     @Test
     void canonicalUpperSurfaceRejectsTreePlacementWithoutEnoughAttachmentHeadroom() {
@@ -39,7 +70,7 @@ final class SkyforgeDr70ReviewRepairTest {
     }
 
     @Test
-    void canonicalAuth0104ChannelRasterIsMultiCellConnectedAndOwnerLocal() {
+    void canonicalAuth0105ChannelProjectsDryLandformAndContainedWater() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture);
         var semantic = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
@@ -50,22 +81,44 @@ final class SkyforgeDr70ReviewRepairTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertTrue(semantic.size() > 1, "AUTH-0104 canonical channel must remain multi-position");
-        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.channelRadius(
-                        SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
-                                .channels().getFirst().path()) >= 1,
-                "physical channel footprint must have authored-route-local breadth");
+        assertTrue(semantic.size() > 1, "accepted canonical channel must remain multi-position");
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(),
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
+                        .coherentHydrology());
+        var reach = fluvial.reaches().getFirst();
+        assertTrue(reach.wetHalfWidth() < reach.bankfullHalfWidth());
+        assertTrue(reach.bankfullHalfWidth() < reach.valleyHalfWidth(),
+                "AUTH-0105 must expose dry valley terrain beyond the wet corridor");
         long distinctColumns = deployment.positions().stream()
                 .map(position -> new Column(position.getX(), position.getZ()))
                 .distinct()
                 .count();
         assertTrue(distinctColumns > semantic.size(),
                 "physical channel must read wider than sparse semantic sample points");
+        assertFalse(deployment.carvedPositions().isEmpty(),
+                "physical channel must cut a dry recessed bed rather than replace the hilltop with water");
+        assertTrue(java.util.Collections.disjoint(
+                deployment.positions(), deployment.carvedPositions()));
+        assertTrue(deployment.positions().stream().allMatch(position ->
+                terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .map(range -> position.getY() < range.maximumY())
+                        .orElse(false)),
+                "AUTH-0105 water must be physically recessed below the pre-fluvial surface");
         assertConnectedFootprint(deployment.positions());
         for (BlockPos position : deployment.positions()) {
             assertTrue(terrain.isAuthoredVisibleHydrologyPosition(position));
             assertTrue(terrain.isSolidOwnedBy(
                     fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+        }
+        for (BlockPos position : deployment.carvedPositions()) {
+            assertTrue(terrain.isSolidOwnedBy(
+                    fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+            assertFalse(terrain.isAuthoredVisibleHydrologyPosition(position),
+                    "dry bank/bed-clearance cells must not become fluid-domain authority");
         }
         assertFalse(terrain.isAuthoredVisibleHydrologyPosition(new BlockPos(0, 0, 0)));
     }

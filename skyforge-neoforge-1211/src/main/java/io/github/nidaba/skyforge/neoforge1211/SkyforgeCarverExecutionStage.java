@@ -35,7 +35,7 @@ public final class SkyforgeCarverExecutionStage {
             ChunkPos targetChunk,
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid) {
-        return open(volumeId, targetChunk, ownerSolid, foreignSolid, false);
+        return open(volumeId, targetChunk, ownerSolid, foreignSolid, position -> false, false);
     }
 
     private static Scope open(
@@ -43,11 +43,13 @@ public final class SkyforgeCarverExecutionStage {
             ChunkPos targetChunk,
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid,
+            Predicate<BlockPos> reservedHydrology,
             boolean virtualizeReads) {
         Objects.requireNonNull(volumeId, "volumeId");
         Objects.requireNonNull(targetChunk, "targetChunk");
         Objects.requireNonNull(ownerSolid, "ownerSolid");
         Objects.requireNonNull(foreignSolid, "foreignSolid");
+        Objects.requireNonNull(reservedHydrology, "reservedHydrology");
         var activeDomain = SkyforgeGenerationDomainStage.activeIslandVolumeId();
         if (activeDomain.isEmpty() || !activeDomain.orElseThrow().equals(volumeId)) {
             throw new IllegalStateException("carver execution requires its exact island generation-domain scope");
@@ -55,7 +57,13 @@ public final class SkyforgeCarverExecutionStage {
         if (ACTIVE.get() != null) {
             throw new IllegalStateException("nested Skyforge carver executions are not supported");
         }
-        Execution execution = new Execution(volumeId, targetChunk, ownerSolid, foreignSolid, virtualizeReads);
+        Execution execution = new Execution(
+                volumeId,
+                targetChunk,
+                ownerSolid,
+                foreignSolid,
+                reservedHydrology,
+                virtualizeReads);
         ACTIVE.set(execution);
         return new Scope(execution);
     }
@@ -83,7 +91,17 @@ public final class SkyforgeCarverExecutionStage {
         Predicate<BlockPos> foreignSolid = position -> SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                         volumeId, position.getX(), position.getY(), position.getZ())
                 .orElseThrow(() -> new IllegalStateException("Skyforge runtime binding disappeared during carving"));
-        return open(volumeId, targetChunk, ownerSolid, foreignSolid, virtualizeReads);
+        Predicate<BlockPos> reservedHydrology = position ->
+                SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position)
+                        .filter(volumeId::equals)
+                        .isPresent();
+        return open(
+                volumeId,
+                targetChunk,
+                ownerSolid,
+                foreignSolid,
+                reservedHydrology,
+                virtualizeReads);
     }
 
     static Scope openForTest(
@@ -94,12 +112,33 @@ public final class SkyforgeCarverExecutionStage {
         return open(volumeId, targetChunk, ownerSolid, foreignSolid);
     }
 
+    static Scope openForTestWithReservedHydrology(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos targetChunk,
+            Predicate<BlockPos> ownerSolid,
+            Predicate<BlockPos> foreignSolid,
+            Predicate<BlockPos> reservedHydrology) {
+        return open(
+                volumeId,
+                targetChunk,
+                ownerSolid,
+                foreignSolid,
+                reservedHydrology,
+                false);
+    }
+
     static Scope openForTestWithVirtualReads(
             SkyIslandWorldVolumeId volumeId,
             ChunkPos targetChunk,
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid) {
-        return open(volumeId, targetChunk, ownerSolid, foreignSolid, true);
+        return open(
+                volumeId,
+                targetChunk,
+                ownerSolid,
+                foreignSolid,
+                position -> false,
+                true);
     }
 
     /** Returns whether a native carver mutation scope is active. */
@@ -228,8 +267,11 @@ public final class SkyforgeCarverExecutionStage {
             ChunkPos targetChunk,
             int writeAttempts,
             int acceptedWriteAttempts,
+            int acceptedUniquePositions,
+            long acceptedPositionDigest,
             int rejectedWriteAttempts,
             int rejectedFluidWriteAttempts,
+            int rejectedHydrologyWriteAttempts,
             int changedBlocks,
             int uniqueChangedBlocks,
             long changedPositionDigest,
@@ -246,12 +288,16 @@ public final class SkyforgeCarverExecutionStage {
         private final ChunkPos targetChunk;
         private final Predicate<BlockPos> ownerSolid;
         private final Predicate<BlockPos> foreignSolid;
+        private final Predicate<BlockPos> reservedHydrology;
         private final boolean virtualizeReads;
+        private final Set<Long> acceptedPositions = new HashSet<>();
         private final Set<Long> changedPositions = new HashSet<>();
         private int writeAttempts;
         private int acceptedWriteAttempts;
+        private long acceptedPositionDigest = FNV_OFFSET_BASIS;
         private int rejectedWriteAttempts;
         private int rejectedFluidWriteAttempts;
+        private int rejectedHydrologyWriteAttempts;
         private int changedBlocks;
         private long changedPositionDigest = FNV_OFFSET_BASIS;
         private int minimumChangedY = Integer.MAX_VALUE;
@@ -262,11 +308,13 @@ public final class SkyforgeCarverExecutionStage {
                 ChunkPos targetChunk,
                 Predicate<BlockPos> ownerSolid,
                 Predicate<BlockPos> foreignSolid,
+                Predicate<BlockPos> reservedHydrology,
                 boolean virtualizeReads) {
             this.volumeId = volumeId;
             this.targetChunk = targetChunk;
             this.ownerSolid = ownerSolid;
             this.foreignSolid = foreignSolid;
+            this.reservedHydrology = reservedHydrology;
             this.virtualizeReads = virtualizeReads;
         }
 
@@ -288,15 +336,24 @@ public final class SkyforgeCarverExecutionStage {
         private boolean authorize(BlockPos position, boolean fluidWrite) {
             writeAttempts++;
             boolean ownerAccepted = ownerSolid.test(position) && !foreignSolid.test(position);
+            boolean hydrologyRejected = ownerAccepted && reservedHydrology.test(position);
             boolean fluidShellRejected = fluidWrite
                     && ownerAccepted
+                    && !hydrologyRejected
                     && !SkyforgeNativeInteriorPlacementPolicy.isInteriorOwnerCell(position, ownerSolid);
-            boolean accepted = ownerAccepted && !fluidShellRejected;
+            boolean accepted = ownerAccepted && !hydrologyRejected && !fluidShellRejected;
             if (accepted) {
                 acceptedWriteAttempts++;
+                long packed = position.asLong();
+                if (acceptedPositions.add(packed)) {
+                    acceptedPositionDigest ^= packed;
+                    acceptedPositionDigest *= FNV_PRIME;
+                }
             } else {
                 rejectedWriteAttempts++;
-                if (fluidShellRejected) {
+                if (hydrologyRejected) {
+                    rejectedHydrologyWriteAttempts++;
+                } else if (fluidShellRejected) {
                     rejectedFluidWriteAttempts++;
                 }
             }
@@ -319,8 +376,11 @@ public final class SkyforgeCarverExecutionStage {
                     targetChunk,
                     writeAttempts,
                     acceptedWriteAttempts,
+                    acceptedPositions.size(),
+                    acceptedPositionDigest,
                     rejectedWriteAttempts,
                     rejectedFluidWriteAttempts,
+                    rejectedHydrologyWriteAttempts,
                     changedBlocks,
                     changedPositions.size(),
                     changedPositionDigest,

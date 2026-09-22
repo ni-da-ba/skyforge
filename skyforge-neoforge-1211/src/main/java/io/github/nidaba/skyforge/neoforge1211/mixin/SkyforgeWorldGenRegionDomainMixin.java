@@ -37,8 +37,15 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
     private void skyforge$readOwnedBlock(
             BlockPos position,
             CallbackInfoReturnable<BlockState> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.active()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position));
         }
     }
@@ -56,8 +63,15 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
             BlockPos position,
             Predicate<BlockState> predicate,
             CallbackInfoReturnable<Boolean> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.active()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(predicate.test(authoredHydrology.orElseThrow()));
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(predicate.test(SkyforgeWorldGenRegionDomainBridge.hiddenBlockState(position)));
         }
     }
@@ -69,8 +83,15 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
     private void skyforge$readOwnedFluid(
             BlockPos position,
             CallbackInfoReturnable<FluidState> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.active()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(authoredHydrology.orElseThrow().getFluidState());
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(Fluids.EMPTY.defaultFluidState());
         }
     }
@@ -83,8 +104,15 @@ abstract class SkyforgeWorldGenRegionDomainMixin {
             BlockPos position,
             Predicate<FluidState> predicate,
             CallbackInfoReturnable<Boolean> callback) {
-        if (SkyforgeWorldGenRegionDomainBridge.active()
-                && !SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
+        if (!SkyforgeWorldGenRegionDomainBridge.active()) {
+            return;
+        }
+        var authoredHydrology = SkyforgeWorldGenRegionDomainBridge.authoredHydrologyPopulationState(position);
+        if (authoredHydrology.isPresent()) {
+            callback.setReturnValue(predicate.test(authoredHydrology.orElseThrow().getFluidState()));
+            return;
+        }
+        if (!SkyforgeWorldGenRegionDomainBridge.isVisible(position)) {
             callback.setReturnValue(predicate.test(Fluids.EMPTY.defaultFluidState()));
         }
     }

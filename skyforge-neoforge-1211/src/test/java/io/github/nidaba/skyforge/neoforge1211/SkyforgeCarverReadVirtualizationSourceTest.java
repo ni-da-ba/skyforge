@@ -42,5 +42,14 @@ final class SkyforgeCarverReadVirtualizationSourceTest {
         assertTrue(cursor.contains("this.noiseChunk = createNoiseChunk(targetChunk)"));
         assertTrue(cursor.contains("return NoiseChunk.forChunk("));
         assertFalse(cursor.contains("targetChunk.getOrCreateNoiseChunk("));
+        assertTrue(stage.contains("acceptedPositions"));
+        assertTrue(stage.contains("acceptedPositionDigest"));
+        assertTrue(cursor.contains("writeSnapshot.acceptedPositionDigest()"));
+
+        String production = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.java"));
+        assertTrue(production.contains("nativeResult.acceptedPositionDigest()"));
+        assertTrue(production.contains("\"nativeAcceptedCarveBlocks\""));
+        assertFalse(production.contains("nativeCarveDigest = mix(nativeCarveDigest, nativeResult.changedPositionDigest())"));
     }
 }

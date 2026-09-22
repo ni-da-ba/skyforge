@@ -1309,6 +1309,72 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // DR-70 hydrology review uses an explicit bounded authored specimen override. It does not
+        // replace the DR-00/DR-50 lock; the property-gated runtime selects key 2885 only for this
+        // review save. The prepare run materializes production terrain/caves + DR-40 ecology, then
+        // the reload client proves the exact save can be reopened before the human client uses it.
+        create("dr70HydrologyReviewPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCave", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcology", "true")
+            systemProperty("skyforge.dev.dr70HydrologyReview", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-70-hydrology-review")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "900")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr70-hydrology-review/production.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr70HydrologyReviewReloadClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr70HydrologyReview", "true")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "dr-70-hydrology-review-reload")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr70-hydrology-review/production.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/dr70-hydrology-review/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr70HumanReviewClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.dr70HydrologyReview", "true")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr70-hydrology-review/production.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("productionComposedCaveAcceptanceStacked") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
@@ -5368,6 +5434,76 @@ tasks.register("dr40ProductionEcologyAcceptance") {
         "runDr40ProductionEcologyAcceptanceReloadClient",
     )
     finalizedBy("dr40ProductionEcologyAcceptanceVerify")
+}
+
+val dr70HydrologyReviewResultDirectory = layout.buildDirectory.dir("acceptance/dr70-hydrology-review")
+
+fun requireDr70HydrologyReviewPass(resultName: String): Properties {
+    val file = dr70HydrologyReviewResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "DR-70 hydrology review result missing: $file" }
+    return Properties().also { properties ->
+        file.inputStream().use(properties::load)
+        check(properties.getProperty("status") == "PASS") {
+            val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+            "DR-70 hydrology review case $resultName did not PASS: $detail"
+        }
+    }
+}
+
+tasks.named("runDr70HydrologyReviewPrepare").configure {
+    doFirst {
+        delete(dr70HydrologyReviewResultDirectory)
+        prepareSfImp0068AcceptanceServerDirectory("run-dr70-hydrology-review")
+    }
+    doLast {
+        val result = requireDr70HydrologyReviewPass("production")
+        check(result.getProperty("islandKey") == "2885"
+                && result.getProperty("dr40ProductionEcology") == "true"
+                && result.getProperty("productionStage") == "true"
+                && result.getProperty("noReplay") == "true") {
+            "DR-70 bounded review preparation did not use the expected production stack: $result"
+        }
+    }
+}
+
+tasks.named("runDr70HydrologyReviewReloadClient").configure {
+    mustRunAfter("runDr70HydrologyReviewPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+    doLast {
+        val reload = requireDr70HydrologyReviewPass("reload")
+        check(reload.getProperty("reloadServerPass") == "true"
+                && reload.getProperty("reloadClientPass") == "true"
+                && reload.getProperty("dr40ReloadServerBiomePass") == "true"
+                && reload.getProperty("dr40ReloadClientBiomePass") == "true") {
+            "DR-70 review save/reload failed: $reload"
+        }
+    }
+}
+
+tasks.named("runDr70HumanReviewClient").configure {
+    mustRunAfter("runDr70HydrologyReviewReloadClient")
+    doFirst {
+        val production = requireDr70HydrologyReviewPass("production")
+        val reload = requireDr70HydrologyReviewPass("reload")
+        check(production.getProperty("islandKey") == "2885"
+                && reload.getProperty("reloadClientPass") == "true") {
+            "DR-70 human review requires the qualified key-2885 review save"
+        }
+        val directory = layout.projectDirectory.dir("run-dr70-hydrology-review").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+}
+
+tasks.register("dr70HydrologyReviewAcceptance") {
+    group = "verification"
+    description = "Prepare and reopen the bounded key-2885 DR-70 hydrology review world."
+    dependsOn(
+        "runDr70HydrologyReviewPrepare",
+        "runDr70HydrologyReviewReloadClient",
+    )
 }
 
 val dr50AcceptanceResultDirectory = layout.buildDirectory.dir("acceptance/dr-50")
