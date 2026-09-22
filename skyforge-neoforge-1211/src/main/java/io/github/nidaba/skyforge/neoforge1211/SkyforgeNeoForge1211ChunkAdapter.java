@@ -508,6 +508,15 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .toList();
     }
 
+    SkyIslandTerrainSemantic terrainSemantic(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return requireInterpreter(volumeId).classify(worldX, worldY, worldZ);
+    }
+
     /** Returns whether one exact compiled island owns a solid sample at the supplied coordinate. */
     boolean isSolidOwnedBy(
             SkyIslandWorldVolumeId volumeId,

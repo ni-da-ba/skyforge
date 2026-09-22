@@ -3,8 +3,8 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.nio.file.Files;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.EnumSet;
 import java.util.List;
@@ -104,14 +104,14 @@ final class SkyforgeDr70HumanReviewAtlasFixtureTest {
     }
 
     @Test
-    void reviewPresetSeparatesVoidReviewCarrierFromNativeSurfaceDonor() throws Exception {
+    void reviewPresetKeepsOnlyTheNeutralVoidCarrier() throws Exception {
         String json = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/world_preset/dr70_review_atlas.json"));
         assertTrue(json.contains("\"minecraft:overworld\""));
         assertTrue(json.contains("\"biome\": \"minecraft:the_void\""));
         assertTrue(json.contains("\"settings\": \"skyforge:dr70_review_void\""));
-        assertTrue(json.contains("\"skyforge:dr70_surface_donor\""));
-        assertTrue(json.contains("\"preset\": \"minecraft:overworld\""));
+        assertTrue(!json.contains("dr70_surface_donor"),
+                "native island surfacing must not depend on a hidden donor dimension");
 
         String noise = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/noise_settings/dr70_review_void.json"));
