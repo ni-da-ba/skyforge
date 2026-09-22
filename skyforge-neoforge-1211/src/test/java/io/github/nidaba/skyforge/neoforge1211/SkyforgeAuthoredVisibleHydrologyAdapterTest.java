@@ -112,6 +112,95 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void retainedWaterRasterizesOneConnectedLevelBasinAcrossItsAuthoredFootprint() {
+        CorpusFixture fixture = corpus(83L);
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var retainedIntent = intent.retainedWater().getFirst();
+        var deployment = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
+                .filter(candidate ->
+                        candidate.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .findFirst()
+                .orElseThrow();
+
+        assertFalse(deployment.carvedPositions().isEmpty(),
+                "standing water must excavate a basin above its common surface");
+        assertFalse(deployment.surfacePositions().isEmpty(),
+                "standing water must retain a dry owned bed below its fluid volume");
+        assertOwned(List.of(deployment), terrain);
+
+        var topByColumn = new java.util.LinkedHashMap<String, BlockPos>();
+        for (var wet : deployment.positions()) {
+            String key = wet.getX() + "," + wet.getZ();
+            topByColumn.merge(
+                    key,
+                    wet,
+                    (first, second) -> first.getY() >= second.getY() ? first : second);
+        }
+        assertTrue(
+                topByColumn.size() > retainedIntent.footprint().cells().size(),
+                "retained water must rasterize watershed-cell area rather than one source column per coarse cell");
+        assertEquals(
+                1L,
+                topByColumn.values().stream().map(BlockPos::getY).distinct().count(),
+                "one retained waterbody must expose one level Minecraft water surface");
+        int waterTopY = topByColumn.values().iterator().next().getY();
+        assertTrue(topByColumn.values().stream().allMatch(position ->
+                terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .map(range -> waterTopY < range.maximumY())
+                        .orElse(false)),
+                "retained water surface must remain recessed inside exact-volume ownership");
+
+        var watershed = io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner.plan(
+                fixture.descriptor());
+        var physical = fixture.volume().compiledVolume().descriptor();
+        Set<Integer> representedCells = new HashSet<>();
+        for (var position : topByColumn.values()) {
+            double localX = position.getX() - physical.centerX();
+            double localZ = position.getZ() - physical.centerZ();
+            int gx = (int) Math.round(
+                    (localX + fixture.descriptor().nominalRadius()) / watershed.spacing());
+            int gz = (int) Math.round(
+                    (localZ + fixture.descriptor().nominalRadius()) / watershed.spacing());
+            gx = Math.max(0, Math.min(watershed.gridSize() - 1, gx));
+            gz = Math.max(0, Math.min(watershed.gridSize() - 1, gz));
+            representedCells.add(gz * watershed.gridSize() + gx);
+        }
+        assertTrue(representedCells.containsAll(retainedIntent.footprint().cells().stream()
+                .map(io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                .collect(java.util.stream.Collectors.toSet())),
+                "physical basin must preserve every accepted coarse inundation cell");
+
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (var position : topByColumn.values()) {
+            for (int[] direction : directions) {
+                String neighborKey = (position.getX() + direction[0])
+                        + "," + (position.getZ() + direction[1]);
+                if (topByColumn.containsKey(neighborKey)) {
+                    continue;
+                }
+                assertTrue(
+                        terrain.isSolidOwnedBy(
+                                fixture.volume().id(),
+                                position.getX() + direction[0],
+                                waterTopY,
+                                position.getZ() + direction[1])
+                                && !terrain.isSolidOwnedByOtherVolume(
+                                        fixture.volume().id(),
+                                        position.getX() + direction[0],
+                                        waterTopY,
+                                        position.getZ() + direction[1]),
+                        "retained water boundary must be physically banked rather than draining into void");
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
