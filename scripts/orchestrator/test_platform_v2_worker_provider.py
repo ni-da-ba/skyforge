@@ -335,8 +335,8 @@ class CodexProviderAdapterTest(unittest.TestCase):
         subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
         subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
         subprocess.run(["git", "config", "user.name", "Skyforge Test"], cwd=root, check=True)
-        (root / "allowed.txt").write_text("base\\n", encoding="utf-8")
-        (root / "outside.txt").write_text("outside\\n", encoding="utf-8")
+        (root / "allowed.txt").write_text("base\n", encoding="utf-8")
+        (root / "outside.txt").write_text("outside\n", encoding="utf-8")
         subprocess.run(["git", "add", "."], cwd=root, check=True)
         subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
         return subprocess.run(
@@ -360,7 +360,7 @@ class CodexProviderAdapterTest(unittest.TestCase):
             self.assertEqual(changed, ("allowed.txt",))
             self.assertEqual(
                 (root / "allowed.txt").read_text(encoding="utf-8"),
-                "changed\\n",
+                "changed\n",
             )
 
     def test_controller_rejects_patch_outside_frozen_scope(self):
@@ -379,7 +379,7 @@ class CodexProviderAdapterTest(unittest.TestCase):
                 _apply_controller_patch(spec=s, worktree=root, patch=patch)
             self.assertEqual(
                 (root / "outside.txt").read_text(encoding="utf-8"),
-                "outside\\n",
+                "outside\n",
             )
 
     def test_controller_patch_markers_are_mandatory(self):
@@ -398,8 +398,8 @@ class CodexProviderAdapterTest(unittest.TestCase):
 
         class Result:
             final_response = (
-                "SKYFORGE_WORKER_SUMMARY\\nbounded completion summary\\n"
-                "SKYFORGE_PATCH_BEGIN\\n\\nSKYFORGE_PATCH_END"
+                "SKYFORGE_WORKER_SUMMARY\nbounded completion summary\n"
+                "SKYFORGE_PATCH_BEGIN\n\nSKYFORGE_PATCH_END"
             )
 
         class Thread:
