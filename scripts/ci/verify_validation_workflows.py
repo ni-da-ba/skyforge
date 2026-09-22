@@ -95,9 +95,9 @@ def verify_root(root: Path = ROOT) -> list[str]:
             continue
         text = path.read_text(encoding="utf-8")
         relative = path.relative_to(root).as_posix()
-        if broad_trigger in text:
+        if broad_trigger in text and path.name != "neoforge-focused-qualification.yml":
             errors.append(
-                f"{relative}: retained/focused workflow must not fan out on shared NeoForge build.gradle.kts"
+                f"{relative}: unrelated retained workflow must not fan out on shared NeoForge build.gradle.kts"
             )
         lines = text.splitlines()
         for index, line in enumerate(lines):
@@ -128,6 +128,11 @@ def verify_root(root: Path = ROOT) -> list[str]:
         errors.append(".github/workflows/neoforge-focused-qualification.yml: missing workflow")
     else:
         qualification = qualification_path.read_text(encoding="utf-8")
+        if broad_trigger not in qualification:
+            errors.append(
+                ".github/workflows/neoforge-focused-qualification.yml: "
+                "must rerun when its canonical NeoForge test configuration changes"
+            )
         expected = ":skyforge-neoforge-1211:test -PskyforgeQualification=true"
         if expected not in qualification:
             errors.append(
