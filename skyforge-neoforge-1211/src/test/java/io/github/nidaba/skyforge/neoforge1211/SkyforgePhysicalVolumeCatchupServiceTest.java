@@ -79,6 +79,35 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
     }
 
     @Test
+    void populationDependenciesUseEarlierWriterReachOnly() {
+        long farEarlier = new ChunkPos(-6, 0).toLong();
+        long nearbyEarlier = new ChunkPos(-2, 0).toLong();
+        long candidate = new ChunkPos(0, 0).toLong();
+        long later = new ChunkPos(1, 0).toLong();
+        List<Long> canonical = List.of(farEarlier, nearbyEarlier, candidate, later);
+
+        assertEquals(
+                List.of(nearbyEarlier),
+                SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        canonical,
+                        key -> key == nearbyEarlier ? 3 : 1));
+    }
+
+    @Test
+    void populationDependenciesRejectNegativeWriterReach() {
+        long earlier = new ChunkPos(-1, 0).toLong();
+        long candidate = new ChunkPos(0, 0).toLong();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        List.of(earlier, candidate),
+                        ignored -> -1));
+    }
+
+    @Test
     void cavePumpStopsAtHardQuantumCap() {
         var calls = new AtomicInteger();
 
