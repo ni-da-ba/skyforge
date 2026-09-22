@@ -81,6 +81,25 @@ class OperationsConsoleTest(unittest.TestCase):
         self.assertIn('"Latest historical review"', source)
         self.assertIn('objective: "Continue Skyforge"', source)
         self.assertIn('id="continue-skyforge"', markup)
+        self.assertIn(
+            '"Continue Skyforge reconciled. Current boundary: "',
+            source,
+        )
+        self.assertIn(
+            "const productState = currentProductState(latestState || {});",
+            source,
+        )
+        self.assertLess(
+            source.index("await refresh();", source.index("async function continueSkyforge")),
+            source.index(
+                '"Continue Skyforge reconciled. Current boundary: "',
+                source.index("async function continueSkyforge"),
+            ),
+        )
+        self.assertNotIn(
+            '"Continue Skyforge recorded. Current state: "',
+            source,
+        )
         self.assertNotIn(
             'let product = review ? friendlyStatus(review.verdict) : "No review needed";',
             source,

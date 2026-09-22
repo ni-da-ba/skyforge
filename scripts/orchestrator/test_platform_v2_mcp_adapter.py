@@ -299,6 +299,11 @@ class McpProtocolTest(unittest.TestCase):
                 }
 
             runtime.handle_objective_submit = submit
+            state_status, expected_state = runtime.handle_development_read(
+                f"Bearer {API_TOKEN}"
+            )
+            self.assertEqual(state_status, 200)
+
             adapter = McpAdapter(runtime)
             result = adapter.handle(
                 legacy_request(
@@ -321,6 +326,56 @@ class McpProtocolTest(unittest.TestCase):
             )
             self.assertEqual(calls["client"], "chatgpt-mcp")
             self.assertEqual(calls["authorization"], f"Bearer {WRITE_TOKEN}")
+            value = result.payload["result"]["structuredContent"]
+            self.assertEqual(
+                value["current_product_state"],
+                expected_state["current_product_state"],
+            )
+            self.assertEqual(
+                value["active_program_session"],
+                expected_state["program_progression"].get("active_session"),
+            )
+            self.assertEqual(
+                value["snapshot_digest"],
+                expected_state["snapshot_digest"],
+            )
+
+    def test_continue_skyforge_preserves_success_when_state_refresh_is_unavailable(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime, _ = self.runtime(Path(td))
+
+            def submit(authorization, payload, *, client):
+                return 202, {
+                    "proposal_id": "program-proposal-2",
+                    "objective_disposition": "PROGRAM_CONTINUE",
+                }
+
+            runtime.handle_objective_submit = submit
+            runtime.handle_development_read = lambda authorization: (
+                503,
+                {"error": "development projection unavailable"},
+            )
+
+            adapter = McpAdapter(runtime)
+            result = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    params={
+                        "name": "continue_skyforge",
+                        "arguments": {"request_id": "continue-mcp-0002"},
+                    },
+                ),
+                authorization=f"Bearer {WRITE_TOKEN}",
+                headers={},
+            )
+            self.assertFalse(result.payload["result"]["isError"])
+            value = result.payload["result"]["structuredContent"]
+            self.assertEqual(value["proposal_id"], "program-proposal-2")
+            self.assertIsNone(value["current_product_state"])
+            self.assertEqual(
+                value["state_refresh_error"],
+                "development projection unavailable",
+            )
 
     def test_objective_trace_tool_matches_canonical_backend_trace(self):
         with tempfile.TemporaryDirectory() as td:
