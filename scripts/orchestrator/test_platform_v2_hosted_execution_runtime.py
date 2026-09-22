@@ -39,6 +39,12 @@ from v2.hosted_execution_runtime import (
     load_hosted_execution_gate,
 )
 from v2.hosted_state import HostedStateStore
+from v2.human_review import (
+    HumanReviewLedger,
+    HumanReviewSource,
+    HumanReviewSubmission,
+    HumanReviewVerdict,
+)
 from v2.inbox import InboxState
 from v2.ordinary_effects import OrdinaryEffectStore
 from v2.objective_ingress import DevelopmentApiObjectiveSource, ObjectiveProposalStore
@@ -385,6 +391,50 @@ class HostedExecutionGateTest(unittest.TestCase):
             path.write_text(json.dumps(raw), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "digest mismatch"):
                 load_hosted_execution_gate(path, root=root)
+
+
+class HumanGateProjectionTest(unittest.TestCase):
+    def test_reviewed_legacy_gate_is_hidden_until_program_resurfaces_it(self):
+        review = HumanReviewSubmission(
+            source=HumanReviewSource(
+                repo="ni-da-ba/skyforge",
+                issue_number=754,
+                comment_id=5752994015,
+                actor="ni-da-ba",
+                created_at="2026-09-20T22:02:53Z",
+                updated_at="2026-09-20T22:02:53Z",
+            ),
+            gate_id="dr-human-exploration-rereview",
+            artifact_id="dr70:key-2885",
+            source_sha="a" * 40,
+            verdict=HumanReviewVerdict.CHANGES_REQUIRED,
+            findings=("reviewed and changes required",),
+            positive_findings=(),
+            material_delta="historical reviewed specimen",
+            next_boundary="repair before another review",
+            deferred_product_work=True,
+        )
+        reviews = HumanReviewLedger((review,))
+
+        self.assertFalse(
+            hosted.legacy_human_gate_is_actionable(
+                reviews=reviews,
+                gate_id="dr-human-exploration-rereview",
+            )
+        )
+        self.assertTrue(
+            hosted.legacy_human_gate_is_actionable(
+                reviews=reviews,
+                gate_id="dr-human-exploration-rereview",
+                active_program_gate_id="dr-human-exploration-rereview",
+            )
+        )
+        self.assertTrue(
+            hosted.legacy_human_gate_is_actionable(
+                reviews=reviews,
+                gate_id="unreviewed-gate",
+            )
+        )
 
 
 class HostedRuntimeGateIntegrationTest(unittest.TestCase):
