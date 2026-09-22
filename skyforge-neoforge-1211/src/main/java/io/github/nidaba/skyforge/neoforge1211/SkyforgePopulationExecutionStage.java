@@ -252,6 +252,10 @@ final class SkyforgePopulationExecutionStage {
             return attachmentEnvelope.attachmentCount();
         }
 
+        long attachmentPositionDigest() {
+            return attachmentEnvelope.attachmentPositionDigest();
+        }
+
         private void recordPerformanceEvidence() {
             ownerSolid.recordPerformanceEvidence("population.ownerSolidCache");
             foreignSolid.recordPerformanceEvidence("population.foreignSolidCache");
