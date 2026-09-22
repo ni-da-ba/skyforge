@@ -167,13 +167,17 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                     digest = mix(digest, 0x414952L);
                     continue;
                 }
-                if (!state.is(Blocks.DIRT)) {
+                if (!state.getFluidState().isEmpty()) {
                     throw new IllegalStateException(
-                            "DR-50 surviving fluvial surface dressing changed carrier at "
+                            "DR-50 surviving fluvial surface dressing became fluid at "
                                     + position + ": " + state);
                 }
                 retainedDressedSurface++;
-                digest = mix(digest, 0x44495254L);
+                // AUTH-0109 native surfacing is downstream representation authority for exposed
+                // dry banks/beds, so grass/dirt/stone/etc. may replace the original neutral dirt
+                // carrier. Digest the surviving authored-native representation instead of requiring
+                // an obsolete pre-surface material identity.
+                digest = mixText(digest, state.toString());
             }
         }
         if (positions.isEmpty()) {
