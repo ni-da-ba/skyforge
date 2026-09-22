@@ -32,7 +32,7 @@ final class SkyforgeNativeStructureRuntimeOperationSourceTest {
         String source = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java"));
         int structures = source.indexOf("SkyforgeNativeStructureRuntimeOperation.execute(");
-        int surface = source.indexOf("SkyforgeNativeSurfacePopulationStage.populateDeferred(");
+        int surface = source.indexOf("SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred(");
         assertTrue(structures >= 0);
         assertTrue(surface > structures);
     }

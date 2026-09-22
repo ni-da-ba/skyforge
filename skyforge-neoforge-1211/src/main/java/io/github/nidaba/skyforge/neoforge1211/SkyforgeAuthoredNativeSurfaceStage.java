@@ -108,6 +108,15 @@ final class SkyforgeAuthoredNativeSurfaceStage {
         return new Result(volumeId, surfaceKey.chunkKey(), changed);
     }
 
+    static boolean completed(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volumeId, "volumeId");
+        return completed(level, new SurfaceKey(volumeId, chunkKey));
+    }
+
     private static synchronized boolean completed(ServerLevel level, SurfaceKey key) {
         Set<SurfaceKey> completed = COMPLETED.get(level);
         return completed != null && completed.contains(key);

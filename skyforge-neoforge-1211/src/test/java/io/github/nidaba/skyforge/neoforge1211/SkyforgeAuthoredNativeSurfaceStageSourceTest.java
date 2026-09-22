@@ -32,8 +32,11 @@ final class SkyforgeAuthoredNativeSurfaceStageSourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/"
                         + "SkyforgePhysicalVolumeCatchupService.java"));
         int surface = catchup.indexOf("SkyforgeAuthoredNativeSurfaceStage.apply");
-        int population = catchup.indexOf("SkyforgeNativeSurfacePopulationStage.populateDeferred");
+        int readiness = catchup.indexOf("candidate -> authoredSurfaceReadyForVolume", surface);
+        int population = catchup.indexOf("SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred", readiness);
         assertTrue(surface >= 0);
-        assertTrue(population > surface);
+        assertTrue(readiness > surface);
+        assertTrue(population > readiness);
+        assertTrue(catchup.contains("SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId).isPresent()"));
     }
 }

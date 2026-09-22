@@ -119,6 +119,30 @@ final class SkyforgeNativeSurfacePopulationStage {
     }
 
     /**
+     * Replays one exact volume on a stable chunk through the same deferred post-processing bridge
+     * used by whole-chunk catch-up.
+     */
+    static List<SkyforgeNativeSurfacePopulationCoordinator.Result> populateVolumeDeferred(
+            ServerLevel level,
+            LevelChunk chunk,
+            ChunkGenerator generator,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (chunk.getLevel() != level) {
+            throw new IllegalArgumentException("deferred population chunk belongs to another level");
+        }
+        var postProcessing = SkyforgeDeferredPopulationPostProcessingBridge.open(level);
+        try {
+            return populateVolume(level, chunk, generator, volumeId);
+        } finally {
+            postProcessing.close();
+        }
+    }
+
+    /**
      * Returns the exact-volume biome resolver already selected for native population in this chunk.
      *
      * <p>Persistent client presentation deliberately reuses this plan instead of maintaining a
@@ -128,12 +152,25 @@ final class SkyforgeNativeSurfacePopulationStage {
             ChunkAccess chunk,
             SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(chunk, "chunk");
+        return planForVolume(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight(),
+                volumeId);
+    }
+
+    static Optional<SkyforgeNativeSurfacePopulationPlan> planForVolume(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
         Objects.requireNonNull(volumeId, "volumeId");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
             return Optional.empty();
         }
-        return resolvePlans(binding, chunk).stream()
+        return resolvePlans(binding, chunkPos, minimumY, height).stream()
                 .filter(plan -> plan.volumeId().equals(volumeId))
                 .findFirst();
     }
@@ -141,11 +178,22 @@ final class SkyforgeNativeSurfacePopulationStage {
     private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
             RuntimeBinding binding,
             ChunkAccess chunk) {
-        ChunkPos chunkPos = chunk.getPos();
+        return resolvePlans(
+                binding,
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+    }
+
+    private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
+            RuntimeBinding binding,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
         List<SkyforgeNativeSurfacePopulationPlan> plans = List.copyOf(binding.planResolver().resolve(
                 chunkPos,
-                chunk.getMinBuildHeight(),
-                chunk.getHeight()));
+                minimumY,
+                height));
         var volumeIds = new HashSet<SkyIslandWorldVolumeId>();
         for (SkyforgeNativeSurfacePopulationPlan plan : plans) {
             Objects.requireNonNull(plan, "surface population plan resolver returned null plan");

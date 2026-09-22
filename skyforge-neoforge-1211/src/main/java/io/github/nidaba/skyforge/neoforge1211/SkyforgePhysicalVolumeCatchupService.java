@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -177,6 +178,27 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(ordered);
     }
 
+    static boolean authoredSurfaceReadyForVolume(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(volumeId, "volumeId");
+        for (long chunkKey : SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId)) {
+            ChunkPos chunkPos = new ChunkPos(chunkKey);
+            boolean requiresAuthoredSurface = SkyforgeNativeSurfacePopulationStage.planForVolume(
+                            chunkPos,
+                            level.getMinBuildHeight(),
+                            level.getHeight(),
+                            volumeId)
+                    .isPresent();
+            if (requiresAuthoredSurface
+                    && !SkyforgeAuthoredNativeSurfaceStage.completed(level, volumeId, chunkKey)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static PumpResult pumpBoundedWork(
             BooleanSupplier serviceOneWorkItem,
             LongSupplier nanoTime,
@@ -240,12 +262,13 @@ final class SkyforgePhysicalVolumeCatchupService {
                         terrainPumpStart);
             }
 
-            // Physically admitted surface ecology has one execution environment only: stable
-            // LevelChunks. WorldGenRegion callbacks are intentionally deferred by the population
-            // stage, and every loaded chunk whose terrain catch-up is complete reaches the same
-            // coordinator here in canonical X/Z order before post-terrain cave/interior work.
-            for (long chunkKey : canonicalPopulationChunkKeys(
-                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
+            // Surface representation is geometry, not decoration. Realize every currently available
+            // exact-volume authored surface before allowing any native population for that volume.
+            // This keeps cross-chunk vegetation from becoming an input to a later surface pass when
+            // Minecraft promotes otherwise identical chunks in different scheduler orders.
+            var presentationChunkKeys = canonicalPopulationChunkKeys(
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys());
+            for (long chunkKey : presentationChunkKeys) {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
@@ -254,9 +277,37 @@ final class SkyforgePhysicalVolumeCatchupService {
                     continue;
                 }
                 for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
-                    SkyforgeAuthoredNativeSurfaceStage.apply(level, chunk, generator, volumeId);
+                    // Older physical-admission proofs deliberately have no ecology plan. They retain
+                    // their accepted no-op surface/population behavior rather than fabricating a biome
+                    // authority merely to satisfy the authored-surface adapter.
+                    if (SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId).isPresent()) {
+                        SkyforgeAuthoredNativeSurfaceStage.apply(level, chunk, generator, volumeId);
+                    }
                 }
-                SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
+            }
+
+            // Population is a whole-volume downstream phase of authored surfacing. The readiness
+            // barrier is evaluated once per volume per tick and includes plan-bearing chunks that are
+            // not currently loaded, using the surface completion ledger rather than adding tickets.
+            var surfaceReadyByVolume = new java.util.HashMap<SkyIslandWorldVolumeId, Boolean>();
+            for (long chunkKey : presentationChunkKeys) {
+                int chunkX = ChunkPos.getX(chunkKey);
+                int chunkZ = ChunkPos.getZ(chunkKey);
+                LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
+                if (chunk == null
+                        || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                    continue;
+                }
+                for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                    boolean surfaceReady = surfaceReadyByVolume.computeIfAbsent(
+                            volumeId,
+                            candidate -> authoredSurfaceReadyForVolume(level, candidate));
+                    if (!surfaceReady) {
+                        continue;
+                    }
+                    SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred(
+                            level, chunk, generator, volumeId);
+                }
             }
 
             // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
@@ -310,6 +361,12 @@ final class SkyforgePhysicalVolumeCatchupService {
                     continue;
                 }
                 for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                    boolean surfaceReady = surfaceReadyByVolume.computeIfAbsent(
+                            volumeId,
+                            candidate -> authoredSurfaceReadyForVolume(level, candidate));
+                    if (!surfaceReady) {
+                        continue;
+                    }
                     SkyforgePersistentBiomePresentationStage.present(level, chunk, volumeId);
                     SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(volumeId, chunk.getPos());
                 }
