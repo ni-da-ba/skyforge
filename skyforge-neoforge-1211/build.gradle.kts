@@ -46,23 +46,15 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-val dr70SpecimenSearch = tasks.register<Test>("dr70SpecimenSearch") {
-    group = "verification"
-    description = "Run the explicit DR-70 physical review-specimen qualification search."
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
-    filter {
-        includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
-    }
-    systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-}
-
 // Temporary branch-only diagnostic routing: reuse one existing dispatchable GitHub Actions job
-// without modifying protected workflow files. Ordinary PR CI never takes this dependency.
+// without modifying protected workflow files. Ordinary PR CI never enables the exhaustive search.
 if (System.getenv("GITHUB_WORKFLOW") == "Compiler Platform Super Glue Assembly Domain"
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
     tasks.named<Test>("test").configure {
-        dependsOn(dr70SpecimenSearch)
+        systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+        filter {
+            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
+        }
     }
 }
 
