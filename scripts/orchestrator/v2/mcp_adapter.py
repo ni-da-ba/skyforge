@@ -105,6 +105,18 @@ READ_TOOLS: tuple[dict[str, Any], ...] = (
         "annotations": _read_annotations(),
     },
     {
+        "name": "get_current_product_state",
+        "title": "Get current Skyforge product state",
+        "description": (
+            "Read the canonical human-facing current product/program boundary derived by the "
+            "shared development backend. Historical reviews remain context and cannot override "
+            "an active Continue Skyforge task, review gate, or strategic boundary."
+        ),
+        "inputSchema": _object_schema(),
+        "outputSchema": {"type": "object"},
+        "annotations": _read_annotations(),
+    },
+    {
         "name": "get_objective_trace",
         "title": "Get Skyforge objective trace",
         "description": (
@@ -192,6 +204,23 @@ WRITE_TOOLS: tuple[dict[str, Any], ...] = (
                 "objective": _string_schema("Natural-language Skyforge development objective."),
             },
             required=("request_id", "objective"),
+        ),
+        "outputSchema": {"type": "object"},
+        "annotations": _write_annotations(),
+    },
+    {
+        "name": "continue_skyforge",
+        "title": "Continue Skyforge",
+        "description": (
+            "State-changing ergonomic wrapper for the exact typed objective Continue Skyforge. "
+            "It reuses the accepted objective/program-progression pipeline, stops at real human, "
+            "strategic, ownership, and safety boundaries, and never creates task authority directly."
+        ),
+        "inputSchema": _object_schema(
+            {
+                "request_id": _string_schema("Immutable client-generated idempotency identifier."),
+            },
+            required=("request_id",),
         ),
         "outputSchema": {"type": "object"},
         "annotations": _write_annotations(),
@@ -438,6 +467,29 @@ class McpAdapter:
                 f"Canonical Skyforge development snapshot {payload.get('snapshot_digest', '')}.",
             )
 
+        if name == "get_current_product_state":
+            status, payload = self.runtime.handle_development_read(self._read_authorization())
+            if status != 200:
+                return self._tool_error(status, payload)
+            product = payload.get("current_product_state")
+            if not isinstance(product, Mapping):
+                return self._tool_error(
+                    500,
+                    {"error": "canonical current product state is unavailable"},
+                )
+            value = {
+                "snapshot_digest": payload.get("snapshot_digest"),
+                "current_product_state": dict(product),
+            }
+            return self._tool_ok(
+                value,
+                (
+                    "Current Skyforge product state: "
+                    f"{product.get('status', '')}; "
+                    f"node={product.get('node_id') or 'none'}."
+                ),
+            )
+
         if name == "get_objective_trace":
             correlation_id = str(arguments.get("correlation_id") or "").strip()
             if not correlation_id:
@@ -586,6 +638,26 @@ class McpAdapter:
                 payload,
                 (
                     f"Durable Skyforge objective proposal {payload.get('proposal_id', '')} reconciled "
+                    f"with disposition {payload.get('objective_disposition', '')}."
+                ),
+            )
+
+        if name == "continue_skyforge":
+            request = {
+                "request_id": arguments.get("request_id"),
+                "objective": "Continue Skyforge",
+            }
+            status, payload = self.runtime.handle_objective_submit(
+                self._write_authorization(),
+                request,
+                client="chatgpt-mcp",
+            )
+            if status not in {200, 202}:
+                return self._tool_error(status, payload)
+            return self._tool_ok(
+                payload,
+                (
+                    f"Continue Skyforge proposal {payload.get('proposal_id', '')} reconciled "
                     f"with disposition {payload.get('objective_disposition', '')}."
                 ),
             )
