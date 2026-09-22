@@ -117,7 +117,8 @@ def main() -> int:
     lines = ["## CI timing", "", "| Lane | Duration |", "| --- | ---: |"]
     ordinary = _seconds(timing / "ordinary-check.seconds")
     reference = _seconds(timing / "reference-corpora.seconds")
-    lines.append(f"| ordinary `./gradlew check` | {ordinary if ordinary is not None else 'n/a'}s |")
+    ordinary_display = f"{ordinary}s" if ordinary is not None else "n/a"
+    lines.append(f"| ordinary `./gradlew check` | {ordinary_display} |")
     lines.append(f"| reference qualification corpora | {reference if reference is not None else 'not run'} |")
     if ordinary is not None and ordinary > 600:
         lines += ["", f"> CI budget flag: ordinary check took {ordinary}s (>10 minutes). Investigate before treating this as the new baseline."]
