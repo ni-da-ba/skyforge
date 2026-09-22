@@ -3,8 +3,6 @@ name: Portable Engine Cutoff Sable
 on:
   pull_request:
     paths:
-      - ".github/workflows/portable-engine-cutoff-sable.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePortableEngineCutoffSableAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePortableEngineCutoffAccess.java"

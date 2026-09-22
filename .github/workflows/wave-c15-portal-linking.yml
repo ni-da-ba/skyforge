@@ -3,7 +3,6 @@ name: Wave C15 Portal Linking
 on:
   pull_request:
     paths:
-      - ".github/workflows/wave-c15-portal-linking.yml"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/development/wave-c2-nether-scale-datapack/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC15PortalLinkingAcceptance.java"
@@ -11,7 +10,6 @@ on:
   push:
     branches: [main]
     paths:
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
   workflow_dispatch:
 

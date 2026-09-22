@@ -3,9 +3,7 @@ name: Compiler Platform Steering Wheel Client On Sable
 on:
   pull_request:
     paths:
-      - ".github/workflows/compiler-platform-steering-wheel-client-on-sable.yml"
       - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientOnSableBridge.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientWorldPrepareAcceptance.java"

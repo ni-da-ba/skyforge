@@ -12,6 +12,7 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Deterministic, exact-owner, save/reload-style evidence for the DR-20 representative tranche. */
@@ -111,9 +112,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .map(range -> position.getY() == range.maximumY())
                         .orElse(true)),
                 "wet channel realization must never consume the original top-surface voxel");
+
+        for (var deployment : deployments) {
+            for (var wet : deployment.positions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), wet)
+                        .orElseThrow();
+                assertTrue(state.is(Blocks.WATER));
+            }
+            for (var dry : deployment.carvedPositions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), dry)
+                        .orElseThrow();
+                assertTrue(state.isAir());
+            }
+        }
     }
 
     @Test
+    @Tag("qualification")
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
@@ -146,26 +161,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
-
-        for (var deployment : deployments) {
-            for (var wet : deployment.positions()) {
-                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), wet)
-                        .orElseThrow();
-                assertTrue(state.is(Blocks.WATER));
-            }
-            for (var dry : deployment.carvedPositions()) {
-                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), dry)
-                        .orElseThrow();
-                assertTrue(state.isAir());
-            }
-        }
-    }
-
-    @Test
+    @Tag("qualification")
     void boundedAcceptedCorpusCoversEveryRequiredImplementationKind() {
         Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> observed = new HashSet<>();
         for (long key : ACCEPTED_CORPUS_KEYS) {
@@ -180,28 +176,37 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    @Tag("qualification")
     void lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater() throws Exception {
         CorpusFixture fixture = corpus(77L);
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
         assertFalse(deployments.isEmpty());
 
-        for (int deploymentIndex = 0; deploymentIndex < deployments.size(); deploymentIndex++) {
-            var deployment = deployments.get(deploymentIndex);
-            var chunks = new java.util.HashMap<Long, ProtoChunk>();
+        var chunkKeys = new java.util.LinkedHashSet<Long>();
+        for (var deployment : deployments) {
             var allPositions = new java.util.ArrayList<BlockPos>();
             allPositions.addAll(deployment.positions());
             allPositions.addAll(deployment.carvedPositions());
             allPositions.addAll(deployment.surfacePositions());
             for (var position : allPositions) {
-                chunks.computeIfAbsent(new net.minecraft.world.level.ChunkPos(position).toLong(), key -> {
-                    try {
-                        return realizedChunk(terrain, new net.minecraft.world.level.ChunkPos(key));
-                    } catch (Exception exception) {
-                        throw new RuntimeException(exception);
-                    }
-                });
+                chunkKeys.add(new net.minecraft.world.level.ChunkPos(position).toLong());
             }
+        }
+
+        var chunks = new java.util.HashMap<Long, ProtoChunk>();
+        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.install(
+                terrain, new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
+            assertNotNull(installedSurfaceStage);
+            for (long chunkKey : chunkKeys) {
+                var chunkPos = new net.minecraft.world.level.ChunkPos(chunkKey);
+                ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+                SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+                chunks.put(chunkKey, chunk);
+            }
+        }
+
+        for (var deployment : deployments) {
             for (var position : deployment.positions()) {
                 assertTrue(chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
                         .getBlockState(position)
@@ -218,14 +223,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .is(Blocks.DIRT),
                         "fluvial bed/bank surface must use the accepted Skyforge surface-mantle carrier");
             }
+        }
 
-            assertEquals(0, chunks.values().stream()
-                    .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain))
-                    .sum());
+        assertEquals(0, chunks.values().stream()
+                .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain))
+                .sum());
 
-            var reloaded = terrain.authoredHydrologyDeployments(fixture.volume().id());
-            assertEquals(deployments, reloaded);
-            var reloadedDeployment = reloaded.get(deploymentIndex);
+        var reloaded = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        assertEquals(deployments, reloaded);
+        for (var reloadedDeployment : reloaded) {
             assertEquals(0, chunks.values().stream()
                     .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, reloadedDeployment))
                     .sum());
@@ -269,6 +275,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    @Tag("qualification")
     void stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal() {
         StackedCorpusFixture fixture = stackedCorpus(77L);
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
@@ -475,18 +482,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette(),
                 authoredDescriptors);
-    }
-
-    private static ProtoChunk realizedChunk(
-            SkyforgeNeoForge1211ChunkAdapter terrain,
-            net.minecraft.world.level.ChunkPos pos) throws Exception {
-        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(pos);
-        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.install(
-                terrain, new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()))) {
-            assertNotNull(installedSurfaceStage);
-            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
-        }
-        return chunk;
     }
 
     private record CorpusFixture(

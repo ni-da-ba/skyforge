@@ -3,8 +3,6 @@ name: Wave C11 First Flight Recipe Runtime
 on:
   pull_request:
     paths:
-      - ".github/workflows/wave-c11-first-flight-recipes.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC11FirstFlightRecipeAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC11FirstFlightRecipeResourceTest.java"

@@ -1,0 +1,107 @@
+name: NeoForge Focused Qualification
+
+on:
+  workflow_dispatch:
+    inputs:
+      historical_specimen_search:
+        description: "Also run the retained DR-70 4,096-key historical specimen search"
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    paths:
+      - ".github/workflows/neoforge-focused-qualification.yml"
+      - "skyforge-world/**"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapter.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkAdapter.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapterTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr50IntegratedRegionEvidenceTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr70ReviewRepairTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr70SpecimenSearchTest.java"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: neoforge-qualification-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qualification:
+    name: qualification / ${{ matrix.shard }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - shard: hydrology-static
+            test_args: >-
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.boundedAcceptedCorpusCoversEveryRequiredImplementationKind
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal
+          - shard: hydrology-lifecycle
+            test_args: >-
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater
+          - shard: dr50-integration
+            test_args: >-
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest
+          - shard: dr70-repair
+            test_args: >-
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Run focused NeoForge qualification shard
+        run: ./gradlew :skyforge-neoforge-1211:test -PskyforgeQualification=true ${{ matrix.test_args }} --profile
+      - name: Publish qualification diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: neoforge-qualification-${{ matrix.shard }}-${{ github.sha }}
+          path: |
+            build/reports/profile/
+            **/build/test-results/test/
+            **/build/reports/tests/test/
+          if-no-files-found: warn
+          retention-days: 7
+
+  historical-specimen-search:
+    if: github.event_name == 'workflow_dispatch' && inputs.historical_specimen_search
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Run retained DR-70 historical specimen search
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          -PskyforgeQualification=true
+          -PskyforgeDr70SpecimenSearch=true
+          --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest
+          --profile
+      - name: Publish historical-search diagnostics
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dr70-historical-specimen-search-${{ github.sha }}
+          path: |
+            build/reports/profile/
+            **/build/test-results/test/
+            **/build/reports/tests/test/
+          if-no-files-found: warn
+          retention-days: 7

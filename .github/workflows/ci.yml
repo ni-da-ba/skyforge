@@ -41,8 +41,12 @@ jobs:
 
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
+            echo "ordinary=true" >> "${GITHUB_OUTPUT}"
+            echo "reference=true" >> "${GITHUB_OUTPUT}"
+            echo "neoforge=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "reason=manual dispatch requests full CI and music-source verification" >> "${GITHUB_OUTPUT}"
+            echo "scopes=ordinary,reference,neoforge,music" >> "${GITHUB_OUTPUT}"
+            echo "reason=manual dispatch requests broad validation" >> "${GITHUB_OUTPUT}"
             echo "Manual dispatch requests full CI and music-source verification."
             exit 0
           fi
@@ -55,14 +59,22 @@ jobs:
             head="${GITHUB_SHA}"
           else
             echo "full=true" >> "${GITHUB_OUTPUT}"
+            echo "ordinary=true" >> "${GITHUB_OUTPUT}"
+            echo "reference=true" >> "${GITHUB_OUTPUT}"
+            echo "neoforge=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "reason=unknown event type fails safe to full CI" >> "${GITHUB_OUTPUT}"
+            echo "scopes=ordinary,reference,neoforge,music" >> "${GITHUB_OUTPUT}"
+            echo "reason=unknown event type fails safe to broad validation" >> "${GITHUB_OUTPUT}"
             exit 0
           fi
 
           if [[ -z "${base}" || "${base}" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
             echo "full=true" >> "${GITHUB_OUTPUT}"
+            echo "ordinary=true" >> "${GITHUB_OUTPUT}"
+            echo "reference=true" >> "${GITHUB_OUTPUT}"
+            echo "neoforge=true" >> "${GITHUB_OUTPUT}"
             echo "music=true" >> "${GITHUB_OUTPUT}"
+            echo "scopes=ordinary,reference,neoforge,music" >> "${GITHUB_OUTPUT}"
             echo "reason=unable to establish safe comparison base" >> "${GITHUB_OUTPUT}"
             echo "Unable to establish a safe comparison base; running full CI and music-source verification."
             exit 0
@@ -98,7 +110,6 @@ jobs:
           echo "PASS lightweight repository integrity gate"
 
       - name: Validate CI helper and retained workflow contracts
-        if: steps.impact.outputs.full != 'true'
         working-directory: scripts/ci
         run: python3 -m unittest -v
 
@@ -107,27 +118,42 @@ jobs:
         run: python3 scripts/ci/verify_evidence_entry_points.py --validate-manifest
 
       - name: Verify retained DR workflow contracts
-        if: steps.impact.outputs.full != 'true'
         run: python3 scripts/ci/verify_validation_workflows.py
 
       - name: Set up Java and Gradle
         if: steps.impact.outputs.full == 'true'
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Build, test, and generate evidence
+      - name: Run ordinary Gradle check
         if: steps.impact.outputs.full == 'true'
-        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/ci-timing
+          start=$(date +%s)
+          ./gradlew check -x :skyforge-reference:test --profile
+          echo "$(( $(date +%s) - start ))" > build/ci-timing/ordinary-check.seconds
+
+      - name: Run reference qualification corpora
+        if: steps.impact.outputs.reference == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/ci-timing
+          start=$(date +%s)
+          ./gradlew :skyforge-reference:test :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence --profile
+          echo "$(( $(date +%s) - start ))" > build/ci-timing/reference-corpora.seconds
 
       - name: Verify evidence review entry points
-        if: steps.impact.outputs.full == 'true'
+        if: steps.impact.outputs.reference == 'true'
         run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files
 
       - name: Stage compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.impact.outputs.reference == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         run: python3 scripts/ci/stage_evidence_review_bundle.py --stage
 
       - name: Publish compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: steps.impact.outputs.reference == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -136,3 +162,20 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
+
+      - name: Summarize CI timing
+        if: always() && steps.impact.outputs.full == 'true'
+        run: python3 scripts/ci/summarize_ci_timings.py --timing-dir build/ci-timing --summary "${GITHUB_STEP_SUMMARY}"
+
+      - name: Publish Gradle timing profiles
+        if: always() && steps.impact.outputs.full == 'true'
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-ci-timing-${{ github.sha }}
+          path: |
+            build/ci-timing/
+            build/reports/profile/
+            **/build/test-results/test/TEST-*.xml
+          if-no-files-found: warn
+          retention-days: 7

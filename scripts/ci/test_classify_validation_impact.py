@@ -4,13 +4,14 @@ from classify_validation_impact import classify_paths
 
 
 class ValidationImpactTest(unittest.TestCase):
-    def test_workflow_only_is_lightweight(self):
+    def test_workflow_only_is_lightweight_but_can_name_focused_scope(self):
         result = classify_paths([
-            ".github/workflows/dr30-native-structure-acceptance.yml",
+            ".github/workflows/dr50-integrated-dressed-region.yml",
             ".github/workflows/ci.yml",
         ])
         self.assertFalse(result.full)
-        self.assertFalse(result.music)
+        self.assertTrue(result.dr50)
+        self.assertFalse(result.reference)
 
     def test_ci_helpers_and_docs_are_lightweight(self):
         result = classify_paths([
@@ -27,38 +28,55 @@ class ValidationImpactTest(unittest.TestCase):
         ])
         self.assertFalse(result.full)
 
-    def test_product_source_requires_full(self):
+    def test_neoforge_hydrology_routes_ordinary_neoforge_without_reference_corpus(self):
         result = classify_paths([
-            "skyforge-neoforge-1211/src/main/java/example/Foo.java",
+            "skyforge-neoforge-1211/src/main/java/example/Hydrology.java",
         ])
         self.assertTrue(result.full)
+        self.assertTrue(result.neoforge)
+        self.assertFalse(result.reference)
 
-    def test_reusable_java_gradle_action_requires_full(self):
-        result = classify_paths([
-            ".github/actions/setup-java-gradle/action.yml",
-        ])
+    def test_reference_semantics_route_reference_corpus(self):
+        result = classify_paths(["skyforge-world/src/main/java/example/World.java"])
         self.assertTrue(result.full)
+        self.assertTrue(result.reference)
 
-    def test_mixed_lightweight_and_product_requires_full(self):
-        result = classify_paths([
-            ".github/workflows/dr50-integrated-dressed-region.yml",
-            "skyforge-world/src/main/java/example/World.java",
-        ])
+    def test_shared_build_change_fails_broadly_safe(self):
+        result = classify_paths(["skyforge-neoforge-1211/build.gradle.kts"])
         self.assertTrue(result.full)
+        self.assertTrue(result.neoforge)
+        self.assertFalse(result.reference)
 
-    def test_music_change_sets_music_and_full(self):
+        root = classify_paths(["build.gradle.kts"])
+        self.assertTrue(root.full)
+        self.assertTrue(root.neoforge)
+        self.assertTrue(root.reference)
+
+    def test_aircraft_and_mechanism_scopes_are_distinct(self):
+        aircraft = classify_paths(["docs/aircraft/rudder-contract.md"])
+        mechanism = classify_paths([".github/workflows/mech-001-functional-mechanism.yml"])
+        self.assertTrue(aircraft.aircraft)
+        self.assertFalse(aircraft.compiler_mechanism)
+        self.assertTrue(mechanism.compiler_mechanism)
+
+    def test_music_change_sets_music_and_ordinary(self):
         result = classify_paths(["assets/music/theme/source.mid"])
         self.assertTrue(result.full)
         self.assertTrue(result.music)
 
-    def test_music_verifier_sets_music_and_full(self):
-        result = classify_paths(["scripts/music/verify_music_sources.py"])
+    def test_unknown_change_set_fails_safe(self):
+        result = classify_paths(["mystery-runtime/new-format.bin"])
         self.assertTrue(result.full)
-        self.assertTrue(result.music)
+        self.assertTrue(result.reference)
+        self.assertTrue(result.neoforge)
+        self.assertTrue(result.fail_safe)
 
     def test_empty_change_set_fails_safe(self):
         result = classify_paths([])
         self.assertTrue(result.full)
+        self.assertTrue(result.reference)
+        self.assertTrue(result.neoforge)
+        self.assertTrue(result.fail_safe)
 
 
 if __name__ == "__main__":

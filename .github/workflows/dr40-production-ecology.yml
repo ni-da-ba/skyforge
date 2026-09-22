@@ -5,7 +5,7 @@ on:
   pull_request:
     paths:
       - "skyforge-world/**"
-      - "skyforge-neoforge-1211/**"
+      - "skyforge-neoforge-1211/src/main/**"
       - "docs/agent-state/DR40_ECOLOGY_*.json"
 
 permissions:

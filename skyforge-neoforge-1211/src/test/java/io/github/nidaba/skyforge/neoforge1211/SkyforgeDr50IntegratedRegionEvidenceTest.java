@@ -7,10 +7,12 @@ import io.github.nidaba.skyforge.world.SkyIslandBaseMetalOpportunityProfiler;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HashSet;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeDr50IntegratedRegionEvidenceTest {
     @Test
+    @Tag("qualification")
     void canonicalMaterialAndAuthoredHydrologyPlansAreConcreteAndNoncolliding() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = new SkyforgeNeoForge1211ChunkAdapter(
@@ -24,8 +26,7 @@ final class SkyforgeDr50IntegratedRegionEvidenceTest {
                         terrain,
                         SkyforgeIronDepositAdapter.Specification.representative())
                 .orElseThrow();
-        var hydrology = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                fixture.descriptor(), fixture.volume(), terrain);
+        var hydrology = terrain.authoredHydrologyDeployments(fixture.volume().id());
         var waterPositions = new HashSet<net.minecraft.core.BlockPos>();
         hydrology.forEach(deployment -> waterPositions.addAll(deployment.positions()));
 
