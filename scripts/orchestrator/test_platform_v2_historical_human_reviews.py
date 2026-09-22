@@ -9,6 +9,7 @@ from v2.historical_human_reviews import migrate_canonical_historical_human_revie
 from v2.human_review import HumanReviewStore, HumanReviewVerdict
 
 
+DR60_SOURCE_SHA = "4f6526d26408974b3a33d1af62565f225516567d"
 SOURCE_SHA = "a318f1b1ffb22805087eac52b67035d041a03fb6"
 
 
@@ -20,6 +21,32 @@ def write_artifact(root: Path, *, source_sha: str = SOURCE_SHA) -> None:
             {
                 "schema_version": 1,
                 "artifacts": [
+                    {
+                        "artifact_id": "dr60:p2-dressed-region-a",
+                        "kind": "INTERACTIVE_SPECIMEN",
+                        "source_sha": DR60_SOURCE_SHA,
+                        "title": "DR-60 canonical dressed-region exploration specimen",
+                        "description": (
+                            "Canonical P2_DRESSED_REGION_A specimen used for the "
+                            "2026-09-17 DR-60 human exploration review that returned "
+                            "CHANGES_REQUIRED."
+                        ),
+                        "interactive": {
+                            "specimen_kind": "minecraft-neoforge-review-world",
+                            "parameters": {"specimen_id": "P2_DRESSED_REGION_A"},
+                            "preparation_entry_points": [
+                                ":skyforge-neoforge-1211:dr50IntegratedRegionAcceptance"
+                            ],
+                            "launch_entry_point": (
+                                ":skyforge-neoforge-1211:runDr60HumanReviewClient"
+                            ),
+                            "review_actions": [
+                                "/gamemode creative",
+                                "/tp @s 0 320 0",
+                            ],
+                            "associated_artifact_ids": [],
+                        },
+                    },
                     {
                         "artifact_id": "dr70:key-2885",
                         "kind": "INTERACTIVE_SPECIMEN",
@@ -60,7 +87,7 @@ def write_artifact(root: Path, *, source_sha: str = SOURCE_SHA) -> None:
 
 
 class HistoricalHumanReviewMigrationTest(unittest.TestCase):
-    def test_key_2885_review_backfills_exactly_once_with_github_provenance(self):
+    def test_canonical_reviews_backfill_exactly_once_with_github_provenance(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             write_artifact(root)
@@ -72,7 +99,7 @@ class HistoricalHumanReviewMigrationTest(unittest.TestCase):
                     repo="ni-da-ba/skyforge",
                     store=store,
                 ),
-                1,
+                2,
             )
             self.assertEqual(
                 migrate_canonical_historical_human_reviews(
@@ -84,8 +111,22 @@ class HistoricalHumanReviewMigrationTest(unittest.TestCase):
             )
 
             ledger = store.load()
-            self.assertEqual(len(ledger.records), 1)
-            review = ledger.records[0]
+            self.assertEqual(len(ledger.records), 2)
+            dr60 = ledger.latest_for_gate("dr-human-exploration-review")
+            self.assertIsNotNone(dr60)
+            self.assertEqual(dr60.artifact_id, "dr60:p2-dressed-region-a")
+            self.assertEqual(dr60.source_sha, DR60_SOURCE_SHA)
+            self.assertEqual(dr60.verdict, HumanReviewVerdict.CHANGES_REQUIRED)
+            self.assertFalse(dr60.deferred_product_work)
+            self.assertEqual(dr60.source.issue_number, 535)
+            self.assertEqual(dr60.source.comment_id, 5707566397)
+            self.assertEqual(dr60.source.actor, "ni-da-ba")
+            self.assertEqual(dr60.source.created_at, "2026-09-17T02:32:15Z")
+            self.assertTrue(any("Tall jungle vegetation" in finding for finding in dr60.findings))
+            self.assertTrue(any("Core island surface" in finding for finding in dr60.positive_findings))
+
+            review = ledger.latest_for_gate("dr-human-exploration-rereview")
+            self.assertIsNotNone(review)
             self.assertEqual(review.gate_id, "dr-human-exploration-rereview")
             self.assertEqual(review.artifact_id, "dr70:key-2885")
             self.assertEqual(review.source_sha, SOURCE_SHA)
