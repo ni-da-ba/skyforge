@@ -618,6 +618,47 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             retained = DormantHandoffCommitStore.for_root(root).load()
             self.assertEqual(retained.for_attempt(historical.attempt_id), historical)
 
+    def test_reviewed_legacy_gate_is_not_projected_as_fresh_operator_work(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            make_repo(root)
+            write_legacy(root)
+            base = install_terminal_roadmap(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            app.human_review_store.capture(
+                HumanReviewSubmission(
+                    source=HumanReviewSource(
+                        repo="ni-da-ba/skyforge",
+                        issue_number=1,
+                        comment_id=9001,
+                        actor="ni-da-ba",
+                        created_at="2026-09-21T20:00:00Z",
+                        updated_at="2026-09-21T20:00:00Z",
+                    ),
+                    gate_id="gate",
+                    artifact_id="fixture:gate",
+                    source_sha=base,
+                    verdict=HumanReviewVerdict.CHANGES_REQUIRED,
+                    findings=("review already happened",),
+                    positive_findings=(),
+                    material_delta="fixture review evidence",
+                    next_boundary="perform repair before another review",
+                    deferred_product_work=True,
+                )
+            )
+
+            snapshot = app.development_snapshot()
+            self.assertFalse(
+                any(value["gate_id"] == "gate" for value in snapshot["human_gates"])
+            )
+            self.assertEqual(
+                snapshot["human_reviews"][-1]["gate_id"],
+                "gate",
+                "durable review history must remain visible when the gate is no longer actionable",
+            )
+
     def test_waiting_continue_skyforge_gate_does_not_block_unrelated_task_claim(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
