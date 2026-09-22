@@ -205,7 +205,7 @@ final class SkyforgeNativePlacedFeatureRunner {
                                     == net.minecraft.world.level.levelgen.GenerationStep.Decoration.LAKES.ordinal()
                             ? lakeAdmission.snapshot()
                             : null,
-                    execution.execution().attachmentEnvelope().attachmentPositionDigest());
+                    execution.execution().attachmentPositionDigest());
         }
     }
 
