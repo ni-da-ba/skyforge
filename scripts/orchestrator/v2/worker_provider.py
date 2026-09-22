@@ -387,6 +387,31 @@ def _extract_controller_patch(response: str) -> tuple[str, str | None]:
     return summary, (patch + "\n" if patch.strip() else None)
 
 
+def _patch_paths(patch: str) -> tuple[str, ...]:
+    paths: set[str] = set()
+    for line in patch.splitlines():
+        if not line.startswith("diff --git "):
+            continue
+        match = re.fullmatch(r"diff --git a/([^\\t\\r\\n]+) b/([^\\t\\r\\n]+)", line)
+        if match is None:
+            raise WorkerProviderError("invalid_patch", 0, f"unsupported git patch header: {line[:200]}")
+        for raw in match.groups():
+            normalized = raw.replace("\\\\", "/")
+            if (
+                not normalized or normalized.startswith("/")
+                or normalized.startswith("../") or "/../" in normalized
+                or normalized == ".."
+            ):
+                raise WorkerProviderError("invalid_patch", 0, f"unsafe patch path: {raw}")
+            paths.add(normalized)
+    if patch.strip() and not paths:
+        raise WorkerProviderError(
+            "invalid_patch", 0,
+            "worker returned non-empty patch content without git diff headers",
+        )
+    return tuple(sorted(paths))
+
+
 class CodexWorkerProvider:
     """Initial provider adapter preserving accepted legacy worker SDK semantics."""
 
