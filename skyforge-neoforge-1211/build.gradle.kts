@@ -48,13 +48,10 @@ tasks.withType<Test>().configureEach {
 
 // Temporary branch-only diagnostic routing: reuse one existing dispatchable GitHub Actions job
 // without modifying protected workflow files. Ordinary PR CI never enables the exhaustive search.
-if (System.getenv("GITHUB_WORKFLOW") == "Compiler Platform Super Glue Assembly Domain"
+if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization"
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
     tasks.named<Test>("test").configure {
         systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-        filter {
-            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
-        }
     }
 }
 
