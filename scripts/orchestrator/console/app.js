@@ -1023,14 +1023,19 @@
       if (!response.ok) {
         throw new Error(result.error || "Continue Skyforge failed (" + response.status + ")");
       }
-      statusNode.textContent =
-        "Continue Skyforge recorded. Current state: "
-        + friendlyStatus(result.objective_disposition)
-        + ".";
-      statusNode.className = "small";
       pendingContinueRequestId = "";
       lastDigest = "";
       await refresh();
+      const productState = currentProductState(latestState || {});
+      const boundary = productState.status
+        ? friendlyStatus(productState.status)
+        : friendlyStatus(result.objective_disposition);
+      const detail = productState.reason
+        ? " — " + truncate(productState.reason, 180)
+        : "";
+      statusNode.textContent =
+        "Continue Skyforge reconciled. Current boundary: " + boundary + detail + ".";
+      statusNode.className = "small";
     } catch (error) {
       statusNode.textContent = error.message;
       statusNode.className = "small error";
