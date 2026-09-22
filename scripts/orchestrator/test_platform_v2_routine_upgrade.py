@@ -176,6 +176,115 @@ class RoutineUpgradeTest(unittest.TestCase):
             any("not bounded model-free reconcile noise" in item for item in report.blockers)
         )
 
+    def test_read_only_plan_allows_snapshot_covered_lifecycle_noise(self):
+        td, root, _accepted, target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        events = (
+            DurableEvent(
+                actionable=True,
+                reason="repository state changed since previous controller observation",
+                event="reconcile",
+                action="startup",
+                head_sha=target,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="workflow completed",
+                event="workflow_run",
+                action="completed",
+                head_sha=target,
+                pr_number=1053,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="PR lifecycle changed",
+                event="pull_request",
+                action="closed",
+                head_sha=target,
+                pr_number=1053,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="main advanced",
+                event="push",
+                head_sha=target,
+            ),
+        )
+        write_quiescent_legacy_state(root, events=events)
+
+        report = controller.upgrade(target, execute=False)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.READY)
+
+    def test_upgrade_retires_snapshot_covered_lifecycle_noise(self):
+        td, root, _accepted, target, _template, _evidence, _state, services, operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        real_rollback = operator.rollback
+
+        events = (
+            DurableEvent(
+                actionable=True,
+                reason="repository state changed since previous controller observation",
+                event="reconcile",
+                action="startup",
+                head_sha=target,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="workflow completed",
+                event="workflow_run",
+                action="completed",
+                head_sha=target,
+                pr_number=1053,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="PR lifecycle changed",
+                event="pull_request",
+                action="closed",
+                head_sha=target,
+                pr_number=1053,
+            ),
+            DurableEvent(
+                actionable=True,
+                reason="main advanced",
+                event="push",
+                head_sha=target,
+            ),
+        )
+
+        def rollback_with_snapshot_noise(*, execute=False):
+            report = real_rollback(execute=execute)
+            if execute and report.disposition is OperatorDisposition.ROLLBACK_COMPLETE:
+                write_quiescent_legacy_state(root, events=events)
+            return report
+
+        operator.rollback = rollback_with_snapshot_noise
+        operator.sleep = lambda _seconds: None
+
+        report = controller.upgrade(target, execute=True)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.COMPLETE)
+        self.assertEqual(report.authority, WriterAuthority.V2)
+        state = json.loads(
+            (root / ".skyforge-orchestrator/state.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(state["pending_events"], [])
+        self.assertEqual(
+            state["metrics"]["routine_upgrade_snapshot_events_retired_model_free"],
+            len(events),
+        )
+        self.assertEqual(
+            state["last_routine_upgrade_snapshot_quiescence"]["target_sha"],
+            target,
+        )
+        self.assertEqual(
+            state["last_routine_upgrade_snapshot_quiescence"]["retired_events"],
+            len(events),
+        )
+        self.assertFalse(services.state[LEGACY_SERVICE]["active"])
+        self.assertTrue(services.state[V2_SERVICE]["active"])
+
     def test_upgrade_waits_for_model_free_reconcile_after_rollback(self):
         td, root, _accepted, target, _template, _evidence, _state, _services, operator, controller = self.build()
         self.addCleanup(td.cleanup)
