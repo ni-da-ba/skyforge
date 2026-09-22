@@ -53,6 +53,12 @@ val skyforgeQualification = providers.gradleProperty("skyforgeQualification")
     .map { it.toBoolean() }
     .orElse(false)
 
+// The historical DR-70 4,096-key search is intentionally outside automatic qualification.
+// Forward an explicit Gradle opt-in to the forked JUnit JVM only when a human requests that proof.
+val skyforgeDr70SpecimenSearch = providers.gradleProperty("skyforgeDr70SpecimenSearch")
+    .map { it.toBoolean() }
+    .orElse(false)
+
 tasks.named<Test>("test") {
     useJUnitPlatform {
         if (skyforgeQualification.get()) {
@@ -60,6 +66,9 @@ tasks.named<Test>("test") {
         } else {
             excludeTags("qualification")
         }
+    }
+    if (skyforgeDr70SpecimenSearch.get()) {
+        systemProperty("skyforge.test.dr70SpecimenSearch", "true")
     }
 }
 
