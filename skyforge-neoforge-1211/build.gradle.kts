@@ -35,12 +35,6 @@ tasks.withType<Test>().configureEach {
     // Static development-resource guards must resolve module-local fixtures independently of
     // whichever repository directory a CI workflow chooses as the Test task working directory.
     systemProperty("skyforge.test.projectDirectory", layout.projectDirectory.asFile.absolutePath)
-    // The exhaustive DR-70 physical specimen selector is deliberately skipped by ordinary CI.
-    // A manual run of the retained long-running performance workflow provides a bounded,
-    // workflow-file-neutral qualification lane while #754 keeps .github/** protected.
-    if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization") {
-        systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-    }
     // FML initializes the tested mod before JUnit can report individual tests. Keep bootstrap
     // diagnostics visible so a required worldgen mixin failure is actionable in CI rather than
     // collapsing into Gradle's outer InvocationTargetException.
@@ -52,14 +46,25 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-// Temporary branch-only diagnostic routing: reuse one existing dispatchable GitHub Actions job
-// without modifying protected workflow files. Ordinary PR CI never enables the exhaustive search.
+val dr70SpecimenSearch = tasks.register<Test>("dr70SpecimenSearch") {
+    group = "verification"
+    description = "Run the explicit DR-70 physical review-specimen qualification search."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    filter {
+        includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
+    }
+    systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+}
+
+// Temporary branch-only diagnostic routing: reuse the retained performance workflow's 35-minute
+// verification step without modifying protected workflow files. Ordinary PR CI never takes this
+// dependency, and the workflow's initial 8-minute unit-test step keeps the exhaustive search skipped.
 if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization"
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
-    tasks.named<Test>("test").configure {
-        systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-        filter {
-            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
+    tasks.configureEach {
+        if (name == "sfImp0070PerformanceVerify") {
+            dependsOn(dr70SpecimenSearch)
         }
     }
 }
