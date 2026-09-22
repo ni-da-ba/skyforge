@@ -89,7 +89,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50Volume", volumeId.path());
         evidence.put("dr50WorldSeedUnsigned", Long.toUnsignedString(fixture.volume().id().archipelagoRootSeed()));
         evidence.put("dr50HydrologyPositions", hydrology.positions().size());
-        evidence.put("dr50HydrologyDressedSurfacePositions", hydrology.dressedSurfacePositions());
+        evidence.put("dr50HydrologyPlannedDressedSurfacePositions", hydrology.plannedDressedSurfacePositions());
+        evidence.put("dr50HydrologyRetainedDressedSurfacePositions", hydrology.retainedDressedSurfacePositions());
         evidence.put("dr50HydrologyDigest", hydrology.digest());
         evidence.put("dr50HydrologyRepresentativePos", Long.toString(hydrology.representativePosition().asLong()));
         evidence.put("dr50InteriorCompleted", interior.completedObligations());
@@ -133,6 +134,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         }
         LinkedHashSet<BlockPos> positions = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> dressedSurface = new LinkedHashSet<>();
+        int retainedDressedSurface = 0;
         long digest = FNV_OFFSET_BASIS;
         for (var deployment : deployments) {
             digest = mix(digest, deployment.feature().ordinal());
@@ -156,25 +158,38 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                     throw new IllegalStateException("DR-50 fluvial dressing escaped exact volume ownership");
                 }
                 BlockState state = level.getBlockState(position);
-                if (!state.is(Blocks.DIRT)) {
-                    throw new IllegalStateException(
-                            "DR-50 later lifecycle removed fluvial surface-mantle dressing at "
-                                    + position + ": " + state);
-                }
                 dressedSurface.add(position.immutable());
                 digest = mix(digest, 0x44524553534544L);
                 digest = mix(digest, position.asLong());
+                if (state.isAir()) {
+                    // Composed cave authority runs after surface/hydrology realization. Preserve
+                    // accepted cave openings rather than repainting them with bank material.
+                    digest = mix(digest, 0x414952L);
+                    continue;
+                }
+                if (!state.is(Blocks.DIRT)) {
+                    throw new IllegalStateException(
+                            "DR-50 surviving fluvial surface dressing changed carrier at "
+                                    + position + ": " + state);
+                }
+                retainedDressedSurface++;
+                digest = mix(digest, 0x44495254L);
             }
         }
         if (positions.isEmpty()) {
             throw new IllegalStateException("DR-50 authored hydrology produced no physical water cells");
         }
         if (dressedSurface.isEmpty()) {
-            throw new IllegalStateException("DR-50 fluvial hydrology produced no dressed bed/bank surface");
+            throw new IllegalStateException("DR-50 fluvial hydrology produced no planned bed/bank dressing");
+        }
+        if (retainedDressedSurface == 0) {
+            throw new IllegalStateException(
+                    "DR-50 later lifecycle removed every planned fluvial bed/bank dressing cell");
         }
         return new HydrologyEvidence(
                 List.copyOf(positions),
                 dressedSurface.size(),
+                retainedDressedSurface,
                 Long.toUnsignedString(digest, 16),
                 positions.getFirst());
     }
@@ -414,7 +429,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
 
     private record HydrologyEvidence(
             List<BlockPos> positions,
-            int dressedSurfacePositions,
+            int plannedDressedSurfacePositions,
+            int retainedDressedSurfacePositions,
             String digest,
             BlockPos representativePosition) {}
     private record StructureLifecycleEvidence(
