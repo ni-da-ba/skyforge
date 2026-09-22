@@ -974,6 +974,73 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             self.assertIsNone(admission.attempt)
             self.assertIsNone(admission.worker_spec)
 
+    def test_new_signed_revision_supersedes_preclassifier_plan_without_classifier_call(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+
+            raw, headers = signed(task_payload(), delivery="r5c24-preclassifier-original")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            classifier = FakeClassifier()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                runner=CompositeReadRunner(base),
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
+            )
+            plan = app.task_plan_store.load().active
+            self.assertIsNotNone(plan)
+            self.assertEqual(plan.status.value, "READY_FOR_CLASSIFIER")
+            old_event_id = plan.event_id
+
+            revised = task_payload()
+            revised["comment"]["id"] = 12348
+            revised["comment"]["created_at"] = "2026-09-18T03:03:00Z"
+            revised["comment"]["updated_at"] = "2026-09-18T03:03:00Z"
+            revised["comment"]["body"] = revised["comment"]["body"].replace(
+                "Implement bounded feature",
+                "Implement bounded feature current signed revision",
+            )
+            raw2, headers2 = signed(revised, delivery="r5c24-preclassifier-revision")
+            status2, response2 = app.handle_webhook(headers=headers2, raw=raw2)
+            self.assertEqual(status2, 202)
+            self.assertTrue(response2["task_authority_recorded"])
+
+            superseded = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                superseded.disposition,
+                HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+            )
+            self.assertEqual(classifier.calls, 0)
+            state = app.store.load()
+            self.assertIn(old_event_id, state.inbox.retired_event_keys)
+            self.assertNotIn(old_event_id, state.inbox.completed_authority_event_keys)
+            self.assertIsNone(app.task_plan_store.load().active)
+            self.assertIsNone(app.admission_store.load().record)
+
+            reclaimed = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                reclaimed.disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertNotEqual(app.task_plan_store.load().active.event_id, old_event_id)
+
     def test_new_signed_revision_supersedes_nonexecuted_reclassify_admission(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
