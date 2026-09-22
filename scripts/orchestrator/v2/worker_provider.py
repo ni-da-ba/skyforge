@@ -412,6 +412,24 @@ def _patch_paths(patch: str) -> tuple[str, ...]:
     return tuple(sorted(paths))
 
 
+def _changed_paths(worktree: Path) -> tuple[str, ...]:
+    completed = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=worktree, check=True, text=True, capture_output=True, timeout=60,
+    )
+    paths: set[str] = set()
+    for line in completed.stdout.splitlines():
+        if not line:
+            continue
+        raw = line[2:].lstrip() if len(line) > 2 else line
+        if " -> " in raw:
+            raw = raw.split(" -> ", 1)[1]
+        normalized = raw.strip().replace("\\\\", "/").lstrip("./")
+        if normalized:
+            paths.add(normalized)
+    return tuple(sorted(paths))
+
+
 class CodexWorkerProvider:
     """Initial provider adapter preserving accepted legacy worker SDK semantics."""
 
