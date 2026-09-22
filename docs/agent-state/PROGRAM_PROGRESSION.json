@@ -22,7 +22,7 @@
     {
       "id": "dr-human-exploration-rereview",
       "kind": "human_gate",
-      "message": "Post-platform DR-70 repair evidence is machine-complete. On Nicholas' local workstation, inspect the newly qualified artifact and verify that the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation; the water, channel banks/substrate, and surrounding material dressing read coherently; the specimen is representative enough to demonstrate the integrated system; the previously proven real channel geomorphology remains legible; and the accepted canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed. Machines must not self-pass this re-review.",
+      "message": "Post-platform DR-70 repair evidence is machine-complete. On Nicholas' local workstation, inspect the newly qualified artifact and verify that the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation; the water, channel banks/substrate, and surrounding material dressing read coherently; the specimen is representative enough to demonstrate the integrated system; the previously proven real channel geomorphology remains legible; tall vegetation no longer clips at the upper boundary; and the accepted cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed. Machines must not self-pass this re-review.",
       "prerequisites": [
         "post-platform-dr70-repair"
       ],
@@ -50,7 +50,7 @@
     },
     {
       "path": "docs/agent-state/ORCHESTRATOR_ROADMAP.json",
-      "sha256": "11e6c472548c1eebaf851fa37ecf2cc14302dc4711f388295d762b1ad9bc13a7"
+      "sha256": "82ec33145014ef7206e586e36cfee092d2026c379344583df7d7733eba8c3745"
     }
   ],
   "supersedes_projection_digest": "06c36ba442c679cafbc86436d58c49e08294dee273ff39680335cedda9850d4a"
