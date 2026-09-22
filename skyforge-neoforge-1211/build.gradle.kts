@@ -46,30 +46,31 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-val dr70SpecimenSearch = tasks.register<Test>("dr70SpecimenSearch") {
-    group = "verification"
-    description = "Run the explicit DR-70 physical review-specimen qualification search."
-    testClassesDirs = sourceSets.test.get().output.classesDirs
-    classpath = sourceSets.test.get().runtimeClasspath
-    filter {
-        includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
-    }
-    systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-}
-
 // Temporary branch-only diagnostic routing: reuse the retained performance workflow's 35-minute
-// verification step without modifying protected workflow files. Ordinary PR CI never takes this
-// dependency, and the workflow's initial 8-minute unit-test step keeps the exhaustive search skipped.
+// verification step without modifying protected workflow files. Both phases use ModDev's canonical
+// test task so generated launch metadata (including mainargs.txt) remains intact.
 if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization"
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
+    val longDr70Qualification = gradle.startParameter.taskNames.any {
+        it.substringAfterLast(':') == "sfImp0070PerformanceVerify"
+    }
     tasks.named<Test>("test").configure {
         filter {
-            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest")
+            includeTestsMatching(
+                if (longDr70Qualification) {
+                    "io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest"
+                } else {
+                    "io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest"
+                },
+            )
+        }
+        if (longDr70Qualification) {
+            systemProperty("skyforge.test.dr70SpecimenSearch", "true")
         }
     }
     tasks.configureEach {
         if (name == "sfImp0070PerformanceVerify") {
-            dependsOn(dr70SpecimenSearch)
+            dependsOn("test")
         }
     }
 }
