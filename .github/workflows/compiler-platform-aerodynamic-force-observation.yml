@@ -3,9 +3,7 @@ name: Compiler Platform Aerodynamic Force Observation
 on:
   pull_request:
     paths:
-      - ".github/workflows/compiler-platform-aerodynamic-force-observation.yml"
       - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAerodynamicForceObservationAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSwivelControlChildLifecycleAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/AerodynamicForceObservationResourceTest.java"
