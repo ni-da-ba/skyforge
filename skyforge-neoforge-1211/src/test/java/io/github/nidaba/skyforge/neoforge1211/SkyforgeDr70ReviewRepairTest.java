@@ -10,12 +10,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Bounded machine evidence for the post-DR-60 canopy/hydrology repair tranche. */
 final class SkyforgeDr70ReviewRepairTest {
     private static final int PRODUCTION_ATTACHMENT_DEPTH = 24;
 
+    @Tag("qualification")
     @Test
     void selectedReviewSpecimenIsBoundedAndExercisesHydrologyAndCaves() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
@@ -69,14 +71,14 @@ final class SkyforgeDr70ReviewRepairTest {
                 "an already-larger caller envelope must never be reduced");
     }
 
+    @Tag("qualification")
     @Test
     void canonicalAuth0105ChannelProjectsDryLandformAndContainedWater() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture);
         var semantic = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor())
                 .channels().getFirst().path().points();
-        var deployment = SkyforgeAuthoredVisibleHydrologyAdapter
-                .plan(fixture.descriptor(), fixture.volume(), terrain).stream()
+        var deployment = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
                 .filter(candidate -> candidate.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
                 .findFirst()
                 .orElseThrow();

@@ -16,6 +16,63 @@ The governing question for every expensive test is:
 
 If no concrete answer exists, prefer moving to the next integration risk.
 
+## Canonical validation execution tiers
+
+These three tiers govern **where validation runs**. They supersede any older use of "tier" as a
+workflow-frequency label; the evidence-cost discussion below remains useful for sampling decisions.
+
+### Tier 1 — ordinary `check`
+
+Purpose: fast deterministic correctness and regression feedback on every executable change.
+
+Allowed work:
+
+- unit and source/contract tests;
+- bounded synthetic geometry;
+- small canonical fixtures;
+- invariant and deterministic-replay checks;
+- one bounded canonical physical realization where it protects a runtime seam.
+
+`./gradlew check` must not depend on production-scale qualification, full accepted-island corpora,
+whole-world Minecraft acceptance, historical specimen searches, or evidence/product gates.
+
+Operational budget:
+
+- target a few minutes for the ordinary test lane;
+- normal complete product CI should stay near the established **6–8 minute** baseline;
+- a recurring run above **10 minutes** is a performance regression to investigate, not a new normal.
+
+### Tier 2 — focused qualification
+
+Purpose: production-scale subsystem realization that is too expensive or specialized for ordinary
+`check`.
+
+Examples include the full accepted hydrology physical corpus, chunk lifecycle/reload qualification,
+stacked-volume realization, and DR-30/DR-40/DR-50 focused runtime acceptance.
+
+Qualification must have an explicit task/workflow and must **not** be a dependency of `check`.
+The NeoForge JUnit `qualification` tag is excluded from the default test task and is run explicitly
+through `:skyforge-neoforge-1211:neoforgeQualificationTest`. Historical DR-70 specimen search is
+separately tagged and remains explicit-only.
+
+### Tier 3 — evidence and product gates
+
+Purpose: large semantic corpora, cross-platform deterministic Minecraft acceptance, milestone evidence
+generation, and human review.
+
+Tier 3 runs only when its dependency surface changed, by deliberate/manual dispatch, on a bounded
+schedule, or at a milestone gate. Full reference corpora such as `fixedSeedCorpus` and
+`suspendedVolumeEvidence` remain retained proof but are not appended to every ordinary CI build.
+
+### Shared-build trigger rule
+
+The central `skyforge-neoforge-1211/build.gradle.kts` is validated once by ordinary CI. A change to
+that shared file is **not**, by itself, authority to fan out every aircraft/compiler/mechanism/content
+runtime acceptance workflow. Focused workflows trigger from the source, fixture, pin, or dedicated
+configuration surfaces that own their behavior. If a central build change intentionally changes one
+of those focused runtimes, the producer must also update or deliberately dispatch that focused gate.
+
+
 ## Core rule: exhaustive cheap evidence, representative expensive evidence
 
 ### Tier 0 — exhaustive static / deterministic contract evidence

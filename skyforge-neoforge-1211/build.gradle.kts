@@ -46,6 +46,37 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// Tier 1 ordinary verification must remain bounded. Production-scale qualification and historical
+// search tests are retained in the same source set but cannot enter the default test/check graph.
+tasks.named<Test>("test") {
+    useJUnitPlatform {
+        excludeTags("qualification", "historical-qualification")
+    }
+}
+
+tasks.register<Test>("neoforgeQualificationTest") {
+    group = "verification"
+    description = "Run explicit production-scale NeoForge qualification tests excluded from ordinary check."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("qualification")
+    }
+    shouldRunAfter(tasks.named("test"))
+}
+
+tasks.register<Test>("dr70SpecimenSearchQualification") {
+    group = "verification"
+    description = "Run the historical DR-70 4096-key specimen search explicitly."
+    testClassesDirs = sourceSets["test"].output.classesDirs
+    classpath = sourceSets["test"].runtimeClasspath
+    useJUnitPlatform {
+        includeTags("historical-qualification")
+    }
+    systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+    shouldRunAfter(tasks.named("test"))
+}
+
 // Development-only data/resource pack material for interactive world-generation proofs. This
 // source set is attached to the local ModDev mod below but is not part of Java's production jar,
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.

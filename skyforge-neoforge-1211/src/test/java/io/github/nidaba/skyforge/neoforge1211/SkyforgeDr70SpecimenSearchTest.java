@@ -25,16 +25,18 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * CI-executed physical admissibility gate for the accepted AUTH-0105 specimen corpus.
+ * Explicit historical physical-admissibility qualification for the accepted AUTH-0105 specimen corpus.
  *
  * <p>This reproduces AUTH-0105's exact deterministic 4096-key cheap pass, top-48 full-evaluation
  * boundary, score, and tie ordering. Implementation adds only Minecraft-facing review constraints:
  * bounded physical size, a substantial visible drainage workload, at least one interior drop, and
  * at least one dry physical exterior cave-mouth witness. It does not rerank authored hydrology.
  */
+@Tag("historical-qualification")
 final class SkyforgeDr70SpecimenSearchTest {
     private static final long SEED = 0x534B59464F524745L;
     private static final long GROUP = 8L;

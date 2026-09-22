@@ -12,12 +12,19 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /** Deterministic, exact-owner, save/reload-style evidence for the DR-20 representative tranche. */
 final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     private static final long WORLD_SEED = 0x534B59464F524745L;
     private static final long[] ACCEPTED_CORPUS_KEYS = {77L, 118L, 241L, 512L, 811L, 83L};
+    private static final SkyforgeNeoForge1211ProductionComposedCaveFixture.Single CANONICAL_FIXTURE =
+            SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+    private static final SkyforgeNeoForge1211ChunkAdapter CANONICAL_TERRAIN =
+            terrain(CANONICAL_FIXTURE.catalog(), CANONICAL_FIXTURE.descriptor());
+    private static final List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> CANONICAL_DEPLOYMENTS =
+            CANONICAL_TERRAIN.authoredHydrologyDeployments(CANONICAL_FIXTURE.volume().id());
 
     @Test
     void canonicalSpecimenRealizesOnlyAuthoredKindsWithoutSynthesisOrForeignOwnership() {
@@ -33,11 +40,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     void canonicalSpecimenProjectsEveryAcceptedIntentAndCutsARecessedChannelBed() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var fixture = CANONICAL_FIXTURE;
+        var terrain = CANONICAL_TERRAIN;
         var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
                 fixture.descriptor());
-        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        var deployments = CANONICAL_DEPLOYMENTS;
 
         long channelDeployments = deployments.stream()
                 .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
@@ -113,6 +120,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 "wet channel realization must never consume the original top-surface voxel");
     }
 
+    @Tag("qualification")
     @Test
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
@@ -147,9 +155,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        var fixture = CANONICAL_FIXTURE;
+        var terrain = CANONICAL_TERRAIN;
+        var deployments = CANONICAL_DEPLOYMENTS;
 
         for (var deployment : deployments) {
             for (var wet : deployment.positions()) {
@@ -165,6 +173,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         }
     }
 
+    @Tag("qualification")
     @Test
     void boundedAcceptedCorpusCoversEveryRequiredImplementationKind() {
         Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> observed = new HashSet<>();
@@ -179,6 +188,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(requiredFeatureKinds(), observed);
     }
 
+    @Tag("qualification")
     @Test
     void lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater() throws Exception {
         CorpusFixture fixture = corpus(77L);
@@ -268,6 +278,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertTrue(chunk.getBlockState(position).is(Blocks.BUBBLE_COLUMN));
     }
 
+    @Tag("qualification")
     @Test
     void stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal() {
         StackedCorpusFixture fixture = stackedCorpus(77L);
