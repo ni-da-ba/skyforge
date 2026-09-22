@@ -28,11 +28,13 @@ class AuthorshipFluvialSpecimenSearchTest {
         assertEquals(4096, result.populationCount());
         assertEquals(100, result.reviewCount());
 
-        System.out.println("DR70_AUDIT_SUMMARY_BEGIN");
-        System.out.print(result.summaryText());
-        System.out.println("DR70_AUDIT_SUMMARY_END");
-        System.out.println("DR70_REVIEW_CORPUS_BEGIN");
-        System.out.print(Files.readString(out.resolve("review-corpus.csv"), StandardCharsets.UTF_8));
-        System.out.println("DR70_REVIEW_CORPUS_END");
+        String reviewKeys = result.reviewSelections().stream()
+                .map(selection -> selection.bucket() + ":" + selection.row().islandKey())
+                .collect(java.util.stream.Collectors.joining(","));
+        throw new AssertionError(
+                "DR70_AUDIT_CAPTURE\n"
+                        + result.summaryText()
+                        + "reviewKeys="
+                        + reviewKeys);
     }
 }
