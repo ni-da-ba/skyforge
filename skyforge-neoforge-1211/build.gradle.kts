@@ -46,39 +46,6 @@ tasks.withType<Test>().configureEach {
     }
 }
 
-// Temporary branch-only diagnostic routing: reuse the retained performance workflow's 35-minute
-// verification step without modifying protected workflow files. Both phases use ModDev's canonical
-// test task so generated launch metadata (including mainargs.txt) remains intact.
-if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization"
-        && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
-    val longDr70Qualification = gradle.startParameter.taskNames.any {
-        it.substringAfterLast(':') == "sfImp0070PerformanceVerify"
-    }
-    tasks.named<Test>("test").configure {
-        filter {
-            includeTestsMatching(
-                if (longDr70Qualification) {
-                    "io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest"
-                } else {
-                    "io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest"
-                },
-            )
-        }
-        if (longDr70Qualification) {
-            systemProperty("skyforge.test.dr70SpecimenSearch", "true")
-            // The preceding workflow step runs this same Test task with a smoke-test filter.
-            // Force the long-phase selector to execute rather than reusing those prior outputs.
-            outputs.upToDateWhen { false }
-            outputs.cacheIf { false }
-        }
-    }
-    tasks.configureEach {
-        if (name == "sfImp0070PerformanceVerify") {
-            dependsOn("test")
-        }
-    }
-}
-
 // Development-only data/resource pack material for interactive world-generation proofs. This
 // source set is attached to the local ModDev mod below but is not part of Java's production jar,
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
@@ -1405,6 +1372,30 @@ neoForge {
                 "skyforge.dev.productionComposedCaveExpectedResultFile",
                 layout.buildDirectory.file("acceptance/dr70-hydrology-review/production.properties").get().asFile.absolutePath,
             )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr70HumanReviewAtlasPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("review")
+            systemProperty("skyforge.dev.dr70HumanReviewAtlas", "true")
+            systemProperty("skyforge.dev.dr70HumanReviewAtlasHeadlessPrepare", "true")
+            systemProperty("skyforge.dev.dr70AtlasWarmChunksPerTick", "16")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("dr70HumanReviewAtlasClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("review")
+            systemProperty("skyforge.dev.dr70HumanReviewAtlas", "true")
+            systemProperty("skyforge.dev.dr70AtlasWarmChunksPerTick", "4")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -5536,6 +5527,47 @@ tasks.register("dr70HydrologyReviewAcceptance") {
     dependsOn(
         "runDr70HydrologyReviewPrepare",
         "runDr70HydrologyReviewReloadClient",
+    )
+}
+
+val dr70HumanReviewAtlasServerProperties = """
+    level-name=review
+    level-seed=700100
+    level-type=skyforge:dr70_review_atlas
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=10
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runDr70HumanReviewAtlasPrepare").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(dr70HumanReviewAtlasServerProperties)
+    }
+}
+
+tasks.named("runDr70HumanReviewAtlasClient").configure {
+    mustRunAfter("runDr70HumanReviewAtlasPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+}
+
+tasks.register("dr70HumanReviewAtlas") {
+    group = "verification"
+    description = "Prepare and open the persistent 100-island DR-70 human-review atlas."
+    dependsOn(
+        "runDr70HumanReviewAtlasPrepare",
+        "runDr70HumanReviewAtlasClient",
     )
 }
 

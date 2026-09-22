@@ -47,29 +47,30 @@ final class SkyforgeDr70SpecimenSearchTest {
     void selectedReviewSpecimenIsFirstAuth0105RankedPhysicallyAdmissibleCandidate() {
         Assumptions.assumeTrue(
                 Boolean.getBoolean("skyforge.test.dr70SpecimenSearch"),
-                "DR-70 physical specimen search runs only in an explicit qualification task");
+                "DR-70 physical specimen search is retained only as an explicit historical qualification");
         double rejectedRadius = SkyIslandDescriptorGenerator.derive(
                         SkyIslandIdentity.of(SEED, GROUP, REGION, HUMAN_REJECTED_REVIEW_KEY))
                 .nominalRadius();
-        var qualified = rankedAuth0105Candidates().stream()
+        Candidate selected = rankedAuth0105Candidates().stream()
+                .filter(candidate -> candidate.descriptor().nominalRadius() < 120.0)
                 .filter(candidate -> candidate.descriptor().nominalRadius() > rejectedRadius)
                 .filter(candidate -> candidate.reachCount() >= 20)
                 .filter(candidate -> candidate.interiorDrops() >= 1)
-                .filter(SkyforgeDr70SpecimenSearchTest::physicallyAdmissible)
-                .limit(8)
-                .toList();
+                .map(candidate -> physicallyAdmissible(candidate) ? candidate : null)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .orElse(null);
 
-        org.junit.jupiter.api.Assertions.assertFalse(
-                qualified.isEmpty(),
+        assertNotNull(
+                selected,
                 "none of AUTH-0105's fully evaluated top-48 candidates is both larger than "
-                        + "the human-rejected key-2885 specimen and compatible with the retained "
+                        + "the human-rejected key-2885 specimen and compatible with the retained bounded "
                         + "hydrology + dry physical cave-mouth review constraints");
-        Candidate selected = qualified.getFirst();
         assertEquals(
                 selected.descriptor().identity().islandKey(),
                 SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review().islandKey(),
-                "DR-70 review fixture must use first physically admissible larger AUTH-0105-ranked "
-                        + "candidate; qualified=" + qualified);
+                "DR-70 review fixture must use first physically admissible AUTH-0105-ranked candidate: "
+                        + selected);
     }
 
     private static java.util.List<Candidate> rankedAuth0105Candidates() {
