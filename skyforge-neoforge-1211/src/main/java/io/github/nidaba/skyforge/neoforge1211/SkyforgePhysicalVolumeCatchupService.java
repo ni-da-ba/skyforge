@@ -178,28 +178,16 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(ordered);
     }
 
-    static List<Long> earlierPopulationDependencyKeys(
+    static List<Long> earlierPopulationKeys(
             long candidateKey,
-            List<Long> canonicalKeys,
-            java.util.function.ToIntFunction<Long> earlierChunkRadius) {
+            List<Long> canonicalKeys) {
         Objects.requireNonNull(canonicalKeys, "canonicalKeys");
-        Objects.requireNonNull(earlierChunkRadius, "earlierChunkRadius");
-        int candidateX = ChunkPos.getX(candidateKey);
-        int candidateZ = ChunkPos.getZ(candidateKey);
         List<Long> dependencies = new ArrayList<>();
         for (long key : canonicalKeys) {
             if (key == candidateKey) {
                 break;
             }
-            int radius = earlierChunkRadius.applyAsInt(key);
-            if (radius < 0) {
-                throw new IllegalArgumentException("population dependency radius must be non-negative");
-            }
-            int dx = Math.abs(ChunkPos.getX(key) - candidateX);
-            int dz = Math.abs(ChunkPos.getZ(key) - candidateZ);
-            if (Math.max(dx, dz) <= radius) {
-                dependencies.add(key);
-            }
+            dependencies.add(key);
         }
         return List.copyOf(dependencies);
     }
@@ -332,31 +320,28 @@ final class SkyforgePhysicalVolumeCatchupService {
                         continue;
                     }
 
-                    // Native placed features can write beyond their origin chunk. Preserve one
-                    // canonical X/Z mutation order only where an earlier writer can physically
-                    // reach this chunk; otherwise independently loaded distant chunks remain free
-                    // to populate without adding tickets or a whole-island residency requirement.
+                    // Native placed features both read and write mutable world state beyond their
+                    // origin column. Even when direct attachment envelopes do not overlap, allowing
+                    // independently scheduled chunks to populate in different orders changes native
+                    // feature predicates and therefore the exact population outcome. The authored
+                    // surface barrier above already requires the complete plan-bearing footprint to
+                    // have been realized without adding tickets. After that barrier, serialize the
+                    // volume's native population in one canonical X/Z order. Missing earlier chunks
+                    // simply keep later chunks pending until Minecraft loads them independently.
                     List<Long> volumePopulationKeys = canonicalPopulationChunkKeys(
                             SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId));
-                    boolean blockedByEarlierWriter = false;
-                    for (long earlierKey : earlierPopulationDependencyKeys(
-                            chunkKey,
-                            volumePopulationKeys,
-                            key -> SkyforgeNativeSurfacePopulationStage.populationAttachmentChunkRadius(
-                                    new ChunkPos(key),
-                                    level.getMinBuildHeight(),
-                                    level.getHeight(),
-                                    volumeId))) {
+                    boolean blockedByEarlierPopulation = false;
+                    for (long earlierKey : earlierPopulationKeys(chunkKey, volumePopulationKeys)) {
                         if (!SkyforgeNativeSurfacePopulationStage.populationCompleted(
                                 new ChunkPos(earlierKey),
                                 level.getMinBuildHeight(),
                                 level.getHeight(),
                                 volumeId)) {
-                            blockedByEarlierWriter = true;
+                            blockedByEarlierPopulation = true;
                             break;
                         }
                     }
-                    if (blockedByEarlierWriter) {
+                    if (blockedByEarlierPopulation) {
                         continue;
                     }
                     SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred(
