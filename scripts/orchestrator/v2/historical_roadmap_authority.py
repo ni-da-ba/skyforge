@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from .core import HumanGateRecord
 from .cutover import LegacyOperationalProjection
 from .objective_intake import load_manifest
 from .roadmap_service import (
