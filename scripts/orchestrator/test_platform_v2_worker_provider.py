@@ -330,6 +330,20 @@ class WorkerWorkspaceManagerTest(unittest.TestCase):
 
 
 class CodexProviderAdapterTest(unittest.TestCase):
+    @staticmethod
+    def make_patch_repo(root: Path) -> str:
+        subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Skyforge Test"], cwd=root, check=True)
+        (root / "allowed.txt").write_text("base\\n", encoding="utf-8")
+        (root / "outside.txt").write_text("outside\\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+            text=True, capture_output=True,
+        ).stdout.strip()
+
     def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
