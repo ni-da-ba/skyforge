@@ -139,9 +139,19 @@ class ProgramProjection:
     program_id: str
     semantic_sources: tuple[ProgramSemanticSource, ...]
     nodes: tuple[ProgramNode, ...]
+    supersedes_projection_digest: str = ""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "program_id", _required(self.program_id, "program_id"))
+        if self.supersedes_projection_digest:
+            object.__setattr__(
+                self,
+                "supersedes_projection_digest",
+                _sha64(
+                    self.supersedes_projection_digest,
+                    "supersedes_projection_digest",
+                ),
+            )
         if not self.semantic_sources:
             raise ValueError("program projection requires semantic sources")
         paths = [value.path for value in self.semantic_sources]
@@ -167,12 +177,15 @@ class ProgramProjection:
         raise ValueError("program node is not in projection")
 
     def as_dict(self) -> dict[str, Any]:
-        return {
+        value = {
             "schema_version": 1,
             "program_id": self.program_id,
             "semantic_sources": [value.as_dict() for value in self.semantic_sources],
             "nodes": [value.as_dict() for value in self.nodes],
         }
+        if self.supersedes_projection_digest:
+            value["supersedes_projection_digest"] = self.supersedes_projection_digest
+        return value
 
     @property
     def digest(self) -> str:
@@ -255,6 +268,9 @@ def load_program_projection(root: Path) -> ProgramProjection:
             for value in sources_raw
         ),
         nodes=tuple(_parse_node(value) for value in nodes_raw),
+        supersedes_projection_digest=str(
+            raw.get("supersedes_projection_digest") or ""
+        ),
     )
     _validate_source_digests(root, projection.semantic_sources)
     _validate_dr_task_bindings(root, projection)
