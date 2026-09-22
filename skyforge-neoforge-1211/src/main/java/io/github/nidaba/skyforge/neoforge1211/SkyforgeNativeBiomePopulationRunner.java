@@ -182,7 +182,11 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
             if (treeFeature && !treeHeadroomAdmitted) {
                 attempted++;
-                featureResults.add(new FeatureResult(featureKey, false, 0));
+                featureResults.add(new FeatureResult(
+                        featureKey,
+                        false,
+                        0,
+                        0xcbf29ce484222325L));
                 SkyforgeRuntimePerformanceMetrics.recordSample(
                         "surfacePopulation.treeHeadroomRejected", 1L);
                 continue;
@@ -274,7 +278,11 @@ final class SkyforgeNativeBiomePopulationRunner {
                     rejectedLakeOrigins.addAll(lake.rejectedOrigins());
                 }
             }
-            featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
+            featureResults.add(new FeatureResult(
+                    featureKey,
+                    result.placed(),
+                    result.attachmentWrites(),
+                    result.attachmentPositionDigest()));
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,
@@ -384,7 +392,15 @@ final class SkyforgeNativeBiomePopulationRunner {
     record FeatureResult(
             ResourceLocation featureKey,
             boolean placed,
-            int attachmentWrites) {
+            int attachmentWrites,
+            long attachmentPositionDigest) {
+        FeatureResult(
+                ResourceLocation featureKey,
+                boolean placed,
+                int attachmentWrites) {
+            this(featureKey, placed, attachmentWrites, 0xcbf29ce484222325L);
+        }
+
         FeatureResult {
             Objects.requireNonNull(featureKey, "featureKey");
             if (attachmentWrites < 0) {
