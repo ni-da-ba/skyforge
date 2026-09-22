@@ -491,7 +491,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             RandomState random,
             ChunkAccess chunk) {
         super.buildSurface(level, structureManager, random, chunk);
-        if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
+        if (!SkyforgeDr70HumanReviewAtlasRuntime.enabled()
+                && SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
         }
@@ -505,6 +506,13 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
         // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
         super.applyBiomeDecoration(level, chunk, structureManager);
+
+        // The DR-70 review atlas uses this generator only to preserve Minecraft's native
+        // noise/carver context over an air-only carrier. Its harness is the sole realization
+        // driver, so automatic generation-time Skyforge overlay must remain inert there.
+        if (SkyforgeDr70HumanReviewAtlasRuntime.enabled()) {
+            return;
+        }
 
         if (!SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()
                 || !SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {

@@ -48,8 +48,14 @@ final class SkyforgeDr70HumanReviewAtlasFixtureTest {
     void reviewPresetIsNeutralVoidCarrier() throws Exception {
         String json = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/world_preset/dr70_review_atlas.json"));
-        assertTrue(json.contains("\"type\": \"minecraft:flat\""));
+        assertTrue(json.contains("\"type\": \"skyforge:noise_overlay\""));
         assertTrue(json.contains("\"biome\": \"minecraft:the_void\""));
-        assertTrue(json.contains("\"block\": \"minecraft:air\""));
+        assertTrue(json.contains("\"settings\": \"skyforge:dr70_review_void\""));
+
+        String noise = Files.readString(PROJECT.resolve(
+                "src/development/resources/data/skyforge/worldgen/noise_settings/dr70_review_void.json"));
+        assertTrue(noise.contains("\"default_block\": {"));
+        assertTrue(noise.contains("\"Name\": \"minecraft:air\""));
+        assertTrue(noise.contains("\"final_density\": -1.0"));
     }
 }
