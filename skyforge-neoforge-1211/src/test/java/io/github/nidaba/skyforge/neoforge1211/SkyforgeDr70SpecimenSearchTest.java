@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -44,6 +45,9 @@ final class SkyforgeDr70SpecimenSearchTest {
 
     @Test
     void selectedReviewSpecimenIsFirstAuth0105RankedPhysicallyAdmissibleCandidate() {
+        Assumptions.assumeTrue(
+                Boolean.getBoolean("skyforge.test.dr70SpecimenSearch"),
+                "DR-70 physical specimen search runs only in an explicit qualification task");
         double rejectedRadius = SkyIslandDescriptorGenerator.derive(
                         SkyIslandIdentity.of(SEED, GROUP, REGION, HUMAN_REJECTED_REVIEW_KEY))
                 .nominalRadius();
