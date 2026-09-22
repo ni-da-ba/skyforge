@@ -94,13 +94,35 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
                 SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
                         candidate,
                         canonical,
-                        3));
+                        ignored -> 3));
         assertEquals(
                 List.of(),
                 SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
                         candidate,
                         canonical,
-                        0));
+                        ignored -> 0));
+    }
+
+    @Test
+    void populationDependenciesUseEarlierWriterReachNotCandidateReach() {
+        long farEarlier = new ChunkPos(-4, 0).toLong();
+        long nearEarlier = new ChunkPos(-1, 0).toLong();
+        long candidate = new ChunkPos(0, 0).toLong();
+        List<Long> canonical = SkyforgePhysicalVolumeCatchupService.canonicalPopulationChunkKeys(
+                Set.of(candidate, nearEarlier, farEarlier));
+
+        assertEquals(
+                List.of(farEarlier, nearEarlier),
+                SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        canonical,
+                        key -> key == farEarlier ? 4 : 1));
+        assertEquals(
+                List.of(nearEarlier),
+                SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        canonical,
+                        key -> key == farEarlier ? 3 : 1));
     }
 
     @Test

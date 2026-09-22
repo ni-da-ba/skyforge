@@ -7,6 +7,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
+import java.util.function.ToIntFunction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -165,11 +166,9 @@ final class SkyforgePhysicalVolumeCatchupService {
     static List<Long> earlierPopulationDependencyKeys(
             long candidateKey,
             List<Long> canonicalKeys,
-            int chunkRadius) {
+            ToIntFunction<Long> earlierChunkRadius) {
         Objects.requireNonNull(canonicalKeys, "canonicalKeys");
-        if (chunkRadius < 0) {
-            throw new IllegalArgumentException("population dependency radius must be non-negative");
-        }
+        Objects.requireNonNull(earlierChunkRadius, "earlierChunkRadius");
         int candidateX = ChunkPos.getX(candidateKey);
         int candidateZ = ChunkPos.getZ(candidateKey);
         List<Long> dependencies = new ArrayList<>();
@@ -177,9 +176,13 @@ final class SkyforgePhysicalVolumeCatchupService {
             if (key == candidateKey) {
                 break;
             }
+            int radius = earlierChunkRadius.applyAsInt(key);
+            if (radius < 0) {
+                throw new IllegalArgumentException("population dependency radius must be non-negative");
+            }
             int dx = Math.abs(ChunkPos.getX(key) - candidateX);
             int dz = Math.abs(ChunkPos.getZ(key) - candidateZ);
-            if (Math.max(dx, dz) <= chunkRadius) {
+            if (Math.max(dx, dz) <= radius) {
                 dependencies.add(key);
             }
         }
@@ -264,21 +267,22 @@ final class SkyforgePhysicalVolumeCatchupService {
                     continue;
                 }
 
-                int dependencyRadius =
-                        SkyforgeNativeSurfacePopulationStage.maximumPopulationAttachmentChunkRadius(chunk);
                 boolean blockedByEarlierNeighbor = false;
                 for (long earlierKey : earlierPopulationDependencyKeys(
                         chunkKey,
                         populationChunkKeys,
-                        dependencyRadius)) {
-                    LevelChunk earlier = chunkSource.getChunkNow(
+                        key -> SkyforgeNativeSurfacePopulationStage
+                                .maximumPopulationAttachmentChunkRadius(
+                                        new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key)),
+                                        level.getMinBuildHeight(),
+                                        level.getHeight()))) {
+                    ChunkPos earlierPos = new ChunkPos(
                             ChunkPos.getX(earlierKey),
                             ChunkPos.getZ(earlierKey));
-                    if (earlier == null
-                            || !SkyforgePhysicalVolumeAdmissionStage
-                                    .eligibleCatchup(earlier.getPos())
-                                    .isEmpty()
-                            || !SkyforgeNativeSurfacePopulationStage.populationCompleted(earlier)) {
+                    if (!SkyforgeNativeSurfacePopulationStage.populationCompleted(
+                            earlierPos,
+                            level.getMinBuildHeight(),
+                            level.getHeight())) {
                         blockedByEarlierNeighbor = true;
                         break;
                     }

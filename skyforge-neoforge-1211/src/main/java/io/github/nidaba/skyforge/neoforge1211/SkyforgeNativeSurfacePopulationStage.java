@@ -141,11 +141,22 @@ final class SkyforgeNativeSurfacePopulationStage {
     private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
             RuntimeBinding binding,
             ChunkAccess chunk) {
-        ChunkPos chunkPos = chunk.getPos();
+        return resolvePlans(
+                binding,
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+    }
+
+    private static List<SkyforgeNativeSurfacePopulationPlan> resolvePlans(
+            RuntimeBinding binding,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
         List<SkyforgeNativeSurfacePopulationPlan> plans = List.copyOf(binding.planResolver().resolve(
                 chunkPos,
-                chunk.getMinBuildHeight(),
-                chunk.getHeight()));
+                minimumY,
+                height));
         var volumeIds = new HashSet<SkyIslandWorldVolumeId>();
         for (SkyforgeNativeSurfacePopulationPlan plan : plans) {
             Objects.requireNonNull(plan, "surface population plan resolver returned null plan");
@@ -183,18 +194,30 @@ final class SkyforgeNativeSurfacePopulationStage {
 
     static boolean populationCompleted(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
+        return populationCompleted(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+    }
+
+    static boolean populationCompleted(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
             return true;
         }
-        List<SkyforgeNativeSurfacePopulationPlan> plans = resolvePlans(binding, chunk);
+        List<SkyforgeNativeSurfacePopulationPlan> plans =
+                resolvePlans(binding, chunkPos, minimumY, height);
         for (SkyforgeNativeSurfacePopulationPlan plan : plans) {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
                 continue;
             }
             if (!binding.coordinator().completed(
                     plan.volumeId(),
-                    chunk.getPos().toLong(),
+                    chunkPos.toLong(),
                     plan.phases())) {
                 return false;
             }
@@ -204,12 +227,24 @@ final class SkyforgeNativeSurfacePopulationStage {
 
     static int maximumPopulationAttachmentChunkRadius(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
+        return maximumPopulationAttachmentChunkRadius(
+                chunk.getPos(),
+                chunk.getMinBuildHeight(),
+                chunk.getHeight());
+    }
+
+    static int maximumPopulationAttachmentChunkRadius(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
         RuntimeBinding binding = ACTIVE.get();
         if (binding == null) {
             return 0;
         }
         int maximumDepth = 0;
-        for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
+        for (SkyforgeNativeSurfacePopulationPlan plan :
+                resolvePlans(binding, chunkPos, minimumY, height)) {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
                 continue;
             }
