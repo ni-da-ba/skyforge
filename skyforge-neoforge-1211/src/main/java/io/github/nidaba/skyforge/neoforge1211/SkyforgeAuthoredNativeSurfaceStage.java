@@ -2,7 +2,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.WeakHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -41,6 +43,7 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 final class SkyforgeAuthoredNativeSurfaceStage {
     private static final int NEWLY_EXPOSED_PROFILE_DEPTH = 3;
     private static final WeakHashMap<ServerLevel, Evaluator> EVALUATORS = new WeakHashMap<>();
+    private static final WeakHashMap<ServerLevel, Set<SurfaceKey>> COMPLETED = new WeakHashMap<>();
 
     private SkyforgeAuthoredNativeSurfaceStage() {}
 
@@ -55,6 +58,11 @@ final class SkyforgeAuthoredNativeSurfaceStage {
         Objects.requireNonNull(volumeId, "volumeId");
         if (chunk.getLevel() != level) {
             throw new IllegalArgumentException("authored native-surface chunk belongs to another level");
+        }
+
+        SurfaceKey surfaceKey = new SurfaceKey(volumeId, chunk.getPos().toLong());
+        if (completed(level, surfaceKey)) {
+            return new Result(volumeId, surfaceKey.chunkKey(), 0);
         }
 
         var plan = SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId)
@@ -222,7 +230,7 @@ final class SkyforgeAuthoredNativeSurfaceStage {
         Holder<NoiseGeneratorSettings> overworldSettings = level.registryAccess()
                 .registryOrThrow(Registries.NOISE_SETTINGS)
                 .getHolderOrThrow(NoiseGeneratorSettings.OVERWORLD);
-        var noises = level.registryAccess().registryOrThrow(Registries.NOISE);
+        var noises = level.registryAccess().lookupOrThrow(Registries.NOISE);
         RandomState randomState = RandomState.create(
                 overworldSettings.value(),
                 noises,
