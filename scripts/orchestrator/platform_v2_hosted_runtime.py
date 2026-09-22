@@ -147,6 +147,21 @@ MAX_MCP_PAYLOAD_BYTES = 1_000_000
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
+def legacy_human_gate_is_actionable(
+    *,
+    reviews,
+    gate_id: str,
+    active_program_gate_id: str = "",
+) -> bool:
+    """Return whether a legacy blocked gate currently needs fresh human judgment."""
+    gate = str(gate_id or "").strip()
+    if not gate:
+        raise ValueError("gate_id is required")
+    if gate == str(active_program_gate_id or "").strip():
+        return True
+    return reviews.latest_for_gate(gate) is None
+
+
 def _trusted_actors() -> tuple[str, ...]:
     raw = os.environ.get("SKYFORGE_TRUSTED_GITHUB_ACTORS", "ni-da-ba")
     return tuple(
@@ -710,6 +725,15 @@ class HostedV2Substrate:
             for artifact in artifacts.records:
                 validate_artifact_source(self.root, artifact)
 
+            program_progression = program_progression_snapshot(self.root)
+            active_program = program_progression.get("active_session")
+            active_program_gate_id = (
+                str(active_program.get("gate_id") or "").strip()
+                if isinstance(active_program, Mapping)
+                and active_program.get("disposition") == "WAIT_HUMAN"
+                else ""
+            )
+
             human_gates: list[dict[str, Any]] = []
             manifest_path = (
                 self.root / "docs" / "agent-state" / "ORCHESTRATOR_ROADMAP.json"
@@ -726,6 +750,16 @@ class HostedV2Substrate:
                         continue
                     if int(completed.get(node.node_id) or 0) >= node.max_runs:
                         continue
+                    if not legacy_human_gate_is_actionable(
+                        reviews=reviews,
+                        gate_id=node.node_id,
+                        active_program_gate_id=active_program_gate_id,
+                    ):
+                        # Durable review history makes the unchanged legacy block
+                        # historical operator context, not a fresh actionable gate.
+                        # A program WAIT_HUMAN on the same gate deliberately resurfaces
+                        # it only after successor work reaches a new review boundary.
+                        continue
                     block = blocked.get(node.node_id)
                     reason = (
                         str(block.get("reason") or "")
@@ -741,8 +775,6 @@ class HostedV2Substrate:
                         }
                     )
 
-            program_progression = program_progression_snapshot(self.root)
-            active_program = program_progression.get("active_session")
             if (
                 isinstance(active_program, Mapping)
                 and active_program.get("disposition") == "WAIT_HUMAN"
