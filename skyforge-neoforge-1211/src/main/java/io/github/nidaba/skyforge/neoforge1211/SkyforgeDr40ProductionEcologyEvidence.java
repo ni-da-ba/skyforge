@@ -161,7 +161,9 @@ final class SkyforgeDr40ProductionEcologyEvidence {
                         prefix + ".feature." + String.format("%03d", featureIndex),
                         feature.featureKey()
                                 + "|placed=" + feature.placed()
-                                + "|attachments=" + feature.attachmentWrites());
+                                + "|attachments=" + feature.attachmentWrites()
+                                + "|attachmentDigest="
+                                + Long.toUnsignedString(feature.attachmentPositionDigest(), 16));
             }
         }
     }
