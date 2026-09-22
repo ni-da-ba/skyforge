@@ -105,7 +105,10 @@ final class SkyforgePhysicalVolumeCatchupService {
             if (packet.assignedSolidWrites() > MAX_ASSIGNED_SOLID_WRITES_PER_TERRAIN_QUANTUM) {
                 throw new IllegalStateException("deferred terrain packet exceeded scheduler write budget");
             }
-            if (packet.completed()) {
+            // DR-70's neutral flat review carrier intentionally excludes DR-30 native
+            // structure authoring. Production remains fail-closed through the runtime operation.
+            if (packet.completed()
+                    && !SkyforgeDr70HumanReviewAtlasRuntime.suppressNativeStructureRuntime()) {
                 SkyforgeNativeStructureRuntimeOperation.execute(
                         level,
                         chunk,

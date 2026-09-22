@@ -591,6 +591,10 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         return enabled() && preparation != null && preparation.activateWhenReady();
     }
 
+    static boolean suppressNativeStructureRuntime() {
+        return enabled();
+    }
+
     private static int warmChunksPerTick() {
         int value = Integer.getInteger(WARM_CHUNKS_PER_TICK_PROPERTY, DEFAULT_WARM_CHUNKS_PER_TICK);
         if (value < 1 || value > MAX_WARM_CHUNKS_PER_TICK) {

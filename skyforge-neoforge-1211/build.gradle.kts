@@ -1377,7 +1377,7 @@ neoForge {
 
         create("dr70HumanReviewAtlasPrepare") {
             server()
-            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v4").asFile
+            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v5").asFile
             programArgument("--nogui")
             programArgument("--universe")
             programArgument("saves")
@@ -1390,7 +1390,7 @@ neoForge {
 
         create("dr70HumanReviewAtlasClient") {
             client()
-            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v4").asFile
+            gameDirectory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v5").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("review")
             systemProperty("skyforge.dev.dr70HumanReviewAtlas", "true")
@@ -5549,7 +5549,7 @@ tasks.named("runDr70HumanReviewAtlasPrepare").configure {
         "NeoForge ModDev RunGameTask and DR-70 atlas bootstrap are intentionally runtime-bound.",
     )
     doFirst {
-        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v4").asFile
+        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v5").asFile
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(dr70HumanReviewAtlasServerProperties)
@@ -5562,7 +5562,7 @@ tasks.named("runDr70HumanReviewAtlasClient").configure {
     )
     mustRunAfter("runDr70HumanReviewAtlasPrepare")
     doFirst {
-        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v4").asFile
+        val directory = layout.projectDirectory.dir("run-dr70-human-review-atlas-v5").asFile
         directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
     }
 }
