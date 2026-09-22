@@ -52,6 +52,7 @@ from .scope_promotion import (
     validate_promotion,
 )
 from .state_store import JsonStateStoreAdapter
+from .task_event_composition import TaskAuthorityEventStore
 
 PROGRAM_SESSIONS_RELATIVE_PATH = (
     Path(".skyforge-platform-v2") / "program-continuations.json"
@@ -925,6 +926,36 @@ def advance_program_continuation(
                 )
                 active = _save_session(root, active)
                 return _session_result(ProgramAdvanceDisposition.WAIT_AUTHORITY, active)
+
+            hosted_state = HostedStateStore.for_root(root).load()
+            signed_authorities = TaskAuthorityEventStore.for_root(root).load()
+            pending_signed = tuple(
+                event
+                for event in hosted_state.inbox.pending_events
+                if (
+                    event.signal_kind == "task"
+                    and event.protected_authority
+                    and event.task_issue_number == node.issue_number
+                    and signed_authorities.get(event.event_id) is not None
+                )
+            )
+            if pending_signed:
+                identities = ", ".join(event.event_id for event in pending_signed)
+                active = replace(
+                    active,
+                    disposition=ProgramSessionDisposition.WAIT_AUTHORITY,
+                    reason=(
+                        f"pending signed Platform-v2 task authority owns issue "
+                        f"#{node.issue_number} ({identities}); "
+                        "OPT-6 will not rebuild child context or create duplicate authority"
+                    ),
+                    gate_id="",
+                )
+                active = _save_session(root, active)
+                return _session_result(
+                    ProgramAdvanceDisposition.WAIT_AUTHORITY,
+                    active,
+                )
 
             if not active.child_proposal_id:
                 child = _child_record(
