@@ -212,6 +212,40 @@ class SourcePRClassifier:
         return raw, parse_classifier_response(raw)
 
 
+class ScopeMistakeThenCorrectClassifier:
+    def __init__(self):
+        self.calls = 0
+        self.requests = []
+
+    def classify(self, *, request, root, config):
+        self.calls += 1
+        self.requests.append(request)
+        if self.calls == 1:
+            raw = json.dumps(
+                {
+                    "decision": "DISPATCH",
+                    "lane": "Implementation",
+                    "objective": "Implement bounded feature",
+                    "stop_boundary": "merge boundary",
+                    "worker_tier": "LUNA",
+                    "allowed_paths": ["scripts/**"],
+                    "reason": "invented widened path",
+                },
+                separators=(",", ":"),
+            )
+        else:
+            self.assert_retry_request(request)
+            raw = DISPATCH
+        return raw, parse_classifier_response(raw)
+
+    @staticmethod
+    def assert_retry_request(request):
+        assert request.instructions_version == 3
+        retry = request.semantic_input.get("classifier_retry") or {}
+        assert retry.get("kind") == "PATH_SCOPE_REJECTION"
+        assert "widens repository authority" in retry.get("rejection_reason", "")
+
+
 class FailingClassifier:
     def __init__(self):
         self.calls = 0
@@ -690,6 +724,148 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             ).expected_path(admission.worker_spec)
             self.assertNotEqual(git(worker_tree, "rev-parse", "HEAD"), base)
             self.assertEqual(git(worker_tree, "status", "--porcelain"), "")
+
+    def test_nonconsuming_classifier_path_scope_block_gets_one_new_request(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c24-scope-retry")
+            status, response = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+            self.assertTrue(response["task_authority_recorded"])
+
+            classifier = ScopeMistakeThenCorrectClassifier()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                runner=CompositeReadRunner(base),
+            )
+
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
+            )
+            self.assertEqual(
+                app.advance_one_execution_step(deps).disposition,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
+            )
+            first_request_id = app.task_plan_store.load().active.seed.classifier_request.request_id
+
+            blocked = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                blocked.disposition,
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+            )
+            first_admission = app.admission_store.load().record
+            self.assertEqual(first_admission.outcome.value, "BLOCKED")
+            self.assertFalse(first_admission.consume_attempt)
+            self.assertIsNone(first_admission.attempt)
+            self.assertIn("widens repository authority", first_admission.reason)
+
+            retry = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                retry.disposition,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_PREPARED,
+            )
+            self.assertIsNone(app.admission_store.load().record)
+            retry_plan = app.task_plan_store.load().active
+            self.assertEqual(retry_plan.seed.classifier_request.instructions_version, 3)
+            self.assertNotEqual(
+                retry_plan.seed.classifier_request.request_id,
+                first_request_id,
+            )
+            self.assertEqual(classifier.calls, 1)
+            self.assertEqual(
+                ClassifierRunStore.for_root(root).load().get(first_request_id).status,
+                ClassifierRunStatus.COMPLETE,
+                "original classifier run must remain immutable evidence",
+            )
+
+            second_classification = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                second_classification.disposition,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
+            )
+            self.assertEqual(classifier.calls, 2)
+
+            admitted = app.advance_one_execution_step(deps)
+            self.assertEqual(
+                admitted.disposition,
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+            )
+            final_admission = app.admission_store.load().record
+            self.assertEqual(final_admission.outcome.value, "ADMITTED")
+            self.assertTrue(final_admission.consume_attempt)
+            self.assertIsNotNone(final_admission.attempt)
+            self.assertIsNotNone(final_admission.worker_spec)
+
+    def test_classifier_path_scope_retry_is_bounded_to_one(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = make_repo(root)
+            write_legacy(root)
+            gate = ready_gate(base)
+            app = self.restart(root, gate)
+            raw, headers = signed(task_payload(), delivery="r5c24-scope-retry-bounded")
+            status, _ = app.handle_webhook(headers=headers, raw=raw)
+            self.assertEqual(status, 202)
+
+            class AlwaysWide:
+                def __init__(self):
+                    self.calls = 0
+                def classify(self, *, request, root, config):
+                    self.calls += 1
+                    raw = json.dumps(
+                        {
+                            "decision": "DISPATCH",
+                            "lane": "Implementation",
+                            "objective": "Implement bounded feature",
+                            "stop_boundary": "merge boundary",
+                            "worker_tier": "LUNA",
+                            "allowed_paths": ["scripts/**"],
+                            "reason": "still widened",
+                        },
+                        separators=(",", ":"),
+                    )
+                    return raw, parse_classifier_response(raw)
+
+            classifier = AlwaysWide()
+            deps = HostedExecutionDependencies(
+                classifier_provider=classifier,
+                worker_provider=FakeWorker(),
+                classifier_local_budget=budget(),
+                worker_local_budget=budget(),
+                classifier_config=ClassifierProviderConfig("fixture-classifier", "low"),
+                runner=CompositeReadRunner(base),
+            )
+            for expected in (
+                HostedExecutionAdvanceDisposition.TASK_CLAIMED,
+                HostedExecutionAdvanceDisposition.PREFLIGHT_ADVANCED,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_PREPARED,
+                HostedExecutionAdvanceDisposition.CLASSIFIER_ADVANCED,
+                HostedExecutionAdvanceDisposition.ADMISSION_ADVANCED,
+            ):
+                self.assertEqual(app.advance_one_execution_step(deps).disposition, expected)
+
+            exhausted = app.advance_one_execution_step(deps)
+            self.assertEqual(exhausted.disposition, HostedExecutionAdvanceDisposition.BLOCKED)
+            self.assertIn("retry exhausted", exhausted.reason)
+            self.assertEqual(classifier.calls, 2)
+            final = app.admission_store.load().record
+            self.assertFalse(final.consume_attempt)
+            self.assertIsNone(final.attempt)
 
     def test_new_signed_revision_supersedes_nonexecuted_reclassify_admission(self):
         with tempfile.TemporaryDirectory() as td:
