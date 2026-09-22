@@ -275,6 +275,37 @@ The accepted principles are:
 
 This decision has crossed its platform gate. DR-70 remains open and is now the active bounded product-repair boundary; the recorded key-2885 findings remain authoritative and must not be reinterpreted as acceptance.
 
+### HS-R14 — Cohesive World / production-stack convergence before Bootstrap
+
+**Resolved direction:** after the active DR-70 human gate is accepted, do **not** jump directly from one accepted dressed environment into Bootstrap gameplay balancing.
+
+Insert a bounded Phase 2.5 whose purpose is to prove that the intended production substrate behaves coherently at the scales Skyforge actually depends on:
+
+```text
+island
+ -> cluster
+ -> province
+ -> coarse world
+```
+
+Canonical contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+The production dependency roster is a **baseline**, not a permanently frozen final mod list. Retained capabilities should be classified as `CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED`, and only capabilities with a concrete Phase-2.5 or Bootstrap consumer should be allowed onto the pre-Bootstrap critical path.
+
+Phase 2.5 owns:
+
+- retained-mod / compatibility reconnaissance and bounded candidate selection;
+- semantic ownership and adapter convergence;
+- island-, cluster-, province-, and coarse-world integration proof;
+- combined-stack persistence/compatibility/performance unknowns that would otherwise contaminate Bootstrap playtesting.
+
+Phase 2.5 does **not** own final gameplay balance, final tutorial design, mature industry, fleet automation, dragons/whaling, full civilization breadth, final atmosphere presentation, or every planned mod/feature.
+
+Bootstrap remains the first complete player-experience convergence phase and should primarily answer whether progression, teaching, recovery, first flight, civilization arrival, freight/economy, recipes/rewards, and pacing are good.
+
+Issue #1063 records the owner decision. The roadmap source edit is intentionally isolated until the current DR-70 boundary can be reconciled safely because `PROGRAM_PROGRESSION.json` fingerprints `PROGRAM_ROADMAP.md`.
+
 ---
 
 # OPEN HUMAN STRATEGY TOPICS
@@ -589,6 +620,9 @@ NOW
 AFTER SF-IMP-0083 CLEAN BOUNDARY
     HS-03 post-morphology pivot
     HS-04 morphology tuning review
+
+AFTER ACCEPTED DR-70 / BEFORE BOOTSTRAP PRIMARY
+    HS-R14 Cohesive World / production-stack convergence
 
 BEFORE / DURING BOOTSTRAP PROVINCE
     HS-05 first-alpha scope
