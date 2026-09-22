@@ -4,7 +4,6 @@ on:
   pull_request:
     paths:
       - ".github/workflows/portable-engine-cutoff.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/resources/skyforge.mixins.json"
       - "skyforge-neoforge-1211/src/main/resources/assets/skyforge/lang/en_us.json"
