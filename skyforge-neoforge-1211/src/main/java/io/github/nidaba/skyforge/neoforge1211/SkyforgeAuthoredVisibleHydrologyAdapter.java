@@ -6,6 +6,10 @@ import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprint;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell;
+import io.github.nidaba.skyforge.world.SkyIslandWatershedPlan;
+import io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
@@ -465,42 +469,232 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
-            io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprint footprint) {
+            SkyIslandWaterbodyFootprint footprint) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(footprint, "footprint");
 
-        var byColumn = new LinkedHashMap<Column, BlockPos>();
-        for (var cell : footprint.cells()) {
-            int x = (int) Math.round(
-                    volume.compiledVolume().descriptor().centerX() + cell.position().x());
-            int z = (int) Math.round(
-                    volume.compiledVolume().descriptor().centerZ() + cell.position().z());
-            List<BlockPos> owned = ownedColumnPositions(volume, terrain, x, z, 1);
-            if (!owned.isEmpty()) {
-                byColumn.putIfAbsent(new Column(x, z), owned.getFirst());
-            }
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex = new LinkedHashMap<>();
+        for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
+            cellsByIndex.put(cell.watershedCellIndex(), cell);
         }
 
-        Set<Column> retained = largestConnectedFootprint(byColumn.keySet());
-        if (retained.isEmpty()) {
+        // A retained waterbody owns the area represented by its accepted watershed cells, not one
+        // rounded Minecraft column at each coarse cell center. Rasterize those regular watershed
+        // cells into exact-volume columns while retaining the accepted cell identity.
+        Map<Column, RetainedColumnPlan> columns = retainedCandidateColumns(
+                descriptor, volume, terrain, watershed, cellsByIndex);
+        if (columns.isEmpty() || !coversEveryRetainedCell(columns.values(), cellsByIndex.keySet())) {
             return Optional.empty();
         }
 
-        List<BlockPos> positions = retained.stream()
-                .map(byColumn::get)
-                .filter(Objects::nonNull)
-                .toList();
-        if (positions.isEmpty()) {
+        // The authored descriptor and the independently compiled physical carrier deliberately do
+        // not promise an absolute world-Y isomorphism. A lake therefore cannot map each coarse
+        // sample to an independent Y without becoming stepped source blocks. Choose the highest
+        // single recessed plane that every represented physical column can own. Relative authored
+        // water depth still controls the basin bed beneath that common surface.
+        int minimumSurfaceY = columns.values().stream()
+                .mapToInt(RetainedColumnPlan::baseSurfaceY)
+                .min()
+                .orElseThrow();
+        int waterTopY = minimumSurfaceY - 1;
+        if (columns.values().stream().anyMatch(column -> waterTopY <= column.minimumY())) {
+            return Optional.empty();
+        }
+
+        Map<Column, RetainedColumnPlan> realizable = new LinkedHashMap<>();
+        for (RetainedColumnPlan column : columns.values()) {
+            int depthBlocks = Math.max(
+                    1,
+                    physicalLoweringBlocks(descriptor, column.sourceCell().waterDepthPotential()));
+            int bedY = Math.max(column.minimumY(), waterTopY - depthBlocks);
+            if (bedY >= waterTopY
+                    || !ownedSolidInterval(
+                            volume,
+                            terrain,
+                            column.column(),
+                            bedY,
+                            column.baseSurfaceY())) {
+                continue;
+            }
+            realizable.put(
+                    column.column(),
+                    new RetainedColumnPlan(
+                            column.column(),
+                            column.sourceCell(),
+                            column.minimumY(),
+                            column.baseSurfaceY(),
+                            bedY));
+        }
+
+        if (realizable.isEmpty()
+                || !coversEveryRetainedCell(realizable.values(), cellsByIndex.keySet())) {
+            return Optional.empty();
+        }
+
+        Set<Column> connected = largestConnectedFootprint(realizable.keySet());
+        if (connected.size() != realizable.size()) {
+            // Retained water has no channel-style projection authority to discard a disconnected
+            // lobe. If the complete accepted footprint cannot become one physical waterbody, fail
+            // closed instead of silently changing the basin.
+            return Optional.empty();
+        }
+        for (RetainedColumnPlan column : realizable.values()) {
+            if (!retainedWaterContained(
+                    volume, terrain, realizable.keySet(), column.column(), waterTopY)) {
+                return Optional.empty();
+            }
+        }
+
+        LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (RetainedColumnPlan column : realizable.values()) {
+            surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
+            for (int y = column.bedY() + 1; y <= waterTopY; y++) {
+                water.add(new BlockPos(column.column().x(), y, column.column().z()));
+            }
+            for (int y = waterTopY + 1; y <= column.baseSurfaceY(); y++) {
+                carved.add(new BlockPos(column.column().x(), y, column.column().z()));
+            }
+        }
+        if (water.isEmpty()) {
             return Optional.empty();
         }
         return Optional.of(deployment(
                 volume.id(),
                 Feature.RETAINED_WATER,
-                positions,
-                List.of(),
-                List.of()));
+                new ArrayList<>(water),
+                new ArrayList<>(carved),
+                new ArrayList<>(surface)));
+    }
+
+    private static Map<Column, RetainedColumnPlan> retainedCandidateColumns(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandWatershedPlan watershed,
+            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex) {
+        double halfSpacing = watershed.spacing() * 0.5;
+        double minimumLocalX = cellsByIndex.values().stream()
+                .mapToDouble(cell -> cell.position().x())
+                .min()
+                .orElseThrow() - halfSpacing;
+        double maximumLocalX = cellsByIndex.values().stream()
+                .mapToDouble(cell -> cell.position().x())
+                .max()
+                .orElseThrow() + halfSpacing;
+        double minimumLocalZ = cellsByIndex.values().stream()
+                .mapToDouble(cell -> cell.position().z())
+                .min()
+                .orElseThrow() - halfSpacing;
+        double maximumLocalZ = cellsByIndex.values().stream()
+                .mapToDouble(cell -> cell.position().z())
+                .max()
+                .orElseThrow() + halfSpacing;
+
+        var physical = volume.compiledVolume().descriptor();
+        int minimumX = (int) Math.ceil(Math.max(
+                volume.bounds().minimumX(), physical.centerX() + minimumLocalX));
+        int maximumX = (int) Math.floor(Math.min(
+                volume.bounds().maximumX(), physical.centerX() + maximumLocalX));
+        int minimumZ = (int) Math.ceil(Math.max(
+                volume.bounds().minimumZ(), physical.centerZ() + minimumLocalZ));
+        int maximumZ = (int) Math.floor(Math.min(
+                volume.bounds().maximumZ(), physical.centerZ() + maximumLocalZ));
+
+        Map<Column, RetainedColumnPlan> result = new LinkedHashMap<>();
+        for (int z = minimumZ; z <= maximumZ; z++) {
+            for (int x = minimumX; x <= maximumX; x++) {
+                SkyIslandLocalPosition local = new SkyIslandLocalPosition(
+                        x - physical.centerX(), z - physical.centerZ());
+                int cellIndex = nearestWatershedCellIndex(descriptor, watershed, local);
+                SkyIslandWaterbodyFootprintCell sourceCell = cellsByIndex.get(cellIndex);
+                if (sourceCell == null) {
+                    continue;
+                }
+                var optionalRange = terrain.integerSolidRange(volume.id(), x, z);
+                if (optionalRange.isEmpty()) {
+                    continue;
+                }
+                var range = optionalRange.orElseThrow();
+                if (!terrain.isSolidOwnedBy(volume.id(), x, range.maximumY(), z)
+                        || terrain.isSolidOwnedByOtherVolume(volume.id(), x, range.maximumY(), z)) {
+                    continue;
+                }
+                Column column = new Column(x, z);
+                result.put(
+                        column,
+                        new RetainedColumnPlan(
+                                column,
+                                sourceCell,
+                                range.minimumY(),
+                                range.maximumY(),
+                                Integer.MIN_VALUE));
+            }
+        }
+        return result;
+    }
+
+    private static int nearestWatershedCellIndex(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWatershedPlan watershed,
+            SkyIslandLocalPosition local) {
+        double radius = descriptor.nominalRadius();
+        int gx = (int) Math.round((local.x() + radius) / watershed.spacing());
+        int gz = (int) Math.round((local.z() + radius) / watershed.spacing());
+        gx = Math.max(0, Math.min(watershed.gridSize() - 1, gx));
+        gz = Math.max(0, Math.min(watershed.gridSize() - 1, gz));
+        return gz * watershed.gridSize() + gx;
+    }
+
+    private static boolean coversEveryRetainedCell(
+            Iterable<RetainedColumnPlan> columns,
+            Set<Integer> requiredCellIndices) {
+        Set<Integer> represented = new HashSet<>();
+        for (RetainedColumnPlan column : columns) {
+            represented.add(column.sourceCell().watershedCellIndex());
+        }
+        return represented.containsAll(requiredCellIndices);
+    }
+
+    private static boolean ownedSolidInterval(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Column column,
+            int minimumY,
+            int maximumY) {
+        for (int y = minimumY; y <= maximumY; y++) {
+            if (!terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
+                    || terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static boolean retainedWaterContained(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Set<Column> wetColumns,
+            Column candidate,
+            int waterTopY) {
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            Column neighbor = new Column(
+                    candidate.x() + direction[0],
+                    candidate.z() + direction[1]);
+            if (wetColumns.contains(neighbor)) {
+                continue;
+            }
+            if (!terrain.isSolidOwnedBy(volume.id(), neighbor.x(), waterTopY, neighbor.z())
+                    || terrain.isSolidOwnedByOtherVolume(volume.id(), neighbor.x(), waterTopY, neighbor.z())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static List<BlockPos> ownedColumnPositions(
@@ -597,6 +791,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int baseSurfaceY,
             int drySurfaceY,
             int waterTopY) {}
+
+    private record RetainedColumnPlan(
+            Column column,
+            SkyIslandWaterbodyFootprintCell sourceCell,
+            int minimumY,
+            int baseSurfaceY,
+            int bedY) {}
 
     private record Column(int x, int z) {}
 }
