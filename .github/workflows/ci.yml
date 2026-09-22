@@ -141,7 +141,7 @@ jobs:
           set -euo pipefail
           mkdir -p build/ci-timing
           start=$(date +%s)
-          ./gradlew :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence --profile
+          ./gradlew :skyforge-reference:referenceQualificationTest :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence --profile
           echo "$(( $(date +%s) - start ))" > build/ci-timing/reference-corpora.seconds
 
       - name: Verify evidence review entry points

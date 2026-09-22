@@ -36,8 +36,10 @@ final class SkyforgeProductionComposedCaveIntegratedTopologySourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.java"));
 
         assertTrue(source.contains("SkyforgeDr50IntegratedRegionEvidence.enabled()"));
-        assertTrue(source.contains("finalEvidence.finalAuthoredAir() <= authoredPositive"));
-        assertTrue(source.contains(": finalEvidence.finalAuthoredAir() == authoredPositive"));
+        assertTrue(source.contains("finalEvidence.finalAuthoredAir() > 0"));
+        assertTrue(source.contains("finalEvidence.finalAuthoredHydrologyWater()"));
+        assertTrue(source.contains("<= authoredPositive"));
+        assertTrue(source.contains("== authoredPositive"));
         assertTrue(source.contains("authoredDownstreamOccupied"));
         assertTrue(source.contains("DR50_FLUID_SETTLE_TICKS = 100"));
         assertTrue(source.contains("dr50FluidSettleStartTick = level.getGameTime()"));

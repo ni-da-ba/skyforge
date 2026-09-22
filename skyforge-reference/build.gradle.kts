@@ -33,6 +33,27 @@ tasks.withType<Test>().configureEach {
     systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "2")
 }
 
+val referenceQualificationPatterns = listOf(
+    "**/acceptance/**",
+    "**/*CorpusTest.class",
+    "**/*SpecimenSearchTest.class",
+)
+
+tasks.named<Test>("test") {
+    // Large corpus/acceptance/search suites are qualification evidence, not routine unit coverage.
+    // Keep ordinary check fast while preserving these tests in an explicit CI qualification lane.
+    exclude(referenceQualificationPatterns)
+}
+
+tasks.register<Test>("referenceQualificationTest") {
+    group = "verification"
+    description = "Runs expensive reference corpus, acceptance, and deterministic specimen-search tests."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include(referenceQualificationPatterns)
+    shouldRunAfter(tasks.named("test"))
+}
+
 tasks.register<JavaExec>("fixedSeedCorpus") {
     group = "verification"
     description = "Regenerates and verifies the complete v0.1 fixed-seed evidence corpus."
