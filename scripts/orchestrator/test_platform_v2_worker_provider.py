@@ -335,7 +335,7 @@ class CodexProviderAdapterTest(unittest.TestCase):
         module = types.ModuleType("openai_codex")
 
         class Sandbox:
-            workspace_write = object()
+            read_only = object()
 
         class Result:
             final_response = "bounded completion summary"
@@ -381,8 +381,8 @@ class CodexProviderAdapterTest(unittest.TestCase):
                     {"model_reasoning_effort": "high"},
                 )
                 self.assertTrue(calls["start"]["ephemeral"])
-                self.assertIs(calls["start"]["sandbox"], Sandbox.workspace_write)
-                self.assertIs(calls["run_sandbox"], Sandbox.workspace_write)
+                self.assertIs(calls["start"]["sandbox"], Sandbox.read_only)
+                self.assertIs(calls["run_sandbox"], Sandbox.read_only)
                 self.assertIn("Do not commit, push", calls["prompt"])
                 self.assertIn("network access", calls["prompt"].lower())
                 self.assertIn(
