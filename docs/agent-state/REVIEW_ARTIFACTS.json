@@ -40,6 +40,33 @@
         "byte_size": 11278,
         "sha256": "ef15baf2accbc40298a9390e81391aefad8c7a1c87bd78d6f68b38c5145d40a9"
       }
+    },
+    {
+      "artifact_id": "dr60:p2-dressed-region-a",
+      "kind": "INTERACTIVE_SPECIMEN",
+      "source_sha": "4f6526d26408974b3a33d1af62565f225516567d",
+      "title": "DR-60 canonical dressed-region exploration specimen",
+      "description": "Canonical P2_DRESSED_REGION_A specimen reviewed by the project owner on 2026-09-17; the DR-60 human exploration gate returned CHANGES_REQUIRED.",
+      "interactive": {
+        "specimen_kind": "minecraft-neoforge-review-world",
+        "parameters": {
+          "specimen_id": "P2_DRESSED_REGION_A",
+          "authored_world_root_seed": "6001989086914692933",
+          "minecraft_level_seed": 493030,
+          "province_key": 8,
+          "cluster_key": 81,
+          "island_key": 1471
+        },
+        "preparation_entry_points": [
+          ":skyforge-neoforge-1211:dr50IntegratedRegionAcceptance"
+        ],
+        "launch_entry_point": ":skyforge-neoforge-1211:runDr60HumanReviewClient",
+        "review_actions": [
+          "/gamemode creative",
+          "/tp @s 0 320 0"
+        ],
+        "associated_artifact_ids": []
+      }
     }
   ]
 }
