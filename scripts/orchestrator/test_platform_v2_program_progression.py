@@ -6,13 +6,19 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 from test_platform_v2_scope_promotion import REPO_ROOT, git, prepare, write_state
 from v2.effects import EffectKind
 from v2.events import DurableEvent
 from v2.external import ExternalProducerClaim
 from v2.external_service import ExternalClaimLedger, ExternalClaimStore
-from v2.hosted_admission import HostedAdmissionStore
+from v2.hosted_admission import (
+    HostedAdmissionLedger,
+    HostedAdmissionOutcome,
+    HostedAdmissionRecord,
+    HostedAdmissionStore,
+)
 from v2.hosted_completion import (
     HostedCompletionLedger,
     HostedCompletionRecord,
@@ -47,9 +53,16 @@ from v2.ordinary_effects import OrdinaryEffectStore
 from v2.ordinary_remote import comment_payload
 from v2.program_progression import (
     ProgramAdvanceDisposition,
+    ProgramContinuationLedger,
+    ProgramContinuationSession,
     ProgramContinuationStore,
+    ProgramNodeCompletion,
+    ProgramSessionDisposition,
+    _supersede_projection_if_safe,
     advance_program_continuation,
 )
+from v2.program_projection import load_program_projection
+from v2.hosted_state import HostedStateStore
 from v2.scope_promotion import PromotionStore
 from v2.task_authority import TaskAuthorityWakeReference
 from v2.task_event_composition import (
@@ -555,6 +568,213 @@ class ProgramProgressionTest(unittest.TestCase):
             self.assertEqual(blocked.disposition, ProgramAdvanceDisposition.BLOCKED)
             self.assertIn("source validation failed closed", blocked.reason)
             self.assertEqual(blocked.session.child_proposal_id, "")
+
+    def test_explicit_projection_supersession_retires_only_nonexecuted_child(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            projection = load_program_projection(root)
+            self.assertTrue(projection.supersedes_projection_digest)
+
+            event = DurableEvent(
+                actionable=True,
+                reason="stale program child fixture",
+                event="issue_comment",
+                action="audit_signal",
+                pr_number=754,
+                observed_at="2026-09-21T23:51:57Z",
+                source_id="5769224107",
+                signal_kind="task",
+                signal_text="[SKYFORGE TASK AUTHORITY] fixture",
+            )
+            plan = HostedTaskDispatchPlan(
+                event_id=event.event_id,
+                issue_number=754,
+                authority_record_digest="f" * 64,
+                status=HostedTaskPlanStatus.CLAIMED,
+                reason="nonexecuted stale child",
+            )
+            HostedTaskPlanStore.for_root(root).save(
+                HostedTaskPlanLedger((plan,))
+            )
+            admission = HostedAdmissionRecord(
+                plan_id=plan.plan_id,
+                event_id=event.event_id,
+                issue_number=754,
+                classifier_request_id="1" * 64,
+                classifier_run_id="2" * 64,
+                classifier_decision_digest="3" * 64,
+                hydration_digest="4" * 64,
+                authority_digest="5" * 64,
+                current_main=git(root, "rev-parse", "HEAD"),
+                attempt_number=1,
+                outcome=HostedAdmissionOutcome.NOT_DISPATCH,
+                reason="NOOP fixture",
+            )
+            HostedAdmissionStore.for_root(root).save(
+                HostedAdmissionLedger((admission,))
+            )
+
+            active = ProgramContinuationSession(
+                parent_proposal_id="a" * 64,
+                invocation_proposal_ids=("a" * 64,),
+                program_id=projection.program_id,
+                projection_digest=projection.supersedes_projection_digest,
+                current_node_id="post-platform-dr70-repair",
+                disposition=ProgramSessionDisposition.WAIT_CHILD,
+                reason="stale child waiting",
+                child_proposal_id="b" * 64,
+                completed_nodes=(
+                    ProgramNodeCompletion(
+                        "pre-bootstrap-development-platform-gate",
+                        "review-platform-gate",
+                    ),
+                ),
+            )
+            ledger = ProgramContinuationLedger((active,))
+            ProgramContinuationStore.for_root(root).save(ledger)
+
+            trace = {
+                "stages": [
+                    {
+                        "stage": "TASK_AUTHORITY",
+                        "status": "CAPTURED",
+                        "identities": {"event_id": event.event_id},
+                    }
+                ]
+            }
+            with mock.patch(
+                "v2.program_progression.build_objective_trace",
+                return_value=trace,
+            ):
+                rebound = _supersede_projection_if_safe(
+                    root=root,
+                    ledger=ledger,
+                    active=active,
+                    projection=projection,
+                )
+
+            self.assertIsNotNone(rebound)
+            self.assertEqual(rebound.projection_digest, projection.digest)
+            self.assertEqual(rebound.current_node_id, active.current_node_id)
+            self.assertEqual(rebound.child_proposal_id, "")
+            self.assertEqual(rebound.completed_nodes, active.completed_nodes)
+            self.assertIsNone(
+                HostedTaskPlanStore.for_root(root).load().get_event(event.event_id)
+            )
+            self.assertIsNone(
+                HostedAdmissionStore.for_root(root).load().for_plan(plan.plan_id)
+            )
+            self.assertIn(
+                event.event_id,
+                HostedStateStore.for_root(root).load().inbox.retired_event_keys,
+            )
+            persisted = ProgramContinuationStore.for_root(root).load()
+            self.assertEqual(
+                persisted.active.projection_digest,
+                projection.digest,
+            )
+            superseded = [
+                value
+                for value in persisted.records
+                if value.disposition is ProgramSessionDisposition.SUPERSEDED
+            ]
+            self.assertEqual(len(superseded), 1)
+            self.assertEqual(superseded[0].child_proposal_id, "b" * 64)
+
+    def test_projection_supersession_fails_closed_after_executable_authority(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            projection = load_program_projection(root)
+            active = ProgramContinuationSession(
+                parent_proposal_id="a" * 64,
+                invocation_proposal_ids=("a" * 64,),
+                program_id=projection.program_id,
+                projection_digest=projection.supersedes_projection_digest,
+                current_node_id="post-platform-dr70-repair",
+                disposition=ProgramSessionDisposition.WAIT_CHILD,
+                reason="stale child waiting",
+                child_proposal_id="b" * 64,
+                completed_nodes=(
+                    ProgramNodeCompletion(
+                        "pre-bootstrap-development-platform-gate",
+                        "review-platform-gate",
+                    ),
+                ),
+            )
+            ledger = ProgramContinuationLedger((active,))
+            event_id = "sha256:" + "e" * 64
+            plan = HostedTaskDispatchPlan(
+                event_id=event_id,
+                issue_number=754,
+                authority_record_digest="f" * 64,
+                status=HostedTaskPlanStatus.CLAIMED,
+                reason="fixture",
+            )
+            HostedTaskPlanStore.for_root(root).save(
+                HostedTaskPlanLedger((plan,))
+            )
+            executable = mock.Mock(
+                outcome=HostedAdmissionOutcome.ADMITTED,
+                consume_attempt=True,
+                frozen_task=object(),
+                attempt=object(),
+                worker_spec=object(),
+            )
+            fake_ledger = mock.Mock()
+            fake_ledger.for_plan.return_value = executable
+            fake_store = mock.Mock()
+            fake_store.load.return_value = fake_ledger
+            trace = {
+                "stages": [
+                    {
+                        "stage": "TASK_AUTHORITY",
+                        "status": "CAPTURED",
+                        "identities": {"event_id": event_id},
+                    }
+                ]
+            }
+            with mock.patch(
+                "v2.program_progression.build_objective_trace",
+                return_value=trace,
+            ), mock.patch(
+                "v2.program_progression.HostedAdmissionStore.for_root",
+                return_value=fake_store,
+            ):
+                with self.assertRaisesRegex(ValueError, "executable authority"):
+                    _supersede_projection_if_safe(
+                        root=root,
+                        ledger=ledger,
+                        active=active,
+                        projection=projection,
+                    )
+
+            self.assertIsNotNone(
+                HostedTaskPlanStore.for_root(root).load().get_event(event_id)
+            )
+
+    def test_projection_drift_without_explicit_predecessor_still_fails_closed(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            projection = load_program_projection(root)
+            active = ProgramContinuationSession(
+                parent_proposal_id="a" * 64,
+                invocation_proposal_ids=("a" * 64,),
+                program_id=projection.program_id,
+                projection_digest="d" * 64,
+                current_node_id="post-platform-dr70-repair",
+                disposition=ProgramSessionDisposition.WAIT_CHILD,
+                reason="fixture",
+            )
+            rebound = _supersede_projection_if_safe(
+                root=root,
+                ledger=ProgramContinuationLedger((active,)),
+                active=active,
+                projection=projection,
+            )
+            self.assertIsNone(rebound)
 
     def test_x2_child_completion_advances_only_to_dr_rereview_gate(self):
         with tempfile.TemporaryDirectory() as td:

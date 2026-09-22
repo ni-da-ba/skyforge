@@ -18,7 +18,9 @@ from .context_package import ContextPackageDisposition, package_proposal
 from .context_retrieval import ContextRetrievalDisposition, retrieve_context
 from .external_service import ExternalClaimStore
 from .human_review import HumanReviewStore, HumanReviewVerdict
-from .hosted_admission import HostedAdmissionStore
+from .hosted_admission import HostedAdmissionOutcome, HostedAdmissionStore
+from .hosted_completion import HostedCompletionStore
+from .hosted_state import HostedStateStore
 from .hosted_task_plan import HostedTaskPlanStore
 from .identity import canonical_digest
 from .objective_ingress import (
@@ -82,6 +84,7 @@ class ProgramSessionDisposition(str, Enum):
     WAIT_STRATEGIC = "WAIT_STRATEGIC"
     WAIT_CONTROL = "WAIT_CONTROL"
     BLOCKED = "BLOCKED"
+    SUPERSEDED = "SUPERSEDED"
     COMPLETE = "COMPLETE"
 
 
@@ -168,7 +171,10 @@ class ProgramContinuationSession:
 
     @property
     def active(self) -> bool:
-        return self.disposition is not ProgramSessionDisposition.COMPLETE
+        return self.disposition not in {
+            ProgramSessionDisposition.COMPLETE,
+            ProgramSessionDisposition.SUPERSEDED,
+        }
 
     def has_completed(self, node_id: str) -> bool:
         return any(value.node_id == node_id for value in self.completed_nodes)
@@ -285,9 +291,19 @@ class ProgramContinuationLedger:
         matches = [
             value for value in self.records if key in value.invocation_proposal_ids
         ]
-        if len(matches) > 1:
-            raise ValueError("proposal belongs to multiple program sessions")
-        return matches[0] if matches else None
+        active = [value for value in matches if value.active]
+        if len(active) > 1:
+            raise ValueError("proposal belongs to multiple active program sessions")
+        if active:
+            return active[0]
+        current = [
+            value
+            for value in matches
+            if value.disposition is not ProgramSessionDisposition.SUPERSEDED
+        ]
+        if len(current) > 1:
+            raise ValueError("proposal belongs to multiple current program sessions")
+        return current[0] if current else (matches[-1] if matches else None)
 
     def put(self, record: ProgramContinuationSession) -> "ProgramContinuationLedger":
         current = next(
@@ -479,6 +495,160 @@ def _save_session(
     return session
 
 
+def _trace_stage(trace: Mapping[str, Any], name: str) -> Mapping[str, Any] | None:
+    values = trace.get("stages")
+    if not isinstance(values, list):
+        return None
+    matches = [
+        value
+        for value in values
+        if isinstance(value, Mapping) and value.get("stage") == name
+    ]
+    if len(matches) > 1:
+        raise ValueError(f"program child trace has multiple {name} stages")
+    return matches[0] if matches else None
+
+
+def _supersede_projection_if_safe(
+    *,
+    root: Path,
+    ledger: ProgramContinuationLedger,
+    active: ProgramContinuationSession,
+    projection: ProgramProjection,
+) -> ProgramContinuationSession | None:
+    """Rebind one non-executed child to an explicitly superseding program projection."""
+
+    if projection.program_id != active.program_id:
+        return None
+    if projection.digest == active.projection_digest:
+        return active
+    if projection.supersedes_projection_digest != active.projection_digest:
+        return None
+
+    current = projection.get(active.current_node_id)
+    if current is None:
+        raise ValueError("superseding projection removed the active program node")
+    for completed in active.completed_nodes:
+        prior = projection.get(completed.node_id)
+        if prior is None:
+            raise ValueError(
+                "superseding projection removed a durably completed program node"
+            )
+
+    event_id = ""
+    plan = None
+    admission = None
+    if active.child_proposal_id:
+        trace = build_objective_trace(
+            root=root,
+            correlation_id=active.child_proposal_id,
+        )
+        if trace is None:
+            raise ValueError("program child objective trace disappeared during supersession")
+        completion = _trace_stage(trace, "COMPLETION")
+        if completion is not None and completion.get("status") in {"RECORDED", "CLEANED"}:
+            raise ValueError(
+                "superseding projection cannot replace a durably completed child"
+            )
+        task = _trace_stage(trace, "TASK_AUTHORITY")
+        if task is not None:
+            identities = task.get("identities")
+            if not isinstance(identities, Mapping):
+                raise ValueError("program child task authority lacks exact identities")
+            event_id = _required(identities.get("event_id"), "task event_id")
+            plan_store = HostedTaskPlanStore.for_root(root)
+            plan = plan_store.load().get_event(event_id)
+            if plan is not None:
+                admission_store = HostedAdmissionStore.for_root(root)
+                admission = admission_store.load().for_plan(plan.plan_id)
+                if admission is not None:
+                    if (
+                        admission.outcome is HostedAdmissionOutcome.ADMITTED
+                        or admission.consume_attempt
+                        or admission.frozen_task is not None
+                        or admission.attempt is not None
+                        or admission.worker_spec is not None
+                    ):
+                        raise ValueError(
+                            "superseding projection cannot replace child with executable authority"
+                        )
+                    if admission.outcome not in {
+                        HostedAdmissionOutcome.BLOCKED,
+                        HostedAdmissionOutcome.NOT_DISPATCH,
+                        HostedAdmissionOutcome.RECLASSIFY,
+                    }:
+                        raise ValueError(
+                            "superseding projection found unsupported non-executed admission"
+                        )
+            completion_records = [
+                value
+                for value in HostedCompletionStore.for_root(root).load().records
+                if value.event_id == event_id
+            ]
+            if completion_records:
+                raise ValueError(
+                    "superseding projection cannot replace child with completion evidence"
+                )
+
+    # Fence the stale task event first. A crash after this point cannot recreate worker
+    # authority; a later call can safely repeat the remaining idempotent cleanup.
+    if event_id:
+        state_store = HostedStateStore.for_root(root)
+        state = state_store.load()
+        retired = list(state.inbox.retired_event_keys)
+        if event_id not in retired:
+            retired.append(event_id)
+        next_inbox = replace(
+            state.inbox,
+            pending_events=tuple(
+                value
+                for value in state.inbox.pending_events
+                if value.event_id != event_id
+            ),
+            retired_event_keys=tuple(retired[-1024:]),
+            owned_event_keys=tuple(
+                value for value in state.inbox.owned_event_keys if value != event_id
+            ),
+        )
+        state_store.save(replace(state, inbox=next_inbox))
+
+    if plan is not None:
+        admission_store = HostedAdmissionStore.for_root(root)
+        admission_store.save(admission_store.load().remove_plan(plan.plan_id))
+        plan_store = HostedTaskPlanStore.for_root(root)
+        plan_store.save(plan_store.load().remove(plan.plan_id))
+
+    superseded = replace(
+        active,
+        disposition=ProgramSessionDisposition.SUPERSEDED,
+        reason=(
+            "explicit accepted program projection superseded a non-executed child "
+            f"at node {active.current_node_id}"
+        ),
+        gate_id="",
+    )
+    rebound = ProgramContinuationSession(
+        parent_proposal_id=active.parent_proposal_id,
+        invocation_proposal_ids=active.invocation_proposal_ids,
+        program_id=projection.program_id,
+        projection_digest=projection.digest,
+        current_node_id=active.current_node_id,
+        disposition=ProgramSessionDisposition.ADVANCING,
+        reason=(
+            "explicit accepted program projection supersession preserved completed "
+            "program evidence and retired only non-executed stale child authority"
+        ),
+        completed_nodes=active.completed_nodes,
+    )
+    records = tuple(
+        value for value in ledger.records if value.session_id != active.session_id
+    ) + (superseded, rebound)
+    ProgramContinuationStore.for_root(root).save(
+        ProgramContinuationLedger(records)
+    )
+    return rebound
+
+
 def _complete_from_child_trace(
     *,
     root: Path,
@@ -591,13 +761,31 @@ def advance_program_continuation(
             projection.program_id != active.program_id
             or projection.digest != active.projection_digest
         ):
-            active = replace(
-                active,
-                disposition=ProgramSessionDisposition.BLOCKED,
-                reason="program projection identity changed after session creation",
-            )
-            active = _save_session(root, active)
-            return _session_result(ProgramAdvanceDisposition.BLOCKED, active)
+            try:
+                rebound = _supersede_projection_if_safe(
+                    root=root,
+                    ledger=ledger,
+                    active=active,
+                    projection=projection,
+                )
+            except ValueError as exc:
+                rebound = None
+                migration_error = str(exc)
+            else:
+                migration_error = ""
+            if rebound is None:
+                active = replace(
+                    active,
+                    disposition=ProgramSessionDisposition.BLOCKED,
+                    reason=(
+                        "program projection identity changed after session creation"
+                        + (f": {migration_error}" if migration_error else "")
+                    ),
+                )
+                active = _save_session(root, active)
+                return _session_result(ProgramAdvanceDisposition.BLOCKED, active)
+            active = rebound
+            ledger = store.load()
 
         # One call may cross several model-free program boundaries, but is bounded by
         # the tiny current projection and stops before any worker/provider execution.

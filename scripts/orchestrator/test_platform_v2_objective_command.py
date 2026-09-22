@@ -178,7 +178,7 @@ class ObjectiveCommandTest(unittest.TestCase):
             )
             self.assertEqual(len(proposals.load().records), 2)
 
-    def test_legacy_github_objective_identity_remains_exact(self):
+    def test_legacy_github_source_identity_remains_exact_under_current_compile(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             prepare_root(root)
@@ -198,9 +198,14 @@ class ObjectiveCommandTest(unittest.TestCase):
                 delivery_id="objective-1",
                 root=root,
             ).record
+            self.assertEqual(record.source.digest, source.digest)
             self.assertEqual(
-                record.proposal_id,
-                "c6e2ecfa92d753c59669270b22e433c261662c179e9b281609fd679e960878af",
+                record.compiled.disposition.value,
+                "HUMAN_GATE",
+            )
+            self.assertEqual(
+                record.compiled.human_gate.node_id,
+                "dr-human-exploration-rereview",
             )
 
 

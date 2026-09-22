@@ -13,16 +13,16 @@
       "issue_number": 754,
       "kind": "task",
       "lane": "Implementation",
-      "objective": "Retry #754 once after AUTH-0104 / #756 is accepted on main. Implement only the explicit DR-60 human-review corrections on the same canonical specimen: deterministic tall-vegetation headroom safety with no clipped canopy; physically legible realization of the newly accepted canonical authored hydrology beyond token source-block presence; and deterministic suppression of incidental water/lava edge leakage while retaining intentionally authorized waterfalls/cascades or geologically justified discharge. Preserve the already-coherent island massing and cave/interior foundation. Reuse prior expensive evidence where the changed dependency surface permits it; all automated validation belongs in GitHub Actions.",
+      "objective": "Resume #754 from the project-owner key-2885 DR-70 review recorded in comment 5752994015. Preserve the proven real channel geomorphology and the accepted canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements. Repair only the remaining review failures: resolve the unacceptable ocean-biome/presentation context for intended island hydrology using already-accepted world semantics; improve the visible water realization and surrounding bank/substrate/material dressing so the authored channel reads coherently in-world; and qualify a deterministic representative review specimen large and legible enough to demonstrate the integrated system. The key-2885 specimen is evidence, not a sacred lock: select another deterministic specimen only when current accepted semantics naturally exercise the system better. Produce a new qualified artifact and concrete material delta for human review. Automated validation belongs in GitHub Actions.",
       "prerequisites": [
         "pre-bootstrap-development-platform-gate"
       ],
-      "stop_boundary": "Do not broadly retune terrain morphology, caves, ecology density, pacing, beauty, final visual identity, structure architecture, or #488/#489. Do not invent new Authorship hydrology/geology/ecology semantics; if existing accepted semantics are insufficient, stop at the precise Authorship dependency. Do not run project validation on the DigitalOcean host."
+      "stop_boundary": "Do not fabricate hydrology for the review, invent new watershed/biome/aesthetic policy, or broadly retune terrain morphology, caves, ecology density, pacing, final visual identity, or structure architecture. Preserve the positive real-channel result and previously accepted canopy/cave/exterior-fluid fixes. If accepted Authorship/Content/Presentation semantics cannot resolve the biome/presentation context or provide a representative specimen, stop at that precise dependency. Do not touch #488/#489, run project validation on the DigitalOcean host, or machine-pass the product gate."
     },
     {
       "id": "dr-human-exploration-rereview",
       "kind": "human_gate",
-      "message": "DR-70 repair evidence is machine-complete. On Nicholas' local workstation, reopen the repaired canonical specimen and verify specifically that tall vegetation no longer clips at the upper boundary, authored hydrology reads as an actual geographic feature rather than token water presence, incidental water/lava edge discharge is no longer commonplace, and the previously coherent island surface and cave/interior foundation has not regressed. Machines must not self-pass this re-review.",
+      "message": "Post-platform DR-70 repair evidence is machine-complete. On Nicholas' local workstation, inspect the newly qualified artifact and verify that the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation; the water, channel banks/substrate, and surrounding material dressing read coherently; the specimen is representative enough to demonstrate the integrated system; the previously proven real channel geomorphology remains legible; tall vegetation no longer clips at the upper boundary; and the accepted cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed. Machines must not self-pass this re-review.",
       "prerequisites": [
         "post-platform-dr70-repair"
       ],
@@ -42,7 +42,7 @@
   "semantic_sources": [
     {
       "path": "docs/agent-state/PROGRAM_ROADMAP.md",
-      "sha256": "3c09a0319c3f554842d23416164e2bec42cd5f90243ee74abca6fda3914d273b"
+      "sha256": "119070984137a320bf2589c2bb11ffdf77b66904d44ef86b63e718d6198170ee"
     },
     {
       "path": "docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md",
@@ -50,7 +50,8 @@
     },
     {
       "path": "docs/agent-state/ORCHESTRATOR_ROADMAP.json",
-      "sha256": "a8d030ba0c963d083670cda6a24434e09eb05eba6c59ce10d2eb952c850aa2d4"
+      "sha256": "82ec33145014ef7206e586e36cfee092d2026c379344583df7d7733eba8c3745"
     }
-  ]
+  ],
+  "supersedes_projection_digest": "06c36ba442c679cafbc86436d58c49e08294dee273ff39680335cedda9850d4a"
 }

@@ -136,30 +136,35 @@ Do not use DR-65 to retune morphology, caves, ecology density, beauty, pacing, o
 
 Promotion: #756 closes with accepted canonical-instance hydrology authority on `main`; only then may #754 retry.
 
-## DR-70 — Human-review repair tranche
+## DR-70 — Post-platform human-review repair tranche
 
-Consumes #754 after accepted AUTH-0104 / #756. One retry is authorized because the first bounded run stopped on the now-explicit Authorship dependency.
+The original DR-60 repair tranche and subsequent hydrology-geomorphology work have already established machine-qualified canopy/fluid fixes and an actual visibly legible channel. The project-owner key-2885 review on #754 comment `5752994015` nevertheless returned **CHANGES REQUIRED / PRODUCT WORK DEFERRED**.
 
-Repair only the observed DR-60 defects while preserving the accepted coherent island/cave foundation:
-- enforce deterministic vertical-headroom safety for tall vegetation so clipped canopies are rejected or replaced without globally flattening ecology;
-- make the canonical authored hydrology physically legible as a coherent retained/channelized/composed water feature rather than token water presence;
-- strongly suppress incidental water/lava edge leakage while retaining intentionally authorized waterfalls/cascades or geologically justified discharge.
+The accepted restart boundary after the pre-Bootstrap platform gate is therefore the later key-2885 finding, not a replay of the original DR-60 repair:
 
-Use existing accepted Authorship hydrology/geology/ecology semantics. If those semantics are insufficient to determine coherent retained water or justified discharge, stop at an explicit Authorship dependency rather than inventing policy in Implementation.
+- preserve the proven real channel geomorphology;
+- preserve the accepted tall-canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements;
+- resolve the unacceptable ocean-biome/presentation context for intended island hydrology using already-accepted world semantics;
+- improve the visible water realization and surrounding bank/substrate/material dressing so the channel reads coherently in-world;
+- qualify a deterministic representative review specimen large and legible enough to demonstrate the integrated system.
 
-Prove only the dependency surfaces changed by the repair: deterministic/idempotent realization, relevant persistence/reload behavior, exact-volume isolation, no clipped canonical canopy, coherent authored-water evidence beyond source-block counting, and deterministic intentional-vs-incidental discharge rejection. Reuse prior expensive evidence where the tested dependency surface is unchanged.
+The key-2885 specimen is evidence, not a sacred lock. A different deterministic specimen may be selected only when current accepted semantics naturally exercise the system better; do not fabricate hydrology merely to make a review image.
 
-Do not broadly retune morphology, caves, ecology density, pacing, beauty, structure architecture, or #488/#489.
+Automated proof remains GitHub Actions-only. Reuse accepted expensive evidence wherever the changed dependency surface permits it. If existing Authorship/Content/Presentation semantics are insufficient to resolve the biome/presentation context or provide a representative specimen, stop at that precise dependency instead of inventing product policy in Implementation.
 
-Promotion: #754 closes with machine-green repaired canonical evidence and an updated launchable specimen ready for a second project-owner review.
+Do not broadly retune morphology, caves, ecology density, pacing, final visual identity, structure architecture, or #488/#489.
+
+Promotion: #754 reaches machine-green evidence for the post-platform material delta and registers a new qualified artifact ready for project-owner inspection.
 
 ## DR-70 human re-review gate
 
-After DR-70 machine evidence is accepted, stop again and ask the project owner to verify specifically that:
-- tall vegetation no longer clips at the upper boundary;
-- hydrology reads as an actual geographic feature rather than token mechanical water presence;
-- incidental water/lava edge discharge is no longer commonplace;
-- the previously coherent island surface and cave/interior foundation has not regressed.
+After the post-platform repair is machine-qualified, stop again and ask the project owner to verify specifically that:
+
+- the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation;
+- the water, channel banks/substrate, and surrounding material dressing read coherently;
+- the selected specimen is representative enough to demonstrate the integrated system;
+- the previously proven real channel geomorphology remains legible;
+- the accepted canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed.
 
 Machines must not self-pass this re-review.
 
