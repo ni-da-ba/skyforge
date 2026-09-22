@@ -104,7 +104,17 @@ final class SkyforgeAuthoredNativeSurfaceStage {
         if (changed > 0) {
             chunk.setUnsaved(true);
         }
-        return new Result(volumeId, chunk.getPos().toLong(), changed);
+        markCompleted(level, surfaceKey);
+        return new Result(volumeId, surfaceKey.chunkKey(), changed);
+    }
+
+    private static synchronized boolean completed(ServerLevel level, SurfaceKey key) {
+        Set<SurfaceKey> completed = COMPLETED.get(level);
+        return completed != null && completed.contains(key);
+    }
+
+    private static synchronized void markCompleted(ServerLevel level, SurfaceKey key) {
+        COMPLETED.computeIfAbsent(level, ignored -> new HashSet<>()).add(key);
     }
 
     private static void seedExactVolumeScratch(
@@ -262,6 +272,14 @@ final class SkyforgeAuthoredNativeSurfaceStage {
 
     private static int quartBlockCenter(int quart) {
         return Math.addExact(Math.multiplyExact(quart, 4), 2);
+    }
+
+    private record SurfaceKey(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        private SurfaceKey {
+            Objects.requireNonNull(volumeId, "volumeId");
+        }
     }
 
     private record Evaluator(
