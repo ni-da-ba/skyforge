@@ -8,16 +8,27 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import threading
 from typing import Any, Mapping, Protocol
 
 from .identity import canonical_digest
+from .path_scope import path_is_allowed
 from .state_store import JsonStateStoreAdapter
 
 
 WORKER_RUNS_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json"
 WORKER_RUNS_BACKUP_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json.bak"
 _WORKER_RUN_LOCK = threading.RLock()
+
+PATCH_BEGIN = "SKYFORGE_PATCH_BEGIN"
+PATCH_END = "SKYFORGE_PATCH_END"
+PATCH_SUMMARY = "SKYFORGE_WORKER_SUMMARY"
+_PROTECTED_WORKER_PREFIXES = (
+    ".git/",
+    ".skyforge-orchestrator/",
+    ".skyforge-platform-v2/",
+)
 
 
 class WorkerTier(str, Enum):
