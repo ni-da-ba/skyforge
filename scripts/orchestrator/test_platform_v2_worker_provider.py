@@ -338,7 +338,10 @@ class CodexProviderAdapterTest(unittest.TestCase):
             read_only = object()
 
         class Result:
-            final_response = "bounded completion summary"
+            final_response = (
+                "SKYFORGE_WORKER_SUMMARY\\nbounded completion summary\\n"
+                "SKYFORGE_PATCH_BEGIN\\n\\nSKYFORGE_PATCH_END"
+            )
 
         class Thread:
             def run(self, prompt, *, sandbox):
