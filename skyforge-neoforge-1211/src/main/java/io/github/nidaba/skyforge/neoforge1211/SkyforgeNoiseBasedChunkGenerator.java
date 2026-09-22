@@ -503,13 +503,22 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenLevel level,
             ChunkAccess chunk,
             StructureManager structureManager) {
+        // In atlas mode the hidden donor dimension is intentionally frozen immediately after
+        // vanilla surface construction. Its persisted live chunk is therefore a durable,
+        // pre-decoration native-surface profile: no trees, structures or placed features can be
+        // mistaken for terrain representation on a later retry/reload.
+        if (SkyforgeDr70HumanReviewAtlasRuntime.enabled()
+                && level instanceof WorldGenRegion region
+                && SkyforgeDr70HumanReviewAtlasRuntime.isSurfaceDonor(region)) {
+            return;
+        }
+
         // BASE_WORLD completes its ordinary structure/feature/decoration stream before any Skyforge
         // block exists in the live chunk. This is the core SF-IMP-0052 isolation invariant.
         super.applyBiomeDecoration(level, chunk, structureManager);
 
-        // The DR-70 review atlas uses this generator only to preserve Minecraft's native
-        // noise/carver context over an air-only carrier. Its harness is the sole realization
-        // driver, so automatic generation-time Skyforge overlay must remain inert there.
+        // The visible DR-70 carrier is air-only and the harness is its sole Skyforge realization
+        // driver. Native representation comes from the hidden donor above, not from this chunk.
         if (SkyforgeDr70HumanReviewAtlasRuntime.enabled()) {
             return;
         }

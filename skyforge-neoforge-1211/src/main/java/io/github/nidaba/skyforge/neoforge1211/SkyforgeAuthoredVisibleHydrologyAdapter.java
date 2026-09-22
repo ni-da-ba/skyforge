@@ -14,7 +14,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -138,8 +141,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
     /** Applies every authored deployment whose exact cells occur in an already-available chunk. */
     static int applyAvailable(ChunkAccess chunk, SkyforgeNeoForge1211ChunkAdapter terrain) {
+        return applyAvailable(chunk, terrain, Optional.empty());
+    }
+
+    static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Optional<MinecraftNativeSurfaceSnapshot> nativeSurfaceSnapshot) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(nativeSurfaceSnapshot, "nativeSurfaceSnapshot");
         int written = 0;
         for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
             var descriptor = terrain.authoredDescriptor(volume.id());
@@ -147,7 +158,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             for (Deployment deployment : terrain.authoredHydrologyDeployments(volume.id())) {
-                written += apply(chunk, deployment);
+                written += apply(chunk, deployment, nativeSurfaceSnapshot);
             }
         }
         return written;
@@ -444,18 +455,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * water produce no new writes.
      */
     static int apply(ChunkAccess chunk, Deployment deployment) {
+        return apply(chunk, deployment, Optional.empty());
+    }
+
+    private static int apply(
+            ChunkAccess chunk,
+            Deployment deployment,
+            Optional<MinecraftNativeSurfaceSnapshot> nativeSurfaceSnapshot) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
+        Objects.requireNonNull(nativeSurfaceSnapshot, "nativeSurfaceSnapshot");
+        var wetColumns = deployment.positions().stream()
+                .map(position -> new Column(position.getX(), position.getZ()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         int written = 0;
         for (BlockPos position : deployment.surfacePositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
-            // AUTH-0105 requires material dressing after dry terrain projection. Reuse the
-            // accepted Minecraft carrier for Skyforge SURFACE_MANTLE rather than inheriting
-            // an unrelated native-ocean top block into the fluvial bed/bank corridor.
-            if (!chunk.getBlockState(position).is(Blocks.DIRT)) {
-                chunk.setBlockState(position, Blocks.DIRT.defaultBlockState(), false);
+            BlockState desired = nativeHydrologySurfaceState(
+                    chunk,
+                    position,
+                    wetColumns.contains(new Column(position.getX(), position.getZ())),
+                    nativeSurfaceSnapshot);
+            if (!chunk.getBlockState(position).equals(desired)) {
+                chunk.setBlockState(position, desired, false);
                 written++;
             }
         }
@@ -478,6 +502,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
         return written;
+    }
+
+    private static BlockState nativeHydrologySurfaceState(
+            ChunkAccess chunk,
+            BlockPos position,
+            boolean submergedBed,
+            Optional<MinecraftNativeSurfaceSnapshot> nativeSurfaceSnapshot) {
+        if (nativeSurfaceSnapshot.isEmpty()) {
+            return Blocks.DIRT.defaultBlockState();
+        }
+        int localX = position.getX() - chunk.getPos().getMinBlockX();
+        int localZ = position.getZ() - chunk.getPos().getMinBlockZ();
+        var nativeSurface = nativeSurfaceSnapshot.orElseThrow().surface(localX, localZ);
+        if (nativeSurface.isEmpty()) {
+            return Blocks.DIRT.defaultBlockState();
+        }
+        ResourceLocation key = nativeSurface.orElseThrow().materialAtDepth(submergedBed ? 1 : 0);
+        return BuiltInRegistries.BLOCK.get(key).defaultBlockState();
     }
 
     /**

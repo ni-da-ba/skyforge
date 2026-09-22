@@ -60,10 +60,38 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void representationOnlyDonorIgnoresForeignDimensionSurfaceHeight() {
+        ProtoChunk donor = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        donor.setBlockState(new BlockPos(0, 250, 0), Blocks.GRASS_BLOCK.defaultBlockState(), false);
+        MinecraftNativeSurfaceSnapshot snapshot =
+                MinecraftNativeSurfaceSnapshot.capture(donor).asRepresentationOnly();
+
+        MinecraftChunkMaterialization adapted =
+                new MinecraftNativeSurfaceTopAdapter().adapt(snapshot, materialization(donor));
+
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                adapted.blockKeyAt(0, 200, 0),
+                "donor material must remain usable even when donor terrain Y is above the isolated review island");
+    }
+
+    @Test
     void preDecorationSnapshotCannotMistakeLaterVegetationForNativeTerrainMaterial() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        chunk.setBlockState(new BlockPos(0, 62, 0), Blocks.STONE.defaultBlockState(), false);
+        chunk.setBlockState(new BlockPos(0, 63, 0), Blocks.DIRT.defaultBlockState(), false);
         chunk.setBlockState(new BlockPos(0, 64, 0), Blocks.GRASS_BLOCK.defaultBlockState(), false);
         MinecraftNativeSurfaceSnapshot snapshot = MinecraftNativeSurfaceSnapshot.capture(chunk);
+        var nativeSurface = snapshot.surface(0, 0).orElseThrow();
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("grass_block"),
+                nativeSurface.materialAtDepth(0));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("dirt"),
+                nativeSurface.materialAtDepth(1));
+        assertEquals(
+                ResourceLocation.withDefaultNamespace("stone"),
+                nativeSurface.materialAtDepth(2));
 
         // Simulate a feature placed after surface construction but before Skyforge realization.
         chunk.setBlockState(new BlockPos(0, 100, 0), Blocks.OAK_LOG.defaultBlockState(), false);
