@@ -92,6 +92,32 @@ final class SkyforgePopulationAttachmentEnvelope {
         return attachmentDepths.size();
     }
 
+    /**
+     * Stable diagnostic fingerprint of the exact attachment footprint produced by one native
+     * feature. Sort by packed block position so the evidence characterizes geometry rather than
+     * incidental HashMap insertion/iteration order.
+     */
+    long attachmentPositionDigest() {
+        long digest = 0xcbf29ce484222325L;
+        var entries = attachmentDepths.entrySet().stream()
+                .sorted(java.util.Comparator.comparingLong(entry -> entry.getKey().asLong()))
+                .toList();
+        for (var entry : entries) {
+            digest = mix(digest, entry.getKey().asLong());
+            digest = mix(digest, entry.getValue());
+        }
+        return digest;
+    }
+
+    private static long mix(long digest, long value) {
+        long mixed = digest;
+        for (int shift = 0; shift < Long.SIZE; shift += Byte.SIZE) {
+            mixed ^= (value >>> shift) & 0xffL;
+            mixed *= 0x100000001b3L;
+        }
+        return mixed;
+    }
+
     private int minimumAdjacentDepth(BlockPos position) {
         int minimum = Integer.MAX_VALUE;
         for (int dx = -1; dx <= 1; dx++) {
