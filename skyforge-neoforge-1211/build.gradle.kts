@@ -62,6 +62,11 @@ val dr70SpecimenSearch = tasks.register<Test>("dr70SpecimenSearch") {
 // dependency, and the workflow's initial 8-minute unit-test step keeps the exhaustive search skipped.
 if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterization"
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
+    tasks.named<Test>("test").configure {
+        filter {
+            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70ReviewRepairTest")
+        }
+    }
     tasks.configureEach {
         if (name == "sfImp0070PerformanceVerify") {
             dependsOn(dr70SpecimenSearch)
