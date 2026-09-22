@@ -406,6 +406,17 @@ final class SkyforgePhysicalVolumeCatchupService {
                     if (!surfaceReady) {
                         continue;
                     }
+                    // Presentation is the durable downstream commit for this chunk. Do not remove
+                    // the chunk from the pending volume set while its canonical native population
+                    // is still waiting on an earlier chunk. A plan-less or correctly no-op chunk is
+                    // already terminal through populationCompleted(...).
+                    if (!SkyforgeNativeSurfacePopulationStage.populationCompleted(
+                            chunk.getPos(),
+                            level.getMinBuildHeight(),
+                            level.getHeight(),
+                            volumeId)) {
+                        continue;
+                    }
                     SkyforgePersistentBiomePresentationStage.present(level, chunk, volumeId);
                     SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(volumeId, chunk.getPos());
                 }
