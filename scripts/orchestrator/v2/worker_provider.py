@@ -509,11 +509,11 @@ content after {PATCH_END}."""
                     cwd=str(Path(worktree).resolve()),
                     model=config.model,
                     config={"model_reasoning_effort": config.reasoning_effort},
-                    sandbox=Sandbox.workspace_write,
+                    sandbox=Sandbox.read_only,
                     developer_instructions=self.DEVELOPER_INSTRUCTIONS,
                     ephemeral=True,
                 )
-                result = thread.run(spec.prompt(), sandbox=Sandbox.workspace_write)
+                result = thread.run(spec.prompt(), sandbox=Sandbox.read_only)
                 summary = str(result.final_response or "").strip()
                 if not summary:
                     raise WorkerProviderError("empty_response", 0, "worker returned no final response")
