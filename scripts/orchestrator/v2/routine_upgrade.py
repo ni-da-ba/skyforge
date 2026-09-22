@@ -311,6 +311,7 @@ class RoutineUpgradeController:
         self,
         *,
         allow_model_free_reconcile: bool = False,
+        allow_snapshot_target: str = "",
     ) -> list[str]:
         blockers: list[str] = []
         try:
@@ -345,10 +346,20 @@ class RoutineUpgradeController:
                     and event.signal_text is None
                 )
             )
+            snapshot_covered = (
+                self._snapshot_covered_ordinary_events(raw, allow_snapshot_target)
+                if allow_snapshot_target
+                else ()
+            )
             if protected:
                 blockers.append(
                     "legacy fallback state has protected pending authority; explicit reconciliation/transfer required"
                 )
+            elif events and snapshot_covered and len(snapshot_covered) == len(events):
+                if not allow_model_free_reconcile:
+                    blockers.append(
+                        "legacy fallback state is not quiescent; snapshot-covered lifecycle noise still pending"
+                    )
             elif events and len(model_free_reconcile) != len(events):
                 blockers.append(
                     "legacy fallback state has ordinary pending work that is not bounded model-free reconcile noise"
@@ -381,6 +392,131 @@ class RoutineUpgradeController:
                 and event.signal_text is None
             )
         )
+
+    def _snapshot_covered_ordinary_events(
+        self,
+        raw: Mapping[str, Any],
+        target_sha: str,
+    ) -> tuple[DurableEvent, ...]:
+        target = str(target_sha or "").strip()
+        if not _SHA40_RE.fullmatch(target):
+            return ()
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        covered: list[DurableEvent] = []
+        for event in events:
+            if event.event == "roadmap" or event.protected_authority:
+                return ()
+            if (
+                event.source_id is not None
+                or event.signal_kind is not None
+                or event.signal_text is not None
+            ):
+                return ()
+            head = str(event.head_sha or "").strip()
+            if not _SHA40_RE.fullmatch(head) or not self._is_ancestor(head, target):
+                return ()
+            if event.event == "reconcile":
+                if event.action not in {"startup", "periodic"} or event.pr_number is not None:
+                    return ()
+            elif event.event == "workflow_run":
+                if event.action != "completed":
+                    return ()
+            elif event.event == "pull_request":
+                if event.action != "closed" or event.pr_number is None:
+                    return ()
+            elif event.event == "push":
+                if event.action is not None or event.pr_number is not None:
+                    return ()
+            else:
+                return ()
+            covered.append(event)
+        return tuple(covered)
+
+    def _retire_snapshot_covered_ordinary_noise(self, target_sha: str) -> int:
+        """Retire ordinary lifecycle events already represented by the target snapshot."""
+
+        raw = self._legacy_state()
+        projection = LegacyOperationalProjection.from_legacy_mapping(raw)
+        if not projection.paused:
+            raise RuntimeError("snapshot-covered noise retirement requires paused legacy")
+        if (
+            projection.blocked_kind is not None
+            or projection.pending_worker is not None
+            or projection.pending_decision is not None
+            or projection.managed
+        ):
+            raise RuntimeError(
+                "snapshot-covered noise retirement refuses in-flight or managed authority"
+            )
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        if not events:
+            return 0
+        covered = self._snapshot_covered_ordinary_events(raw, target_sha)
+        if len(covered) != len(events):
+            raise RuntimeError(
+                "snapshot-covered noise retirement encountered event outside target snapshot"
+            )
+
+        retired = [
+            str(value)
+            for value in (raw.get("retired_event_keys") or [])
+            if str(value)
+        ]
+        seen = set(retired)
+        for event in events:
+            if event.event_id not in seen:
+                retired.append(event.event_id)
+                seen.add(event.event_id)
+
+        raw["retired_event_keys"] = retired[-1024:]
+        raw["pending_events"] = []
+        metrics = raw.get("metrics")
+        if not isinstance(metrics, dict):
+            metrics = {}
+            raw["metrics"] = metrics
+        metrics["routine_upgrade_snapshot_events_retired_model_free"] = int(
+            metrics.get("routine_upgrade_snapshot_events_retired_model_free") or 0
+        ) + len(events)
+        raw["last_routine_upgrade_snapshot_quiescence"] = {
+            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "target_sha": target_sha,
+            "retired_events": len(events),
+            "reason": (
+                "paused routine upgrade retired only non-protected lifecycle events "
+                "whose exact heads are contained in the requested target snapshot"
+            ),
+        }
+        state_dir = self.root / ".skyforge-orchestrator"
+        _atomic_write_json(state_dir / "state.json", raw)
+        _atomic_write_json(state_dir / "state.json.bak", raw)
+        return len(events)
+
+    def _quiesce_snapshot_covered_ordinary_noise(self, target_sha: str) -> int:
+        raw = self._legacy_state()
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        if (
+            not events
+            or len(self._snapshot_covered_ordinary_events(raw, target_sha)) != len(events)
+        ):
+            return 0
+        self.operator.services.stop(LEGACY_SERVICE)
+        self.operator._wait_service(LEGACY_SERVICE, active=False)
+        try:
+            retired = self._retire_snapshot_covered_ordinary_noise(target_sha)
+        finally:
+            self.operator.services.start(LEGACY_SERVICE)
+            self.operator._wait_service(LEGACY_SERVICE, active=True)
+            self.operator._verify_legacy_health()
+        return retired
 
     def _retire_model_free_reconcile_noise(self) -> int:
         """Retire only paused legacy startup/periodic reconcile noise, with evidence."""
@@ -473,6 +609,7 @@ class RoutineUpgradeController:
     def _wait_for_legacy_quiescence(
         self,
         *,
+        target_sha: str,
         attempts: int = 30,
         interval_seconds: float = 0.5,
     ) -> list[str]:
@@ -481,18 +618,23 @@ class RoutineUpgradeController:
             last = self._legacy_projection_blockers()
             if not last:
                 return []
-            hard = self._legacy_projection_blockers(allow_model_free_reconcile=True)
+            hard = self._legacy_projection_blockers(
+                allow_model_free_reconcile=True,
+                allow_snapshot_target=target_sha,
+            )
             if hard:
                 return hard
             self.operator.sleep(interval_seconds)
 
-        # A paused legacy controller may legitimately retain only model-free reconcile
-        # noise when the target manifest reactivates product work. The root upgrade
-        # controller can retire exactly that noise under a stopped-service boundary.
         try:
-            retired = self._quiesce_model_free_reconcile_noise()
+            retired = self._quiesce_snapshot_covered_ordinary_noise(target_sha)
+            if not retired:
+                retired = self._quiesce_model_free_reconcile_noise()
         except Exception as exc:
-            return [f"legacy model-free reconcile quiescence failed: {type(exc).__name__}: {exc}"]
+            return [
+                "legacy bounded lifecycle quiescence failed: "
+                f"{type(exc).__name__}: {exc}"
+            ]
         if retired:
             return self._legacy_projection_blockers()
         return last
@@ -580,7 +722,10 @@ class RoutineUpgradeController:
             blockers.append(f"service upgrade preflight failed: {type(exc).__name__}: {exc}")
 
         blockers.extend(
-            self._legacy_projection_blockers(allow_model_free_reconcile=True)
+            self._legacy_projection_blockers(
+                allow_model_free_reconcile=True,
+                allow_snapshot_target=target,
+            )
         )
         return RoutineUpgradeReport(
             RoutineUpgradeDisposition.READY if not blockers else RoutineUpgradeDisposition.BLOCKED,
@@ -711,7 +856,7 @@ class RoutineUpgradeController:
                 )
             self._record(events, "ROLLBACK_TO_LEGACY_COMPLETE")
 
-            blockers = self._wait_for_legacy_quiescence()
+            blockers = self._wait_for_legacy_quiescence(target_sha=plan.target_sha)
             if blockers:
                 return RoutineUpgradeReport(
                     RoutineUpgradeDisposition.FAILED_SAFE_LEGACY,
@@ -731,7 +876,7 @@ class RoutineUpgradeController:
             self._restart_legacy_at_target()
             self._record(events, "LEGACY_RESTARTED_AT_TARGET", plan.target_sha)
 
-            blockers = self._wait_for_legacy_quiescence()
+            blockers = self._wait_for_legacy_quiescence(target_sha=plan.target_sha)
             if blockers:
                 return RoutineUpgradeReport(
                     RoutineUpgradeDisposition.FAILED_SAFE_LEGACY,
