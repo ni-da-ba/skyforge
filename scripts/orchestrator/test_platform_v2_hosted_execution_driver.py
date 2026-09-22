@@ -287,6 +287,32 @@ class HostedExecutionDriverTest(unittest.TestCase):
                 HostedExecutionAdvanceDisposition.IDLE.value,
             )
 
+    def test_one_wake_continues_after_classifier_retry_acceptance(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime = _FakeRuntime(
+                Path(td),
+                [
+                    result(
+                        HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_ACCEPTED
+                    ),
+                    result(HostedExecutionAdvanceDisposition.IDLE),
+                ],
+            )
+            deps = _FakeDependencies()
+            driver = HostedExecutionDriver(
+                runtime=runtime,
+                dependencies=deps,
+                periodic_seconds=60,
+                max_boundaries_per_wake=8,
+            )
+            driver._drain_one_wake()
+            self.assertEqual(runtime.calls, 2)
+            self.assertEqual(deps.builds, 2)
+            self.assertEqual(
+                driver.snapshot().last_disposition,
+                HostedExecutionAdvanceDisposition.IDLE.value,
+            )
+
     def test_one_wake_drains_program_advances_until_real_stop(self):
         with tempfile.TemporaryDirectory() as td:
             runtime = _FakeRuntime(
