@@ -545,12 +545,12 @@ class HostedSubstrateTest(unittest.TestCase):
                 trusted_actors=("ni-da-ba",),
             )
             health = migrated.health_snapshot()
-            self.assertEqual(migrated.startup_historical_human_review_migrations, 1)
+            self.assertEqual(migrated.startup_historical_human_review_migrations, 2)
             self.assertEqual(
                 health["startup_historical_human_review_migrations"],
-                1,
+                2,
             )
-            self.assertEqual(health["human_review_count"], 1)
+            self.assertEqual(health["human_review_count"], 2)
             self.assertEqual(
                 health["latest_human_review_gate_id"],
                 "dr-human-exploration-rereview",
@@ -573,7 +573,7 @@ class HostedSubstrateTest(unittest.TestCase):
                 trusted_actors=("ni-da-ba",),
             )
             self.assertEqual(restarted.startup_historical_human_review_migrations, 0)
-            self.assertEqual(restarted.health_snapshot()["human_review_count"], 1)
+            self.assertEqual(restarted.health_snapshot()["human_review_count"], 2)
 
     def test_restart_migrates_stale_false_protected_audit_signal_once(self):
         with tempfile.TemporaryDirectory() as td:
