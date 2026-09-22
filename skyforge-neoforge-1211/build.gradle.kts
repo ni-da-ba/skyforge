@@ -58,6 +58,9 @@ if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterizatio
         && System.getenv("GITHUB_EVENT_NAME") == "workflow_dispatch") {
     tasks.named<Test>("test").configure {
         systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+        filter {
+            includeTestsMatching("io.github.nidaba.skyforge.neoforge1211.SkyforgeDr70SpecimenSearchTest")
+        }
     }
 }
 
