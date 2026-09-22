@@ -262,6 +262,66 @@ class McpProtocolTest(unittest.TestCase):
             self.assertEqual(actual, expected)
             self.assertEqual(actual["snapshot_digest"], expected["snapshot_digest"])
 
+    def test_current_product_state_tool_matches_canonical_backend_projection(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime, _ = self.runtime(Path(td))
+            status, expected = runtime.handle_development_read(f"Bearer {API_TOKEN}")
+            self.assertEqual(status, 200)
+
+            adapter = McpAdapter(runtime)
+            result = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    params={"name": "get_current_product_state", "arguments": {}},
+                ),
+                authorization=f"Bearer {API_TOKEN}",
+                headers={},
+            )
+            value = result.payload["result"]["structuredContent"]
+            self.assertEqual(value["snapshot_digest"], expected["snapshot_digest"])
+            self.assertEqual(
+                value["current_product_state"],
+                expected["current_product_state"],
+            )
+
+    def test_continue_skyforge_tool_is_only_fixed_typed_objective_wrapper(self):
+        with tempfile.TemporaryDirectory() as td:
+            runtime, _ = self.runtime(Path(td))
+            calls = {}
+
+            def submit(authorization, payload, *, client):
+                calls["authorization"] = authorization
+                calls["payload"] = dict(payload)
+                calls["client"] = client
+                return 202, {
+                    "proposal_id": "program-proposal-1",
+                    "objective_disposition": "PROGRAM_CONTINUE",
+                }
+
+            runtime.handle_objective_submit = submit
+            adapter = McpAdapter(runtime)
+            result = adapter.handle(
+                legacy_request(
+                    "tools/call",
+                    params={
+                        "name": "continue_skyforge",
+                        "arguments": {"request_id": "continue-mcp-0001"},
+                    },
+                ),
+                authorization=f"Bearer {WRITE_TOKEN}",
+                headers={},
+            )
+            self.assertFalse(result.payload["result"]["isError"])
+            self.assertEqual(
+                calls["payload"],
+                {
+                    "request_id": "continue-mcp-0001",
+                    "objective": "Continue Skyforge",
+                },
+            )
+            self.assertEqual(calls["client"], "chatgpt-mcp")
+            self.assertEqual(calls["authorization"], f"Bearer {WRITE_TOKEN}")
+
     def test_objective_trace_tool_matches_canonical_backend_trace(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

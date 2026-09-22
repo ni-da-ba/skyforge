@@ -71,6 +71,21 @@ class OperationsConsoleTest(unittest.TestCase):
                     self.assertNotIn(API_TOKEN, body)
                     self.assertNotIn("SKYFORGE_DEVELOPMENT_API_TOKEN", body)
 
+    def test_console_uses_canonical_current_product_state_and_continue_status(self):
+        console = Path(__file__).resolve().parent / "console"
+        source = (console / "app.js").read_text(encoding="utf-8")
+        markup = (console / "index.html").read_text(encoding="utf-8")
+        self.assertIn("state.current_product_state || {}", source)
+        self.assertIn('"Continue Skyforge"', source)
+        self.assertIn('"Current product boundary"', source)
+        self.assertIn('"Latest historical review"', source)
+        self.assertIn('objective: "Continue Skyforge"', source)
+        self.assertIn('id="continue-skyforge"', markup)
+        self.assertNotIn(
+            'let product = review ? friendlyStatus(review.verdict) : "No review needed";',
+            source,
+        )
+
     def test_unknown_console_asset_is_not_directory_browsing(self):
         with tempfile.TemporaryDirectory() as td:
             runtime = self.runtime(Path(td))

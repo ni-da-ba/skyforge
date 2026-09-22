@@ -258,6 +258,48 @@ def sample_kwargs():
                 },
             },
         ),
+        "program_progression": {
+            "schema_version": 1,
+            "projection": {
+                "program_id": "skyforge-pre-bootstrap-transition-v1",
+                "projection_digest": "p" * 64,
+                "source_valid": True,
+                "source_error": "",
+                "nodes": [
+                    {
+                        "node_id": "post-platform-dr70-repair",
+                        "kind": "task",
+                        "issue_number": 754,
+                        "lane": "Implementation",
+                        "review_gate_id": None,
+                        "message": None,
+                    },
+                    {
+                        "node_id": "dr-human-exploration-rereview",
+                        "kind": "human_gate",
+                        "issue_number": None,
+                        "lane": None,
+                        "review_gate_id": "dr-human-exploration-rereview",
+                        "message": "Inspect the repaired DR-70 artifact.",
+                    },
+                ],
+            },
+            "active_session": {
+                "session_id": "session-1",
+                "parent_proposal_id": "parent-1",
+                "invocation_proposal_ids": ["parent-1"],
+                "program_id": "skyforge-pre-bootstrap-transition-v1",
+                "projection_digest": "p" * 64,
+                "current_node_id": "post-platform-dr70-repair",
+                "disposition": "WAIT_CHILD",
+                "reason": "DR-70 repair is executing under existing authority",
+                "child_proposal_id": "child-1",
+                "gate_id": "",
+                "completed_nodes": [],
+            },
+            "session_count": 1,
+            "sessions": [],
+        },
         "runtime": {
             "status": "ok",
             "controller": "platform-v2",
@@ -350,6 +392,78 @@ class DevelopmentReadModelTest(unittest.TestCase):
         self.assertEqual(len(snapshot["objectives"]), 50)
         self.assertEqual(snapshot["objectives"][0]["proposal_id"], "proposal-10")
         self.assertEqual(snapshot["objectives"][-1]["proposal_id"], "proposal-59")
+
+    def test_current_product_state_prefers_active_program_boundary_over_review_history(self):
+        snapshot = build_development_snapshot(**sample_kwargs()).as_dict()
+        product = snapshot["current_product_state"]
+        self.assertEqual(product["status"], "WORK_IN_PROGRESS")
+        self.assertEqual(product["source"], "PROGRAM_CONTINUATION")
+        self.assertEqual(product["node_id"], "post-platform-dr70-repair")
+        self.assertEqual(product["issue_number"], 754)
+        self.assertFalse(product["action_required"])
+        self.assertEqual(
+            product["historical_review"]["gate_id"],
+            "dr-human-exploration-rereview",
+        )
+
+    def test_historical_review_backfill_order_uses_provenance_not_insertion(self):
+        values = sample_kwargs()
+        dr70 = copy.deepcopy(values["human_reviews"][0])
+        dr60 = copy.deepcopy(dr70)
+        dr60.update(
+            {
+                "review_id": "review-dr60",
+                "gate_id": "dr-human-exploration-review",
+                "artifact_id": "dr70:key-2885",
+                "findings": ["older DR-60 finding"],
+                "next_boundary": "older DR-60 boundary",
+                "deferred_product_work": False,
+            }
+        )
+        dr60["source"] = {
+            "issue_number": 535,
+            "comment_id": 900,
+            "actor": "ni-da-ba",
+            "created_at": "2026-09-17T02:32:15Z",
+        }
+        # Reproduce the production migration order: newer DR-70 existed first,
+        # then the older DR-60 review was inserted by a later backfill.
+        values["human_reviews"] = (dr70, dr60)
+        snapshot = build_development_snapshot(**values).as_dict()
+        self.assertEqual(
+            [review["review_id"] for review in snapshot["human_reviews"]],
+            ["review-dr60", "review-1"],
+        )
+        self.assertEqual(
+            snapshot["current_product_state"]["historical_review"]["review_id"],
+            "review-1",
+        )
+
+    def test_wait_human_program_boundary_is_current_even_with_failed_prior_review(self):
+        values = sample_kwargs()
+        progression = copy.deepcopy(values["program_progression"])
+        progression["active_session"]["current_node_id"] = "dr-human-exploration-rereview"
+        progression["active_session"]["disposition"] = "WAIT_HUMAN"
+        progression["active_session"]["gate_id"] = "dr-human-exploration-rereview"
+        progression["active_session"]["reason"] = "new qualified DR-70 artifact awaits owner review"
+        values["program_progression"] = progression
+        values["human_gates"] = (
+            {
+                "gate_id": "dr-human-exploration-rereview",
+                "lane": "Implementation",
+                "message": "Inspect the new qualified DR-70 artifact.",
+                "blocked_reason": "human judgment required",
+            },
+        )
+        snapshot = build_development_snapshot(**values).as_dict()
+        product = snapshot["current_product_state"]
+        self.assertEqual(product["status"], "REVIEW_REQUIRED")
+        self.assertEqual(product["gate_id"], "dr-human-exploration-rereview")
+        self.assertTrue(product["action_required"])
+        self.assertEqual(
+            product["historical_review"]["verdict"],
+            "CHANGES_REQUIRED",
+        )
 
     def test_invalid_checkout_sha_fails_closed(self):
         values = sample_kwargs()

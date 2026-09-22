@@ -362,6 +362,143 @@ def _human_gate(raw: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _review_order_key(review: Mapping[str, Any]) -> tuple[str, str]:
+    source = review.get("source")
+    if not isinstance(source, Mapping):
+        source = {}
+    return (
+        str(source.get("created_at") or source.get("submitted_at") or ""),
+        str(review.get("review_id") or ""),
+    )
+
+
+def _current_product_state(
+    *,
+    program_progression: Mapping[str, Any],
+    human_gates: tuple[Mapping[str, Any], ...],
+    human_reviews: tuple[Mapping[str, Any], ...],
+) -> dict[str, Any]:
+    latest_review = human_reviews[-1] if human_reviews else None
+    historical_review = (
+        None
+        if latest_review is None
+        else {
+            "review_id": latest_review.get("review_id"),
+            "gate_id": latest_review.get("gate_id"),
+            "artifact_id": latest_review.get("artifact_id"),
+            "verdict": latest_review.get("verdict"),
+            "created_at": (latest_review.get("source") or {}).get("created_at"),
+            "next_boundary": latest_review.get("next_boundary"),
+            "deferred_product_work": latest_review.get("deferred_product_work") is True,
+        }
+    )
+
+    projection = program_progression.get("projection")
+    if not isinstance(projection, Mapping):
+        projection = {}
+    nodes = projection.get("nodes")
+    if not isinstance(nodes, list):
+        nodes = []
+    active = program_progression.get("active_session")
+    if isinstance(active, Mapping):
+        node_id = str(active.get("current_node_id") or "")
+        node = next(
+            (
+                value
+                for value in nodes
+                if isinstance(value, Mapping) and value.get("node_id") == node_id
+            ),
+            {},
+        )
+        disposition = str(active.get("disposition") or "")
+        statuses = {
+            "WAIT_HUMAN": "REVIEW_REQUIRED",
+            "WAIT_STRATEGIC": "STRATEGIC_REVIEW_REQUIRED",
+            "WAIT_AUTHORITY": "WAITING_FOR_AUTHORITY",
+            "WAIT_CHILD": "WORK_IN_PROGRESS",
+            "WAIT_CONTROL": "PAUSED",
+            "ADVANCING": "ADVANCING",
+            "BLOCKED": "BLOCKED",
+            "COMPLETE": "COMPLETE",
+        }
+        status = statuses.get(disposition, disposition or "WORK_IN_PROGRESS")
+        gate_id = str(active.get("gate_id") or node.get("review_gate_id") or "")
+        return {
+            "status": status,
+            "source": "PROGRAM_CONTINUATION",
+            "program_id": str(active.get("program_id") or projection.get("program_id") or ""),
+            "node_id": node_id,
+            "node_kind": str(node.get("kind") or ""),
+            "issue_number": node.get("issue_number"),
+            "lane": node.get("lane"),
+            "disposition": disposition,
+            "gate_id": gate_id or None,
+            "reason": str(active.get("reason") or node.get("message") or ""),
+            "action_required": status
+            in {"REVIEW_REQUIRED", "STRATEGIC_REVIEW_REQUIRED", "BLOCKED"},
+            "historical_review": historical_review,
+        }
+
+    if human_gates:
+        gate = human_gates[0] if len(human_gates) == 1 else None
+        return {
+            "status": "REVIEW_REQUIRED",
+            "source": "HUMAN_GATE",
+            "program_id": str(projection.get("program_id") or ""),
+            "node_id": None,
+            "node_kind": "human_gate",
+            "issue_number": None,
+            "lane": gate.get("lane") if gate is not None else None,
+            "disposition": "WAIT_HUMAN",
+            "gate_id": gate.get("gate_id") if gate is not None else None,
+            "reason": (
+                str(gate.get("message") or gate.get("blocked_reason") or "")
+                if gate is not None
+                else f"{len(human_gates)} human gates require review"
+            ),
+            "action_required": True,
+            "historical_review": historical_review,
+        }
+
+    if latest_review is not None:
+        verdict = str(latest_review.get("verdict") or "")
+        deferred = latest_review.get("deferred_product_work") is True
+        status = (
+            "CHANGES_REQUIRED_DEFERRED"
+            if verdict == "CHANGES_REQUIRED" and deferred
+            else verdict or "HISTORICAL_REVIEW"
+        )
+        return {
+            "status": status,
+            "source": "HISTORICAL_REVIEW",
+            "program_id": str(projection.get("program_id") or ""),
+            "node_id": None,
+            "node_kind": "",
+            "issue_number": None,
+            "lane": None,
+            "disposition": "",
+            "gate_id": latest_review.get("gate_id"),
+            "reason": str(latest_review.get("next_boundary") or ""),
+            "action_required": verdict == "CHANGES_REQUIRED" and not deferred,
+            "historical_review": historical_review,
+        }
+
+    return {
+        "status": "NO_PRODUCT_REVIEW",
+        "source": "NONE",
+        "program_id": str(projection.get("program_id") or ""),
+        "node_id": None,
+        "node_kind": "",
+        "issue_number": None,
+        "lane": None,
+        "disposition": "",
+        "gate_id": None,
+        "reason": "No product review or active product boundary is recorded.",
+        "action_required": False,
+        "historical_review": None,
+    }
+
+
 @dataclass(frozen=True)
 class DevelopmentSnapshot:
     repo: str
@@ -394,6 +531,7 @@ class DevelopmentSnapshot:
     artifact_count: int
     human_reviews: tuple[Mapping[str, Any], ...]
     human_review_count: int
+    current_product_state: Mapping[str, Any]
     program_progression: Mapping[str, Any]
     runtime: Mapping[str, Any]
 
@@ -461,6 +599,10 @@ class DevelopmentSnapshot:
             "artifact_count": self.artifact_count,
             "human_reviews": [dict(value) for value in self.human_reviews],
             "human_review_count": self.human_review_count,
+            "current_product_state": _json_value(
+                dict(self.current_product_state),
+                "current_product_state",
+            ),
             "program_progression": _json_value(
                 dict(self.program_progression),
                 "program_progression",
@@ -550,11 +692,25 @@ def build_development_snapshot(
     if len(artifacts_by_id) != len(artifacts_all):
         raise ValueError("duplicate artifact identity in development snapshot")
     reviews_all = tuple(
-        _human_review(_mapping(value, "human review"), artifacts_by_id)
-        for value in human_reviews
+        sorted(
+            (
+                _human_review(_mapping(value, "human review"), artifacts_by_id)
+                for value in human_reviews
+            ),
+            key=_review_order_key,
+        )
     )
     claims = tuple(_claim(_mapping(value, "external claim")) for value in external_claims)
     gates = tuple(_human_gate(_mapping(value, "human gate")) for value in human_gates)
+    progression = _json_value(
+        dict(program_progression or {}),
+        "program_progression",
+    )
+    current_product_state = _current_product_state(
+        program_progression=progression,
+        human_gates=gates,
+        human_reviews=reviews_all,
+    )
 
     return DevelopmentSnapshot(
         repo=repository,
@@ -599,9 +755,7 @@ def build_development_snapshot(
         artifact_count=len(artifacts_all),
         human_reviews=_recent(reviews_all),
         human_review_count=len(reviews_all),
-        program_progression=_json_value(
-            dict(program_progression or {}),
-            "program_progression",
-        ),
+        current_product_state=current_product_state,
+        program_progression=progression,
         runtime=_json_value(runtime, "runtime"),
     )
