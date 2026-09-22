@@ -126,6 +126,7 @@ class McpHttpTest(unittest.TestCase):
                 names,
                 [
                     "get_development_state",
+                    "get_current_product_state",
                     "get_objective_trace",
                     "list_review_artifacts",
                     "get_review_artifact",
@@ -197,6 +198,7 @@ class McpHttpTest(unittest.TestCase):
                 [tool["name"] for tool in listing["result"]["tools"]],
                 [
                     "submit_objective",
+                    "continue_skyforge",
                     "pause_objective",
                     "resume_objective",
                     "cancel_objective",
