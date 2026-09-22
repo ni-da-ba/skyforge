@@ -344,6 +344,25 @@ class CodexProviderAdapterTest(unittest.TestCase):
             text=True, capture_output=True,
         ).stdout.strip()
 
+    def test_controller_applies_allowed_patch(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = self.make_patch_repo(root)
+            s = spec(base_sha=base)
+            patch = """diff --git a/allowed.txt b/allowed.txt
+--- a/allowed.txt
++++ b/allowed.txt
+@@ -1 +1 @@
+-base
++changed
+"""
+            changed = _apply_controller_patch(spec=s, worktree=root, patch=patch)
+            self.assertEqual(changed, ("allowed.txt",))
+            self.assertEqual(
+                (root / "allowed.txt").read_text(encoding="utf-8"),
+                "changed\\n",
+            )
+
     def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
