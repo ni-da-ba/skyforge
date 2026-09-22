@@ -89,6 +89,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50Volume", volumeId.path());
         evidence.put("dr50WorldSeedUnsigned", Long.toUnsignedString(fixture.volume().id().archipelagoRootSeed()));
         evidence.put("dr50HydrologyPositions", hydrology.positions().size());
+        evidence.put("dr50HydrologyDressedSurfacePositions", hydrology.dressedSurfacePositions());
         evidence.put("dr50HydrologyDigest", hydrology.digest());
         evidence.put("dr50HydrologyRepresentativePos", Long.toString(hydrology.representativePosition().asLong()));
         evidence.put("dr50InteriorCompleted", interior.completedObligations());
@@ -131,6 +132,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
             throw new IllegalStateException("DR-50 canonical specimen has no authored visible hydrology to compose");
         }
         LinkedHashSet<BlockPos> positions = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> dressedSurface = new LinkedHashSet<>();
         long digest = FNV_OFFSET_BASIS;
         for (var deployment : deployments) {
             digest = mix(digest, deployment.feature().ordinal());
@@ -148,11 +150,33 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 positions.add(position.immutable());
                 digest = mix(digest, position.asLong());
             }
+            for (BlockPos position : deployment.surfacePositions()) {
+                if (!terrain.isSolidOwnedBy(
+                        fixture.volume().id(), position.getX(), position.getY(), position.getZ())) {
+                    throw new IllegalStateException("DR-50 fluvial dressing escaped exact volume ownership");
+                }
+                BlockState state = level.getBlockState(position);
+                if (!state.is(Blocks.DIRT)) {
+                    throw new IllegalStateException(
+                            "DR-50 later lifecycle removed fluvial surface-mantle dressing at "
+                                    + position + ": " + state);
+                }
+                dressedSurface.add(position.immutable());
+                digest = mix(digest, 0x44524553534544L);
+                digest = mix(digest, position.asLong());
+            }
         }
         if (positions.isEmpty()) {
             throw new IllegalStateException("DR-50 authored hydrology produced no physical water cells");
         }
-        return new HydrologyEvidence(List.copyOf(positions), Long.toUnsignedString(digest, 16), positions.getFirst());
+        if (dressedSurface.isEmpty()) {
+            throw new IllegalStateException("DR-50 fluvial hydrology produced no dressed bed/bank surface");
+        }
+        return new HydrologyEvidence(
+                List.copyOf(positions),
+                dressedSurface.size(),
+                Long.toUnsignedString(digest, 16),
+                positions.getFirst());
     }
 
     private static StructureLifecycleEvidence verifyStructureLifecycle(
@@ -388,7 +412,11 @@ final class SkyforgeDr50IntegratedRegionEvidence {
             BlockPos materialPosition,
             BlockPos hydrologyPosition) {}
 
-    private record HydrologyEvidence(List<BlockPos> positions, String digest, BlockPos representativePosition) {}
+    private record HydrologyEvidence(
+            List<BlockPos> positions,
+            int dressedSurfacePositions,
+            String digest,
+            BlockPos representativePosition) {}
     private record StructureLifecycleEvidence(
             int completedStructures,
             String digest,

@@ -76,7 +76,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 .orElseThrow();
         assertFalse(channel.carvedPositions().isEmpty(),
                 "canonical visible channel must physically incise terrain before water placement");
+        assertFalse(channel.surfacePositions().isEmpty(),
+                "AUTH-0105 channel must expose deterministic bed/bank material positions");
         assertTrue(java.util.Collections.disjoint(channel.positions(), channel.carvedPositions()));
+        assertTrue(java.util.Collections.disjoint(channel.positions(), channel.surfacePositions()));
+        assertTrue(java.util.Collections.disjoint(channel.carvedPositions(), channel.surfacePositions()));
         var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
                 fixture.descriptor(), intent.coherentHydrology());
         assertFalse(fluvial.reaches().isEmpty());
@@ -192,6 +196,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             var allPositions = new java.util.ArrayList<BlockPos>();
             allPositions.addAll(deployment.positions());
             allPositions.addAll(deployment.carvedPositions());
+            allPositions.addAll(deployment.surfacePositions());
             for (var position : allPositions) {
                 chunks.computeIfAbsent(new net.minecraft.world.level.ChunkPos(position).toLong(), key -> {
                     try {
@@ -210,6 +215,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 assertTrue(chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
                         .getBlockState(position)
                         .isAir());
+            }
+            for (var position : deployment.surfacePositions()) {
+                assertTrue(chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
+                        .getBlockState(position)
+                        .is(Blocks.DIRT),
+                        "fluvial bed/bank surface must use the accepted Skyforge surface-mantle carrier");
             }
 
             assertEquals(0, chunks.values().stream()
@@ -233,6 +244,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.volume().id(),
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 List.of(new BlockPos(1, 64, 1)),
+                List.of(),
                 List.of());
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
 
@@ -249,6 +261,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.volume().id(),
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 List.of(position),
+                List.of(),
                 List.of());
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
 
@@ -345,6 +358,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             var semanticPositions = new java.util.ArrayList<BlockPos>();
             semanticPositions.addAll(deployment.positions());
             semanticPositions.addAll(deployment.carvedPositions());
+            semanticPositions.addAll(deployment.surfacePositions());
             for (var position : semanticPositions) {
                 assertTrue(terrain.isSolidOwnedBy(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));

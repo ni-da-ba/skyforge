@@ -61,14 +61,18 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             int worldX,
             int worldZ) {
         requireVolume(candidateVolumeId);
+        var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
+        if (cell.isPresent() && hydrology.hasAuthoredFreshwaterOrRiparianContext(cell.orElseThrow())) {
+            // AUTH-0096 freshwater/riparian evidence is independently accepted surface context.
+            // Do not require a second ecology sample before assigning its already-accepted wet
+            // Minecraft carrier; otherwise the native base-world biome can leak through precisely
+            // along an authored channel margin.
+            return Optional.of(Biomes.SWAMP);
+        }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
         var authored = surface.ecologySample();
         if (authored.isEmpty()) {
             return Optional.empty();
-        }
-        var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
-        if (cell.isPresent() && hydrology.hasAuthoredFreshwaterOrRiparianContext(cell.orElseThrow())) {
-            return Optional.of(Biomes.SWAMP);
         }
         return Optional.of(carrier(authored.orElseThrow().regime()));
     }
@@ -84,7 +88,9 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             if (terrain.integerSolidRange(volumeId, worldX, worldZ).isEmpty()) {
                 continue;
             }
-            return supportsSurface(volumeId, worldX, rangeY(terrain, worldX, worldZ), worldZ);
+            if (supportsSurface(volumeId, worldX, rangeY(terrain, worldX, worldZ), worldZ)) {
+                return true;
+            }
         }
         return false;
     }

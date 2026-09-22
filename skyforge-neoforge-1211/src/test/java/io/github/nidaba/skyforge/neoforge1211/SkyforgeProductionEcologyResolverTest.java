@@ -80,6 +80,43 @@ final class SkyforgeProductionEcologyResolverTest {
     }
 
     @Test
+    void dr70ReviewFreshwaterAndRiparianAnchorsOwnTheAcceptedWetPresentationCarrier() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
+        var resolver = new SkyforgeProductionEcologyResolver(association);
+        var profile = new SkyIslandSurfaceSiteCapabilityProfiler().profile(association);
+        var rasterizer = new SkyforgeAuthoredSurfaceCellRasterizer(profile);
+        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                java.util.Map.of(fixture.volume().id(), fixture.descriptor()));
+
+        int supportedWetAnchors = 0;
+        for (var cell : profile.cells()) {
+            if (!cell.physicalSurfacePresent()
+                    || !rasterizer.hasAuthoredFreshwaterOrRiparianContext(cell)) {
+                continue;
+            }
+            var projected = rasterizer.projectAnchor(cell.watershedCellIndex(), terrain);
+            if (projected.isEmpty()) {
+                continue;
+            }
+            var anchor = projected.orElseThrow();
+            assertEquals(
+                    Biomes.SWAMP,
+                    resolver.resolveAuthoredSurface(
+                                    fixture.volume().id(),
+                                    anchor.worldX(),
+                                    anchor.worldZ())
+                            .orElseThrow(),
+                    "accepted DR-70 freshwater/riparian context must not leak the native ocean biome");
+            supportedWetAnchors++;
+        }
+        assertTrue(supportedWetAnchors > 0, "DR-70 review fixture must retain accepted wet surface anchors");
+    }
+
+    @Test
     void foreignVolumeFailsClosed() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var resolver = new SkyforgeProductionEcologyResolver(

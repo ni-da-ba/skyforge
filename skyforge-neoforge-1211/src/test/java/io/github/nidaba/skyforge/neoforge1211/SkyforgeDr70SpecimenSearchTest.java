@@ -40,11 +40,16 @@ final class SkyforgeDr70SpecimenSearchTest {
     private static final long REGION = 81L;
     private static final int SEARCH_COUNT = 4096;
     private static final int FULL_EVALUATION_COUNT = 48;
+    private static final long HUMAN_REJECTED_REVIEW_KEY = 2885L;
 
     @Test
     void selectedReviewSpecimenIsFirstAuth0105RankedPhysicallyAdmissibleCandidate() {
+        double rejectedRadius = SkyIslandDescriptorGenerator.derive(
+                        SkyIslandIdentity.of(SEED, GROUP, REGION, HUMAN_REJECTED_REVIEW_KEY))
+                .nominalRadius();
         Candidate selected = rankedAuth0105Candidates().stream()
                 .filter(candidate -> candidate.descriptor().nominalRadius() < 120.0)
+                .filter(candidate -> candidate.descriptor().nominalRadius() > rejectedRadius)
                 .filter(candidate -> candidate.reachCount() >= 20)
                 .filter(candidate -> candidate.interiorDrops() >= 1)
                 .map(candidate -> physicallyAdmissible(candidate) ? candidate : null)
@@ -54,8 +59,9 @@ final class SkyforgeDr70SpecimenSearchTest {
 
         assertNotNull(
                 selected,
-                "none of AUTH-0105's fully evaluated top-48 candidates satisfies the retained "
-                        + "bounded hydrology + dry physical cave-mouth review constraints");
+                "none of AUTH-0105's fully evaluated top-48 candidates is both larger than "
+                        + "the human-rejected key-2885 specimen and compatible with the retained bounded "
+                        + "hydrology + dry physical cave-mouth review constraints");
         assertEquals(
                 selected.descriptor().identity().islandKey(),
                 SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review().islandKey(),

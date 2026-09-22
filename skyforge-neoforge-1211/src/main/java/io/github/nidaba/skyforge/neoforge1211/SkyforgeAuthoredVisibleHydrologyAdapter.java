@@ -37,12 +37,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolumeId volumeId,
             Feature feature,
             List<BlockPos> positions,
-            List<BlockPos> carvedPositions) {
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
             positions = List.copyOf(positions);
             carvedPositions = List.copyOf(carvedPositions);
+            surfacePositions = List.copyOf(surfacePositions);
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
@@ -50,6 +52,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             overlap.retainAll(carvedPositions);
             if (!overlap.isEmpty()) {
                 throw new IllegalArgumentException("hydrology water and dry carved positions must be disjoint");
+            }
+            var surfaceOverlap = new java.util.HashSet<>(surfacePositions);
+            surfaceOverlap.retainAll(positions);
+            surfaceOverlap.addAll(surfacePositions.stream()
+                    .filter(carvedPositions::contains)
+                    .toList());
+            if (!surfaceOverlap.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "hydrology surface dressing must remain below wet and carved cells");
             }
         }
     }
@@ -107,6 +118,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         var allWater = deployments.stream()
                 .flatMap(deployment -> deployment.positions().stream())
                 .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        var allCarved = deployments.stream()
+                .flatMap(deployment -> deployment.carvedPositions().stream())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         return deployments.stream()
                 .map(deployment -> new Deployment(
                         deployment.volumeId(),
@@ -114,6 +128,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         deployment.positions(),
                         deployment.carvedPositions().stream()
                                 .filter(position -> !allWater.contains(position))
+                                .toList(),
+                        deployment.surfacePositions().stream()
+                                .filter(position -> !allWater.contains(position))
+                                .filter(position -> !allCarved.contains(position))
                                 .toList()))
                 .toList();
     }
@@ -157,9 +175,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
         for (Column column : candidateColumns(volume, reach)) {
             SkyIslandLocalPosition local = localPosition(volume, column);
-            if (distanceToPath(local, path) > reach.valleyHalfWidth()) {
+            double distance = distanceToPath(local, path);
+            if (distance > reach.valleyHalfWidth()) {
                 continue;
             }
             var optionalRange = terrain.integerSolidRange(volume.id(), column.x(), column.z());
@@ -175,7 +195,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
 
             int baseSurfaceY = range.maximumY();
-            var authoredWater = distanceToPath(local, path) <= reach.wetHalfWidth()
+            var authoredWater = distance <= reach.wetHalfWidth()
                     ? fluvial.waterSurfacePotential(local)
                     : java.util.OptionalDouble.empty();
 
@@ -189,6 +209,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int drySurfaceY = Math.max(
                     range.minimumY(),
                     baseSurfaceY - loweringBlocks);
+
+            if (distance <= reach.bankfullHalfWidth()
+                    && terrain.isSolidOwnedBy(volume.id(), column.x(), drySurfaceY, column.z())
+                    && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), drySurfaceY, column.z())) {
+                surface.add(new BlockPos(column.x(), drySurfaceY, column.z()));
+            }
 
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
@@ -230,7 +256,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 volume.id(),
                 feature,
                 new ArrayList<>(water),
-                new ArrayList<>(carved));
+                new ArrayList<>(carved),
+                new ArrayList<>(surface));
     }
 
     /**
@@ -348,7 +375,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             positions.addAll(at(volume, terrain, Feature.RETAINED_WATER,
                     cell.position().x(), cell.position().z(), 1).positions());
         }
-        return deployment(volume.id(), Feature.RETAINED_WATER, positions, List.of());
+        return deployment(volume.id(), Feature.RETAINED_WATER, positions, List.of(), List.of());
     }
 
     private static Deployment at(
@@ -374,7 +401,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (positions.isEmpty()) {
             throw new IllegalStateException("AUTH-0086 intent has no realized owner column");
         }
-        return deployment(volume.id(), feature, positions, List.of());
+        return deployment(volume.id(), feature, positions, List.of(), List.of());
     }
 
     private static List<BlockPos> ownedColumnPositions(
@@ -402,12 +429,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolumeId volumeId,
             Feature feature,
             List<BlockPos> positions,
-            List<BlockPos> carvedPositions) {
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
         return new Deployment(
                 volumeId,
                 feature,
                 new ArrayList<>(new LinkedHashSet<>(positions)),
-                new ArrayList<>(new LinkedHashSet<>(carvedPositions)));
+                new ArrayList<>(new LinkedHashSet<>(carvedPositions)),
+                new ArrayList<>(new LinkedHashSet<>(surfacePositions)));
     }
 
     /**
@@ -418,6 +447,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
         int written = 0;
+        for (BlockPos position : deployment.surfacePositions()) {
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
+                continue;
+            }
+            // AUTH-0105 requires material dressing after dry terrain projection. Reuse the
+            // accepted Minecraft carrier for Skyforge SURFACE_MANTLE rather than inheriting
+            // an unrelated native-ocean top block into the fluvial bed/bank corridor.
+            if (!chunk.getBlockState(position).is(Blocks.DIRT)) {
+                chunk.setBlockState(position, Blocks.DIRT.defaultBlockState(), false);
+                written++;
+            }
+        }
         for (BlockPos position : deployment.carvedPositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
