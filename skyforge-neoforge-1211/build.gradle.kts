@@ -46,6 +46,25 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// Production-scale physical realization belongs to focused qualification, not ordinary check.
+// Keep the same test source set so proof code cannot drift from runtime/unit-test compilation.
+tasks.named<Test>("test") {
+    useJUnitPlatform {
+        excludeTags("qualification")
+    }
+}
+
+tasks.register<Test>("neoforgeQualificationTest") {
+    group = "verification"
+    description = "Run production-scale NeoForge qualification tests excluded from ordinary check."
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    useJUnitPlatform {
+        includeTags("qualification")
+    }
+    shouldRunAfter(tasks.named("test"))
+}
+
 // Development-only data/resource pack material for interactive world-generation proofs. This
 // source set is attached to the local ModDev mod below but is not part of Java's production jar,
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.

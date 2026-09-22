@@ -89,6 +89,15 @@ def verify_text(contract: WorkflowContract, text: str) -> list[str]:
 
 def verify_root(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
+    broad_trigger = "skyforge-neoforge-1211/build.gradle.kts"
+    for path in sorted((root / ".github/workflows").glob("*.yml")):
+        if path.name == "ci.yml":
+            continue
+        text = path.read_text(encoding="utf-8")
+        if broad_trigger in text:
+            errors.append(
+                f"{path.relative_to(root)}: retained/focused workflow must not fan out on shared NeoForge build.gradle.kts"
+            )
     for contract in CONTRACTS:
         path = root / contract.path
         if not path.is_file():

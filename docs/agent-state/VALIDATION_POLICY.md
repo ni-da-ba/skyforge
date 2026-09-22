@@ -1,7 +1,7 @@
 # Skyforge Validation and Evidence Economy Policy
 
 **Status:** Canonical program validation policy  
-**Updated:** 2026-09-07 (America/Chicago)
+**Updated:** 2026-09-22 (America/Chicago)
 
 ## Objective
 
@@ -350,3 +350,28 @@ Audit should flag:
 
 Audit may recommend splitting/narrowing gates under this policy. A human decision is required only when
 the proposed change alters a substantive product/acceptance philosophy not already covered here.
+
+
+## Operational CI tiers (2026-09-22 remediation)
+
+The validation economy above maps to three explicit execution tiers for routine development:
+
+1. **Tier 1 — ordinary `check`**: fast deterministic correctness/regression feedback. It may include unit tests, bounded synthetic geometry, small canonical fixtures, invariant/contract/source tests, and cheap deterministic smoke tests. Production-scale multi-island physical corpora, Minecraft lifecycle/reload matrices, stacked-volume qualification, and whole-world acceptance must not be dependencies of ordinary `check`. Target a few minutes; investigate normal full CI that repeatedly exceeds 10 minutes, with a recent expected baseline near 6–8 minutes.
+2. **Tier 2 — focused qualification**: production-scale subsystem realization, including the full accepted hydrology physical corpus, lifecycle/reload, stacked-volume realization, and DR-30/40/50 integration. These remain explicit Gradle tasks/workflows and are selected by relevant dependency/path scope or deliberate dispatch.
+3. **Tier 3 — evidence/product gates**: large semantic corpora, cross-platform deterministic Minecraft acceptance, milestone evidence generation, specimen search, and human review. These run only when relevant, manually, scheduled/nightly, or as milestone gates.
+
+### NeoForge qualification tag
+
+Production-scale JUnit proofs use the JUnit `qualification` tag. The ordinary `:skyforge-neoforge-1211:test` task excludes that tag. `:skyforge-neoforge-1211:neoforgeQualificationTest` runs it explicitly and is not a dependency of `check`. Retained opt-in guards (for example DR-70 historical specimen search) remain in addition to the tag.
+
+### Reference corpus routing
+
+Canonical CI owns ordinary `./gradlew check`. The full `:skyforge-reference:fixedSeedCorpus` and `:skyforge-reference:suspendedVolumeEvidence` tasks remain available but run only when model/world/reference authorship semantics change or by explicit/manual qualification. They are not appended indiscriminately to every executable change.
+
+### Shared build-script fan-out
+
+The shared `skyforge-neoforge-1211/build.gradle.kts` is validated once by canonical CI. Retained aircraft/compiler/mechanism/content-wave workflows must not list that shared file as a blanket path trigger. Their automatic triggers belong to the source, fixture, pin, or dedicated validation configuration that owns the contract; manual dispatch remains the fallback for deliberate re-characterization. Future subsystem-specific task configuration should be moved out of the shared build script rather than restoring broad fan-out.
+
+### Performance observability
+
+Ordinary CI records wall-clock duration separately for `check` and reference qualification, retains Gradle profiling output, and publishes JUnit suite timing data. Qualification workflows have their own explicit time budgets and should not hide expensive work inside a generic build step.
