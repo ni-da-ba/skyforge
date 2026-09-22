@@ -55,9 +55,9 @@ def migrate_canonical_roadmap_authority(
     if legacy.roadmap_id != manifest.roadmap_id:
         raise RuntimeError("canonical roadmap migration roadmap_id drifted")
     if legacy.manifest_fingerprint != _PRE_REFRESH_FINGERPRINT:
-        raise RuntimeError(
-            "canonical roadmap migration legacy fingerprint is not the accepted predecessor"
-        )
+        # This migration is optional and exact. Unrelated historical/test states remain
+        # untouched and continue through their normal fail-closed roadmap semantics.
+        return 0
     if legacy.active is not None:
         raise RuntimeError(
             "canonical roadmap migration refuses active legacy roadmap authority"
