@@ -56,6 +56,18 @@ final class SkyforgePhysicalVolumeCatchupService {
 
     private SkyforgePhysicalVolumeCatchupService() {}
 
+    private static long activeTerrainCatchupTimeBudgetNanos() {
+        return SkyforgeDr70HumanReviewAtlasRuntime.foregroundPreparationActive()
+                ? SkyforgeDr70HumanReviewAtlasRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS
+                : TERRAIN_CATCHUP_TIME_BUDGET_NANOS;
+    }
+
+    private static long activeComposedCaveTimeBudgetNanos() {
+        return SkyforgeDr70HumanReviewAtlasRuntime.foregroundPreparationActive()
+                ? SkyforgeDr70HumanReviewAtlasRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS
+                : COMPOSED_CAVE_TIME_BUDGET_NANOS;
+    }
+
     /**
      * Services at most one canonical already-loaded deferred exact (volume, chunk) obligation.
      *
@@ -218,7 +230,7 @@ final class SkyforgePhysicalVolumeCatchupService {
                     () -> serviceOneTerrainCatchupChunk(level),
                     System::nanoTime,
                     MAX_TERRAIN_CATCHUP_CHUNKS_PER_LEVEL_TICK,
-                    TERRAIN_CATCHUP_TIME_BUDGET_NANOS);
+                    activeTerrainCatchupTimeBudgetNanos());
             if (terrainPump.workedQuanta() > 0) {
                 SkyforgeRuntimePerformanceMetrics.recordSince(
                         "catchup.terrainPump",
@@ -252,7 +264,7 @@ final class SkyforgePhysicalVolumeCatchupService {
                     () -> serviceOneComposedCaveQuantum(level),
                     System::nanoTime,
                     MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK,
-                    COMPOSED_CAVE_TIME_BUDGET_NANOS);
+                    activeComposedCaveTimeBudgetNanos());
             if (composedPump.workedQuanta() > 0) {
                 SkyforgeRuntimePerformanceMetrics.recordSince(
                         "catchup.composedCavePump",

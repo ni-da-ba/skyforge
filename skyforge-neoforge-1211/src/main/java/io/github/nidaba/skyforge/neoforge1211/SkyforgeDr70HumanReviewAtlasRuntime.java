@@ -51,6 +51,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
     private static final int MAX_WARM_CHUNKS_PER_TICK = 16;
     private static final int TICKET_DISTANCE = 3;
     private static final int FLUID_SETTLE_TICKS = 100;
+    static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
     private static final Path PREPARED_FILE = Path.of("dr70-human-review-prepared.txt");
     private static final Path RATINGS_FILE = Path.of("dr70-human-review-results.csv");
     private static final TicketType<ChunkPos> REVIEW_TICKET = TicketType.create(
@@ -341,7 +342,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
 
     private static void reportWarmProgress(ServerPlayer player, Preparation active) {
         int percent = (int) ((100L * active.cursor()) / active.chunkKeys().size());
-        if (percent >= active.lastReportedPercent() + 10 || active.cursor() == active.chunkKeys().size()) {
+        if (percent >= active.lastReportedPercent() + 10) {
             active.markReportedPercent(percent);
             say(player, "#" + active.fixture().member().reviewIndex()
                     + " chunk warmup " + active.cursor() + "/" + active.chunkKeys().size()
@@ -350,7 +351,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
     }
 
     private static void reportLifecycleProgress(ServerPlayer player, Preparation active) {
-        if (tickCounter % 100L != 0L) {
+        if (tickCounter % 40L != 0L) {
             return;
         }
         var volumeId = active.fixture().volume().id();
@@ -582,6 +583,10 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         }
         return order.get((position - 1 + order.size()) % order.size());
     }
+    static synchronized boolean foregroundPreparationActive() {
+        return enabled() && preparation != null && preparation.activateWhenReady();
+    }
+
     private static int warmChunksPerTick() {
         int value = Integer.getInteger(WARM_CHUNKS_PER_TICK_PROPERTY, DEFAULT_WARM_CHUNKS_PER_TICK);
         if (value < 1 || value > MAX_WARM_CHUNKS_PER_TICK) {
