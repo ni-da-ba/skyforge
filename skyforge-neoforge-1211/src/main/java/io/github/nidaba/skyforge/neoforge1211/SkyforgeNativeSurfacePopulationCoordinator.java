@@ -32,6 +32,15 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
     private static final List<ColumnProbe> SURFACE_PROBE_ORDER = createSurfaceProbeOrder();
 
     private final Map<PopulationKey, CachedPhase> completed = new HashMap<>();
+    /**
+     * Chunks that were evaluated after stable terrain/surface realization but correctly had no
+     * native population work. They are terminal dependencies just like completed feature phases:
+     * later cross-chunk writers must not wait forever on an earlier chunk that can never write.
+     *
+     * <p>The Boolean preserves whether an exact-volume terrain surface existed for replay evidence;
+     * no synthetic phase result is created.
+     */
+    private final Map<PopulationChunkKey, Boolean> completedNoop = new HashMap<>();
 
     synchronized Result populate(
             WorldGenLevel level,
@@ -42,6 +51,17 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(plan, "plan");
         Objects.requireNonNull(chunkPos, "chunkPos");
+
+        PopulationChunkKey populationChunkKey =
+                new PopulationChunkKey(plan.volumeId(), chunkPos.toLong());
+        Boolean completedNoopTerrainPresent = completedNoop.get(populationChunkKey);
+        if (completedNoopTerrainPresent != null) {
+            return new Result(
+                    plan.volumeId(),
+                    chunkPos,
+                    completedNoopTerrainPresent,
+                    List.of());
+        }
 
         long findSurfaceStart = SkyforgeRuntimePerformanceMetrics.start();
         SurfaceSearchResult search = findSurfaceWithEvidence(level, plan.volumeId(), chunkPos);
@@ -59,11 +79,13 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                 search.fallbackHeightQueries());
         Optional<SurfaceSample> surface = search.surface();
         if (surface.isEmpty()) {
+            completedNoop.put(populationChunkKey, false);
             return new Result(plan.volumeId(), chunkPos, false, List.of());
         }
         SurfaceSample sample = surface.orElseThrow();
         if (!plan.biomeResolver().supportsSurface(
                 plan.volumeId(), sample.x(), sample.firstFreeY(), sample.z())) {
+            completedNoop.put(populationChunkKey, true);
             return new Result(plan.volumeId(), chunkPos, true, List.of());
         }
         List<PhaseResult> phaseResults = new ArrayList<>(plan.phases().size());
@@ -114,6 +136,9 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             List<GenerationStep.Decoration> phases) {
         Objects.requireNonNull(volumeId, "volumeId");
         Objects.requireNonNull(phases, "phases");
+        if (completedNoop.containsKey(new PopulationChunkKey(volumeId, chunkKey))) {
+            return true;
+        }
         for (GenerationStep.Decoration phase : phases) {
             if (!completed.containsKey(new PopulationKey(volumeId, chunkKey, phase))) {
                 return false;
@@ -273,6 +298,14 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
                 "biome resolver returned null during idempotent replay");
         if (!currentBiome.equals(cached.biomeKey())) {
             throw new IllegalStateException("exact-volume biome assignment changed after native population completed");
+        }
+    }
+
+    private record PopulationChunkKey(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkPos) {
+        private PopulationChunkKey {
+            Objects.requireNonNull(volumeId, "volumeId");
         }
     }
 
