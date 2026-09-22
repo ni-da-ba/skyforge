@@ -23,7 +23,7 @@ final class SkyforgeNativeBiomePopulationRunner {
     // Bounded native-tree envelope: enough for tall vanilla jungle trunks plus canopy, while the
     // existing foreign-volume veto remains authoritative. The same depth is used for precommit
     // build-height admission so an over-height tree is rejected before any partial canopy writes.
-    private static final int MINIMUM_TREE_ATTACHMENT_DEPTH = 36;
+    static final int MINIMUM_TREE_ATTACHMENT_DEPTH = 36;
     private static final long SLOW_FEATURE_LOG_THRESHOLD_NANOS = 50_000_000L;
     private static final System.Logger LOGGER = System.getLogger(SkyforgeNativeBiomePopulationRunner.class.getName());
 

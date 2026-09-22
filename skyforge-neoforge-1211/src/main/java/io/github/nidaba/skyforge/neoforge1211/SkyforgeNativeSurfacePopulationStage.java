@@ -181,6 +181,47 @@ final class SkyforgeNativeSurfacePopulationStage {
         return binding == null ? 0 : binding.coordinator().completedPhaseCount();
     }
 
+    static boolean populationCompleted(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return true;
+        }
+        List<SkyforgeNativeSurfacePopulationPlan> plans = resolvePlans(binding, chunk);
+        for (SkyforgeNativeSurfacePopulationPlan plan : plans) {
+            if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
+                continue;
+            }
+            if (!binding.coordinator().completed(
+                    plan.volumeId(),
+                    chunk.getPos().toLong(),
+                    plan.phases())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static int maximumPopulationAttachmentChunkRadius(ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        RuntimeBinding binding = ACTIVE.get();
+        if (binding == null) {
+            return 0;
+        }
+        int maximumDepth = 0;
+        for (SkyforgeNativeSurfacePopulationPlan plan : resolvePlans(binding, chunk)) {
+            if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
+                continue;
+            }
+            maximumDepth = Math.max(
+                    maximumDepth,
+                    Math.max(
+                            plan.maximumAttachmentDepth(),
+                            SkyforgeNativeBiomePopulationRunner.MINIMUM_TREE_ATTACHMENT_DEPTH));
+        }
+        return (maximumDepth + 15) / 16;
+    }
+
     static List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
             SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");

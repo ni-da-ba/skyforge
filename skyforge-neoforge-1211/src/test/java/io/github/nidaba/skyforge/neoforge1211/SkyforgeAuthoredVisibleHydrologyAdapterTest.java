@@ -80,6 +80,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertTrue(java.util.Collections.disjoint(channel.positions(), channel.carvedPositions()));
         assertTrue(java.util.Collections.disjoint(channel.positions(), channel.surfacePositions()));
         assertTrue(java.util.Collections.disjoint(channel.carvedPositions(), channel.surfacePositions()));
+        assertCanonicalColumnOrder(channel.surfacePositions());
         var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
                 fixture.descriptor(), intent.coherentHydrology());
         assertFalse(fluvial.reaches().isEmpty());
@@ -279,6 +280,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertFalse(upper.isEmpty());
         assertOwned(lower, terrain);
         assertOwned(upper, terrain);
+    }
+
+    private static void assertCanonicalColumnOrder(List<BlockPos> positions) {
+        int previousZ = Integer.MIN_VALUE;
+        int previousX = Integer.MIN_VALUE;
+        for (BlockPos position : positions) {
+            if (position.getZ() == previousZ) {
+                assertTrue(position.getX() >= previousX,
+                        "hydrology columns must retain canonical x order inside each z row");
+            } else {
+                assertTrue(position.getZ() > previousZ,
+                        "hydrology columns must retain canonical z-major order");
+                previousZ = position.getZ();
+                previousX = Integer.MIN_VALUE;
+            }
+            previousX = position.getX();
+        }
     }
 
     private static double distanceToPath(

@@ -79,6 +79,31 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
     }
 
     @Test
+    void populationDependenciesAreOnlyEarlierChunksInsideAttachmentRadius() {
+        long farEarlier = new ChunkPos(-5, 0).toLong();
+        long nearEarlierA = new ChunkPos(-2, 1).toLong();
+        long nearEarlierB = new ChunkPos(-1, -3).toLong();
+        long candidate = new ChunkPos(0, 0).toLong();
+        long later = new ChunkPos(1, 0).toLong();
+
+        List<Long> canonical = SkyforgePhysicalVolumeCatchupService.canonicalPopulationChunkKeys(
+                Set.of(candidate, later, nearEarlierB, farEarlier, nearEarlierA));
+
+        assertEquals(
+                List.of(nearEarlierA, nearEarlierB),
+                SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        canonical,
+                        3));
+        assertEquals(
+                List.of(),
+                SkyforgePhysicalVolumeCatchupService.earlierPopulationDependencyKeys(
+                        candidate,
+                        canonical,
+                        0));
+    }
+
+    @Test
     void cavePumpStopsAtHardQuantumCap() {
         var calls = new AtomicInteger();
 

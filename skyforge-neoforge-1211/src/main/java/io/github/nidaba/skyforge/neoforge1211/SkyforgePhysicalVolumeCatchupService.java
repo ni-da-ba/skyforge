@@ -162,6 +162,30 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(ordered);
     }
 
+    static List<Long> earlierPopulationDependencyKeys(
+            long candidateKey,
+            List<Long> canonicalKeys,
+            int chunkRadius) {
+        Objects.requireNonNull(canonicalKeys, "canonicalKeys");
+        if (chunkRadius < 0) {
+            throw new IllegalArgumentException("population dependency radius must be non-negative");
+        }
+        int candidateX = ChunkPos.getX(candidateKey);
+        int candidateZ = ChunkPos.getZ(candidateKey);
+        List<Long> dependencies = new ArrayList<>();
+        for (long key : canonicalKeys) {
+            if (key == candidateKey) {
+                break;
+            }
+            int dx = Math.abs(ChunkPos.getX(key) - candidateX);
+            int dz = Math.abs(ChunkPos.getZ(key) - candidateZ);
+            if (Math.max(dx, dz) <= chunkRadius) {
+                dependencies.add(key);
+            }
+        }
+        return List.copyOf(dependencies);
+    }
+
     private static PumpResult pumpBoundedWork(
             BooleanSupplier serviceOneWorkItem,
             LongSupplier nanoTime,
@@ -229,13 +253,37 @@ final class SkyforgePhysicalVolumeCatchupService {
             // LevelChunks. WorldGenRegion callbacks are intentionally deferred by the population
             // stage, and every loaded chunk whose terrain catch-up is complete reaches the same
             // coordinator here in canonical X/Z order before post-terrain cave/interior work.
-            for (long chunkKey : canonicalPopulationChunkKeys(
-                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
+            List<Long> populationChunkKeys = canonicalPopulationChunkKeys(
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys());
+            for (long chunkKey : populationChunkKeys) {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
                 if (chunk == null
                         || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
+                    continue;
+                }
+
+                int dependencyRadius =
+                        SkyforgeNativeSurfacePopulationStage.maximumPopulationAttachmentChunkRadius(chunk);
+                boolean blockedByEarlierNeighbor = false;
+                for (long earlierKey : earlierPopulationDependencyKeys(
+                        chunkKey,
+                        populationChunkKeys,
+                        dependencyRadius)) {
+                    LevelChunk earlier = chunkSource.getChunkNow(
+                            ChunkPos.getX(earlierKey),
+                            ChunkPos.getZ(earlierKey));
+                    if (earlier == null
+                            || !SkyforgePhysicalVolumeAdmissionStage
+                                    .eligibleCatchup(earlier.getPos())
+                                    .isEmpty()
+                            || !SkyforgeNativeSurfacePopulationStage.populationCompleted(earlier)) {
+                        blockedByEarlierNeighbor = true;
+                        break;
+                    }
+                }
+                if (blockedByEarlierNeighbor) {
                     continue;
                 }
                 SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);
