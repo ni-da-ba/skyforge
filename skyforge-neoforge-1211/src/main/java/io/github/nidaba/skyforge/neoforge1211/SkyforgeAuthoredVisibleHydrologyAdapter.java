@@ -10,10 +10,16 @@ import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -31,7 +37,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * rather than painting water onto an unchanged terrain surface.
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
-    enum Feature { CHANNEL, RETAINED_WATER, VERTICAL_DISCHARGE, EDGE_DISCHARGE }
+    enum Feature { CHANNEL, RETAINED_WATER }
 
     record Deployment(
             SkyIslandWorldVolumeId volumeId,
@@ -80,38 +86,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
         List<Deployment> deployments = new ArrayList<>();
 
+        Set<Integer> routedEdgeOutlets = intent.drops().stream()
+                .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
+                .map(drop -> drop.drop().sourceCellIndex())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         for (var channel : intent.channels()) {
-            deployments.add(atPath(
-                    descriptor,
-                    fluvial,
-                    volume,
-                    terrain,
-                    Feature.CHANNEL,
-                    channel.path()));
+            boolean routedEdgeOutlet =
+                    routedEdgeOutlets.contains(channel.path().profile().segment().downstreamCellIndex());
+            atPath(
+                            descriptor,
+                            fluvial,
+                            volume,
+                            terrain,
+                            channel.path(),
+                            routedEdgeOutlet)
+                    .ifPresent(deployments::add);
         }
         for (var retained : intent.retainedWater()) {
-            deployments.add(atFootprint(volume, terrain, retained.footprint().cells()));
+            atFootprint(descriptor, volume, terrain, retained.footprint())
+                    .ifPresent(deployments::add);
         }
-        for (var drop : intent.drops()) {
-            if (drop.kind() == SkyIslandVisibleHydrologicRealizationKind.CASCADE
-                    || drop.kind() == SkyIslandVisibleHydrologicRealizationKind.WATERFALL) {
-                deployments.add(at(
-                        volume,
-                        terrain,
-                        Feature.VERTICAL_DISCHARGE,
-                        drop.drop().position().x(),
-                        drop.drop().position().z(),
-                        3));
-            } else if (drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE) {
-                deployments.add(at(
-                        volume,
-                        terrain,
-                        Feature.EDGE_DISCHARGE,
-                        drop.drop().position().x(),
-                        drop.drop().position().z(),
-                        2));
-            }
-        }
+
+        // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
+        // already consumed by the fluvial terrain field. Literal Minecraft fluid authority comes
+        // only from connected routed channels or retained basins; a drop must never manufacture an
+        // independent source column disconnected from its upstream watercourse.
 
         // Connected reaches can overlap at confluences. Water authority wins globally over dry
         // channel-clearance carving so application order can never erase an accepted wet cell.
@@ -153,13 +152,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return written;
     }
 
-    private static Deployment atPath(
+    private static Optional<Deployment> atPath(
             SkyIslandDescriptor descriptor,
             SkyIslandFluvialTerrainField fluvial,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
-            Feature feature,
-            SkyIslandNaturalizedChannelPath path) {
+            SkyIslandNaturalizedChannelPath path,
+            boolean routedEdgeOutlet) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(fluvial, "fluvial");
         Objects.requireNonNull(path, "path");
@@ -173,9 +172,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 .orElseThrow(() -> new IllegalStateException(
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
 
-        LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
         for (Column column : candidateColumns(volume, reach)) {
             SkyIslandLocalPosition local = localPosition(volume, column);
             double distance = distanceToPath(local, path);
@@ -198,23 +195,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             var authoredWater = distance <= reach.wetHalfWidth()
                     ? fluvial.waterSurfacePotential(local)
                     : java.util.OptionalDouble.empty();
-
             int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
             if (authoredWater.isPresent()) {
-                // A wet Minecraft cross-section needs one solid bed level plus at least one
-                // water block below the pre-fluvial bank surface. A one-block carve cannot
-                // satisfy both constraints and would put water back at the original surface.
                 loweringBlocks = Math.max(2, loweringBlocks);
             }
-            int drySurfaceY = Math.max(
-                    range.minimumY(),
-                    baseSurfaceY - loweringBlocks);
-
-            if (distance <= reach.bankfullHalfWidth()
-                    && terrain.isSolidOwnedBy(volume.id(), column.x(), drySurfaceY, column.z())
-                    && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), drySurfaceY, column.z())) {
-                surface.add(new BlockPos(column.x(), drySurfaceY, column.z()));
-            }
+            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
 
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
@@ -224,40 +209,150 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         drySurfaceY + 1,
                         Math.min(baseSurfaceY - 1, projected));
             }
+            columns.put(
+                    column,
+                    new ChannelColumnPlan(column, distance, baseSurfaceY, drySurfaceY, waterTopY));
+        }
 
-            if (waterTopY != Integer.MIN_VALUE) {
-                for (int y = drySurfaceY + 1; y <= waterTopY; y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
-                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
-                        water.add(new BlockPos(column.x(), y, column.z()));
+        Set<Column> containedWet = new LinkedHashSet<>();
+        for (ChannelColumnPlan column : columns.values()) {
+            if (column.waterTopY() != Integer.MIN_VALUE
+                    && laterallyContained(
+                            volume,
+                            terrain,
+                            columns,
+                            column,
+                            reach,
+                            path,
+                            routedEdgeOutlet)) {
+                containedWet.add(column.column());
+            }
+        }
+        containedWet = largestConnectedFootprint(containedWet);
+        if (containedWet.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (ChannelColumnPlan column : columns.values()) {
+            if (column.distance() <= reach.bankfullHalfWidth()
+                    && terrain.isSolidOwnedBy(
+                            volume.id(), column.column().x(), column.drySurfaceY(), column.column().z())
+                    && !terrain.isSolidOwnedByOtherVolume(
+                            volume.id(), column.column().x(), column.drySurfaceY(), column.column().z())) {
+                surface.add(new BlockPos(
+                        column.column().x(), column.drySurfaceY(), column.column().z()));
+            }
+
+            boolean wet = containedWet.contains(column.column());
+            int carveFrom = column.drySurfaceY() + 1;
+            int carveTo = column.baseSurfaceY();
+            if (wet) {
+                for (int y = column.drySurfaceY() + 1; y <= column.waterTopY(); y++) {
+                    if (terrain.isSolidOwnedBy(volume.id(), column.column().x(), y, column.column().z())
+                            && !terrain.isSolidOwnedByOtherVolume(
+                                    volume.id(), column.column().x(), y, column.column().z())) {
+                        water.add(new BlockPos(column.column().x(), y, column.column().z()));
                     }
                 }
-                for (int y = waterTopY + 1; y <= baseSurfaceY; y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
-                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
-                        carved.add(new BlockPos(column.x(), y, column.z()));
-                    }
-                }
-            } else {
-                for (int y = drySurfaceY + 1; y <= baseSurfaceY; y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
-                            && !terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
-                        carved.add(new BlockPos(column.x(), y, column.z()));
-                    }
+                carveFrom = column.waterTopY() + 1;
+            }
+            for (int y = carveFrom; y <= carveTo; y++) {
+                if (terrain.isSolidOwnedBy(volume.id(), column.column().x(), y, column.column().z())
+                        && !terrain.isSolidOwnedByOtherVolume(
+                                volume.id(), column.column().x(), y, column.column().z())) {
+                    carved.add(new BlockPos(column.column().x(), y, column.column().z()));
                 }
             }
         }
 
         if (water.isEmpty()) {
-            throw new IllegalStateException("AUTH-0105 channel intent has no realized wet owner columns");
+            return Optional.empty();
         }
         carved.removeAll(water);
-        return deployment(
+        return Optional.of(deployment(
                 volume.id(),
-                feature,
+                Feature.CHANNEL,
                 new ArrayList<>(water),
                 new ArrayList<>(carved),
-                new ArrayList<>(surface));
+                new ArrayList<>(surface)));
+    }
+
+    private static boolean laterallyContained(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, ChannelColumnPlan> columns,
+            ChannelColumnPlan candidate,
+            SkyIslandFluvialReachGeometry reach,
+            SkyIslandNaturalizedChannelPath path,
+            boolean routedEdgeOutlet) {
+        int breaches = 0;
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            Column neighbor = new Column(
+                    candidate.column().x() + direction[0],
+                    candidate.column().z() + direction[1]);
+            ChannelColumnPlan planned = columns.get(neighbor);
+            if (planned != null) {
+                if (planned.waterTopY() != Integer.MIN_VALUE
+                        || planned.drySurfaceY() >= candidate.waterTopY()) {
+                    continue;
+                }
+            } else if (terrain.isSolidOwnedBy(
+                            volume.id(), neighbor.x(), candidate.waterTopY(), neighbor.z())
+                    && !terrain.isSolidOwnedByOtherVolume(
+                            volume.id(), neighbor.x(), candidate.waterTopY(), neighbor.z())) {
+                continue;
+            }
+            breaches++;
+        }
+        if (breaches == 0) {
+            return true;
+        }
+        if (!routedEdgeOutlet || breaches != 1) {
+            return false;
+        }
+        SkyIslandLocalPosition local = localPosition(volume, candidate.column());
+        SkyIslandLocalPosition outlet = path.points().getLast();
+        return Math.hypot(local.x() - outlet.x(), local.z() - outlet.z())
+                <= Math.max(1.5, reach.wetHalfWidth() * 0.75);
+    }
+
+    private static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
+        if (candidates.isEmpty()) {
+            return Set.of();
+        }
+        Set<Column> unvisited = new LinkedHashSet<>(candidates);
+        Set<Column> largest = Set.of();
+        int[][] directions = {
+                {1, 0}, {-1, 0}, {0, 1}, {0, -1},
+                {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
+        };
+        while (!unvisited.isEmpty()) {
+            Column seed = unvisited.iterator().next();
+            var queue = new ArrayDeque<Column>();
+            var component = new LinkedHashSet<Column>();
+            queue.add(seed);
+            unvisited.remove(seed);
+            while (!queue.isEmpty()) {
+                Column current = queue.removeFirst();
+                component.add(current);
+                for (int[] direction : directions) {
+                    Column neighbor = new Column(
+                            current.x() + direction[0],
+                            current.z() + direction[1]);
+                    if (unvisited.remove(neighbor)) {
+                        queue.addLast(neighbor);
+                    }
+                }
+            }
+            if (component.size() > largest.size()) {
+                largest = Set.copyOf(component);
+            }
+        }
+        return largest;
     }
 
     /**
@@ -366,42 +461,46 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return best;
     }
 
-    private static Deployment atFootprint(
+    private static Optional<Deployment> atFootprint(
+            SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
-            List<io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell> cells) {
-        List<BlockPos> positions = new ArrayList<>();
-        for (var cell : cells) {
-            positions.addAll(at(volume, terrain, Feature.RETAINED_WATER,
-                    cell.position().x(), cell.position().z(), 1).positions());
+            io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprint footprint) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(footprint, "footprint");
+
+        var byColumn = new LinkedHashMap<Column, BlockPos>();
+        for (var cell : footprint.cells()) {
+            int x = (int) Math.round(
+                    volume.compiledVolume().descriptor().centerX() + cell.position().x());
+            int z = (int) Math.round(
+                    volume.compiledVolume().descriptor().centerZ() + cell.position().z());
+            List<BlockPos> owned = ownedColumnPositions(volume, terrain, x, z, 1);
+            if (!owned.isEmpty()) {
+                byColumn.putIfAbsent(new Column(x, z), owned.getFirst());
+            }
         }
-        return deployment(volume.id(), Feature.RETAINED_WATER, positions, List.of(), List.of());
-    }
 
-    private static Deployment at(
-            SkyIslandWorldVolume volume,
-            SkyforgeNeoForge1211ChunkAdapter terrain,
-            Feature feature,
-            double localX,
-            double localZ,
-            int depth) {
-        int x = (int) Math.round(volume.compiledVolume().descriptor().centerX() + localX);
-        int z = (int) Math.round(volume.compiledVolume().descriptor().centerZ() + localZ);
-        return atWorldColumn(volume, terrain, feature, x, z, depth);
-    }
+        Set<Column> retained = largestConnectedFootprint(byColumn.keySet());
+        if (retained.isEmpty()) {
+            return Optional.empty();
+        }
 
-    private static Deployment atWorldColumn(
-            SkyIslandWorldVolume volume,
-            SkyforgeNeoForge1211ChunkAdapter terrain,
-            Feature feature,
-            int x,
-            int z,
-            int depth) {
-        List<BlockPos> positions = ownedColumnPositions(volume, terrain, x, z, depth);
+        List<BlockPos> positions = retained.stream()
+                .map(byColumn::get)
+                .filter(Objects::nonNull)
+                .toList();
         if (positions.isEmpty()) {
-            throw new IllegalStateException("AUTH-0086 intent has no realized owner column");
+            return Optional.empty();
         }
-        return deployment(volume.id(), feature, positions, List.of(), List.of());
+        return Optional.of(deployment(
+                volume.id(),
+                Feature.RETAINED_WATER,
+                positions,
+                List.of(),
+                List.of()));
     }
 
     private static List<BlockPos> ownedColumnPositions(
@@ -491,6 +590,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         var fluid = state.getFluidState().getType();
         return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
     }
+
+    private record ChannelColumnPlan(
+            Column column,
+            double distance,
+            int baseSurfaceY,
+            int drySurfaceY,
+            int waterTopY) {}
 
     private record Column(int x, int z) {}
 }

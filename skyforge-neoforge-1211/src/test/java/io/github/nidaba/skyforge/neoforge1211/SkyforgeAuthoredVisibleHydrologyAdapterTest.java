@@ -33,7 +33,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void canonicalSpecimenProjectsEveryAcceptedIntentAndCutsARecessedChannelBed() {
+    void canonicalSpecimenProjectsConnectedWaterAndCutsARecessedChannelBed() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
@@ -46,29 +46,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         long retainedDeployments = deployments.stream()
                 .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
                 .count();
-        long verticalDeployments = deployments.stream()
-                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE)
-                .count();
-        long edgeDeployments = deployments.stream()
-                .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE)
-                .count();
-
         assertEquals(intent.channels().size(), channelDeployments);
         assertEquals(intent.retainedWater().size(), retainedDeployments);
-        assertEquals(
-                intent.drops().stream()
-                        .filter(drop -> drop.kind()
-                                        == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.CASCADE
-                                || drop.kind()
-                                        == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.WATERFALL)
-                        .count(),
-                verticalDeployments);
-        assertEquals(
-                intent.drops().stream()
-                        .filter(drop -> drop.kind()
-                                == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
-                        .count(),
-                edgeDeployments);
+        assertTrue(deployments.stream().allMatch(deployment ->
+                deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL
+                        || deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER),
+                "drop semantics must shape routed terrain rather than manufacture independent fluid sources");
 
         var channel = deployments.stream()
                 .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
@@ -341,16 +324,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         if (!intent.retainedWater().isEmpty()) {
             features.add(SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER);
         }
-        if (intent.drops().stream().anyMatch(drop ->
-                drop.kind() == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.CASCADE
-                        || drop.kind()
-                                == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.WATERFALL)) {
-            features.add(SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE);
-        }
-        if (intent.drops().stream().anyMatch(drop ->
-                drop.kind() == io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)) {
-            features.add(SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE);
-        }
+        // Drop semantics are geomorphic modifiers of routed channels, not independent
+        // Minecraft fluid deployments.
         return features;
     }
 
@@ -364,9 +339,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     private static Set<SkyforgeAuthoredVisibleHydrologyAdapter.Feature> requiredFeatureKinds() {
         return Set.of(
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
-                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER,
-                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE,
-                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE);
+                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER);
     }
 
     private static void assertOwned(
@@ -383,9 +356,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
-            }
-            if (deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE) {
-                assertTrue(deployment.positions().size() >= 2);
             }
         }
     }

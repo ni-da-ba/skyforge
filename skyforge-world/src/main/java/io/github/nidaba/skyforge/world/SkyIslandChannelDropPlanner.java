@@ -50,9 +50,22 @@ public final class SkyIslandChannelDropPlanner {
         upstream.values().forEach(list -> list.sort(Comparator.comparingInt(
                 profile -> profile.segment().sourceCellIndex())));
 
+        Set<Integer> routedSourceCells = new HashSet<>();
+        for (SkyIslandChannelProfile profile : profiles) {
+            routedSourceCells.add(profile.segment().sourceCellIndex());
+        }
+        Set<Integer> routedTerminalCells = new HashSet<>();
+        for (SkyIslandChannelProfile profile : profiles) {
+            int downstream = profile.segment().downstreamCellIndex();
+            if (!routedSourceCells.contains(downstream)) {
+                routedTerminalCells.add(downstream);
+            }
+        }
+
         Set<Integer> edgeCells = new HashSet<>();
         for (SkyIslandHydrologicFeature feature : featurePlan.features()) {
-            if (feature.kind() == SkyIslandHydrologicFeatureKind.EDGE_WATERFALL) {
+            if (feature.kind() == SkyIslandHydrologicFeatureKind.EDGE_WATERFALL
+                    && routedTerminalCells.contains(feature.sourceCellIndex())) {
                 edgeCells.add(feature.sourceCellIndex());
             }
         }
@@ -117,6 +130,7 @@ public final class SkyIslandChannelDropPlanner {
 
         featurePlan.features().stream()
                 .filter(feature -> feature.kind() == SkyIslandHydrologicFeatureKind.EDGE_WATERFALL)
+                .filter(feature -> edgeCells.contains(feature.sourceCellIndex()))
                 .sorted(Comparator.comparingInt(SkyIslandHydrologicFeature::sourceCellIndex))
                 .forEach(feature -> {
                     double discharge = feature.significance();

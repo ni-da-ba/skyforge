@@ -49,6 +49,32 @@ final class SkyforgeDr70ReviewRepairTest {
     }
 
     @Test
+    void atlasKey2754HydrologyProjectsWithoutOrphanDropSourcesOrCrash() {
+        var fixture = SkyforgeDr70HumanReviewAtlasFixture.runtimeFixture(44);
+        assertEquals(2754L, fixture.member().islandKey());
+
+        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette(),
+                fixture.descriptorsByVolumeId());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        assertTrue(deployments.stream().allMatch(deployment ->
+                deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL
+                        || deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER),
+                "drop semantics must never materialize as standalone fluid-source deployments");
+        for (var deployment : deployments) {
+            for (BlockPos position : deployment.positions()) {
+                assertTrue(terrain.isSolidOwnedBy(
+                        fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+                assertFalse(terrain.isSolidOwnedByOtherVolume(
+                        fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
+            }
+        }
+    }
+
+    @Test
     void canonicalUpperSurfaceRejectsTreePlacementWithoutEnoughAttachmentHeadroom() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         int maximumBuildHeightExclusive = 320;

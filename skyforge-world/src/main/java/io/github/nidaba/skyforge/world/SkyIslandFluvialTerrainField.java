@@ -178,31 +178,35 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         SkyIslandChannelSegment segment = profile.segment();
 
         double bankfullHalfWidth = spacing * (
-                0.40
-                        + 0.80 * profile.bankfullWidthPotential()
-                        + 0.35 * segment.relativeDischarge()
-                        + 0.15 * segment.corridorScale());
+                0.48
+                        + 0.95 * profile.bankfullWidthPotential()
+                        + 0.48 * segment.relativeDischarge()
+                        + 0.20 * segment.corridorScale());
 
         double valleyMultiplier = switch (profile.kind()) {
-            case ALLUVIAL -> 3.2 + 1.4 * segment.corridorScale();
-            case INCISED -> 2.0 + 1.0 * profile.incisionPotential();
-            case CASCADE -> 1.45 + 0.70 * profile.incisionPotential();
+            case ALLUVIAL -> 3.6 + 1.8 * segment.corridorScale();
+            case INCISED -> 2.2 + 1.2 * profile.incisionPotential();
+            case CASCADE -> 1.55 + 0.80 * profile.incisionPotential();
         };
         double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier;
 
-        double waterDepth = 0.006
-                + 0.020 * (
+        // Minecraft's one-block vertical quantization makes deep/narrow continuous
+        // sections read as artificial trenches. Preserve discharge/profile ordering while biasing
+        // the neutral geometry toward wider, shallower channels; the existing MAX_FLUVIAL_LOWERING
+        // cap continues to bound total relief modification.
+        double waterDepth = 0.004
+                + 0.013 * (
                         0.45 * profile.depthPotential()
                                 + 0.35 * segment.relativeDischarge()
                                 + 0.20 * segment.corridorScale());
         double bankRelief = waterDepth
-                + 0.010
-                + 0.025 * (
+                + 0.007
+                + 0.017 * (
                         0.55 * profile.incisionPotential()
                                 + 0.45 * profile.streamPowerPotential());
         double bedDepth = bankRelief
-                + 0.014
-                + 0.050 * (
+                + 0.010
+                + 0.032 * (
                         0.55 * profile.incisionPotential()
                                 + 0.25 * profile.streamPowerPotential()
                                 + 0.20 * profile.depthPotential());

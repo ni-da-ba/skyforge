@@ -16,7 +16,7 @@ class SkyIslandChannelDropPlannerTest {
     private static final long SEED = 0x534B59464F524745L;
 
     @Test
-    void dropPlanIsDeterministicNormalizedAndPreservesEdgeOutflowCandidates() {
+    void dropPlanIsDeterministicNormalizedAndKeepsOnlyRoutedEdgeOutflows() {
         SkyIslandDescriptor descriptor = descriptor(77L);
         SkyIslandChannelDropPlan first = SkyIslandChannelDropPlanner.plan(descriptor);
         SkyIslandChannelDropPlan second = SkyIslandChannelDropPlanner.plan(descriptor);
@@ -26,10 +26,17 @@ class SkyIslandChannelDropPlannerTest {
         profiles.profiles().forEach(profile -> profileBySource.put(profile.segment().sourceCellIndex(), profile));
 
         assertEquals(first, second);
-        assertEquals(
-                features.count(SkyIslandHydrologicFeatureKind.EDGE_WATERFALL),
-                first.count(SkyIslandChannelDropKind.EDGE_FALL));
+        assertTrue(
+                first.count(SkyIslandChannelDropKind.EDGE_FALL)
+                        <= features.count(SkyIslandHydrologicFeatureKind.EDGE_WATERFALL));
         assertFalse(first.drops().isEmpty());
+        Set<Integer> routedSourceCells = profiles.profiles().stream()
+                .map(profile -> profile.segment().sourceCellIndex())
+                .collect(java.util.stream.Collectors.toSet());
+        Set<Integer> routedTerminalCells = profiles.profiles().stream()
+                .map(profile -> profile.segment().downstreamCellIndex())
+                .filter(index -> !routedSourceCells.contains(index))
+                .collect(java.util.stream.Collectors.toSet());
 
         for (SkyIslandChannelDrop drop : first.drops()) {
             assertTrue(drop.dropPotential() >= 0.0 && drop.dropPotential() <= 1.0);
@@ -39,6 +46,8 @@ class SkyIslandChannelDropPlannerTest {
             if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
                 assertEquals(-1, drop.downstreamCellIndex());
                 assertEquals(0.0, drop.plungePoolPotential());
+                assertTrue(routedTerminalCells.contains(drop.sourceCellIndex()),
+                        "visible edge discharge must terminate a retained routed channel");
             } else {
                 assertTrue(profileBySource.containsKey(drop.sourceCellIndex()));
                 assertEquals(
