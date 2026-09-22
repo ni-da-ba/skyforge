@@ -200,7 +200,7 @@ class ObjectiveCommandTest(unittest.TestCase):
             ).record
             self.assertEqual(
                 record.proposal_id,
-                "c6e2ecfa92d753c59669270b22e433c261662c179e9b281609fd679e960878af",
+                "bc168db3468c9d24b6093414dc5c2706c5ca305f6ed9ba61b625af149f2bd2bd",
             )
 
 
