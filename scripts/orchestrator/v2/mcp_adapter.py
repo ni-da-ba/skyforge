@@ -654,13 +654,35 @@ class McpAdapter:
             )
             if status not in {200, 202}:
                 return self._tool_error(status, payload)
-            return self._tool_ok(
-                payload,
-                (
-                    f"Continue Skyforge proposal {payload.get('proposal_id', '')} reconciled "
-                    f"with disposition {payload.get('objective_disposition', '')}."
-                ),
+
+            value = dict(payload)
+            state_status, snapshot = self.runtime.handle_development_read(
+                self._read_authorization()
             )
+            if state_status == 200:
+                product = snapshot.get("current_product_state") or {}
+                progression = snapshot.get("program_progression") or {}
+                value["snapshot_digest"] = snapshot.get("snapshot_digest")
+                value["current_product_state"] = product
+                value["active_program_session"] = progression.get("active_session")
+                boundary = str(product.get("status") or payload.get("objective_disposition") or "")
+                reason = str(product.get("reason") or "")
+                summary = f"Continue Skyforge reconciled at current boundary {boundary or 'unknown'}."
+                if reason:
+                    summary += f" {reason}"
+            else:
+                value["current_product_state"] = None
+                value["state_refresh_error"] = (
+                    snapshot.get("error")
+                    if isinstance(snapshot, Mapping)
+                    else f"development-state read failed ({state_status})"
+                )
+                summary = (
+                    f"Continue Skyforge proposal {payload.get('proposal_id', '')} reconciled "
+                    f"with disposition {payload.get('objective_disposition', '')}; "
+                    "current boundary refresh was unavailable."
+                )
+            return self._tool_ok(value, summary)
 
         lifecycle_operations = {
             "pause_objective": "PAUSE",
