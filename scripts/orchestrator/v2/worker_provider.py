@@ -8,16 +8,27 @@ import json
 import os
 from pathlib import Path
 import re
+import subprocess
 import threading
 from typing import Any, Mapping, Protocol
 
 from .identity import canonical_digest
+from .path_scope import path_is_allowed
 from .state_store import JsonStateStoreAdapter
 
 
 WORKER_RUNS_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json"
 WORKER_RUNS_BACKUP_RELATIVE_PATH = Path(".skyforge-platform-v2") / "worker-runs.json.bak"
 _WORKER_RUN_LOCK = threading.RLock()
+
+PATCH_BEGIN = "SKYFORGE_PATCH_BEGIN"
+PATCH_END = "SKYFORGE_PATCH_END"
+PATCH_SUMMARY = "SKYFORGE_WORKER_SUMMARY"
+_PROTECTED_WORKER_PREFIXES = (
+    ".git/",
+    ".skyforge-orchestrator/",
+    ".skyforge-platform-v2/",
+)
 
 
 class WorkerTier(str, Enum):
@@ -352,13 +363,137 @@ class WorkerProvider(Protocol):
     def run(self, *, spec: FrozenWorkerSpec, worktree: Path, config: WorkerProviderConfig) -> str: ...
 
 
-class CodexWorkerProvider:
-    """Initial provider adapter preserving accepted legacy worker SDK semantics."""
+def _extract_controller_patch(response: str) -> tuple[str, str | None]:
+    text = str(response or "")
+    if text.count(PATCH_BEGIN) != 1 or text.count(PATCH_END) != 1:
+        raise WorkerProviderError(
+            "invalid_response", 0,
+            "worker response must contain exactly one controller patch marker pair",
+        )
+    before, remainder = text.split(PATCH_BEGIN, 1)
+    patch, after = remainder.split(PATCH_END, 1)
+    if after.strip():
+        raise WorkerProviderError(
+            "invalid_response", 0,
+            "worker response contains trailing content after patch terminator",
+        )
+    summary = before.replace(PATCH_SUMMARY, "", 1).strip()
+    if not summary:
+        raise WorkerProviderError(
+            "empty_response", 0,
+            "worker returned no bounded completion summary",
+        )
+    patch = patch.strip("\n")
+    return summary, (patch + "\n" if patch.strip() else None)
 
-    DEVELOPER_INSTRUCTIONS = """You are a bounded Skyforge repository worker.
+
+def _patch_paths(patch: str) -> tuple[str, ...]:
+    paths: set[str] = set()
+    for line in patch.splitlines():
+        if not line.startswith("diff --git "):
+            continue
+        match = re.fullmatch(r"diff --git a/([^\t\r\n]+) b/([^\t\r\n]+)", line)
+        if match is None:
+            raise WorkerProviderError("invalid_patch", 0, f"unsupported git patch header: {line[:200]}")
+        for raw in match.groups():
+            normalized = raw.replace("\\", "/")
+            if (
+                not normalized or normalized.startswith("/")
+                or normalized.startswith("../") or "/../" in normalized
+                or normalized == ".."
+            ):
+                raise WorkerProviderError("invalid_patch", 0, f"unsafe patch path: {raw}")
+            paths.add(normalized)
+    if patch.strip() and not paths:
+        raise WorkerProviderError(
+            "invalid_patch", 0,
+            "worker returned non-empty patch content without git diff headers",
+        )
+    return tuple(sorted(paths))
+
+
+def _changed_paths(worktree: Path) -> tuple[str, ...]:
+    completed = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=worktree, check=True, text=True, capture_output=True, timeout=60,
+    )
+    paths: set[str] = set()
+    for line in completed.stdout.splitlines():
+        if not line:
+            continue
+        raw = line[2:].lstrip() if len(line) > 2 else line
+        if " -> " in raw:
+            raw = raw.split(" -> ", 1)[1]
+        normalized = raw.strip().replace("\\", "/").lstrip("./")
+        if normalized:
+            paths.add(normalized)
+    return tuple(sorted(paths))
+
+
+def _apply_controller_patch(
+    *, spec: FrozenWorkerSpec, worktree: Path, patch: str,
+) -> tuple[str, ...]:
+    paths = _patch_paths(patch)
+    for path in paths:
+        if path_is_allowed(path, spec.protected_paths):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch touches protected path: {path}",
+            )
+        if any(
+            path == prefix.rstrip("/") or path.startswith(prefix)
+            for prefix in _PROTECTED_WORKER_PREFIXES
+        ):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch touches controller path: {path}",
+            )
+        if not path_is_allowed(path, spec.allowed_paths):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch exceeds frozen scope: {path}",
+            )
+
+    for args in (
+        ["git", "apply", "--check", "--whitespace=error-all", "-"],
+        ["git", "apply", "-"],
+    ):
+        completed = subprocess.run(
+            args, cwd=worktree, input=patch, text=True,
+            capture_output=True, timeout=60, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()[:2000]
+            raise WorkerProviderError(
+                "invalid_patch", 0,
+                f"controller git apply failed ({' '.join(args)}): {detail}",
+            )
+
+    changed = _changed_paths(worktree)
+    if not changed:
+        raise WorkerProviderError(
+            "invalid_patch", 0,
+            "controller applied worker patch but worktree remained clean",
+        )
+    unexpected = tuple(path for path in changed if path not in paths)
+    if unexpected:
+        raise WorkerProviderError(
+            "scope_violation", 0,
+            f"controller-applied patch changed paths absent from patch headers: {unexpected}",
+        )
+    return changed
+
+
+class CodexWorkerProvider:
+    """Read-only Codex adapter with controller-owned bounded patch application."""
+
+    DEVELOPER_INSTRUCTIONS = f"""You are a bounded Skyforge repository worker.
 Respect the exact task scope and stop boundary supplied by the outer controller.
 Do not commit, push, create/merge PRs, mutate GitHub, or use network access.
-Leave bounded repository changes and tests in the isolated worktree for controller review."""
+The worktree is read-only to the model. Inspect locally and return one bounded git-style
+unified patch between {PATCH_BEGIN} and {PATCH_END}, preceded by {PATCH_SUMMARY}.
+The outer controller validates scope and applies any non-empty patch. Do not add trailing
+content after {PATCH_END}."""
 
     def run(
         self,
@@ -374,14 +509,27 @@ Leave bounded repository changes and tests in the isolated worktree for controll
                     cwd=str(Path(worktree).resolve()),
                     model=config.model,
                     config={"model_reasoning_effort": config.reasoning_effort},
-                    sandbox=Sandbox.workspace_write,
+                    sandbox=Sandbox.read_only,
                     developer_instructions=self.DEVELOPER_INSTRUCTIONS,
                     ephemeral=True,
                 )
-                result = thread.run(spec.prompt(), sandbox=Sandbox.workspace_write)
-                summary = str(result.final_response or "").strip()
-                if not summary:
-                    raise WorkerProviderError("empty_response", 0, "worker returned no final response")
+                prompt = spec.prompt() + (
+                    "\n\nReturn the bounded result using the controller patch markers "
+                    "required by your developer instructions."
+                )
+                result = thread.run(prompt, sandbox=Sandbox.read_only)
+                summary, patch = _extract_controller_patch(
+                    str(result.final_response or "")
+                )
+                if patch is not None:
+                    changed = _apply_controller_patch(
+                        spec=spec,
+                        worktree=Path(worktree).resolve(),
+                        patch=patch,
+                    )
+                    summary = (
+                        summary + "\n\nController-applied patch paths: " + ", ".join(changed)
+                    ).strip()
                 return summary
         except WorkerProviderError:
             raise

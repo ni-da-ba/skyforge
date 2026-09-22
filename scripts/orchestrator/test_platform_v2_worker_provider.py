@@ -9,6 +9,8 @@ import unittest
 
 from v2.worker_provider import (
     CodexWorkerProvider,
+    _apply_controller_patch,
+    _extract_controller_patch,
     FrozenWorkerSpec,
     WorkerAdvanceDisposition,
     WorkerProviderConfig,
@@ -328,15 +330,77 @@ class WorkerWorkspaceManagerTest(unittest.TestCase):
 
 
 class CodexProviderAdapterTest(unittest.TestCase):
-    def test_codex_adapter_binds_cwd_model_reasoning_and_workspace_sandbox(self):
+    @staticmethod
+    def make_patch_repo(root: Path) -> str:
+        subprocess.run(["git", "init", "-b", "main"], cwd=root, check=True, capture_output=True)
+        subprocess.run(["git", "config", "user.email", "test@example.invalid"], cwd=root, check=True)
+        subprocess.run(["git", "config", "user.name", "Skyforge Test"], cwd=root, check=True)
+        (root / "allowed.txt").write_text("base\n", encoding="utf-8")
+        (root / "outside.txt").write_text("outside\n", encoding="utf-8")
+        subprocess.run(["git", "add", "."], cwd=root, check=True)
+        subprocess.run(["git", "commit", "-m", "base"], cwd=root, check=True, capture_output=True)
+        return subprocess.run(
+            ["git", "rev-parse", "HEAD"], cwd=root, check=True,
+            text=True, capture_output=True,
+        ).stdout.strip()
+
+    def test_controller_applies_allowed_patch(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = self.make_patch_repo(root)
+            s = spec(base_sha=base)
+            patch = """diff --git a/allowed.txt b/allowed.txt
+--- a/allowed.txt
++++ b/allowed.txt
+@@ -1 +1 @@
+-base
++changed
+"""
+            changed = _apply_controller_patch(spec=s, worktree=root, patch=patch)
+            self.assertEqual(changed, ("allowed.txt",))
+            self.assertEqual(
+                (root / "allowed.txt").read_text(encoding="utf-8"),
+                "changed\n",
+            )
+
+    def test_controller_rejects_patch_outside_frozen_scope(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            base = self.make_patch_repo(root)
+            s = spec(base_sha=base)
+            patch = """diff --git a/outside.txt b/outside.txt
+--- a/outside.txt
++++ b/outside.txt
+@@ -1 +1 @@
+-outside
++forbidden
+"""
+            with self.assertRaisesRegex(WorkerProviderError, "exceeds frozen scope"):
+                _apply_controller_patch(spec=s, worktree=root, patch=patch)
+            self.assertEqual(
+                (root / "outside.txt").read_text(encoding="utf-8"),
+                "outside\n",
+            )
+
+    def test_controller_patch_markers_are_mandatory(self):
+        with self.assertRaisesRegex(
+            WorkerProviderError,
+            "exactly one controller patch marker pair",
+        ):
+            _extract_controller_patch("bounded summary without markers")
+
+    def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
 
         class Sandbox:
-            workspace_write = object()
+            read_only = object()
 
         class Result:
-            final_response = "bounded completion summary"
+            final_response = (
+                "SKYFORGE_WORKER_SUMMARY\nbounded completion summary\n"
+                "SKYFORGE_PATCH_BEGIN\n\nSKYFORGE_PATCH_END"
+            )
 
         class Thread:
             def run(self, prompt, *, sandbox):
@@ -379,8 +443,8 @@ class CodexProviderAdapterTest(unittest.TestCase):
                     {"model_reasoning_effort": "high"},
                 )
                 self.assertTrue(calls["start"]["ephemeral"])
-                self.assertIs(calls["start"]["sandbox"], Sandbox.workspace_write)
-                self.assertIs(calls["run_sandbox"], Sandbox.workspace_write)
+                self.assertIs(calls["start"]["sandbox"], Sandbox.read_only)
+                self.assertIs(calls["run_sandbox"], Sandbox.read_only)
                 self.assertIn("Do not commit, push", calls["prompt"])
                 self.assertIn("network access", calls["prompt"].lower())
                 self.assertIn(
