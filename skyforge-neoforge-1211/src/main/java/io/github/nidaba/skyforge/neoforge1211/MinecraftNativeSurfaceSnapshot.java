@@ -38,6 +38,16 @@ final class MinecraftNativeSurfaceSnapshot {
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
     }
 
+    static MinecraftNativeSurfaceSnapshot empty(ChunkPos chunkPos) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        int[] worldYs = new int[SAMPLE_COUNT];
+        Arrays.fill(worldYs, Integer.MIN_VALUE);
+        return new MinecraftNativeSurfaceSnapshot(
+                chunkPos,
+                worldYs,
+                new ResourceLocation[SAMPLE_COUNT]);
+    }
+
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
         Objects.requireNonNull(chunk, "chunk");
         int[] worldYs = new int[SAMPLE_COUNT];

@@ -203,7 +203,9 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
             level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
             LevelChunk chunk = level.getChunk(pos.x, pos.z);
-            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+            MinecraftNativeSurfaceSnapshot nativeSurfaceSnapshot =
+                    MinecraftNativeSurfaceSnapshot.empty(chunk.getPos());
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk, nativeSurfaceSnapshot);
             active.advance();
             warmed++;
         }
