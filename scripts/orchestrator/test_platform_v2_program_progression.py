@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import json
 from pathlib import Path
 import shutil
@@ -62,7 +63,8 @@ from v2.program_progression import (
     advance_program_continuation,
 )
 from v2.program_projection import load_program_projection
-from v2.hosted_state import HostedStateStore
+from v2.hosted_state import HostedIngressState, HostedStateStore
+from v2.inbox import InboxState
 from v2.scope_promotion import PromotionStore
 from v2.task_authority import TaskAuthorityWakeReference
 from v2.task_event_composition import (
@@ -546,6 +548,111 @@ class ProgramProgressionTest(unittest.TestCase):
             )
             self.assertIsNone(
                 HostedAdmissionStore.for_root(root).load().for_issue(754)
+            )
+
+    def test_pending_signed_authority_defers_before_recapturing_immutable_child_context(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            prepare_program_root(root)
+            parent_proposal(root, "continue-program-pending-authority-001")
+            review(
+                root,
+                gate_id="pre-bootstrap-development-platform-gate",
+                verdict=HumanReviewVerdict.ACCEPTED,
+                request_id="program-review-pending-authority-001",
+            )
+            remote = ProgramRemote(root)
+            first = advance_program_continuation(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                runner=remote,
+            )
+            self.assertEqual(first.disposition, ProgramAdvanceDisposition.WAIT_CHILD)
+            self.assertTrue(first.session.child_proposal_id)
+
+            from v2.context_package import ContextPackageStore
+
+            package_store = ContextPackageStore.for_root(root)
+            original_package = package_store.load().get(first.session.child_proposal_id)
+            self.assertIsNotNone(original_package)
+
+            waiting = replace(
+                first.session,
+                disposition=ProgramSessionDisposition.WAIT_AUTHORITY,
+                reason="fixture stale managed authority retired",
+            )
+            ProgramContinuationStore.for_root(root).save(
+                ProgramContinuationLedger((waiting,))
+            )
+
+            context_path = root / "docs/agent-state/IMPLEMENTATION_STATE.md"
+            context_path.write_text(
+                context_path.read_text(encoding="utf-8")
+                + "\npending signed authority context advance\n",
+                encoding="utf-8",
+            )
+            git(root, "add", str(context_path.relative_to(root)))
+            git(root, "commit", "-qm", "advance context after child package")
+
+            body = remote.comments[-1]["body"]
+            created = "2026-09-21T04:00:00Z"
+            event = DurableEvent(
+                actionable=True,
+                reason="new signed program child revision",
+                event="issue_comment",
+                action="audit_signal",
+                pr_number=754,
+                observed_at=created,
+                source_id="9999",
+                signal_kind="task",
+                signal_text=body,
+            )
+            reference = TaskAuthorityWakeReference(
+                repo="ni-da-ba/skyforge",
+                issue_number=754,
+                comment_id=9999,
+                actor="ni-da-ba",
+                body=body,
+                created_at=created,
+                updated_at=created,
+            )
+            TaskAuthorityEventStore.for_root(root).capture(
+                TaskAuthorityEventRecord(
+                    event_id=event.event_id,
+                    reference=reference,
+                    delivery_id="pending-signed-authority",
+                )
+            )
+            HostedStateStore.for_root(root).save(
+                HostedIngressState(
+                    inbox=InboxState(pending_events=(event,))
+                )
+            )
+
+            def forbidden(*args, **kwargs):
+                raise AssertionError(
+                    "pending signed authority must defer before child context/GitHub work"
+                )
+
+            result = advance_program_continuation(
+                root=root,
+                repo="ni-da-ba/skyforge",
+                runner=forbidden,
+            )
+
+            self.assertEqual(
+                result.disposition,
+                ProgramAdvanceDisposition.WAIT_AUTHORITY,
+            )
+            self.assertIn("pending signed Platform-v2 task authority", result.reason)
+            self.assertEqual(
+                result.session.child_proposal_id,
+                first.session.child_proposal_id,
+            )
+            packages = package_store.load()
+            self.assertEqual(
+                packages.get(first.session.child_proposal_id),
+                original_package,
             )
 
     def test_source_drift_fails_closed_without_child_creation(self):
