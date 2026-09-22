@@ -205,6 +205,66 @@ class RoutineUpgradeTest(unittest.TestCase):
         self.assertTrue(sleeps)
         self.assertEqual(git(root, "rev-parse", "HEAD"), target)
 
+    def test_upgrade_retires_stuck_model_free_reconcile_noise_under_stopped_service(self):
+        td, root, _accepted, target, _template, _evidence, _state, services, operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        real_rollback = operator.rollback
+
+        def rollback_with_reconcile(*, execute=False):
+            report = real_rollback(execute=execute)
+            if execute and report.disposition is OperatorDisposition.ROLLBACK_COMPLETE:
+                write_quiescent_legacy_state(
+                    root,
+                    events=(ordinary_reconcile_event(source="startup"),),
+                )
+            return report
+
+        operator.rollback = rollback_with_reconcile
+        operator.sleep = lambda _seconds: None
+
+        report = controller.upgrade(target, execute=True)
+
+        self.assertEqual(report.disposition, RoutineUpgradeDisposition.COMPLETE)
+        self.assertEqual(report.authority, WriterAuthority.V2)
+        state = json.loads(
+            (root / ".skyforge-orchestrator/state.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(state["pending_events"], [])
+        self.assertEqual(
+            state["metrics"]["routine_upgrade_reconcile_events_retired_model_free"],
+            1,
+        )
+        self.assertEqual(
+            state["last_routine_upgrade_reconcile_quiescence"]["retired_events"],
+            1,
+        )
+        retired = state["retired_event_keys"]
+        self.assertEqual(len(retired), 1)
+        self.assertTrue(retired[0].startswith("sha256:"))
+        self.assertFalse(services.state[LEGACY_SERVICE]["active"])
+        self.assertTrue(services.state[V2_SERVICE]["active"])
+
+    def test_reconcile_noise_retirement_refuses_non_model_free_work(self):
+        td, root, _accepted, _target, _template, _evidence, _state, _services, _operator, controller = self.build()
+        self.addCleanup(td.cleanup)
+        other = DurableEvent(
+            actionable=True,
+            reason="workflow completed",
+            event="workflow_run",
+            action="completed",
+            source_id="ordinary-work",
+        )
+        write_quiescent_legacy_state(root, events=(other,))
+
+        with self.assertRaisesRegex(RuntimeError, "non-model-free pending work"):
+            controller._retire_model_free_reconcile_noise()
+
+        state = json.loads(
+            (root / ".skyforge-orchestrator/state.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(len(state["pending_events"]), 1)
+        self.assertEqual(state["retired_event_keys"], [])
+
     def test_successful_upgrade_rebuilds_template_and_restores_exclusive_v2(self):
         td, root, accepted, target, template, evidence, _state, services, _operator, controller = self.build()
         self.addCleanup(td.cleanup)
