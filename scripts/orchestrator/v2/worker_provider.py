@@ -485,12 +485,15 @@ def _apply_controller_patch(
 
 
 class CodexWorkerProvider:
-    """Initial provider adapter preserving accepted legacy worker SDK semantics."""
+    """Read-only Codex adapter with controller-owned bounded patch application."""
 
-    DEVELOPER_INSTRUCTIONS = """You are a bounded Skyforge repository worker.
+    DEVELOPER_INSTRUCTIONS = f"""You are a bounded Skyforge repository worker.
 Respect the exact task scope and stop boundary supplied by the outer controller.
 Do not commit, push, create/merge PRs, mutate GitHub, or use network access.
-Leave bounded repository changes and tests in the isolated worktree for controller review."""
+The worktree is read-only to the model. Inspect locally and return one bounded git-style
+unified patch between {PATCH_BEGIN} and {PATCH_END}, preceded by {PATCH_SUMMARY}.
+The outer controller validates scope and applies any non-empty patch. Do not add trailing
+content after {PATCH_END}."""
 
     def run(
         self,
