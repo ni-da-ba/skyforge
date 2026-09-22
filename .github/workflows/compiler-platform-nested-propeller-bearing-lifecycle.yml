@@ -3,10 +3,8 @@ name: Compiler Platform Nested Propeller Bearing Lifecycle
 on:
   pull_request:
     paths:
-      - ".github/workflows/compiler-platform-nested-propeller-bearing-lifecycle.yml"
       - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
       - "scripts/compiler-integration/run-exact-stack-fixture.sh"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationDiagnostic.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationFailure.java"

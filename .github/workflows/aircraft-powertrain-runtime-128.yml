@@ -3,12 +3,10 @@ name: Aircraft Powertrain Runtime 128 RPM
 on:
   pull_request:
     paths:
-      - ".github/workflows/aircraft-powertrain-runtime-128.yml"
       - "docs/agent-state/AIRCRAFT_COMPILER_STATE.md"
       - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
       - "scripts/compiler-integration/run-exact-stack-fixture.sh"
       - "skyforge-model/src/main/java/io/github/nidaba/skyforge/model/aircraft/**"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraft*.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationDiagnostic.java"

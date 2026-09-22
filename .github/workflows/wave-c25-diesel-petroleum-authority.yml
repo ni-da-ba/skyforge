@@ -3,7 +3,6 @@ name: Wave C25 Diesel Petroleum Authority
 on:
   pull_request:
     paths:
-      - ".github/workflows/wave-c25-diesel-petroleum-authority.yml"
       - "skyforge-neoforge-1211/wave-c25-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC25PetroleumAuthorityAcceptance.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC25PetroleumAuthorityResourceTest.java"
@@ -11,7 +10,6 @@ on:
   push:
     branches: [main]
     paths:
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
   workflow_dispatch:
 

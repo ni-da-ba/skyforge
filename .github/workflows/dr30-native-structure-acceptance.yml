@@ -3,7 +3,7 @@ name: DR-30 Native Structure Acceptance
 on:
   pull_request:
     paths:
-      - "skyforge-neoforge-1211/**"
+      - "skyforge-neoforge-1211/src/main/**"
   workflow_dispatch:
 
 permissions:

@@ -3,9 +3,7 @@ name: Compiler Platform Seat Passenger On Sable
 on:
   pull_request:
     paths:
-      - ".github/workflows/compiler-platform-seat-passenger-on-sable.yml"
       - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationFailure.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSeatPassengerClientWorldPrepareAcceptance.java"

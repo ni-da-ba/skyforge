@@ -25,6 +25,7 @@ import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import org.junit.jupiter.api.Assumptions;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -35,6 +36,7 @@ import org.junit.jupiter.api.Test;
  * bounded physical size, a substantial visible drainage workload, at least one interior drop, and
  * at least one dry physical exterior cave-mouth witness. It does not rerank authored hydrology.
  */
+@Tag("qualification")
 final class SkyforgeDr70SpecimenSearchTest {
     private static final long SEED = 0x534B59464F524745L;
     private static final long GROUP = 8L;

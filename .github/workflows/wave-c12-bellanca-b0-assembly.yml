@@ -3,8 +3,6 @@ name: Wave C12 Bellanca B0 Assembly
 on:
   pull_request:
     paths:
-      - ".github/workflows/wave-c12-bellanca-b0-assembly.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC12BellancaB0AssemblyAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"

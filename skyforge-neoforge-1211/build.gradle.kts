@@ -46,6 +46,23 @@ tasks.withType<Test>().configureEach {
     }
 }
 
+// Production-scale physical realization belongs to focused qualification, not ordinary check.
+// ModDevGradle wires the canonical test task with the NeoForge/FML launch environment, so reuse
+// that task in an explicit qualification mode rather than creating an unsupported second Test task.
+val skyforgeQualification = providers.gradleProperty("skyforgeQualification")
+    .map { it.toBoolean() }
+    .orElse(false)
+
+tasks.named<Test>("test") {
+    useJUnitPlatform {
+        if (skyforgeQualification.get()) {
+            includeTags("qualification")
+        } else {
+            excludeTags("qualification")
+        }
+    }
+}
+
 // Development-only data/resource pack material for interactive world-generation proofs. This
 // source set is attached to the local ModDev mod below but is not part of Java's production jar,
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
