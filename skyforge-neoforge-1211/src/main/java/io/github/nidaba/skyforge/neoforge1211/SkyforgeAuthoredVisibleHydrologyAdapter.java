@@ -11,8 +11,6 @@ import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -178,15 +176,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
-        var candidates = candidateColumnDistances(volume, reach).entrySet().stream()
-                .sorted(Comparator
-                        .comparingInt((java.util.Map.Entry<Column, Double> entry) -> entry.getKey().z())
-                        .thenComparingInt(entry -> entry.getKey().x()))
-                .toList();
-        for (var candidate : candidates) {
-            Column column = candidate.getKey();
+        for (Column column : candidateColumns(volume, reach)) {
             SkyIslandLocalPosition local = localPosition(volume, column);
-            double distance = candidate.getValue();
+            double distance = distanceToPath(local, path);
+            if (distance > reach.valleyHalfWidth()) {
+                continue;
+            }
             var optionalRange = terrain.integerSolidRange(volume.id(), column.x(), column.z());
             if (optionalRange.isEmpty()) {
                 continue;
@@ -296,51 +291,41 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return (int) Math.round(normalizedDelta * descriptor.reliefBudget());
     }
 
-    /**
-     * Enumerates the exact valley corridor segment-by-segment instead of scanning one large reach
-     * bounding rectangle and comparing every column against the full polyline. For every physical
-     * column touched by one or more segment envelopes, the retained value is the exact minimum
-     * Euclidean distance to the accepted naturalized path.
-     */
-    private static LinkedHashMap<Column, Double> candidateColumnDistances(
+    private static LinkedHashSet<Column> candidateColumns(
             SkyIslandWorldVolume volume,
             SkyIslandFluvialReachGeometry reach) {
-        LinkedHashMap<Column, Double> distances = new LinkedHashMap<>();
-        var physical = volume.compiledVolume().descriptor();
-        double centerX = physical.centerX();
-        double centerZ = physical.centerZ();
+        double minimumLocalX = Double.POSITIVE_INFINITY;
+        double maximumLocalX = Double.NEGATIVE_INFINITY;
+        double minimumLocalZ = Double.POSITIVE_INFINITY;
+        double maximumLocalZ = Double.NEGATIVE_INFINITY;
+        for (SkyIslandLocalPosition point : reach.path().points()) {
+            minimumLocalX = Math.min(minimumLocalX, point.x());
+            maximumLocalX = Math.max(maximumLocalX, point.x());
+            minimumLocalZ = Math.min(minimumLocalZ, point.z());
+            maximumLocalZ = Math.max(maximumLocalZ, point.z());
+        }
         double margin = reach.valleyHalfWidth();
-        var points = reach.path().points();
+        var physical = volume.compiledVolume().descriptor();
+        int minimumX = (int) Math.ceil(Math.max(
+                volume.bounds().minimumX(),
+                physical.centerX() + minimumLocalX - margin));
+        int maximumX = (int) Math.floor(Math.min(
+                volume.bounds().maximumX(),
+                physical.centerX() + maximumLocalX + margin));
+        int minimumZ = (int) Math.ceil(Math.max(
+                volume.bounds().minimumZ(),
+                physical.centerZ() + minimumLocalZ - margin));
+        int maximumZ = (int) Math.floor(Math.min(
+                volume.bounds().maximumZ(),
+                physical.centerZ() + maximumLocalZ + margin));
 
-        for (int index = 1; index < points.size(); index++) {
-            SkyIslandLocalPosition a = points.get(index - 1);
-            SkyIslandLocalPosition b = points.get(index);
-            int minimumX = (int) Math.ceil(Math.max(
-                    volume.bounds().minimumX(),
-                    centerX + Math.min(a.x(), b.x()) - margin));
-            int maximumX = (int) Math.floor(Math.min(
-                    volume.bounds().maximumX(),
-                    centerX + Math.max(a.x(), b.x()) + margin));
-            int minimumZ = (int) Math.ceil(Math.max(
-                    volume.bounds().minimumZ(),
-                    centerZ + Math.min(a.z(), b.z()) - margin));
-            int maximumZ = (int) Math.floor(Math.min(
-                    volume.bounds().maximumZ(),
-                    centerZ + Math.max(a.z(), b.z()) + margin));
-
-            for (int z = minimumZ; z <= maximumZ; z++) {
-                for (int x = minimumX; x <= maximumX; x++) {
-                    SkyIslandLocalPosition local =
-                            new SkyIslandLocalPosition(x - centerX, z - centerZ);
-                    double distance = distanceToSegment(local, a, b);
-                    if (distance > margin) {
-                        continue;
-                    }
-                    distances.merge(new Column(x, z), distance, Math::min);
-                }
+        LinkedHashSet<Column> columns = new LinkedHashSet<>();
+        for (int z = minimumZ; z <= maximumZ; z++) {
+            for (int x = minimumX; x <= maximumX; x++) {
+                columns.add(new Column(x, z));
             }
         }
-        return distances;
+        return columns;
     }
 
     private static SkyIslandLocalPosition localPosition(
@@ -352,24 +337,33 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 column.z() - physical.centerZ());
     }
 
-    private static double distanceToSegment(
+    private static double distanceToPath(
             SkyIslandLocalPosition position,
-            SkyIslandLocalPosition a,
-            SkyIslandLocalPosition b) {
-        double dx = b.x() - a.x();
-        double dz = b.z() - a.z();
-        double lengthSquared = dx * dx + dz * dz;
-        if (lengthSquared <= 1.0e-12) {
-            return Math.hypot(position.x() - a.x(), position.z() - a.z());
+            SkyIslandNaturalizedChannelPath path) {
+        double best = Double.POSITIVE_INFINITY;
+        var points = path.points();
+        for (int index = 1; index < points.size(); index++) {
+            SkyIslandLocalPosition a = points.get(index - 1);
+            SkyIslandLocalPosition b = points.get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            if (lengthSquared <= 1.0e-12) {
+                best = Math.min(best, Math.hypot(position.x() - a.x(), position.z() - a.z()));
+                continue;
+            }
+            double px = position.x() - a.x();
+            double pz = position.z() - a.z();
+            double fraction = Math.max(
+                    0.0,
+                    Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
+            double nearestX = a.x() + fraction * dx;
+            double nearestZ = a.z() + fraction * dz;
+            best = Math.min(
+                    best,
+                    Math.hypot(position.x() - nearestX, position.z() - nearestZ));
         }
-        double px = position.x() - a.x();
-        double pz = position.z() - a.z();
-        double fraction = Math.max(
-                0.0,
-                Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
-        double nearestX = a.x() + fraction * dx;
-        double nearestZ = a.z() + fraction * dz;
-        return Math.hypot(position.x() - nearestX, position.z() - nearestZ);
+        return best;
     }
 
     private static Deployment atFootprint(

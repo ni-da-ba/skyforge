@@ -7,7 +7,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.LongSupplier;
-import java.util.function.ToIntFunction;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -163,32 +162,6 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(ordered);
     }
 
-    static List<Long> earlierPopulationDependencyKeys(
-            long candidateKey,
-            List<Long> canonicalKeys,
-            ToIntFunction<Long> earlierChunkRadius) {
-        Objects.requireNonNull(canonicalKeys, "canonicalKeys");
-        Objects.requireNonNull(earlierChunkRadius, "earlierChunkRadius");
-        int candidateX = ChunkPos.getX(candidateKey);
-        int candidateZ = ChunkPos.getZ(candidateKey);
-        List<Long> dependencies = new ArrayList<>();
-        for (long key : canonicalKeys) {
-            if (key == candidateKey) {
-                break;
-            }
-            int radius = earlierChunkRadius.applyAsInt(key);
-            if (radius < 0) {
-                throw new IllegalArgumentException("population dependency radius must be non-negative");
-            }
-            int dx = Math.abs(ChunkPos.getX(key) - candidateX);
-            int dz = Math.abs(ChunkPos.getZ(key) - candidateZ);
-            if (Math.max(dx, dz) <= radius) {
-                dependencies.add(key);
-            }
-        }
-        return List.copyOf(dependencies);
-    }
-
     private static PumpResult pumpBoundedWork(
             BooleanSupplier serviceOneWorkItem,
             LongSupplier nanoTime,
@@ -256,38 +229,13 @@ final class SkyforgePhysicalVolumeCatchupService {
             // LevelChunks. WorldGenRegion callbacks are intentionally deferred by the population
             // stage, and every loaded chunk whose terrain catch-up is complete reaches the same
             // coordinator here in canonical X/Z order before post-terrain cave/interior work.
-            List<Long> populationChunkKeys = canonicalPopulationChunkKeys(
-                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys());
-            for (long chunkKey : populationChunkKeys) {
+            for (long chunkKey : canonicalPopulationChunkKeys(
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
                 LevelChunk chunk = chunkSource.getChunkNow(chunkX, chunkZ);
                 if (chunk == null
                         || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
-                    continue;
-                }
-
-                boolean blockedByEarlierNeighbor = false;
-                for (long earlierKey : earlierPopulationDependencyKeys(
-                        chunkKey,
-                        populationChunkKeys,
-                        key -> SkyforgeNativeSurfacePopulationStage
-                                .maximumPopulationAttachmentChunkRadius(
-                                        new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key)),
-                                        level.getMinBuildHeight(),
-                                        level.getHeight()))) {
-                    ChunkPos earlierPos = new ChunkPos(
-                            ChunkPos.getX(earlierKey),
-                            ChunkPos.getZ(earlierKey));
-                    if (!SkyforgeNativeSurfacePopulationStage.populationCompleted(
-                            earlierPos,
-                            level.getMinBuildHeight(),
-                            level.getHeight())) {
-                        blockedByEarlierNeighbor = true;
-                        break;
-                    }
-                }
-                if (blockedByEarlierNeighbor) {
                     continue;
                 }
                 SkyforgeNativeSurfacePopulationStage.populateDeferred(level, chunk, generator);

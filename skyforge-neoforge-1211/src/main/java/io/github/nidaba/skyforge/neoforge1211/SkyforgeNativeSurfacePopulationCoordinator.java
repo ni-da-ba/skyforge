@@ -108,20 +108,6 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         return completed.size();
     }
 
-    synchronized boolean completed(
-            SkyIslandWorldVolumeId volumeId,
-            long chunkKey,
-            List<GenerationStep.Decoration> phases) {
-        Objects.requireNonNull(volumeId, "volumeId");
-        Objects.requireNonNull(phases, "phases");
-        for (GenerationStep.Decoration phase : phases) {
-            if (!completed.containsKey(new PopulationKey(volumeId, chunkKey, phase))) {
-                return false;
-            }
-        }
-        return true;
-    }
-
     synchronized List<SkyforgeNativeBiomePopulationRunner.Result> completedNativeResults(
             SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
