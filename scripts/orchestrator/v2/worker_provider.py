@@ -513,7 +513,11 @@ content after {PATCH_END}."""
                     developer_instructions=self.DEVELOPER_INSTRUCTIONS,
                     ephemeral=True,
                 )
-                result = thread.run(spec.prompt(), sandbox=Sandbox.read_only)
+                prompt = spec.prompt() + (
+                    "\n\nReturn the bounded result using the controller patch markers "
+                    "required by your developer instructions."
+                )
+                result = thread.run(prompt, sandbox=Sandbox.read_only)
                 summary = str(result.final_response or "").strip()
                 if not summary:
                     raise WorkerProviderError("empty_response", 0, "worker returned no final response")
