@@ -1,0 +1,75 @@
+name: Reference Corpus Qualification
+
+on:
+  pull_request:
+    paths:
+      - "skyforge-model/**"
+      - "skyforge-world/**"
+      - "skyforge-reference/**"
+      - "config/ci/evidence-entry-points.json"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: reference-corpus-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  corpus:
+    name: Full reference/evidence corpus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Generate retained reference corpora
+        id: corpus
+        shell: bash
+        run: |
+          set -euo pipefail
+          started=$(date +%s)
+          ./gradlew :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence --profile
+          elapsed=$(( $(date +%s) - started ))
+          echo "wall_seconds=${elapsed}" >> "${GITHUB_OUTPUT}"
+
+      - name: Verify evidence review entry points
+        run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files
+
+      - name: Stage compact evidence review bundle
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        run: python3 scripts/ci/stage_evidence_review_bundle.py --stage
+
+      - name: Summarize reference-corpus timing
+        if: always() && steps.corpus.outputs.wall_seconds != ''
+        run: |
+          python3 scripts/ci/summarize_validation_timings.py             --label "reference corpus qualification"             --wall-seconds "${{ steps.corpus.outputs.wall_seconds }}"             --warn-over-seconds 1800
+
+      - name: Publish compact evidence review bundle
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-evidence-review-${{ github.sha }}
+          path: build/ci-evidence-review/
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 9
+
+      - name: Publish Gradle timing profile
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-reference-profile-${{ github.sha }}
+          path: build/reports/profile/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 9

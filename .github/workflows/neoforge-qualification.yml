@@ -32,4 +32,27 @@ jobs:
         uses: ./.github/actions/setup-java-gradle
 
       - name: Run explicit qualification tests
-        run: ./gradlew :skyforge-neoforge-1211:neoforgeQualificationTest --profile
+        id: qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          started=$(date +%s)
+          ./gradlew :skyforge-neoforge-1211:neoforgeQualificationTest --profile
+          elapsed=$(( $(date +%s) - started ))
+          echo "wall_seconds=${elapsed}" >> "${GITHUB_OUTPUT}"
+
+      - name: Summarize qualification timing
+        if: always() && steps.qualification.outputs.wall_seconds != ''
+        run: |
+          python3 scripts/ci/summarize_validation_timings.py             --label "NeoForge focused qualification"             --wall-seconds "${{ steps.qualification.outputs.wall_seconds }}"             --warn-over-seconds 1800
+
+      - name: Publish Gradle timing profile
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: skyforge-neoforge-qualification-profile-${{ github.sha }}
+          path: build/reports/profile/
+          if-no-files-found: warn
+          retention-days: 7
+          compression-level: 9

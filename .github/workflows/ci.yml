@@ -39,11 +39,17 @@ jobs:
         run: |
           set -euo pipefail
 
+          write_all_scopes() {
+            local reason="$1"
+            for output in full ordinary reference neoforge dr30 dr40 dr50 compiler aircraft music unknown; do
+              echo "${output}=true" >> "${GITHUB_OUTPUT}"
+            done
+            echo "scopes=ordinary,reference,neoforge,dr30,dr40,dr50,compiler,aircraft,music,unknown" >> "${GITHUB_OUTPUT}"
+            echo "reason=${reason}" >> "${GITHUB_OUTPUT}"
+          }
+
           if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "reason=manual dispatch requests full CI and music-source verification" >> "${GITHUB_OUTPUT}"
-            echo "Manual dispatch requests full CI and music-source verification."
+            write_all_scopes "manual dispatch requests all validation scopes"
             exit 0
           fi
 
@@ -54,28 +60,31 @@ jobs:
             base="${{ github.event.before }}"
             head="${GITHUB_SHA}"
           else
-            echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "reason=unknown event type fails safe to full CI" >> "${GITHUB_OUTPUT}"
+            write_all_scopes "unknown event type fails safe to all validation scopes"
             exit 0
           fi
 
           if [[ -z "${base}" || "${base}" =~ ^0+$ ]] || ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
-            echo "full=true" >> "${GITHUB_OUTPUT}"
-            echo "music=true" >> "${GITHUB_OUTPUT}"
-            echo "reason=unable to establish safe comparison base" >> "${GITHUB_OUTPUT}"
-            echo "Unable to establish a safe comparison base; running full CI and music-source verification."
+            write_all_scopes "unable to establish safe comparison base"
             exit 0
           fi
 
           mapfile -t changed_paths < <(git diff --name-only "${base}" "${head}")
           printf '%s\n' "${changed_paths[@]}"
-          python3 scripts/ci/classify_validation_impact.py \
-            --github-output "${GITHUB_OUTPUT}" \
-            "${changed_paths[@]}"
+          python3 scripts/ci/classify_validation_impact.py             --github-output "${GITHUB_OUTPUT}"             "${changed_paths[@]}"
+
+      - name: Report validation routing
+        shell: bash
+        run: |
+          {
+            echo "### Validation routing"
+            echo
+            echo "- Scopes: `${{ steps.impact.outputs.scopes }}`"
+            echo "- Reason: ${{ steps.impact.outputs.reason }}"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Verify exact-stack fixture runner semantics
-        if: steps.impact.outputs.full == 'true'
+        if: steps.impact.outputs.compiler == 'true'
         run: python3 scripts/compiler-integration/test_run_exact_stack_fixture.py
 
       - name: Verify music source integrity
@@ -83,7 +92,7 @@ jobs:
         run: python3 scripts/music/verify_music_sources.py
 
       - name: Validate lightweight repository integrity
-        if: steps.impact.outputs.full != 'true'
+        if: steps.impact.outputs.ordinary != 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -98,41 +107,44 @@ jobs:
           echo "PASS lightweight repository integrity gate"
 
       - name: Validate CI helper and retained workflow contracts
-        if: steps.impact.outputs.full != 'true'
+        if: steps.impact.outputs.ordinary != 'true'
         working-directory: scripts/ci
         run: python3 -m unittest -v
 
-      - name: Validate canonical evidence manifest without product build
-        if: steps.impact.outputs.full != 'true'
+      - name: Validate canonical evidence manifest
         run: python3 scripts/ci/verify_evidence_entry_points.py --validate-manifest
 
       - name: Verify retained DR workflow contracts
-        if: steps.impact.outputs.full != 'true'
+        if: steps.impact.outputs.ordinary != 'true'
         run: python3 scripts/ci/verify_validation_workflows.py
 
       - name: Set up Java and Gradle
-        if: steps.impact.outputs.full == 'true'
+        if: steps.impact.outputs.ordinary == 'true'
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Build, test, and generate evidence
-        if: steps.impact.outputs.full == 'true'
-        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence
+      - name: Ordinary check
+        if: steps.impact.outputs.ordinary == 'true'
+        id: ordinary
+        shell: bash
+        run: |
+          set -euo pipefail
+          started=$(date +%s)
+          ./gradlew check --profile
+          elapsed=$(( $(date +%s) - started ))
+          echo "wall_seconds=${elapsed}" >> "${GITHUB_OUTPUT}"
 
-      - name: Verify evidence review entry points
-        if: steps.impact.outputs.full == 'true'
-        run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files
+      - name: Summarize ordinary-check timing
+        if: always() && steps.impact.outputs.ordinary == 'true' && steps.ordinary.outputs.wall_seconds != ''
+        run: |
+          python3 scripts/ci/summarize_validation_timings.py             --label "ordinary check"             --wall-seconds "${{ steps.ordinary.outputs.wall_seconds }}"             --warn-over-seconds 600
 
-      - name: Stage compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
-        run: python3 scripts/ci/stage_evidence_review_bundle.py --stage
-
-      - name: Publish compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+      - name: Publish Gradle timing profile
+        if: always() && steps.impact.outputs.ordinary == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: skyforge-evidence-review-${{ github.sha }}
-          path: build/ci-evidence-review/
-          if-no-files-found: error
+          name: skyforge-gradle-profile-${{ github.sha }}
+          path: build/reports/profile/
+          if-no-files-found: warn
           retention-days: 7
           compression-level: 9
