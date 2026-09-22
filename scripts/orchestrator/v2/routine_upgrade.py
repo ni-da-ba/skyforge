@@ -361,6 +361,115 @@ class RoutineUpgradeController:
             blockers.append(f"legacy fallback state invalid: {type(exc).__name__}: {exc}")
         return blockers
 
+    def _model_free_reconcile_events(
+        self,
+        raw: Mapping[str, Any],
+    ) -> tuple[DurableEvent, ...]:
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        return tuple(
+            event
+            for event in events
+            if (
+                event.event == "reconcile"
+                and event.action in {"startup", "periodic"}
+                and event.source_id is None
+                and event.pr_number is None
+                and event.signal_kind is None
+                and event.signal_text is None
+            )
+        )
+
+    def _retire_model_free_reconcile_noise(self) -> int:
+        """Retire only paused legacy startup/periodic reconcile noise, with evidence."""
+
+        raw = self._legacy_state()
+        projection = LegacyOperationalProjection.from_legacy_mapping(raw)
+        if not projection.paused:
+            raise RuntimeError("legacy reconcile-noise retirement requires paused legacy")
+        if (
+            projection.blocked_kind is not None
+            or projection.pending_worker is not None
+            or projection.pending_decision is not None
+            or projection.managed
+        ):
+            raise RuntimeError(
+                "legacy reconcile-noise retirement refuses in-flight or managed authority"
+            )
+
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        if not events:
+            return 0
+        model_free = self._model_free_reconcile_events(raw)
+        if len(model_free) != len(events):
+            raise RuntimeError(
+                "legacy reconcile-noise retirement encountered non-model-free pending work"
+            )
+        if any(event.event == "roadmap" or event.protected_authority for event in events):
+            raise RuntimeError(
+                "legacy reconcile-noise retirement encountered protected authority"
+            )
+
+        retired = [
+            str(value)
+            for value in (raw.get("retired_event_keys") or [])
+            if str(value)
+        ]
+        seen = set(retired)
+        for event in events:
+            if event.event_id not in seen:
+                retired.append(event.event_id)
+                seen.add(event.event_id)
+
+        raw["retired_event_keys"] = retired[-1024:]
+        raw["pending_events"] = []
+        metrics = raw.get("metrics")
+        if not isinstance(metrics, dict):
+            metrics = {}
+            raw["metrics"] = metrics
+        metrics["routine_upgrade_reconcile_events_retired_model_free"] = int(
+            metrics.get("routine_upgrade_reconcile_events_retired_model_free") or 0
+        ) + len(events)
+        raw["last_routine_upgrade_reconcile_quiescence"] = {
+            "at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "retired_events": len(events),
+            "reason": (
+                "paused routine upgrade retired only startup/periodic reconcile noise; "
+                "no protected or executable authority existed"
+            ),
+        }
+
+        state_dir = self.root / ".skyforge-orchestrator"
+        _atomic_write_json(state_dir / "state.json", raw)
+        _atomic_write_json(state_dir / "state.json.bak", raw)
+        return len(events)
+
+    def _quiesce_model_free_reconcile_noise(self) -> int:
+        """Cross a bounded stopped-service window to retire model-free legacy noise."""
+
+        raw = self._legacy_state()
+        events = tuple(
+            DurableEvent.from_legacy_mapping(value)
+            for value in (raw.get("pending_events") or [])
+        )
+        if not events or len(self._model_free_reconcile_events(raw)) != len(events):
+            return 0
+
+        self.operator.services.stop(LEGACY_SERVICE)
+        self.operator._wait_service(LEGACY_SERVICE, active=False)
+        try:
+            retired = self._retire_model_free_reconcile_noise()
+        finally:
+            self.operator.services.start(LEGACY_SERVICE)
+            self.operator._wait_service(LEGACY_SERVICE, active=True)
+            self.operator._verify_legacy_health()
+        return retired
+
     def _wait_for_legacy_quiescence(
         self,
         *,
@@ -376,6 +485,16 @@ class RoutineUpgradeController:
             if hard:
                 return hard
             self.operator.sleep(interval_seconds)
+
+        # A paused legacy controller may legitimately retain only model-free reconcile
+        # noise when the target manifest reactivates product work. The root upgrade
+        # controller can retire exactly that noise under a stopped-service boundary.
+        try:
+            retired = self._quiesce_model_free_reconcile_noise()
+        except Exception as exc:
+            return [f"legacy model-free reconcile quiescence failed: {type(exc).__name__}: {exc}"]
+        if retired:
+            return self._legacy_projection_blockers()
         return last
 
     def _special_path_changes(self, older: str, newer: str) -> tuple[str, ...]:
