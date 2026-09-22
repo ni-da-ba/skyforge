@@ -11,6 +11,7 @@
   let pollHandle = null;
   let pendingObjectiveRequestId = "";
   let pendingObjectiveText = "";
+  let pendingContinueRequestId = "";
   let pendingReviewRequestId = "";
   let pendingLifecycleRequestId = "";
   let pendingLifecycleSignature = "";
@@ -996,6 +997,48 @@
     }
   }
 
+  async function continueSkyforge() {
+    const statusNode = $("objective-status");
+    statusNode.className = "small";
+    statusNode.textContent = "";
+
+    if (!writeToken) {
+      statusNode.textContent = "Enter the distinct write bearer token and reconnect first.";
+      statusNode.className = "small error";
+      return;
+    }
+    if (!pendingContinueRequestId) pendingContinueRequestId = nextObjectiveRequestId();
+
+    $("continue-skyforge").disabled = true;
+    try {
+      const response = await writeApi("/api/v1/objectives", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          request_id: pendingContinueRequestId,
+          objective: "Continue Skyforge",
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || "Continue Skyforge failed (" + response.status + ")");
+      }
+      statusNode.textContent =
+        "Continue Skyforge recorded. Current state: "
+        + friendlyStatus(result.objective_disposition)
+        + ".";
+      statusNode.className = "small";
+      pendingContinueRequestId = "";
+      lastDigest = "";
+      await refresh();
+    } catch (error) {
+      statusNode.textContent = error.message;
+      statusNode.className = "small error";
+    } finally {
+      $("continue-skyforge").disabled = false;
+    }
+  }
+
   function nextLifecycleRequestId() {
     if (globalThis.crypto && typeof globalThis.crypto.randomUUID === "function") {
       return globalThis.crypto.randomUUID();
@@ -1159,6 +1202,7 @@
   }
 
   $("objective-form").addEventListener("submit", submitObjective);
+  $("continue-skyforge").addEventListener("click", continueSkyforge);
   $("objective-lifecycle-operation").addEventListener("change", updateLifecycleWarning);
   $("objective-lifecycle-form").addEventListener("submit", submitObjectiveLifecycle);
   $("review-gate").addEventListener("change", updateReviewContext);
