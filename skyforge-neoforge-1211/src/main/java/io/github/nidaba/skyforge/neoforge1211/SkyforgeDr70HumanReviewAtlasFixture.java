@@ -10,9 +10,11 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.IntStream;
 
 /** Deterministic 10x10 placement of the frozen DR-70 human-review corpus. */
 final class SkyforgeDr70HumanReviewAtlasFixture {
@@ -144,6 +146,10 @@ final class SkyforgeDr70HumanReviewAtlasFixture {
         return SPECS.size();
     }
 
+    static List<Integer> reviewOrder() {
+        return ReviewOrderHolder.ORDER;
+    }
+
     static Member member(int oneBasedIndex) {
         if (oneBasedIndex < 1 || oneBasedIndex > SPECS.size()) {
             throw new IllegalArgumentException("DR-70 review index must be in [1,100]");
@@ -252,5 +258,15 @@ final class SkyforgeDr70HumanReviewAtlasFixture {
         Spec {
             Objects.requireNonNull(bucket, "bucket");
         }
+    }
+
+    private static final class ReviewOrderHolder {
+        private static final List<Integer> ORDER = IntStream.rangeClosed(1, SPECS.size())
+                .mapToObj(SkyforgeDr70HumanReviewAtlasFixture::member)
+                .sorted(Comparator
+                        .comparingDouble((Member member) -> member.descriptor().nominalRadius())
+                        .thenComparingInt(Member::reviewIndex))
+                .map(Member::reviewIndex)
+                .toList();
     }
 }

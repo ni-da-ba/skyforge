@@ -31,6 +31,20 @@ final class SkyforgeDr70HumanReviewAtlasFixtureTest {
     }
 
     @Test
+    void reviewOrderIsCompleteUniqueAndNondecreasingByRadius() {
+        List<Integer> order = SkyforgeDr70HumanReviewAtlasFixture.reviewOrder();
+        assertEquals(100, order.size());
+        assertEquals(100, order.stream().distinct().count());
+
+        double previousRadius = Double.NEGATIVE_INFINITY;
+        for (int index : order) {
+            double radius = SkyforgeDr70HumanReviewAtlasFixture.member(index).descriptor().nominalRadius();
+            assertTrue(radius >= previousRadius);
+            previousRadius = radius;
+        }
+    }
+
+    @Test
     void reviewPresetIsNeutralVoidCarrier() throws Exception {
         String json = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/world_preset/dr70_review_atlas.json"));

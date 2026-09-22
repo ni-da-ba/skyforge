@@ -45,8 +45,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeDr70HumanReviewAtlasRuntime {
     static final String ENABLE_PROPERTY = SkyforgeDr70HumanReviewAtlasFixture.ENABLE_PROPERTY;
     static final String WARM_CHUNKS_PER_TICK_PROPERTY = "skyforge.dev.dr70AtlasWarmChunksPerTick";
-    static final String HEADLESS_PREPARE_PROPERTY = "skyforge.dev.dr70HumanReviewAtlasHeadlessPrepare";
-    private static final UUID HEADLESS_PLAYER = new UUID(0L, 0L);
+    static final String HEADLESS_BOOTSTRAP_PROPERTY = "skyforge.dev.dr70HumanReviewAtlasHeadlessBootstrap";
 
     private static final int DEFAULT_WARM_CHUNKS_PER_TICK = 4;
     private static final int MAX_WARM_CHUNKS_PER_TICK = 16;
@@ -135,9 +134,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
                         .then(Commands.literal("prev")
                                 .executes(context -> queuePreparation(
                                         context.getSource().getPlayerOrException(),
-                                        currentReviewIndex <= 1
-                                                ? SkyforgeDr70HumanReviewAtlasFixture.size()
-                                                : currentReviewIndex - 1)))
+                                        previousReviewIndex(currentReviewIndex))))
                         .then(Commands.literal("go")
                                 .then(Commands.argument("index", IntegerArgumentType.integer(1, 100))
                                         .executes(context -> queuePreparation(
@@ -176,12 +173,14 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             return;
         }
         tickCounter++;
-        if (preparation == null && Boolean.getBoolean(HEADLESS_PREPARE_PROPERTY)) {
-            if (PREPARED.contains(1)) {
-                event.getServer().halt(false);
+        if (preparation == null && Boolean.getBoolean(HEADLESS_BOOTSTRAP_PROPERTY)) {
+            ServerLevel bootstrapLevel = event.getServer().getLevel(Level.OVERWORLD);
+            if (bootstrapLevel == null) {
                 return;
             }
-            installTargetPipeline(HEADLESS_PLAYER, 1);
+            event.getServer().saveEverything(false, true, true);
+            event.getServer().halt(false);
+            return;
         }
         Preparation active = preparation;
         if (active == null) {
@@ -191,10 +190,8 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         if (level == null) {
             return;
         }
-        ServerPlayer player = active.playerId().equals(HEADLESS_PLAYER)
-                ? null
-                : event.getServer().getPlayerList().getPlayer(active.playerId());
-        if (player == null && !active.playerId().equals(HEADLESS_PLAYER)) {
+        ServerPlayer player = event.getServer().getPlayerList().getPlayer(active.playerId());
+        if (player == null) {
             return;
         }
 
@@ -207,25 +204,19 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             active.advance();
             warmed++;
         }
-        if (player != null) {
-            reportWarmProgress(player, active);
-        }
+        reportWarmProgress(player, active);
 
         if (active.cursor() < active.chunkKeys().size() || tickCounter % 20L != 0L) {
             return;
         }
         if (!lifecycleReady(active.fixture())) {
-            if (player != null) {
-                reportLifecycleProgress(player, active);
-            }
+            reportLifecycleProgress(player, active);
             return;
         }
         if (active.readySinceTick() < 0L) {
             active.markReadySince(tickCounter);
-            if (player != null) {
-                say(player, "Production lifecycle complete for #" + active.fixture().member().reviewIndex()
-                        + "; settling generated fluids.");
-            }
+            say(player, "Production lifecycle complete for #" + active.fixture().member().reviewIndex()
+                    + "; settling generated fluids.");
             return;
         }
         if (tickCounter - active.readySinceTick() < FLUID_SETTLE_TICKS) {
@@ -236,14 +227,19 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
 
     private static synchronized int queuePreparation(ServerPlayer player, int index) {
         if (preparation != null) {
-            say(player, "A specimen is already preparing. Use /skyforge_dr70_atlas status.");
+            if (preparation.fixture().member().reviewIndex() == index) {
+                preparation.markActivateWhenReady();
+                say(player, "#" + index + " is already preparing; it will open automatically when ready.");
+                return 1;
+            }
+            say(player, "A different specimen is already preparing. Use /skyforge_dr70_atlas status.");
             return 0;
         }
         if (PREPARED.contains(index)) {
             currentReviewIndex = index;
             return move(player, "above");
         }
-        installTargetPipeline(player.getUUID(), index);
+        installTargetPipeline(player.getUUID(), index, true);
         var active = preparation;
         say(player, "Preparing #" + index + "/100 (key "
                 + active.fixture().member().islandKey()
@@ -255,7 +251,22 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         return 1;
     }
 
-    private static synchronized void installTargetPipeline(UUID playerId, int index) {
+    private static synchronized void queueBackgroundPreparation(ServerPlayer player, int index) {
+        if (preparation != null || PREPARED.contains(index) || RATED.contains(index)) {
+            return;
+        }
+        installTargetPipeline(player.getUUID(), index, false);
+        var active = preparation;
+        say(player, "Background preparing next specimen #" + index
+                + " (radius="
+                + String.format(Locale.ROOT, "%.1f", active.fixture().member().descriptor().nominalRadius())
+                + ", chunks=" + active.chunkKeys().size() + ") while you review the current island.");
+    }
+
+    private static synchronized void installTargetPipeline(
+            UUID playerId,
+            int index,
+            boolean activateWhenReady) {
         if (preparation != null || hasTargetBindings()) {
             throw new IllegalStateException("DR-70 atlas target pipeline already active");
         }
@@ -302,7 +313,8 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         preparation = new Preparation(
                 fixture,
                 List.copyOf(chunkKeys),
-                playerId);
+                playerId,
+                activateWhenReady);
     }
 
     private static long squaredChunkDistance(long key, int centerChunkX, int centerChunkZ) {
@@ -363,17 +375,22 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             throw new IllegalStateException("DR-70 atlas failed to save fully prepared specimen");
         }
         int index = active.fixture().member().reviewIndex();
+        boolean activateWhenReady = active.activateWhenReady();
         PREPARED.add(index);
         writePrepared();
         releaseTickets(level, active.chunkKeys());
         closeTargetPipeline();
-        currentReviewIndex = index;
-        if (player != null) {
+        if (activateWhenReady) {
+            currentReviewIndex = index;
             move(player, "above");
             say(player, "READY #" + index + "/100. Inspect freely, then rate with "
                     + "/skyforge_dr70_atlas pass|concern|fail [notes].");
+            int next = nextUnrated(index);
+            if (next != index) {
+                queueBackgroundPreparation(player, next);
+            }
         } else {
-            level.getServer().halt(false);
+            say(player, "Background specimen #" + index + " is READY and will open when selected.");
         }
     }
     private static int move(ServerPlayer player, String stopName) {
@@ -541,21 +558,29 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
             return 1;
         }
         int next = nextUnrated(ratedIndex);
-        if (preparation == null) {
-            queuePreparation(player, next);
-        }
+        queuePreparation(player, next);
         return 1;
     }
 
     private static int nextUnrated(int afterIndex) {
-        int size = SkyforgeDr70HumanReviewAtlasFixture.size();
-        for (int offset = 1; offset <= size; offset++) {
-            int candidate = ((afterIndex + offset - 1) % size) + 1;
+        List<Integer> order = SkyforgeDr70HumanReviewAtlasFixture.reviewOrder();
+        int start = afterIndex <= 0 ? -1 : order.indexOf(afterIndex);
+        for (int offset = 1; offset <= order.size(); offset++) {
+            int candidate = order.get((start + offset) % order.size());
             if (!RATED.contains(candidate)) {
                 return candidate;
             }
         }
-        return Math.max(1, Math.min(size, currentReviewIndex));
+        return Math.max(1, Math.min(SkyforgeDr70HumanReviewAtlasFixture.size(), currentReviewIndex));
+    }
+
+    private static int previousReviewIndex(int currentIndex) {
+        List<Integer> order = SkyforgeDr70HumanReviewAtlasFixture.reviewOrder();
+        int position = order.indexOf(currentIndex);
+        if (position < 0) {
+            return order.getFirst();
+        }
+        return order.get((position - 1 + order.size()) % order.size());
     }
     private static int warmChunksPerTick() {
         int value = Integer.getInteger(WARM_CHUNKS_PER_TICK_PROPERTY, DEFAULT_WARM_CHUNKS_PER_TICK);
@@ -716,14 +741,17 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         private int cursor;
         private int lastReportedPercent = -1;
         private long readySinceTick = -1L;
+        private boolean activateWhenReady;
 
         private Preparation(
                 SkyforgeDr70HumanReviewAtlasFixture.RuntimeFixture fixture,
                 List<Long> chunkKeys,
-                UUID playerId) {
+                UUID playerId,
+                boolean activateWhenReady) {
             this.fixture = fixture;
             this.chunkKeys = chunkKeys;
             this.playerId = playerId;
+            this.activateWhenReady = activateWhenReady;
         }
 
         SkyforgeDr70HumanReviewAtlasFixture.RuntimeFixture fixture() {
@@ -748,6 +776,14 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
 
         long readySinceTick() {
             return readySinceTick;
+        }
+
+        boolean activateWhenReady() {
+            return activateWhenReady;
+        }
+
+        void markActivateWhenReady() {
+            activateWhenReady = true;
         }
 
         void advance() {
