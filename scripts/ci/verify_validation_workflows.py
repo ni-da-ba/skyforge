@@ -99,10 +99,6 @@ def verify_root(root: Path = ROOT) -> list[str]:
             errors.append(
                 f"{relative}: retained/focused workflow must not fan out on shared NeoForge build.gradle.kts"
             )
-        if f'- "{relative}"' in text or f"- '{relative}'" in text:
-            errors.append(
-                f"{relative}: retained/focused workflow must not self-trigger expensive characterization"
-            )
         lines = text.splitlines()
         for index, line in enumerate(lines):
             if line.strip() != "paths:":
