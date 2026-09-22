@@ -108,6 +108,7 @@ from v2.human_review_command import (
     reconcile_pending_human_review_commands,
 )
 from v2.historical_human_reviews import migrate_canonical_historical_human_reviews
+from v2.historical_roadmap_authority import migrate_canonical_roadmap_authority
 from v2.events import DurableEvent
 from v2.external import ControllerIssueOwner
 from v2.external_service import (
@@ -272,6 +273,13 @@ class HostedV2Substrate:
         self.mcp_adapter = McpAdapter(self)
         self.startup_audit_signal_reclassifications = self._migrate_pending_audit_signals()
         self.startup_external_claim_migrations = self._migrate_external_claims_once()
+        self.startup_historical_roadmap_authority_migrations = (
+            migrate_canonical_roadmap_authority(
+                root=self.root,
+                repo=self.repo,
+                store=self.roadmap_authority_store,
+            )
+        )
         self.startup_historical_human_review_migrations = (
             migrate_canonical_historical_human_reviews(
                 root=self.root,
@@ -560,6 +568,9 @@ class HostedV2Substrate:
                 "legacy_classifier_adapter": True,
                 "startup_audit_signal_reclassifications": self.startup_audit_signal_reclassifications,
                 "startup_external_claim_migrations": self.startup_external_claim_migrations,
+                "startup_historical_roadmap_authority_migrations": (
+                    self.startup_historical_roadmap_authority_migrations
+                ),
                 "startup_historical_human_review_migrations": (
                     self.startup_historical_human_review_migrations
                 ),
