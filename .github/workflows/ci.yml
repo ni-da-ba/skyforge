@@ -110,7 +110,6 @@ jobs:
           echo "PASS lightweight repository integrity gate"
 
       - name: Validate CI helper and retained workflow contracts
-        if: steps.impact.outputs.full != 'true'
         working-directory: scripts/ci
         run: python3 -m unittest -v
 
@@ -119,7 +118,6 @@ jobs:
         run: python3 scripts/ci/verify_evidence_entry_points.py --validate-manifest
 
       - name: Verify retained DR workflow contracts
-        if: steps.impact.outputs.full != 'true'
         run: python3 scripts/ci/verify_validation_workflows.py
 
       - name: Set up Java and Gradle
