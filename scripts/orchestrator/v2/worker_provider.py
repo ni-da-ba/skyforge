@@ -363,6 +363,30 @@ class WorkerProvider(Protocol):
     def run(self, *, spec: FrozenWorkerSpec, worktree: Path, config: WorkerProviderConfig) -> str: ...
 
 
+def _extract_controller_patch(response: str) -> tuple[str, str | None]:
+    text = str(response or "")
+    if text.count(PATCH_BEGIN) != 1 or text.count(PATCH_END) != 1:
+        raise WorkerProviderError(
+            "invalid_response", 0,
+            "worker response must contain exactly one controller patch marker pair",
+        )
+    before, remainder = text.split(PATCH_BEGIN, 1)
+    patch, after = remainder.split(PATCH_END, 1)
+    if after.strip():
+        raise WorkerProviderError(
+            "invalid_response", 0,
+            "worker response contains trailing content after patch terminator",
+        )
+    summary = before.replace(PATCH_SUMMARY, "", 1).strip()
+    if not summary:
+        raise WorkerProviderError(
+            "empty_response", 0,
+            "worker returned no bounded completion summary",
+        )
+    patch = patch.strip("\n")
+    return summary, (patch + "\n" if patch.strip() else None)
+
+
 class CodexWorkerProvider:
     """Initial provider adapter preserving accepted legacy worker SDK semantics."""
 
