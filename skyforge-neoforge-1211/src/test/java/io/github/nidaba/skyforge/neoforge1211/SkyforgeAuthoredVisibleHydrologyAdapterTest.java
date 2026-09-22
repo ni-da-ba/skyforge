@@ -37,8 +37,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
                 fixture.descriptor());
-        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                fixture.descriptor(), fixture.volume(), terrain);
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         long channelDeployments = deployments.stream()
                 .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
@@ -121,8 +120,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.descriptor());
         var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
                 fixture.descriptor(), intent.coherentHydrology());
-        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                fixture.descriptor(), fixture.volume(), terrain);
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
         var channels = deployments.stream()
                 .filter(deployment -> deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
                 .toList();
@@ -150,8 +148,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     void canonicalHydrologyPopulationViewIsImmutableWetOrDryAuthoredGeometry() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                fixture.descriptor(), fixture.volume(), terrain);
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         for (var deployment : deployments) {
             for (var wet : deployment.positions()) {
@@ -173,8 +170,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         for (long key : ACCEPTED_CORPUS_KEYS) {
             CorpusFixture fixture = corpus(key);
             var terrain = terrain(fixture.catalog(), fixture.descriptor());
-            var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                    fixture.descriptor(), fixture.volume(), terrain);
+            var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
             observed.addAll(featureKinds(deployments));
             assertOwned(deployments, terrain);
         }
@@ -186,8 +182,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     void lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater() throws Exception {
         CorpusFixture fixture = corpus(77L);
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var deployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                fixture.descriptor(), fixture.volume(), terrain);
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
         assertFalse(deployments.isEmpty());
 
         for (int deploymentIndex = 0; deploymentIndex < deployments.size(); deploymentIndex++) {
@@ -227,8 +222,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain))
                     .sum());
 
-            var reloaded = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
-                    fixture.descriptor(), fixture.volume(), terrain);
+            var reloaded = terrain.authoredHydrologyDeployments(fixture.volume().id());
             assertEquals(deployments, reloaded);
             var reloadedDeployment = reloaded.get(deploymentIndex);
             assertEquals(0, chunks.values().stream()
@@ -277,8 +271,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     void stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal() {
         StackedCorpusFixture fixture = stackedCorpus(77L);
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var lower = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.lower(), terrain);
-        var upper = SkyforgeAuthoredVisibleHydrologyAdapter.plan(fixture.descriptor(), fixture.upper(), terrain);
+        var lower = terrain.authoredHydrologyDeployments(fixture.lower().id());
+        var upper = terrain.authoredHydrologyDeployments(fixture.upper().id());
 
         assertNotEquals(fixture.lower().id(), fixture.upper().id());
         assertFalse(lower.isEmpty());
