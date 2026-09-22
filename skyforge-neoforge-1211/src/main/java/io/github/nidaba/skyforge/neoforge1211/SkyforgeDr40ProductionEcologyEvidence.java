@@ -134,9 +134,11 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40PopulationReplayExecuted", false);
         evidence.put("dr40StructureBeforePopulation", true);
         evidence.put("dr40ForeignVolumeFailClosed", true);
-        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
-            appendDr50PopulationDiagnostics(evidence, nativePhases);
-        }
+        // Retain exact per-phase native outcomes as diagnostics on every DR-40 run. These keys
+        // are intentionally not part of the deterministic acceptance key set; they exist so an
+        // aggregate digest mismatch can be localized to the exact chunk/feature without altering
+        // native execution or weakening the gate.
+        appendDr50PopulationDiagnostics(evidence, nativePhases);
         return Map.copyOf(evidence);
     }
 
