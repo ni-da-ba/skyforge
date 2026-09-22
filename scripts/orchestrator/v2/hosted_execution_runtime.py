@@ -418,6 +418,7 @@ class HostedExecutionAdvanceDisposition(str, Enum):
     TASK_CLAIMED = "TASK_CLAIMED"
     PREFLIGHT_ADVANCED = "PREFLIGHT_ADVANCED"
     CLASSIFIER_ADVANCED = "CLASSIFIER_ADVANCED"
+    CLASSIFIER_RETRY_PREPARED = "CLASSIFIER_RETRY_PREPARED"
     TASK_REVISION_ACCEPTED = "TASK_REVISION_ACCEPTED"
     ADMISSION_ADVANCED = "ADMISSION_ADVANCED"
     WORKER_RUNNABLE = "WORKER_RUNNABLE"
@@ -847,6 +848,81 @@ class HostedExecutionCoordinator:
             revision.event_id,
         )
 
+    def _retry_nonconsuming_classifier_scope_block(
+        self,
+        *,
+        plan_store,
+        plan,
+        admission,
+    ) -> HostedExecutionAdvanceResult | None:
+        """Prepare one new classifier request after a non-consuming path-scope mistake.
+
+        The signed task authority and original classifier run remain immutable. The
+        blocked admission is removed only because it acquired no worker/attempt/claim
+        identity. Retry is bounded to one instructions-version increment.
+        """
+        prefix = "classifier path scope widens repository authority:"
+        if admission.outcome is not HostedAdmissionOutcome.BLOCKED:
+            return None
+        if admission.consume_attempt:
+            return None
+        if (
+            admission.frozen_task is not None
+            or admission.attempt is not None
+            or admission.worker_spec is not None
+        ):
+            return self._blocked(
+                "non-consuming classifier retry found unexpected executable identity"
+            )
+        if not admission.reason.startswith(prefix):
+            return None
+        if plan.seed is None:
+            return self._blocked("classifier scope retry requires exact task seed")
+
+        request = plan.seed.classifier_request
+        if request.instructions_version >= 3:
+            return self._blocked(
+                "classifier scope retry exhausted after one bounded retry: "
+                + admission.reason
+            )
+
+        semantic_input = dict(request.semantic_input)
+        semantic_input["classifier_retry"] = {
+            "kind": "PATH_SCOPE_REJECTION",
+            "prior_request_id": request.request_id,
+            "rejection_reason": admission.reason,
+            "instruction": (
+                "Previous proposal invented or rewrote a path outside repository "
+                "authority. For allowed_paths, copy only exact entries from "
+                "task_authority.allowed_paths or exact subsets covered by them. "
+                "Do not normalize, expand, duplicate, or rewrite path segments."
+            ),
+        }
+        retry_request = ClassifierRequest(
+            current_main=request.current_main,
+            semantic_input=semantic_input,
+            instructions_version=request.instructions_version + 1,
+        )
+        retry_seed = replace(plan.seed, classifier_request=retry_request)
+        retry_plan = replace(
+            plan,
+            seed=retry_seed,
+            reason=(
+                "one bounded classifier retry prepared after non-consuming "
+                "path-scope rejection"
+            ),
+        )
+
+        admission_store = HostedAdmissionStore.for_root(self.root)
+        admission_store.save(admission_store.load().remove_plan(plan.plan_id))
+        plan_store.save(plan_store.load().put(retry_plan))
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.CLASSIFIER_RETRY_PREPARED,
+            "prepared one bounded classifier retry without consuming worker authority",
+            self.gate.digest,
+            retry_request.request_id,
+        )
+
     def _supersede_reclassify_admission(
         self,
         *,
@@ -1202,6 +1278,14 @@ class HostedExecutionCoordinator:
             )
             if revision is not None:
                 return revision
+        if admission.outcome is HostedAdmissionOutcome.BLOCKED:
+            retry = self._retry_nonconsuming_classifier_scope_block(
+                plan_store=plan_store,
+                plan=plan,
+                admission=admission,
+            )
+            if retry is not None:
+                return retry
         if admission.outcome is not HostedAdmissionOutcome.ADMITTED:
             return self._blocked(admission.reason)
         if admission.worker_spec is None or admission.attempt is None or admission.frozen_task is None:
