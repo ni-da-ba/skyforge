@@ -430,6 +430,60 @@ def _changed_paths(worktree: Path) -> tuple[str, ...]:
     return tuple(sorted(paths))
 
 
+def _apply_controller_patch(
+    *, spec: FrozenWorkerSpec, worktree: Path, patch: str,
+) -> tuple[str, ...]:
+    paths = _patch_paths(patch)
+    for path in paths:
+        if path_is_allowed(path, spec.protected_paths):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch touches protected path: {path}",
+            )
+        if any(
+            path == prefix.rstrip("/") or path.startswith(prefix)
+            for prefix in _PROTECTED_WORKER_PREFIXES
+        ):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch touches controller path: {path}",
+            )
+        if not path_is_allowed(path, spec.allowed_paths):
+            raise WorkerProviderError(
+                "scope_violation", 0,
+                f"worker patch exceeds frozen scope: {path}",
+            )
+
+    for args in (
+        ["git", "apply", "--check", "--whitespace=error-all", "-"],
+        ["git", "apply", "-"],
+    ):
+        completed = subprocess.run(
+            args, cwd=worktree, input=patch, text=True,
+            capture_output=True, timeout=60, check=False,
+        )
+        if completed.returncode != 0:
+            detail = (completed.stderr or completed.stdout).strip()[:2000]
+            raise WorkerProviderError(
+                "invalid_patch", 0,
+                f"controller git apply failed ({' '.join(args)}): {detail}",
+            )
+
+    changed = _changed_paths(worktree)
+    if not changed:
+        raise WorkerProviderError(
+            "invalid_patch", 0,
+            "controller applied worker patch but worktree remained clean",
+        )
+    unexpected = tuple(path for path in changed if path not in paths)
+    if unexpected:
+        raise WorkerProviderError(
+            "scope_violation", 0,
+            f"controller-applied patch changed paths absent from patch headers: {unexpected}",
+        )
+    return changed
+
+
 class CodexWorkerProvider:
     """Initial provider adapter preserving accepted legacy worker SDK semantics."""
 
