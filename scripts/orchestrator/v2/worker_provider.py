@@ -518,9 +518,18 @@ content after {PATCH_END}."""
                     "required by your developer instructions."
                 )
                 result = thread.run(prompt, sandbox=Sandbox.read_only)
-                summary = str(result.final_response or "").strip()
-                if not summary:
-                    raise WorkerProviderError("empty_response", 0, "worker returned no final response")
+                summary, patch = _extract_controller_patch(
+                    str(result.final_response or "")
+                )
+                if patch is not None:
+                    changed = _apply_controller_patch(
+                        spec=spec,
+                        worktree=Path(worktree).resolve(),
+                        patch=patch,
+                    )
+                    summary = (
+                        summary + "\n\nController-applied patch paths: " + ", ".join(changed)
+                    ).strip()
                 return summary
         except WorkerProviderError:
             raise
