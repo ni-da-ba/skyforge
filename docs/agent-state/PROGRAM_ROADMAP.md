@@ -1,7 +1,7 @@
 # Skyforge Program Roadmap
 
 **Status:** Canonical program-level convergence roadmap when merged  
-**Updated:** 2026-09-10 (America/Chicago)  
+**Updated:** 2026-09-22 (America/Chicago)  
 **Purpose:** tell Audit/orchestration and fresh producer agents what product-convergent work comes next without turning long-range ideas into premature implementation tasks.
 
 ## 1. Authority and role
@@ -146,9 +146,10 @@ Do not turn a phase into an exhaustive Cartesian acceptance matrix unless eviden
 | Phase | Name | State | Current interpretation |
 | --- | --- | --- | --- |
 | 0 | Core world-synthesis foundation | **COMPLETE** | Maintenance only unless a downstream consumer exposes a defect/gap |
-| 1 | Production geography convergence | **PRIMARY_ACTIVE** | Finish current morphology confidence, bounded hybrid/provider proof, then pivot |
-| 2 | Integrated physical world | **NEXT_AUTHORIZED** | Materials/geology -> hydrology -> structures -> ecology on production geography |
-| 3 | Bootstrap Province | **PLANNED** | Extensively pre-specified; bounded existing #224/#466/#467 work remains authorized |
+| 1 | Production geography convergence | **COMPLETE / downstream repair only** | Production work has moved into integrated world realization; reopen only for a concrete downstream defect |
+| 2 | Integrated physical world / first environments | **PRIMARY_ACTIVE** | Current DR convergence: prove coherent dressed places and close the active DR-70 human-review repair |
+| 2.5 | Cohesive World / production-stack convergence | **NEXT_AUTHORIZED** | After DR-70 acceptance, converge the intended production stack and certify island -> cluster -> province -> coarse-world behavior |
+| 3 | Bootstrap Province | **PLANNED** | Gameplay/onboarding/balance phase after Phase 2.5; bounded existing #224/#466/#467 work remains authorized |
 | 4 | Atmospheric and visual-world convergence | **PLANNED** | Regional semantic weather, DH, reference shader/cloud stack, Lower cloud deck |
 | 5 | Regional systemic sandbox | **PLANNED** | Multiple provinces, specialization, Guild/economy/freight persistence |
 | 6 | Mature engineering, industry, and computing | **PLANNED** | Brass/electricity/petroleum/heavy logistics/computing/autonomy |
@@ -342,29 +343,71 @@ At least one representative production region is accepted as a coherent dressed 
 
 > intentional landform + geology/materials + authored water + caves + ecology + appropriate structures, realized persistently and correctly in Minecraft.
 
-When this exists, the larger risk becomes complete player experience rather than isolated world dressing.
+When this exists, the larger risk becomes whether the intended production stack and authored world model remain coherent across the spatial scales the game actually depends on. Do **not** jump directly from one good dressed environment into gameplay balancing.
+
+## 8A. Phase 2.5 — Cohesive World / Production Stack Convergence
+
+**State:** NEXT_AUTHORIZED after the active Phase-2/DR-70 human gate is accepted.
+
+Canonical detailed contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+### Objective
+
+Take the accepted first-environment systems and prove that the **minimum intended production stack** can generate and sustain a recognizably Skyforge world across:
+
+```text
+island
+ -> cluster
+ -> province
+ -> coarse world
+```
+
+This phase owns substrate convergence, not gameplay balance.
+
+It must establish:
+
+- a production-baseline dependency roster using `CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED`;
+- explicit semantic-ownership/adaptation boundaries for retained mods;
+- island-scale composition using accepted Phase-2 evidence rather than restarting it;
+- cluster-scale multi-island geography, atmosphere, streaming/navigation, ecology/resource differentiation, and aircraft/sublevel behavior;
+- province-scale regional specialization, sparse civilization/infrastructure, producer/consumer asymmetry, freight-capable route geometry, and the minimum world conditions later consumed by Bootstrap;
+- coarse-world distribution/materialization/persistence evidence sufficient to show that continued travel still produces Skyforge rather than disconnected local demonstrations;
+- bounded combined-stack compatibility/performance evidence for the selected production baseline.
+
+### Scope discipline
+
+A production-baseline roster is **not** a permanently frozen final mod list. Bootstrap may still reveal a dependency to remove, replace, or add.
+
+Do not require Phase 2.5 to finish mature industry, fleet automation, dragons/whaling, final civilization breadth, final atmospheric presentation, full Studio, every structure archetype, final economy balance, or final tutorial/quest design.
+
+A capability without a Phase-2.5 or Bootstrap consumer remains later work.
+
+### Exit criteria
+
+Phase 2.5 exits when:
+
+> The minimum intended production stack can generate and sustain a representative Skyforge world across the island -> cluster -> province -> coarse-world hierarchy without major unresolved architectural, compatibility, persistence, or performance unknowns.
+
+At exit, the dominant remaining uncertainty should be **player experience**: progression, teaching, pacing, recovery, economy balance, and whether the game is fun.
 
 ## 9. Phase 3 — Bootstrap Province
 
 **State:** PLANNED, with substantial already-authorized bounded work.
 
-### Entry condition — pre-Bootstrap development platform gate
+### Entry conditions — accepted DR-70 + Cohesive World convergence
 
-Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until the owner-approved gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` is accepted.
+Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until:
 
-The key-2885 DR-70 human re-review returned **CHANGES REQUIRED** on 2026-09-20. By owner direction, further DR-70 product work is deferred and this gate is now active. The current DR-70 findings must remain preserved as an open product gate while platform work proceeds.
+1. the current DR-70 human re-review is accepted;
+2. Phase 2.5 Cohesive World / Production Stack Convergence satisfies its exit criteria; and
+3. no stronger current human/product gate blocks gameplay convergence.
 
-The bounded transition now hardens:
+The pre-Bootstrap development-platform hardening gate has already been crossed; its accepted tooling remains the execution substrate for Phase 2.5 and Bootstrap.
 
-- automatic context/scope packaging;
-- durable significant project/human events and material-delta human gates;
-- routine platform upgrade/operability;
-- one shared development backend with an MVP Operations Console and ChatGPT/MCP visibility;
-- lifecycle/adversarial evidence sufficient for bounded concurrency;
-- basic conflict-aware multi-objective scheduling;
-- minimum viable `Continue Skyforge` autonomous progression.
+Already-authorized bounded Bootstrap work may continue under the existing-work exception, but that exception does not waive the Phase-2.5 entry condition for making Bootstrap the primary convergence focus.
 
-Already-authorized bounded Bootstrap work may continue under the existing-work exception, but that exception does not waive this entry condition for making Phase 3 the primary program focus.
+Bootstrap should consume a known-working production substrate and concentrate on gameplay rather than discovering basic mod-stack, world-scale, persistence, or compatibility architecture while tuning the player experience.
 
 ### Objective
 
@@ -805,27 +848,39 @@ Treat the End as the Minecraft backend for the extreme upper-atmosphere / highes
 
 These remain valid setting/architecture possibilities but are not required for the first complete Minecraft realization unless future player evidence or owner strategy deliberately promotes them.
 
-### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
+### RM-R07 — Cohesive World before Bootstrap — RESOLVED
 
-Execute the bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` now, before resuming the deferred DR-70 product repair and before promoting Bootstrap Province to PRIMARY_ACTIVE.
+Owner decision #1063 inserts Phase 2.5 after accepted first-environment/DR convergence and before Bootstrap becomes PRIMARY_ACTIVE.
 
-The resolved direction is:
+The governing distinction is:
 
 ```text
-DR-70 changes required / deferred
- -> bounded context + workflow-truth hardening
- -> routine platform operability
- -> shared backend + MVP Operations Console + ChatGPT/MCP
- -> lifecycle hardening
- -> basic safe concurrency
- -> minimum viable Continue Skyforge
- -> pre-Bootstrap gate accepted
- -> resume bounded DR-70 repair
- -> DR-70 human gate accepted
- -> Phase 3 PRIMARY_ACTIVE
+Phase 2   -> prove coherent dressed environments
+Phase 2.5 -> prove the intended production stack and world hierarchy cohere
+Phase 3   -> balance and teach the player experience
 ```
 
-The console, ChatGPT, CLI, and future Studio are clients of one development backend; they do not become independent sources of project truth. This transition is active now by owner direction; DR-70 remains an open deferred gate, not an accepted one.
+Phase 2.5 must converge a production-baseline dependency roster and certify representative island, cluster, province, and coarse-world behavior. It must not become a demand to finish every planned mod or feature before gameplay testing.
+
+Canonical contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
+
+The bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` has been accepted. Its result is the production development substrate used by the resumed DR-70 repair and all later phases.
+
+The resolved transition is now:
+
+```text
+development-platform gate accepted
+ -> resumed bounded DR-70 repair
+ -> DR-70 human gate accepted
+ -> Phase 2.5 Cohesive World / Production Stack Convergence
+ -> Phase 2.5 accepted
+ -> Phase 3 Bootstrap PRIMARY_ACTIVE
+```
+
+The console, ChatGPT, CLI, and future Studio remain clients of one development backend; they do not become independent sources of project truth.
 
 ## 19. What the orchestrator should do today
 
@@ -850,7 +905,7 @@ The orchestrator should therefore:
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
 
-**Current transition:** RM-R06 has been explicitly accepted by the project owner. The 2026-09-20 key-2885 DR-70 review remains CHANGES REQUIRED while preserving the positive proof of real channel geomorphology. The active program boundary is now the bounded post-platform #754 repair: resolve the failed ocean-biome/presentation context, poor visible water/material dressing, and inadequate small review specimen while preserving the proven channel and accepted canopy/cave/exterior-fluid improvements. A new qualified material delta must return to human review before Phase 3 may become PRIMARY_ACTIVE.
+**Current transition:** RM-R06 has been accepted and the bounded post-platform DR-70 repair is active. Preserve the current #754/#1062 authority and human-review boundary. When DR-70 receives human acceptance, RM-R07 makes Phase 2.5 Cohesive World / Production Stack Convergence the next product-convergence focus. Bootstrap does not become PRIMARY_ACTIVE directly from DR-70.
 
 ## 20. Maintenance rule
 
