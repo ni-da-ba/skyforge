@@ -4,7 +4,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily;
 import java.nio.file.Path;
+import java.util.EnumSet;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -31,26 +33,85 @@ final class SkyforgeDr70HumanReviewAtlasFixtureTest {
     }
 
     @Test
-    void reviewOrderIsCompleteUniqueAndNondecreasingByRadius() {
+    void frozenCorpusCoversEveryBuiltInMorphologyAndBroadSizeBand() {
+        EnumSet<SkyIslandMorphologyFamily> morphologies =
+                EnumSet.noneOf(SkyIslandMorphologyFamily.class);
+        boolean small = false;
+        boolean medium = false;
+        boolean large = false;
+
+        for (int index = 1; index <= 100; index++) {
+            var descriptor = SkyforgeDr70HumanReviewAtlasFixture.member(index).descriptor();
+            morphologies.add(descriptor.morphologyFamily());
+            if (descriptor.nominalRadius() < 160.0) {
+                small = true;
+            } else if (descriptor.nominalRadius() < 320.0) {
+                medium = true;
+            } else {
+                large = true;
+            }
+        }
+
+        assertEquals(EnumSet.allOf(SkyIslandMorphologyFamily.class), morphologies);
+        assertTrue(small, "DR-70 corpus must include compact baseline islands");
+        assertTrue(medium, "DR-70 corpus must include middle-scale baseline islands");
+        assertTrue(large, "DR-70 corpus must include large baseline islands");
+    }
+
+    @Test
+    void reviewOrderIsCompleteUniqueAndFrontLoadsCrossScaleMorphologyCoverage() {
         List<Integer> order = SkyforgeDr70HumanReviewAtlasFixture.reviewOrder();
         assertEquals(100, order.size());
         assertEquals(100, order.stream().distinct().count());
 
-        double previousRadius = Double.NEGATIVE_INFINITY;
-        for (int index : order) {
-            double radius = SkyforgeDr70HumanReviewAtlasFixture.member(index).descriptor().nominalRadius();
-            assertTrue(radius >= previousRadius);
-            previousRadius = radius;
+        var firstWave = order.subList(0, 15).stream()
+                .map(SkyforgeDr70HumanReviewAtlasFixture::member)
+                .toList();
+        var morphologySizeCells = firstWave.stream()
+                .map(member -> member.descriptor().morphologyFamily().name()
+                        + ":" + sizeBand(member.descriptor().nominalRadius()))
+                .collect(java.util.stream.Collectors.toSet());
+        assertEquals(15, morphologySizeCells.size(),
+                "first 15 review specimens must cover every morphology x size cell");
+
+        var earlyBuckets = order.subList(0, 25).stream()
+                .map(SkyforgeDr70HumanReviewAtlasFixture::member)
+                .map(SkyforgeDr70HumanReviewAtlasFixture.Member::selectionBucket)
+                .collect(java.util.stream.Collectors.toSet());
+        for (String bucket : List.of(
+                "substantial-channel",
+                "retained-water",
+                "cave-sealed",
+                "cave-upper",
+                "cave-underside",
+                "channel-and-cave",
+                "channel-and-upper",
+                "channel-and-underside",
+                "channel-water-cave",
+                "wet-large-relief-channel")) {
+            assertTrue(earlyBuckets.contains(bucket), "early review wave must include " + bucket);
         }
     }
 
+    private static int sizeBand(double nominalRadius) {
+        if (nominalRadius < 160.0) {
+            return 0;
+        }
+        if (nominalRadius < 320.0) {
+            return 1;
+        }
+        return 2;
+    }
+
     @Test
-    void reviewPresetIsNeutralVoidCarrier() throws Exception {
+    void reviewPresetSeparatesVoidReviewCarrierFromNativeSurfaceDonor() throws Exception {
         String json = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/world_preset/dr70_review_atlas.json"));
-        assertTrue(json.contains("\"type\": \"skyforge:noise_overlay\""));
+        assertTrue(json.contains("\"minecraft:overworld\""));
         assertTrue(json.contains("\"biome\": \"minecraft:the_void\""));
         assertTrue(json.contains("\"settings\": \"skyforge:dr70_review_void\""));
+        assertTrue(json.contains("\"skyforge:dr70_surface_donor\""));
+        assertTrue(json.contains("\"preset\": \"minecraft:overworld\""));
 
         String noise = Files.readString(PROJECT.resolve(
                 "src/development/resources/data/skyforge/worldgen/noise_settings/dr70_review_void.json"));

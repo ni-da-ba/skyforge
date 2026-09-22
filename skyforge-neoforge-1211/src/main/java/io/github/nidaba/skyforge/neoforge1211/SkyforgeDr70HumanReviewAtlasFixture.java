@@ -11,6 +11,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -261,12 +262,68 @@ final class SkyforgeDr70HumanReviewAtlasFixture {
     }
 
     private static final class ReviewOrderHolder {
-        private static final List<Integer> ORDER = IntStream.rangeClosed(1, SPECS.size())
-                .mapToObj(SkyforgeDr70HumanReviewAtlasFixture::member)
-                .sorted(Comparator
-                        .comparingDouble((Member member) -> member.descriptor().nominalRadius())
-                        .thenComparingInt(Member::reviewIndex))
-                .map(Member::reviewIndex)
-                .toList();
+        private static final List<String> SEMANTIC_COVERAGE_BUCKETS = List.of(
+                "substantial-channel",
+                "retained-water",
+                "cave-sealed",
+                "cave-upper",
+                "cave-underside",
+                "channel-and-cave",
+                "channel-and-upper",
+                "channel-and-underside",
+                "channel-water-cave",
+                "wet-large-relief-channel");
+
+        private static final List<Integer> ORDER = build();
+
+        private static List<Integer> build() {
+            List<Member> members = IntStream.rangeClosed(1, SPECS.size())
+                    .mapToObj(SkyforgeDr70HumanReviewAtlasFixture::member)
+                    .toList();
+            var order = new LinkedHashSet<Integer>();
+
+            // First-wave coverage: every built-in morphology at compact, middle and large scales.
+            for (int sizeBand = 0; sizeBand < 3; sizeBand++) {
+                for (var morphology : io.github.nidaba.skyforge.model.skyisland.SkyIslandMorphologyFamily.values()) {
+                    final int requiredBand = sizeBand;
+                    members.stream()
+                            .filter(member -> sizeBand(member.descriptor().nominalRadius()) == requiredBand)
+                            .filter(member -> member.descriptor().morphologyFamily() == morphology)
+                            .min(Comparator
+                                    .comparingDouble((Member member) -> member.descriptor().nominalRadius())
+                                    .thenComparingInt(Member::reviewIndex))
+                            .ifPresent(member -> order.add(member.reviewIndex()));
+                }
+            }
+
+            // Then guarantee that each explicitly frozen semantic stress stratum appears early.
+            for (String bucket : SEMANTIC_COVERAGE_BUCKETS) {
+                members.stream()
+                        .filter(member -> member.selectionBucket().equals(bucket))
+                        .min(Comparator
+                                .comparingDouble((Member member) -> member.descriptor().nominalRadius())
+                                .thenComparingInt(Member::reviewIndex))
+                        .ifPresent(member -> order.add(member.reviewIndex()));
+            }
+
+            // Remaining corpus stays cost-aware so background preparation remains economical.
+            members.stream()
+                    .sorted(Comparator
+                            .comparingDouble((Member member) -> member.descriptor().nominalRadius())
+                            .thenComparingInt(Member::reviewIndex))
+                    .map(Member::reviewIndex)
+                    .forEach(order::add);
+            return List.copyOf(order);
+        }
+
+        private static int sizeBand(double nominalRadius) {
+            if (nominalRadius < 160.0) {
+                return 0;
+            }
+            if (nominalRadius < 320.0) {
+                return 1;
+            }
+            return 2;
+        }
     }
 }

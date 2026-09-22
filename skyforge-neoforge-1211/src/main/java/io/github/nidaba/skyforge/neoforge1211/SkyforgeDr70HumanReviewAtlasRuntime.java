@@ -18,10 +18,12 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
@@ -52,6 +54,8 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
     private static final int MAX_WARM_CHUNKS_PER_TICK = 16;
     private static final int TICKET_DISTANCE = 3;
     private static final int FLUID_SETTLE_TICKS = 100;
+    private static final ResourceLocation SURFACE_DONOR_DIMENSION =
+            ResourceLocation.fromNamespaceAndPath("skyforge", "dr70_surface_donor");
     static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
     private static final Path PREPARED_FILE = Path.of("dr70-human-review-prepared.txt");
     private static final Path RATINGS_FILE = Path.of("dr70-human-review-results.csv");
@@ -75,6 +79,11 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
 
     static boolean enabled() {
         return Boolean.getBoolean(ENABLE_PROPERTY);
+    }
+
+    static boolean isSurfaceDonor(net.minecraft.server.level.WorldGenRegion level) {
+        Objects.requireNonNull(level, "level");
+        return level.getLevel().dimension().location().equals(SURFACE_DONOR_DIMENSION);
     }
 
     static synchronized void installFromSystemProperty() {
@@ -192,6 +201,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         if (level == null) {
             return;
         }
+        ServerLevel surfaceDonor = surfaceDonorLevel(event.getServer());
         ServerPlayer player = event.getServer().getPlayerList().getPlayer(active.playerId());
         if (player == null) {
             return;
@@ -201,10 +211,12 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         while (active.cursor() < active.chunkKeys().size() && warmed < warmChunksPerTick()) {
             long key = active.chunkKeys().get(active.cursor());
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
+            surfaceDonor.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
+            MinecraftNativeSurfaceSnapshot nativeSurfaceSnapshot =
+                    captureDonorSurface(surfaceDonor, pos);
+
             level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
             LevelChunk chunk = level.getChunk(pos.x, pos.z);
-            MinecraftNativeSurfaceSnapshot nativeSurfaceSnapshot =
-                    MinecraftNativeSurfaceSnapshot.empty(chunk.getPos());
             SkyforgeNeoForge1211SurfaceStage.realize(chunk, nativeSurfaceSnapshot);
             active.advance();
             warmed++;
@@ -384,6 +396,7 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         PREPARED.add(index);
         writePrepared();
         releaseTickets(level, active.chunkKeys());
+        releaseTickets(surfaceDonorLevel(level.getServer()), active.chunkKeys());
         closeTargetPipeline();
         if (activateWhenReady) {
             currentReviewIndex = index;
@@ -540,8 +553,10 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
         say(player, "/skyforge_dr70_atlas next | prev | go <1-100> | status | info | reveal");
         say(player, "/skyforge_dr70_atlas above | approach | orbit | below | river | cave");
         say(player, "/skyforge_dr70_atlas pass|concern|fail [notes]");
-        say(player, "Judge morphology, hydrology, water, caves, ecology/materials, "
-                + "cross-system conflicts, and overall gameplay acceptability. N/A is valid.");
+        say(player, "Baseline capability audit: judge topside morphology, edges/underside, "
+                + "hydrology, caves, ecology/native population, cross-system coherence, and persistence.");
+        say(player, "This corpus is a pre-content/mod baseline. Specialized authored island classes "
+                + "(for example ocean bowls) are intentionally out of scope.");
     }
 
     private static synchronized int rate(ServerPlayer player, String verdict, String notes) {
@@ -589,6 +604,26 @@ final class SkyforgeDr70HumanReviewAtlasRuntime {
     }
     static synchronized boolean foregroundPreparationActive() {
         return enabled() && preparation != null && preparation.activateWhenReady();
+    }
+
+    private static ServerLevel surfaceDonorLevel(net.minecraft.server.MinecraftServer server) {
+        Objects.requireNonNull(server, "server");
+        for (ServerLevel level : server.getAllLevels()) {
+            if (level.dimension().location().equals(SURFACE_DONOR_DIMENSION)) {
+                return level;
+            }
+        }
+        throw new IllegalStateException(
+                "DR-70 atlas surface donor dimension is missing: " + SURFACE_DONOR_DIMENSION);
+    }
+
+    private static MinecraftNativeSurfaceSnapshot captureDonorSurface(
+            ServerLevel surfaceDonor,
+            ChunkPos pos) {
+        Objects.requireNonNull(surfaceDonor, "surfaceDonor");
+        Objects.requireNonNull(pos, "pos");
+        LevelChunk donorChunk = surfaceDonor.getChunk(pos.x, pos.z);
+        return MinecraftNativeSurfaceSnapshot.capture(donorChunk).asRepresentationOnly();
     }
 
     static boolean suppressNativeStructureRuntime() {
