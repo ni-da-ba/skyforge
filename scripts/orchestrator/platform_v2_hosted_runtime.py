@@ -147,6 +147,21 @@ MAX_MCP_PAYLOAD_BYTES = 1_000_000
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 
 
+def legacy_human_gate_is_actionable(
+    *,
+    reviews,
+    gate_id: str,
+    active_program_gate_id: str = "",
+) -> bool:
+    """Return whether a legacy blocked gate currently needs fresh human judgment."""
+    gate = str(gate_id or "").strip()
+    if not gate:
+        raise ValueError("gate_id is required")
+    if gate == str(active_program_gate_id or "").strip():
+        return True
+    return reviews.latest_for_gate(gate) is None
+
+
 def _trusted_actors() -> tuple[str, ...]:
     raw = os.environ.get("SKYFORGE_TRUSTED_GITHUB_ACTORS", "ni-da-ba")
     return tuple(
@@ -735,10 +750,10 @@ class HostedV2Substrate:
                         continue
                     if int(completed.get(node.node_id) or 0) >= node.max_runs:
                         continue
-                    latest_review = reviews.latest_for_gate(node.node_id)
-                    if (
-                        latest_review is not None
-                        and node.node_id != active_program_gate_id
+                    if not legacy_human_gate_is_actionable(
+                        reviews=reviews,
+                        gate_id=node.node_id,
+                        active_program_gate_id=active_program_gate_id,
                     ):
                         # Durable review history makes the unchanged legacy block
                         # historical operator context, not a fresh actionable gate.
