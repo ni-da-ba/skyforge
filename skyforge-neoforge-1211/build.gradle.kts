@@ -66,6 +66,10 @@ if (System.getenv("GITHUB_WORKFLOW") == "SF-IMP-0070 Performance Characterizatio
         }
         if (longDr70Qualification) {
             systemProperty("skyforge.test.dr70SpecimenSearch", "true")
+            // The preceding workflow step runs this same Test task with a smoke-test filter.
+            // Force the long-phase selector to execute rather than reusing those prior outputs.
+            outputs.upToDateWhen { false }
+            outputs.cacheIf { false }
         }
     }
     tasks.configureEach {
