@@ -1020,6 +1020,95 @@ class HostedExecutionCoordinator:
             revision.event_id,
         )
 
+    def _supersede_blocked_admission(
+        self,
+        *,
+        state,
+        plan_store,
+        plan,
+        admission,
+    ) -> HostedExecutionAdvanceResult | None:
+        """Prefer one newer signed same-issue revision over retrying a non-executed block."""
+
+        if admission.outcome is not HostedAdmissionOutcome.BLOCKED:
+            return None
+        if admission.plan_id != plan.plan_id:
+            return self._blocked("blocked admission plan identity drifted")
+        if (
+            admission.consume_attempt
+            or admission.frozen_task is not None
+            or admission.attempt is not None
+            or admission.worker_spec is not None
+        ):
+            return self._blocked(
+                "blocked admission unexpectedly carries executable worker authority"
+            )
+
+        authority_events = TaskAuthorityEventStore.for_root(self.root).load()
+        original = authority_events.get(plan.event_id)
+        if original is None:
+            return self._blocked(
+                "blocked admission lacks original signed task authority"
+            )
+        original_order = (
+            str(original.reference.created_at),
+            int(original.reference.comment_id),
+        )
+        candidates = []
+        for event in state.inbox.pending_events:
+            if (
+                event.event_id == plan.event_id
+                or event.signal_kind != "task"
+                or not event.protected_authority
+                or event.task_issue_number != plan.issue_number
+            ):
+                continue
+            record = authority_events.get(event.event_id)
+            if record is None or record.reference.issue_number != plan.issue_number:
+                continue
+            candidate_order = (
+                str(record.reference.created_at),
+                int(record.reference.comment_id),
+            )
+            if candidate_order > original_order:
+                candidates.append((event, candidate_order))
+
+        if not candidates:
+            return None
+        if len(candidates) != 1:
+            return self._blocked(
+                "multiple newer task revisions are pending after blocked admission; "
+                "operator must disambiguate authority"
+            )
+
+        revision, _order = candidates[0]
+        retired = list(state.inbox.retired_event_keys)
+        if plan.event_id not in retired:
+            retired.append(plan.event_id)
+        new_inbox = replace(
+            state.inbox,
+            pending_events=tuple(
+                event
+                for event in state.inbox.pending_events
+                if event.event_id != plan.event_id
+            ),
+            retired_event_keys=tuple(retired[-1024:]),
+            owned_event_keys=tuple(
+                key for key in state.inbox.owned_event_keys if key != plan.event_id
+            ),
+        )
+        HostedStateStore.for_root(self.root).save(replace(state, inbox=new_inbox))
+
+        admission_store = HostedAdmissionStore.for_root(self.root)
+        admission_store.save(admission_store.load().remove_plan(plan.plan_id))
+        plan_store.save(plan_store.load().remove(plan.plan_id))
+        return HostedExecutionAdvanceResult(
+            HostedExecutionAdvanceDisposition.TASK_REVISION_ACCEPTED,
+            "newer signed task authority superseded non-executed blocked admission",
+            self.gate.digest,
+            revision.event_id,
+        )
+
     def _supersede_reclassify_admission(
         self,
         *,
@@ -1375,6 +1464,14 @@ class HostedExecutionCoordinator:
             )
 
         if admission.outcome is HostedAdmissionOutcome.BLOCKED:
+            revision = self._supersede_blocked_admission(
+                state=state,
+                plan_store=plan_store,
+                plan=plan,
+                admission=admission,
+            )
+            if revision is not None:
+                return revision
             retry = self._retry_nonexecuted_classifier_block(
                 plan_store=plan_store,
                 plan=plan,
