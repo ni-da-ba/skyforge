@@ -624,6 +624,14 @@ class HostedExecutionCoordinatorTest(unittest.TestCase):
             make_repo(root)
             write_legacy(root)
             base = install_terminal_roadmap(root)
+            artifact_manifest = root / "docs/agent-state/REVIEW_ARTIFACTS.json"
+            artifact_manifest.write_text(
+                json.dumps({"schema_version": 1, "artifacts": []}),
+                encoding="utf-8",
+            )
+            git(root, "add", "docs/agent-state/REVIEW_ARTIFACTS.json")
+            git(root, "commit", "-m", "install empty review artifact fixture")
+            base = git(root, "rev-parse", "HEAD")
             gate = ready_gate(base)
             app = self.restart(root, gate)
 
