@@ -278,14 +278,10 @@ def inspect_clean_interrupted_worker(
             or not admission.consume_attempt
         ):
             blockers.append("admission identity differs from prepared interrupted attempt")
-    elif record.status is not InterruptedWorkerRecoveryStatus.RECOVERED:
-        blockers.append("admission disappeared before recovery completed")
 
     if plan is not None:
         if plan.plan_id != record.plan_id or plan.event_id != record.event_id:
             blockers.append("task plan identity differs from prepared interrupted attempt")
-    elif record.status is not InterruptedWorkerRecoveryStatus.RECOVERED:
-        blockers.append("task plan disappeared before recovery completed")
 
     scheduler = HostedWorkerSchedulerStore.for_root(root).load().get(attempt_id)
     if scheduler is None:
@@ -304,6 +300,24 @@ def inspect_clean_interrupted_worker(
     retired_claim = claims.retired_for_attempt(attempt_id)
     if active_claim is None and retired_claim is None:
         blockers.append("concurrency claim identity is unavailable")
+
+    # A PREPARED recovery may be replayed after some exact retirement steps already
+    # committed. Missing plan/admission is valid only when durable downstream tombstones
+    # prove the same recovery crossed those ownership boundaries.
+    if admission is None and record.status is not InterruptedWorkerRecoveryStatus.RECOVERED:
+        if (
+            scheduler is None
+            or scheduler.state is not HostedWorkerScheduleState.RETIRED
+            or retired_claim is None
+        ):
+            blockers.append("admission disappeared without exact recovery tombstones")
+    if plan is None and record.status is not InterruptedWorkerRecoveryStatus.RECOVERED:
+        if (
+            scheduler is None
+            or scheduler.state is not HostedWorkerScheduleState.RETIRED
+            or retired_claim is None
+        ):
+            blockers.append("task plan disappeared without exact recovery tombstones")
 
     if DormantHandoffCommitStore.for_root(root).load().for_attempt(attempt_id) is not None:
         blockers.append("worker already has dormant handoff commit evidence")
