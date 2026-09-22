@@ -9,6 +9,8 @@ import unittest
 
 from v2.worker_provider import (
     CodexWorkerProvider,
+    _apply_controller_patch,
+    _extract_controller_patch,
     FrozenWorkerSpec,
     WorkerAdvanceDisposition,
     WorkerProviderConfig,
@@ -328,7 +330,7 @@ class WorkerWorkspaceManagerTest(unittest.TestCase):
 
 
 class CodexProviderAdapterTest(unittest.TestCase):
-    def test_codex_adapter_binds_cwd_model_reasoning_and_workspace_sandbox(self):
+    def test_codex_adapter_uses_read_only_patch_transport(self):
         calls = {}
         module = types.ModuleType("openai_codex")
 
