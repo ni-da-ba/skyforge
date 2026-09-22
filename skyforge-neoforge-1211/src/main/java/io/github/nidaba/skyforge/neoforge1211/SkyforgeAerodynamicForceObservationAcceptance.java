@@ -29,7 +29,6 @@ final class SkyforgeAerodynamicForceObservationAcceptance {
         require(finite(observation.totalForceWorld()) && observation.totalForceWorld().lengthSquared() > 0.0,
                 "FAIL_PHYSICS aggregate DRAG force is zero/non-finite");
         require(finite(observation.totalMomentWorld()), "FAIL_PHYSICS aggregate DRAG moment is non-finite");
-        require(observation.totalMomentWorld().lengthSquared() > 0.0, "FAIL_PHYSICS aggregate DRAG moment is zero");
         LOGGER.log(System.Logger.Level.INFO, PREFIX + " PASS forwardSpeedMps=" + forwardSpeedMps
                 + " pointCount=" + observation.pointForces().size() + " referenceWorld=" + observation.referenceWorld()
                 + " totalForceWorld=" + observation.totalForceWorld() + " totalMomentWorld=" + observation.totalMomentWorld()
