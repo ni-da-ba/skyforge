@@ -12,7 +12,6 @@ on:
       - "tools/asset_compiler/compile_mechanism.py"
       - "tools/asset_compiler/specimens/mech_001_airflow_bench.json"
       - "tools/asset_compiler/tests/test_functional_mechanism.py"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCreateKineticNetworkLifecycleAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeMech001FunctionalMechanismAcceptance.java"
