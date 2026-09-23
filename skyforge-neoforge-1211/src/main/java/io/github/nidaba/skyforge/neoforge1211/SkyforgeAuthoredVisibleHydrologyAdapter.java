@@ -299,7 +299,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         Map<Column, ChannelPathProjection> candidateProjections =
                 candidateColumnProjections(volume, reach);
-        OptionalDouble registration = channelVerticalRegistration(
+        Optional<PhysicalChannelGrade> physicalGrade = physicalChannelGrade(
                 descriptor,
                 volume,
                 terrain,
@@ -309,10 +309,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 solidRangeCache,
                 basePotentialCache,
                 dryPotentialCache);
-        if (registration.isEmpty()) {
+        if (physicalGrade.isEmpty()) {
             return Optional.empty();
         }
-        double channelVerticalOffset = registration.orElseThrow();
 
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
         for (var candidate : candidateProjections.entrySet()) {
@@ -354,15 +353,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
-                int projected = (int) Math.round(
-                        channelVerticalOffset
-                                + authoredWater.orElseThrow() * descriptor.reliefBudget());
+                int projected = physicalGrade.orElseThrow().sample(fraction);
 
-                // The free surface follows one constant reach registration, so rounding cannot
-                // make it climb downstream. Reconcile small independent-carrier mismatches by
+                // The discrete physical grade is solved from centerline carrier constraints and is
+                // non-increasing by construction. Reconcile small independent-carrier mismatches by
                 // lowering the narrow channel bed instead of raising/clamping the water surface.
-                // This is the channel analogue of bounded retained-basin conditioning and prevents
-                // both staircase water and silently dropped authored reaches.
                 int requiredBedY = projected - 1;
                 int extraCut = Math.max(0, drySurfaceY - requiredBedY);
                 if (projected <= baseSurfaceY - 1
@@ -574,7 +569,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * within the valley half-width. Distances are merged by minimum and returned in canonical z/x
      * order so deployment ordering remains unchanged.
      */
-    private static OptionalDouble channelVerticalRegistration(
+    /**
+     * Builds the integer Minecraft free-surface profile for one authored reach.
+     *
+     * <p>Each authored path point is registered against its nearest supported centerline column.
+     * That produces a preferred local water Y plus a feasible interval bounded above by the
+     * untouched carrier surface and below by at most a small additional channel-bed cut. The suffix
+     * lower-bound pass and forward solve choose a deterministic non-increasing sequence inside all
+     * of those intervals. The resulting profile follows local carrier elevation without ever
+     * reintroducing per-column hydraulic steps.
+     */
+    private static Optional<PhysicalChannelGrade> physicalChannelGrade(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
@@ -584,74 +589,141 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
-        List<Double> desiredOffsets = new ArrayList<>();
-        double minimumOffset = Double.NEGATIVE_INFINITY;
-        double maximumOffset = Double.POSITIVE_INFINITY;
-        double centerlineWidth = Math.min(0.75, reach.wetHalfWidth());
+        var points = reach.path().points();
+        if (points.isEmpty() || candidateProjections.isEmpty()) {
+            return Optional.empty();
+        }
 
-        for (var entry : candidateProjections.entrySet()) {
-            if (entry.getValue().distance() > centerlineWidth) {
+        var physical = volume.compiledVolume().descriptor();
+        double pathLength = reach.path().pathLength();
+        List<ChannelGradeSample> samples = new ArrayList<>();
+        double cumulative = 0.0;
+
+        for (int index = 0; index < points.size(); index++) {
+            if (index > 0) {
+                SkyIslandLocalPosition previous = points.get(index - 1);
+                SkyIslandLocalPosition current = points.get(index);
+                cumulative += Math.hypot(
+                        current.x() - previous.x(),
+                        current.z() - previous.z());
+            }
+            double fraction = index == points.size() - 1
+                    ? 1.0
+                    : Math.max(0.0, Math.min(1.0, cumulative / pathLength));
+            SkyIslandLocalPosition point = points.get(index);
+
+            int roundedX = (int) Math.round(physical.centerX() + point.x());
+            int roundedZ = (int) Math.round(physical.centerZ() + point.z());
+            Column bestColumn = null;
+            double bestDistance = Double.POSITIVE_INFINITY;
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    Column candidate = new Column(roundedX + dx, roundedZ + dz);
+                    ChannelPathProjection projection = candidateProjections.get(candidate);
+                    if (projection == null || projection.distance() > reach.wetHalfWidth()) {
+                        continue;
+                    }
+                    var optionalRange = solidRangeCache.computeIfAbsent(
+                            candidate,
+                            ignored -> terrain.integerSolidRange(
+                                    volume.id(), candidate.x(), candidate.z()));
+                    if (optionalRange.isEmpty()) {
+                        continue;
+                    }
+                    SkyIslandLocalPosition candidateLocal = localPosition(volume, candidate);
+                    double distance = Math.hypot(
+                            candidateLocal.x() - point.x(),
+                            candidateLocal.z() - point.z());
+                    if (distance < bestDistance - 1.0e-12
+                            || (Math.abs(distance - bestDistance) <= 1.0e-12
+                                    && (bestColumn == null
+                                            || candidate.z() < bestColumn.z()
+                                            || (candidate.z() == bestColumn.z()
+                                                    && candidate.x() < bestColumn.x())))) {
+                        bestColumn = candidate;
+                        bestDistance = distance;
+                    }
+                }
+            }
+            if (bestColumn == null) {
                 continue;
             }
-            Column column = entry.getKey();
-            var optionalRange = solidRangeCache.computeIfAbsent(
-                    column,
-                    ignored -> terrain.integerSolidRange(
-                            volume.id(), column.x(), column.z()));
-            if (optionalRange.isEmpty()) {
-                continue;
-            }
-            var range = optionalRange.orElseThrow();
-            SkyIslandLocalPosition local = localPosition(volume, column);
+
+            var range = solidRangeCache.get(bestColumn).orElseThrow();
+            SkyIslandLocalPosition local = localPosition(volume, bestColumn);
             double basePotential = basePotentialCache.computeIfAbsent(
-                    column,
+                    bestColumn,
                     ignored -> fluvial.baseTerrain().sample(local));
             double dryPotential = dryPotentialCache.computeIfAbsent(
-                    column,
+                    bestColumn,
                     ignored -> fluvial.sample(local));
             double lowering = Math.max(0.0, basePotential - dryPotential);
             if (lowering <= 1.0e-12) {
                 continue;
             }
 
-            int baseSurfaceY = range.maximumY();
-            int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
-            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
-            double waterPotential = fluvial.reachWaterSurfacePotential(
-                    reach, entry.getValue().fraction());
+            double waterPotential = fluvial.reachWaterSurfacePotential(reach, fraction);
             if (waterPotential <= dryPotential + 1.0e-12) {
                 continue;
             }
 
-            double scaledWater = waterPotential * descriptor.reliefBudget();
-            desiredOffsets.add(
-                    baseSurfaceY - basePotential * descriptor.reliefBudget());
-
+            int baseSurfaceY = range.maximumY();
+            int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
+            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
             int minimumWaterTop = Math.max(
                     range.minimumY() + 1,
                     drySurfaceY + 1 - MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS);
             int maximumWaterTop = baseSurfaceY - 1;
-            minimumOffset = Math.max(minimumOffset, minimumWaterTop - scaledWater);
-            maximumOffset = Math.min(maximumOffset, maximumWaterTop - scaledWater);
+            if (minimumWaterTop > maximumWaterTop) {
+                continue;
+            }
+
+            int desiredWaterTop = baseSurfaceY
+                    + physicalSignedDeltaBlocks(
+                            descriptor,
+                            waterPotential - basePotential);
+            desiredWaterTop = Math.max(
+                    minimumWaterTop,
+                    Math.min(maximumWaterTop, desiredWaterTop));
+            samples.add(new ChannelGradeSample(
+                    fraction,
+                    minimumWaterTop,
+                    maximumWaterTop,
+                    desiredWaterTop));
         }
 
-        if (desiredOffsets.isEmpty()) {
-            return OptionalDouble.empty();
-        }
-        desiredOffsets.sort(Double::compareTo);
-        int middle = desiredOffsets.size() / 2;
-        double desired = desiredOffsets.size() % 2 == 0
-                ? 0.5 * (desiredOffsets.get(middle - 1) + desiredOffsets.get(middle))
-                : desiredOffsets.get(middle);
-
-        if (minimumOffset <= maximumOffset) {
-            return OptionalDouble.of(Math.max(minimumOffset, Math.min(maximumOffset, desired)));
+        if (samples.isEmpty()) {
+            return Optional.empty();
         }
 
-        // A complete centerline intersection can fail at a sharp authored cascade. Preserve the
-        // robust local registration and let the per-column three-block reconciliation/containment
-        // rules narrow only the genuinely incompatible fringe rather than discarding the reach.
-        return OptionalDouble.of(desired);
+        int[] suffixMinimum = new int[samples.size()];
+        int required = Integer.MIN_VALUE;
+        for (int index = samples.size() - 1; index >= 0; index--) {
+            required = Math.max(required, samples.get(index).minimumWaterTop());
+            suffixMinimum[index] = required;
+        }
+
+        List<Double> fractions = new ArrayList<>(samples.size());
+        List<Integer> waterTops = new ArrayList<>(samples.size());
+        int previousWaterTop = Integer.MAX_VALUE;
+        for (int index = 0; index < samples.size(); index++) {
+            ChannelGradeSample sample = samples.get(index);
+            int minimumWaterTop = suffixMinimum[index];
+            int maximumWaterTop = Math.min(
+                    sample.maximumWaterTop(),
+                    previousWaterTop);
+            if (minimumWaterTop > maximumWaterTop) {
+                return Optional.empty();
+            }
+            int waterTop = Math.max(
+                    minimumWaterTop,
+                    Math.min(maximumWaterTop, sample.desiredWaterTop()));
+            fractions.add(sample.fraction());
+            waterTops.add(waterTop);
+            previousWaterTop = waterTop;
+        }
+
+        return Optional.of(new PhysicalChannelGrade(fractions, waterTops));
     }
 
     private static Map<Column, ChannelPathProjection> candidateColumnProjections(
@@ -1509,6 +1581,64 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(state, "state");
         var fluid = state.getFluidState().getType();
         return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
+    }
+
+    private record ChannelGradeSample(
+            double fraction,
+            int minimumWaterTop,
+            int maximumWaterTop,
+            int desiredWaterTop) {
+        private ChannelGradeSample {
+            if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
+                throw new IllegalArgumentException("channel grade fraction must be finite and in [0, 1]");
+            }
+            if (minimumWaterTop > maximumWaterTop
+                    || desiredWaterTop < minimumWaterTop
+                    || desiredWaterTop > maximumWaterTop) {
+                throw new IllegalArgumentException("invalid channel grade sample bounds");
+            }
+        }
+    }
+
+    private record PhysicalChannelGrade(
+            List<Double> fractions,
+            List<Integer> waterTops) {
+        private PhysicalChannelGrade {
+            fractions = List.copyOf(fractions);
+            waterTops = List.copyOf(waterTops);
+            if (fractions.isEmpty() || fractions.size() != waterTops.size()) {
+                throw new IllegalArgumentException(
+                        "physical channel grade requires matching nonempty samples");
+            }
+        }
+
+        private int sample(double fraction) {
+            if (fractions.size() == 1 || fraction <= fractions.getFirst()) {
+                return waterTops.getFirst();
+            }
+            if (fraction >= fractions.getLast()) {
+                return waterTops.getLast();
+            }
+            int low = 0;
+            int high = fractions.size() - 1;
+            while (high - low > 1) {
+                int middle = (low + high) >>> 1;
+                if (fractions.get(middle) <= fraction) {
+                    low = middle;
+                } else {
+                    high = middle;
+                }
+            }
+            double lowerFraction = fractions.get(low);
+            double upperFraction = fractions.get(high);
+            if (upperFraction - lowerFraction <= 1.0e-12) {
+                return Math.min(waterTops.get(low), waterTops.get(high));
+            }
+            double t = (fraction - lowerFraction) / (upperFraction - lowerFraction);
+            return (int) Math.round(
+                    waterTops.get(low)
+                            + t * (waterTops.get(high) - waterTops.get(low)));
+        }
     }
 
     private record ChannelPathProjection(
