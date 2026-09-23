@@ -47,7 +47,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
-    static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 6;
+    // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
+    // smallest additional submerged bed cut that admits a contained non-climbing profile.
+    static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
@@ -371,7 +373,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 int extraCut = Math.max(0, drySurfaceY - requiredBedY);
                 if (projected <= baseSurfaceY - 1
                         && projected >= range.minimumY() + 1
-                        && extraCut <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
+                        && extraCut <= physicalGrade.orElseThrow().reconciliationDepth()) {
                     drySurfaceY = Math.max(range.minimumY(), Math.min(drySurfaceY, requiredBedY));
                     waterTopY = projected;
                 }
@@ -677,9 +679,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int baseSurfaceY = range.maximumY();
             int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
             int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
-            int minimumWaterTop = Math.max(
-                    range.minimumY() + 1,
-                    drySurfaceY + 1 - MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS);
+            int ownerMinimumWaterTop = range.minimumY() + 1;
             int maximumWaterTop = baseSurfaceY - 1;
             OptionalInt bankCeiling = channelBankCeiling(
                     descriptor,
@@ -697,7 +697,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             maximumWaterTop = Math.min(maximumWaterTop, bankCeiling.orElseThrow());
-            if (minimumWaterTop > maximumWaterTop) {
+            if (ownerMinimumWaterTop > maximumWaterTop) {
                 continue;
             }
 
@@ -706,7 +706,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             descriptor,
                             waterPotential - basePotential);
             desiredWaterTop = Math.max(
-                    minimumWaterTop,
+                    ownerMinimumWaterTop,
                     Math.min(maximumWaterTop, desiredWaterTop));
 
             int bin = (int) Math.round(projection.fraction() * pathLength);
@@ -714,7 +714,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     projection.distance(),
                     projection.fraction(),
-                    minimumWaterTop,
+                    ownerMinimumWaterTop,
+                    drySurfaceY,
                     maximumWaterTop,
                     desiredWaterTop);
             ChannelCarrierCandidate previous = carrierByBin.get(bin);
@@ -732,22 +733,43 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return Optional.empty();
         }
 
-        List<ChannelGradeSample> samples = carrierByBin.values().stream()
-                .map(candidate -> new ChannelGradeSample(
+        for (int reconciliationDepth = 0;
+                reconciliationDepth <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS;
+                reconciliationDepth++) {
+            List<ChannelGradeSample> samples = new ArrayList<>(carrierByBin.size());
+            boolean feasibleBounds = true;
+            for (ChannelCarrierCandidate candidate : carrierByBin.values()) {
+                int minimumWaterTop = Math.max(
+                        candidate.ownerMinimumWaterTop(),
+                        candidate.drySurfaceY() + 1 - reconciliationDepth);
+                if (minimumWaterTop > candidate.maximumWaterTop()) {
+                    feasibleBounds = false;
+                    break;
+                }
+                samples.add(new ChannelGradeSample(
                         candidate.fraction(),
-                        candidate.minimumWaterTop(),
+                        minimumWaterTop,
                         candidate.maximumWaterTop(),
-                        candidate.desiredWaterTop()))
-                .toList();
-        Optional<List<Integer>> solved = solveBoundedNonIncreasingGrade(samples);
-        if (solved.isEmpty()) {
-            return Optional.empty();
-        }
+                        candidate.desiredWaterTop()));
+            }
+            if (!feasibleBounds) {
+                continue;
+            }
 
-        List<Double> fractions = samples.stream()
-                .map(ChannelGradeSample::fraction)
-                .toList();
-        return Optional.of(new PhysicalChannelGrade(fractions, solved.orElseThrow()));
+            Optional<List<Integer>> solved = solveBoundedNonIncreasingGrade(samples);
+            if (solved.isEmpty()) {
+                continue;
+            }
+
+            List<Double> fractions = samples.stream()
+                    .map(ChannelGradeSample::fraction)
+                    .toList();
+            return Optional.of(new PhysicalChannelGrade(
+                    fractions,
+                    solved.orElseThrow(),
+                    reconciliationDepth));
+        }
+        return Optional.empty();
     }
 
     /**
@@ -1800,7 +1822,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Column column,
             double distance,
             double fraction,
-            int minimumWaterTop,
+            int ownerMinimumWaterTop,
+            int drySurfaceY,
             int maximumWaterTop,
             int desiredWaterTop) {}
 
@@ -1813,9 +1836,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
                 throw new IllegalArgumentException("channel grade fraction must be finite and in [0, 1]");
             }
-            if (minimumWaterTop > maximumWaterTop
-                    || desiredWaterTop < minimumWaterTop
-                    || desiredWaterTop > maximumWaterTop) {
+            if (minimumWaterTop > maximumWaterTop) {
                 throw new IllegalArgumentException("invalid channel grade sample bounds");
             }
         }
@@ -1823,13 +1844,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
     private record PhysicalChannelGrade(
             List<Double> fractions,
-            List<Integer> waterTops) {
+            List<Integer> waterTops,
+            int reconciliationDepth) {
         private PhysicalChannelGrade {
             fractions = List.copyOf(fractions);
             waterTops = List.copyOf(waterTops);
             if (fractions.isEmpty() || fractions.size() != waterTops.size()) {
                 throw new IllegalArgumentException(
                         "physical channel grade requires matching nonempty samples");
+            }
+            if (reconciliationDepth < 0
+                    || reconciliationDepth > MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
+                throw new IllegalArgumentException("invalid channel reconciliation depth");
             }
         }
 
