@@ -803,6 +803,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         Map<Column, ChannelCarrierCandidate> carrierCandidates = new LinkedHashMap<>();
+        List<String> carrierRejections = new ArrayList<>();
         int wetCorridorCandidates = 0;
         int solidCarrierCandidates = 0;
         int bankableCarrierCandidates = 0;
@@ -856,6 +857,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     basePotentialCache,
                     dryPotentialCache);
             if (bankCeiling.isEmpty()) {
+                if (wetCorridorCandidates <= 64) {
+                    carrierRejections.add(column.x() + "," + column.z()
+                            + ":bankCeilingEmpty@" + projection.fraction());
+                }
                 continue;
             }
             bankableCarrierCandidates++;
@@ -867,6 +872,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     maximumWaterTop,
                     bankCeiling.orElseThrow() + MAX_CHANNEL_BANK_FILL_BLOCKS);
             if (ownerMinimumWaterTop > maximumWaterTop) {
+                if (wetCorridorCandidates <= 64) {
+                    carrierRejections.add(column.x() + "," + column.z()
+                            + ":bounds[" + ownerMinimumWaterTop + ">" + maximumWaterTop
+                            + "]@" + projection.fraction());
+                }
                 continue;
             }
 
@@ -939,7 +949,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", upstreamCandidates=" + upstreamCandidates
                             + ", downstreamCandidates=" + downstreamCandidates
                             + ", wetCorridorCandidates=" + wetCorridorCandidates
-                            + ", solidCarrierCandidates=" + solidCarrierCandidates);
+                            + ", solidCarrierCandidates=" + solidCarrierCandidates
+                            + ", carrierRejections=" + carrierRejections);
         }
         List<ChannelCarrierCandidate> spine = connectedSpine.orElseThrow();
 
