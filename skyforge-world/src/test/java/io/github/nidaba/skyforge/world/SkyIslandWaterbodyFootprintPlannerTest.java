@@ -90,20 +90,17 @@ class SkyIslandWaterbodyFootprintPlannerTest {
             int current = queue.removeFirst();
             int x = current % gridSize;
             int z = current / gridSize;
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dz == 0) {
-                        continue;
-                    }
-                    int nx = x + dx;
-                    int nz = z + dz;
-                    if (nx < 0 || nz < 0 || nx >= gridSize || nz >= gridSize) {
-                        continue;
-                    }
-                    int neighbor = nz * gridSize + nx;
-                    if (footprintIndices.contains(neighbor) && visited.add(neighbor)) {
-                        queue.addLast(neighbor);
-                    }
+            int[] neighbors = {
+                    z > 0 ? current - gridSize : -1,
+                    x > 0 ? current - 1 : -1,
+                    x + 1 < gridSize ? current + 1 : -1,
+                    z + 1 < gridSize ? current + gridSize : -1
+            };
+            for (int neighbor : neighbors) {
+                if (neighbor >= 0
+                        && footprintIndices.contains(neighbor)
+                        && visited.add(neighbor)) {
+                    queue.addLast(neighbor);
                 }
             }
         }
