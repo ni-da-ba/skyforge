@@ -108,6 +108,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .orElseThrow();
                 assertTrue(state.isAir());
             }
+            for (var surface : deployment.surfacePositions()) {
+                var state = terrain.authoredHydrologyPopulationState(fixture.volume().id(), surface)
+                        .orElseThrow();
+                assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(state));
+                assertFalse(state.is(Blocks.DIRT),
+                        "authored river/lake substrate must not fall back to placeholder dirt");
+            }
         }
     }
 
@@ -125,8 +132,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertFalse(deployment.carvedPositions().isEmpty(),
-                "standing water must excavate a basin above its common surface");
+        assertFalse(deployment.positions().isEmpty(),
+                "standing water must materialize at least one authored wet cell");
         assertFalse(deployment.surfacePositions().isEmpty(),
                 "standing water must retain a dry owned bed below its fluid volume");
         assertOwned(List.of(deployment), terrain);
@@ -152,9 +159,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 fixture.volume().id(),
                                 position.getX(),
                                 position.getZ())
-                        .map(range -> waterTopY < range.maximumY())
+                        .map(range -> Math.max(0, range.maximumY() - waterTopY)
+                                <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BASIN_CUT_BLOCKS)
                         .orElse(false)),
-                "retained water surface must remain recessed inside exact-volume ownership");
+                "retained water may only condition a bounded local basin; one low column must never "
+                        + "plane the whole footprint downward");
 
         var watershed = io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner.plan(
                 fixture.descriptor());
@@ -569,11 +578,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             SkyforgeNeoForge1211ChunkAdapter terrain) {
         for (var deployment : deployments) {
             assertFalse(deployment.positions().isEmpty());
-            var semanticPositions = new java.util.ArrayList<BlockPos>();
-            semanticPositions.addAll(deployment.positions());
-            semanticPositions.addAll(deployment.carvedPositions());
-            semanticPositions.addAll(deployment.surfacePositions());
-            for (var position : semanticPositions) {
+            for (var wet : deployment.positions()) {
+                assertEquals(
+                        java.util.Optional.of(deployment.volumeId()),
+                        terrain.authoredVisibleHydrologyVolumeId(wet),
+                        "wet cells are owned by immutable authored hydrology, even when above the "
+                                + "pre-hydrology solid surface");
+            }
+            var terrainMutations = new java.util.ArrayList<BlockPos>();
+            terrainMutations.addAll(deployment.carvedPositions());
+            terrainMutations.addAll(deployment.surfacePositions());
+            for (var position : terrainMutations) {
                 assertTrue(terrain.isSolidOwnedBy(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
