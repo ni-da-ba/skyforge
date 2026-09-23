@@ -307,6 +307,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 candidateProjections,
                 solidRangeCache,
                 basePotentialCache);
+        if (!Double.isFinite(channelVerticalOffset)) {
+            return Optional.empty();
+        }
 
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
         for (var candidate : candidateProjections.entrySet()) {
@@ -565,7 +568,63 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * within the valley half-width. Distances are merged by minimum and returned in canonical z/x
      * order so deployment ordering remains unchanged.
      */
-    private static Map<Column, Double> candidateColumnDistances(
+    /**
+     * Registers one authored reach to the independently compiled carrier with one constant vertical
+     * translation. A reach-local translation preserves hydraulic grade while avoiding the opposite
+     * failure mode of a single island-wide offset, which can strand a distant reach above or below
+     * its local carrier.
+     */
+    private static double channelVerticalRegistration(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandFluvialTerrainField fluvial,
+            SkyIslandFluvialReachGeometry reach,
+            Map<Column, ChannelPathProjection> candidateProjections,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Map<Column, Double> basePotentialCache) {
+        List<Double> offsets = new ArrayList<>();
+        double registrationHalfWidth = Math.min(1.0, reach.wetHalfWidth());
+        for (var entry : candidateProjections.entrySet()) {
+            if (entry.getValue().distance() > registrationHalfWidth) {
+                continue;
+            }
+            Column column = entry.getKey();
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    column,
+                    ignored -> terrain.integerSolidRange(
+                            volume.id(), column.x(), column.z()));
+            if (optionalRange.isEmpty()) {
+                continue;
+            }
+            SkyIslandLocalPosition local = localPosition(volume, column);
+            double basePotential = basePotentialCache.computeIfAbsent(
+                    column,
+                    ignored -> fluvial.baseTerrain().sample(local));
+            offsets.add(
+                    optionalRange.orElseThrow().maximumY()
+                            - basePotential * descriptor.reliefBudget());
+        }
+        if (offsets.isEmpty()) {
+            // A rasterized visible reach with no physical centerline support cannot be realized
+            // without inventing carrier terrain. Let the ordinary one-for-one intent check fail
+            // loudly at the plan boundary rather than manufacturing a bridge.
+            return Double.NaN;
+        }
+        offsets.sort(Double::compareTo);
+        int middle = offsets.size() / 2;
+        return offsets.size() % 2 == 0
+                ? 0.5 * (offsets.get(middle - 1) + offsets.get(middle))
+                : offsets.get(middle);
+    }
+
+    /**
+     * Rasterizes one reach corridor while retaining each column's longitudinal fraction as well as
+     * its minimum path distance. The fraction lets Minecraft consume the reach's authored hydraulic
+     * grade directly instead of asking the island-wide water field to choose another overlapping
+     * reach at a confluence.
+     */
+    private static Map<Column, ChannelPathProjection> candidateColumnProjections(
             SkyIslandWorldVolume volume,
             SkyIslandFluvialReachGeometry reach) {
         var points = reach.path().points();
@@ -574,12 +633,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         double margin = reach.valleyHalfWidth();
+        double pathLength = reach.path().pathLength();
+        if (!(pathLength > 0.0)) {
+            return Map.of();
+        }
         var physical = volume.compiledVolume().descriptor();
-        Map<Column, Double> distances = new HashMap<>();
+        Map<Column, ChannelPathProjection> projections = new HashMap<>();
+        double cumulativeBefore = 0.0;
 
         for (int index = 1; index < points.size(); index++) {
             SkyIslandLocalPosition a = points.get(index - 1);
             SkyIslandLocalPosition b = points.get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double segmentLengthSquared = dx * dx + dz * dz;
+            double segmentLength = Math.sqrt(segmentLengthSquared);
+            if (!(segmentLength > 0.0)) {
+                continue;
+            }
 
             int minimumX = (int) Math.ceil(Math.max(
                     volume.bounds().minimumX(),
@@ -599,24 +670,44 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     SkyIslandLocalPosition local = new SkyIslandLocalPosition(
                             x - physical.centerX(),
                             z - physical.centerZ());
-                    double distance = distanceToSegment(local, a, b);
+                    double px = local.x() - a.x();
+                    double pz = local.z() - a.z();
+                    double segmentFraction = clamp01(
+                            (px * dx + pz * dz) / segmentLengthSquared);
+                    double nearestX = a.x() + segmentFraction * dx;
+                    double nearestZ = a.z() + segmentFraction * dz;
+                    double distance = Math.hypot(
+                            local.x() - nearestX,
+                            local.z() - nearestZ);
                     if (distance > margin) {
                         continue;
                     }
-                    distances.merge(new Column(x, z), distance, Math::min);
+                    double fraction = clamp01(
+                            (cumulativeBefore + segmentFraction * segmentLength) / pathLength);
+                    Column column = new Column(x, z);
+                    ChannelPathProjection candidate =
+                            new ChannelPathProjection(distance, fraction);
+                    ChannelPathProjection previous = projections.get(column);
+                    if (previous == null
+                            || candidate.distance() < previous.distance() - 1.0e-12
+                            || (Math.abs(candidate.distance() - previous.distance()) <= 1.0e-12
+                                    && candidate.fraction() < previous.fraction())) {
+                        projections.put(column, candidate);
+                    }
                 }
             }
+            cumulativeBefore += segmentLength;
         }
 
-        if (distances.isEmpty()) {
+        if (projections.isEmpty()) {
             return Map.of();
         }
 
-        var ordered = new ArrayList<>(distances.entrySet());
+        var ordered = new ArrayList<>(projections.entrySet());
         ordered.sort(Comparator
-                .comparingInt((Map.Entry<Column, Double> entry) -> entry.getKey().z())
+                .comparingInt((Map.Entry<Column, ChannelPathProjection> entry) -> entry.getKey().z())
                 .thenComparingInt(entry -> entry.getKey().x()));
-        Map<Column, Double> canonical = new LinkedHashMap<>();
+        Map<Column, ChannelPathProjection> canonical = new LinkedHashMap<>();
         for (var entry : ordered) {
             canonical.put(entry.getKey(), entry.getValue());
         }
@@ -1387,6 +1478,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(state, "state");
         var fluid = state.getFluidState().getType();
         return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
+    }
+
+    private record ChannelPathProjection(
+            double distance,
+            double fraction) {
+        private ChannelPathProjection {
+            if (!Double.isFinite(distance) || distance < 0.0) {
+                throw new IllegalArgumentException("channel path distance must be finite and nonnegative");
+            }
+            if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
+                throw new IllegalArgumentException("channel path fraction must be finite and in [0, 1]");
+            }
+        }
     }
 
     private record ChannelColumnPlan(
