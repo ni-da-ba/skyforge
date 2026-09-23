@@ -19,6 +19,8 @@ public final class SkyIslandHydrologicFeaturePlanner {
         double max = Math.max(1.0e-12, watershed.maxFlowAccumulation());
         List<SkyIslandHydrologicFeature> features = new ArrayList<>();
         List<SkyIslandWatershedCell> channelCandidates = new ArrayList<>();
+        var cellsByIndex = watershed.cells().stream().collect(
+                java.util.stream.Collectors.toMap(SkyIslandWatershedCell::index, cell -> cell));
         int routableCellCount = 0;
 
         for (SkyIslandWatershedCell cell : watershed.cells()) {
@@ -42,9 +44,26 @@ public final class SkyIslandHydrologicFeaturePlanner {
                 continue;
             }
             if (cell.downstreamIndex() >= 0) {
-                routableCellCount++;
-                if (significance >= CHANNEL_THRESHOLD) {
-                    channelCandidates.add(cell);
+                SkyIslandWatershedCell downstream = cellsByIndex.get(cell.downstreamIndex());
+                if (downstream == null) {
+                    throw new IllegalStateException(
+                            "watershed channel candidate references missing downstream cell");
+                }
+
+                /*
+                 * Priority-Flood transport can legitimately climb the raw DEM while crossing a
+                 * filled depression toward its spill saddle. That edge is hydrologic transport,
+                 * not automatically a visible river reach. Expose only raw-terrain non-uphill
+                 * edges here; accumulation still propagates through the full watershed graph so a
+                 * downstream trunk retains the upstream catchment's discharge.
+                 */
+                boolean visibleSurfaceDescent =
+                        downstream.surfacePotential() <= cell.surfacePotential() + 1.0e-10;
+                if (visibleSurfaceDescent) {
+                    routableCellCount++;
+                    if (significance >= CHANNEL_THRESHOLD) {
+                        channelCandidates.add(cell);
+                    }
                 }
             }
         }
