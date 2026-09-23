@@ -170,8 +170,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             waterSurfaceCache)
                     .ifPresent(rawDeployments::add);
         }
+        SkyIslandWatershedPlan watershed = intent.retainedWater().isEmpty()
+                ? null
+                : SkyIslandWatershedPlanner.plan(descriptor);
         for (var retained : intent.retainedWater()) {
-            atFootprint(descriptor, volume, terrain, retained.footprint())
+            atFootprint(
+                            descriptor,
+                            volume,
+                            terrain,
+                            watershed,
+                            retained.footprint(),
+                            solidRangeCache)
                     .ifPresent(rawDeployments::add);
         }
 
@@ -312,7 +321,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             column,
                             reach,
                             path,
-                            routedEdgeOutlet)) {
+                            routedEdgeOutlet,
+                            solidRangeCache)) {
                 containedWet.add(column.column());
             }
         }
@@ -326,10 +336,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
             if (column.distance() <= reach.bankfullHalfWidth()
-                    && terrain.isSolidOwnedBy(
-                            volume.id(), column.column().x(), column.drySurfaceY(), column.column().z())
-                    && !terrain.isSolidOwnedByOtherVolume(
-                            volume.id(), column.column().x(), column.drySurfaceY(), column.column().z())) {
+                    && uncontestedOwnedRangeCell(
+                            terrain,
+                            volume.id(),
+                            column.column().x(),
+                            column.drySurfaceY(),
+                            column.column().z())) {
                 surface.add(new BlockPos(
                         column.column().x(), column.drySurfaceY(), column.column().z()));
             }
@@ -339,18 +351,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int carveTo = column.baseSurfaceY();
             if (wet) {
                 for (int y = column.drySurfaceY() + 1; y <= column.waterTopY(); y++) {
-                    if (terrain.isSolidOwnedBy(volume.id(), column.column().x(), y, column.column().z())
-                            && !terrain.isSolidOwnedByOtherVolume(
-                                    volume.id(), column.column().x(), y, column.column().z())) {
+                    if (uncontestedOwnedRangeCell(
+                            terrain,
+                            volume.id(),
+                            column.column().x(),
+                            y,
+                            column.column().z())) {
                         water.add(new BlockPos(column.column().x(), y, column.column().z()));
                     }
                 }
                 carveFrom = column.waterTopY() + 1;
             }
             for (int y = carveFrom; y <= carveTo; y++) {
-                if (terrain.isSolidOwnedBy(volume.id(), column.column().x(), y, column.column().z())
-                        && !terrain.isSolidOwnedByOtherVolume(
-                                volume.id(), column.column().x(), y, column.column().z())) {
+                if (uncontestedOwnedRangeCell(
+                        terrain,
+                        volume.id(),
+                        column.column().x(),
+                        y,
+                        column.column().z())) {
                     carved.add(new BlockPos(column.column().x(), y, column.column().z()));
                 }
             }
@@ -375,7 +393,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ChannelColumnPlan candidate,
             SkyIslandFluvialReachGeometry reach,
             SkyIslandNaturalizedChannelPath path,
-            boolean routedEdgeOutlet) {
+            boolean routedEdgeOutlet,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         int breaches = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] direction : directions) {
@@ -388,10 +407,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         || planned.drySurfaceY() >= candidate.waterTopY()) {
                     continue;
                 }
-            } else if (terrain.isSolidOwnedBy(
-                            volume.id(), neighbor.x(), candidate.waterTopY(), neighbor.z())
-                    && !terrain.isSolidOwnedByOtherVolume(
-                            volume.id(), neighbor.x(), candidate.waterTopY(), neighbor.z())) {
+            } else if (ownedSolidAt(
+                    volume,
+                    terrain,
+                    solidRangeCache,
+                    neighbor,
+                    candidate.waterTopY())) {
                 continue;
             }
             breaches++;
@@ -579,13 +600,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
-            SkyIslandWaterbodyFootprint footprint) {
+            SkyIslandWatershedPlan watershed,
+            SkyIslandWaterbodyFootprint footprint,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(watershed, "watershed");
         Objects.requireNonNull(footprint, "footprint");
-
-        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        Objects.requireNonNull(solidRangeCache, "solidRangeCache");
         Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex = new LinkedHashMap<>();
         for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
             cellsByIndex.put(cell.watershedCellIndex(), cell);
@@ -595,7 +618,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // rounded Minecraft column at each coarse cell center. Rasterize those regular watershed
         // cells into exact-volume columns while retaining the accepted cell identity.
         Map<Column, RetainedColumnPlan> columns = retainedCandidateColumns(
-                descriptor, volume, terrain, watershed, cellsByIndex);
+                descriptor, volume, terrain, watershed, cellsByIndex, solidRangeCache);
         if (columns.isEmpty() || !coversEveryRetainedCell(columns.values(), cellsByIndex.keySet())) {
             return Optional.empty();
         }
@@ -625,6 +648,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             volume,
                             terrain,
                             column.column(),
+                            column.minimumY(),
+                            column.baseSurfaceY(),
                             bedY,
                             column.baseSurfaceY())) {
                 continue;
@@ -653,7 +678,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
         for (RetainedColumnPlan column : realizable.values()) {
             if (!retainedWaterContained(
-                    volume, terrain, realizable.keySet(), column.column(), waterTopY)) {
+                    volume,
+                    terrain,
+                    solidRangeCache,
+                    realizable.keySet(),
+                    column.column(),
+                    waterTopY)) {
                 return Optional.empty();
             }
         }
@@ -686,7 +716,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandWatershedPlan watershed,
-            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex) {
+            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         double halfSpacing = watershed.spacing() * 0.5;
         double minimumLocalX = cellsByIndex.values().stream()
                 .mapToDouble(cell -> cell.position().x())
@@ -725,16 +756,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 if (sourceCell == null) {
                     continue;
                 }
-                var optionalRange = terrain.integerSolidRange(volume.id(), x, z);
+                Column column = new Column(x, z);
+                var optionalRange = solidRangeCache.computeIfAbsent(
+                        column,
+                        ignored -> terrain.integerSolidRange(volume.id(), x, z));
                 if (optionalRange.isEmpty()) {
                     continue;
                 }
                 var range = optionalRange.orElseThrow();
-                if (!terrain.isSolidOwnedBy(volume.id(), x, range.maximumY(), z)
-                        || terrain.isSolidOwnedByOtherVolume(volume.id(), x, range.maximumY(), z)) {
+                if (!uncontestedOwnedRangeCell(terrain, volume.id(), x, range.maximumY(), z)) {
                     continue;
                 }
-                Column column = new Column(x, z);
                 result.put(
                         column,
                         new RetainedColumnPlan(
@@ -774,11 +806,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Column column,
+            int authoritativeMinimumY,
+            int authoritativeMaximumY,
             int minimumY,
             int maximumY) {
+        if (minimumY < authoritativeMinimumY || maximumY > authoritativeMaximumY) {
+            return false;
+        }
+        if (!terrain.hasMultipleCompiledVolumes()) {
+            return true;
+        }
         for (int y = minimumY; y <= maximumY; y++) {
-            if (!terrain.isSolidOwnedBy(volume.id(), column.x(), y, column.z())
-                    || terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+            if (terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
                 return false;
             }
         }
@@ -788,6 +827,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     private static boolean retainedWaterContained(
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Set<Column> wetColumns,
             Column candidate,
             int waterTopY) {
@@ -799,33 +839,38 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (wetColumns.contains(neighbor)) {
                 continue;
             }
-            if (!terrain.isSolidOwnedBy(volume.id(), neighbor.x(), waterTopY, neighbor.z())
-                    || terrain.isSolidOwnedByOtherVolume(volume.id(), neighbor.x(), waterTopY, neighbor.z())) {
+            if (!ownedSolidAt(volume, terrain, solidRangeCache, neighbor, waterTopY)) {
                 return false;
             }
         }
         return true;
     }
 
-    private static List<BlockPos> ownedColumnPositions(
+    private static boolean ownedSolidAt(
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Column column,
+            int y) {
+        var range = solidRangeCache.computeIfAbsent(
+                column,
+                ignored -> terrain.integerSolidRange(volume.id(), column.x(), column.z()));
+        if (range.isEmpty()
+                || y < range.orElseThrow().minimumY()
+                || y > range.orElseThrow().maximumY()) {
+            return false;
+        }
+        return uncontestedOwnedRangeCell(terrain, volume.id(), column.x(), y, column.z());
+    }
+
+    private static boolean uncontestedOwnedRangeCell(
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandWorldVolumeId volumeId,
             int x,
-            int z,
-            int depth) {
-        var optionalRange = terrain.integerSolidRange(volume.id(), x, z);
-        if (optionalRange.isEmpty()) {
-            return List.of();
-        }
-        var range = optionalRange.orElseThrow();
-        List<BlockPos> positions = new ArrayList<>();
-        for (int y = range.maximumY(); y >= range.minimumY() && positions.size() < depth; y--) {
-            if (terrain.isSolidOwnedBy(volume.id(), x, y, z)
-                    && !terrain.isSolidOwnedByOtherVolume(volume.id(), x, y, z)) {
-                positions.add(new BlockPos(x, y, z));
-            }
-        }
-        return positions;
+            int y,
+            int z) {
+        return !terrain.hasMultipleCompiledVolumes()
+                || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z);
     }
 
     private static RawDeployment rawDeployment(
