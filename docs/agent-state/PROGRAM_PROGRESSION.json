@@ -42,7 +42,7 @@
   "semantic_sources": [
     {
       "path": "docs/agent-state/PROGRAM_ROADMAP.md",
-      "sha256": "ba1c084eebff989f6151d4a7faf0e3beb15667e1bb6e6a01051c7acb1450a619"
+      "sha256": "28a4c91fa90dbd9121bf6e23b83c3996c208f8320b90ca18c4141e668a2c1bea"
     },
     {
       "path": "docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md",
