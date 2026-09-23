@@ -585,10 +585,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    if (syntheticBanks >= 1) {
+                    if (syntheticBanks >= 2) {
                         return Optional.empty();
                     }
-                    // Mirror channelBankCeiling exactly: one absent side bank may be rebuilt as a
+                    // Mirror channelBankCeiling exactly: up to two absent side banks may be rebuilt as
                     // narrow shelf rooted at the carved bed elevation, never as an unbounded wall.
                     bankTopY = candidate.drySurfaceY() - 1;
                     syntheticBanks++;
@@ -1272,10 +1272,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 }
 
                 // Sky-island rasterization can leave one side of an otherwise real channel bed
-                // immediately over void. Permit one narrow, laterally anchored shelf instead of
+                // immediately over void. Permit up to two narrow, laterally anchored shelves instead of
                 // deleting that carrier node. The virtual top is one block below the carved bed,
                 // which means MAX_CHANNEL_BANK_FILL_BLOCKS bounds the complete constructed wall.
-                if (syntheticBanks >= 1) {
+                if (syntheticBanks >= 2) {
                     return OptionalInt.empty();
                 }
                 int virtualBankTopY = candidateDrySurfaceY - 1;
