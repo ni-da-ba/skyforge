@@ -704,18 +704,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             Set<Column> connected = largestConnectedFootprint(candidate.keySet());
             maximumConnectedColumns = Math.max(maximumConnectedColumns, connected.size());
-            if (connected.size() != candidate.size()) {
+
+            // The physical carrier can expose small detached fringe patches after the bounded
+            // per-column cut test. Those patches are not authored as separate lakes and must not
+            // invalidate an otherwise coherent basin. Retain only the largest face-connected
+            // component, but require that component itself still represents every accepted
+            // watershed cell. If any authored cell exists only on a detached patch, fail closed.
+            Map<Column, RetainedColumnPlan> connectedCandidate = new LinkedHashMap<>();
+            for (Column column : connected) {
+                RetainedColumnPlan plan = candidate.get(column);
+                if (plan != null) {
+                    connectedCandidate.put(column, plan);
+                }
+            }
+            Set<Integer> connectedRepresentedCells = connectedCandidate.values().stream()
+                    .map(column -> column.sourceCell().watershedCellIndex())
+                    .collect(java.util.stream.Collectors.toSet());
+            if (!connectedRepresentedCells.containsAll(cellsByIndex.keySet())) {
                 continue;
             }
             candidatesWithFullConnectivity++;
 
             boolean contained = true;
-            for (RetainedColumnPlan column : candidate.values()) {
+            for (RetainedColumnPlan column : connectedCandidate.values()) {
                 if (!retainedWaterContained(
                         volume,
                         terrain,
                         solidRangeCache,
-                        candidate.keySet(),
+                        connectedCandidate.keySet(),
                         column.column(),
                         candidateWaterTopY)) {
                     contained = false;
@@ -727,7 +743,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
 
-            realizable = candidate;
+            realizable = connectedCandidate;
             waterTopY = candidateWaterTopY;
             break;
         }
