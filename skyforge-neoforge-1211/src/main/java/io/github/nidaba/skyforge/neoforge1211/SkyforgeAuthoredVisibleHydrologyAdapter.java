@@ -56,26 +56,30 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
-            positions = List.copyOf(positions);
-            carvedPositions = List.copyOf(carvedPositions);
-            surfacePositions = List.copyOf(surfacePositions);
+            positions = Collections.unmodifiableList(Objects.requireNonNull(positions, "positions"));
+            carvedPositions = Collections.unmodifiableList(
+                    Objects.requireNonNull(carvedPositions, "carvedPositions"));
+            surfacePositions = Collections.unmodifiableList(
+                    Objects.requireNonNull(surfacePositions, "surfacePositions"));
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
             // These collections can contain hundreds of thousands of Minecraft positions.
-            // Never use a List as the membership side of retainAll/contains here: that makes
-            // deployment validation quadratic and can turn deterministic hydrology planning into
-            // a multi-minute bootstrap. Build hash sets once and keep all overlap checks linear.
-            Set<BlockPos> waterSet = new HashSet<>(positions);
-            Set<BlockPos> carvedSet = new HashSet<>(carvedPositions);
-            if (!java.util.Collections.disjoint(waterSet, carvedSet)) {
-                throw new IllegalArgumentException("hydrology water and dry carved positions must be disjoint");
+            // Validate role disjointness with one membership set. Duplicates inside one role retain
+            // the historical permissive behavior; only cross-role overlap is illegal.
+            Set<BlockPos> occupied = new HashSet<>(positions);
+            for (BlockPos carved : carvedPositions) {
+                if (occupied.contains(carved)) {
+                    throw new IllegalArgumentException(
+                            "hydrology water and dry carved positions must be disjoint");
+                }
             }
-            Set<BlockPos> surfaceSet = new HashSet<>(surfacePositions);
-            if (!java.util.Collections.disjoint(surfaceSet, waterSet)
-                    || !java.util.Collections.disjoint(surfaceSet, carvedSet)) {
-                throw new IllegalArgumentException(
-                        "hydrology surface dressing must remain below wet and carved cells");
+            occupied.addAll(carvedPositions);
+            for (BlockPos surface : surfacePositions) {
+                if (occupied.contains(surface)) {
+                    throw new IllegalArgumentException(
+                            "hydrology surface dressing must remain below wet and carved cells");
+                }
             }
         }
     }
