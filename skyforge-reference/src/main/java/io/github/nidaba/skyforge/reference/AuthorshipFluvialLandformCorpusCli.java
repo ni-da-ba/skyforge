@@ -57,7 +57,8 @@ public final class AuthorshipFluvialLandformCorpusCli {
 
         StringBuilder manifest = new StringBuilder(
                 "specimen,islandKey,morphology,reaches,alluvial,incised,cascade,retainedWater,drops,"
-                        + "meanBankfullWidth,meanValleyWidth,maxDryLowering,wetSampleFraction\n");
+                        + "meanBankfullWidth,meanValleyWidth,maxDryLowering,wetSampleFraction,"
+                        + "meanConfinement,loweringCapFraction\n");
 
         for (int i = 0; i < specimens.size(); i++) {
             Specimen specimen = specimens.get(i);
@@ -84,7 +85,9 @@ public final class AuthorshipFluvialLandformCorpusCli {
                     .append(format(metrics.meanBankfullWidth())).append(',')
                     .append(format(metrics.meanValleyWidth())).append(',')
                     .append(format(metrics.maxDryLowering())).append(',')
-                    .append(format(metrics.wetSampleFraction())).append('\n');
+                    .append(format(metrics.wetSampleFraction())).append(',')
+                    .append(format(metrics.meanConfinement())).append(',')
+                    .append(format(metrics.loweringCapFraction())).append('\n');
         }
         ag.dispose();
 
@@ -139,11 +142,15 @@ public final class AuthorshipFluvialLandformCorpusCli {
                 .mapToDouble(reach -> 2.0 * reach.bankfullHalfWidth()).average().orElse(0.0);
         double meanValley = field.reaches().stream()
                 .mapToDouble(reach -> 2.0 * reach.valleyHalfWidth()).average().orElse(0.0);
+        double meanConfinement = field.reaches().stream()
+                .mapToDouble(io.github.nidaba.skyforge.world.SkyIslandFluvialReachGeometry::confinementPotential)
+                .average().orElse(0.0);
 
         double radius = field.descriptor().nominalRadius();
         double maxLowering = 0.0;
         int wet = 0;
         int active = 0;
+        int loweringCap = 0;
         for (int z = 0; z <= 80; z++) {
             for (int x = 0; x <= 80; x++) {
                 SkyIslandLocalPosition p = new SkyIslandLocalPosition(
@@ -154,7 +161,11 @@ public final class AuthorshipFluvialLandformCorpusCli {
                 if (base > 0.0 || shaped > 0.0) {
                     active++;
                 }
-                maxLowering = Math.max(maxLowering, base - shaped);
+                double lowering = base - shaped;
+                maxLowering = Math.max(maxLowering, lowering);
+                if (lowering >= SkyIslandFluvialTerrainField.MAX_FLUVIAL_LOWERING - 1.0e-6) {
+                    loweringCap++;
+                }
                 if (field.waterSurfacePotential(p).isPresent()) {
                     wet++;
                 }
@@ -164,7 +175,9 @@ public final class AuthorshipFluvialLandformCorpusCli {
                 meanBankfull,
                 meanValley,
                 maxLowering,
-                active == 0 ? 0.0 : (double) wet / active);
+                active == 0 ? 0.0 : (double) wet / active,
+                meanConfinement,
+                active == 0 ? 0.0 : (double) loweringCap / active);
     }
 
     private static long count(
@@ -215,5 +228,7 @@ public final class AuthorshipFluvialLandformCorpusCli {
             double meanBankfullWidth,
             double meanValleyWidth,
             double maxDryLowering,
-            double wetSampleFraction) {}
+            double wetSampleFraction,
+            double meanConfinement,
+            double loweringCapFraction) {}
 }
