@@ -188,18 +188,27 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 if (topByColumn.containsKey(neighborKey)) {
                     continue;
                 }
-                assertTrue(
-                        terrain.isSolidOwnedBy(
+                BlockPos bank = new BlockPos(
+                        position.getX() + direction[0],
+                        waterTopY,
+                        position.getZ() + direction[1]);
+                boolean naturalBank = terrain.isSolidOwnedBy(
                                 fixture.volume().id(),
-                                position.getX() + direction[0],
-                                waterTopY,
-                                position.getZ() + direction[1])
-                                && !terrain.isSolidOwnedByOtherVolume(
-                                        fixture.volume().id(),
-                                        position.getX() + direction[0],
-                                        waterTopY,
-                                        position.getZ() + direction[1]),
-                        "retained water boundary must be physically banked rather than draining into void");
+                                bank.getX(),
+                                bank.getY(),
+                                bank.getZ())
+                        && !terrain.isSolidOwnedByOtherVolume(
+                                fixture.volume().id(),
+                                bank.getX(),
+                                bank.getY(),
+                                bank.getZ());
+                boolean conditionedBank = terrain.authoredHydrologyPopulationState(
+                                fixture.volume().id(), bank)
+                        .map(SkyforgeAuthoredVisibleHydrologyAdapter::isHydrologySurfaceMaterial)
+                        .orElse(false);
+                assertTrue(
+                        naturalBank || conditionedBank,
+                        "retained water boundary must be naturally banked or use bounded authored bank fill");
             }
         }
     }
@@ -709,14 +718,32 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         "wet cells are owned by immutable authored hydrology, even when above the "
                                 + "pre-hydrology solid surface");
             }
-            var terrainMutations = new java.util.ArrayList<BlockPos>();
-            terrainMutations.addAll(deployment.carvedPositions());
-            terrainMutations.addAll(deployment.surfacePositions());
-            for (var position : terrainMutations) {
+            for (var position : deployment.carvedPositions()) {
                 assertTrue(terrain.isSolidOwnedBy(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
+            }
+            for (var position : deployment.surfacePositions()) {
+                assertFalse(terrain.isSolidOwnedByOtherVolume(
+                        deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
+                if (terrain.isSolidOwnedBy(
+                        deployment.volumeId(), position.getX(), position.getY(), position.getZ())) {
+                    continue;
+                }
+                assertEquals(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER,
+                        deployment.feature(),
+                        "only retained-water shoreline conditioning may add authored solid support");
+                var range = terrain.integerSolidRange(
+                                deployment.volumeId(), position.getX(), position.getZ())
+                        .orElseThrow();
+                int fillDepth = position.getY() - range.maximumY();
+                assertTrue(
+                        fillDepth >= 1
+                                && fillDepth
+                                        <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS,
+                        "authored retained-water bank fill must stay within the bounded shoreline budget");
             }
         }
     }
