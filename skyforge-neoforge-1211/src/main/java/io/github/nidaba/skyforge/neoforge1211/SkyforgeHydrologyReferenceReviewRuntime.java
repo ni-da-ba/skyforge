@@ -40,6 +40,8 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static final int WARM_TICKET_WINDOW = 8;
     private static final int WARM_CHUNKS_PER_TICK = 4;
     private static final int FLUID_SETTLE_TICKS = 100;
+    private static final long WATCHDOG_STALL_NANOS = 5_000_000_000L;
+    private static final long WATCHDOG_REPEAT_NANOS = 10_000_000_000L;
     static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
     private static final TicketType<ChunkPos> REVIEW_TICKET = TicketType.create(
             "skyforge_hydrology_reference_review",
@@ -53,6 +55,14 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static Preparation preparation;
     private static boolean ready;
     private static long tickCounter;
+    private static volatile Thread watchdogServerThread;
+    private static volatile long watchdogHeartbeatNanos;
+    private static volatile long watchdogLastDumpNanos;
+    private static volatile String watchdogStage = "idle";
+    private static volatile String watchdogPhase = "none";
+    private static volatile int watchdogCursor = -1;
+    private static volatile long watchdogChunkKey = Long.MIN_VALUE;
+    private static volatile boolean watchdogStarted;
 
     private SkyforgeHydrologyReferenceReviewRuntime() {}
 
@@ -118,6 +128,9 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return;
         }
         tickCounter++;
+        watchdogServerThread = Thread.currentThread();
+        watchdogHeartbeatNanos = System.nanoTime();
+        watchdogStage = "server-tick-entry";
 
         if (preparation == null
                 && !ready
@@ -135,6 +148,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         if (active == null) {
             return;
         }
+        markWatchdog(active, "review-handler");
         ServerLevel level = event.getServer().getLevel(Level.OVERWORLD);
         if (level == null) {
             return;
@@ -148,6 +162,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         // head-of-line blocking, while stronger/radius-3 tickets promote unnecessary neighboring
         // chunks into the simulation graph. Radius 0 + an eight-chunk window preserves generation
         // pipelining without turning the reference sweep into a moving force-loaded region.
+        markWatchdog(active, "ticket-window");
         int ticketWindowEnd = Math.min(
                 active.chunkKeys().size(),
                 active.cursor() + WARM_TICKET_WINDOW);
@@ -167,21 +182,28 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             // Admission needs every exact footprint chunk to be observed, but it does not need
             // already-consumed chunks retained. Catch-up and downstream phases likewise release
             // each cursor ticket as soon as that chunk reaches its phase barrier.
+            markWatchdog(active, "get-chunk-now");
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             if (chunk == null) {
                 break;
             }
 
             if (active.phase() == PreparationPhase.ADMISSION_SURVEY) {
+                markWatchdog(active, "admission-realize");
                 SkyforgeNeoForge1211SurfaceStage.realize(chunk);
             } else if (active.phase() == PreparationPhase.PRODUCTION_CATCHUP) {
+                markWatchdog(active, "production-catchup-barrier");
                 if (!productionCatchupComplete(level, active.fixture(), chunk)) {
                     break;
                 }
-            } else if (!downstreamPopulationComplete(active.fixture(), key)) {
-                break;
+            } else {
+                markWatchdog(active, "downstream-population-barrier");
+                if (!downstreamPopulationComplete(active.fixture(), key)) {
+                    break;
+                }
             }
 
+            markWatchdog(active, "release-ticket");
             level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_RADIUS, pos);
             active.advance();
             advanced++;
@@ -281,6 +303,101 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                         ? ChunkPos.getZ(key)
                         : -ChunkPos.getZ(key)));
         preparation = new Preparation(fixture, List.copyOf(chunkKeys), playerId);
+        startWatchdog();
+    }
+
+    private static synchronized void startWatchdog() {
+        if (watchdogStarted) {
+            return;
+        }
+        watchdogStarted = true;
+        Thread thread = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(1000L);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    return;
+                }
+
+                Thread serverThread = watchdogServerThread;
+                long heartbeat = watchdogHeartbeatNanos;
+                Preparation active = preparation;
+                if (serverThread == null || active == null || heartbeat == 0L) {
+                    continue;
+                }
+
+                long now = System.nanoTime();
+                long stalledFor = now - heartbeat;
+                if (stalledFor < WATCHDOG_STALL_NANOS
+                        || now - watchdogLastDumpNanos < WATCHDOG_REPEAT_NANOS) {
+                    continue;
+                }
+                watchdogLastDumpNanos = now;
+                dumpWatchdog(serverThread, stalledFor);
+            }
+        }, "Skyforge hydrology review watchdog");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private static void markWatchdog(Preparation active, String stage) {
+        watchdogStage = stage;
+        watchdogPhase = active.phase().label();
+        watchdogCursor = active.cursor();
+        watchdogChunkKey = active.cursor() < active.chunkKeys().size()
+                ? active.chunkKeys().get(active.cursor())
+                : Long.MIN_VALUE;
+    }
+
+    private static void dumpWatchdog(Thread serverThread, long stalledForNanos) {
+        long stalledMillis = stalledForNanos / 1_000_000L;
+        long key = watchdogChunkKey;
+        String chunk = key == Long.MIN_VALUE
+                ? "complete"
+                : "[" + ChunkPos.getX(key) + "," + ChunkPos.getZ(key) + "]";
+        Runtime runtime = Runtime.getRuntime();
+        long usedMiB = (runtime.totalMemory() - runtime.freeMemory()) / (1024L * 1024L);
+        long maxMiB = runtime.maxMemory() / (1024L * 1024L);
+
+        System.err.println(
+                "[Hydrology Ref WATCHDOG] server thread stalled " + stalledMillis + " ms"
+                        + " phase=" + watchdogPhase
+                        + " cursor=" + watchdogCursor
+                        + " chunk=" + chunk
+                        + " stage=" + watchdogStage
+                        + " heap=" + usedMiB + "/" + maxMiB + " MiB");
+        printThreadStack(serverThread);
+
+        int workersPrinted = 0;
+        for (var entry : Thread.getAllStackTraces().entrySet()) {
+            Thread thread = entry.getKey();
+            String name = thread.getName().toLowerCase(Locale.ROOT);
+            if (thread == serverThread
+                    || (!name.contains("worldgen")
+                            && !name.contains("worker")
+                            && !name.contains("chunk"))) {
+                continue;
+            }
+            System.err.println("[Hydrology Ref WATCHDOG] related thread "
+                    + thread.getName() + " state=" + thread.getState());
+            StackTraceElement[] stack = entry.getValue();
+            for (int index = 0; index < Math.min(stack.length, 12); index++) {
+                System.err.println("    at " + stack[index]);
+            }
+            workersPrinted++;
+            if (workersPrinted >= 6) {
+                break;
+            }
+        }
+    }
+
+    private static void printThreadStack(Thread thread) {
+        System.err.println("[Hydrology Ref WATCHDOG] thread "
+                + thread.getName() + " state=" + thread.getState());
+        for (StackTraceElement frame : thread.getStackTrace()) {
+            System.err.println("    at " + frame);
+        }
     }
 
     private static boolean lifecycleReady(
