@@ -2,19 +2,20 @@ package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 
 /**
- * Produces deterministic sub-grid channel centerlines while preserving accepted watershed topology.
+ * Produces deterministic terrain-aware channel centerlines while preserving watershed topology.
  *
- * <p>AUTH-0017 originally naturalized each coarse graph edge with decorative seeded Bezier
- * curvature. Hydrology-overhaul H2 retains the accepted graph nodes but delegates the physical
- * centerline to a fine terrain-aware corridor search. Catchment topology therefore stays authored
- * by the watershed while the visible river is no longer forced to inherit the coarse lattice line.
+ * <p>Hydrology-overhaul H2b promotes only headwaters, confluences and terminals to hard geometric
+ * controls. Degree-two coarse watershed cells remain semantic profile boundaries but no longer
+ * force literal visible-river vertices.
  */
 public final class SkyIslandNaturalizedChannelPlanner {
-    public static final int SUBDIVISIONS = SkyIslandTerrainAwareChannelCorridorPlanner.STATIONS;
+    public static final int SUBDIVISIONS =
+            SkyIslandTerrainAwareMacroReachRouter.STATIONS_PER_COARSE_REACH;
     public static final double MAX_CHORD_DEVIATION_SPACING_FRACTION = 0.70;
 
     private SkyIslandNaturalizedChannelPlanner() {}
@@ -24,7 +25,7 @@ public final class SkyIslandNaturalizedChannelPlanner {
         return plan(descriptor, SkyIslandChannelProfilePlanner.plan(descriptor).profiles());
     }
 
-    /** Naturalizes one explicit channel-profile subset without changing any graph node. */
+    /** Naturalizes one explicit channel-profile subset without changing accepted graph topology. */
     public static SkyIslandNaturalizedChannelPlan plan(
             SkyIslandDescriptor descriptor,
             List<SkyIslandChannelProfile> profiles) {
@@ -38,14 +39,16 @@ public final class SkyIslandNaturalizedChannelPlanner {
         double spacing = watershed.spacing();
 
         List<SkyIslandNaturalizedChannelPath> paths = new ArrayList<>(profiles.size());
-        for (SkyIslandChannelProfile profile : profiles) {
-            paths.add(SkyIslandTerrainAwareChannelCorridorPlanner.route(
-                    profile,
+        for (SkyIslandChannelMacroReach macro : SkyIslandChannelMacroReachPlanner.plan(profiles)) {
+            paths.addAll(SkyIslandTerrainAwareMacroReachRouter.route(
+                    macro,
                     terrain,
                     interiority,
                     spacing,
                     MAX_CHORD_DEVIATION_SPACING_FRACTION));
         }
+        paths.sort(Comparator.comparingInt(
+                path -> path.profile().segment().sourceCellIndex()));
         return new SkyIslandNaturalizedChannelPlan(descriptor, spacing, paths);
     }
 }
