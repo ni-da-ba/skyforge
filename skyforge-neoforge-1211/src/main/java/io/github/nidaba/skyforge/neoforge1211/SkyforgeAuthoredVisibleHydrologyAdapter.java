@@ -672,8 +672,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             z - physical.centerZ());
                     double px = local.x() - a.x();
                     double pz = local.z() - a.z();
-                    double segmentFraction = clamp01(
-                            (px * dx + pz * dz) / segmentLengthSquared);
+                    double segmentFraction = Math.max(
+                            0.0,
+                            Math.min(1.0, (px * dx + pz * dz) / segmentLengthSquared));
                     double nearestX = a.x() + segmentFraction * dx;
                     double nearestZ = a.z() + segmentFraction * dz;
                     double distance = Math.hypot(
@@ -682,8 +683,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     if (distance > margin) {
                         continue;
                     }
-                    double fraction = clamp01(
-                            (cumulativeBefore + segmentFraction * segmentLength) / pathLength);
+                    double fraction = Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    (cumulativeBefore + segmentFraction * segmentLength)
+                                            / pathLength));
                     Column column = new Column(x, z);
                     ChannelPathProjection candidate =
                             new ChannelPathProjection(distance, fraction);
