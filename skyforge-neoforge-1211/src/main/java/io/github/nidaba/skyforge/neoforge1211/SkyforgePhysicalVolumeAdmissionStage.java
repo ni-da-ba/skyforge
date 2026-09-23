@@ -452,6 +452,20 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         }
     }
 
+    static boolean hasPendingBiomePresentation(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Set<Long> pending = binding.pendingBiomePresentationByVolume().get(volumeId);
+            return pending != null && pending.contains(chunkKey);
+        }
+    }
+
     static Set<Long> pendingBiomePresentationChunks(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
         Binding binding = ACTIVE.get();
