@@ -116,6 +116,7 @@ final class SkyforgeComposedCaveStage {
         Binding binding = new Binding(
                 obligations,
                 java.util.Collections.unmodifiableMap(new LinkedHashMap<>(obligationKeysByChunk)),
+                new LinkedHashSet<>(obligationKeysByChunk.keySet()),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
@@ -355,17 +356,11 @@ final class SkyforgeComposedCaveStage {
         if (binding == null) {
             return Set.of();
         }
-        LinkedHashSet<Long> keys = new LinkedHashSet<>();
         synchronized (binding) {
-            for (var entry : binding.obligations().entrySet()) {
-                if (entry.getValue().state() == State.PENDING) {
-                    keys.add(entry.getKey().chunkKey());
-                }
-            }
+            // Installation order is canonical X/Z within each plan and is maintained as obligations
+            // complete, avoiding a whole-ledger rebuild before every cave quantum.
+            return Collections.unmodifiableSet(new LinkedHashSet<>(binding.pendingChunkKeys()));
         }
-        // Preserve installation order so the stable-chunk catch-up service can apply a bounded
-        // per-tick budget without introducing hash-order-dependent scheduling.
-        return Collections.unmodifiableSet(keys);
     }
 
     static boolean completed(SkyIslandWorldVolumeId volumeId, long chunkKey) {
@@ -526,6 +521,12 @@ final class SkyforgeComposedCaveStage {
                             current.spatialIndex(),
                             State.COMPLETED,
                             completion));
+            if (binding.obligationKeysByChunk()
+                    .getOrDefault(key.chunkKey(), List.of()).stream()
+                    .map(binding.obligations()::get)
+                    .noneMatch(candidate -> candidate != null && candidate.state() == State.PENDING)) {
+                binding.pendingChunkKeys().remove(key.chunkKey());
+            }
         }
     }
 
@@ -734,6 +735,7 @@ final class SkyforgeComposedCaveStage {
     private record Binding(
             LinkedHashMap<ObligationKey, Obligation> obligations,
             Map<Long, List<ObligationKey>> obligationKeysByChunk,
+            LinkedHashSet<Long> pendingChunkKeys,
             LinkedHashMap<ObligationKey, Optional<OwnerSpan>> ownerSpans,
             LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCavePreparationCursor> preparations,
             LinkedHashMap<ObligationKey, SkyforgeNativeCarverCursor> nativeCarvers,
@@ -741,6 +743,7 @@ final class SkyforgeComposedCaveStage {
         private Binding {
             Objects.requireNonNull(obligations, "obligations");
             Objects.requireNonNull(obligationKeysByChunk, "obligationKeysByChunk");
+            Objects.requireNonNull(pendingChunkKeys, "pendingChunkKeys");
             Objects.requireNonNull(ownerSpans, "ownerSpans");
             Objects.requireNonNull(preparations, "preparations");
             Objects.requireNonNull(nativeCarvers, "nativeCarvers");
