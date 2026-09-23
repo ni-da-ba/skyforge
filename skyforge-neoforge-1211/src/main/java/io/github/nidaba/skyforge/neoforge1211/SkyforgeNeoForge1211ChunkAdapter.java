@@ -25,7 +25,6 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
@@ -51,11 +50,9 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>
-            authoredHydrologyDeploymentsByVolumeId = new ConcurrentHashMap<>();
-    private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId =
-            new ConcurrentHashMap<>();
-    private final Map<SkyIslandWorldVolumeId, Map<Long, BlockState>> authoredHydrologyPopulationStatesByVolumeId =
-            new ConcurrentHashMap<>();
+            authoredHydrologyDeploymentsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, Map<Long, BlockState>> authoredHydrologyPopulationStatesByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -89,6 +86,27 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         }
         this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
         this.boundsByVolumeId = Map.copyOf(cachedBounds);
+
+        // Authored hydrology is immutable descriptor/volume state. Build it before this adapter can
+        // escape to worldgen threads instead of lazily mutating a shared cache from both asynchronous
+        // generation and server-thread deferred catch-up.
+        var cachedDeployments = new LinkedHashMap<
+                SkyIslandWorldVolumeId,
+                List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>();
+        for (SkyIslandWorldVolumeId volumeId : this.authoredDescriptorsByVolumeId.keySet()) {
+            cachedDeployments.put(volumeId, deriveAuthoredHydrologyDeployments(volumeId));
+        }
+        this.authoredHydrologyDeploymentsByVolumeId = Map.copyOf(cachedDeployments);
+
+        var cachedPositions = new LinkedHashMap<SkyIslandWorldVolumeId, Set<Long>>();
+        var cachedPopulationStates =
+                new LinkedHashMap<SkyIslandWorldVolumeId, Map<Long, BlockState>>();
+        for (SkyIslandWorldVolumeId volumeId : this.authoredDescriptorsByVolumeId.keySet()) {
+            cachedPositions.put(volumeId, deriveAuthoredHydrologyPositions(volumeId));
+            cachedPopulationStates.put(volumeId, deriveAuthoredHydrologyPopulationStates(volumeId));
+        }
+        this.authoredHydrologyPositionsByVolumeId = Map.copyOf(cachedPositions);
+        this.authoredHydrologyPopulationStatesByVolumeId = Map.copyOf(cachedPopulationStates);
     }
 
     /** Returns authored provenance when this runtime was explicitly bound to it. */
@@ -115,9 +133,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
                 continue;
             }
-            Set<Long> positions = authoredHydrologyPositionsByVolumeId.computeIfAbsent(
-                    volumeId,
-                    this::deriveAuthoredHydrologyPositions);
+            Set<Long> positions = authoredHydrologyPositionsByVolumeId.getOrDefault(volumeId, Set.of());
             if (positions.contains(position.asLong())) {
                 return Optional.of(volumeId);
             }
@@ -145,7 +161,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             return Optional.empty();
         }
         return Optional.ofNullable(authoredHydrologyPopulationStatesByVolumeId
-                .computeIfAbsent(volumeId, this::deriveAuthoredHydrologyPopulationStates)
+                .getOrDefault(volumeId, Map.of())
                 .get(position.asLong()));
     }
 
@@ -161,9 +177,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
             return List.of();
         }
-        return authoredHydrologyDeploymentsByVolumeId.computeIfAbsent(
-                volumeId,
-                this::deriveAuthoredHydrologyDeployments);
+        return authoredHydrologyDeploymentsByVolumeId.getOrDefault(volumeId, List.of());
     }
 
     private List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deriveAuthoredHydrologyDeployments(
