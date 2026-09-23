@@ -677,12 +677,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // authored datums rather than committing to one median and either excavating a bathtub or
         // dropping the lake. Candidates nearest the median are preferred; ties prefer the higher
         // plane because filling an existing depression is less destructive than cutting upland.
-        int maximumBaseSurfaceY = columns.values().stream()
-                .mapToInt(RetainedColumnPlan::baseSurfaceY)
-                .max()
-                .orElseThrow();
-        List<Integer> waterTopCandidates =
-                retainedWaterTopCandidates(projectedWaterTops, maximumBaseSurfaceY);
+        List<Integer> waterTopCandidates = retainedWaterTopCandidates(projectedWaterTops);
         Map<Column, RetainedColumnPlan> realizable = Map.of();
         int waterTopY = Integer.MIN_VALUE;
         int maximumRepresentedCells = 0;
@@ -789,35 +784,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 new ArrayList<>(surface)));
     }
 
-    private static List<Integer> retainedWaterTopCandidates(
-            List<Integer> sortedProjectedWaterTops,
-            int maximumBaseSurfaceY) {
+    private static List<Integer> retainedWaterTopCandidates(List<Integer> sortedProjectedWaterTops) {
         Objects.requireNonNull(sortedProjectedWaterTops, "sortedProjectedWaterTops");
         if (sortedProjectedWaterTops.isEmpty()) {
             return List.of();
         }
 
-        // Projected authored samples constrain the preferred semantic datum, while Minecraft admits
-        // only integer Y planes and the independently compiled carrier is not absolutely
-        // Y-isomorphic to that semantic terrain. A physically coherent basin may therefore need a
-        // higher datum than any one local semantic projection. Search upward only as far as needed
-        // to make every accepted footprint column realizable under the same bounded-cut rule.
-        //
-        // This deliberately prefers filling a naturally enclosed carrier depression over excavating
-        // a broad bathtub. Perimeter containment remains a hard gate below, so raising the datum
-        // cannot flood through an unbanked edge. Candidates remain ordered by distance from the
-        // authored median, preserving the closest physically valid realization.
+        // Projected authored samples constrain a continuous semantic datum, while Minecraft admits
+        // only integer Y planes. Testing only sampled rounded values can miss the physically valid
+        // plane between two samples. Search every integer in the bounded projected envelope plus the
+        // same small reconciliation allowance used by basin cutting; order by distance from the
+        // authored median and prefer the higher level on ties.
         int median = sortedProjectedWaterTops.get(sortedProjectedWaterTops.size() / 2);
         int minimum = Math.subtractExact(
                 sortedProjectedWaterTops.getFirst(),
                 MAX_RETAINED_BASIN_CUT_BLOCKS);
-        int projectedMaximum = Math.addExact(
+        int maximum = Math.addExact(
                 sortedProjectedWaterTops.getLast(),
                 MAX_RETAINED_BASIN_CUT_BLOCKS);
-        int carrierConnectivityMaximum = Math.max(
-                minimum,
-                maximumBaseSurfaceY - MAX_RETAINED_BASIN_CUT_BLOCKS);
-        int maximum = Math.max(projectedMaximum, carrierConnectivityMaximum);
         List<Integer> candidates = new ArrayList<>(maximum - minimum + 1);
         for (int value = minimum; value <= maximum; value++) {
             candidates.add(value);
