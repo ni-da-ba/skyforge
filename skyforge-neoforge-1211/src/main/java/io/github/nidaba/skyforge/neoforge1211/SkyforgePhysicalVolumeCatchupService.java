@@ -192,6 +192,12 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(dependencies);
     }
 
+    static boolean caveTopologyReadyForVolume(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return !SkyforgeComposedCaveStage.active()
+                || SkyforgeComposedCaveStage.snapshot(volumeId).pendingObligations() == 0;
+    }
+
     static boolean authoredSurfaceReadyForVolume(
             ServerLevel level,
             SkyIslandWorldVolumeId volumeId) {
@@ -309,8 +315,7 @@ final class SkyforgePhysicalVolumeCatchupService {
                     // their accepted no-op surface/population behavior rather than fabricating a biome
                     // authority merely to satisfy the authored-surface adapter.
                     if (SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId).isPresent()) {
-                        if (SkyforgeComposedCaveStage.active()
-                                && SkyforgeComposedCaveStage.snapshot(volumeId).pendingObligations() > 0) {
+                        if (!caveTopologyReadyForVolume(volumeId)) {
                             continue;
                         }
                         SkyforgeAuthoredNativeSurfaceStage.apply(level, chunk, generator, volumeId);
