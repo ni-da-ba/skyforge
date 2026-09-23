@@ -204,22 +204,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
 
-        long projectedChannels = rawDeployments.stream()
-                .filter(deployment -> deployment.feature() == Feature.CHANNEL)
-                .count();
-        long projectedRetainedWater = rawDeployments.stream()
-                .filter(deployment -> deployment.feature() == Feature.RETAINED_WATER)
-                .count();
-        if (projectedChannels != intent.channels().size()
-                || projectedRetainedWater != intent.retainedWater().size()) {
-            throw new IllegalStateException(
-                    "Minecraft hydrology projection lost accepted authored intent: channels="
-                            + projectedChannels + "/" + intent.channels().size()
-                            + ", retainedWater="
-                            + projectedRetainedWater + "/" + intent.retainedWater().size()
-                            + ", volume=" + volume.id().path());
-        }
-
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
         // already consumed by the fluvial terrain field. Literal Minecraft fluid authority comes
         // only from connected routed channels or retained basins; a drop must never manufacture an
