@@ -174,3 +174,12 @@ Alluvial reaches may widen asymmetrically according to surrounding relief; incis
 smaller asymmetry response and cascades remain effectively symmetric. Reaches immediately
 downstream of two or more accepted incoming channels receive bounded bankfull and valley widening.
 These are geometry consequences of accepted topology and terrain, not backend-invented river paths.
+
+
+## H5 lifecycle ordering
+
+Final surface representation and surface population are now downstream of completed composed-cave
+topology for the whole exact volume. The cave realizer consumes the already-authored biome resolver
+directly and no longer waits for vegetation or persistent biome presentation. This prevents a later
+cave mutation from removing support beneath already-placed mushrooms, grass, trees, or other
+surface features.
