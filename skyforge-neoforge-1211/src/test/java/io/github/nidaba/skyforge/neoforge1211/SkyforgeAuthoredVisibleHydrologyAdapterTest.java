@@ -366,6 +366,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void deploymentDefensivelyCopiesCallerCollections() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var waterPosition = new BlockPos(3, 64, 3);
+        var water = new java.util.ArrayList<BlockPos>();
+        water.add(waterPosition);
+        var carved = new java.util.ArrayList<BlockPos>();
+        var surface = new java.util.ArrayList<BlockPos>();
+
+        var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                fixture.volume().id(),
+                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                water,
+                carved,
+                surface);
+
+        water.clear();
+        carved.add(new BlockPos(4, 64, 3));
+        surface.add(new BlockPos(5, 64, 3));
+
+        assertEquals(List.of(waterPosition), deployment.positions());
+        assertTrue(deployment.carvedPositions().isEmpty());
+        assertTrue(deployment.surfacePositions().isEmpty());
+    }
+
+    @Test
     void deploymentRejectsWaterCarveAndSurfaceOverlap() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
