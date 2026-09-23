@@ -66,6 +66,16 @@ The rule is therefore:
 
 > No half-integrated dependency in the alpha production baseline.
 
+The broader development/reference pack is not automatically the shipping alpha stack. Before alpha, every dependency that will actually ship must have an explicit disposition, and no user-facing mod should remain present merely because it happened to be installed during development.
+
+For each shipped dependency, every capability exposed to the player must be one of:
+
+- intentionally integrated and supported;
+- intentionally disabled/hidden because Skyforge does not claim that capability in alpha;
+- explicitly documented as optional/non-core behavior with no dependency from Skyforge's critical path.
+
+"Fully integrated" does not mean Skyforge must consume every feature offered by every retained mod. It means the alpha contains no accidental, unsupported, or semantically conflicting surface simply because the jar is present.
+
 ## 4. Fundamental systems that must exist before alpha
 
 The exact implementation may evolve, but the alpha must contain a coherent implementation of the systems required to demonstrate Skyforge's advertised core premise.
@@ -160,6 +170,7 @@ Required:
 - representative single-player and dedicated-server sanity where supported;
 - bounded client/server memory and runtime behavior;
 - compatibility among the selected production dependencies;
+- a shipping manifest in which every included dependency is classified and every claimed user-facing capability has an intentional integration/support disposition;
 - packaging, version-lock, and licensing/redistribution decisions sufficient to ship the alpha;
 - enough presentation that external testing evaluates Skyforge rather than obvious scaffolding.
 
