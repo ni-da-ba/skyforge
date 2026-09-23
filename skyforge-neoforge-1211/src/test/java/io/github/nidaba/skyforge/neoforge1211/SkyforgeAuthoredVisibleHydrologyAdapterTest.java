@@ -312,6 +312,60 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void chunkIndexExactlyPartitionsNormalizedHydrologyAndDrivesIdempotentChunkLocalReplay() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        var indexed = SkyforgeAuthoredVisibleHydrologyAdapter.indexByChunk(deployments);
+
+        var expected = new java.util.LinkedHashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
+        for (var deployment : deployments) {
+            for (var position : deployment.surfacePositions()) {
+                assertEquals(null, expected.putIfAbsent(position, Blocks.DIRT.defaultBlockState()));
+            }
+            for (var position : deployment.carvedPositions()) {
+                var previous = expected.putIfAbsent(position, Blocks.AIR.defaultBlockState());
+                assertTrue(previous == null || previous.isAir());
+            }
+            for (var position : deployment.positions()) {
+                var previous = expected.putIfAbsent(position, Blocks.WATER.defaultBlockState());
+                assertTrue(previous == null || previous.is(Blocks.WATER));
+            }
+        }
+
+        assertEquals(
+                expected.size(),
+                indexed.values().stream().mapToInt(projection -> projection.states().size()).sum());
+        for (var entry : indexed.entrySet()) {
+            long chunkKey = entry.getKey();
+            for (var state : entry.getValue().states().entrySet()) {
+                assertEquals(chunkKey, new net.minecraft.world.level.ChunkPos(state.getKey()).toLong());
+                assertEquals(expected.get(state.getKey()), state.getValue());
+            }
+        }
+
+        var first = indexed.entrySet().stream().findFirst().orElseThrow();
+        var chunkPos = new net.minecraft.world.level.ChunkPos(first.getKey());
+        var chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+        for (BlockPos position : first.getValue().states().keySet()) {
+            chunk.setBlockState(position, Blocks.STONE.defaultBlockState(), false);
+        }
+
+        assertEquals(
+                first.getValue().states().size(),
+                SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain));
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain));
+        for (var state : first.getValue().states().entrySet()) {
+            var actual = chunk.getBlockState(state.getKey());
+            if (state.getValue().is(Blocks.WATER)) {
+                assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.isWaterBearing(actual));
+            } else {
+                assertEquals(state.getValue(), actual);
+            }
+        }
+    }
+
+    @Test
     void deploymentRejectsWaterCarveAndSurfaceOverlap() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
