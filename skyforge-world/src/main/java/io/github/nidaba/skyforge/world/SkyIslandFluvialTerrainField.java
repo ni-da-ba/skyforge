@@ -141,13 +141,17 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         }
         double result = Double.POSITIVE_INFINITY;
         boolean found = false;
+        // The dry fluvial surface is independent of which overlapping wet reach is currently being
+        // inspected. Compute it once; calling sample(position) inside the reach loop multiplies the
+        // full reach-projection pass at confluences without changing semantics.
+        double drySurface = sample(position);
         for (SkyIslandFluvialReachGeometry reach : reaches) {
             Projection projection = project(position, reach.path());
             if (projection.distance() > reach.wetHalfWidth()) {
                 continue;
             }
             double surface = bedElevation(reach, projection) + reach.waterDepthPotential();
-            if (surface > sample(position) + EPSILON) {
+            if (surface > drySurface + EPSILON) {
                 result = Math.min(result, surface);
                 found = true;
             }
