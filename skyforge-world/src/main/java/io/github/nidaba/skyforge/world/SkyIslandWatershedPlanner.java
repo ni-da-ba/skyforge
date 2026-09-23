@@ -48,7 +48,7 @@ public final class SkyIslandWatershedPlanner {
 
         SpillRouting spill = spillRouting(active, surface);
         boolean[] retained = selectRetainedBasins(active, surface, retention, spill.spillLevel());
-        int[] downstream = Arrays.copyOf(spill.parent(), spill.parent().length);
+        int[] downstream = flowDirections(active, surface, spill.spillLevel(), spill.rank(), GRID_SIZE);
         for (int i = 0; i < total; i++) {
             if (retained[i]) {
                 downstream[i] = -1;
@@ -111,9 +111,7 @@ public final class SkyIslandWatershedPlanner {
         int total = active.length;
         double[] spillLevel = new double[total];
         Arrays.fill(spillLevel, Double.POSITIVE_INFINITY);
-        int[] parent = new int[total];
         int[] rank = new int[total];
-        Arrays.fill(parent, -1);
         Arrays.fill(rank, Integer.MAX_VALUE);
         boolean[] visited = new boolean[total];
         PriorityQueue<QueueCell> queue = new PriorityQueue<>(Comparator
@@ -156,13 +154,90 @@ public final class SkyIslandWatershedPlanner {
                         continue;
                     }
                     visited[n] = true;
-                    parent[n] = i;
                     spillLevel[n] = Math.max(surface[n], current.level());
                     queue.add(new QueueCell(n, spillLevel[n]));
                 }
             }
         }
-        return new SpillRouting(parent, rank, spillLevel);
+        return new SpillRouting(rank, spillLevel);
+    }
+
+    /**
+     * Chooses physical flow direction after Priority-Flood has established the drainage surface.
+     *
+     * <p>Priority-Flood discovery ancestry is not a flow-direction model: on filled flats it is
+     * primarily a queue traversal tree. Every routed edge instead considers all already
+     * outlet-connected neighbors. Raw-terrain descent is preferred first, filled-surface descent
+     * second, and flood rank is used only to resolve unavoidable flats while guaranteeing an
+     * acyclic path toward a boundary.
+     */
+    static int[] flowDirections(
+            boolean[] active,
+            double[] surface,
+            double[] spillLevel,
+            int[] rank,
+            int gridSize) {
+        int total = gridSize * gridSize;
+        if (gridSize < 3
+                || active.length != total
+                || surface.length != total
+                || spillLevel.length != total
+                || rank.length != total) {
+            throw new IllegalArgumentException("flow-direction arrays must match gridSize^2");
+        }
+
+        int[] downstream = new int[total];
+        Arrays.fill(downstream, -1);
+        for (int z = 0; z < gridSize; z++) {
+            for (int x = 0; x < gridSize; x++) {
+                int i = index(x, z, gridSize);
+                if (!active[i] || isDomainBoundary(x, z, active, gridSize)) {
+                    continue;
+                }
+
+                FlowCandidate best = null;
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        if (dx == 0 && dz == 0) {
+                            continue;
+                        }
+                        int nx = x + dx;
+                        int nz = z + dz;
+                        if (nx < 0 || nz < 0 || nx >= gridSize || nz >= gridSize) {
+                            continue;
+                        }
+                        int n = index(nx, nz, gridSize);
+                        if (!active[n]
+                                || rank[n] >= rank[i]
+                                || spillLevel[n] > spillLevel[i] + 1.0e-12) {
+                            continue;
+                        }
+                        double distance = dx == 0 || dz == 0 ? 1.0 : Math.sqrt(2.0);
+                        double rawDrop = surface[i] - surface[n];
+                        double filledDrop = spillLevel[i] - spillLevel[n];
+                        int classRank = rawDrop > 1.0e-12
+                                ? 2
+                                : filledDrop > 1.0e-12 ? 1 : 0;
+                        FlowCandidate candidate = new FlowCandidate(
+                                n,
+                                classRank,
+                                rawDrop / distance,
+                                filledDrop / distance,
+                                surface[n],
+                                rank[n]);
+                        if (best == null || candidate.betterThan(best)) {
+                            best = candidate;
+                        }
+                    }
+                }
+                if (best == null) {
+                    throw new IllegalStateException(
+                            "Priority-Flood drainage surface left an interior cell without an outlet-connected neighbor");
+                }
+                downstream[i] = best.index();
+            }
+        }
+        return downstream;
     }
 
     private static boolean[] selectRetainedBasins(
@@ -246,6 +321,10 @@ public final class SkyIslandWatershedPlanner {
     }
 
     private static boolean isDomainBoundary(int x, int z, boolean[] active) {
+        return isDomainBoundary(x, z, active, GRID_SIZE);
+    }
+
+    private static boolean isDomainBoundary(int x, int z, boolean[] active, int gridSize) {
         for (int dz = -1; dz <= 1; dz++) {
             for (int dx = -1; dx <= 1; dx++) {
                 if (dx == 0 && dz == 0) {
@@ -253,7 +332,11 @@ public final class SkyIslandWatershedPlanner {
                 }
                 int nx = x + dx;
                 int nz = z + dz;
-                if (nx < 0 || nz < 0 || nx >= GRID_SIZE || nz >= GRID_SIZE || !active[index(nx, nz)]) {
+                if (nx < 0
+                        || nz < 0
+                        || nx >= gridSize
+                        || nz >= gridSize
+                        || !active[index(nx, nz, gridSize)]) {
                     return true;
                 }
             }
@@ -262,9 +345,40 @@ public final class SkyIslandWatershedPlanner {
     }
 
     private static int index(int x, int z) {
-        return z * GRID_SIZE + x;
+        return index(x, z, GRID_SIZE);
+    }
+
+    private static int index(int x, int z, int gridSize) {
+        return z * gridSize + x;
     }
 
     private record QueueCell(int index, double level) {}
-    private record SpillRouting(int[] parent, int[] rank, double[] spillLevel) {}
+    private record SpillRouting(int[] rank, double[] spillLevel) {}
+
+    private record FlowCandidate(
+            int index,
+            int classRank,
+            double rawGradient,
+            double filledGradient,
+            double downstreamSurface,
+            int floodRank) {
+        private boolean betterThan(FlowCandidate other) {
+            if (classRank != other.classRank) {
+                return classRank > other.classRank;
+            }
+            if (classRank == 2 && Math.abs(rawGradient - other.rawGradient) > 1.0e-12) {
+                return rawGradient > other.rawGradient;
+            }
+            if (classRank >= 1 && Math.abs(filledGradient - other.filledGradient) > 1.0e-12) {
+                return filledGradient > other.filledGradient;
+            }
+            if (Math.abs(downstreamSurface - other.downstreamSurface) > 1.0e-12) {
+                return downstreamSurface < other.downstreamSurface;
+            }
+            if (floodRank != other.floodRank) {
+                return floodRank < other.floodRank;
+            }
+            return index < other.index;
+        }
+    }
 }
