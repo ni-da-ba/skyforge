@@ -150,13 +150,40 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             if (projection.distance() > reach.wetHalfWidth()) {
                 continue;
             }
-            double surface = bedElevation(reach, projection) + reach.waterDepthPotential();
+            // Water owns a longitudinal hydraulic grade, not "bed + constant depth" at each local
+            // sample. The bed may deepen into a terrain-conditioned pool and recover downstream;
+            // the free surface must not follow that recovery uphill.
+            double surface = reachWaterSurfacePotential(reach, projection.fraction());
             if (surface > drySurface + EPSILON) {
                 result = Math.min(result, surface);
                 found = true;
             }
         }
         return found ? OptionalDouble.of(clamp01(result)) : OptionalDouble.empty();
+    }
+
+    /**
+     * Returns one reach's authored hydraulic-grade potential at a longitudinal fraction.
+     *
+     * <p>The grade is intentionally independent of local bed excursions. It descends linearly from
+     * the reach's accepted upstream terrain reference to its bounded downstream reference, offset
+     * by the same profile-sensitive grade cut used to constrain bed shaping, then adds the authored
+     * water-depth potential. Local depressions therefore increase effective water depth instead of
+     * pulling the free surface down and forcing it to climb again downstream.
+     */
+    public double reachWaterSurfacePotential(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        Objects.requireNonNull(reach, "reach");
+        if (!reaches.contains(reach)) {
+            throw new IllegalArgumentException("reach must belong to this fluvial field");
+        }
+        if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
+            throw new IllegalArgumentException("fraction must be finite and in [0, 1]");
+        }
+        double gradeBed = longitudinalReference(reach, fraction)
+                - reach.bedDepthPotential() * gradeCutFraction(reach);
+        return clamp01(gradeBed + reach.waterDepthPotential());
     }
 
     private boolean outsideExtent(SkyIslandLocalPosition position) {
@@ -167,29 +194,36 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     }
 
     private double bedElevation(SkyIslandFluvialReachGeometry reach, Projection projection) {
+        double localCenterline = baseTerrain.sample(
+                new SkyIslandLocalPosition(projection.x(), projection.z()));
+        double localBed = localCenterline - reach.bedDepthPotential();
+        double gradeCeiling = longitudinalReference(reach, projection.fraction())
+                - reach.bedDepthPotential() * gradeCutFraction(reach);
+        double intendedBed = Math.min(localBed, gradeCeiling);
+        double boundedBed = Math.max(
+                intendedBed,
+                localCenterline - MAX_FLUVIAL_LOWERING);
+        return clamp01(boundedBed);
+    }
+
+    private double longitudinalReference(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
         SkyIslandNaturalizedChannelPath path = reach.path();
         double start = baseTerrain.sample(path.points().getFirst());
         double rawEnd = baseTerrain.sample(path.points().getLast());
         double requiredDrop = MIN_REACH_DROP
                 * (0.30 + 0.70 * reach.profile().gradientPotential());
         double end = Math.min(rawEnd, start - requiredDrop);
-        double longitudinalReference = lerp(start, end, projection.fraction());
+        return lerp(start, end, fraction);
+    }
 
-        double localCenterline = baseTerrain.sample(
-                new SkyIslandLocalPosition(projection.x(), projection.z()));
-        double localBed = localCenterline - reach.bedDepthPotential();
-        double gradeCutFraction = switch (reach.profile().kind()) {
+    private static double gradeCutFraction(SkyIslandFluvialReachGeometry reach) {
+        return switch (reach.profile().kind()) {
             case ALLUVIAL -> 0.35;
             case INCISED -> 0.55;
             case CASCADE -> 0.75;
         };
-        double gradeCeiling = longitudinalReference
-                - reach.bedDepthPotential() * gradeCutFraction;
-        double intendedBed = Math.min(localBed, gradeCeiling);
-        double boundedBed = Math.max(
-                intendedBed,
-                localCenterline - MAX_FLUVIAL_LOWERING);
-        return clamp01(boundedBed);
     }
 
     private static double crossSectionElevation(
