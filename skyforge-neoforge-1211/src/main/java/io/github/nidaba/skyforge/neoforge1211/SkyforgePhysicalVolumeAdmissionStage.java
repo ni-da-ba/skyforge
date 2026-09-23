@@ -335,11 +335,17 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         long chunkKey = chunkPos.toLong();
         List<PendingRealization> eligible = new ArrayList<>();
         synchronized (binding) {
-            for (var entry : binding.pendingByVolume().entrySet()) {
-                if (!binding.ledger().admitted(entry.getKey())) {
+            // Preserve catalog order when stacked exact volumes share one Minecraft chunk.
+            for (var volume : binding.catalog().volumes()) {
+                SkyIslandWorldVolumeId volumeId = volume.id();
+                if (!binding.ledger().admitted(volumeId)) {
                     continue;
                 }
-                PendingRealization pending = entry.getValue().get(chunkKey);
+                Map<Long, PendingRealization> byChunk = binding.pendingByVolume().get(volumeId);
+                if (byChunk == null) {
+                    continue;
+                }
+                PendingRealization pending = byChunk.get(chunkKey);
                 if (pending != null) {
                     eligible.add(pending);
                 }
@@ -420,9 +426,13 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         long chunkKey = chunkPos.toLong();
         List<SkyIslandWorldVolumeId> eligible = new ArrayList<>();
         synchronized (binding) {
-            for (var entry : binding.pendingBiomePresentationByVolume().entrySet()) {
-                if (binding.ledger().admitted(entry.getKey()) && entry.getValue().contains(chunkKey)) {
-                    eligible.add(entry.getKey());
+            for (var volume : binding.catalog().volumes()) {
+                SkyIslandWorldVolumeId volumeId = volume.id();
+                Set<Long> pending = binding.pendingBiomePresentationByVolume().get(volumeId);
+                if (pending != null
+                        && binding.ledger().admitted(volumeId)
+                        && pending.contains(chunkKey)) {
+                    eligible.add(volumeId);
                 }
             }
         }
