@@ -384,7 +384,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void deploymentDefensivelyCopiesMutableRoleLists() {
+    void deploymentDefensivelyCopiesCallerCollections() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
         var water = new java.util.ArrayList<BlockPos>();
