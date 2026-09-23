@@ -482,8 +482,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var expected = new java.util.LinkedHashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
         for (var deployment : deployments) {
             for (var position : deployment.surfacePositions()) {
-                var previous = expected.putIfAbsent(position, Blocks.DIRT.defaultBlockState());
-                assertTrue(previous == null || previous.is(Blocks.DIRT));
+                var desired = SkyforgeAuthoredVisibleHydrologyAdapter.hydrologySurfaceState(position);
+                var previous = expected.putIfAbsent(position, desired);
+                assertTrue(previous == null || previous.equals(desired));
             }
             for (var position : deployment.carvedPositions()) {
                 var previous = expected.putIfAbsent(position, Blocks.AIR.defaultBlockState());
