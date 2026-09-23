@@ -140,6 +140,22 @@ class SkyIslandFluvialTerrainFieldTest {
                 field.surfaceZone(new SkyIslandLocalPosition(radius * 1.10, 0.0)));
     }
 
+
+    @Test
+    void acceptedHeadwatersRemainRasterizableWithoutLatticeSizedRivers() {
+        for (long key : new long[] {287L, 649L, 811L, 83L}) {
+            SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor(key));
+            for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+                assertTrue(
+                        reach.bankfullHalfWidth() >= 3.0 - EPSILON,
+                        "accepted reaches need a stable voxel-quantization floor");
+                assertTrue(
+                        reach.bankfullHalfWidth() < field.descriptor().nominalRadius() * 0.08,
+                        "quantization floor must not turn headwaters into lattice-scale trenches");
+            }
+        }
+    }
+
     @Test
     void fieldLeavesFarExteriorUntouched() {
         SkyIslandDescriptor descriptor = descriptor(83L);
