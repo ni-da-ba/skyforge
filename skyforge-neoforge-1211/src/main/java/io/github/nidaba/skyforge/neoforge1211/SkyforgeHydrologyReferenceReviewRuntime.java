@@ -33,9 +33,12 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeHydrologyReferenceReviewRuntime {
-    private static final int TICKET_DISTANCE = 3;
-    private static final int WARM_TICKET_WINDOW = 16;
-    private static final int WARM_CHUNKS_PER_TICK = 16;
+    // A radius-0 region ticket is sufficient to promote the target to a stable FULL LevelChunk.
+    // Radius 3 is an entity-ticking-strength ticket and causes a much larger generated/resident
+    // neighborhood than this review harness needs.
+    private static final int TICKET_RADIUS = 0;
+    private static final int WARM_TICKET_WINDOW = 8;
+    private static final int WARM_CHUNKS_PER_TICK = 4;
     private static final int FLUID_SETTLE_TICKS = 100;
     static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
     private static final TicketType<ChunkPos> REVIEW_TICKET = TicketType.create(
@@ -141,11 +144,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return;
         }
 
-        // Keep a small look-ahead window live. One-ticket-at-a-time warmup creates head-of-line
-        // blocking when an outer chunk needs longer to finish generation; retaining the whole
-        // footprint creates the opposite failure mode by exhausting the live chunk working set.
-        // Thirty-two tickets is enough for Minecraft to pipeline nearby generation while remaining
-        // strictly bounded independent of island size.
+        // Keep a small FULL-chunk look-ahead window live. One-ticket-at-a-time warmup creates
+        // head-of-line blocking, while stronger/radius-3 tickets promote unnecessary neighboring
+        // chunks into the simulation graph. Radius 0 + an eight-chunk window preserves generation
+        // pipelining without turning the reference sweep into a moving force-loaded region.
         int ticketWindowEnd = Math.min(
                 active.chunkKeys().size(),
                 active.cursor() + WARM_TICKET_WINDOW);
@@ -154,7 +156,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             ChunkPos ticketPos =
                     new ChunkPos(ChunkPos.getX(ticketKey), ChunkPos.getZ(ticketKey));
             level.getChunkSource().addRegionTicket(
-                    REVIEW_TICKET, ticketPos, TICKET_DISTANCE, ticketPos);
+                    REVIEW_TICKET, ticketPos, TICKET_RADIUS, ticketPos);
         }
 
         int advanced = 0;
@@ -180,7 +182,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 break;
             }
 
-            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
+            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_RADIUS, pos);
             active.advance();
             advanced++;
         }
@@ -538,9 +540,13 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static void reportProgress(ServerPlayer player, Preparation active) {
         if (tickCounter % 20L == 0L) {
             long key = active.chunkKeys().get(active.cursor());
+            Runtime runtime = Runtime.getRuntime();
+            long usedMiB = (runtime.totalMemory() - runtime.freeMemory()) / (1024L * 1024L);
+            long maxMiB = runtime.maxMemory() / (1024L * 1024L);
             say(player, active.phase().label() + " "
                     + active.cursor() + "/" + active.chunkKeys().size()
-                    + " @ [" + ChunkPos.getX(key) + "," + ChunkPos.getZ(key) + "]");
+                    + " @ [" + ChunkPos.getX(key) + "," + ChunkPos.getZ(key) + "]"
+                    + " heap=" + usedMiB + "/" + maxMiB + " MiB");
         }
     }
 
@@ -553,7 +559,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static void releaseTickets(ServerLevel level, List<Long> chunkKeys) {
         for (long key : chunkKeys) {
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
-            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
+            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_RADIUS, pos);
         }
     }
 
