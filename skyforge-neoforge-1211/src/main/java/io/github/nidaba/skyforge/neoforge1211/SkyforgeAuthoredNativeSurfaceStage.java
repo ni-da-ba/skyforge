@@ -188,19 +188,29 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                 }
 
                 var range = optionalRange.orElseThrow();
-                int solidDepthFromExposure = Integer.MAX_VALUE;
+                boolean gapAbove = false;
+                boolean authoredHydrologyGapAbove = false;
+                int hydrologyExposureDepth = Integer.MAX_VALUE;
                 for (int worldY = range.maximumY(); worldY >= range.minimumY(); worldY--) {
                     cursor.set(worldX, worldY, worldZ);
                     BlockState nativeState = scratch.getBlockState(cursor);
                     if (nativeState.isAir() || !nativeState.getFluidState().isEmpty()) {
-                        solidDepthFromExposure = -1;
+                        gapAbove = true;
+                        authoredHydrologyGapAbove |= SkyforgeNeoForge1211SurfaceStage
+                                .authoredHydrologyPopulationState(volumeId, cursor)
+                                .isPresent();
+                        hydrologyExposureDepth = Integer.MAX_VALUE;
                         continue;
                     }
 
-                    if (solidDepthFromExposure == Integer.MAX_VALUE || solidDepthFromExposure < 0) {
-                        solidDepthFromExposure = 0;
-                    } else {
-                        solidDepthFromExposure++;
+                    if (gapAbove) {
+                        hydrologyExposureDepth = authoredHydrologyGapAbove
+                                ? 0
+                                : Integer.MAX_VALUE;
+                        gapAbove = false;
+                        authoredHydrologyGapAbove = false;
+                    } else if (hydrologyExposureDepth != Integer.MAX_VALUE) {
+                        hydrologyExposureDepth++;
                     }
 
                     SkyIslandTerrainSemantic semantic = SkyforgeNeoForge1211SurfaceStage.terrainSemantic(
@@ -209,7 +219,7 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                                     "Skyforge terrain binding disappeared during native surface copy"));
 
                     boolean surfaceRepresentation = semantic == SkyIslandTerrainSemantic.SURFACE_MANTLE
-                            || solidDepthFromExposure < NEWLY_EXPOSED_PROFILE_DEPTH;
+                            || hydrologyExposureDepth < NEWLY_EXPOSED_PROFILE_DEPTH;
                     if (!surfaceRepresentation
                             || !resolver.supportsSurface(volumeId, worldX, worldY, worldZ)) {
                         continue;
@@ -225,6 +235,16 @@ final class SkyforgeAuthoredNativeSurfaceStage {
 
                     BlockState liveState = live.getBlockState(cursor);
                     if (liveState.isAir() || !liveState.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    // Authored hydrology substrate is already an explicit backend representation.
+                    // Native biome surface rules may dress surrounding terrain, but must not repaint
+                    // river/lake beds into grass, mycelium, sand, or another unrelated top block.
+                    var authoredHydrology = SkyforgeNeoForge1211SurfaceStage
+                            .authoredHydrologyPopulationState(volumeId, cursor);
+                    if (authoredHydrology.isPresent()
+                            && SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
+                                    authoredHydrology.orElseThrow())) {
                         continue;
                     }
                     if (!liveState.equals(nativeState)) {
