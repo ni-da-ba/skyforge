@@ -8,8 +8,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.kernel.coordinate.Coordinate2;
+import io.github.nidaba.skyforge.kernel.coordinate.Coordinate3;
 import io.github.nidaba.skyforge.kernel.evaluation.ReferenceEvaluator;
 import io.github.nidaba.skyforge.kernel.field.ScalarField2;
+import io.github.nidaba.skyforge.kernel.field.ScalarField3;
 import io.github.nidaba.skyforge.kernel.graph.ConstantNode;
 import io.github.nidaba.skyforge.kernel.graph.NodeId;
 import io.github.nidaba.skyforge.kernel.serialization.CanonicalGraphJson;
@@ -132,6 +134,30 @@ final class SemanticSkyIslandVolumeRecipeTest {
         assertNotEquals(
                 java.util.Arrays.hashCode(codec.write(lowCompiled.upperSurfaceGraph())),
                 java.util.Arrays.hashCode(codec.write(highCompiled.upperSurfaceGraph())));
+    }
+
+    @Test
+    void schemaTwoDensityRemainsExactVerticalIntersectionForEveryFamily() {
+        for (SkyIslandMorphologyFamily semanticFamily : SkyIslandMorphologyFamily.values()) {
+            CompiledSkyIslandVolume compiled = recipe.compile(
+                    semanticDescriptor(0x534b59464f524745L, semanticFamily, 0.63, 0.77));
+            ScalarField2 upper = evaluator.field2(compiled.upperSurfaceGraph());
+            ScalarField2 underside = evaluator.field2(compiled.undersideSurfaceGraph());
+            ScalarField3 density = evaluator.field3(compiled.densityGraph());
+
+            for (Coordinate2 horizontal : samplePoints()) {
+                for (double y : new double[] {96.0, 192.0, 256.0, 320.0, 400.0}) {
+                    double expected = Math.min(
+                            upper.sample(horizontal) - y,
+                            y - underside.sample(horizontal));
+                    assertEquals(
+                            Double.doubleToRawLongBits(expected),
+                            Double.doubleToRawLongBits(
+                                    density.sample(new Coordinate3(horizontal.x(), y, horizontal.z()))),
+                            semanticFamily.identifier() + " schema-2 density at " + horizontal + ", y=" + y);
+                }
+            }
+        }
     }
 
     @Test

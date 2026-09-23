@@ -81,6 +81,40 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
     }
 
     @Test
+    void populationCursorSkipsCompletedPrefixWithoutRescanningEarlierKeys() {
+        long a = new ChunkPos(-4, 0).toLong();
+        long b = new ChunkPos(-2, 0).toLong();
+        long cKey = new ChunkPos(0, 0).toLong();
+        long d = new ChunkPos(2, 0).toLong();
+        List<Long> canonical = List.of(a, b, cKey, d);
+
+        assertEquals(
+                2,
+                SkyforgePhysicalVolumeCatchupService.advancePopulationCursor(
+                        canonical,
+                        0,
+                        Set.of(a, b)::contains));
+        assertEquals(
+                2,
+                SkyforgePhysicalVolumeCatchupService.advancePopulationCursor(
+                        canonical,
+                        2,
+                        Set.of(a, b)::contains));
+        assertEquals(
+                3,
+                SkyforgePhysicalVolumeCatchupService.advancePopulationCursor(
+                        canonical,
+                        2,
+                        Set.of(a, b, cKey)::contains));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyforgePhysicalVolumeCatchupService.advancePopulationCursor(
+                        canonical,
+                        canonical.size() + 1,
+                        key -> false));
+    }
+
+    @Test
     void populationDependenciesRequireEveryEarlierCanonicalChunk() {
         long farEarlier = new ChunkPos(-6, 0).toLong();
         long nearbyEarlier = new ChunkPos(-2, 0).toLong();

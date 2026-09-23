@@ -45,6 +45,7 @@ final class SkyforgeNativeInteriorPopulationStage {
         }
 
         LinkedHashMap<ObligationKey, Obligation> obligations = new LinkedHashMap<>();
+        LinkedHashMap<Long, List<ObligationKey>> obligationKeysByChunk = new LinkedHashMap<>();
         Set<SkyIslandWorldVolumeId> volumeIds = new HashSet<>();
         for (SkyforgeNativeInteriorPopulationPlan plan : List.copyOf(plans)) {
             Objects.requireNonNull(plan, "native interior population plan");
@@ -66,6 +67,15 @@ final class SkyforgeNativeInteriorPopulationStage {
                             "duplicate native interior population obligation "
                                     + plan.volumeId().path() + "/" + chunkPos(chunkKey));
                 }
+                obligationKeysByChunk.compute(
+                        chunkKey,
+                        (ignored, existing) -> {
+                            List<ObligationKey> keys = existing == null
+                                    ? new ArrayList<>()
+                                    : new ArrayList<>(existing);
+                            keys.add(key);
+                            return List.copyOf(keys);
+                        });
             }
         }
         if (obligations.isEmpty()) {
@@ -73,7 +83,10 @@ final class SkyforgeNativeInteriorPopulationStage {
                     "native interior population requires at least one exact-volume obligation");
         }
 
-        Binding binding = new Binding(obligations);
+        Binding binding = new Binding(
+                obligations,
+                java.util.Collections.unmodifiableMap(new LinkedHashMap<>(obligationKeysByChunk)),
+                new LinkedHashSet<>(obligationKeysByChunk.keySet()));
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a native interior population stage is already installed");
         }
@@ -108,19 +121,18 @@ final class SkyforgeNativeInteriorPopulationStage {
         }
 
         long chunkKey = chunk.getPos().toLong();
-        List<Map.Entry<ObligationKey, Obligation>> candidates = new ArrayList<>();
-        synchronized (binding) {
-            for (var entry : binding.obligations().entrySet()) {
-                if (entry.getKey().chunkKey() == chunkKey && !entry.getValue().completed()) {
-                    candidates.add(entry);
-                }
-            }
-        }
+        List<ObligationKey> candidateKeys = binding.obligationKeysByChunk()
+                .getOrDefault(chunkKey, List.of());
 
         List<Completion> completions = new ArrayList<>();
-        for (var candidate : candidates) {
-            ObligationKey key = candidate.getKey();
-            Obligation obligation = candidate.getValue();
+        for (ObligationKey key : candidateKeys) {
+            Obligation obligation;
+            synchronized (binding) {
+                obligation = binding.obligations().get(key);
+                if (obligation == null || obligation.completed()) {
+                    continue;
+                }
+            }
             SkyIslandWorldVolumeId volumeId = key.volumeId();
 
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(volumeId)
@@ -181,6 +193,12 @@ final class SkyforgeNativeInteriorPopulationStage {
                             "native interior population obligation changed during service");
                 }
                 current.complete(completion);
+                if (binding.obligationKeysByChunk()
+                        .getOrDefault(chunkKey, List.of()).stream()
+                        .map(binding.obligations()::get)
+                        .noneMatch(candidate -> candidate != null && !candidate.completed())) {
+                    binding.pendingChunkKeys().remove(chunkKey);
+                }
             }
             completions.add(completion);
         }
@@ -204,20 +222,31 @@ final class SkyforgeNativeInteriorPopulationStage {
         }
     }
 
+    static boolean hasPending(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            for (var entry : binding.obligations().entrySet()) {
+                if (entry.getKey().volumeId().equals(volumeId)
+                        && !entry.getValue().completed()) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     static Set<Long> pendingChunkKeys() {
         Binding binding = ACTIVE.get();
         if (binding == null) {
             return Set.of();
         }
-        LinkedHashSet<Long> keys = new LinkedHashSet<>();
         synchronized (binding) {
-            for (var entry : binding.obligations().entrySet()) {
-                if (!entry.getValue().completed()) {
-                    keys.add(entry.getKey().chunkKey());
-                }
-            }
+            return Collections.unmodifiableSet(new LinkedHashSet<>(binding.pendingChunkKeys()));
         }
-        return Collections.unmodifiableSet(keys);
     }
 
     static Snapshot snapshot() {
@@ -331,9 +360,14 @@ final class SkyforgeNativeInteriorPopulationStage {
         }
     }
 
-    private record Binding(LinkedHashMap<ObligationKey, Obligation> obligations) {
+    private record Binding(
+            LinkedHashMap<ObligationKey, Obligation> obligations,
+            Map<Long, List<ObligationKey>> obligationKeysByChunk,
+            LinkedHashSet<Long> pendingChunkKeys) {
         private Binding {
             Objects.requireNonNull(obligations, "obligations");
+            Objects.requireNonNull(obligationKeysByChunk, "obligationKeysByChunk");
+            Objects.requireNonNull(pendingChunkKeys, "pendingChunkKeys");
         }
     }
 

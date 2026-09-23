@@ -3,10 +3,13 @@ package io.github.nidaba.skyforge.neoforge1211;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BooleanSupplier;
+import java.util.function.LongPredicate;
 import java.util.function.LongSupplier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
@@ -199,6 +202,23 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(dependencies);
     }
 
+    static int advancePopulationCursor(
+            List<Long> canonicalKeys,
+            int cursor,
+            LongPredicate populationCompleted) {
+        Objects.requireNonNull(canonicalKeys, "canonicalKeys");
+        Objects.requireNonNull(populationCompleted, "populationCompleted");
+        if (cursor < 0 || cursor > canonicalKeys.size()) {
+            throw new IllegalArgumentException("population cursor is outside canonical key range");
+        }
+        int next = cursor;
+        while (next < canonicalKeys.size()
+                && populationCompleted.test(canonicalKeys.get(next))) {
+            next++;
+        }
+        return next;
+    }
+
     static boolean caveTopologyReadyForSurface(
             SkyIslandWorldVolumeId volumeId,
             long chunkKey) {
@@ -340,7 +360,9 @@ final class SkyforgePhysicalVolumeCatchupService {
             // Population is a whole-volume downstream phase of authored surfacing. The readiness
             // barrier is evaluated once per volume per tick and includes plan-bearing chunks that are
             // not currently loaded, using the surface completion ledger rather than adding tickets.
-            var surfaceReadyByVolume = new java.util.HashMap<SkyIslandWorldVolumeId, Boolean>();
+            var surfaceReadyByVolume = new HashMap<SkyIslandWorldVolumeId, Boolean>();
+            Map<SkyIslandWorldVolumeId, List<Long>> populationOrderByVolume = new HashMap<>();
+            Map<SkyIslandWorldVolumeId, Integer> populationCursorByVolume = new HashMap<>();
             for (long chunkKey : presentationChunkKeys) {
                 int chunkX = ChunkPos.getX(chunkKey);
                 int chunkZ = ChunkPos.getZ(chunkKey);
@@ -368,24 +390,34 @@ final class SkyforgePhysicalVolumeCatchupService {
                     // have been realized without adding tickets. After that barrier, serialize the
                     // volume's native population in one canonical X/Z order. Missing earlier chunks
                     // simply keep later chunks pending until Minecraft loads them independently.
-                    List<Long> volumePopulationKeys = canonicalPopulationChunkKeys(
-                            SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId));
-                    boolean blockedByEarlierPopulation = false;
-                    for (long earlierKey : earlierPopulationKeys(chunkKey, volumePopulationKeys)) {
-                        if (!SkyforgeNativeSurfacePopulationStage.populationCompleted(
-                                new ChunkPos(earlierKey),
-                                level.getMinBuildHeight(),
-                                level.getHeight(),
-                                volumeId)) {
-                            blockedByEarlierPopulation = true;
-                            break;
-                        }
-                    }
-                    if (blockedByEarlierPopulation) {
+                    List<Long> volumePopulationKeys = populationOrderByVolume.computeIfAbsent(
+                            volumeId,
+                            candidate -> canonicalPopulationChunkKeys(
+                                    SkyforgePhysicalVolumeAdmissionStage
+                                            .pendingBiomePresentationChunks(candidate)));
+                    int cursor = advancePopulationCursor(
+                            volumePopulationKeys,
+                            populationCursorByVolume.getOrDefault(volumeId, 0),
+                            key -> SkyforgeNativeSurfacePopulationStage.populationCompleted(
+                                    new ChunkPos(key),
+                                    level.getMinBuildHeight(),
+                                    level.getHeight(),
+                                    volumeId));
+                    populationCursorByVolume.put(volumeId, cursor);
+                    if (cursor >= volumePopulationKeys.size()
+                            || volumePopulationKeys.get(cursor) != chunkKey) {
                         continue;
                     }
+
                     SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred(
                             level, chunk, generator, volumeId);
+                    if (SkyforgeNativeSurfacePopulationStage.populationCompleted(
+                            chunk.getPos(),
+                            level.getMinBuildHeight(),
+                            level.getHeight(),
+                            volumeId)) {
+                        populationCursorByVolume.put(volumeId, cursor + 1);
+                    }
                 }
             }
 

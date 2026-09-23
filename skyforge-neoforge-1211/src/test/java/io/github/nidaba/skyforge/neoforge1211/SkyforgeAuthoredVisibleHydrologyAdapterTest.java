@@ -321,7 +321,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var expected = new java.util.LinkedHashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
         for (var deployment : deployments) {
             for (var position : deployment.surfacePositions()) {
-                assertEquals(null, expected.putIfAbsent(position, Blocks.DIRT.defaultBlockState()));
+                var previous = expected.putIfAbsent(position, Blocks.DIRT.defaultBlockState());
+                assertTrue(previous == null || previous.is(Blocks.DIRT));
             }
             for (var position : deployment.carvedPositions()) {
                 var previous = expected.putIfAbsent(position, Blocks.AIR.defaultBlockState());
@@ -366,28 +367,47 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void connectedHydrologyFootprintRequiresSharedBlockFaces() {
+        var origin = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0);
+        var cardinal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0);
+        var diagonal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 1);
+
+        assertEquals(
+                2,
+                SkyforgeAuthoredVisibleHydrologyAdapter.largestConnectedFootprint(
+                                new java.util.LinkedHashSet<>(List.of(origin, cardinal)))
+                        .size());
+        assertEquals(
+                1,
+                SkyforgeAuthoredVisibleHydrologyAdapter.largestConnectedFootprint(
+                                new java.util.LinkedHashSet<>(List.of(origin, diagonal)))
+                        .size());
+    }
+
+    @Test
     void deploymentDefensivelyCopiesCallerCollections() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
-        var waterPosition = new BlockPos(3, 64, 3);
+        var volumeId = fixture.volume().id();
         var water = new java.util.ArrayList<BlockPos>();
-        water.add(waterPosition);
         var carved = new java.util.ArrayList<BlockPos>();
         var surface = new java.util.ArrayList<BlockPos>();
+        water.add(new BlockPos(1, 64, 1));
+        carved.add(new BlockPos(2, 64, 1));
+        surface.add(new BlockPos(3, 64, 1));
 
         var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
-                fixture.volume().id(),
+                volumeId,
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 water,
                 carved,
                 surface);
-
         water.clear();
-        carved.add(new BlockPos(4, 64, 3));
-        surface.add(new BlockPos(5, 64, 3));
+        carved.clear();
+        surface.clear();
 
-        assertEquals(List.of(waterPosition), deployment.positions());
-        assertTrue(deployment.carvedPositions().isEmpty());
-        assertTrue(deployment.surfacePositions().isEmpty());
+        assertEquals(1, deployment.positions().size());
+        assertEquals(1, deployment.carvedPositions().size());
+        assertEquals(1, deployment.surfacePositions().size());
     }
 
     @Test

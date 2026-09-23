@@ -148,3 +148,59 @@ the 100-island DR-70 atlas remains frozen until key 287 passes the human-eye rev
 
 The final audit head also preserves defensive copies at the immutable Deployment boundary; caller
 collection mutation after construction is covered explicitly by regression test.
+
+
+### 14. Hash-order leakage in stacked-volume debt scheduling
+
+Deferred terrain and biome-presentation work exposed exact volumes by backing-map iteration order.
+Those APIs now enumerate catalog volumes explicitly, preserving the authoritative stacked-volume
+order across runs and JVM hash layouts. A two-volume regression fixture covers both debt surfaces.
+
+### 15. Quadratic canonical population dependency checks
+
+Whole-volume population serialized chunks by rescanning every earlier canonical key for every
+candidate. The scheduler now maintains a monotonic per-volume population cursor for the tick,
+reducing a complete pass from quadratic dependency checks to linear progression while preserving the
+same deterministic X/Z ordering contract.
+
+### 16. Whole-ledger cave and interior work discovery
+
+Composed-cave and native-interior services discovered chunk-local obligations by scanning the entire
+volume ledger. Both stages now build immutable chunk-local obligation indexes at install time and
+maintain ordered pending-chunk ledgers as obligations complete. This removes another realistic-island
+O(N^2) scheduler path.
+
+### 17. Full-ledger authored-water pending checks
+
+During preparation, every scheduled authored-water tick could materialize complete terrain pending
+sets and cave/interior snapshots merely to decide whether propagation should stay suppressed. That
+query now uses direct pending predicates with no full-ledger allocation.
+
+### 18. Interrupted review runtime leakage
+
+Closing an integrated review world during bootstrap or preparation could leave stale static bindings
+or allow a late bootstrap worker to publish into a later server instance. The harness now invalidates
+bootstrap publication through an epoch, requests worker interruption, releases review tickets, and
+closes unfinished mutable bindings on server stop.
+
+### 19. Waterbody connectivity semantics
+
+Retained-water connectivity used diagonal (8-neighbor) column adjacency, which can join Minecraft
+water columns that only touch at a corner. Connectivity now uses face/cardinal neighbors, matching
+voxel fluid topology.
+
+### 20. Silent authored-intent loss
+
+A channel or retained basin whose backend projection became empty could previously disappear from the
+Minecraft plan through Optional.empty(). The adapter now verifies one-for-one projection counts and
+fails closed with volume-local diagnostics instead of silently omitting accepted authored intent.
+
+## Deep-audit qualification status
+
+The audit corrections are isolated behind draft PR #1078 and are not accepted until the exact PR head
+passes automated qualification. The most H6-specific NeoForge focused qualification passed on the
+earlier audit head; broader CI failures from that earlier head are superseded by later scheduler/index
+corrections and must be rerun on the final exact head before merge.
+
+After automated acceptance, the remaining gate is the actual H6 reference-island run and human-eye
+inspection. No code audit can substitute for that visual gate.

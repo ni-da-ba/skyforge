@@ -22,6 +22,7 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
@@ -59,6 +60,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static volatile long bootstrapStartedNanos;
     private static volatile long bootstrapLastDumpNanos;
     private static volatile Thread bootstrapThread;
+    private static volatile long bootstrapEpoch;
     private static boolean ready;
     private static long tickCounter;
     private static volatile Thread watchdogServerThread;
@@ -96,6 +98,15 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         bootstrapStartedNanos = 0L;
         bootstrapLastDumpNanos = 0L;
         bootstrapThread = null;
+        bootstrapEpoch++;
+    }
+
+    @SubscribeEvent
+    static void onServerStopping(ServerStoppingEvent event) {
+        if (!enabled() || ready) {
+            return;
+        }
+        abortPreparation(event.getServer().getLevel(Level.OVERWORLD));
     }
 
     @SubscribeEvent
@@ -290,6 +301,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         }
         bootstrapStarted = true;
         bootstrapStartedNanos = System.nanoTime();
+        long epoch = ++bootstrapEpoch;
         Thread thread = new Thread(() -> {
             try {
                 var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
@@ -298,9 +310,23 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                         io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                         new SkyforgeMinecraftBlockPalette(),
                         fixture.descriptorsByVolumeId());
-                completedBootstrap = new PipelineBootstrap(fixture, terrain, playerId);
+                synchronized (SkyforgeHydrologyReferenceReviewRuntime.class) {
+                    if (bootstrapStarted && bootstrapEpoch == epoch) {
+                        completedBootstrap = new PipelineBootstrap(fixture, terrain, playerId);
+                    }
+                }
             } catch (Throwable failure) {
-                bootstrapFailure = failure;
+                synchronized (SkyforgeHydrologyReferenceReviewRuntime.class) {
+                    if (bootstrapStarted && bootstrapEpoch == epoch) {
+                        bootstrapFailure = failure;
+                    }
+                }
+            } finally {
+                synchronized (SkyforgeHydrologyReferenceReviewRuntime.class) {
+                    if (bootstrapEpoch == epoch && bootstrapThread == Thread.currentThread()) {
+                        bootstrapThread = null;
+                    }
+                }
             }
         }, "Skyforge hydrology reference bootstrap");
         thread.setDaemon(true);
@@ -795,6 +821,48 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 || populationBinding != null
                 || caveBinding != null
                 || interiorBinding != null;
+    }
+
+    private static synchronized void abortPreparation(ServerLevel level) {
+        // Planner work is deterministic CPU work and is not required to honor interruption. The
+        // epoch therefore invalidates publication before requesting cancellation, so a late worker
+        // can never install bindings into a subsequent integrated-server instance.
+        bootstrapStarted = false;
+        bootstrapEpoch++;
+        Thread worker = bootstrapThread;
+        bootstrapThread = null;
+        if (worker != null) {
+            worker.interrupt();
+        }
+        completedBootstrap = null;
+        bootstrapFailure = null;
+        bootstrapStartedNanos = 0L;
+        bootstrapLastDumpNanos = 0L;
+
+        Preparation active = preparation;
+        if (level != null && active != null) {
+            releaseTickets(level, active.chunkKeys());
+        }
+
+        closeBinding(interiorBinding, "interior");
+        interiorBinding = null;
+        closeBinding(caveBinding, "cave");
+        caveBinding = null;
+        closeBinding(populationBinding, "surface population");
+        populationBinding = null;
+        closeBinding(admissionBinding, "admission");
+        admissionBinding = null;
+        closeBinding(terrainBinding, "terrain");
+        terrainBinding = null;
+        preparation = null;
+
+        watchdogServerThread = null;
+        watchdogHeartbeatNanos = 0L;
+        watchdogLastDumpNanos = 0L;
+        watchdogStage = "idle";
+        watchdogPhase = "none";
+        watchdogCursor = -1;
+        watchdogChunkKey = Long.MIN_VALUE;
     }
 
     /**
