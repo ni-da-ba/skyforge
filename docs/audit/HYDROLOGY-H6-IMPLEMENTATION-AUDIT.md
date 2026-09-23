@@ -110,6 +110,14 @@ The fixture builder is synchronized. Calling the info command during worker boot
 block the server thread behind the same construction. The command now reports that metadata is still
 bootstrapping rather than synchronously re-entering fixture creation.
 
+### 13. Ecology rebuilt the fluvial field after bootstrap
+
+The H6 bind path constructed production ecology on the server thread after the terrain adapter had
+already planned the same authored fluvial geometry. The terrain adapter now retains the exact
+immutable fluvial field from its hydrology PlanningResult, and the H6 ecology resolver consumes that
+same field. This removes duplicate planning and guarantees that native river/bank biome context is
+derived from the same geometry that produced the Minecraft water projection.
+
 ## Additional audit notes
 
 The DR-70 review world preset is intentionally void-backed. The H6 runtime does not construct a
