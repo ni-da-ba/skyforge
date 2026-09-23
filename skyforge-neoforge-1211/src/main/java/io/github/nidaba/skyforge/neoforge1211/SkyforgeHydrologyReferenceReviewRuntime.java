@@ -191,7 +191,9 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         terrainBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 terrain,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
-        admissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
+        admissionBinding = SkyforgePhysicalVolumeAdmissionStage.install(
+                fixture.catalog(),
+                java.util.Map.of(fixture.volume().id(), fixture.footprintChunkKeys()));
 
         var ecology = new SkyforgeProductionEcologyResolver(
                 SkyIslandAuthoredRealizationAssociation.of(
@@ -215,8 +217,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                         fixture.volume().id(),
                         0)));
 
-        List<Long> chunkKeys = new ArrayList<>(
-                SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(fixture.volume().id()));
+        List<Long> chunkKeys = new ArrayList<>(fixture.footprintChunkKeys());
         chunkKeys.sort(Comparator
                 .comparingLong((Long key) -> squaredChunkDistance(key, 0, 0))
                 .thenComparingInt(ChunkPos::getX)
