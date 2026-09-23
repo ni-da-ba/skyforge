@@ -372,7 +372,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
             if (column.distance() <= reach.bankfullHalfWidth()
-                    && uncontestedOwnedSolidCell(
+                    && uncontestedOwnedRangeCell(
                             terrain,
                             volume.id(),
                             column.column().x(),
@@ -387,7 +387,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int carveTo = column.baseSurfaceY();
             if (wet) {
                 for (int y = column.drySurfaceY() + 1; y <= column.waterTopY(); y++) {
-                    if (uncontestedOwnedSolidCell(
+                    if (uncontestedOwnedRangeCell(
                             terrain,
                             volume.id(),
                             column.column().x(),
@@ -399,7 +399,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 carveFrom = column.waterTopY() + 1;
             }
             for (int y = carveFrom; y <= carveTo; y++) {
-                if (uncontestedOwnedSolidCell(
+                if (uncontestedOwnedRangeCell(
                         terrain,
                         volume.id(),
                         column.column().x(),
@@ -800,7 +800,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     continue;
                 }
                 var range = optionalRange.orElseThrow();
-                if (!uncontestedOwnedSolidCell(terrain, volume.id(), x, range.maximumY(), z)) {
+                if (!uncontestedOwnedRangeCell(terrain, volume.id(), x, range.maximumY(), z)) {
                     continue;
                 }
                 result.put(
@@ -849,13 +849,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (minimumY < authoritativeMinimumY || maximumY > authoritativeMaximumY) {
             return false;
         }
+        // The accepted built-in volume compiler proves vertical continuity between the
+        // exact range endpoints. Single-volume projection therefore needs no interior density
+        // reclassification; stacked projection still excludes any foreign owner per cell.
+        if (!terrain.hasMultipleCompiledVolumes()) {
+            return true;
+        }
         for (int y = minimumY; y <= maximumY; y++) {
-            if (!uncontestedOwnedSolidCell(
-                    terrain,
-                    volume.id(),
-                    column.x(),
-                    y,
-                    column.z())) {
+            if (terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
                 return false;
             }
         }
@@ -898,25 +899,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 || y > range.orElseThrow().maximumY()) {
             return false;
         }
-        return uncontestedOwnedSolidCell(terrain, volume.id(), column.x(), y, column.z());
+        return uncontestedOwnedRangeCell(terrain, volume.id(), column.x(), y, column.z());
     }
 
     /**
-     * Exact ownership check after a caller has established the column's broad support range.
+     * Ownership check for a Y already proven inside the accepted compiler's continuous solid range.
      *
-     * <p>The accepted built-in compiler currently emits vertically continuous base mass, but the
-     * backend receives a general compiled density field. Keep density classification authoritative
-     * so a future recipe cannot turn a range optimization into silent AIR ownership.
+     * <p>The range itself proves target-volume occupancy. Only stacked catalogs need an additional
+     * per-cell exclusion for a foreign exact volume.
      */
-    private static boolean uncontestedOwnedSolidCell(
+    private static boolean uncontestedOwnedRangeCell(
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandWorldVolumeId volumeId,
             int x,
             int y,
             int z) {
-        return terrain.isSolidOwnedBy(volumeId, x, y, z)
-                && (!terrain.hasMultipleCompiledVolumes()
-                        || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z));
+        return !terrain.hasMultipleCompiledVolumes()
+                || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z);
     }
 
     private static RawDeployment rawDeployment(
