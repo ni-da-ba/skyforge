@@ -190,6 +190,20 @@ final class SkyforgeNativeInteriorPopulationStage {
                 : new ServiceResult(true, List.copyOf(completions));
     }
 
+    static boolean hasPending(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Obligation obligation = binding.obligations().get(new ObligationKey(volumeId, chunkKey));
+            return obligation != null && !obligation.completed();
+        }
+    }
+
     static Set<Long> pendingChunkKeys() {
         Binding binding = ACTIVE.get();
         if (binding == null) {
