@@ -9,6 +9,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.material.Fluids;
 
 /**
  * Phase-aware plausibility policy for native post-cave population in floating exact volumes.
@@ -59,6 +60,14 @@ final class SkyforgeNativeInteriorPlacementPolicy {
 
         if (operation.generationStep() == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
                 && !state.getFluidState().isEmpty()) {
+            var fluid = state.getFluidState().getType();
+            // Skyforge hydrology currently authors water only. Native biome lava springs are a
+            // geothermal semantic, not generic cave decoration; admitting them here creates
+            // arbitrary molten pockets in floating islands with no authored heat source.
+            if (fluid != Fluids.WATER && fluid != Fluids.FLOWING_WATER) {
+                return false;
+            }
+
             // FLUID_SPRINGS executes after UNDERGROUND_DECORATION. Do not replace a solid that is
             // currently supporting glow lichen; otherwise a valid native decoration can become
             // detached immediately after its own phase completed.
