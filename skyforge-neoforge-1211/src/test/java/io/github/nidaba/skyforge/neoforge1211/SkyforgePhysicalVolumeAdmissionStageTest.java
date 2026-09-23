@@ -94,6 +94,13 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
                     List.of(deferredPos.toLong()),
                     List.copyOf(SkyforgePhysicalVolumeAdmissionStage.eligibleCatchupChunkKeys()));
             assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volume.id(), admittingPos));
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.hasPendingBiomePresentation(
+                    volume.id(), deferredPos.toLong()));
+            assertTrue(SkyforgePhysicalVolumeAdmissionStage.hasPendingBiomePresentation(
+                    volume.id(), admittingPos.toLong()));
+            SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(volume.id(), admittingPos);
+            assertFalse(SkyforgePhysicalVolumeAdmissionStage.hasPendingBiomePresentation(
+                    volume.id(), admittingPos.toLong()));
 
             var pending = SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(deferredPos).getFirst();
             SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
