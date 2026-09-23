@@ -733,13 +733,27 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (sortedProjectedWaterTops.isEmpty()) {
             return List.of();
         }
-        List<Integer> distinct = sortedProjectedWaterTops.stream().distinct().toList();
+
+        // Projected authored samples constrain a continuous semantic datum, while Minecraft admits
+        // only integer Y planes. Testing only sampled rounded values can miss the physically valid
+        // plane between two samples. Search every integer in the bounded projected envelope plus the
+        // same small reconciliation allowance used by basin cutting; order by distance from the
+        // authored median and prefer the higher level on ties.
         int median = sortedProjectedWaterTops.get(sortedProjectedWaterTops.size() / 2);
-        return distinct.stream()
-                .sorted(Comparator
-                        .comparingInt((Integer value) -> Math.abs(value - median))
-                        .thenComparing(Comparator.reverseOrder()))
-                .toList();
+        int minimum = Math.subtractExact(
+                sortedProjectedWaterTops.getFirst(),
+                MAX_RETAINED_BASIN_CUT_BLOCKS);
+        int maximum = Math.addExact(
+                sortedProjectedWaterTops.getLast(),
+                MAX_RETAINED_BASIN_CUT_BLOCKS);
+        List<Integer> candidates = new ArrayList<>(maximum - minimum + 1);
+        for (int value = minimum; value <= maximum; value++) {
+            candidates.add(value);
+        }
+        candidates.sort(Comparator
+                .comparingInt((Integer value) -> Math.abs(value - median))
+                .thenComparing(Comparator.reverseOrder()));
+        return List.copyOf(candidates);
     }
 
     private static Map<Column, RetainedColumnPlan> realizableRetainedColumns(
