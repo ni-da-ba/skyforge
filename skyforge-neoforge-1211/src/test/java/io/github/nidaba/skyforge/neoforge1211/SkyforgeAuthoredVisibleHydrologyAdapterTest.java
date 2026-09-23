@@ -211,6 +211,56 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceKey287RetainedWaterIsFlatConnectedAndLocallyConditioned() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var retained = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .toList();
+
+        assertFalse(retained.isEmpty(), "key 287 must retain its authored standing-water body");
+        for (var deployment : retained) {
+            var topByColumn = new java.util.LinkedHashMap<String, BlockPos>();
+            var wetColumns = new java.util.LinkedHashSet<SkyforgeAuthoredVisibleHydrologyAdapter.Column>();
+            for (var wet : deployment.positions()) {
+                String key = wet.getX() + "," + wet.getZ();
+                topByColumn.merge(
+                        key,
+                        wet,
+                        (first, second) -> first.getY() >= second.getY() ? first : second);
+                wetColumns.add(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        wet.getX(), wet.getZ()));
+            }
+            assertEquals(
+                    1L,
+                    topByColumn.values().stream().map(BlockPos::getY).distinct().count(),
+                    "one retained waterbody must expose one flat Minecraft surface");
+            assertEquals(
+                    wetColumns.size(),
+                    SkyforgeAuthoredVisibleHydrologyAdapter.largestConnectedFootprint(wetColumns).size(),
+                    "key-287 retained water must remain one face-connected waterbody");
+
+            int waterTopY = topByColumn.values().iterator().next().getY();
+            assertTrue(topByColumn.values().stream().allMatch(position ->
+                    terrain.integerSolidRange(
+                                    fixture.volume().id(),
+                                    position.getX(),
+                                    position.getZ())
+                            .map(range -> Math.max(0, range.maximumY() - waterTopY)
+                                    <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BASIN_CUT_BLOCKS)
+                            .orElse(false)),
+                    "key 287 must not recreate the review bathtub by cutting upland to a low global datum");
+            assertTrue(deployment.surfacePositions().stream().allMatch(position ->
+                    SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
+                            terrain.authoredHydrologyPopulationState(fixture.volume().id(), position)
+                                    .orElseThrow())),
+                    "key-287 retained basin substrate must use authored hydrology sediment");
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
