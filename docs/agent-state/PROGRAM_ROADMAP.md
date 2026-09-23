@@ -1,7 +1,7 @@
 # Skyforge Program Roadmap
 
 **Status:** Canonical program-level convergence roadmap when merged  
-**Updated:** 2026-09-10 (America/Chicago)  
+**Updated:** 2026-09-22 (America/Chicago)  
 **Purpose:** tell Audit/orchestration and fresh producer agents what product-convergent work comes next without turning long-range ideas into premature implementation tasks.
 
 ## 1. Authority and role
@@ -61,7 +61,8 @@ Every numbered phase is one of:
 - **COMPLETE** — its primary product risk is retired. Do not manufacture new work there unless downstream evidence exposes a concrete defect or accepted consumer gap.
 - **PRIMARY_ACTIVE** — the current default product-convergence focus when a lane has no stronger already-authorized objective.
 - **NEXT_AUTHORIZED** — the next phase has understood entry criteria and may begin as the active phase closes. Bounded preflight may run earlier only under the rules below.
-- **PLANNED** — intended later product work. Presence here is not authorization to start broad implementation now.
+- **PLANNED** — intended later pre-alpha product work. Presence here is not authorization to start broad implementation now.
+- **POST_ALPHA_PLANNED** — intentionally deferred until after the first public alpha unless executable evidence proves it is required to complete a fundamental alpha system.
 - **OPTIONAL_EXPANSION** — compatible with Skyforge but not on the critical path to the first complete Minecraft realization.
 
 A human gate is a **transition condition**, not another phase state.
@@ -83,7 +84,7 @@ On a useful wake, select work in this order:
 3. Execute the next bounded tranche inside the PRIMARY_ACTIVE phase.
 4. If the active phase exit is satisfied, evaluate transition gates and activate NEXT_AUTHORIZED.
 5. Permit a later-phase feasibility spike only if failure could materially invalidate current architecture.
-6. Otherwise leave PLANNED and OPTIONAL_EXPANSION work dormant.
+6. Otherwise leave PLANNED, POST_ALPHA_PLANNED, and OPTIONAL_EXPANSION work dormant.
 ```
 
 ### 4.2 Existing-work exception
@@ -99,6 +100,8 @@ An existing issue/PR may continue when:
 - it does not displace the primary convergence path without a concrete dependency reason.
 
 This is especially relevant to current Bootstrap civilization/runtime work, retained-mod feasibility work, Music, Presentation, and Audit/orchestration.
+
+After RM-R08, the existing-work exception does **not** authorize expansion of bespoke pre-alpha content merely because earlier Guild/Bellanca/air-combat/adventure work already exists. An already-active bespoke milestone may close the smallest safe information-bearing boundary; accepted output may then remain dormant for post-alpha consumption. Reusable system semantics/adapters may continue when they serve the alpha substrate independently of their original bespoke presentation.
 
 ### 4.3 Missing-issue rule
 
@@ -146,15 +149,17 @@ Do not turn a phase into an exhaustive Cartesian acceptance matrix unless eviden
 | Phase | Name | State | Current interpretation |
 | --- | --- | --- | --- |
 | 0 | Core world-synthesis foundation | **COMPLETE** | Maintenance only unless a downstream consumer exposes a defect/gap |
-| 1 | Production geography convergence | **PRIMARY_ACTIVE** | Finish current morphology confidence, bounded hybrid/provider proof, then pivot |
-| 2 | Integrated physical world | **NEXT_AUTHORIZED** | Materials/geology -> hydrology -> structures -> ecology on production geography |
-| 3 | Bootstrap Province | **PLANNED** | Extensively pre-specified; bounded existing #224/#466/#467 work remains authorized |
-| 4 | Atmospheric and visual-world convergence | **PLANNED** | Regional semantic weather, DH, reference shader/cloud stack, Lower cloud deck |
-| 5 | Regional systemic sandbox | **PLANNED** | Multiple provinces, specialization, Guild/economy/freight persistence |
-| 6 | Mature engineering, industry, and computing | **PLANNED** | Brass/electricity/petroleum/heavy logistics/computing/autonomy |
-| 7 | Adventure, ecology, danger, archaeology, and light Nether integration | **PLANNED** | Frontier content without destroying negative space |
-| 8 | High sky and End progression | **PLANNED** | Extreme altitude, Levitite, End as upper-atmosphere frontier |
-| 9 | Alpha/release convergence | **PLANNED** | Whole-game integration, tuning, packaging, performance, multiplayer sanity |
+| 1 | Production geography convergence | **COMPLETE / downstream repair only** | Production work has moved into integrated world realization; reopen only for a concrete downstream defect |
+| 2 | Integrated physical world / first environments | **PRIMARY_ACTIVE** | Current DR convergence: prove coherent dressed places and close the active DR-70 human-review repair |
+| 2.5 | Cohesive World / production-stack convergence | **NEXT_AUTHORIZED** | After DR-70 acceptance, converge the alpha production stack and certify island -> cluster -> province -> coarse-world behavior |
+| 3 | Bootstrap Province | **PLANNED** | Core gameplay/onboarding/balance using minimal representative content; full Guild/Bellanca institutional content is not an alpha prerequisite |
+| 4 | Airspace, atmosphere, and visual-world convergence | **PLANNED** | Complete alpha-critical sky/airspace semantics, weather, DH, and representative presentation |
+| 4.5 | First public alpha convergence | **PLANNED** | Systems-complete, content-light release; no half-integrated core dependency and no missing fundamental advertised system |
+| 5 | Regional systemic/content expansion | **POST_ALPHA_PLANNED** | Broaden provinces, civilization/economy/freight strategies, Guild content, and regional variants after alpha evidence |
+| 6 | Mature engineering, industry, and computing expansion | **POST_ALPHA_PLANNED** | Add optional/advanced scale, automation, petroleum, computing, and industrial breadth not already required by the alpha stack |
+| 7 | Adventure, ecology, danger, archaeology, and Nether content | **POST_ALPHA_PLANNED** | Bespoke fauna/threats/ruins/anomalies/Nether depth without destroying negative space |
+| 8 | High sky and End progression | **POST_ALPHA_PLANNED** | Extreme-altitude and custom End/high-sky progression after the core game is validated |
+| 9 | Full modpack experience / release convergence | **POST_ALPHA_PLANNED** | Converge selected post-alpha content waves into the broader finished experience |
 | X | Lower Sea / Deep / second backend / other large expansions | **OPTIONAL_EXPANSION** | Explicitly off the first-complete-Minecraft critical path |
 
 ## 6. Phase 0 — Core world-synthesis foundation
@@ -196,7 +201,7 @@ accepted consumer
 
 ## 7. Phase 1 — Production geography convergence
 
-**State:** PRIMARY_ACTIVE.
+**State:** COMPLETE / downstream repair only.
 
 ### Objective
 
@@ -252,7 +257,7 @@ Phase 1 exits when evidence supports all of the following:
 
 ## 8. Phase 2 — Integrated physical world
 
-**State:** NEXT_AUTHORIZED.
+**State:** PRIMARY_ACTIVE.
 
 ### Objective
 
@@ -342,54 +347,97 @@ At least one representative production region is accepted as a coherent dressed 
 
 > intentional landform + geology/materials + authored water + caves + ecology + appropriate structures, realized persistently and correctly in Minecraft.
 
-When this exists, the larger risk becomes complete player experience rather than isolated world dressing.
+When this exists, the larger risk becomes whether the intended production stack and authored world model remain coherent across the spatial scales the game actually depends on. Do **not** jump directly from one good dressed environment into gameplay balancing.
+
+## 8A. Phase 2.5 — Cohesive World / Production Stack Convergence
+
+**State:** NEXT_AUTHORIZED after the active Phase-2/DR-70 human gate is accepted.
+
+Canonical detailed contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+### Objective
+
+Take the accepted first-environment systems and prove that the **alpha production stack** can generate and sustain a recognizably Skyforge world across:
+
+```text
+island
+ -> cluster
+ -> province
+ -> coarse world
+```
+
+This phase owns substrate convergence, not gameplay balance.
+
+It must establish:
+
+- an alpha production-baseline dependency roster using `CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED`;
+- explicit semantic-ownership/adaptation boundaries for retained mods;
+- no half-integrated alpha-core dependency: every `CORE` dependency is intentionally supported and every `INTEGRATED` capability is exercised through its intended combined-stack path;
+- island-scale composition using accepted Phase-2 evidence rather than restarting it;
+- cluster-scale multi-island geography, atmosphere, streaming/navigation, ecology/resource differentiation, and aircraft/sublevel behavior;
+- province-scale regional specialization, sparse civilization/infrastructure, producer/consumer asymmetry, freight-capable route geometry, and the minimum world conditions later consumed by Bootstrap;
+- coarse-world distribution/materialization/persistence evidence sufficient to show that continued travel still produces Skyforge rather than disconnected local demonstrations;
+- bounded combined-stack compatibility/performance evidence for the selected production baseline.
+
+### Scope discipline
+
+A production-baseline roster is **not** a permanently frozen final mod list. Bootstrap may still reveal a dependency to remove, replace, or add.
+
+Do not require Phase 2.5 to finish mature industry, fleet automation, dragons/whaling, final civilization breadth, final atmospheric presentation, full Studio, every structure archetype, final economy balance, or final tutorial/quest design.
+
+A capability without a Phase-2.5 or Bootstrap consumer remains later work.
+
+### Exit criteria
+
+Phase 2.5 exits when:
+
+> The alpha production stack can generate and sustain a representative Skyforge world across the island -> cluster -> province -> coarse-world hierarchy without major unresolved architectural, compatibility, persistence, or performance unknowns.
+
+At exit, the dominant remaining uncertainty should be **player experience**: progression, teaching, pacing, recovery, economy balance, and whether the game is fun.
 
 ## 9. Phase 3 — Bootstrap Province
 
 **State:** PLANNED, with substantial already-authorized bounded work.
 
-### Entry condition — pre-Bootstrap development platform gate
+### Entry conditions — accepted DR-70 + Cohesive World convergence
 
-Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until the owner-approved gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` is accepted.
+Full Bootstrap Province must not become the **PRIMARY_ACTIVE** convergence workload until:
 
-The key-2885 DR-70 human re-review returned **CHANGES REQUIRED** on 2026-09-20. By owner direction, further DR-70 product work is deferred and this gate is now active. The current DR-70 findings must remain preserved as an open product gate while platform work proceeds.
+1. the current DR-70 human re-review is accepted;
+2. Phase 2.5 Cohesive World / Production Stack Convergence satisfies its exit criteria; and
+3. no stronger current human/product gate blocks gameplay convergence.
 
-The bounded transition now hardens:
+The pre-Bootstrap development-platform hardening gate has already been crossed; its accepted tooling remains the execution substrate for Phase 2.5 and Bootstrap.
 
-- automatic context/scope packaging;
-- durable significant project/human events and material-delta human gates;
-- routine platform upgrade/operability;
-- one shared development backend with an MVP Operations Console and ChatGPT/MCP visibility;
-- lifecycle/adversarial evidence sufficient for bounded concurrency;
-- basic conflict-aware multi-objective scheduling;
-- minimum viable `Continue Skyforge` autonomous progression.
+Already-authorized bounded Bootstrap work may continue under the existing-work exception, but that exception does not waive the Phase-2.5 entry condition for making Bootstrap the primary convergence focus.
 
-Already-authorized bounded Bootstrap work may continue under the existing-work exception, but that exception does not waive this entry condition for making Phase 3 the primary program focus.
+Bootstrap should consume a known-working production substrate and concentrate on gameplay rather than discovering basic mod-stack, world-scale, persistence, or compatibility architecture while tuning the player experience.
 
 ### Objective
 
-Produce the first complete Skyforge game slice from crash through independent Skyfarer status and one genuine post-tutorial systemic freight/economy loop.
+Produce the first complete **core gameplay slice** from an ordinary survival foothold through practical powered flight and one genuine systemic freight/economy loop, while obeying the reuse-first alpha content policy in `docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`.
 
-Existing #224, civilization precommit work, #466, and #467 remain authoritative bounded consumers and may proceed under the existing-work exception.
+Existing #224, civilization precommit work, #466, and #467 remain useful bounded technical evidence under the existing-work exception, but previously specified Guild/Bellanca content does **not** by itself create a pre-alpha product requirement.
 
 ### Intended player sequence
 
 ```text
-crashed Bellanca
+stranded / crash opening
 -> survival / orientation
 -> basic Minecraft + Create competence
 -> cheap gliding / vertical traversal
--> shared atmosphere / thermals / soaring ecology
+-> shared atmosphere / thermals / representative soaring ecology
 -> gather first-flight closure
 -> build crude practical powered aircraft
 -> cross a distance where aircraft materially beats personal flight
--> reach eligible civilization / Guild Hall
--> Bellanca claim + recorder evidence
--> liability reversal + restitution choice
--> TUTORIAL COMPLETE
--> first routine real producer/consumer freight opportunity
--> systemic sandbox
+-> reach an inhabited / service location
+-> encounter a real producer/consumer freight opportunity
+-> move physical cargo and receive systemic consequence
+-> core sandbox proven
 ```
+
+The Bellanca may remain an eventual opening/narrative asset, but its bespoke claim/liability/restitution arc is not required to prove the alpha gameplay loop.
 
 ### 9.1 Opening and survival
 
@@ -409,13 +457,13 @@ Cheap gliding teaches verticality and atmosphere while preserving the invariant:
 
 The first aircraft must be a practical logistics/travel capability, not merely a faster glider.
 
-Production Bellanca functionality/beautification should be scheduled late enough that it does not displace the crude-first-flight proof, while still being ready for the claim/restitution experience that needs it.
+Any Bellanca-specific functionality/beautification must be justified by a concrete alpha consumer. The crude-first-flight proof must not wait on bespoke Bellanca narrative or institutional content.
 
-### 9.5 Civilization / Guild closure
+### 9.5 Inhabited / service-location closure
 
-The first eligible civilization encounter must make mature skyborne infrastructure legible through layout/services rather than exposition alone.
+The first inhabited encounter must make skyborne infrastructure and service roles legible enough to support the core loop.
 
-Bellanca onboarding closes through the accepted claim/evidence/liability/restitution state sequence.
+A generic, retained, adapted, or lightly bespoke location is acceptable if it honestly proves settlement/service placement, access, freight endpoints, and regional specialization. Full Guild institutional realization is post-alpha content unless later evidence proves a smaller Guild element is necessary to validate a core system.
 
 ### 9.6 First sandbox economy
 
@@ -455,28 +503,35 @@ Human play/visual judgment remains mandatory for:
 
 - opening/tutorial pacing;
 - first powered-flight feel;
-- first sight/arrival at civilization;
-- Guild Hall usability;
-- Bellanca claim/restitution closure;
-- first post-tutorial freight/market loop.
+- first sight/arrival at an inhabited/service location;
+- navigation and world readability across the starting cluster/province;
+- first systemic freight/market loop.
 
 ### Exit criteria
 
-A new player can start from the crash, learn the key systems through play, obtain practical powered flight, reach civilization, resolve the Bellanca onboarding arc, and complete one systemic logistics/economy loop without developer intervention.
+A new player can begin from the opening circumstance, learn the key systems through play, obtain practical powered flight, reach an inhabited/service location, and complete one systemic logistics/economy loop without developer intervention or bespoke institutional/narrative content carrying the architecture.
 
 At Phase-3 exit, Skyforge is demonstrably a game rather than only a world-synthesis stack.
 
-## 10. Phase 4 — Atmospheric and visual-world convergence
+## 10. Phase 4 — Airspace, atmosphere, and visual-world convergence
 
 **State:** PLANNED.
 
 ### Objective
 
-Make atmospheric depth, distant geography, weather, lighting, and the world below the player become a defining visual and mechanical identity while keeping semantic weather independent of the rendering backend.
+Complete the alpha-critical **sky proper**: airspace geography, atmospheric mechanics, distant geography, weather, lighting, and enough presentation that flight between islands is a coherent world experience rather than traversal through an unowned void. Keep semantic weather independent of the rendering backend.
 
 The detailed atmosphere/cosmology strategy currently lives in separate worldbuilding/strategy work and should be consumed only once merged/current.
 
-### 10.1 Semantic weather
+### 10.1 Airspace geography
+
+Establish a backend-neutral 3-D airspace/environment model, or an equivalent authored field, that can represent a dominant ordinary **open sky** plus bounded regional/altitude phenomena without making every cubic volume special.
+
+It must be able to relate coherently to the same world hierarchy that authors islands/clusters/provinces and provide environmental opportunity to downstream weather, ecology/spawning, navigation, sound/presentation, and later bespoke sky content.
+
+Alpha does not require every eventual sky regime, perpetual storm, migration corridor, anomalous region, or bespoke aerial creature. It requires the **system that can place and relate such regions**, plus enough representative regimes to prove that the sky between islands is meaningful geography.
+
+### 10.2 Semantic weather
 
 Expand the Bootstrap atmosphere into regional/climatological state:
 
@@ -491,55 +546,104 @@ Expand the Bootstrap atmosphere into regional/climatological state:
 
 Use coarse semantic state, deterministic reconstruction, and bounded updates rather than CFD.
 
-### 10.2 Distant terrain
+### 10.3 Distant terrain
 
 Treat Distant Horizons (or an equivalent accepted solution) as distant **solid-terrain** infrastructure, not atmosphere authority.
 
-### 10.3 Reference shader stack
+### 10.4 Alpha reference rendering stack
 
-Develop/adapt a Skyforge reference Iris-compatible shaderpack only after the combined-stack feasibility result justifies it.
+Converge one intentionally supported Iris-compatible rendering path only after the combined-stack feasibility result justifies it.
 
-Prioritize Skyforge-specific needs:
+Prefer retained/configured/adapted rendering capability over bespoke shader development. A custom Skyforge shader or renderer is authorized pre-alpha only when the retained stack cannot honestly express an alpha-critical requirement.
 
-- atmospheric scattering/extinction;
-- DH compositing/depth integration;
-- altitude-dependent sky presentation;
+The selected alpha path must adequately support:
+
+- atmospheric scattering/extinction or a credible retained equivalent;
+- Distant Horizons compositing/depth behavior;
+- altitude-dependent sky presentation where mechanically/presentationally necessary;
 - coherent sunlight/shadow/weather response;
 - water;
-- performance appropriate for long view distance and volumetric atmosphere.
+- performance appropriate for long-distance aviation.
 
-Reuse a permissively licensed existing shader foundation where practical before writing generic rendering machinery from scratch.
+If a retained shader/cloud solution is selected into the alpha production baseline, integrate and qualify it as part of that stack. Do not turn pre-alpha presentation into a custom-renderer project merely to establish visual ownership.
 
-### 10.4 Clouds and weather presentation
+### 10.5 Clouds and weather presentation
 
 Integrate local volumetric clouds, distant storms, rain curtains, lightning, weather-responsive lighting, and atmospheric LOD under Skyforge semantic weather authority.
 
-### 10.5 Persistent lower cloud deck
+### 10.6 Persistent lower cloud deck
 
 Render the lower cloud ocean as a major visual boundary, with climatologically meaningful openings and towers rather than a static decorative plane.
 
-### 10.6 Lower Sea implication
+### 10.7 Lower Sea implication
 
-Through rare openings, render only enough distant Lower Sea/old-surface information to establish depth and cosmology:
-
-- black/dark water;
-- haze;
-- Dark Mountains;
-- rare immense shelf/old-surface silhouettes.
+The Lower Sea may remain primarily **lore** for first public alpha. Minimal distant implication is allowed where cheap and useful to establish cosmology, but no visible opening, detailed sea surface, Dark Mountain realization, or playable Lower Sea is required for alpha acceptance.
 
 Do not require a fully playable Lower Sea or planet-sized continuously loaded ocean.
 
 ### Exit criteria
 
-Normal flight, distant navigation, a major storm encounter, and at least one lower-cloud opening all communicate the intended scale and atmospheric identity without explanatory text, while weather remains mechanically coherent with aircraft/fauna/player behavior.
+Normal flight, distant navigation, representative day/night conditions, ordinary open sky, and at least one meaningfully differentiated airspace/weather condition communicate the intended scale and atmospheric identity without explanatory text, while atmosphere remains mechanically coherent with aircraft/fauna/player behavior.
 
-## 11. Phase 5 — Regional systemic sandbox
+The alpha-critical sky and island systems are now coherent enough that external playtesting evaluates the intended world rather than obvious missing substrate.
+
+## 10A. Phase 4.5 — First Public Alpha Convergence
 
 **State:** PLANNED.
 
+Canonical scope policy:
+`docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`.
+
 ### Objective
 
-Scale the Bootstrap architecture from one proving province into a persistent world of multiple regions whose geography, settlement roles, markets, Guild services, contracts, and freight create meaningful strategic choices.
+Ship the first public alpha as a **systems-complete, content-light** Skyforge build.
+
+The alpha must prove every fundamental system needed for the advertised core premise while applying a strict reuse-first budget to bespoke content.
+
+Required convergence includes:
+
+- coherent production islands, environments, clusters, provinces, and coarse-world continuation;
+- coherent sky/airspace and atmosphere between islands;
+- the alpha production dependency stack fully and intentionally integrated;
+- survival -> Create/mechanical competence -> gliding -> practical powered flight;
+- resource/service differentiation and a real systemic freight/economy loop;
+- ecology/population authority with enough retained/adapted fauna to prove terrestrial and aerial behavior;
+- structure/civilization substrate with at least one inhabited/service location;
+- navigation, save/reload, persistence, performance, packaging, licensing, and representative multiplayer/server sanity;
+- enough presentation and guidance for external players to judge the game rather than scaffolding.
+
+### Bespoke-content budget
+
+Before alpha, bespoke content is **exception-driven**. Build it only when retained/adapted content cannot honestly prove a fundamental system.
+
+Not alpha requirements by default:
+
+- full Guild institutional content or regional Guild architecture;
+- Bellanca claim/liability/restitution narrative;
+- playable Lower Sea;
+- bespoke Nether/End world authoring or custom reaching sequences;
+- complex air battles/custom combat AI;
+- bespoke dragons;
+- large custom aerial bestiary, full Sky Whale industry, storm-dead, or anomaly catalogs;
+- broad archaeology/boss/faction/narrative content.
+
+These remain valid post-alpha content candidates.
+
+### Exit criteria
+
+A first-time external player can receive the build and encounter a coherent Skyforge game whose core systems are present and whose selected production mod stack behaves as one integrated product. Missing breadth may be obvious; missing **fundamental systems** should not be.
+
+External alpha evidence should then determine which bespoke content waves deserve production investment.
+
+## 11. Phase 5 — Regional systemic/content expansion
+
+**State:** POST_ALPHA_PLANNED.
+
+### Objective
+
+Broaden the accepted alpha systems into richer multi-region play and civilization/economy content, guided by alpha evidence. This phase expands scale and content; it must not be the first implementation of a system fundamental to the alpha premise.
+
+Scale the Bootstrap architecture from one proving province into a persistent world of multiple regions whose geography, settlement roles, markets, optional Guild services, contracts, and freight create meaningful strategic choices.
 
 ### Main growth
 
@@ -548,7 +652,7 @@ multiple provinces/clusters
 -> differentiated resource/service roles
 -> sparse civilization
 -> local bounded markets
--> Guild network and route knowledge
+-> route/service networks and, where justified, fuller Guild realization
 -> contracts/freight
 -> persistent consequences
 ```
@@ -575,9 +679,9 @@ Possible consumers include:
 
 A mature player can choose among multiple persistent regional logistics/economic strategies without requiring every settlement, shipment, or aircraft to remain physically simulated offscreen.
 
-## 12. Phase 6 — Mature engineering, industry, and computing
+## 12. Phase 6 — Mature engineering, industry, and computing expansion
 
-**State:** PLANNED.
+**State:** POST_ALPHA_PLANNED.
 
 ### Objective
 
@@ -585,7 +689,7 @@ Make engineering increase the player's scale of agency rather than simply adding
 
 ### Capability growth
 
-Representative mature capabilities include:
+Representative post-alpha capability/content growth may include:
 
 - Brass and advanced Create machinery;
 - electricity/power infrastructure where retained stack supports it;
@@ -599,7 +703,7 @@ Representative mature capabilities include:
 
 Petroleum remains mature strategic-node content. Existing retained Diesel Generators machinery/source-bridge work should be consumed, not reinvented.
 
-CC:Tweaked remains infrastructure progression, not a first-flight prerequisite and not a teleporting replacement for physical logistics.
+CC:Tweaked remains infrastructure progression, not a first-flight prerequisite and not a teleporting replacement for physical logistics. If CC:Tweaked or any other capability is selected into the alpha production baseline, its intended alpha integration must already be complete before Phase 4.5; Phase 6 may deepen it but cannot excuse a half-integrated alpha dependency.
 
 AAL or another retained logistics layer may execute physical movement if its accepted public contract supports the use case; Skyforge remains authority for route/shipment/economic meaning and canonical identity.
 
@@ -607,9 +711,9 @@ AAL or another retained logistics layer may execute physical movement if its acc
 
 Mature engineering lets the player operate reliable infrastructure and logistics at a qualitatively larger scale than an early Skyfarer while preserving meaningful geography, transport, loading, and resource constraints.
 
-## 13. Phase 7 — Adventure, ecology, danger, archaeology, and light Nether integration
+## 13. Phase 7 — Adventure, ecology, danger, archaeology, and Nether content
 
-**State:** PLANNED.
+**State:** POST_ALPHA_PLANNED.
 
 ### Objective
 
@@ -651,7 +755,7 @@ Leaving established routes produces real ecological, archaeological, territorial
 
 ## 14. Phase 8 — High sky and End progression
 
-**State:** PLANNED.
+**State:** POST_ALPHA_PLANNED.
 
 ### Objective
 
@@ -686,15 +790,15 @@ Strongholds may remain an ancient/anomalous shortcut to that same upper region w
 
 Late progression reaches the End through a Skyforge-specific vertical technological arc, with Strongholds functioning as an alternate archaeological route rather than the only conceptual path.
 
-## 15. Phase 9 — Alpha / release convergence
+## 15. Phase 9 — Full modpack experience / release convergence
 
-**State:** PLANNED / human-scope dependent.
+**State:** POST_ALPHA_PLANNED / human-scope dependent.
 
 ### Objective
 
-Stop extending architecture and prove the whole selected release scope as a coherent game.
+Converge the selected post-alpha systems/content waves into the broader finished modpack experience after first-public-alpha evidence has shown which expansions are worth their production cost.
 
-This phase is dominated by integration, tuning, packaging, compatibility, and player validation rather than new systemic invention.
+This phase is dominated by integration, tuning, packaging, compatibility, player validation, and content curation rather than speculative systemic invention.
 
 ### Convergence classes
 
@@ -715,13 +819,13 @@ This phase is dominated by integration, tuning, packaging, compatibility, and pl
 
 ### Human scope gates
 
-The exact first-public-alpha boundary remains a human decision and must be resolved before this phase becomes active. Current strategy topics such as HS-05, HS-10, and HS-11 exist for that purpose.
+The first-public-alpha boundary is resolved separately by Phase 4.5 and `FIRST_PUBLIC_ALPHA_SCOPE.md`. This phase instead decides which post-alpha content waves belong in the broader full experience and what quality bar constitutes the next major release.
 
-Do not silently assume every Phase-4-through-8 feature is required for the first public alpha merely because it appears in the complete-game roadmap.
+Do not promote every attractive post-alpha idea merely because it exists in the roadmap.
 
 ### Exit criteria
 
-A release candidate can be handed to a player who knows nothing about the development history and judged as a coherent, stable, understandable Skyforge game.
+A broader release candidate can be handed to a player who knows nothing about the development history and judged as a coherent, stable, understandable, content-rich Skyforge experience.
 
 ## 16. Optional expansion — explicitly off the first-complete-Minecraft critical path
 
@@ -790,67 +894,104 @@ This is the owner-approved resolution of the earlier HS-03 sequencing question.
 ### RM-R02 — atmosphere timing — RESOLVED
 
 - Bootstrap requires real mechanical atmosphere sufficient to teach flight, gliding, fauna, pressure, and weather interaction.
-- Full Distant-Horizons/shader/cloud/lower-deck visual convergence is a distinct post-Bootstrap primary phase.
+- Phase 4 completes alpha-critical airspace geography, regional atmosphere, Distant Horizons, and representative presentation before the first public alpha gate.
+- Final cinematic rendering breadth and optional Lower Sea spectacle may continue after alpha.
 - A bounded combined render-stack feasibility spike is allowed in late Phase 2 when it can retire a hard architecture/compatibility risk.
 
 ### RM-R03 — Nether scope — RESOLVED DIRECTION / DETAILS MAY EVOLVE
 
-Treat the Nether lightly in the Minecraft backend. Reuse and reinterpret useful existing content before bespoke reauthoring. Do not make Nether reconstruction a prerequisite for Bootstrap or general world convergence.
+Treat the Nether lightly in the Minecraft backend. Reuse and reinterpret useful existing content before bespoke reauthoring. Do not make bespoke Nether reconstruction or custom traversal a prerequisite for Bootstrap, Cohesive World, or first public alpha unless the selected alpha production stack exposes a concrete dependency.
 
 ### RM-R04 — End role — RESOLVED DIRECTION / IMPLEMENTATION LATER
 
-Treat the End as the Minecraft backend for the extreme upper-atmosphere / highest-island frontier of the same physical world, with modern ascent and possible Stronghold shortcut paths.
+Treat the End as the Minecraft backend for the extreme upper-atmosphere / highest-island frontier of the same physical world, with modern ascent and possible Stronghold shortcut paths. Custom End/high-sky progression is post-alpha by default.
 
 ### RM-R05 — Lower Sea / Deep / second backend — DEFERRED
 
 These remain valid setting/architecture possibilities but are not required for the first complete Minecraft realization unless future player evidence or owner strategy deliberately promotes them.
 
-### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
+### RM-R07 — Cohesive World before Bootstrap — RESOLVED
 
-Execute the bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` now, before resuming the deferred DR-70 product repair and before promoting Bootstrap Province to PRIMARY_ACTIVE.
+Owner decision #1063 inserts Phase 2.5 after accepted first-environment/DR convergence and before Bootstrap becomes PRIMARY_ACTIVE.
 
-The resolved direction is:
+The governing distinction is:
 
 ```text
-DR-70 changes required / deferred
- -> bounded context + workflow-truth hardening
- -> routine platform operability
- -> shared backend + MVP Operations Console + ChatGPT/MCP
- -> lifecycle hardening
- -> basic safe concurrency
- -> minimum viable Continue Skyforge
- -> pre-Bootstrap gate accepted
- -> resume bounded DR-70 repair
- -> DR-70 human gate accepted
- -> Phase 3 PRIMARY_ACTIVE
+Phase 2   -> prove coherent dressed environments
+Phase 2.5 -> prove the intended production stack and world hierarchy cohere
+Phase 3   -> balance and teach the player experience
 ```
 
-The console, ChatGPT, CLI, and future Studio are clients of one development backend; they do not become independent sources of project truth. This transition is active now by owner direction; DR-70 remains an open deferred gate, not an accepted one.
+Phase 2.5 must converge a production-baseline dependency roster and certify representative island, cluster, province, and coarse-world behavior. It must not become a demand to finish every planned mod or feature before gameplay testing.
+
+Canonical contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+### RM-R08 — systems-complete, content-light first public alpha — RESOLVED
+
+Owner decision recorded on #1063 establishes that the first public alpha occurs **before** the content-heavy regional/adventure/high-sky expansion phases.
+
+The rule is:
+
+```text
+prove fundamental systems
+-> fully integrate the selected alpha production stack
+-> use retained/adapted content wherever it can prove the role honestly
+-> add only the minimum bespoke content required to prove missing roles
+-> ship first public alpha
+-> use player evidence to prioritize bespoke content waves
+```
+
+Full Guild institutional realization, Bellanca bureaucracy/restitution, playable Lower Sea, bespoke Nether/End progression, complex air-war AI, dragons, broad custom bestiaries, and anomaly/archaeology catalogs are post-alpha by default.
+
+Post-alpha phases may broaden or deepen already-proven systems, but they must not conceal a fundamental advertised alpha system that was simply absent.
+
+Canonical policy:
+`docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`.
+
+### RM-R06 — pre-Bootstrap development-platform hardening — RESOLVED
+
+The bounded workflow-convergence gate in `docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md` has been accepted. Its result is the production development substrate used by the resumed DR-70 repair and all later phases.
+
+The resolved transition is now:
+
+```text
+development-platform gate accepted
+ -> resumed bounded DR-70 repair
+ -> DR-70 human gate accepted
+ -> Phase 2.5 Cohesive World / Production Stack Convergence
+ -> Phase 2.5 accepted
+ -> Phase 3 Bootstrap PRIMARY_ACTIVE
+```
+
+The console, ChatGPT, CLI, and future Studio remain clients of one development backend; they do not become independent sources of project truth.
 
 ## 19. What the orchestrator should do today
 
-At the time this roadmap is introduced:
+Current roadmap state:
 
 ```text
-Phase 0 = COMPLETE
-Phase 1 = PRIMARY_ACTIVE
-Phase 2 = NEXT_AUTHORIZED
+Phase 0   = COMPLETE
+Phase 1   = COMPLETE / downstream repair only
+Phase 2   = PRIMARY_ACTIVE
+Phase 2.5 = NEXT_AUTHORIZED after the active DR-70 human gate
+Phase 3+  = PLANNED or POST_ALPHA_PLANNED as classified above
 ```
 
 The orchestrator should therefore:
 
 1. preserve healthy current producer work and human gates;
-2. drive the current production-morphology boundary to information-bearing closure rather than restarting older foundation work;
-3. stop for the remaining human morphology judgment when ready;
-4. after that judgment, execute only bounded corrective morphology work if required;
-5. complete the representative hybrid/provider/regional smoke described by RM-R01;
-6. then pivot the primary program focus into Phase 2 materials/geology -> hydrology -> structures -> ecology;
-7. allow current already-authorized Bootstrap civilization/runtime work to continue without interpreting Phase 3's PLANNED state as cancellation;
-8. leave broad atmosphere/shader, mature industry, adventure/Nether, End, Lower Sea, and future-backend work dormant except for the explicitly authorized feasibility/dependency exceptions above.
+2. finish only the bounded active Phase-2/DR-70 repair and obtain the required human judgment;
+3. after DR-70 acceptance, activate Phase 2.5 rather than promoting Bootstrap directly;
+4. in Phase 2.5, classify the actual alpha production dependency roster and converge the complete island -> cluster -> province -> coarse-world substrate;
+5. require every dependency actually selected to ship in the alpha stack to have an intentional supported disposition and combined-stack evidence; do not confuse the broader development/reference pack with the shipping alpha stack;
+6. move to Bootstrap only after substrate uncertainty is low enough that gameplay tuning is meaningful;
+7. complete alpha-critical airspace/atmosphere/presentation before the Phase-4.5 public-alpha gate;
+8. leave full Guild realization, Bellanca bureaucracy, bespoke adventure/Nether/End/Lower-Sea content, large bespoke bestiaries, complex air-war AI, and other POST_ALPHA_PLANNED breadth dormant unless a concrete missing fundamental alpha capability requires the smallest possible exception.
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
 
-**Current transition:** RM-R06 has been explicitly accepted by the project owner. The 2026-09-20 key-2885 DR-70 review remains CHANGES REQUIRED while preserving the positive proof of real channel geomorphology. The active program boundary is now the bounded post-platform #754 repair: resolve the failed ocean-biome/presentation context, poor visible water/material dressing, and inadequate small review specimen while preserving the proven channel and accepted canopy/cave/exterior-fluid improvements. A new qualified material delta must return to human review before Phase 3 may become PRIMARY_ACTIVE.
+**Current transition:** RM-R06 has been accepted and the bounded post-platform DR-70 repair remains the active product boundary. Preserve the current #754/#1062 authority and human-review boundary. When DR-70 receives human acceptance, RM-R07 makes Phase 2.5 Cohesive World / Production Stack Convergence the next product-convergence focus. Bootstrap does not become PRIMARY_ACTIVE directly from DR-70.
 
 ## 20. Maintenance rule
 
