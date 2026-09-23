@@ -174,18 +174,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             waterSurfaceCache)
                     .ifPresent(rawDeployments::add);
         }
-        SkyIslandWatershedPlan watershed = intent.retainedWater().isEmpty()
-                ? null
-                : SkyIslandWatershedPlanner.plan(descriptor);
-        for (var retained : intent.retainedWater()) {
-            atFootprint(
-                            descriptor,
-                            volume,
-                            terrain,
-                            watershed,
-                            retained.footprint(),
-                            solidRangeCache)
-                    .ifPresent(rawDeployments::add);
+        if (!intent.retainedWater().isEmpty()) {
+            SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+            for (var retained : intent.retainedWater()) {
+                atFootprint(
+                                descriptor,
+                                volume,
+                                terrain,
+                                watershed,
+                                retained.footprint(),
+                                solidRangeCache)
+                        .ifPresent(rawDeployments::add);
+            }
         }
 
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
