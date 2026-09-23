@@ -868,9 +868,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             // applied during raster realization. Account for that allowance in the optimization
             // bound instead of deleting the carrier column before spatial pathfinding; otherwise
             // harmless one- or two-block bank quantization holes can disconnect the wet spine.
-            maximumWaterTop = Math.min(
-                    maximumWaterTop,
-                    bankCeiling.orElseThrow() + MAX_CHANNEL_BANK_FILL_BLOCKS);
+            int rawBankCeiling = bankCeiling.orElseThrow();
+            if (rawBankCeiling != Integer.MAX_VALUE) {
+                maximumWaterTop = Math.min(
+                        maximumWaterTop,
+                        rawBankCeiling + MAX_CHANNEL_BANK_FILL_BLOCKS);
+            }
             if (ownerMinimumWaterTop > maximumWaterTop) {
                 if (wetCorridorCandidates <= 64) {
                     carrierRejections.add(column.x() + "," + column.z()
