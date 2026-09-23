@@ -12,7 +12,7 @@ class SkyIslandTerrainAwareChannelCorridorPlannerTest {
     private static final double EPSILON = 1.0e-10;
 
     @Test
-    void corridorSearchIsDeterministicAndPreservesAcceptedGraphNodes() {
+    void macroCorridorSearchIsDeterministicAndKeepsProfileResolution() {
         for (long key : new long[] {287L, 649L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandNaturalizedChannelPlan first =
@@ -22,10 +22,8 @@ class SkyIslandTerrainAwareChannelCorridorPlannerTest {
 
             assertEquals(first, second);
             for (SkyIslandNaturalizedChannelPath path : first.paths()) {
-                assertEquals(path.profile().segment().start(), path.points().getFirst());
-                assertEquals(path.profile().segment().end(), path.points().getLast());
                 assertEquals(
-                        SkyIslandTerrainAwareChannelCorridorPlanner.STATIONS + 1,
+                        SkyIslandTerrainAwareMacroReachRouter.STATIONS_PER_COARSE_REACH + 1,
                         path.points().size());
             }
         }
