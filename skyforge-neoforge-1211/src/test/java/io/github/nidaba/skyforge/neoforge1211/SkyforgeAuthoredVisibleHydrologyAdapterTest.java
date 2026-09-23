@@ -474,6 +474,21 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void authoredHydrologySurfaceMaterialCannotFallAfterWaterRealization() {
+        for (int x = -32; x <= 32; x++) {
+            for (int z = -32; z <= 32; z++) {
+                var state = SkyforgeAuthoredVisibleHydrologyAdapter.hydrologySurfaceState(
+                        new BlockPos(x, 128, z));
+                assertTrue(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(state));
+                assertFalse(
+                        state.getBlock() instanceof net.minecraft.world.level.block.FallingBlock,
+                        "new authored hydrology substrate must not schedule gravity into wet cells");
+            }
+        }
+    }
+
+    @Test
     void chunkIndexExactlyPartitionsNormalizedHydrologyAndDrivesIdempotentChunkLocalReplay() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
