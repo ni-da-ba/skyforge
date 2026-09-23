@@ -88,3 +88,35 @@ downstream climbs and ridge crossings are penalized, local valley-floor alignmen
 exterior escape is penalized. This is intentionally a low-cost first increment. It does **not**
 declare the 49x49 watershed routing solved; the next milestone evaluates whether coarse graph
 routing itself must be replaced by a finer terrain-aware drainage corridor solver.
+
+
+## H1 result — terrain-scored naturalization
+
+H1 passed the focused AUTH-0105 machine contract but did not materially repair the drainage
+landform. On the fixed reference diagnostics after replacing hash-selected bends:
+
+- primary key 287: uphill-step fraction `0.344697`, ridge-crossing fraction `0.471861`;
+- confluence control key 649: uphill-step fraction `0.445946`, ridge-crossing fraction `0.374517`;
+- mean valley-floor advantage remained approximately zero/slightly negative.
+
+The regenerated evidence atlas remained visually close to the pre-overhaul trench network.
+Therefore bend-weight tuning is not the next action.
+
+## H2 diagnosis — Priority-Flood ancestry is not flow direction
+
+The accepted watershed implementation used the Priority-Flood discovery parent directly as each
+cell's downstream neighbor. That conflates two different operations.
+
+Priority-Flood is retained to establish depression fill/spill levels and prove outlet connectivity.
+Its discovery tree is not a physical flow-direction model; on filled flats it is substantially a
+queue traversal order. H2 therefore derives downstream edges in a separate pass:
+
+1. consider only already outlet-connected neighbors whose flood rank guarantees an acyclic route;
+2. prefer raw-terrain descent;
+3. if raw descent is impossible inside a filled depression, prefer filled-surface descent;
+4. use flood rank only as the final flat-resolution tie-break.
+
+This is still a coarse 49x49 / eight-neighbor drainage graph. It is an architectural correction, not
+the final fine-corridor solution. If H2 materially improves the reference metrics but leaves visible
+grid/corridor artifacts, the next step is finer terrain-aware routing between semantic
+junctions/basins/outlets rather than additional coarse-graph cosmetic smoothing.
