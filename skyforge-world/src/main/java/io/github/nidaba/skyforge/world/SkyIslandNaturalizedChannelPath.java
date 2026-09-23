@@ -3,7 +3,12 @@ package io.github.nidaba.skyforge.world;
 import java.util.List;
 import java.util.Objects;
 
-/** One sub-grid naturalized geometric realization of an accepted semantic channel segment. */
+/**
+ * One sub-grid geometric realization associated with an accepted semantic channel profile.
+ *
+ * <p>The profile retains watershed provenance. Its geometric endpoints may differ from degree-two
+ * semantic cell positions when a longer macro-reach is terrain-routed across the coarse lattice.
+ */
 public record SkyIslandNaturalizedChannelPath(
         SkyIslandChannelProfile profile,
         List<SkyIslandLocalPosition> points,
@@ -20,10 +25,12 @@ public record SkyIslandNaturalizedChannelPath(
         if (points.size() < 2) {
             throw new IllegalArgumentException("naturalized path requires at least two points");
         }
-        if (!points.getFirst().equals(profile.segment().start())
-                || !points.getLast().equals(profile.segment().end())) {
-            throw new IllegalArgumentException("naturalized path must preserve accepted segment endpoints");
-        }
+        /*
+         * Geometric endpoints need not equal degree-two semantic watershed nodes. Macro-reach
+         * routing may slide those internal boundaries laterally while preserving exact shared
+         * geometry between adjacent profiles. Headwaters, confluences and terminals remain hard
+         * controls in the macro-reach router.
+         */
         if (!Double.isFinite(chordLength) || chordLength <= 0.0) {
             throw new IllegalArgumentException("chordLength must be finite and positive");
         }
