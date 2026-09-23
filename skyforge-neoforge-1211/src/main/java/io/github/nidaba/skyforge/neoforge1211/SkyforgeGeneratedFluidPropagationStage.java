@@ -17,6 +17,7 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.block.state.BlockState;
@@ -122,7 +123,7 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             var authoredVolume = SkyforgeNeoForge1211SurfaceStage.authoredVisibleHydrologyVolumeId(position);
             if (authoredVolume.isPresent()) {
                 SkyIslandWorldVolumeId volumeId = authoredVolume.orElseThrow();
-                if (authoredHydrologyGenerationPending(volumeId)) {
+                if (authoredHydrologyGenerationPending(volumeId, position)) {
                     // Terrain catch-up, stable surface population, composed cave realization, and
                     // native interior population form one deterministic generation transaction for
                     // an admitted volume. Do not let asynchronous water simulation mutate state that
@@ -179,13 +180,19 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         return true;
     }
 
-    static boolean authoredHydrologyGenerationPending(SkyIslandWorldVolumeId volumeId) {
+    static boolean authoredHydrologyGenerationPending(
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
         Objects.requireNonNull(volumeId, "volumeId");
-        // This predicate runs on every scheduled authored-water tick while the volume is preparing.
-        // Use direct ledger predicates rather than materializing full pending sets/snapshots.
-        return SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId)
-                || SkyforgeComposedCaveStage.hasPending(volumeId)
-                || SkyforgeNativeInteriorPopulationStage.hasPending(volumeId);
+        Objects.requireNonNull(position, "position");
+        // Authored water is a chunk-local mutation. Freeze it only while generation can still
+        // mutate this exact chunk; unrelated obligations elsewhere in a large island must not hold
+        // every river/lake tick hostage behind a whole-volume barrier.
+        ChunkPos chunkPos = new ChunkPos(position);
+        long chunkKey = chunkPos.toLong();
+        return SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId, chunkPos)
+                || !SkyforgeComposedCaveStage.completed(volumeId, chunkKey)
+                || SkyforgeNativeInteriorPopulationStage.hasPending(volumeId, chunkKey);
     }
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */
