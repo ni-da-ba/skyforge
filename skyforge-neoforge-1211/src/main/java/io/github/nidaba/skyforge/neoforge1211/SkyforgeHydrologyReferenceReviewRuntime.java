@@ -326,7 +326,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         var ecology = new SkyforgeProductionEcologyResolver(
                 SkyIslandAuthoredRealizationAssociation.of(
                         fixture.descriptor(),
-                        fixture.volume()));
+                        fixture.volume()),
+                terrain.authoredFluvialTerrainField(fixture.volume().id())
+                        .orElseThrow(() -> new IllegalStateException(
+                                "hydrology reference terrain lost its authored fluvial field")));
         var surfacePlan = SkyforgeNativeSurfacePopulationPlan.surfaceEcology(
                 fixture.volume().id(),
                 ecology,
