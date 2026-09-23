@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialSurfaceZone;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
+import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
 import java.util.HashSet;
 import net.minecraft.world.level.ChunkPos;
@@ -51,36 +54,32 @@ final class SkyforgeProductionEcologyResolverTest {
     }
 
     @Test
-    void acceptedFreshwaterOrRiparianAnchorsUseWetCarrierWithoutNewThreshold() {
+    void fineAuthoredChannelUsesNativeRiverCarrier() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
-        var profile = new SkyIslandSurfaceSiteCapabilityProfiler().profile(association);
-        var rasterizer = new SkyforgeAuthoredSurfaceCellRasterizer(profile);
-        var wet = profile.cells().stream()
-                .filter(cell -> cell.physicalSurfacePresent()
-                        && rasterizer.hasAuthoredFreshwaterOrRiparianContext(cell))
-                .findFirst()
-                .orElseThrow();
-        var projected = rasterizer.projectAnchor(
-                wet.watershedCellIndex(),
-                new SkyforgeNeoForge1211ChunkAdapter(
-                        fixture.catalog(),
-                        io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
-                        new SkyforgeMinecraftBlockPalette(),
-                        java.util.Map.of(fixture.volume().id(), fixture.descriptor())))
-                .orElseThrow();
+        var fluvial = SkyIslandFluvialTerrainField.create(fixture.descriptor());
+        assertTrue(!fluvial.reaches().isEmpty());
+
+        var reach = fluvial.reaches().getFirst();
+        SkyIslandLocalPosition local =
+                reach.path().points().get(reach.path().points().size() / 2);
+        var realized = fixture.volume().compiledVolume().descriptor();
+        int worldX = Math.toIntExact(Math.round(realized.centerX() + local.x()));
+        int worldZ = Math.toIntExact(Math.round(realized.centerZ() + local.z()));
+
         assertEquals(
-                Biomes.SWAMP,
-                resolver.resolve(
-                        fixture.volume().id(),
-                        projected.worldX(),
-                        projected.maximumSolidY() + 1,
-                        projected.worldZ()));
+                SkyIslandFluvialSurfaceZone.WET_CHANNEL,
+                fluvial.surfaceZone(new SkyIslandLocalPosition(
+                        worldX - realized.centerX(),
+                        worldZ - realized.centerZ())));
+        assertEquals(
+                Biomes.RIVER,
+                resolver.resolveAuthoredSurface(fixture.volume().id(), worldX, worldZ).orElseThrow());
     }
 
     @Test
-    void dr70ReviewFreshwaterAndRiparianAnchorsOwnTheAcceptedWetPresentationCarrier() {
+    void retainedOrRiparianContextRemainsWetlandCarrierOutsideFineChannel() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
@@ -91,11 +90,13 @@ final class SkyforgeProductionEcologyResolverTest {
                 io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette(),
                 java.util.Map.of(fixture.volume().id(), fixture.descriptor()));
+        var fluvial = SkyIslandFluvialTerrainField.create(fixture.descriptor());
+        var realized = fixture.volume().compiledVolume().descriptor();
 
-        int supportedWetAnchors = 0;
+        int supportedWetlandAnchors = 0;
         for (var cell : profile.cells()) {
             if (!cell.physicalSurfacePresent()
-                    || !rasterizer.hasAuthoredFreshwaterOrRiparianContext(cell)) {
+                    || !rasterizer.hasAuthoredRetainedOrRiparianContext(cell)) {
                 continue;
             }
             var projected = rasterizer.projectAnchor(cell.watershedCellIndex(), terrain);
@@ -103,17 +104,25 @@ final class SkyforgeProductionEcologyResolverTest {
                 continue;
             }
             var anchor = projected.orElseThrow();
+            SkyIslandFluvialSurfaceZone zone = fluvial.surfaceZone(new SkyIslandLocalPosition(
+                    anchor.worldX() - realized.centerX(),
+                    anchor.worldZ() - realized.centerZ()));
+            if (zone == SkyIslandFluvialSurfaceZone.WET_CHANNEL
+                    || zone == SkyIslandFluvialSurfaceZone.BANKFULL) {
+                continue;
+            }
             assertEquals(
                     Biomes.SWAMP,
                     resolver.resolveAuthoredSurface(
                                     fixture.volume().id(),
                                     anchor.worldX(),
                                     anchor.worldZ())
-                            .orElseThrow(),
-                    "accepted DR-70 freshwater/riparian context must not leak the native ocean biome");
-            supportedWetAnchors++;
+                            .orElseThrow());
+            supportedWetlandAnchors++;
         }
-        assertTrue(supportedWetAnchors > 0, "DR-70 review fixture must retain accepted wet surface anchors");
+        assertTrue(
+                supportedWetlandAnchors > 0,
+                "DR-70 review fixture must expose retained/riparian context outside fine channels");
     }
 
     @Test
