@@ -181,15 +181,11 @@ public final class SkyforgeGeneratedFluidPropagationStage {
 
     static boolean authoredHydrologyGenerationPending(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
-        if (!SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).isEmpty()) {
-            return true;
-        }
-        var caves = SkyforgeComposedCaveStage.snapshot(volumeId);
-        if (caves.totalObligations() > 0 && caves.pendingObligations() > 0) {
-            return true;
-        }
-        var interior = SkyforgeNativeInteriorPopulationStage.snapshot(volumeId);
-        return interior.totalObligations() > 0 && interior.pendingObligations() > 0;
+        // This predicate runs on every scheduled authored-water tick while the volume is preparing.
+        // Use direct ledger predicates rather than materializing full pending sets/snapshots.
+        return SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId)
+                || SkyforgeComposedCaveStage.hasPending(volumeId)
+                || SkyforgeNativeInteriorPopulationStage.hasPending(volumeId);
     }
 
     /** Closes the propagation scope opened at the start of one generated FlowingFluid tick. */
