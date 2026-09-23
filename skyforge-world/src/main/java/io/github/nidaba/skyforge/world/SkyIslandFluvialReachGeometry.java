@@ -16,7 +16,8 @@ public record SkyIslandFluvialReachGeometry(
         double bedDepthPotential,
         double waterDepthPotential,
         double bankReliefPotential,
-        double crossSectionExponent) {
+        double crossSectionExponent,
+        double confinementPotential) {
 
     public SkyIslandFluvialReachGeometry {
         path = Objects.requireNonNull(path, "path");
@@ -27,6 +28,12 @@ public record SkyIslandFluvialReachGeometry(
         requirePositive("waterDepthPotential", waterDepthPotential);
         requirePositive("bankReliefPotential", bankReliefPotential);
         requirePositive("crossSectionExponent", crossSectionExponent);
+        if (!Double.isFinite(confinementPotential)
+                || confinementPotential < 0.0
+                || confinementPotential > 1.0) {
+            throw new IllegalArgumentException(
+                    "confinementPotential must be finite and in [0, 1]");
+        }
         if (wetHalfWidth >= bankfullHalfWidth) {
             throw new IllegalArgumentException("wet corridor must remain inside the bankfull corridor");
         }
