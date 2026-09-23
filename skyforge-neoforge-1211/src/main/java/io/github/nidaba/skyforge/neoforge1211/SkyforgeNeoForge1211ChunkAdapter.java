@@ -51,8 +51,10 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
     private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
     private final Map<SkyIslandWorldVolumeId, List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>
             authoredHydrologyDeploymentsByVolumeId;
-    private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId;
-    private final Map<SkyIslandWorldVolumeId, Map<Long, BlockState>> authoredHydrologyPopulationStatesByVolumeId;
+    private final Map<
+                    SkyIslandWorldVolumeId,
+                    Map<Long, SkyforgeAuthoredVisibleHydrologyAdapter.ChunkProjection>>
+            authoredHydrologyByChunkByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -98,15 +100,19 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         }
         this.authoredHydrologyDeploymentsByVolumeId = Map.copyOf(cachedDeployments);
 
-        var cachedPositions = new LinkedHashMap<SkyIslandWorldVolumeId, Set<Long>>();
-        var cachedPopulationStates =
-                new LinkedHashMap<SkyIslandWorldVolumeId, Map<Long, BlockState>>();
+        // Runtime consumers are chunk-local. Index the normalized immutable plan once so chunk
+        // realization, fluid fencing, and population reads never rebuild whole-island position sets
+        // or rescan every authored deployment.
+        var cachedByChunk = new LinkedHashMap<
+                SkyIslandWorldVolumeId,
+                Map<Long, SkyforgeAuthoredVisibleHydrologyAdapter.ChunkProjection>>();
         for (SkyIslandWorldVolumeId volumeId : this.authoredDescriptorsByVolumeId.keySet()) {
-            cachedPositions.put(volumeId, deriveAuthoredHydrologyPositions(volumeId));
-            cachedPopulationStates.put(volumeId, deriveAuthoredHydrologyPopulationStates(volumeId));
+            cachedByChunk.put(
+                    volumeId,
+                    SkyforgeAuthoredVisibleHydrologyAdapter.indexByChunk(
+                            cachedDeployments.getOrDefault(volumeId, List.of())));
         }
-        this.authoredHydrologyPositionsByVolumeId = Map.copyOf(cachedPositions);
-        this.authoredHydrologyPopulationStatesByVolumeId = Map.copyOf(cachedPopulationStates);
+        this.authoredHydrologyByChunkByVolumeId = Map.copyOf(cachedByChunk);
     }
 
     /** Returns authored provenance when this runtime was explicitly bound to it. */
@@ -124,6 +130,7 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
      */
     Optional<SkyIslandWorldVolumeId> authoredVisibleHydrologyVolumeId(BlockPos position) {
         Objects.requireNonNull(position, "position");
+        long chunkKey = new ChunkPos(position).toLong();
         for (SkyIslandWorldVolume volume : catalog.volumes()) {
             SkyIslandWorldVolumeId volumeId = volume.id();
             if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
@@ -133,8 +140,10 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
                 continue;
             }
-            Set<Long> positions = authoredHydrologyPositionsByVolumeId.getOrDefault(volumeId, Set.of());
-            if (positions.contains(position.asLong())) {
+            var projection = authoredHydrologyByChunkByVolumeId
+                    .getOrDefault(volumeId, Map.of())
+                    .get(chunkKey);
+            if (projection != null && projection.containsWater(position)) {
                 return Optional.of(volumeId);
             }
         }
@@ -160,9 +169,8 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
             return Optional.empty();
         }
-        return Optional.ofNullable(authoredHydrologyPopulationStatesByVolumeId
-                .getOrDefault(volumeId, Map.of())
-                .get(position.asLong()));
+        return authoredHydrologyChunkProjection(volumeId, new ChunkPos(position))
+                .flatMap(projection -> projection.populationState(position));
     }
 
     boolean isAuthoredHydrologyPopulationPosition(
@@ -180,6 +188,19 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         return authoredHydrologyDeploymentsByVolumeId.getOrDefault(volumeId, List.of());
     }
 
+    Optional<SkyforgeAuthoredVisibleHydrologyAdapter.ChunkProjection> authoredHydrologyChunkProjection(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(authoredHydrologyByChunkByVolumeId
+                .getOrDefault(volumeId, Map.of())
+                .get(chunkPos.toLong()));
+    }
+
     private List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deriveAuthoredHydrologyDeployments(
             SkyIslandWorldVolumeId volumeId) {
         SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
@@ -192,35 +213,6 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .orElseThrow(() -> new IllegalStateException(
                         "authored hydrology references unknown runtime volume " + volumeId.path()));
         return List.copyOf(SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this));
-    }
-
-    private Map<Long, BlockState> deriveAuthoredHydrologyPopulationStates(
-            SkyIslandWorldVolumeId volumeId) {
-        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
-        if (descriptor == null) {
-            return Map.of();
-        }
-        var states = new LinkedHashMap<Long, BlockState>();
-        for (var deployment : authoredHydrologyDeployments(volumeId)) {
-            for (BlockPos carved : deployment.carvedPositions()) {
-                states.put(carved.asLong(), Blocks.AIR.defaultBlockState());
-            }
-            for (BlockPos wet : deployment.positions()) {
-                states.put(wet.asLong(), Blocks.WATER.defaultBlockState());
-            }
-        }
-        return Map.copyOf(states);
-    }
-
-    private Set<Long> deriveAuthoredHydrologyPositions(SkyIslandWorldVolumeId volumeId) {
-        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
-        if (descriptor == null) {
-            return Set.of();
-        }
-        return authoredHydrologyDeployments(volumeId).stream()
-                .flatMap(deployment -> deployment.positions().stream())
-                .map(BlockPos::asLong)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
     }
 
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
@@ -541,6 +533,10 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
         return interpreter != null
                 && interpreter.classify(worldX, worldY, worldZ).isSolid();
+    }
+
+    boolean hasMultipleCompiledVolumes() {
+        return interpretersByVolumeId.size() > 1;
     }
 
     /** Returns whether any different exact compiled volume owns this solid sample. */
