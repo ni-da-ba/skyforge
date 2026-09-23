@@ -3,7 +3,10 @@ package io.github.nidaba.skyforge.world;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 /** Extracts channel, retained-water, and waterfall candidates from watershed topology. */
 public final class SkyIslandHydrologicFeaturePlanner {
@@ -82,8 +85,51 @@ public final class SkyIslandHydrologicFeaturePlanner {
         int channelBudget = Math.max(1, (int) Math.ceil(routableCellCount * channelFraction));
         int selected = Math.min(channelBudget, channelCandidates.size());
 
+        /*
+         * The budget selects high-value seeds, not isolated individual cells. Equal-accumulation
+         * reaches are common, so a strict top-N cut can otherwise stop a visible tributary halfway
+         * down an ordinary downhill run merely because the next cell lost an index tie-break.
+         * Close each seed downstream across raw-surface descent until an explicit authored
+         * transport boundary is reached. This may exceed the seed budget by a small connector
+         * count, but preserves a coherent visible network without exposing Priority-Flood climbs.
+         */
+        Set<Integer> candidateIndices = channelCandidates.stream()
+                .map(SkyIslandWatershedCell::index)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        LinkedHashSet<Integer> selectedIndices = new LinkedHashSet<>();
         for (int i = 0; i < selected; i++) {
-            SkyIslandWatershedCell cell = channelCandidates.get(i);
+            selectedIndices.add(channelCandidates.get(i).index());
+        }
+        for (int seed : List.copyOf(selectedIndices)) {
+            int currentIndex = seed;
+            Set<Integer> visited = new HashSet<>();
+            while (visited.add(currentIndex)) {
+                SkyIslandWatershedCell current = cellsByIndex.get(currentIndex);
+                if (current == null || current.downstreamIndex() < 0) {
+                    break;
+                }
+                SkyIslandWatershedCell downstream = cellsByIndex.get(current.downstreamIndex());
+                if (downstream == null) {
+                    throw new IllegalStateException(
+                            "selected channel closure references missing downstream watershed cell");
+                }
+                if (downstream.retainedSink()
+                        || downstream.edgeOutlet()
+                        || downstream.downstreamIndex() < 0
+                        || downstream.surfacePotential() > current.surfacePotential() + 1.0e-10) {
+                    break;
+                }
+                if (!candidateIndices.contains(downstream.index())) {
+                    throw new IllegalStateException(
+                            "downhill selected channel closure lost an accumulation-qualified candidate");
+                }
+                selectedIndices.add(downstream.index());
+                currentIndex = downstream.index();
+            }
+        }
+
+        selectedIndices.stream().sorted().forEach(index -> {
+            SkyIslandWatershedCell cell = cellsByIndex.get(index);
             double significance = clamp01(cell.flowAccumulation() / max);
             // Preserve the routed topology as a corridor candidate. Major channels naturally
             // receive boosted authored significance without introducing a backend-facing class.
@@ -96,7 +142,7 @@ public final class SkyIslandHydrologicFeaturePlanner {
                     cell.position(),
                     authored,
                     cell.downstreamIndex()));
-        }
+        });
         return new SkyIslandHydrologicFeaturePlan(descriptor, features);
     }
 
