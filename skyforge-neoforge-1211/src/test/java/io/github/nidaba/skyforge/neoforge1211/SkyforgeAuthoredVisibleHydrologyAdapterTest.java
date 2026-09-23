@@ -366,6 +366,50 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void connectedHydrologyFootprintRequiresSharedBlockFaces() {
+        var origin = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0);
+        var cardinal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0);
+        var diagonal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 1);
+
+        assertEquals(
+                2,
+                SkyforgeAuthoredVisibleHydrologyAdapter.largestConnectedFootprint(
+                                new java.util.LinkedHashSet<>(List.of(origin, cardinal)))
+                        .size());
+        assertEquals(
+                1,
+                SkyforgeAuthoredVisibleHydrologyAdapter.largestConnectedFootprint(
+                                new java.util.LinkedHashSet<>(List.of(origin, diagonal)))
+                        .size());
+    }
+
+    @Test
+    void deploymentDefensivelyCopiesMutableRoleLists() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volumeId = fixture.volume().id();
+        var water = new java.util.ArrayList<BlockPos>();
+        var carved = new java.util.ArrayList<BlockPos>();
+        var surface = new java.util.ArrayList<BlockPos>();
+        water.add(new BlockPos(1, 64, 1));
+        carved.add(new BlockPos(2, 64, 1));
+        surface.add(new BlockPos(3, 64, 1));
+
+        var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                volumeId,
+                SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                water,
+                carved,
+                surface);
+        water.clear();
+        carved.clear();
+        surface.clear();
+
+        assertEquals(1, deployment.positions().size());
+        assertEquals(1, deployment.carvedPositions().size());
+        assertEquals(1, deployment.surfacePositions().size());
+    }
+
+    @Test
     void deploymentRejectsWaterCarveAndSurfaceOverlap() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
