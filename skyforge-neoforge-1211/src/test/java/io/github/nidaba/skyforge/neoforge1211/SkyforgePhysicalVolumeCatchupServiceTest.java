@@ -105,6 +105,8 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
                 AutoCloseable caves = SkyforgeComposedCaveStage.install(List.of(
                         new SkyforgeComposedCavePlan(fixture.volume(), fixture.field())))) {
+            assertTrue(admission != null);
+            assertTrue(caves != null);
             assertFalse(
                     SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId),
                     "final surface representation must not precede pending cave topology");
