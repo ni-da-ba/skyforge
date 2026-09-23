@@ -122,6 +122,24 @@ class SkyIslandFluvialTerrainFieldTest {
         assertTrue(compared, "reference corpus should exercise materially different valley confinement");
     }
 
+
+    @Test
+    void fineSurfaceZonesExposeWetCenterlinesAndRejectExterior() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 287L));
+        SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor);
+        assertFalse(field.reaches().isEmpty());
+        for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+            SkyIslandLocalPosition center =
+                    reach.path().points().get(reach.path().points().size() / 2);
+            assertEquals(SkyIslandFluvialSurfaceZone.WET_CHANNEL, field.surfaceZone(center));
+        }
+        double radius = descriptor.nominalRadius();
+        assertEquals(
+                SkyIslandFluvialSurfaceZone.NONE,
+                field.surfaceZone(new SkyIslandLocalPosition(radius * 1.10, 0.0)));
+    }
+
     @Test
     void fieldLeavesFarExteriorUntouched() {
         SkyIslandDescriptor descriptor = descriptor(83L);
