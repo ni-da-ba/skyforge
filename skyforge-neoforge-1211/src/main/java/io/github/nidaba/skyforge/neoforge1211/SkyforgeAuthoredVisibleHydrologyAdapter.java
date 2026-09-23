@@ -46,6 +46,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
+    static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
 
@@ -679,6 +680,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // plane because filling an existing depression is less destructive than cutting upland.
         List<Integer> waterTopCandidates = retainedWaterTopCandidates(projectedWaterTops);
         Map<Column, RetainedColumnPlan> realizable = Map.of();
+        List<BlockPos> retainedBankFill = List.of();
         int waterTopY = Integer.MIN_VALUE;
         int maximumRepresentedCells = 0;
         int maximumConnectedColumns = 0;
@@ -725,25 +727,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
             candidatesWithFullConnectivity++;
 
-            boolean contained = true;
-            for (RetainedColumnPlan column : connectedCandidate.values()) {
-                if (!retainedWaterContained(
-                        volume,
-                        terrain,
-                        solidRangeCache,
-                        connectedCandidate.keySet(),
-                        column.column(),
-                        candidateWaterTopY)) {
-                    contained = false;
-                    break;
-                }
-            }
-            if (!contained) {
+            Optional<List<BlockPos>> bankFill = retainedBankFillPositions(
+                    volume,
+                    terrain,
+                    solidRangeCache,
+                    connectedCandidate.keySet(),
+                    candidateWaterTopY);
+            if (bankFill.isEmpty()) {
                 candidatesRejectedByContainment++;
                 continue;
             }
 
             realizable = connectedCandidate;
+            retainedBankFill = bankFill.orElseThrow();
             waterTopY = candidateWaterTopY;
             break;
         }
@@ -763,7 +759,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(retainedBankFill);
         for (RetainedColumnPlan column : realizable.values()) {
             surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
             for (int y = column.bedY() + 1; y <= waterTopY; y++) {
@@ -1084,26 +1080,65 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return true;
     }
 
-    private static boolean retainedWaterContained(
+    /**
+     * Returns the bounded terrain fill required to contain one retained waterbody.
+     *
+     * <p>The semantic basin is authoritative for its planform. The independently compiled physical
+     * carrier is allowed a small symmetric shoreline reconciliation: existing high terrain may be
+     * cut by {@link #MAX_RETAINED_BASIN_CUT_BLOCKS}, and a low but supported bank may be raised by
+     * {@link #MAX_RETAINED_BANK_FILL_BLOCKS}. A true void edge, foreign-volume conflict, or deeper
+     * required dam fails closed. Interior basin conditioning is handled separately and never grants
+     * authority outside the accepted wet footprint.
+     */
+    private static Optional<List<BlockPos>> retainedBankFillPositions(
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Set<Column> wetColumns,
-            Column candidate,
             int waterTopY) {
+        LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
+        Set<Column> visitedBanks = new HashSet<>();
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] direction : directions) {
-            Column neighbor = new Column(
-                    candidate.x() + direction[0],
-                    candidate.z() + direction[1]);
-            if (wetColumns.contains(neighbor)) {
-                continue;
-            }
-            if (!ownedSolidAt(volume, terrain, solidRangeCache, neighbor, waterTopY)) {
-                return false;
+        for (Column wet : wetColumns) {
+            for (int[] direction : directions) {
+                Column bank = new Column(wet.x() + direction[0], wet.z() + direction[1]);
+                if (wetColumns.contains(bank) || !visitedBanks.add(bank)) {
+                    continue;
+                }
+                if (ownedSolidAt(volume, terrain, solidRangeCache, bank, waterTopY)) {
+                    continue;
+                }
+
+                var optionalRange = solidRangeCache.computeIfAbsent(
+                        bank,
+                        ignored -> terrain.integerSolidRange(
+                                volume.id(), bank.x(), bank.z()));
+                if (optionalRange.isEmpty()) {
+                    // Do not manufacture an island rim over true exterior void.
+                    return Optional.empty();
+                }
+                var range = optionalRange.orElseThrow();
+                if (waterTopY <= range.maximumY()) {
+                    // A carrier block exists at this level but is not uncontested target-volume
+                    // ownership (for example, a stacked foreign volume). Never fill through it.
+                    return Optional.empty();
+                }
+
+                int fillDepth = waterTopY - range.maximumY();
+                if (fillDepth > MAX_RETAINED_BANK_FILL_BLOCKS) {
+                    return Optional.empty();
+                }
+                for (int y = range.maximumY() + 1; y <= waterTopY; y++) {
+                    if (!volume.bounds().contains(bank.x(), y, bank.z())
+                            || terrain.isSolidOwnedByOtherVolume(
+                                    volume.id(), bank.x(), y, bank.z())) {
+                        return Optional.empty();
+                    }
+                    fill.add(new BlockPos(bank.x(), y, bank.z()));
+                }
             }
         }
-        return true;
+        return Optional.of(List.copyOf(fill));
     }
 
     private static boolean ownedSolidAt(
