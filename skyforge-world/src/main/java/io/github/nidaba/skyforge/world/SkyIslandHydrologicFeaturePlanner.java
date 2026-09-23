@@ -93,9 +93,6 @@ public final class SkyIslandHydrologicFeaturePlanner {
          * transport boundary is reached. This may exceed the seed budget by a small connector
          * count, but preserves a coherent visible network without exposing Priority-Flood climbs.
          */
-        Set<Integer> candidateIndices = channelCandidates.stream()
-                .map(SkyIslandWatershedCell::index)
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         LinkedHashSet<Integer> selectedIndices = new LinkedHashSet<>();
         for (int i = 0; i < selected; i++) {
             selectedIndices.add(channelCandidates.get(i).index());
@@ -119,9 +116,20 @@ public final class SkyIslandHydrologicFeaturePlanner {
                         || downstream.surfacePotential() > current.surfacePotential() + 1.0e-10) {
                     break;
                 }
-                if (!candidateIndices.contains(downstream.index())) {
+
+                /*
+                 * The downstream cell is a visible connector only when its own outgoing edge also
+                 * remains non-uphill. If its next edge climbs the raw DEM, this cell is the explicit
+                 * hidden-transport boundary and must stay unpainted. Otherwise promote the
+                 * connector even if it was not one of the original threshold/budget seeds.
+                 */
+                SkyIslandWatershedCell next = cellsByIndex.get(downstream.downstreamIndex());
+                if (next == null) {
                     throw new IllegalStateException(
-                            "downhill selected channel closure lost an accumulation-qualified candidate");
+                            "selected channel closure references missing second downstream watershed cell");
+                }
+                if (next.surfacePotential() > downstream.surfacePotential() + 1.0e-10) {
+                    break;
                 }
                 selectedIndices.add(downstream.index());
                 currentIndex = downstream.index();
