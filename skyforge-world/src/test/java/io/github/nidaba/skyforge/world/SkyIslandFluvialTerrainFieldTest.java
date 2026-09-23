@@ -156,6 +156,36 @@ class SkyIslandFluvialTerrainFieldTest {
         }
     }
 
+
+    @Test
+    void confluenceExpansionAndAsymmetryRemainTopologyDerivedAndBounded() {
+        for (long key : new long[] {287L, 649L, 811L, 512L, 83L}) {
+            SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor(key));
+            var incoming = new java.util.HashMap<Integer, Integer>();
+            for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+                incoming.merge(
+                        reach.profile().segment().downstreamCellIndex(),
+                        1,
+                        Integer::sum);
+            }
+
+            for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+                assertTrue(reach.lateralAsymmetryPotential() >= -1.0 - EPSILON);
+                assertTrue(reach.lateralAsymmetryPotential() <= 1.0 + EPSILON);
+                int inbound = incoming.getOrDefault(
+                        reach.profile().segment().sourceCellIndex(),
+                        0);
+                if (inbound >= 2) {
+                    assertTrue(
+                            reach.confluenceScale() > 1.0,
+                            "a reach immediately below a confluence must widen");
+                } else {
+                    assertEquals(1.0, reach.confluenceScale(), EPSILON);
+                }
+            }
+        }
+    }
+
     @Test
     void fieldLeavesFarExteriorUntouched() {
         SkyIslandDescriptor descriptor = descriptor(83L);
