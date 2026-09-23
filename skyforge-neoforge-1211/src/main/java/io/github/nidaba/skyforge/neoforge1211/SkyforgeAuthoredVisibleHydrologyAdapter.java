@@ -56,11 +56,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
-            positions = Collections.unmodifiableList(Objects.requireNonNull(positions, "positions"));
-            carvedPositions = Collections.unmodifiableList(
-                    Objects.requireNonNull(carvedPositions, "carvedPositions"));
-            surfacePositions = Collections.unmodifiableList(
-                    Objects.requireNonNull(surfacePositions, "surfacePositions"));
+            positions = List.copyOf(Objects.requireNonNull(positions, "positions"));
+            carvedPositions = List.copyOf(Objects.requireNonNull(carvedPositions, "carvedPositions"));
+            surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
