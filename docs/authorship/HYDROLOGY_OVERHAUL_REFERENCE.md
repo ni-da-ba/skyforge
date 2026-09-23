@@ -127,3 +127,12 @@ junctions/basins/outlets rather than additional coarse-graph cosmetic smoothing.
 Historical seed-specific expectations are not hydrology contracts. After the watershed flow-direction
 rewrite, regression tests assert topology/coherence invariants while the proving-ground diagnostics
 select the next fixed confluence specimen from the new production behavior.
+
+
+## H3 hydraulic geometry
+
+Channel width is now authored from a monotonic discharge power law and physical bankfull width is
+scaled directly from island radius rather than the watershed lattice spacing. Stream-power
+potential couples discharge and gradient; rock competence and erosion maturity then control
+incision. This preserves topology authority while preventing a planning-resolution change from
+silently resizing rivers.
