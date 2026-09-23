@@ -14,10 +14,18 @@ on:
       - "skyforge-world/**"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapter.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeInteriorPopulationStage.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeAdmissionStage.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeCatchupService.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProductionEcologyResolver.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkAdapter.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapterTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewSourceTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeAdmissionStageTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProductionEcologyResolverTest.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr50IntegratedRegionEvidenceTest.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr70ReviewRepairTest.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr70SpecimenSearchTest.java"
@@ -44,9 +52,14 @@ jobs:
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.boundedAcceptedCorpusCoversEveryRequiredImplementationKind
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.chunkIndexExactlyPartitionsNormalizedHydrologyAndDrivesIdempotentChunkLocalReplay
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.deploymentDefensivelyCopiesCallerCollections
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.deploymentRejectsWaterCarveAndSurfaceOverlap
           - shard: hydrology-lifecycle
             test_args: >-
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.lifecycleRealizesOnlyAvailableChunksAndReplayRetainsAuthoredWater
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeHydrologyReferenceReviewSourceTest
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgePhysicalVolumeAdmissionStageTest
           - shard: dr50-integration
             test_args: >-
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeDr50IntegratedRegionEvidenceTest
