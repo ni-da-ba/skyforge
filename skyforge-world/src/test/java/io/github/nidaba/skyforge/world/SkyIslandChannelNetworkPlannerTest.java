@@ -88,7 +88,9 @@ class SkyIslandChannelNetworkPlannerTest {
                 resolved = next.surfacePotential() > boundary.surfacePotential() + 1.0e-10;
                 break;
             }
-            assertTrue(resolved, "tributary must reach a trunk or an authored hidden-transport boundary");
+            assertTrue(
+                    resolved,
+                    "accepted visible tributary must remain coherent to a trunk or authored hidden-transport boundary");
         }
     }
 
