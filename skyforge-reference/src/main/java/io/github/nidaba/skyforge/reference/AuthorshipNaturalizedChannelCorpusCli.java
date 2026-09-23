@@ -112,7 +112,7 @@ public final class AuthorshipNaturalizedChannelCorpusCli {
                 out.resolve("index.html"),
                 "<!doctype html><meta charset=\"utf-8\"><title>AUTH-0017</title>"
                         + "<h1>Naturalized channel centerlines</h1>"
-                        + "<p>COARSE shows the accepted AUTH-0007/0012 straight lattice segments in red. NATURALIZED shows AUTH-0017 sub-grid splines in blue. OVERLAY shows coarse gray plus naturalized blue; black dots are the original graph nodes, which remain fixed. Background terrain is the accepted AUTH-0016 continuous hydrologic surface.</p>"
+                        + "<p>COARSE shows the accepted watershed lattice segments in red. NATURALIZED shows the terrain-routed physical centerlines in blue. OVERLAY shows coarse gray plus naturalized blue; black dots are semantic graph nodes. Headwaters, confluences and terminals remain hard controls, while degree-two nodes may slide inside the routed macro corridor. Background terrain is the accepted continuous hydrologic surface.</p>"
                         + "<img src=\"atlas.png\" style=\"max-width:100%\">"
                         + "<p><a href=\"manifest.csv\">manifest.csv</a> · <a href=\"paths.csv\">paths.csv</a> · <a href=\"points.csv\">points.csv</a></p>",
                 StandardCharsets.UTF_8);
@@ -234,10 +234,12 @@ public final class AuthorshipNaturalizedChannelCorpusCli {
             int offsetX) {
         g.setColor(new Color(20, 20, 20));
         for (SkyIslandNaturalizedChannelPath path : plan.paths()) {
-            SkyIslandLocalPosition point = path.points().getFirst();
-            int x = offsetX + mapX(point, descriptor.nominalRadius());
-            int y = HEADER + mapY(point, descriptor.nominalRadius());
-            g.fillOval(x - 1, y - 1, 3, 3);
+            var segment = path.profile().segment();
+            for (SkyIslandLocalPosition point : List.of(segment.start(), segment.end())) {
+                int x = offsetX + mapX(point, descriptor.nominalRadius());
+                int y = HEADER + mapY(point, descriptor.nominalRadius());
+                g.fillOval(x - 1, y - 1, 3, 3);
+            }
         }
     }
 
