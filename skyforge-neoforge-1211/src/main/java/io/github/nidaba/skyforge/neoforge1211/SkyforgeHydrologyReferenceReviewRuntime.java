@@ -34,7 +34,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeHydrologyReferenceReviewRuntime {
     private static final int TICKET_DISTANCE = 3;
-    private static final int WARM_TICKET_WINDOW = 32;
+    private static final int WARM_TICKET_WINDOW = 16;
     private static final int WARM_CHUNKS_PER_TICK = 16;
     private static final int FLUID_SETTLE_TICKS = 100;
     static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
@@ -268,10 +268,16 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                         0)));
 
         List<Long> chunkKeys = new ArrayList<>(fixture.footprintChunkKeys());
+        // Spatial locality matters more than center-out aesthetics here. Radius ordering causes
+        // consecutive outer-annulus chunks to jump around the island circumference, so even a
+        // bounded ticket window fans out into many independent vanilla generation neighborhoods.
+        // Scan X columns deterministically and alternate Z direction to keep successive chunks
+        // adjacent across column boundaries.
         chunkKeys.sort(Comparator
-                .comparingLong((Long key) -> squaredChunkDistance(key, 0, 0))
-                .thenComparingInt(ChunkPos::getX)
-                .thenComparingInt(ChunkPos::getZ));
+                .comparingInt((Long key) -> ChunkPos.getX(key))
+                .thenComparingInt(key -> (ChunkPos.getX(key) & 1) == 0
+                        ? ChunkPos.getZ(key)
+                        : -ChunkPos.getZ(key)));
         preparation = new Preparation(fixture, List.copyOf(chunkKeys), playerId);
     }
 
@@ -531,8 +537,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
 
     private static void reportProgress(ServerPlayer player, Preparation active) {
         if (tickCounter % 20L == 0L) {
+            long key = active.chunkKeys().get(active.cursor());
             say(player, active.phase().label() + " "
-                    + active.cursor() + "/" + active.chunkKeys().size());
+                    + active.cursor() + "/" + active.chunkKeys().size()
+                    + " @ [" + ChunkPos.getX(key) + "," + ChunkPos.getZ(key) + "]");
         }
     }
 
@@ -540,12 +548,6 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         if (tickCounter % 40L == 0L) {
             status(player);
         }
-    }
-
-    private static long squaredChunkDistance(long key, int centerChunkX, int centerChunkZ) {
-        long dx = (long) ChunkPos.getX(key) - centerChunkX;
-        long dz = (long) ChunkPos.getZ(key) - centerChunkZ;
-        return dx * dx + dz * dz;
     }
 
     private static void releaseTickets(ServerLevel level, List<Long> chunkKeys) {
