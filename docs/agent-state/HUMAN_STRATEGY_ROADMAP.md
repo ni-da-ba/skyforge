@@ -475,8 +475,9 @@ Human decisions eventually needed:
 - whether the 1:1 Nether scale is permanent WBY canon or provisional balance;
 - whether the End becomes the first fully authored second dimension;
 - whether Nether is eventually a Skyforge solid/cavern grammar;
-- how portals interact with aircraft, cargo, and infrastructure;
-- whether dimensions are required for first public alpha or later expansion.
+- how portals interact with aircraft, cargo, and infrastructure.
+
+Under HS-R15, bespoke Nether/End authoring and custom dimension-reaching content are **post-alpha by default**. Reopen that timing only if the selected alpha production stack exposes a concrete dependency that cannot be satisfied through retained vanilla/mod behavior.
 
 **Trigger:** before dimension terrain authorship or assembled-vehicle portal transfer becomes active
 roadmap work.
