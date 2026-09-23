@@ -931,17 +931,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 if (sourceCell == null) {
                     continue;
                 }
-                if (sourceCell.shoreline()) {
-                    // A coarse retained-water planning cell is not authority for a full square
-                    // Minecraft shoreline tile. Preserve its center while tapering the perimeter
-                    // according to authored depth, eliminating the conspicuous grid-cell shoreline.
-                    double dx = local.x() - sourceCell.position().x();
-                    double dz = local.z() - sourceCell.position().z();
-                    double depth = Math.sqrt(Math.max(0.0, sourceCell.waterDepthPotential()));
-                    double shorelineRadius = halfSpacing * (0.40 + 0.60 * depth);
-                    if (Math.hypot(dx, dz) > shorelineRadius) {
-                        continue;
-                    }
+                if (sourceCell.shoreline()
+                        && !retainedShorelineContains(
+                                local,
+                                sourceCell,
+                                cellsByIndex,
+                                watershed,
+                                halfSpacing)) {
+                    continue;
                 }
                 Column column = new Column(x, z);
                 var optionalRange = solidRangeCache.computeIfAbsent(
@@ -966,6 +963,78 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
         return result;
+    }
+
+    /**
+     * Rasterizes one coarse shoreline cell without breaking the footprint's authored topology.
+     *
+     * <p>An isolated disk per shoreline cell looks less grid-like, but it also turns cardinally
+     * connected coarse cells into disconnected Minecraft puddles whenever the disk radius is less
+     * than half the watershed spacing. Keep the rounded center lobe, then join it to every retained
+     * cardinal neighbor with a rounded corridor. The nearest-cell gate in
+     * {@link #retainedCandidateColumns} still bounds authority to the accepted coarse footprint, so
+     * these corridors preserve topology without expanding the lake into unauthored cells.
+     */
+    static boolean retainedShorelineContains(
+            SkyIslandLocalPosition local,
+            SkyIslandWaterbodyFootprintCell sourceCell,
+            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex,
+            SkyIslandWatershedPlan watershed,
+            double halfSpacing) {
+        Objects.requireNonNull(local, "local");
+        Objects.requireNonNull(sourceCell, "sourceCell");
+        Objects.requireNonNull(cellsByIndex, "cellsByIndex");
+        Objects.requireNonNull(watershed, "watershed");
+        if (!sourceCell.shoreline()) {
+            return true;
+        }
+        if (!Double.isFinite(halfSpacing) || halfSpacing <= 0.0) {
+            throw new IllegalArgumentException("halfSpacing must be finite and positive");
+        }
+
+        double sourceRadius = retainedShorelineRadius(sourceCell, halfSpacing);
+        if (Math.hypot(
+                        local.x() - sourceCell.position().x(),
+                        local.z() - sourceCell.position().z())
+                <= sourceRadius) {
+            return true;
+        }
+
+        int sourceIndex = sourceCell.watershedCellIndex();
+        int sourceX = sourceIndex % watershed.gridSize();
+        int sourceZ = sourceIndex / watershed.gridSize();
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            int neighborX = sourceX + direction[0];
+            int neighborZ = sourceZ + direction[1];
+            if (neighborX < 0
+                    || neighborZ < 0
+                    || neighborX >= watershed.gridSize()
+                    || neighborZ >= watershed.gridSize()) {
+                continue;
+            }
+            SkyIslandWaterbodyFootprintCell neighbor =
+                    cellsByIndex.get(neighborZ * watershed.gridSize() + neighborX);
+            if (neighbor == null) {
+                continue;
+            }
+            double neighborRadius = neighbor.shoreline()
+                    ? retainedShorelineRadius(neighbor, halfSpacing)
+                    : halfSpacing;
+            double corridorRadius = Math.min(sourceRadius, neighborRadius);
+            if (distanceToSegment(local, sourceCell.position(), neighbor.position())
+                    <= corridorRadius) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static double retainedShorelineRadius(
+            SkyIslandWaterbodyFootprintCell cell,
+            double halfSpacing) {
+        double depth = Math.sqrt(Math.max(0.0, cell.waterDepthPotential()));
+        return halfSpacing * (0.40 + 0.60 * depth);
     }
 
     private static int nearestWatershedCellIndex(
