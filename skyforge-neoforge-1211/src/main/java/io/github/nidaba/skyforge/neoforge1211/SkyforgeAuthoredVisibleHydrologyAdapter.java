@@ -16,6 +16,7 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -79,6 +80,56 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
     }
 
+    /**
+     * Mutable-free intermediate used only while resolving overlaps between accepted authored
+     * features. It avoids constructing/validating a full immutable Deployment twice.
+     */
+    private record RawDeployment(
+            SkyIslandWorldVolumeId volumeId,
+            Feature feature,
+            List<BlockPos> positions,
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
+        private RawDeployment {
+            volumeId = Objects.requireNonNull(volumeId, "volumeId");
+            feature = Objects.requireNonNull(feature, "feature");
+            positions = List.copyOf(positions);
+            carvedPositions = List.copyOf(carvedPositions);
+            surfacePositions = List.copyOf(surfacePositions);
+        }
+    }
+
+    /**
+     * Immutable Minecraft execution projection for exactly one chunk.
+     *
+     * <p>All authored roles are disjoint after global normalization, so one block-state map is enough
+     * for mutation, fluid-boundary membership, and population-state lookup. Keeping this index
+     * chunk-local prevents every chunk realization from rescanning whole-island hydrology lists.
+     */
+    record ChunkProjection(Map<BlockPos, BlockState> states) {
+        ChunkProjection {
+            Objects.requireNonNull(states, "states");
+            states = Collections.unmodifiableMap(new LinkedHashMap<>(states));
+        }
+
+        Optional<BlockState> stateAt(BlockPos position) {
+            return Optional.ofNullable(states.get(Objects.requireNonNull(position, "position")));
+        }
+
+        boolean containsWater(BlockPos position) {
+            BlockState state = states.get(Objects.requireNonNull(position, "position"));
+            return state != null && state.is(Blocks.WATER);
+        }
+
+        Optional<BlockState> populationState(BlockPos position) {
+            BlockState state = states.get(Objects.requireNonNull(position, "position"));
+            if (state == null || state.is(Blocks.DIRT)) {
+                return Optional.empty();
+            }
+            return Optional.of(state);
+        }
+    }
+
     private SkyforgeAuthoredVisibleHydrologyAdapter() {}
 
     static List<Deployment> plan(
@@ -92,7 +143,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
         SkyIslandFluvialTerrainField fluvial =
                 SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
-        List<Deployment> deployments = new ArrayList<>();
+        List<RawDeployment> rawDeployments = new ArrayList<>();
         Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache =
                 new HashMap<>();
         Map<Column, Double> basePotentialCache = new HashMap<>();
@@ -117,11 +168,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             basePotentialCache,
                             dryPotentialCache,
                             waterSurfaceCache)
-                    .ifPresent(deployments::add);
+                    .ifPresent(rawDeployments::add);
         }
         for (var retained : intent.retainedWater()) {
             atFootprint(descriptor, volume, terrain, retained.footprint())
-                    .ifPresent(deployments::add);
+                    .ifPresent(rawDeployments::add);
         }
 
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
@@ -129,27 +180,40 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // only from connected routed channels or retained basins; a drop must never manufacture an
         // independent source column disconnected from its upstream watercourse.
 
-        // Connected reaches can overlap at confluences. Water authority wins globally over dry
-        // channel-clearance carving so application order can never erase an accepted wet cell.
-        var allWater = deployments.stream()
-                .flatMap(deployment -> deployment.positions().stream())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        var allCarved = deployments.stream()
-                .flatMap(deployment -> deployment.carvedPositions().stream())
-                .collect(java.util.stream.Collectors.toUnmodifiableSet());
-        return deployments.stream()
-                .map(deployment -> new Deployment(
-                        deployment.volumeId(),
-                        deployment.feature(),
-                        deployment.positions(),
-                        deployment.carvedPositions().stream()
-                                .filter(position -> !allWater.contains(position))
-                                .toList(),
-                        deployment.surfacePositions().stream()
-                                .filter(position -> !allWater.contains(position))
-                                .filter(position -> !allCarved.contains(position))
-                                .toList()))
-                .toList();
+        // Connected reaches can overlap at confluences. Resolve conflicts through chunk-partitioned
+        // membership sets instead of one enormous whole-island Set<BlockPos>. The latter scales
+        // poorly for production-size basins and needlessly rehashes millions of positions.
+        Map<Long, Set<BlockPos>> waterByChunk = new HashMap<>();
+        for (RawDeployment deployment : rawDeployments) {
+            addMembershipByChunk(waterByChunk, deployment.positions());
+        }
+
+        Map<Long, Set<BlockPos>> carvedByChunk = new HashMap<>();
+        for (RawDeployment deployment : rawDeployments) {
+            for (BlockPos position : deployment.carvedPositions()) {
+                if (!containsByChunk(waterByChunk, position)) {
+                    addMembershipByChunk(carvedByChunk, position);
+                }
+            }
+        }
+
+        List<Deployment> deployments = new ArrayList<>(rawDeployments.size());
+        for (RawDeployment deployment : rawDeployments) {
+            List<BlockPos> carved = deployment.carvedPositions().stream()
+                    .filter(position -> !containsByChunk(waterByChunk, position))
+                    .toList();
+            List<BlockPos> surface = deployment.surfacePositions().stream()
+                    .filter(position -> !containsByChunk(waterByChunk, position))
+                    .filter(position -> !containsByChunk(carvedByChunk, position))
+                    .toList();
+            deployments.add(new Deployment(
+                    deployment.volumeId(),
+                    deployment.feature(),
+                    deployment.positions(),
+                    carved,
+                    surface));
+        }
+        return List.copyOf(deployments);
     }
 
     /** Applies every authored deployment whose exact cells occur in an already-available chunk. */
@@ -158,18 +222,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(terrain, "terrain");
         int written = 0;
         for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
-            var descriptor = terrain.authoredDescriptor(volume.id());
-            if (descriptor.isEmpty()) {
-                continue;
-            }
-            for (Deployment deployment : terrain.authoredHydrologyDeployments(volume.id())) {
-                written += apply(chunk, deployment);
+            var projection = terrain.authoredHydrologyChunkProjection(volume.id(), chunk.getPos());
+            if (projection.isPresent()) {
+                written += apply(chunk, projection.orElseThrow());
             }
         }
         return written;
     }
 
-    private static Optional<Deployment> atPath(
+    private static Optional<RawDeployment> atPath(
             SkyIslandDescriptor descriptor,
             SkyIslandFluvialTerrainField fluvial,
             SkyIslandWorldVolume volume,
@@ -299,7 +360,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return Optional.empty();
         }
         carved.removeAll(water);
-        return Optional.of(deployment(
+        return Optional.of(rawDeployment(
                 volume.id(),
                 Feature.CHANNEL,
                 new ArrayList<>(water),
@@ -381,7 +442,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 largest = component;
             }
         }
-        return Set.copyOf(largest);
+        return Collections.unmodifiableSet(largest);
     }
 
     /**
@@ -514,7 +575,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 column.z() - physical.centerZ());
     }
 
-    private static Optional<Deployment> atFootprint(
+    private static Optional<RawDeployment> atFootprint(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
@@ -612,7 +673,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (water.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.of(deployment(
+        return Optional.of(rawDeployment(
                 volume.id(),
                 Feature.RETAINED_WATER,
                 new ArrayList<>(water),
@@ -767,18 +828,106 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return positions;
     }
 
-    private static Deployment deployment(
+    private static RawDeployment rawDeployment(
             SkyIslandWorldVolumeId volumeId,
             Feature feature,
             List<BlockPos> positions,
             List<BlockPos> carvedPositions,
             List<BlockPos> surfacePositions) {
-        return new Deployment(
+        return new RawDeployment(
                 volumeId,
                 feature,
                 new ArrayList<>(new LinkedHashSet<>(positions)),
                 new ArrayList<>(new LinkedHashSet<>(carvedPositions)),
                 new ArrayList<>(new LinkedHashSet<>(surfacePositions)));
+    }
+
+    private static void addMembershipByChunk(
+            Map<Long, Set<BlockPos>> byChunk,
+            Iterable<BlockPos> positions) {
+        for (BlockPos position : positions) {
+            addMembershipByChunk(byChunk, position);
+        }
+    }
+
+    private static void addMembershipByChunk(
+            Map<Long, Set<BlockPos>> byChunk,
+            BlockPos position) {
+        long chunkKey = new ChunkPos(position).toLong();
+        byChunk.computeIfAbsent(chunkKey, ignored -> new HashSet<>()).add(position);
+    }
+
+    private static boolean containsByChunk(
+            Map<Long, Set<BlockPos>> byChunk,
+            BlockPos position) {
+        Set<BlockPos> positions = byChunk.get(new ChunkPos(position).toLong());
+        return positions != null && positions.contains(position);
+    }
+
+    static Map<Long, ChunkProjection> indexByChunk(List<Deployment> deployments) {
+        Objects.requireNonNull(deployments, "deployments");
+        Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
+        for (Deployment deployment : deployments) {
+            indexStates(mutable, deployment.surfacePositions(), Blocks.DIRT.defaultBlockState());
+            indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
+            indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
+        }
+
+        Map<Long, ChunkProjection> result = new LinkedHashMap<>();
+        for (var entry : mutable.entrySet()) {
+            result.put(entry.getKey(), new ChunkProjection(entry.getValue()));
+        }
+        return Collections.unmodifiableMap(result);
+    }
+
+    private static void indexStates(
+            Map<Long, LinkedHashMap<BlockPos, BlockState>> byChunk,
+            Iterable<BlockPos> positions,
+            BlockState desiredState) {
+        for (BlockPos position : positions) {
+            long chunkKey = new ChunkPos(position).toLong();
+            var states = byChunk.computeIfAbsent(chunkKey, ignored -> new LinkedHashMap<>());
+            BlockState previous = states.putIfAbsent(position, desiredState);
+            if (previous != null && !previous.equals(desiredState)) {
+                throw new IllegalStateException(
+                        "normalized authored hydrology assigned conflicting states at " + position);
+            }
+        }
+    }
+
+    static int apply(ChunkAccess chunk, ChunkProjection projection) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(projection, "projection");
+        int written = 0;
+        for (var entry : projection.states().entrySet()) {
+            BlockPos position = entry.getKey();
+            BlockState desired = entry.getValue();
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
+                throw new IllegalArgumentException(
+                        "authored hydrology chunk projection contains a foreign chunk position");
+            }
+            BlockState current = chunk.getBlockState(position);
+            if (desired.is(Blocks.WATER)) {
+                if (!isWaterBearing(current)) {
+                    chunk.setBlockState(position, desired, false);
+                    written++;
+                }
+            } else if (desired.isAir()) {
+                if (!current.isAir()) {
+                    chunk.setBlockState(position, desired, false);
+                    written++;
+                }
+            } else if (desired.is(Blocks.DIRT)) {
+                if (!current.is(Blocks.DIRT)) {
+                    chunk.setBlockState(position, desired, false);
+                    written++;
+                }
+            } else {
+                throw new IllegalStateException(
+                        "unsupported authored hydrology projection state " + desired);
+            }
+        }
+        return written;
     }
 
     /**
