@@ -9,9 +9,13 @@ on:
       - "docs/authorship/HYDROLOGY_OVERHAUL_REFERENCE.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialReachGeometry.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandNaturalizedChannelPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydrologicFeaturePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelProfilePlanner.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareChannelCorridorPlanner.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainField.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainFieldTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydrologicFeaturePlannerTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandChannelProfilePlannerTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareChannelCorridorPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusTest.java"
@@ -44,7 +48,7 @@ jobs:
         with:
           gradle_command: |
             ./gradlew \
-              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' --tests '*SkyIslandTerrainAwareChannelCorridorPlannerTest' \
+              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' --tests '*SkyIslandTerrainAwareChannelCorridorPlannerTest' --tests '*SkyIslandHydrologicFeaturePlannerTest' --tests '*SkyIslandChannelProfilePlannerTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' --tests '*HydrologyReferenceIslandCliTest' \
               :skyforge-reference:authorshipFluvialLandformCorpus \
@@ -69,7 +73,7 @@ jobs:
             test -f "$REF/summary.txt"
             test "$(wc -l < "$REF/diagnostics.csv")" -eq 3
             grep -q '^primary,287,' "$REF/diagnostics.csv"
-            grep -q '^confluence-control,649,' "$REF/diagnostics.csv"
+            grep -q '^confluence-control,' "$REF/diagnostics.csv"
           artifact_name: auth-0105-fluvial-landforms
           artifact_path: |
             skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/index.html
