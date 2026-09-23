@@ -9,8 +9,10 @@ on:
       - "docs/authorship/HYDROLOGY_OVERHAUL_REFERENCE.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialReachGeometry.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandNaturalizedChannelPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareChannelCorridorPlanner.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainField.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainFieldTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareChannelCorridorPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchCli.java"
@@ -42,7 +44,7 @@ jobs:
         with:
           gradle_command: |
             ./gradlew \
-              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' \
+              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' --tests '*SkyIslandTerrainAwareChannelCorridorPlannerTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' --tests '*HydrologyReferenceIslandCliTest' \
               :skyforge-reference:authorshipFluvialLandformCorpus \
