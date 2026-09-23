@@ -202,8 +202,13 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                     int depthFromCompiledTop = range.maximumY() - worldY;
                     boolean surfaceRepresentation = semantic == SkyIslandTerrainSemantic.SURFACE_MANTLE
                             || depthFromCompiledTop < NEWLY_EXPOSED_PROFILE_DEPTH;
-                    if (!surfaceRepresentation
-                            || !resolver.supportsSurface(volumeId, worldX, worldY, worldZ)) {
+                    if (!surfaceRepresentation) {
+                        // Vertical semantic roles cannot re-enter SURFACE_MANTLE deeper in one
+                        // continuous compiled column. Continuing would only resample the expensive
+                        // density graph through the island interior.
+                        break;
+                    }
+                    if (!resolver.supportsSurface(volumeId, worldX, worldY, worldZ)) {
                         continue;
                     }
 
