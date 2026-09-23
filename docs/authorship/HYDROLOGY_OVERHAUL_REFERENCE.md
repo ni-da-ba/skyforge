@@ -178,11 +178,12 @@ These are geometry consequences of accepted topology and terrain, not backend-in
 
 ## H5 lifecycle ordering
 
-Final surface representation and surface population are now downstream of completed composed-cave
-topology for the whole exact volume. The cave realizer consumes the already-authored biome resolver
-directly and no longer waits for vegetation or persistent biome presentation. This prevents a later
-cave mutation from removing support beneath already-placed mushrooms, grass, trees, or other
-surface features.
+Final surface representation is now downstream of composed-cave topology for the same exact chunk,
+while surface population waits for completed cave topology across the whole exact volume. The cave
+realizer consumes the already-authored biome resolver directly and no longer waits for vegetation or
+persistent biome presentation. This prevents a later cave mutation from removing support beneath
+already-placed mushrooms, grass, trees, or other surface features without globally stalling material
+surfacing on unrelated chunks.
 
 
 ## H6 focused visual reference runtime
