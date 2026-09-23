@@ -783,11 +783,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return Optional.empty();
         }
 
-        Map<Integer, ChannelCarrierCandidate> carrierByBin = new java.util.TreeMap<>();
+        Map<Column, ChannelCarrierCandidate> carrierCandidates = new LinkedHashMap<>();
         int wetCorridorCandidates = 0;
         int solidCarrierCandidates = 0;
         int bankableCarrierCandidates = 0;
-        double pathLength = reach.path().pathLength();
         for (var entry : candidateProjections.entrySet()) {
             ChannelPathProjection projection = entry.getValue();
             if (projection.distance() > reach.wetHalfWidth()) {
@@ -856,41 +855,48 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     ownerMinimumWaterTop,
                     Math.min(maximumWaterTop, desiredWaterTop));
 
-            int bin = (int) Math.round(projection.fraction() * pathLength);
-            ChannelCarrierCandidate candidate = new ChannelCarrierCandidate(
+            carrierCandidates.put(
                     column,
-                    projection.distance(),
-                    projection.fraction(),
-                    ownerMinimumWaterTop,
-                    drySurfaceY,
-                    maximumWaterTop,
-                    desiredWaterTop);
-            ChannelCarrierCandidate previous = carrierByBin.get(bin);
-            if (previous == null
-                    || candidate.distance() < previous.distance() - 1.0e-12
-                    || (Math.abs(candidate.distance() - previous.distance()) <= 1.0e-12
-                            && (candidate.column().z() < previous.column().z()
-                                    || (candidate.column().z() == previous.column().z()
-                                            && candidate.column().x() < previous.column().x())))) {
-                carrierByBin.put(bin, candidate);
-            }
+                    new ChannelCarrierCandidate(
+                            column,
+                            projection.distance(),
+                            projection.fraction(),
+                            ownerMinimumWaterTop,
+                            drySurfaceY,
+                            maximumWaterTop,
+                            desiredWaterTop));
         }
 
-        if (carrierByBin.isEmpty()) {
+        if (carrierCandidates.isEmpty()) {
             throw channelProjectionFailure(
                     volume,
                     reach.path(),
-                    "no bankable raster spine; wetCorridorCandidates=" + wetCorridorCandidates
+                    "no bankable raster carrier; wetCorridorCandidates=" + wetCorridorCandidates
                             + ", solidCarrierCandidates=" + solidCarrierCandidates
                             + ", bankableCarrierCandidates=" + bankableCarrierCandidates);
         }
 
+        Optional<List<ChannelCarrierCandidate>> connectedSpine =
+                connectedChannelCarrierSpine(volume, reach, carrierCandidates);
+        if (connectedSpine.isEmpty()) {
+            throw channelProjectionFailure(
+                    volume,
+                    reach.path(),
+                    "bankable wet carrier has no four-connected upstream/downstream spine; "
+                            + "bankableCarrierCandidates=" + carrierCandidates.size()
+                            + ", wetCorridorCandidates=" + wetCorridorCandidates
+                            + ", solidCarrierCandidates=" + solidCarrierCandidates);
+        }
+        List<ChannelCarrierCandidate> spine = connectedSpine.orElseThrow();
+
         for (int reconciliationDepth = 0;
                 reconciliationDepth <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS;
                 reconciliationDepth++) {
-            List<ChannelGradeSample> samples = new ArrayList<>(carrierByBin.size());
+            List<ChannelGradeSample> samples = new ArrayList<>(spine.size());
             boolean feasibleBounds = true;
-            for (ChannelCarrierCandidate candidate : carrierByBin.values()) {
+            double previousFraction = 0.0;
+            for (int index = 0; index < spine.size(); index++) {
+                ChannelCarrierCandidate candidate = spine.get(index);
                 int minimumWaterTop = Math.max(
                         candidate.ownerMinimumWaterTop(),
                         candidate.drySurfaceY() + 1 - reconciliationDepth);
@@ -898,11 +904,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     feasibleBounds = false;
                     break;
                 }
+                double fraction = index == 0
+                        ? candidate.fraction()
+                        : Math.max(previousFraction, candidate.fraction());
                 samples.add(new ChannelGradeSample(
-                        candidate.fraction(),
+                        fraction,
                         minimumWaterTop,
                         candidate.maximumWaterTop(),
                         candidate.desiredWaterTop()));
+                previousFraction = fraction;
             }
             if (!feasibleBounds) {
                 continue;
@@ -924,12 +934,117 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         throw channelProjectionFailure(
                 volume,
                 reach.path(),
-                "bankable raster spine remains infeasible through reconciliationDepth="
+                "four-connected raster spine remains isotonic-infeasible through reconciliationDepth="
                         + MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS
-                        + ", spineBins=" + carrierByBin.size()
-                        + ", wetCorridorCandidates=" + wetCorridorCandidates
-                        + ", solidCarrierCandidates=" + solidCarrierCandidates
-                        + ", bankableCarrierCandidates=" + bankableCarrierCandidates);
+                        + ", spineColumns=" + spine.size()
+                        + ", bankableCarrierCandidates=" + carrierCandidates.size());
+    }
+
+    /**
+     * Chooses a deterministic four-neighbor carrier path through one authored wet corridor.
+     *
+     * <p>The old per-bin selection could pick individually excellent columns that belonged to
+     * different raster components. This spatial pass instead minimizes centerline deviation while
+     * requiring actual Minecraft face connectivity from the authored upstream endpoint to the
+     * downstream endpoint. A small longitudinal tolerance permits voxel turns without allowing the
+     * path to reverse materially upstream.
+     */
+    private static Optional<List<ChannelCarrierCandidate>> connectedChannelCarrierSpine(
+            SkyIslandWorldVolume volume,
+            SkyIslandFluvialReachGeometry reach,
+            Map<Column, ChannelCarrierCandidate> candidates) {
+        if (candidates.isEmpty()) {
+            return Optional.empty();
+        }
+        var physical = volume.compiledVolume().descriptor();
+        SkyIslandLocalPosition upstream = reach.path().points().getFirst();
+        SkyIslandLocalPosition downstream = reach.path().points().getLast();
+
+        ChannelCarrierCandidate start = candidates.values().stream()
+                .min(Comparator
+                        .comparingDouble((ChannelCarrierCandidate candidate) -> Math.hypot(
+                                candidate.column().x() - physical.centerX() - upstream.x(),
+                                candidate.column().z() - physical.centerZ() - upstream.z()))
+                        .thenComparingDouble(ChannelCarrierCandidate::distance)
+                        .thenComparingInt(candidate -> candidate.column().z())
+                        .thenComparingInt(candidate -> candidate.column().x()))
+                .orElseThrow();
+        ChannelCarrierCandidate goal = candidates.values().stream()
+                .min(Comparator
+                        .comparingDouble((ChannelCarrierCandidate candidate) -> Math.hypot(
+                                candidate.column().x() - physical.centerX() - downstream.x(),
+                                candidate.column().z() - physical.centerZ() - downstream.z()))
+                        .thenComparingDouble(ChannelCarrierCandidate::distance)
+                        .thenComparingInt(candidate -> candidate.column().z())
+                        .thenComparingInt(candidate -> candidate.column().x()))
+                .orElseThrow();
+
+        if (start.column().equals(goal.column())) {
+            return Optional.of(List.of(start));
+        }
+
+        record QueueEntry(Column column, double cost) {}
+        java.util.PriorityQueue<QueueEntry> queue = new java.util.PriorityQueue<>(
+                Comparator.comparingDouble(QueueEntry::cost)
+                        .thenComparingInt(entry -> entry.column().z())
+                        .thenComparingInt(entry -> entry.column().x()));
+        Map<Column, Double> cost = new HashMap<>();
+        Map<Column, Column> predecessor = new HashMap<>();
+        cost.put(start.column(), 0.0);
+        queue.add(new QueueEntry(start.column(), 0.0));
+
+        double pathLength = Math.max(1.0, reach.path().pathLength());
+        double reverseTolerance = Math.min(0.08, 1.5 / pathLength);
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (!queue.isEmpty()) {
+            QueueEntry currentEntry = queue.remove();
+            double knownCost = cost.getOrDefault(currentEntry.column(), Double.POSITIVE_INFINITY);
+            if (currentEntry.cost() > knownCost + 1.0e-12) {
+                continue;
+            }
+            if (currentEntry.column().equals(goal.column())) {
+                break;
+            }
+
+            ChannelCarrierCandidate current = candidates.get(currentEntry.column());
+            for (int[] direction : directions) {
+                Column neighborColumn = new Column(
+                        currentEntry.column().x() + direction[0],
+                        currentEntry.column().z() + direction[1]);
+                ChannelCarrierCandidate neighbor = candidates.get(neighborColumn);
+                if (neighbor == null
+                        || neighbor.fraction() + reverseTolerance < current.fraction()) {
+                    continue;
+                }
+
+                double longitudinalPenalty =
+                        Math.max(0.0, current.fraction() - neighbor.fraction()) * 12.0;
+                double centerlinePenalty = neighbor.distance() * neighbor.distance();
+                double nextCost = knownCost + 1.0 + centerlinePenalty + longitudinalPenalty;
+                double previousCost = cost.getOrDefault(neighborColumn, Double.POSITIVE_INFINITY);
+                if (nextCost + 1.0e-12 < previousCost) {
+                    cost.put(neighborColumn, nextCost);
+                    predecessor.put(neighborColumn, currentEntry.column());
+                    queue.add(new QueueEntry(neighborColumn, nextCost));
+                }
+            }
+        }
+
+        if (!cost.containsKey(goal.column())) {
+            return Optional.empty();
+        }
+
+        ArrayDeque<ChannelCarrierCandidate> reversed = new ArrayDeque<>();
+        Column cursor = goal.column();
+        reversed.addFirst(candidates.get(cursor));
+        while (!cursor.equals(start.column())) {
+            cursor = predecessor.get(cursor);
+            if (cursor == null) {
+                return Optional.empty();
+            }
+            reversed.addFirst(candidates.get(cursor));
+        }
+        return Optional.of(List.copyOf(reversed));
     }
 
     /**
