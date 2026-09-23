@@ -1,7 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -91,6 +93,24 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
                 SkyforgePhysicalVolumeCatchupService.earlierPopulationKeys(
                         candidate,
                         canonical));
+    }
+
+
+    @Test
+    void finalSurfaceWaitsForWholeVolumeCaveTopology() throws Exception {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volumeId = fixture.volume().id();
+        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId));
+
+        try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
+                AutoCloseable caves = SkyforgeComposedCaveStage.install(List.of(
+                        new SkyforgeComposedCavePlan(fixture.volume(), fixture.field())))) {
+            assertFalse(
+                    SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId),
+                    "final surface representation must not precede pending cave topology");
+        }
+
+        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId));
     }
 
     @Test
