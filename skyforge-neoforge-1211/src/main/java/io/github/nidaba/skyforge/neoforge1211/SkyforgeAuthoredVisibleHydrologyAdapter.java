@@ -915,11 +915,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Optional<List<ChannelCarrierCandidate>> connectedSpine =
                 connectedChannelCarrierSpine(volume, reach, carrierCandidates);
         if (connectedSpine.isEmpty()) {
+            var physicalDescriptor = volume.compiledVolume().descriptor();
+            double endpointTolerance = reach.wetHalfWidth() + 1.0;
+            SkyIslandLocalPosition upstream = reach.path().points().getFirst();
+            SkyIslandLocalPosition downstream = reach.path().points().getLast();
+            long upstreamCandidates = carrierCandidates.values().stream()
+                    .filter(candidate -> Math.hypot(
+                                    candidate.column().x() - physicalDescriptor.centerX() - upstream.x(),
+                                    candidate.column().z() - physicalDescriptor.centerZ() - upstream.z())
+                            <= endpointTolerance)
+                    .count();
+            long downstreamCandidates = carrierCandidates.values().stream()
+                    .filter(candidate -> Math.hypot(
+                                    candidate.column().x() - physicalDescriptor.centerX() - downstream.x(),
+                                    candidate.column().z() - physicalDescriptor.centerZ() - downstream.z())
+                            <= endpointTolerance)
+                    .count();
             throw channelProjectionFailure(
                     volume,
                     reach.path(),
                     "bankable wet carrier has no four-connected upstream/downstream spine; "
                             + "bankableCarrierCandidates=" + carrierCandidates.size()
+                            + ", upstreamCandidates=" + upstreamCandidates
+                            + ", downstreamCandidates=" + downstreamCandidates
                             + ", wetCorridorCandidates=" + wetCorridorCandidates
                             + ", solidCarrierCandidates=" + solidCarrierCandidates);
         }
