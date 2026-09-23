@@ -101,6 +101,8 @@ An existing issue/PR may continue when:
 
 This is especially relevant to current Bootstrap civilization/runtime work, retained-mod feasibility work, Music, Presentation, and Audit/orchestration.
 
+After RM-R08, the existing-work exception does **not** authorize expansion of bespoke pre-alpha content merely because earlier Guild/Bellanca/air-combat/adventure work already exists. An already-active bespoke milestone may close the smallest safe information-bearing boundary; accepted output may then remain dormant for post-alpha consumption. Reusable system semantics/adapters may continue when they serve the alpha substrate independently of their original bespoke presentation.
+
 ### 4.3 Missing-issue rule
 
 A missing issue alone must not strand the program.
