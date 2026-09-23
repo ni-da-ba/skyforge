@@ -50,7 +50,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
-    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 3;
+    // Bounded vertical side-bank reconciliation for narrow voxelized channels. Six blocks is
+    // intentionally well below the submerged-bed safety ceiling; human H6 review still verifies
+    // that the resulting banks do not read as artificial levees or walls.
+    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
