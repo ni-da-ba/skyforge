@@ -842,7 +842,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             bankableCarrierCandidates++;
-            maximumWaterTop = Math.min(maximumWaterTop, bankCeiling.orElseThrow());
+            // A dry cardinal bank may be raised by the same bounded three-block allowance
+            // applied during raster realization. Account for that allowance in the optimization
+            // bound instead of deleting the carrier column before spatial pathfinding; otherwise
+            // harmless one- or two-block bank quantization holes can disconnect the wet spine.
+            maximumWaterTop = Math.min(
+                    maximumWaterTop,
+                    bankCeiling.orElseThrow() + MAX_CHANNEL_BANK_FILL_BLOCKS);
             if (ownerMinimumWaterTop > maximumWaterTop) {
                 continue;
             }
