@@ -30,10 +30,14 @@ final class SkyforgeHydrologyReferenceReviewFixture {
     private static final long PROVINCE_KEY = 8L;
     private static final long CLUSTER_KEY = 81L;
     private static final long PHYSICAL_SEED = 880287L;
+    private static RuntimeFixture cached;
 
     private SkyforgeHydrologyReferenceReviewFixture() {}
 
-    static RuntimeFixture create() {
+    static synchronized RuntimeFixture create() {
+        if (cached != null) {
+            return cached;
+        }
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(WORLD_SEED, PROVINCE_KEY, CLUSTER_KEY, ISLAND_KEY));
         double radius = descriptor.nominalRadius();
@@ -71,13 +75,14 @@ final class SkyforgeHydrologyReferenceReviewFixture {
         SkyIslandWorldVolume volume = new SkyIslandWorldVolume(id, bounds, compiled);
         Set<Long> footprintChunkKeys = occupiedChunkKeys(compiled, bounds);
         var caves = SkyIslandExteriorConnectedCaveVolumeField.create(descriptor);
-        return new RuntimeFixture(
+        cached = new RuntimeFixture(
                 descriptor,
                 caves,
                 volume,
                 new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)),
                 Map.of(id, descriptor),
                 footprintChunkKeys);
+        return cached;
     }
 
     private static Set<Long> occupiedChunkKeys(
