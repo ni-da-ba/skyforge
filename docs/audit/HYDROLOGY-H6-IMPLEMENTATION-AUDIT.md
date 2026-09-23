@@ -145,3 +145,6 @@ Automated validation for the exact audited head must include:
 
 A successful automated run does not replace H6 human visual acceptance. The branch remains draft and
 the 100-island DR-70 atlas remains frozen until key 287 passes the human-eye review.
+
+The final audit head also preserves defensive copies at the immutable Deployment boundary; caller
+collection mutation after construction is covered explicitly by regression test.
