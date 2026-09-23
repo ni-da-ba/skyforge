@@ -45,7 +45,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * rather than painting water onto an unchanged terrain surface.
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
-    private static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
+    static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
 
