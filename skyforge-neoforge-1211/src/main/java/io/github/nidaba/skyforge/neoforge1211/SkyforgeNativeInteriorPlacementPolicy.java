@@ -9,6 +9,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.GenerationStep;
+import net.minecraft.world.level.material.Fluids;
 
 /**
  * Phase-aware plausibility policy for native post-cave population in floating exact volumes.
@@ -59,6 +60,14 @@ final class SkyforgeNativeInteriorPlacementPolicy {
 
         if (operation.generationStep() == GenerationStep.Decoration.FLUID_SPRINGS.ordinal()
                 && !state.getFluidState().isEmpty()) {
+            var fluid = state.getFluidState().getType();
+            if (fluid == Fluids.LAVA || fluid == Fluids.FLOWING_LAVA) {
+                // The accepted island model currently carries no geothermal/magma authority.
+                // Random vanilla lava springs therefore manufacture a semantic fact that Skyforge
+                // never authored and can open conspicuous magma pockets into exterior-connected
+                // caves. Fail closed until geology explicitly authorizes molten fluid.
+                return false;
+            }
             // FLUID_SPRINGS executes after UNDERGROUND_DECORATION. Do not replace a solid that is
             // currently supporting glow lichen; otherwise a valid native decoration can become
             // detached immediately after its own phase completed.
