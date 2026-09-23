@@ -187,6 +187,26 @@ class SkyIslandFluvialTerrainFieldTest {
     }
 
     @Test
+    void authoredHydraulicGradeNeverClimbsDownstreamWithinAReach() {
+        for (long key : new long[] {287L, 632L, 649L, 811L, 83L}) {
+            SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(
+                    SkyIslandDescriptorGenerator.derive(
+                            SkyIslandIdentity.of(SEED, 8L, 81L, key)));
+            for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+                double previous = Double.POSITIVE_INFINITY;
+                for (int sample = 0; sample <= 64; sample++) {
+                    double fraction = sample / 64.0;
+                    double surface = field.reachWaterSurfacePotential(reach, fraction);
+                    assertTrue(
+                            surface <= previous + EPSILON,
+                            "one reach's authored free surface must not climb downstream");
+                    previous = surface;
+                }
+            }
+        }
+    }
+
+    @Test
     void fieldLeavesFarExteriorUntouched() {
         SkyIslandDescriptor descriptor = descriptor(83L);
         SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor);
