@@ -57,6 +57,8 @@ class SkyIslandFluvialTerrainFieldTest {
                 assertTrue(field.waterSurfacePotential(center).orElseThrow() > shaped);
                 assertTrue(reach.wetHalfWidth() < reach.bankfullHalfWidth());
                 assertTrue(reach.bankfullHalfWidth() < reach.valleyHalfWidth());
+                assertTrue(reach.confinementPotential() >= 0.0);
+                assertTrue(reach.confinementPotential() <= 1.0);
             }
             if (!field.reaches().isEmpty()) {
                 assertTrue(materiallyLowered > 0, "at least one reach must remain legible with water hidden");
@@ -87,6 +89,37 @@ class SkyIslandFluvialTerrainFieldTest {
             assertTrue(maxValleyRatio.get(SkyIslandChannelProfileKind.INCISED)
                     > maxValleyRatio.get(SkyIslandChannelProfileKind.CASCADE));
         }
+    }
+
+
+    @Test
+    void confinementNarrowsValleyEnvelopeWithoutChangingBankfullDischargeScale() {
+        boolean compared = false;
+        for (long key : new long[] {287L, 2266L, 2936L, 1227L, 811L}) {
+            SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(
+                    SkyIslandDescriptorGenerator.derive(
+                            SkyIslandIdentity.of(SEED, 8L, 81L, key)));
+            for (SkyIslandChannelProfileKind kind : SkyIslandChannelProfileKind.values()) {
+                var reaches = field.reaches().stream()
+                        .filter(reach -> reach.profile().kind() == kind)
+                        .sorted(java.util.Comparator.comparingDouble(
+                                SkyIslandFluvialReachGeometry::confinementPotential))
+                        .toList();
+                if (reaches.size() < 2) {
+                    continue;
+                }
+                SkyIslandFluvialReachGeometry open = reaches.getFirst();
+                SkyIslandFluvialReachGeometry confined = reaches.getLast();
+                if (confined.confinementPotential() - open.confinementPotential() < 0.20) {
+                    continue;
+                }
+                double openRatio = open.valleyHalfWidth() / open.bankfullHalfWidth();
+                double confinedRatio = confined.valleyHalfWidth() / confined.bankfullHalfWidth();
+                assertTrue(openRatio > confinedRatio);
+                compared = true;
+            }
+        }
+        assertTrue(compared, "reference corpus should exercise materially different valley confinement");
     }
 
     @Test
