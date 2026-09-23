@@ -138,9 +138,14 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         long digest = FNV_OFFSET_BASIS;
         for (var deployment : deployments) {
             digest = mix(digest, deployment.feature().ordinal());
+            Set<SkyforgeAuthoredVisibleHydrologyAdapter.Column> wetColumns = deployment.positions().stream()
+                    .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            position.getX(), position.getZ()))
+                    .collect(java.util.stream.Collectors.toUnmodifiableSet());
             for (BlockPos position : deployment.positions()) {
-                if (!terrain.isSolidOwnedBy(
-                        fixture.volume().id(), position.getX(), position.getY(), position.getZ())) {
+                if (!terrain.authoredVisibleHydrologyVolumeId(position)
+                        .filter(deployment.volumeId()::equals)
+                        .isPresent()) {
                     throw new IllegalStateException("DR-50 authored hydrology escaped exact volume ownership");
                 }
                 BlockState state = level.getBlockState(position);
@@ -153,10 +158,8 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 digest = mix(digest, position.asLong());
             }
             for (BlockPos position : deployment.surfacePositions()) {
-                if (!terrain.isSolidOwnedBy(
-                        fixture.volume().id(), position.getX(), position.getY(), position.getZ())) {
-                    throw new IllegalStateException("DR-50 fluvial dressing escaped exact volume ownership");
-                }
+                verifyDressedSurfaceOwnership(
+                        fixture, terrain, deployment, wetColumns, position);
                 BlockState state = level.getBlockState(position);
                 dressedSurface.add(position.immutable());
                 digest = mix(digest, 0x44524553534544L);
@@ -196,6 +199,57 @@ final class SkyforgeDr50IntegratedRegionEvidence {
                 retainedDressedSurface,
                 Long.toUnsignedString(digest, 16),
                 positions.getFirst());
+    }
+
+    private static void verifyDressedSurfaceOwnership(
+            SkyforgeNeoForge1211ProductionComposedCaveFixture.Single fixture,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyforgeAuthoredVisibleHydrologyAdapter.Deployment deployment,
+            Set<SkyforgeAuthoredVisibleHydrologyAdapter.Column> wetColumns,
+            BlockPos position) {
+        var volumeId = fixture.volume().id();
+        if (terrain.isSolidOwnedByOtherVolume(
+                volumeId, position.getX(), position.getY(), position.getZ())
+                || !fixture.volume().bounds().contains(
+                        position.getX(), position.getY(), position.getZ())) {
+            throw new IllegalStateException("DR-50 fluvial dressing escaped exact volume ownership");
+        }
+        if (terrain.isSolidOwnedBy(
+                volumeId, position.getX(), position.getY(), position.getZ())) {
+            return;
+        }
+
+        var range = terrain.integerSolidRange(
+                        volumeId, position.getX(), position.getZ())
+                .orElseThrow(() -> new IllegalStateException(
+                        "DR-50 bounded hydrology bank fill lacks an owned carrier column"));
+        int fillDepth = position.getY() - range.maximumY();
+        int maximumFill = deployment.feature()
+                == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER
+                        ? SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS
+                        : SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS;
+        if (fillDepth < 1 || fillDepth > maximumFill) {
+            throw new IllegalStateException(
+                    "DR-50 hydrology bank conditioning exceeded its bounded fill budget");
+        }
+
+        if (deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
+            var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                    position.getX(), position.getZ());
+            boolean adjacentToWet = wetColumns.contains(
+                            new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                    column.x() + 1, column.z()))
+                    || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            column.x() - 1, column.z()))
+                    || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            column.x(), column.z() + 1))
+                    || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            column.x(), column.z() - 1));
+            if (!adjacentToWet) {
+                throw new IllegalStateException(
+                        "DR-50 channel bank conditioning escaped the cardinal wet corridor");
+            }
+        }
     }
 
     private static StructureLifecycleEvidence verifyStructureLifecycle(
