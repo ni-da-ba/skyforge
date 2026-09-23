@@ -2066,12 +2066,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             List<BlockPos> positions,
             List<BlockPos> carvedPositions,
             List<BlockPos> surfacePositions) {
+        Comparator<BlockPos> canonicalPositionOrder = Comparator
+                .comparingInt(BlockPos::getZ)
+                .thenComparingInt(BlockPos::getX)
+                .thenComparingInt(BlockPos::getY);
+        List<BlockPos> canonicalPositions = new ArrayList<>(new LinkedHashSet<>(positions));
+        List<BlockPos> canonicalCarved = new ArrayList<>(new LinkedHashSet<>(carvedPositions));
+        List<BlockPos> canonicalSurface = new ArrayList<>(new LinkedHashSet<>(surfacePositions));
+        canonicalPositions.sort(canonicalPositionOrder);
+        canonicalCarved.sort(canonicalPositionOrder);
+        canonicalSurface.sort(canonicalPositionOrder);
         return new RawDeployment(
                 volumeId,
                 feature,
-                new ArrayList<>(new LinkedHashSet<>(positions)),
-                new ArrayList<>(new LinkedHashSet<>(carvedPositions)),
-                new ArrayList<>(new LinkedHashSet<>(surfacePositions)));
+                canonicalPositions,
+                canonicalCarved,
+                canonicalSurface);
     }
 
     private static void addMembershipByChunk(
