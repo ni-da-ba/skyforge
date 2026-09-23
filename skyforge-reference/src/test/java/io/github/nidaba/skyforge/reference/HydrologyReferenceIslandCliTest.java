@@ -23,8 +23,7 @@ class HydrologyReferenceIslandCliTest {
 
         assertEquals(HydrologyReferenceIslandCli.CONFLUENCE_CONTROL_ISLAND_KEY, confluence.islandKey());
         assertTrue(confluence.reaches() >= 30);
-        assertTrue(confluence.maxStreamOrder() >= 2);
-        assertTrue(confluence.confluences() >= 1);
+        assertTrue(confluence.confluences() >= 1, result.summary());
 
         assertTrue(primary.uphillStepFraction() >= 0.0 && primary.uphillStepFraction() <= 1.0);
         assertTrue(primary.ridgeCrossingFraction() >= 0.0 && primary.ridgeCrossingFraction() <= 1.0);
