@@ -40,6 +40,46 @@ final class SkyforgePhysicalVolumeAdmissionStageTest {
     }
 
     @Test
+    void stackedVolumeDebtUsesCatalogOrderRatherThanHashMapIteration() throws Exception {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.stacked();
+        var lower = fixture.lower();
+        var upper = fixture.upper();
+        ChunkPos deferredPos = new ChunkPos(0, 0);
+        ChunkPos admittingPos = new ChunkPos(1, 0);
+        Set<Long> required = Set.of(deferredPos.toLong(), admittingPos.toLong());
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(),
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        try (AutoCloseable terrain = SkyforgeNeoForge1211SurfaceStage.install(
+                        adapter,
+                        new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+                AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(
+                        fixture.catalog(),
+                        Map.of(lower.id(), required, upper.id(), required))) {
+            assertNotNull(terrain);
+            assertNotNull(admission);
+
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    MinecraftTestChunkFactory.protoChunk(deferredPos),
+                    Optional.empty());
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    MinecraftTestChunkFactory.protoChunk(admittingPos),
+                    Optional.empty());
+
+            assertEquals(
+                    List.of(lower.id(), upper.id()),
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(deferredPos).stream()
+                            .map(SkyforgePhysicalVolumeAdmissionStage.PendingRealization::volumeId)
+                            .toList());
+            assertEquals(
+                    List.of(lower.id(), upper.id()),
+                    SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(deferredPos));
+        }
+    }
+
+    @Test
     void maintainedDeferredChunkIndexActivatesAtAdmissionAndRetiresAtCompletion() throws Exception {
         var sourceCatalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = sourceCatalog.volumes().getFirst();
