@@ -57,6 +57,8 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static volatile Throwable bootstrapFailure;
     private static volatile boolean bootstrapStarted;
     private static volatile long bootstrapStartedNanos;
+    private static volatile long bootstrapLastDumpNanos;
+    private static volatile Thread bootstrapThread;
     private static boolean ready;
     private static long tickCounter;
     private static volatile Thread watchdogServerThread;
@@ -92,6 +94,8 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         bootstrapFailure = null;
         bootstrapStarted = false;
         bootstrapStartedNanos = 0L;
+        bootstrapLastDumpNanos = 0L;
+        bootstrapThread = null;
     }
 
     @SubscribeEvent
@@ -100,6 +104,15 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return;
         }
         player.setGameMode(GameType.SPECTATOR);
+        if (!ready) {
+            // Keep the reviewer at the eventual overhead inspection location while immutable
+            // authored hydrology is prepared; the blank bootstrap world otherwise spawns near the
+            // void floor and looks like the review fixture failed to load.
+            player.teleportTo(
+                    0.0,
+                    Math.min(315.0, SkyforgeHydrologyReferenceReviewFixture.SUSPENSION_Y + 92.0),
+                    0.0);
+        }
         if (ready) {
             move(player, "above");
             return;
@@ -291,6 +304,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             }
         }, "Skyforge hydrology reference bootstrap");
         thread.setDaemon(true);
+        bootstrapThread = thread;
         thread.start();
     }
 
@@ -355,11 +369,27 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     }
 
     private static void reportBootstrapProgress(ServerTickEvent.Post event) {
-        if (!bootstrapStarted || tickCounter % 100L != 0L) {
+        if (!bootstrapStarted) {
             return;
         }
-        for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
-            say(player, "Precomputing immutable authored hydrology off-thread; server remains responsive.");
+        long now = System.nanoTime();
+        long elapsedNanos = now - bootstrapStartedNanos;
+        if (tickCounter % 100L == 0L) {
+            for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
+                say(player, "Precomputing immutable authored hydrology off-thread; elapsed="
+                        + (elapsedNanos / 1_000_000L) + " ms.");
+            }
+        }
+        Thread thread = bootstrapThread;
+        if (thread != null
+                && elapsedNanos >= 10_000_000_000L
+                && now - bootstrapLastDumpNanos >= 10_000_000_000L) {
+            bootstrapLastDumpNanos = now;
+            System.err.println("[Hydrology Ref BOOTSTRAP] authored hydrology precompute running "
+                    + (elapsedNanos / 1_000_000L) + " ms; thread state=" + thread.getState());
+            for (StackTraceElement frame : thread.getStackTrace()) {
+                System.err.println("    at " + frame);
+            }
         }
     }
 
