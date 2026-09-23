@@ -1,4 +1,5 @@
 name: AUTH-0105 Fluvial Landforms
+# H2 validation pulse: drainage-surface / flow-direction separation
 
 on:
   pull_request:
@@ -42,7 +43,7 @@ jobs:
         with:
           gradle_command: |
             ./gradlew \
-              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' \
+              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' --tests '*SkyIslandWatershedPlannerTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
               :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' --tests '*HydrologyReferenceIslandCliTest' \
               :skyforge-reference:authorshipFluvialLandformCorpus \
