@@ -31,6 +31,29 @@ class SkyIslandHydrologicFeaturePlannerTest {
         assertTrue(found);
     }
 
+
+    @Test
+    void visibleChannelsNeverRequireRawTerrainAscent() {
+        for (long key : new long[] {77L, 287L, 649L, 811L, 2083L, 2266L}) {
+            SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                    SkyIslandIdentity.of(0x534B59464F524745L, 8L, 81L, key));
+            SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+            var cells = watershed.cells().stream().collect(
+                    java.util.stream.Collectors.toMap(SkyIslandWatershedCell::index, cell -> cell));
+            for (SkyIslandHydrologicFeature feature : SkyIslandHydrologicFeaturePlanner.plan(descriptor).features()) {
+                if (feature.kind() != SkyIslandHydrologicFeatureKind.CHANNEL) {
+                    continue;
+                }
+                SkyIslandWatershedCell source = cells.get(feature.sourceCellIndex());
+                SkyIslandWatershedCell downstream = cells.get(feature.downstreamCellIndex());
+                assertTrue(source != null && downstream != null);
+                assertTrue(
+                        downstream.surfacePotential() <= source.surfacePotential() + 1.0e-10,
+                        "visible channel cannot represent filled-depression uphill transport");
+            }
+        }
+    }
+
     @Test
     void weaklyDifferentiatedWatershedCannotBecomeChannelCarpet() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
