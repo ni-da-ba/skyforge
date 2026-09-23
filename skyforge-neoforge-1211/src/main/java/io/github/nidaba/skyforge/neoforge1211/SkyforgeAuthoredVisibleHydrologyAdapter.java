@@ -336,6 +336,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (optionalRange.isEmpty()) {
                 continue;
             }
+            solidCarrierCandidates++;
             var range = optionalRange.orElseThrow();
             double basePotential = basePotentialCache.computeIfAbsent(
                     column,
@@ -643,12 +644,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         Map<Integer, ChannelCarrierCandidate> carrierByBin = new java.util.TreeMap<>();
+        int wetCorridorCandidates = 0;
+        int solidCarrierCandidates = 0;
+        int bankableCarrierCandidates = 0;
         double pathLength = reach.path().pathLength();
         for (var entry : candidateProjections.entrySet()) {
             ChannelPathProjection projection = entry.getValue();
             if (projection.distance() > reach.wetHalfWidth()) {
                 continue;
             }
+            wetCorridorCandidates++;
             Column column = entry.getKey();
             var optionalRange = solidRangeCache.computeIfAbsent(
                     column,
@@ -696,6 +701,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (bankCeiling.isEmpty()) {
                 continue;
             }
+            bankableCarrierCandidates++;
             maximumWaterTop = Math.min(maximumWaterTop, bankCeiling.orElseThrow());
             if (ownerMinimumWaterTop > maximumWaterTop) {
                 continue;
@@ -730,7 +736,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         if (carrierByBin.isEmpty()) {
-            return Optional.empty();
+            throw channelProjectionFailure(
+                    volume,
+                    reach.path(),
+                    "no bankable raster spine; wetCorridorCandidates=" + wetCorridorCandidates
+                            + ", solidCarrierCandidates=" + solidCarrierCandidates
+                            + ", bankableCarrierCandidates=" + bankableCarrierCandidates);
         }
 
         for (int reconciliationDepth = 0;
@@ -769,7 +780,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     solved.orElseThrow(),
                     reconciliationDepth));
         }
-        return Optional.empty();
+        throw channelProjectionFailure(
+                volume,
+                reach.path(),
+                "bankable raster spine remains infeasible through reconciliationDepth="
+                        + MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS
+                        + ", spineBins=" + carrierByBin.size()
+                        + ", wetCorridorCandidates=" + wetCorridorCandidates
+                        + ", solidCarrierCandidates=" + solidCarrierCandidates
+                        + ", bankableCarrierCandidates=" + bankableCarrierCandidates);
     }
 
     /**
