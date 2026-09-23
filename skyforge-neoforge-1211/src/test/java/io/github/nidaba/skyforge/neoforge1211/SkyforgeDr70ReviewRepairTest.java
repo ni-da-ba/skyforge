@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
@@ -50,7 +51,7 @@ final class SkyforgeDr70ReviewRepairTest {
 
     @Test
     @Tag("qualification")
-    void atlasKey2754HydrologyProjectsWithoutOrphanDropSourcesOrCrash() {
+    void atlasKey2754FailsClosedWhenAuthoredChannelHasNoPhysicalCarrier() {
         var fixture = SkyforgeDr70HumanReviewAtlasFixture.runtimeFixture(44);
         assertEquals(2754L, fixture.member().islandKey());
 
@@ -59,20 +60,19 @@ final class SkyforgeDr70ReviewRepairTest {
                 io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
                 new SkyforgeMinecraftBlockPalette(),
                 fixture.descriptorsByVolumeId());
-        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
-        assertTrue(deployments.stream().allMatch(deployment ->
-                deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL
-                        || deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER),
-                "drop semantics must never materialize as standalone fluid-source deployments");
-        for (var deployment : deployments) {
-            for (BlockPos position : deployment.positions()) {
-                assertTrue(terrain.isSolidOwnedBy(
-                        fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
-                assertFalse(terrain.isSolidOwnedByOtherVolume(
-                        fixture.volume().id(), position.getX(), position.getY(), position.getZ()));
-            }
-        }
+        var failure = assertThrows(
+                IllegalStateException.class,
+                () -> terrain.authoredHydrologyDeployments(fixture.volume().id()));
+        assertTrue(
+                failure.getMessage().contains("accepted channel cannot project")
+                        && failure.getMessage().contains("sourceCell=565")
+                        && failure.getMessage().contains("downstreamCell=516")
+                        && failure.getMessage().contains("wetCorridorCandidates=24")
+                        && failure.getMessage().contains("solidCarrierCandidates=4"),
+                "a historical atlas channel whose semantic corridor is mostly physical void "
+                        + "must fail closed rather than inventing terrain, rerouting water, or "
+                        + "materializing an orphan drop source");
     }
 
     @Test
