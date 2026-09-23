@@ -57,6 +57,16 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
     }
 
     @Test
+    void fluidSpringAuthorityRejectsLavaWithoutGeothermalAuthorship() {
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsSpringFluid(
+                Blocks.WATER.defaultBlockState()));
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsSpringFluid(
+                Blocks.LAVA.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsSpringFluid(
+                Blocks.STONE.defaultBlockState()));
+    }
+
+    @Test
     void surfaceEcologyPreservesExistingVisibleWaterBlockAuthority() {
         var vegetation = operation(GenerationStep.Decoration.VEGETAL_DECORATION);
         var ores = operation(GenerationStep.Decoration.UNDERGROUND_ORES);
