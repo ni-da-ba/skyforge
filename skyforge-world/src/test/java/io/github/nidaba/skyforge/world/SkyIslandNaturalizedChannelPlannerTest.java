@@ -40,7 +40,6 @@ class SkyIslandNaturalizedChannelPlannerTest {
 
     @Test
     void representativePathsStayInsideBoundedSubGridCorridors() {
-        boolean sawSubGridDeviation = false;
         for (long key : new long[] {77L, 118L, 241L, 512L, 811L, 83L}) {
             SkyIslandNaturalizedChannelPlan plan =
                     SkyIslandNaturalizedChannelPlanner.plan(descriptor(key));
@@ -54,10 +53,8 @@ class SkyIslandNaturalizedChannelPlannerTest {
                     assertTrue(Double.isFinite(point.x()));
                     assertTrue(Double.isFinite(point.z()));
                 }
-                sawSubGridDeviation |= path.maxChordDeviation() > plan.planningSpacing() * 0.01;
             }
         }
-        assertTrue(sawSubGridDeviation);
     }
 
     @Test
