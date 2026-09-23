@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.OptionalDouble;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
@@ -91,6 +92,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         SkyIslandFluvialTerrainField fluvial =
                 SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
         List<Deployment> deployments = new ArrayList<>();
+        Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache =
+                new HashMap<>();
+        Map<Column, Double> basePotentialCache = new HashMap<>();
+        Map<Column, Double> dryPotentialCache = new HashMap<>();
+        Map<Column, OptionalDouble> waterSurfaceCache = new HashMap<>();
 
         Set<Integer> routedEdgeOutlets = intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
@@ -105,7 +111,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             volume,
                             terrain,
                             channel.path(),
-                            routedEdgeOutlet)
+                            routedEdgeOutlet,
+                            solidRangeCache,
+                            basePotentialCache,
+                            dryPotentialCache,
+                            waterSurfaceCache)
                     .ifPresent(deployments::add);
         }
         for (var retained : intent.retainedWater()) {
@@ -164,7 +174,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandNaturalizedChannelPath path,
-            boolean routedEdgeOutlet) {
+            boolean routedEdgeOutlet,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Map<Column, Double> basePotentialCache,
+            Map<Column, Double> dryPotentialCache,
+            Map<Column, OptionalDouble> waterSurfaceCache) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(fluvial, "fluvial");
         Objects.requireNonNull(path, "path");
@@ -183,13 +197,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Column column = candidate.getKey();
             SkyIslandLocalPosition local = localPosition(volume, column);
             double distance = candidate.getValue();
-            var optionalRange = terrain.integerSolidRange(volume.id(), column.x(), column.z());
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    column,
+                    ignored -> terrain.integerSolidRange(volume.id(), column.x(), column.z()));
             if (optionalRange.isEmpty()) {
                 continue;
             }
             var range = optionalRange.orElseThrow();
-            double basePotential = fluvial.baseTerrain().sample(local);
-            double dryPotential = fluvial.sample(local);
+            double basePotential = basePotentialCache.computeIfAbsent(
+                    column,
+                    ignored -> fluvial.baseTerrain().sample(local));
+            double dryPotential = dryPotentialCache.computeIfAbsent(
+                    column,
+                    ignored -> fluvial.sample(local));
             double lowering = Math.max(0.0, basePotential - dryPotential);
             if (lowering <= 1.0e-12) {
                 continue;
@@ -197,8 +217,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int baseSurfaceY = range.maximumY();
             var authoredWater = distance <= reach.wetHalfWidth()
-                    ? fluvial.waterSurfacePotential(local)
-                    : java.util.OptionalDouble.empty();
+                    ? waterSurfaceCache.computeIfAbsent(
+                            column,
+                            ignored -> fluvial.waterSurfacePotential(local))
+                    : OptionalDouble.empty();
             int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
             if (authoredWater.isPresent()) {
                 loweringBlocks = Math.max(2, loweringBlocks);
