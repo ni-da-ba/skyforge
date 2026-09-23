@@ -234,3 +234,13 @@ tasks.register<JavaExec>("authorshipFluvialSpecimenSearch") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-fluvial-specimen-search-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("hydrologyReferenceIsland") {
+    group = "verification"
+    description = "Generates the fixed hydrology-overhaul proving-ground diagnostics."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.HydrologyReferenceIslandCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hydrology-reference-island-v1").get().asFile.absolutePath)
+}
