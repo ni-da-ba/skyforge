@@ -214,6 +214,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    @Tag("qualification")
     void roundedRetainedShorelineRasterPreservesCardinalCoarseConnections() {
         CorpusFixture fixture = corpus(83L);
         var watershed = io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner.plan(
