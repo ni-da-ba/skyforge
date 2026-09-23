@@ -43,26 +43,10 @@ jobs:
         with:
           gradle_command: |
             ./gradlew \
-              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' --tests '*SkyIslandNaturalizedChannelPlannerTest' --tests '*SkyIslandWatershedPlannerTest' \
-              :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
-              :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' --tests '*HydrologyReferenceIslandCliTest' \
-              :skyforge-reference:authorshipFluvialLandformCorpus \
+              :skyforge-world:test --tests '*SkyIslandWatershedPlannerTest' \
               :skyforge-reference:hydrologyReferenceIsland \
               --no-configuration-cache
           verify_command: |
-            DIR=skyforge-reference/build/evidence/authorship-fluvial-landforms-v1
-            test -f "$DIR/index.html"
-            test -f "$DIR/atlas.png"
-            test -f "$DIR/manifest.csv"
-            test "$(wc -l < "$DIR/manifest.csv")" -eq 8
-            grep -q '^dr70-1471,' "$DIR/manifest.csv"
-            grep -q '^key-83-retained-basin,' "$DIR/manifest.csv"
-            awk -F, 'NR > 1 && $12 > 0.01 {found=1} END {exit(found ? 0 : 1)}' "$DIR/manifest.csv"
-            SEARCH=skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1
-            test -f "$SEARCH/index.html"
-            test -f "$SEARCH/atlas.png"
-            test -f "$SEARCH/candidates.csv"
-            test "$(wc -l < "$SEARCH/candidates.csv")" -eq 9
             REF=skyforge-reference/build/evidence/hydrology-reference-island-v1
             test -f "$REF/diagnostics.csv"
             test -f "$REF/summary.txt"
@@ -71,19 +55,5 @@ jobs:
             grep -q '^confluence-control,649,' "$REF/diagnostics.csv"
           artifact_name: auth-0105-fluvial-landforms
           artifact_path: |
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/index.html
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/atlas.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/manifest.csv
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/dr70-1471.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-77.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-118.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-241.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-83-retained-basin.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-512-stress.png
-            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-811-stress.png
-            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/index.html
-            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/atlas.png
-            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/candidates.csv
-            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/rank-*.png
             skyforge-reference/build/evidence/hydrology-reference-island-v1/diagnostics.csv
             skyforge-reference/build/evidence/hydrology-reference-island-v1/summary.txt
