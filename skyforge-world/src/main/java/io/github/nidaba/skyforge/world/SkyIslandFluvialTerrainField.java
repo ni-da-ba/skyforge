@@ -153,7 +153,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             // Water owns a longitudinal hydraulic grade, not "bed + constant depth" at each local
             // sample. The bed may deepen into a terrain-conditioned pool and recover downstream;
             // the free surface must not follow that recovery uphill.
-            double surface = reachWaterSurfacePotential(reach, projection.fraction());
+            double surface = reachWaterSurfacePotentialUnchecked(reach, projection.fraction());
             if (surface > drySurface + EPSILON) {
                 result = Math.min(result, surface);
                 found = true;
@@ -181,6 +181,12 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
             throw new IllegalArgumentException("fraction must be finite and in [0, 1]");
         }
+        return reachWaterSurfacePotentialUnchecked(reach, fraction);
+    }
+
+    private double reachWaterSurfacePotentialUnchecked(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
         double gradeBed = longitudinalReference(reach, fraction)
                 - reach.bedDepthPotential() * gradeCutFraction(reach);
         return clamp01(gradeBed + reach.waterDepthPotential());
