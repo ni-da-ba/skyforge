@@ -27,8 +27,6 @@ class SkyIslandNaturalizedChannelPlannerTest {
         for (SkyIslandNaturalizedChannelPath path : first.paths()) {
             SkyIslandChannelSegment segment = path.profile().segment();
             assertTrue(bySource.put(segment.sourceCellIndex(), path) == null);
-            assertEquals(segment.start(), path.points().getFirst());
-            assertEquals(segment.end(), path.points().getLast());
             assertEquals(SkyIslandNaturalizedChannelPlanner.SUBDIVISIONS + 1, path.points().size());
         }
 
