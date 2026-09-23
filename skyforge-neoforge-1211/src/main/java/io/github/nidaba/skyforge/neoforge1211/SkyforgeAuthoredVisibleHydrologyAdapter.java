@@ -1052,7 +1052,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         double pathLength = Math.max(1.0, reach.path().pathLength());
-        double reverseTolerance = Math.min(0.08, 1.5 / pathLength);
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         ChannelCarrierCandidate bestGoal = null;
         double bestGoalCost = Double.POSITIVE_INFINITY;
@@ -1088,13 +1087,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         currentEntry.column().x() + direction[0],
                         currentEntry.column().z() + direction[1]);
                 ChannelCarrierCandidate neighbor = candidates.get(neighborColumn);
-                if (neighbor == null
-                        || neighbor.fraction() + reverseTolerance < current.fraction()) {
+                if (neighbor == null) {
                     continue;
                 }
 
+                // Nearest-path fractions are not guaranteed to be monotone on a four-neighbor
+                // voxelization of a diagonal or meandering curve. Treat a local reverse step as a
+                // search cost, not as a forbidden edge; the reconstructed grade samples are still
+                // clamped nondecreasing in fraction before the isotonic Y solve.
                 double longitudinalPenalty =
-                        Math.max(0.0, current.fraction() - neighbor.fraction()) * 12.0;
+                        Math.max(0.0, current.fraction() - neighbor.fraction()) * 24.0;
                 double centerlinePenalty = neighbor.distance() * neighbor.distance();
                 double nextCost = knownCost + 1.0 + centerlinePenalty + longitudinalPenalty;
                 double previousCost = cost.getOrDefault(neighborColumn, Double.POSITIVE_INFINITY);
