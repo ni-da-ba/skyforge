@@ -228,18 +228,21 @@ public final class SkyIslandWaterbodyFootprintPlanner {
     private static List<Integer> neighbors(int index, int gridSize) {
         int x = index % gridSize;
         int z = index / gridSize;
-        List<Integer> result = new ArrayList<>(8);
-        for (int dz = -1; dz <= 1; dz++) {
-            for (int dx = -1; dx <= 1; dx++) {
-                if (dx == 0 && dz == 0) {
-                    continue;
-                }
-                int nx = x + dx;
-                int nz = z + dz;
-                if (nx >= 0 && nz >= 0 && nx < gridSize && nz < gridSize) {
-                    result.add(nz * gridSize + nx);
-                }
-            }
+        List<Integer> result = new ArrayList<>(4);
+        // Retained water is a connected inundation area, not a set of cells that merely touch at
+        // mathematical corners. Cardinal adjacency preserves a finite shared edge in continuous
+        // space and maps cleanly to face-connected backend fluids.
+        if (z > 0) {
+            result.add(index - gridSize);
+        }
+        if (x > 0) {
+            result.add(index - 1);
+        }
+        if (x + 1 < gridSize) {
+            result.add(index + 1);
+        }
+        if (z + 1 < gridSize) {
+            result.add(index + gridSize);
         }
         return result;
     }
