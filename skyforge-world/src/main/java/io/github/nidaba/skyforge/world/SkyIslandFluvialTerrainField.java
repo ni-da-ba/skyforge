@@ -222,12 +222,14 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         /*
          * H3: derive physical width from island scale and the hydraulic-geometry potential, not
          * from watershed lattice spacing. Changing planning resolution must not resize rivers.
-         * The floor keeps small headwaters visible after Minecraft quantization while discharge
-         * remains the dominant source of downstream widening.
+         * The three-unit half-width floor is a backend-agnostic quantization guard: even the
+         * smallest accepted headwater must retain enough horizontal support to survive a one-unit
+         * voxel raster without collapsing to a sparse polyline. Above that floor, discharge remains
+         * the dominant source of downstream widening.
          */
         double bankfullHalfWidth = Math.max(
-                1.25,
-                islandRadius * (0.0045 + 0.020 * profile.bankfullWidthPotential()));
+                3.0,
+                islandRadius * (0.0060 + 0.022 * profile.bankfullWidthPotential()));
 
         double confinement = confinementPotential(
                 path, baseTerrain, bankfullHalfWidth, islandRadius);
