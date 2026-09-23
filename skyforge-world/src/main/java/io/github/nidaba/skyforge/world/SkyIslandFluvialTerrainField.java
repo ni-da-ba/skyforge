@@ -35,7 +35,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         this.baseTerrain = coherent.continuousTerrain();
         this.extent = descriptor.nominalRadius();
         this.reaches = coherent.naturalizedChannels().paths().stream()
-                .map(path -> geometry(path, descriptor.nominalRadius()))
+                .map(path -> geometry(path, descriptor.nominalRadius(), baseTerrain))
                 .toList();
     }
 
@@ -131,10 +131,18 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 * (0.30 + 0.70 * reach.profile().gradientPotential());
         double end = Math.min(rawEnd, start - requiredDrop);
         double longitudinalReference = lerp(start, end, projection.fraction());
-        double intendedBed = longitudinalReference - reach.bedDepthPotential();
 
         double localCenterline = baseTerrain.sample(
                 new SkyIslandLocalPosition(projection.x(), projection.z()));
+        double localBed = localCenterline - reach.bedDepthPotential();
+        double gradeCutFraction = switch (reach.profile().kind()) {
+            case ALLUVIAL -> 0.35;
+            case INCISED -> 0.55;
+            case CASCADE -> 0.75;
+        };
+        double gradeCeiling = longitudinalReference
+                - reach.bedDepthPotential() * gradeCutFraction;
+        double intendedBed = Math.min(localBed, gradeCeiling);
         double boundedBed = Math.max(
                 intendedBed,
                 localCenterline - MAX_FLUVIAL_LOWERING);
@@ -165,15 +173,22 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
     private static double valleyShoulderRelief(SkyIslandFluvialReachGeometry reach) {
         return switch (reach.profile().kind()) {
-            case ALLUVIAL -> 0.030 + 0.020 * (1.0 - reach.profile().gradientPotential());
-            case INCISED -> 0.045 + 0.030 * reach.profile().incisionPotential();
-            case CASCADE -> 0.060 + 0.040 * reach.profile().gradientPotential();
+            case ALLUVIAL -> 0.024
+                    + 0.018 * (1.0 - reach.profile().gradientPotential())
+                    + 0.008 * reach.confinementPotential();
+            case INCISED -> 0.040
+                    + 0.034 * reach.profile().incisionPotential()
+                    + 0.020 * reach.confinementPotential();
+            case CASCADE -> 0.055
+                    + 0.040 * reach.profile().gradientPotential()
+                    + 0.025 * reach.confinementPotential();
         };
     }
 
     private static SkyIslandFluvialReachGeometry geometry(
             SkyIslandNaturalizedChannelPath path,
-            double islandRadius) {
+            double islandRadius,
+            SkyIslandContinuousHydrologicTerrainField baseTerrain) {
         SkyIslandChannelProfile profile = path.profile();
         SkyIslandChannelSegment segment = profile.segment();
 
@@ -187,10 +202,12 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 1.25,
                 islandRadius * (0.0045 + 0.020 * profile.bankfullWidthPotential()));
 
+        double confinement = confinementPotential(
+                path, baseTerrain, bankfullHalfWidth, islandRadius);
         double valleyMultiplier = switch (profile.kind()) {
-            case ALLUVIAL -> 3.6 + 1.8 * segment.corridorScale();
-            case INCISED -> 2.2 + 1.2 * profile.incisionPotential();
-            case CASCADE -> 1.55 + 0.80 * profile.incisionPotential();
+            case ALLUVIAL -> lerp(5.4, 2.7, confinement);
+            case INCISED -> lerp(3.4, 1.85, confinement);
+            case CASCADE -> lerp(2.2, 1.40, confinement);
         };
         double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier;
 
@@ -231,7 +248,44 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 bedDepth,
                 waterDepth,
                 bankRelief,
-                exponent);
+                exponent,
+                confinement);
+    }
+
+    private static double confinementPotential(
+            SkyIslandNaturalizedChannelPath path,
+            SkyIslandContinuousHydrologicTerrainField terrain,
+            double bankfullHalfWidth,
+            double islandRadius) {
+        List<SkyIslandLocalPosition> points = path.points();
+        if (points.size() < 3) {
+            return 0.0;
+        }
+        double probe = Math.max(bankfullHalfWidth * 2.4, islandRadius * 0.012);
+        double accumulated = 0.0;
+        int samples = 0;
+        for (int i = 1; i + 1 < points.size(); i++) {
+            SkyIslandLocalPosition previous = points.get(i - 1);
+            SkyIslandLocalPosition center = points.get(i);
+            SkyIslandLocalPosition next = points.get(i + 1);
+            double tx = next.x() - previous.x();
+            double tz = next.z() - previous.z();
+            double length = Math.hypot(tx, tz);
+            if (length <= EPSILON) {
+                continue;
+            }
+            double nx = -tz / length;
+            double nz = tx / length;
+            SkyIslandLocalPosition left =
+                    new SkyIslandLocalPosition(center.x() + nx * probe, center.z() + nz * probe);
+            SkyIslandLocalPosition right =
+                    new SkyIslandLocalPosition(center.x() - nx * probe, center.z() - nz * probe);
+            double centerElevation = terrain.sample(center);
+            double sideMean = 0.5 * (terrain.sample(left) + terrain.sample(right));
+            accumulated += clamp01(Math.max(0.0, sideMean - centerElevation) / 0.075);
+            samples++;
+        }
+        return samples == 0 ? 0.0 : clamp01(accumulated / samples);
     }
 
     private static Projection project(
