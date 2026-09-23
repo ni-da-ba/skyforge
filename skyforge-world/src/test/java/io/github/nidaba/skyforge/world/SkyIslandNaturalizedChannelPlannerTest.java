@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandNaturalizedChannelPlannerTest {
@@ -65,6 +67,38 @@ class SkyIslandNaturalizedChannelPlannerTest {
             SkyIslandChannelSegment segment = path.profile().segment();
             assertNode(endpoints, segment.sourceCellIndex(), path.points().getFirst());
             assertNode(endpoints, segment.downstreamCellIndex(), path.points().getLast());
+        }
+    }
+
+
+    @Test
+    void headwatersConfluencesAndTerminalsRemainExactControls() {
+        SkyIslandDescriptor descriptor = descriptor(649L);
+        SkyIslandNaturalizedChannelPlan plan =
+                SkyIslandNaturalizedChannelPlanner.plan(descriptor);
+        Map<Integer, Integer> incoming = new HashMap<>();
+        Set<Integer> outgoing = new HashSet<>();
+        Map<Integer, SkyIslandNaturalizedChannelPath> bySource = new HashMap<>();
+
+        for (SkyIslandNaturalizedChannelPath path : plan.paths()) {
+            SkyIslandChannelSegment segment = path.profile().segment();
+            incoming.merge(segment.downstreamCellIndex(), 1, Integer::sum);
+            outgoing.add(segment.sourceCellIndex());
+            bySource.put(segment.sourceCellIndex(), path);
+        }
+
+        for (SkyIslandNaturalizedChannelPath path : plan.paths()) {
+            SkyIslandChannelSegment segment = path.profile().segment();
+            int source = segment.sourceCellIndex();
+            int downstream = segment.downstreamCellIndex();
+
+            if (incoming.getOrDefault(source, 0) != 1) {
+                assertEquals(segment.start(), path.points().getFirst());
+            }
+            if (!outgoing.contains(downstream)
+                    || incoming.getOrDefault(downstream, 0) != 1) {
+                assertEquals(segment.end(), path.points().getLast());
+            }
         }
     }
 
