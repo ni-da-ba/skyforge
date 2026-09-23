@@ -2067,9 +2067,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             List<BlockPos> carvedPositions,
             List<BlockPos> surfacePositions) {
         Comparator<BlockPos> canonicalPositionOrder = Comparator
-                .comparingInt(BlockPos::getZ)
-                .thenComparingInt(BlockPos::getX)
-                .thenComparingInt(BlockPos::getY);
+                .comparingInt((BlockPos position) -> position.getZ())
+                .thenComparingInt(position -> position.getX())
+                .thenComparingInt(position -> position.getY());
         List<BlockPos> canonicalPositions = new ArrayList<>(new LinkedHashSet<>(positions));
         List<BlockPos> canonicalCarved = new ArrayList<>(new LinkedHashSet<>(carvedPositions));
         List<BlockPos> canonicalSurface = new ArrayList<>(new LinkedHashSet<>(surfacePositions));
