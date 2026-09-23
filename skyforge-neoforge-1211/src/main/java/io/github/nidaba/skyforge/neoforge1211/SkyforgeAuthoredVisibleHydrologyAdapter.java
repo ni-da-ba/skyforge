@@ -373,7 +373,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 int extraCut = Math.max(0, drySurfaceY - requiredBedY);
                 if (projected <= baseSurfaceY - 1
                         && projected >= range.minimumY() + 1
-                        && extraCut <= physicalGrade.orElseThrow().reconciliationDepth()) {
+                        && extraCut <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
+                    // The isotonic spine still chooses the least-change water grade and the
+                    // smallest cut needed by its canonical carrier samples. Raster columns beside
+                    // that spine may need a slightly deeper submerged cut to remain face-connected
+                    // after voxelization; permit that only within the same hard reconciliation
+                    // ceiling rather than letting the spine's minimum depth fragment the river.
                     drySurfaceY = Math.max(range.minimumY(), Math.min(drySurfaceY, requiredBedY));
                     waterTopY = projected;
                 }
