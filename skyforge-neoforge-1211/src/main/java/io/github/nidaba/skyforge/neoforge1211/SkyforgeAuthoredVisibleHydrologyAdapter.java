@@ -504,7 +504,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         for (Column wet : wetColumns) {
             ChannelColumnPlan wetPlan = columns.get(wet);
             if (wetPlan == null || wetPlan.waterTopY() == Integer.MIN_VALUE) {
-                return Optional.empty();
+                throw channelProjectionFailure(
+                        volume,
+                        path,
+                        "connected wet footprint lost its channel plan at " + wet);
             }
             int outletBreaches = 0;
             for (int[] direction : directions) {
@@ -538,13 +541,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    return Optional.empty();
+                    throw channelProjectionFailure(
+                            volume,
+                            path,
+                            "channel bank reaches true void at bank=" + bank
+                                    + ", wet=" + wet
+                                    + ", waterTopY=" + wetPlan.waterTopY());
                 }
 
                 var range = optionalRange.orElseThrow();
                 if (wetPlan.waterTopY() <= range.maximumY()) {
                     // A block exists but is not uncontested target-volume ownership.
-                    return Optional.empty();
+                    throw channelProjectionFailure(
+                            volume,
+                            path,
+                            "channel bank conflicts with non-owner terrain at bank=" + bank
+                                    + ", wet=" + wet
+                                    + ", waterTopY=" + wetPlan.waterTopY()
+                                    + ", bankTopY=" + range.maximumY());
                 }
 
                 int fillDepth = wetPlan.waterTopY() - range.maximumY();
@@ -553,14 +567,26 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    return Optional.empty();
+                    throw channelProjectionFailure(
+                            volume,
+                            path,
+                            "channel bank needs fillDepth=" + fillDepth
+                                    + " > cap=" + MAX_CHANNEL_BANK_FILL_BLOCKS
+                                    + " at bank=" + bank
+                                    + ", wet=" + wet
+                                    + ", waterTopY=" + wetPlan.waterTopY()
+                                    + ", bankTopY=" + range.maximumY());
                 }
 
                 for (int y = range.maximumY() + 1; y <= wetPlan.waterTopY(); y++) {
                     if (!volume.bounds().contains(bank.x(), y, bank.z())
                             || terrain.isSolidOwnedByOtherVolume(
                                     volume.id(), bank.x(), y, bank.z())) {
-                        return Optional.empty();
+                        throw channelProjectionFailure(
+                                volume,
+                                path,
+                                "channel bank repair crosses volume/owner boundary at bank="
+                                        + bank + ", y=" + y);
                     }
                     fill.add(new BlockPos(bank.x(), y, bank.z()));
                 }
