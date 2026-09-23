@@ -22,6 +22,18 @@ final class SkyforgeHydrologyReferenceReviewFixtureTest {
         assertTrue(hydrology.drops().stream().anyMatch(drop ->
                 drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE));
         assertFalse(fixture.catalog().volumes().isEmpty());
+        assertFalse(fixture.footprintChunkKeys().isEmpty());
+
+        var bounds = fixture.volume().bounds();
+        int minChunkX = Math.floorDiv((int) Math.floor(bounds.minimumX()), 16);
+        int maxChunkX = Math.floorDiv((int) Math.floor(bounds.maximumX()), 16);
+        int minChunkZ = Math.floorDiv((int) Math.floor(bounds.minimumZ()), 16);
+        int maxChunkZ = Math.floorDiv((int) Math.floor(bounds.maximumZ()), 16);
+        int conservativeRectangleChunks =
+                (maxChunkX - minChunkX + 1) * (maxChunkZ - minChunkZ + 1);
+        assertTrue(
+                fixture.footprintChunkKeys().size() < conservativeRectangleChunks,
+                "fast review must not warm the full conservative bounds rectangle");
         assertEquals(
                 fixture.descriptor(),
                 fixture.descriptorsByVolumeId().get(fixture.volume().id()));
