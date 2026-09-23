@@ -168,16 +168,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 new HashMap<>();
         Map<Column, Double> basePotentialCache = new HashMap<>();
         Map<Column, Double> dryPotentialCache = new HashMap<>();
-        Map<Column, OptionalDouble> waterSurfaceCache = new HashMap<>();
-        double channelVerticalOffset = intent.channels().isEmpty()
-                ? Double.NaN
-                : channelVerticalRegistration(
-                        descriptor,
-                        volume,
-                        terrain,
-                        fluvial,
-                        solidRangeCache,
-                        basePotentialCache);
 
         Set<Integer> routedEdgeOutlets = intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
@@ -193,11 +183,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             terrain,
                             channel.path(),
                             routedEdgeOutlet,
-                            channelVerticalOffset,
                             solidRangeCache,
                             basePotentialCache,
-                            dryPotentialCache,
-                            waterSurfaceCache)
+                            dryPotentialCache)
                     .ifPresent(rawDeployments::add);
         }
         if (!intent.retainedWater().isEmpty()) {
@@ -285,69 +273,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return written;
     }
 
-    /**
-     * Registers normalized authored channel elevation to the independent physical carrier with one
-     * robust vertical translation for the whole island.
-     *
-     * <p>AUTH-0046 gives both domains an exact shared horizontal frame but does not make their
-     * detailed surfaces identical. Hydrology therefore estimates one translation from coarse
-     * fluvial-corridor samples instead of re-registering every Minecraft column independently.
-     * The authored relief budget remains the vertical scale; this translation only chooses the
-     * world-Y origin for that semantic scale.
-     */
-    private static double channelVerticalRegistration(
-            SkyIslandDescriptor descriptor,
-            SkyIslandWorldVolume volume,
-            SkyforgeNeoForge1211ChunkAdapter terrain,
-            SkyIslandFluvialTerrainField fluvial,
-            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
-            Map<Column, Double> basePotentialCache) {
-        var baseTerrain = fluvial.baseTerrain();
-        var physical = volume.compiledVolume().descriptor();
-        double extent = descriptor.nominalRadius();
-        List<Double> offsets = new ArrayList<>();
-        Set<Column> sampledColumns = new HashSet<>();
-        for (int gz = 0; gz < baseTerrain.gridSize(); gz++) {
-            double localZ = -extent + gz * baseTerrain.spacing();
-            for (int gx = 0; gx < baseTerrain.gridSize(); gx++) {
-                double localX = -extent + gx * baseTerrain.spacing();
-                SkyIslandLocalPosition sample = new SkyIslandLocalPosition(localX, localZ);
-                if (fluvial.surfaceZone(sample) == io.github.nidaba.skyforge.world.SkyIslandFluvialSurfaceZone.NONE) {
-                    continue;
-                }
-                Column column = new Column(
-                        (int) Math.round(physical.centerX() + localX),
-                        (int) Math.round(physical.centerZ() + localZ));
-                if (!sampledColumns.add(column)) {
-                    continue;
-                }
-                var optionalRange = solidRangeCache.computeIfAbsent(
-                        column,
-                        ignored -> terrain.integerSolidRange(
-                                volume.id(), column.x(), column.z()));
-                if (optionalRange.isEmpty()) {
-                    continue;
-                }
-                SkyIslandLocalPosition columnLocal = localPosition(volume, column);
-                double basePotential = basePotentialCache.computeIfAbsent(
-                        column,
-                        ignored -> baseTerrain.sample(columnLocal));
-                offsets.add(
-                        optionalRange.orElseThrow().maximumY()
-                                - basePotential * descriptor.reliefBudget());
-            }
-        }
-        if (offsets.isEmpty()) {
-            throw new IllegalStateException(
-                    "accepted visible channels have no shared physical vertical-registration samples");
-        }
-        offsets.sort(Double::compareTo);
-        int middle = offsets.size() / 2;
-        return offsets.size() % 2 == 0
-                ? 0.5 * (offsets.get(middle - 1) + offsets.get(middle))
-                : offsets.get(middle);
-    }
-
     private static Optional<RawDeployment> atPath(
             SkyIslandDescriptor descriptor,
             SkyIslandFluvialTerrainField fluvial,
@@ -355,11 +280,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandNaturalizedChannelPath path,
             boolean routedEdgeOutlet,
-            double channelVerticalOffset,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
-            Map<Column, Double> dryPotentialCache,
-            Map<Column, OptionalDouble> waterSurfaceCache) {
+            Map<Column, Double> dryPotentialCache) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(fluvial, "fluvial");
         Objects.requireNonNull(path, "path");
@@ -373,11 +296,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 .orElseThrow(() -> new IllegalStateException(
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
 
+        Map<Column, ChannelPathProjection> candidateProjections =
+                candidateColumnProjections(volume, reach);
+        double channelVerticalOffset = channelVerticalRegistration(
+                descriptor,
+                volume,
+                terrain,
+                fluvial,
+                reach,
+                candidateProjections,
+                solidRangeCache,
+                basePotentialCache);
+
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
-        for (var candidate : candidateColumnDistances(volume, reach).entrySet()) {
+        for (var candidate : candidateProjections.entrySet()) {
             Column column = candidate.getKey();
             SkyIslandLocalPosition local = localPosition(volume, column);
-            double distance = candidate.getValue();
+            double distance = candidate.getValue().distance();
+            double fraction = candidate.getValue().fraction();
             var optionalRange = solidRangeCache.computeIfAbsent(
                     column,
                     ignored -> terrain.integerSolidRange(volume.id(), column.x(), column.z()));
@@ -397,11 +333,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
 
             int baseSurfaceY = range.maximumY();
-            var authoredWater = distance <= reach.wetHalfWidth()
-                    ? waterSurfaceCache.computeIfAbsent(
-                            column,
-                            ignored -> fluvial.waterSurfacePotential(local))
-                    : OptionalDouble.empty();
+            OptionalDouble authoredWater = OptionalDouble.empty();
+            if (distance <= reach.wetHalfWidth()) {
+                double reachWater = fluvial.reachWaterSurfacePotential(reach, fraction);
+                if (reachWater > dryPotential + 1.0e-12) {
+                    authoredWater = OptionalDouble.of(reachWater);
+                }
+            }
             int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
             if (authoredWater.isPresent()) {
                 loweringBlocks = Math.max(2, loweringBlocks);
@@ -416,9 +354,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 int projected = (int) Math.round(
                         channelVerticalOffset
                                 + authoredWater.orElseThrow() * descriptor.reliefBudget());
-                waterTopY = Math.max(
-                        drySurfaceY + 1,
-                        Math.min(baseSurfaceY - 1, projected));
+                // A constant reach registration preserves the authored non-climbing grade after
+                // integer quantization. Never clamp the free surface independently per column:
+                // doing so reintroduces one-block uphill steps. Columns whose local carrier cannot
+                // contain the reach grade remain dry and are handled by the ordinary containment
+                // narrowing below.
+                if (projected >= drySurfaceY + 1 && projected <= baseSurfaceY - 1) {
+                    waterTopY = projected;
+                }
             }
             columns.put(
                     column,
