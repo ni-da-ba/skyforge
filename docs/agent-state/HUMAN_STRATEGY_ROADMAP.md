@@ -244,7 +244,7 @@ Key rules:
 - all mandatory first-aircraft materials are guaranteed inside the `WALK_BUILD` + `GLIDE` closure of the starting cluster;
 - reasonable early failures receive deterministic rebuild/recovery paths rather than world-soft-locks;
 - Copper and Zinc are post-flight Bootstrap Province guarantees and should prefer distinct regional specialization zones;
-- at least one eligible Guild-connected settlement is deliberately placed within the tested crude-aircraft envelope;
+- at least one eligible inhabited/service settlement is deliberately placed within the tested crude-aircraft envelope; full Guild realization is optional/post-alpha under HS-R15;
 - at least one economically motivated producer/consumer pair opens the first freight sandbox;
 - Petroleum and Levitite are not Bootstrap guarantees;
 - random loot never satisfies a mandatory Bootstrap guarantee unless the entire access/service/stock path is itself deterministic;
