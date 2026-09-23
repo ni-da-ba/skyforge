@@ -101,32 +101,27 @@ final class SkyforgePersistentBiomePresentationStage {
                         if (!quartIntersectsPresentationEnvelope(volumeBounds, quartX, quartY, quartZ)) {
                             continue;
                         }
-                        Optional<BlockPos> ownedSample = firstPresentationSample(
-                                volumeId,
-                                volumeBounds,
-                                quartX,
-                                quartY,
-                                quartZ);
-                        if (ownedSample.isEmpty()) {
-                            continue;
-                        }
-                        eligibleQuartCells++;
-                        if (containsOtherSkyforgeClaim(volumeId, quartX, quartY, quartZ)) {
-                            ambiguousQuartCells++;
-                            continue;
-                        }
-
-                        Optional<BlockPos> sample = firstSupportedPresentationSample(
+                        QuartSamples samples = presentationSamples(
                                 volumeId,
                                 volumeBounds,
                                 quartX,
                                 quartY,
                                 quartZ,
                                 plan.biomeResolver());
-                        if (sample.isEmpty()) {
+                        if (samples.owned().isEmpty()) {
                             continue;
                         }
-                        BlockPos position = sample.orElseThrow();
+                        eligibleQuartCells++;
+                        if (SkyforgeNeoForge1211SurfaceStage.hasMultipleCompiledVolumes()
+                                && containsOtherSkyforgeClaim(volumeId, quartX, quartY, quartZ)) {
+                            ambiguousQuartCells++;
+                            continue;
+                        }
+
+                        if (samples.supported().isEmpty()) {
+                            continue;
+                        }
+                        BlockPos position = samples.supported().orElseThrow();
                         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                                 plan.biomeResolver().resolve(
                                         volumeId,
@@ -237,38 +232,7 @@ final class SkyforgePersistentBiomePresentationStage {
      * owns the block immediately below it, the supporting solid is returned as the semantic sample;
      * this claims only the quart containing the first-free surface position used by player/HUD reads.
      */
-    private static Optional<BlockPos> firstPresentationSample(
-            SkyIslandWorldVolumeId volumeId,
-            WorldBounds volumeBounds,
-            int quartX,
-            int quartY,
-            int quartZ) {
-        int minimumX = Math.multiplyExact(quartX, BLOCKS_PER_QUART);
-        int minimumY = Math.multiplyExact(quartY, BLOCKS_PER_QUART);
-        int minimumZ = Math.multiplyExact(quartZ, BLOCKS_PER_QUART);
-        for (int offsetY = 0; offsetY < BLOCKS_PER_QUART; offsetY++) {
-            for (int offsetZ = 0; offsetZ < BLOCKS_PER_QUART; offsetZ++) {
-                for (int offsetX = 0; offsetX < BLOCKS_PER_QUART; offsetX++) {
-                    int worldX = minimumX + offsetX;
-                    int worldY = minimumY + offsetY;
-                    int worldZ = minimumZ + offsetZ;
-                    boolean currentOwned = contains(volumeBounds, worldX, worldY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, worldY, worldZ);
-                    if (currentOwned) {
-                        return Optional.of(new BlockPos(worldX, worldY, worldZ));
-                    }
-                    int supportingY = worldY - 1;
-                    if (contains(volumeBounds, worldX, supportingY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, supportingY, worldZ)) {
-                        return Optional.of(new BlockPos(worldX, supportingY, worldZ));
-                    }
-                }
-            }
-        }
-        return Optional.empty();
-    }
-
-    private static Optional<BlockPos> firstSupportedPresentationSample(
+    private static QuartSamples presentationSamples(
             SkyIslandWorldVolumeId volumeId,
             WorldBounds volumeBounds,
             int quartX,
@@ -278,26 +242,64 @@ final class SkyforgePersistentBiomePresentationStage {
         int minimumX = Math.multiplyExact(quartX, BLOCKS_PER_QUART);
         int minimumY = Math.multiplyExact(quartY, BLOCKS_PER_QUART);
         int minimumZ = Math.multiplyExact(quartZ, BLOCKS_PER_QUART);
+
+        @SuppressWarnings("unchecked")
+        Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>[] ranges =
+                (Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>[]) new Optional<?>[
+                        BLOCKS_PER_QUART * BLOCKS_PER_QUART];
+        for (int offsetZ = 0; offsetZ < BLOCKS_PER_QUART; offsetZ++) {
+            for (int offsetX = 0; offsetX < BLOCKS_PER_QUART; offsetX++) {
+                int worldX = minimumX + offsetX;
+                int worldZ = minimumZ + offsetZ;
+                ranges[offsetZ * BLOCKS_PER_QUART + offsetX] =
+                        SkyforgeNeoForge1211SurfaceStage.integerSolidRange(volumeId, worldX, worldZ);
+            }
+        }
+
+        BlockPos owned = null;
+        BlockPos supported = null;
         for (int offsetY = 0; offsetY < BLOCKS_PER_QUART; offsetY++) {
+            int worldY = minimumY + offsetY;
             for (int offsetZ = 0; offsetZ < BLOCKS_PER_QUART; offsetZ++) {
+                int worldZ = minimumZ + offsetZ;
                 for (int offsetX = 0; offsetX < BLOCKS_PER_QUART; offsetX++) {
                     int worldX = minimumX + offsetX;
-                    int worldY = minimumY + offsetY;
-                    int worldZ = minimumZ + offsetZ;
-                    boolean currentOwned = contains(volumeBounds, worldX, worldY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, worldY, worldZ);
-                    int semanticY = currentOwned ? worldY : worldY - 1;
-                    boolean supportedOwned = currentOwned
-                            || (contains(volumeBounds, worldX, semanticY, worldZ)
-                                    && solidOwnedBy(volumeId, worldX, semanticY, worldZ));
-                    if (supportedOwned
+                    Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> optionalRange =
+                            ranges[offsetZ * BLOCKS_PER_QUART + offsetX];
+                    if (optionalRange.isEmpty()) {
+                        continue;
+                    }
+                    var range = optionalRange.orElseThrow();
+
+                    int semanticY;
+                    if (contains(volumeBounds, worldX, worldY, worldZ)
+                            && worldY >= range.minimumY()
+                            && worldY <= range.maximumY()) {
+                        semanticY = worldY;
+                    } else {
+                        int supportingY = worldY - 1;
+                        if (!contains(volumeBounds, worldX, supportingY, worldZ)
+                                || supportingY < range.minimumY()
+                                || supportingY > range.maximumY()) {
+                            continue;
+                        }
+                        semanticY = supportingY;
+                    }
+
+                    if (owned == null) {
+                        owned = new BlockPos(worldX, semanticY, worldZ);
+                    }
+                    if (supported == null
                             && resolver.supportsSurface(volumeId, worldX, semanticY, worldZ)) {
-                        return Optional.of(new BlockPos(worldX, semanticY, worldZ));
+                        supported = new BlockPos(worldX, semanticY, worldZ);
+                    }
+                    if (owned != null && supported != null) {
+                        return new QuartSamples(Optional.of(owned), Optional.of(supported));
                     }
                 }
             }
         }
-        return Optional.empty();
+        return new QuartSamples(Optional.ofNullable(owned), Optional.ofNullable(supported));
     }
 
     private static boolean containsOtherSkyforgeClaim(
@@ -379,6 +381,15 @@ final class SkyforgePersistentBiomePresentationStage {
 
     private static int quartIndex(int localQuartX, int localQuartY, int localQuartZ) {
         return localQuartX + QUART_WIDTH * (localQuartZ + QUART_WIDTH * localQuartY);
+    }
+
+    private record QuartSamples(
+            Optional<BlockPos> owned,
+            Optional<BlockPos> supported) {
+        private QuartSamples {
+            Objects.requireNonNull(owned, "owned");
+            Objects.requireNonNull(supported, "supported");
+        }
     }
 
     record Result(
