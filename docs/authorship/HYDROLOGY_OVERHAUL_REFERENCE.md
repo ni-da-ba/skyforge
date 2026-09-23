@@ -207,3 +207,9 @@ so topology changes cannot inherit stale chunks. Once preparation completes, use
 
 This is the next human-eye gate. The 100-island DR-70 atlas remains frozen and is not the tuning
 loop.
+
+
+The visible-network closure contract treats a raw-DEM climb as an explicit hidden-transport
+boundary. That hidden interval may begin on the edge entering the first non-visible watershed cell
+or on that cell's outgoing edge; visible tributaries must resolve to a trunk, terminal fate, or one
+of those explicit climb boundaries rather than terminate because of selection-budget tie breaking.
