@@ -97,22 +97,30 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
 
 
     @Test
-    void finalSurfaceWaitsForWholeVolumeCaveTopology() throws Exception {
+    void finalSurfaceWaitsForItsChunkAndPopulationWaitsForWholeVolumeCaveTopology() throws Exception {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var volumeId = fixture.volume().id();
-        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId));
 
         try (AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(fixture.catalog());
                 AutoCloseable caves = SkyforgeComposedCaveStage.install(List.of(
                         new SkyforgeComposedCavePlan(fixture.volume(), fixture.field())))) {
             assertTrue(admission != null);
             assertTrue(caves != null);
+            long chunkKey = SkyforgePhysicalVolumeAdmissionStage.requiredChunkKeys(volumeId)
+                    .iterator()
+                    .next();
             assertFalse(
-                    SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId),
-                    "final surface representation must not precede pending cave topology");
+                    SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForSurface(
+                            volumeId,
+                            chunkKey),
+                    "surface representation must not precede its chunk's cave topology");
+            assertFalse(
+                    SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForPopulation(volumeId),
+                    "surface population must not precede whole-volume cave topology");
         }
 
-        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForVolume(volumeId));
+        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForSurface(volumeId, 0L));
+        assertTrue(SkyforgePhysicalVolumeCatchupService.caveTopologyReadyForPopulation(volumeId));
     }
 
     @Test
