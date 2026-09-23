@@ -58,6 +58,34 @@ class SkyIslandChannelProfilePlannerTest {
         }
     }
 
+
+    @Test
+    void bankfullWidthIsMonotonicWithAccumulatingDischarge() {
+        for (long key : new long[] {287L, 649L, 811L, 512L}) {
+            SkyIslandChannelProfilePlan profiles = SkyIslandChannelProfilePlanner.plan(descriptor(key));
+            var bySource = new java.util.HashMap<Integer, SkyIslandChannelProfile>();
+            for (SkyIslandChannelProfile profile : profiles.profiles()) {
+                bySource.put(profile.segment().sourceCellIndex(), profile);
+            }
+
+            for (SkyIslandChannelProfile upstream : profiles.profiles()) {
+                SkyIslandChannelProfile downstream =
+                        bySource.get(upstream.segment().downstreamCellIndex());
+                if (downstream == null) {
+                    continue;
+                }
+                assertTrue(
+                        downstream.segment().relativeDischarge() + 1.0e-12
+                                >= upstream.segment().relativeDischarge(),
+                        "flow accumulation must not decrease downstream");
+                assertTrue(
+                        downstream.bankfullWidthPotential() + 1.0e-12
+                                >= upstream.bankfullWidthPotential(),
+                        "bankfull width potential must not shrink as discharge accumulates");
+            }
+        }
+    }
+
     private static void assertNormalized(double value) {
         assertTrue(Double.isFinite(value));
         assertTrue(value >= 0.0 && value <= 1.0);
