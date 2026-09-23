@@ -169,6 +169,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Map<Column, Double> basePotentialCache = new HashMap<>();
         Map<Column, Double> dryPotentialCache = new HashMap<>();
         Map<Column, OptionalDouble> waterSurfaceCache = new HashMap<>();
+        double channelVerticalOffset = intent.channels().isEmpty()
+                ? Double.NaN
+                : channelVerticalRegistration(
+                        descriptor,
+                        volume,
+                        terrain,
+                        fluvial,
+                        solidRangeCache,
+                        basePotentialCache);
 
         Set<Integer> routedEdgeOutlets = intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
@@ -184,6 +193,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             terrain,
                             channel.path(),
                             routedEdgeOutlet,
+                            channelVerticalOffset,
                             solidRangeCache,
                             basePotentialCache,
                             dryPotentialCache,
@@ -275,6 +285,69 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return written;
     }
 
+    /**
+     * Registers normalized authored channel elevation to the independent physical carrier with one
+     * robust vertical translation for the whole island.
+     *
+     * <p>AUTH-0046 gives both domains an exact shared horizontal frame but does not make their
+     * detailed surfaces identical. Hydrology therefore estimates one translation from coarse
+     * fluvial-corridor samples instead of re-registering every Minecraft column independently.
+     * The authored relief budget remains the vertical scale; this translation only chooses the
+     * world-Y origin for that semantic scale.
+     */
+    private static double channelVerticalRegistration(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandFluvialTerrainField fluvial,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Map<Column, Double> basePotentialCache) {
+        var baseTerrain = fluvial.baseTerrain();
+        var physical = volume.compiledVolume().descriptor();
+        double extent = descriptor.nominalRadius();
+        List<Double> offsets = new ArrayList<>();
+        Set<Column> sampledColumns = new HashSet<>();
+        for (int gz = 0; gz < baseTerrain.gridSize(); gz++) {
+            double localZ = -extent + gz * baseTerrain.spacing();
+            for (int gx = 0; gx < baseTerrain.gridSize(); gx++) {
+                double localX = -extent + gx * baseTerrain.spacing();
+                SkyIslandLocalPosition sample = new SkyIslandLocalPosition(localX, localZ);
+                if (fluvial.surfaceZone(sample) == io.github.nidaba.skyforge.world.SkyIslandFluvialSurfaceZone.NONE) {
+                    continue;
+                }
+                Column column = new Column(
+                        (int) Math.round(physical.centerX() + localX),
+                        (int) Math.round(physical.centerZ() + localZ));
+                if (!sampledColumns.add(column)) {
+                    continue;
+                }
+                var optionalRange = solidRangeCache.computeIfAbsent(
+                        column,
+                        ignored -> terrain.integerSolidRange(
+                                volume.id(), column.x(), column.z()));
+                if (optionalRange.isEmpty()) {
+                    continue;
+                }
+                SkyIslandLocalPosition columnLocal = localPosition(volume, column);
+                double basePotential = basePotentialCache.computeIfAbsent(
+                        column,
+                        ignored -> baseTerrain.sample(columnLocal));
+                offsets.add(
+                        optionalRange.orElseThrow().maximumY()
+                                - basePotential * descriptor.reliefBudget());
+            }
+        }
+        if (offsets.isEmpty()) {
+            throw new IllegalStateException(
+                    "accepted visible channels have no shared physical vertical-registration samples");
+        }
+        offsets.sort(Double::compareTo);
+        int middle = offsets.size() / 2;
+        return offsets.size() % 2 == 0
+                ? 0.5 * (offsets.get(middle - 1) + offsets.get(middle))
+                : offsets.get(middle);
+    }
+
     private static Optional<RawDeployment> atPath(
             SkyIslandDescriptor descriptor,
             SkyIslandFluvialTerrainField fluvial,
@@ -282,6 +355,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandNaturalizedChannelPath path,
             boolean routedEdgeOutlet,
+            double channelVerticalOffset,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache,
@@ -336,8 +410,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
-                double waterDelta = authoredWater.orElseThrow() - basePotential;
-                int projected = baseSurfaceY + physicalSignedDeltaBlocks(descriptor, waterDelta);
+                // Use one island-level semantic-to-carrier vertical registration. Re-anchoring
+                // the authored free surface independently to every physical column makes carrier
+                // bumps appear as hydraulic steps even when the authored grade is coherent.
+                int projected = (int) Math.round(
+                        channelVerticalOffset
+                                + authoredWater.orElseThrow() * descriptor.reliefBudget());
                 waterTopY = Math.max(
                         drySurfaceY + 1,
                         Math.min(baseSurfaceY - 1, projected));
