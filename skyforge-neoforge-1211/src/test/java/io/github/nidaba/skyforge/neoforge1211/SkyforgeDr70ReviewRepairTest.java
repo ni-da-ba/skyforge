@@ -55,15 +55,16 @@ final class SkyforgeDr70ReviewRepairTest {
         var fixture = SkyforgeDr70HumanReviewAtlasFixture.runtimeFixture(44);
         assertEquals(2754L, fixture.member().islandKey());
 
-        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
-                fixture.catalog(),
-                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
-                new SkyforgeMinecraftBlockPalette(),
-                fixture.descriptorsByVolumeId());
-
         var failure = assertThrows(
                 IllegalStateException.class,
-                () -> terrain.authoredHydrologyDeployments(fixture.volume().id()));
+                () -> {
+                    var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                            fixture.catalog(),
+                            io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                            new SkyforgeMinecraftBlockPalette(),
+                            fixture.descriptorsByVolumeId());
+                    terrain.authoredHydrologyDeployments(fixture.volume().id());
+                });
         assertTrue(
                 failure.getMessage().contains("accepted channel cannot project")
                         && failure.getMessage().contains("sourceCell=565")
