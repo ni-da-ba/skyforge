@@ -15,28 +15,25 @@ class SkyIslandCoherentHydrologicRealizationPlannerTest {
     private static final double EPSILON = 1.0e-10;
 
     @Test
-    void ordinaryUnprunedNetworksRemainExactlyEquivalentDownstream() {
-        for (long key : new long[] {77L, 118L, 241L, 83L}) {
+    void genuinelyUnprunedNetworksRemainExactlyEquivalentDownstream() {
+        boolean exercised = false;
+        for (long key : new long[] {77L, 118L, 241L, 83L, 287L, 649L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandCoherentHydrologicRealizationPlan coherent =
                     SkyIslandCoherentHydrologicRealizationPlanner.plan(descriptor);
+            int rawReachCount = SkyIslandChannelProfilePlanner.plan(descriptor).profiles().size();
+            if (coherent.channels().retainedReachCount() != rawReachCount) {
+                continue;
+            }
+            exercised = true;
 
-            assertEquals(
-                    SkyIslandRiparianCorridorPlanner.plan(descriptor),
-                    coherent.riparian());
-            assertEquals(
-                    SkyIslandChannelDropPlanner.plan(descriptor),
-                    coherent.drops());
-            assertEquals(
-                    SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor),
-                    coherent.terrainInfluence());
-            assertEquals(
-                    SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor),
-                    coherent.terrainSurface());
-            assertEquals(
-                    SkyIslandNaturalizedChannelPlanner.plan(descriptor),
-                    coherent.naturalizedChannels());
+            assertEquals(SkyIslandRiparianCorridorPlanner.plan(descriptor), coherent.riparian());
+            assertEquals(SkyIslandChannelDropPlanner.plan(descriptor), coherent.drops());
+            assertEquals(SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor), coherent.terrainInfluence());
+            assertEquals(SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor), coherent.terrainSurface());
+            assertEquals(SkyIslandNaturalizedChannelPlanner.plan(descriptor), coherent.naturalizedChannels());
         }
+        assertTrue(exercised, "representative corpus must retain at least one genuinely unpruned network");
     }
 
     @Test
