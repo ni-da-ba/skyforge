@@ -300,11 +300,48 @@ Phase 2.5 owns:
 - island-, cluster-, province-, and coarse-world integration proof;
 - combined-stack persistence/compatibility/performance unknowns that would otherwise contaminate Bootstrap playtesting.
 
-Phase 2.5 does **not** own final gameplay balance, final tutorial design, mature industry, fleet automation, dragons/whaling, full civilization breadth, final atmosphere presentation, or every planned mod/feature.
+Phase 2.5 does **not** own final gameplay balance, final tutorial design, mature optional industry, fleet automation, dragons/whaling, full civilization breadth, final cinematic atmosphere presentation, or every planned mod/feature.
 
-Bootstrap remains the first complete player-experience convergence phase and should primarily answer whether progression, teaching, recovery, first flight, civilization arrival, freight/economy, recipes/rewards, and pacing are good.
+Bootstrap remains the first complete player-experience convergence phase and should primarily answer whether progression, teaching, recovery, first flight, arrival at an inhabited/service location, freight/economy, recipes/rewards, and pacing are good.
 
 Issue #1063 records the owner decision. The roadmap source edit is intentionally isolated until the current DR-70 boundary can be reconciled safely because `PROGRAM_PROGRESSION.json` fingerprints `PROGRAM_ROADMAP.md`.
+
+### HS-R15 — first public alpha is systems-complete and content-light
+
+**Resolved direction:** first public alpha occurs before the bespoke-content-heavy regional/adventure/high-sky expansion phases.
+
+Canonical policy:
+`docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`.
+
+The alpha must contain every fundamental system required to demonstrate the advertised Skyforge core:
+
+- coherent island/environment generation;
+- coherent open-sky/airspace and atmosphere;
+- island -> cluster -> province -> coarse-world composition;
+- complete intentional integration of the selected alpha production mod stack;
+- survival/Create/gliding/practical aircraft;
+- environmental ecology/population authority with representative retained/adapted fauna;
+- structure/civilization substrate sufficient for inhabited/service locations;
+- real producer/consumer/freight/economy semantics;
+- navigation, persistence, performance, packaging, and representative multiplayer/server sanity;
+- sufficient presentation and guidance for meaningful external testing.
+
+Pre-alpha bespoke content is exception-driven. Retained/adapted content should prove roles wherever it can do so honestly. Build bespoke or semi-bespoke content before alpha only when it is the smallest practical way to prove a fundamental system.
+
+Explicitly post-alpha by default:
+
+- full Guild institutional/architectural/narrative realization;
+- Bellanca claim/liability/restitution bureaucracy;
+- playable Lower Sea beyond lore/minimal presentation;
+- bespoke Nether/End world authoring or custom reaching sequences;
+- complex air-war/custom combat AI;
+- bespoke dragons;
+- broad custom aerial bestiaries, full Sky Whale industry/migration, storm-dead/anomalous families;
+- broad archaeology/boss/faction/narrative catalogs.
+
+Post-alpha phases may broaden or deepen already-proven systems, but must not conceal a fundamental advertised alpha system that was simply absent.
+
+Issue #1063 comment 5799031828 records the owner decision.
 
 ---
 
@@ -367,49 +404,6 @@ undersides, and coherent terrain suitable for structures and hydrology.
 
 ---
 
-## HS-05 — Wild Blue Yonder first-public-alpha scope
-
-**Status:** OPEN — should be decided before Bootstrap Province grows into a release candidate.
-
-The Bootstrap Province defines a vertical slice, but the repository does not yet state exactly what
-must ship in the first public/playable alpha.
-
-Decide whether alpha requires:
-
-- only a production Overworld province or also Nether/End authored terrain;
-- one complete civilization archetype versus a broad civilization system;
-- hostile/civilian air traffic;
-- Bellanca and/or only the crude first powered aircraft;
-- adaptive music versus static soundtrack integration;
-- quests/onboarding depth;
-- multiplayer/server certification;
-- Distant Horizons as hard dependency;
-- exceptional phenomena;
-- final or provisional mod roster.
-
-### Audit recommendation
-
-Define an intentionally narrow alpha around:
-
-```text
-production Overworld province
-+ survival foothold
-+ glider
-+ first powered aircraft
-+ post-flight Copper/Zinc specialization
-+ one meaningful freight loop
-+ one sparse civilization/infrastructure encounter
-+ legible ecology/atmosphere
-+ save/reload/multiplayer sanity
-+ soundtrack/presentation sufficient to establish identity
-```
-
-Do not require complete Nether/End reauthoring, mature fleet automation, or every planned exceptional
-feature for first alpha.
-
-**Trigger:** before final Bootstrap Province implementation begins.
-
----
 
 ## HS-07 — Population tone: ecology, civilization, threats, and sky traffic
 
@@ -625,17 +619,18 @@ AFTER ACCEPTED DR-70 / BEFORE BOOTSTRAP PRIMARY
     HS-R14 Cohesive World / production-stack convergence
 
 BEFORE / DURING BOOTSTRAP PROVINCE
-    HS-05 first-alpha scope
-    HS-07 population tone
-    HS-08 civilization interaction when executable
+    apply HS-R15 systems-complete/content-light alpha policy
+    HS-07 population tone only to the degree required for representative alpha ecology
+    HS-08 civilization interaction only if executable alpha behavior requires a decision
 
-LATER ALPHA / PRODUCTIZATION
-    HS-09 dimensions
-    HS-10 dependencies/licensing
-    HS-11 supported performance environment
-    HS-12 audio presentation
+BEFORE FIRST PUBLIC ALPHA
+    resolve HS-10 dependencies/licensing for the selected alpha production stack
+    resolve HS-11 supported performance environment
+    HS-12 audio presentation only to the degree required for alpha identity
 
-POST-ALPHA
+POST-ALPHA CONTENT / PRODUCTIZATION
+    HS-09 bespoke dimension strategy unless promoted by a concrete alpha dependency
+    broader HS-07 / HS-08 content decisions
     HS-13 second backend
 ```
 
