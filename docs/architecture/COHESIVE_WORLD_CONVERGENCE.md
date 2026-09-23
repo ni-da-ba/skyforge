@@ -40,6 +40,8 @@ Phase 2.5 establishes an **alpha production-baseline roster**, not a permanently
 
 The roster is an executable shipping commitment: every dependency selected as `CORE` for the alpha must be intentionally supported, and every capability marked `INTEGRATED` must have its intended user-facing path exercised in the combined production stack. Reference-only, test-only, `OPTIONAL`, `REJECTED`, and `DEFERRED` dependencies do not create that obligation.
 
+The broader development/reference pack is not automatically the alpha shipping manifest. By Phase-2.5 exit, every dependency actually intended to ship must be classified, and no retained jar may remain in the public alpha merely as an accidental development leftover.
+
 Every retained capability should be classified as one of:
 
 | Classification | Meaning |
@@ -195,6 +197,7 @@ Phase 2.5 exits when all of the following are true:
 - an alpha production-baseline dependency roster exists with explicit CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED dispositions;
 - every alpha-critical CANDIDATE has been resolved;
 - every CORE dependency is intentionally supported and every INTEGRATED capability has been exercised through its intended user-facing combined-stack path;
+- the proposed alpha shipping manifest contains no unclassified dependency or accidental development/reference-only inclusion;
 - required semantic ownership/adapters for the alpha baseline are explicit and sufficient;
 - representative island-scale composition is accepted;
 - representative cluster-scale composition is accepted;
