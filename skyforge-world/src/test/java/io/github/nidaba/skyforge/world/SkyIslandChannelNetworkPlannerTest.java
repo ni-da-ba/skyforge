@@ -85,7 +85,12 @@ class SkyIslandChannelNetworkPlannerTest {
                 }
                 SkyIslandWatershedCell next = watershed.get(boundary.downstreamIndex());
                 assertTrue(next != null);
-                resolved = next.surfacePotential() > boundary.surfacePotential() + 1.0e-10;
+                boolean hiddenOnEntry =
+                        boundary.surfacePotential() > watershed.get(cursor.sourceCellIndex()).surfacePotential()
+                                + 1.0e-10;
+                boolean hiddenOnExit =
+                        next.surfacePotential() > boundary.surfacePotential() + 1.0e-10;
+                resolved = hiddenOnEntry || hiddenOnExit;
                 break;
             }
             assertTrue(
