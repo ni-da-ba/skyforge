@@ -82,6 +82,7 @@ public final class HydrologyReferenceIslandCli {
 
         long routeSteps = 0;
         long uphillSteps = 0;
+        long endpointUphillReaches = 0;
         long lateralSamples = 0;
         long ridgeCrossings = 0;
         double valleyAdvantage = 0.0;
@@ -89,6 +90,10 @@ public final class HydrologyReferenceIslandCli {
 
         for (SkyIslandNaturalizedChannelPath path : naturalized.paths()) {
             List<SkyIslandLocalPosition> points = path.points();
+            if (terrain.sample(path.profile().segment().end())
+                    > terrain.sample(path.profile().segment().start()) + 1.0e-4) {
+                endpointUphillReaches++;
+            }
             for (int i = 1; i < points.size(); i++) {
                 routeSteps++;
                 double previous = terrain.sample(points.get(i - 1));
@@ -135,6 +140,9 @@ public final class HydrologyReferenceIslandCli {
                 retainedWater,
                 interiorDrops,
                 edgeFalls,
+                naturalized.paths().isEmpty()
+                        ? 0.0
+                        : (double) endpointUphillReaches / naturalized.paths().size(),
                 routeSteps == 0 ? 0.0 : (double) uphillSteps / routeSteps,
                 lateralSamples == 0 ? 0.0 : (double) ridgeCrossings / lateralSamples,
                 lateralSamples == 0 ? 0.0 : valleyAdvantage / lateralSamples,
@@ -145,7 +153,7 @@ public final class HydrologyReferenceIslandCli {
     private static String csv(List<Diagnostic> diagnostics) {
         StringBuilder out = new StringBuilder(
                 "specimen,islandKey,morphology,components,reaches,maxStreamOrder,confluences,"
-                        + "retainedWater,interiorDrops,edgeFalls,uphillStepFraction,"
+                        + "retainedWater,interiorDrops,edgeFalls,endpointUphillReachFraction,uphillStepFraction,"
                         + "ridgeCrossingFraction,meanValleyAdvantage,meanLengthRatio,maxLengthRatio\n");
         for (Diagnostic d : diagnostics) {
             out.append(d.specimen()).append(',')
@@ -158,6 +166,7 @@ public final class HydrologyReferenceIslandCli {
                     .append(d.retainedWater()).append(',')
                     .append(d.interiorDrops()).append(',')
                     .append(d.edgeFalls()).append(',')
+                    .append(format(d.endpointUphillReachFraction())).append(',')
                     .append(format(d.uphillStepFraction())).append(',')
                     .append(format(d.ridgeCrossingFraction())).append(',')
                     .append(format(d.meanValleyAdvantage())).append(',')
@@ -174,11 +183,13 @@ public final class HydrologyReferenceIslandCli {
                 + " retainedWater=" + primary.retainedWater()
                 + " interiorDrops=" + primary.interiorDrops()
                 + " edgeFalls=" + primary.edgeFalls()
+                + " endpointUphill=" + format(primary.endpointUphillReachFraction())
                 + " uphill=" + format(primary.uphillStepFraction())
                 + " ridge=" + format(primary.ridgeCrossingFraction()) + "\n"
                 + "confluenceControl=" + confluence.islandKey()
                 + " maxStreamOrder=" + confluence.maxStreamOrder()
                 + " confluences=" + confluence.confluences()
+                + " endpointUphill=" + format(confluence.endpointUphillReachFraction())
                 + " uphill=" + format(confluence.uphillStepFraction())
                 + " ridge=" + format(confluence.ridgeCrossingFraction()) + "\n";
     }
@@ -205,6 +216,7 @@ public final class HydrologyReferenceIslandCli {
             int retainedWater,
             int interiorDrops,
             int edgeFalls,
+            double endpointUphillReachFraction,
             double uphillStepFraction,
             double ridgeCrossingFraction,
             double meanValleyAdvantage,
