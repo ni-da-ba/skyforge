@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
@@ -218,22 +219,42 @@ final class SkyforgePopulationExecutionStage {
             return SkyforgePopulationExecutionStage.originChunkContains(operation, position);
         }
 
+        private boolean deferredTargetChunkAvailable(BlockPos position) {
+            if (originChunkContains(position)) {
+                return true;
+            }
+            if (level.isPresent() && level.orElseThrow() instanceof ServerLevel serverLevel) {
+                // Deferred population runs on stable LevelChunks, not a bounded WorldGenRegion.
+                // Never let a native feature turn an attachment write into an implicit synchronous
+                // chunk-generation request. A neighboring canopy/feature may cross the boundary
+                // only when Minecraft already has that LevelChunk resident.
+                return serverLevel.getChunkSource().getChunkNow(
+                                position.getX() >> 4,
+                                position.getZ() >> 4)
+                        != null;
+            }
+            return true;
+        }
+
         boolean canWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
+            return deferredTargetChunkAvailable(position)
+                    && SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
                     && attachmentEnvelope.canAcceptWrite(position);
         }
 
         boolean acceptWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
+            return deferredTargetChunkAvailable(position)
+                    && SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
                     && attachmentEnvelope.acceptWrite(position);
         }
 
         boolean acceptWrite(BlockPos position, BlockState state) {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(state, "state");
-            if (!SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
+            if (!deferredTargetChunkAvailable(position)
+                    || !SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
                 return false;
             }
             if (level.isPresent()
