@@ -19,13 +19,14 @@ public final class SkyIslandTerrainAwareChannelCorridorPlanner {
     public static final int LANE_COUNT = 15;
     public static final int MAX_LANE_SHIFT_PER_STATION = 3;
 
-    private static final double ASCENT_WEIGHT = 18.0;
-    private static final double RIDGE_WEIGHT = 7.0;
-    private static final double VALLEY_REWARD = 2.2;
-    private static final double EXTERIOR_WEIGHT = 20.0;
-    private static final double LENGTH_WEIGHT = 0.10;
-    private static final double LATERAL_CHANGE_WEIGHT = 0.055;
-    private static final double CENTERLINE_BIAS_WEIGHT = 0.006;
+    private static final double ASCENT_WEIGHT = 24.0;
+    private static final double RIDGE_WEIGHT = 10.0;
+    private static final double VALLEY_REWARD = 4.0;
+    private static final double TERRAIN_LEVEL_WEIGHT = 1.35;
+    private static final double EXTERIOR_WEIGHT = 30.0;
+    private static final double LENGTH_WEIGHT = 0.055;
+    private static final double LATERAL_CHANGE_WEIGHT = 0.025;
+    private static final double CENTERLINE_BIAS_WEIGHT = 0.001;
     private static final double EPSILON = 1.0e-12;
 
     private SkyIslandTerrainAwareChannelCorridorPlanner() {}
@@ -106,7 +107,8 @@ public final class SkyIslandTerrainAwareChannelCorridorPlanner {
                 candidates[station][lane] = point;
                 elevations[station][lane] = elevation;
                 localTerrainCosts[station][lane] =
-                        RIDGE_WEIGHT * ridgePenalty
+                        TERRAIN_LEVEL_WEIGHT * elevation
+                                + RIDGE_WEIGHT * ridgePenalty
                                 - VALLEY_REWARD * valleyReward
                                 + EXTERIOR_WEIGHT * exteriorPenalty
                                 + CENTERLINE_BIAS_WEIGHT * Math.abs(laneFraction);
