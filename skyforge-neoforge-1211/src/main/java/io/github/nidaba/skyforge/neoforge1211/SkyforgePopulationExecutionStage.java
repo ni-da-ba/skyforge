@@ -116,6 +116,20 @@ final class SkyforgePopulationExecutionStage {
                 && (position.getZ() >> 4) == operation.originChunk().z;
     }
 
+    static boolean directWriteAuthorityAllows(
+            SkyforgePopulationOperation operation,
+            BlockPos position,
+            boolean stableDeferredLevel) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(position, "position");
+        // Physically admitted production population executes on stable LevelChunks. Its write
+        // authority must not depend on whether an adjacent chunk happens to be resident: that
+        // reintroduced the historical Windows 503/714 tree split and made the result scheduler-
+        // dependent. Stable deferred population is therefore chunk-local. Legacy WorldGenRegion
+        // fixtures keep their bounded cross-chunk attachment semantics.
+        return !stableDeferredLevel || originChunkContains(operation, position);
+    }
+
     private static Scope open(
             Optional<WorldGenLevel> level,
             SkyforgePopulationOperation operation,
@@ -167,6 +181,7 @@ final class SkyforgePopulationExecutionStage {
         private final CachedBlockPredicate ownerSolid;
         private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
+        private final boolean stableDeferredLevel;
 
         private Execution(
                 Optional<WorldGenLevel> level,
@@ -181,6 +196,7 @@ final class SkyforgePopulationExecutionStage {
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
             this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
             this.attachmentEnvelope = Objects.requireNonNull(attachmentEnvelope, "attachmentEnvelope");
+            this.stableDeferredLevel = level.isPresent() && level.orElseThrow() instanceof ServerLevel;
         }
 
         SkyforgePopulationOperation operation() {
@@ -209,6 +225,13 @@ final class SkyforgePopulationExecutionStage {
          */
         BlockState hiddenBlockState(BlockPos position) {
             Objects.requireNonNull(position, "position");
+            if (stableDeferredLevel && !originChunkContains(position)) {
+                // Stable deferred population is deliberately chunk-local. Present every neighboring
+                // column as an inert barrier so native features reject boundary-crossing geometry
+                // before attempting direct writes; this avoids both clipped scheduler-dependent
+                // canopies and synchronous neighbor generation.
+                return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
+            }
             if (ownerSolid.test(position)) {
                 return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
             }
@@ -219,33 +242,23 @@ final class SkyforgePopulationExecutionStage {
             return SkyforgePopulationExecutionStage.originChunkContains(operation, position);
         }
 
-        private boolean deferredTargetChunkAvailable(BlockPos position) {
-            if (originChunkContains(position)) {
-                return true;
-            }
-            if (level.isPresent() && level.orElseThrow() instanceof ServerLevel serverLevel) {
-                // Deferred population runs on stable LevelChunks, not a bounded WorldGenRegion.
-                // Never let a native feature turn an attachment write into an implicit synchronous
-                // chunk-generation request. A neighboring canopy/feature may cross the boundary
-                // only when Minecraft already has that LevelChunk resident.
-                return serverLevel.getChunkSource().getChunkNow(
-                                position.getX() >> 4,
-                                position.getZ() >> 4)
-                        != null;
-            }
-            return true;
+        private boolean directWriteAuthorityAllows(BlockPos position) {
+            return SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                    operation,
+                    position,
+                    stableDeferredLevel);
         }
 
         boolean canWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return deferredTargetChunkAvailable(position)
+            return directWriteAuthorityAllows(position)
                     && SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
                     && attachmentEnvelope.canAcceptWrite(position);
         }
 
         boolean acceptWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return deferredTargetChunkAvailable(position)
+            return directWriteAuthorityAllows(position)
                     && SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
                     && attachmentEnvelope.acceptWrite(position);
         }
@@ -253,7 +266,7 @@ final class SkyforgePopulationExecutionStage {
         boolean acceptWrite(BlockPos position, BlockState state) {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(state, "state");
-            if (!deferredTargetChunkAvailable(position)
+            if (!directWriteAuthorityAllows(position)
                     || !SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
                 return false;
             }
