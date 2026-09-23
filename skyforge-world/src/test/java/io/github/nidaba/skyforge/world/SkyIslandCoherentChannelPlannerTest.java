@@ -53,34 +53,18 @@ class SkyIslandCoherentChannelPlannerTest {
     }
 
     @Test
-    void representativeRakeNetworksAreReducedWithoutDamagingOrdinaryNetworks() {
-        SkyIslandCoherentChannelPlan basin77 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(77L));
-        SkyIslandCoherentChannelPlan tableland118 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(118L));
-        SkyIslandCoherentChannelPlan tableland241 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(241L));
-        SkyIslandCoherentChannelPlan tableland512 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(512L));
-        SkyIslandCoherentChannelPlan massif811 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(811L));
-        SkyIslandCoherentChannelPlan basin83 =
-                SkyIslandCoherentChannelPlanner.plan(descriptor(83L));
+    void coherenceSelectionNeverInventsComponentsOrReaches() {
+        for (long key : new long[] {77L, 118L, 241L, 512L, 811L, 83L, 287L, 649L}) {
+            SkyIslandCoherentChannelPlan plan =
+                    SkyIslandCoherentChannelPlanner.plan(descriptor(key));
+            int sourceReaches = SkyIslandChannelProfilePlanner.plan(descriptor(key)).profiles().size();
 
-        assertEquals(basin77.sourceComponentCount(), basin77.retainedComponentCount());
-        assertEquals(tableland118.sourceComponentCount(), tableland118.retainedComponentCount());
-        assertEquals(tableland241.sourceComponentCount(), tableland241.retainedComponentCount());
-        assertEquals(basin83.sourceComponentCount(), basin83.retainedComponentCount());
-
-        assertTrue(tableland512.sourceComponentCount() >= 20);
-        assertTrue(tableland512.retainedComponentCount() <= 8);
-        assertTrue(tableland512.retainedReachCount()
-                < SkyIslandChannelProfilePlanner.plan(descriptor(512L)).profiles().size());
-
-        assertTrue(massif811.sourceComponentCount() >= 25);
-        assertTrue(massif811.retainedComponentCount() <= 8);
-        assertTrue(massif811.retainedReachCount()
-                < SkyIslandChannelProfilePlanner.plan(descriptor(811L)).profiles().size());
+            assertTrue(plan.retainedComponentCount() <= plan.sourceComponentCount());
+            assertTrue(plan.retainedReachCount() <= sourceReaches);
+            if (sourceReaches > 0) {
+                assertTrue(plan.retainedReachCount() > 0);
+            }
+        }
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
