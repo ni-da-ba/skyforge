@@ -165,3 +165,12 @@ maximum lowering remains formally bounded.
 H3 also enforces a small-channel voxel-quantization floor. This is not a return to lattice-sized
 rivers: the floor exists only so an accepted headwater cannot vanish when continuous geometry is
 rasterized into one-unit blocks; discharge scaling controls width above that floor.
+
+
+## H4 valley morphology
+
+Fluvial geometry now carries terrain-derived lateral asymmetry and explicit confluence expansion.
+Alluvial reaches may widen asymmetrically according to surrounding relief; incised reaches use a
+smaller asymmetry response and cascades remain effectively symmetric. Reaches immediately
+downstream of two or more accepted incoming channels receive bounded bankfull and valley widening.
+These are geometry consequences of accepted topology and terrain, not backend-invented river paths.
