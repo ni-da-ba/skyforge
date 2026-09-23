@@ -205,6 +205,62 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void roundedRetainedShorelineRasterPreservesCardinalCoarseConnections() {
+        CorpusFixture fixture = corpus(83L);
+        var watershed = io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner.plan(
+                fixture.descriptor());
+        var footprint = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner
+                .plan(fixture.descriptor())
+                .retainedWater()
+                .getFirst()
+                .footprint();
+        var cells = footprint.cells().stream().collect(java.util.stream.Collectors.toMap(
+                io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell::watershedCellIndex,
+                java.util.function.Function.identity()));
+
+        io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell first = null;
+        io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell second = null;
+        for (var candidate : footprint.cells()) {
+            if (!candidate.shoreline()) {
+                continue;
+            }
+            int index = candidate.watershedCellIndex();
+            int x = index % watershed.gridSize();
+            int z = index / watershed.gridSize();
+            int[] neighbors = {
+                    x + 1 < watershed.gridSize() ? index + 1 : -1,
+                    z + 1 < watershed.gridSize() ? index + watershed.gridSize() : -1
+            };
+            for (int neighborIndex : neighbors) {
+                var neighbor = cells.get(neighborIndex);
+                if (neighbor != null) {
+                    first = candidate;
+                    second = neighbor;
+                    break;
+                }
+            }
+            if (first != null) {
+                break;
+            }
+        }
+        assertNotNull(first, "accepted retained footprint must expose a cardinal shoreline connection");
+        assertNotNull(second);
+
+        var midpoint = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                0.5 * (first.position().x() + second.position().x()),
+                0.5 * (first.position().z() + second.position().z()));
+        double halfSpacing = watershed.spacing() * 0.5;
+        assertTrue(
+                SkyforgeAuthoredVisibleHydrologyAdapter.retainedShorelineContains(
+                        midpoint, first, cells, watershed, halfSpacing),
+                "rounded shoreline raster must bridge retained cardinal neighbors through their shared edge");
+        assertTrue(
+                SkyforgeAuthoredVisibleHydrologyAdapter.retainedShorelineContains(
+                        midpoint, second, cells, watershed, halfSpacing),
+                "cardinal shoreline bridge must be symmetric across the coarse-cell boundary");
+    }
+
+    @Test
     @Tag("qualification")
     void hydrologyReferenceKey287RetainedWaterIsFlatConnectedAndLocallyConditioned() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
