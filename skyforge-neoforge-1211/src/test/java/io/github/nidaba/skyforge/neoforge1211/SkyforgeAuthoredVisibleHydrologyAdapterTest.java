@@ -313,6 +313,51 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                     .orElseThrow())),
                     "key-287 retained basin substrate must use authored hydrology sediment");
         }
+
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(), intent.coherentHydrology());
+        var channels = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
+                .toList();
+        assertEquals(intent.channels().size(), channels.size());
+        var physical = fixture.volume().compiledVolume().descriptor();
+        for (int index = 0; index < channels.size(); index++) {
+            var deployment = channels.get(index);
+            var path = intent.channels().get(index).path();
+            var reach = fluvial.reaches().stream()
+                    .filter(candidate -> candidate.path().equals(path))
+                    .findFirst()
+                    .orElseThrow();
+            var topByColumn = new java.util.LinkedHashMap<String, BlockPos>();
+            for (var wet : deployment.positions()) {
+                String key = wet.getX() + "," + wet.getZ();
+                topByColumn.merge(
+                        key,
+                        wet,
+                        (first, second) -> first.getY() >= second.getY() ? first : second);
+            }
+            int previousWaterTop = Integer.MAX_VALUE;
+            for (var point : path.points()) {
+                BlockPos nearest = topByColumn.values().stream()
+                        .min(java.util.Comparator.comparingDouble(position -> Math.hypot(
+                                position.getX() - physical.centerX() - point.x(),
+                                position.getZ() - physical.centerZ() - point.z())))
+                        .orElseThrow();
+                double distance = Math.hypot(
+                        nearest.getX() - physical.centerX() - point.x(),
+                        nearest.getZ() - physical.centerZ() - point.z());
+                assertTrue(
+                        distance <= reach.wetHalfWidth() + 1.0,
+                        "reference channel centerline must remain represented by nearby wet columns");
+                assertTrue(
+                        nearest.getY() <= previousWaterTop,
+                        "reference channel free surface must not climb downstream after Minecraft projection");
+                previousWaterTop = nearest.getY();
+            }
+        }
     }
 
     @Test
