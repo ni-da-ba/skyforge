@@ -56,11 +56,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
-            positions = Collections.unmodifiableList(Objects.requireNonNull(positions, "positions"));
-            carvedPositions = Collections.unmodifiableList(
-                    Objects.requireNonNull(carvedPositions, "carvedPositions"));
-            surfacePositions = Collections.unmodifiableList(
-                    Objects.requireNonNull(surfacePositions, "surfacePositions"));
+            // Preserve the retained plan even if a package-local caller supplies mutable lists.
+            // List.copyOf can reuse JDK immutable planner inputs without exposing caller mutation.
+            positions = List.copyOf(Objects.requireNonNull(positions, "positions"));
+            carvedPositions = List.copyOf(Objects.requireNonNull(carvedPositions, "carvedPositions"));
+            surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
@@ -202,6 +202,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 solidRangeCache)
                         .ifPresent(rawDeployments::add);
             }
+        }
+
+        long projectedChannels = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.CHANNEL)
+                .count();
+        long projectedRetainedWater = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.RETAINED_WATER)
+                .count();
+        if (projectedChannels != intent.channels().size()
+                || projectedRetainedWater != intent.retainedWater().size()) {
+            throw new IllegalStateException(
+                    "Minecraft hydrology projection lost accepted authored intent: channels="
+                            + projectedChannels + "/" + intent.channels().size()
+                            + ", retainedWater="
+                            + projectedRetainedWater + "/" + intent.retainedWater().size()
+                            + ", volume=" + volume.id().path());
         }
 
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
@@ -356,7 +372,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
             if (column.distance() <= reach.bankfullHalfWidth()
-                    && uncontestedOwnedRangeCell(
+                    && uncontestedOwnedSolidCell(
                             terrain,
                             volume.id(),
                             column.column().x(),
@@ -371,7 +387,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int carveTo = column.baseSurfaceY();
             if (wet) {
                 for (int y = column.drySurfaceY() + 1; y <= column.waterTopY(); y++) {
-                    if (uncontestedOwnedRangeCell(
+                    if (uncontestedOwnedSolidCell(
                             terrain,
                             volume.id(),
                             column.column().x(),
@@ -383,7 +399,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 carveFrom = column.waterTopY() + 1;
             }
             for (int y = carveFrom; y <= carveTo; y++) {
-                if (uncontestedOwnedRangeCell(
+                if (uncontestedOwnedSolidCell(
                         terrain,
                         volume.id(),
                         column.column().x(),
@@ -449,16 +465,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 <= Math.max(1.5, reach.wetHalfWidth() * 0.75);
     }
 
-    private static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
+    static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
         if (candidates.isEmpty()) {
             return Set.of();
         }
         Set<Column> unvisited = new LinkedHashSet<>(candidates);
         Set<Column> largest = Set.of();
-        int[][] directions = {
-                {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-                {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
-        };
+        // Minecraft fluids connect through shared block faces. Corner-touching columns
+        // are not one physically connected waterbody.
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         while (!unvisited.isEmpty()) {
             Column seed = unvisited.iterator().next();
             var queue = new ArrayDeque<Column>();
@@ -785,7 +800,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     continue;
                 }
                 var range = optionalRange.orElseThrow();
-                if (!uncontestedOwnedRangeCell(terrain, volume.id(), x, range.maximumY(), z)) {
+                if (!uncontestedOwnedSolidCell(terrain, volume.id(), x, range.maximumY(), z)) {
                     continue;
                 }
                 result.put(
@@ -834,11 +849,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (minimumY < authoritativeMinimumY || maximumY > authoritativeMaximumY) {
             return false;
         }
-        if (!terrain.hasMultipleCompiledVolumes()) {
-            return true;
-        }
         for (int y = minimumY; y <= maximumY; y++) {
-            if (terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+            if (!uncontestedOwnedSolidCell(
+                    terrain,
+                    volume.id(),
+                    column.x(),
+                    y,
+                    column.z())) {
                 return false;
             }
         }
@@ -881,17 +898,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 || y > range.orElseThrow().maximumY()) {
             return false;
         }
-        return uncontestedOwnedRangeCell(terrain, volume.id(), column.x(), y, column.z());
+        return uncontestedOwnedSolidCell(terrain, volume.id(), column.x(), y, column.z());
     }
 
-    private static boolean uncontestedOwnedRangeCell(
+    /**
+     * Exact ownership check after a caller has established the column's broad support range.
+     *
+     * <p>The accepted built-in compiler currently emits vertically continuous base mass, but the
+     * backend receives a general compiled density field. Keep density classification authoritative
+     * so a future recipe cannot turn a range optimization into silent AIR ownership.
+     */
+    private static boolean uncontestedOwnedSolidCell(
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandWorldVolumeId volumeId,
             int x,
             int y,
             int z) {
-        return !terrain.hasMultipleCompiledVolumes()
-                || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z);
+        return terrain.isSolidOwnedBy(volumeId, x, y, z)
+                && (!terrain.hasMultipleCompiledVolumes()
+                        || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z));
     }
 
     private static RawDeployment rawDeployment(
@@ -1063,5 +1088,5 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int baseSurfaceY,
             int bedY) {}
 
-    private record Column(int x, int z) {}
+    record Column(int x, int z) {}
 }
