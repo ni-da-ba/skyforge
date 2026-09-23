@@ -145,7 +145,15 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             long key = active.chunkKeys().get(active.cursor());
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
             level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
-            LevelChunk chunk = level.getChunk(pos.x, pos.z);
+
+            // Never synchronously generate a review chunk on the server thread. The region ticket
+            // owns loading; this bounded loop consumes the chunk only after Minecraft reports it
+            // already available. A slow outer chunk therefore yields instead of freezing the
+            // entire interactive review client at one warmup count.
+            LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
+            if (chunk == null) {
+                break;
+            }
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);
             active.advance();
             warmed++;
