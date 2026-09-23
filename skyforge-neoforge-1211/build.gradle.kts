@@ -1424,6 +1424,28 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("hydrologyReferenceReviewPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-hydrology-reference-review-v1").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("review")
+            systemProperty("skyforge.dev.hydrologyReferenceReview", "true")
+            systemProperty("skyforge.dev.hydrologyReferenceReviewHeadlessBootstrap", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("hydrologyReferenceReviewClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-hydrology-reference-review-v1").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("review")
+            systemProperty("skyforge.dev.hydrologyReferenceReview", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("productionComposedCaveAcceptanceStacked") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0068-auto-stacked").asFile
@@ -5599,6 +5621,39 @@ tasks.register("dr70HumanReviewAtlas") {
     dependsOn(
         "runDr70HumanReviewAtlasPrepare",
         "runDr70HumanReviewAtlasClient",
+    )
+}
+
+tasks.named("runHydrologyReferenceReviewPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and hydrology reference bootstrap are intentionally runtime-bound.",
+    )
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-hydrology-reference-review-v1").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(dr70HumanReviewAtlasServerProperties)
+    }
+}
+
+tasks.named("runHydrologyReferenceReviewClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is interactive and intentionally not configuration-cache serialized.",
+    )
+    mustRunAfter("runHydrologyReferenceReviewPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-hydrology-reference-review-v1").asFile
+        directory.resolve("options.txt").writeText("onboardAccessibility:false\nnarrator:0\n")
+    }
+}
+
+tasks.register("hydrologyReferenceReview") {
+    group = "verification"
+    description = "Create a fresh key-287 production hydrology proving ground and open it for focused review."
+    dependsOn(
+        "runHydrologyReferenceReviewPrepare",
+        "runHydrologyReferenceReviewClient",
     )
 }
 
