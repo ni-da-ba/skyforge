@@ -159,7 +159,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             }
             PipelineBootstrap bootstrap = completedBootstrap;
             if (bootstrap != null) {
-                installPreparedPipeline(bootstrap);
+                installPreparedPipeline(bootstrap, event.getServer());
                 completedBootstrap = null;
                 active = preparation;
             } else {
@@ -294,7 +294,9 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         thread.start();
     }
 
-    private static synchronized void installPreparedPipeline(PipelineBootstrap bootstrap) {
+    private static synchronized void installPreparedPipeline(
+            PipelineBootstrap bootstrap,
+            net.minecraft.server.MinecraftServer server) {
         if (preparation != null || hasBindings()) {
             throw new IllegalStateException("hydrology reference pipeline already active");
         }
@@ -344,14 +346,11 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         bootstrapStarted = false;
         startWatchdog();
 
-        var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
-        if (server != null) {
-            ServerPlayer player = server.getPlayerList().getPlayer(bootstrap.playerId());
-            if (player != null) {
-                long elapsedMillis = (System.nanoTime() - bootstrapStartedNanos) / 1_000_000L;
-                say(player, "Authored hydrology bootstrap complete in "
-                        + elapsedMillis + " ms; beginning admission survey.");
-            }
+        ServerPlayer player = server.getPlayerList().getPlayer(bootstrap.playerId());
+        if (player != null) {
+            long elapsedMillis = (System.nanoTime() - bootstrapStartedNanos) / 1_000_000L;
+            say(player, "Authored hydrology bootstrap complete in "
+                    + elapsedMillis + " ms; beginning admission survey.");
         }
     }
 
