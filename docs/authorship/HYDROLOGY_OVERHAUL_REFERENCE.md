@@ -120,3 +120,26 @@ This is still a coarse 49x49 / eight-neighbor drainage graph. It is an architect
 the final fine-corridor solution. If H2 materially improves the reference metrics but leaves visible
 grid/corridor artifacts, the next step is finer terrain-aware routing between semantic
 junctions/basins/outlets rather than additional coarse-graph cosmetic smoothing.
+
+
+## H2b macro-reach experiment
+
+The local H2 corridor search demonstrated that treating every 49x49 watershed cell as a mandatory
+visible-river vertex is too restrictive. H2b therefore partitions retained channel graphs into
+macro-reaches:
+
+- headwaters are hard geometric controls;
+- confluences are hard geometric controls;
+- terminals/outlets are hard geometric controls;
+- degree-two intermediate watershed cells remain semantic/profile boundaries but may slide
+  laterally inside the fine terrain-aware corridor.
+
+This does not alter catchment topology, stream hierarchy, discharge provenance, or accepted
+profile ownership. It changes only the physical centerline realization. Adjacent profile slices
+share the same routed geometric boundary so downstream fluvial terrain can continue to consume one
+path per semantic profile without reintroducing coarse-grid kinks.
+
+The H2b acceptance question is quantitative before it is visual: route-step uphill fraction and
+ridge-crossing fraction should materially improve relative to the H1 baseline, while the new
+endpoint-uphill diagnostic identifies residual climbs that are inherent to coarse watershed
+control points rather than the fine corridor solver.
