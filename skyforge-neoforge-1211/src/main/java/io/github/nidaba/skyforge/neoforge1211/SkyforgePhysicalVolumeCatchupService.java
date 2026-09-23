@@ -276,6 +276,20 @@ final class SkyforgePhysicalVolumeCatchupService {
                         terrainPumpStart);
             }
 
+            // Composed caves are final topology and must precede final surface representation.
+            // They require authored biome authority but not completed surface population.
+            long composedPumpStart = SkyforgeRuntimePerformanceMetrics.start();
+            PumpResult composedPump = pumpComposedCaveQuanta(
+                    () -> serviceOneComposedCaveQuantum(level),
+                    System::nanoTime,
+                    MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK,
+                    activeComposedCaveTimeBudgetNanos());
+            if (composedPump.workedQuanta() > 0) {
+                SkyforgeRuntimePerformanceMetrics.recordSince(
+                        "catchup.composedCavePump",
+                        composedPumpStart);
+            }
+
             // Surface representation is geometry, not decoration. Realize every currently available
             // exact-volume authored surface before allowing any native population for that volume.
             // This keeps cross-chunk vegetation from becoming an input to a later surface pass when
@@ -295,6 +309,10 @@ final class SkyforgePhysicalVolumeCatchupService {
                     // their accepted no-op surface/population behavior rather than fabricating a biome
                     // authority merely to satisfy the authored-surface adapter.
                     if (SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId).isPresent()) {
+                        if (SkyforgeComposedCaveStage.active()
+                                && SkyforgeComposedCaveStage.snapshot(volumeId).pendingObligations() > 0) {
+                            continue;
+                        }
                         SkyforgeAuthoredNativeSurfaceStage.apply(level, chunk, generator, volumeId);
                     }
                 }
@@ -347,24 +365,6 @@ final class SkyforgePhysicalVolumeCatchupService {
                     SkyforgeNativeSurfacePopulationStage.populateVolumeDeferred(
                             level, chunk, generator, volumeId);
                 }
-            }
-
-            // Composed caves are a post-terrain exact-volume obligation. The stage itself gates on
-            // whole-volume admission and on the absence of deferred terrain for the same
-            // volume/chunk. getChunkNow preserves the no-ticket lifecycle contract. After each
-            // successful micro-step, restart from the canonical first still-pending chunk. That
-            // preserves the exact mutation order produced by the historical one-quantum-per-tick
-            // policy while allowing multiple cheap cursor advances to share one server tick.
-            long composedPumpStart = SkyforgeRuntimePerformanceMetrics.start();
-            PumpResult composedPump = pumpComposedCaveQuanta(
-                    () -> serviceOneComposedCaveQuantum(level),
-                    System::nanoTime,
-                    MAX_COMPOSED_CAVE_QUANTA_PER_LEVEL_TICK,
-                    activeComposedCaveTimeBudgetNanos());
-            if (composedPump.workedQuanta() > 0) {
-                SkyforgeRuntimePerformanceMetrics.recordSince(
-                        "catchup.composedCavePump",
-                        composedPumpStart);
             }
 
             // Native interior population is downstream of the final composed cave topology.
