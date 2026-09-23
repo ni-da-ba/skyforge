@@ -5,6 +5,9 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandEcologyRegime;
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationSurfaceEcologyResolver;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialSurfaceZone;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
+import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.List;
@@ -20,6 +23,9 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
     private final SkyIslandWorldVolumeId volumeId;
     private final SkyIslandAuthoredRealizationSurfaceEcologyResolver ecology;
     private final SkyforgeAuthoredSurfaceCellRasterizer hydrology;
+    private final SkyIslandFluvialTerrainField fluvial;
+    private final double realizedCenterX;
+    private final double realizedCenterZ;
 
     SkyforgeProductionEcologyResolver(SkyIslandAuthoredRealizationAssociation association) {
         Objects.requireNonNull(association, "association");
@@ -31,6 +37,10 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
         this.ecology = new SkyIslandAuthoredRealizationSurfaceEcologyResolver(catalog);
         this.hydrology = new SkyforgeAuthoredSurfaceCellRasterizer(
                 new SkyIslandSurfaceSiteCapabilityProfiler().profile(association));
+        this.fluvial = SkyIslandFluvialTerrainField.create(association.authoredDescriptor());
+        var realized = association.realizedVolume().compiledVolume().descriptor();
+        this.realizedCenterX = realized.centerX();
+        this.realizedCenterZ = realized.centerZ();
     }
 
     @Override
@@ -61,12 +71,22 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             int worldX,
             int worldZ) {
         requireVolume(candidateVolumeId);
+        SkyIslandFluvialSurfaceZone fluvialZone = fluvial.surfaceZone(new SkyIslandLocalPosition(
+                worldX - realizedCenterX,
+                worldZ - realizedCenterZ));
+        if (fluvialZone == SkyIslandFluvialSurfaceZone.WET_CHANNEL
+                || fluvialZone == SkyIslandFluvialSurfaceZone.BANKFULL) {
+            // Fine AUTH-0105 geometry owns literal channel and bank context. Use Minecraft's native
+            // river generation settings here so surface rules and river-specific placed features can
+            // supply the physical bed/bank vocabulary without re-authoring hydrology in the adapter.
+            return Optional.of(Biomes.RIVER);
+        }
+
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
-        if (cell.isPresent() && hydrology.hasAuthoredFreshwaterOrRiparianContext(cell.orElseThrow())) {
-            // AUTH-0096 freshwater/riparian evidence is independently accepted surface context.
-            // Do not require a second ecology sample before assigning its already-accepted wet
-            // Minecraft carrier; otherwise the native base-world biome can leak through precisely
-            // along an authored channel margin.
+        if (cell.isPresent() && hydrology.hasAuthoredRetainedOrRiparianContext(cell.orElseThrow())) {
+            // Retained water, shoreline and riparian context remain wetland-like presentation
+            // authority. Coarse channelRelativeDischarge alone no longer paints a whole watershed
+            // cell as swamp now that fine channel geometry is available.
             return Optional.of(Biomes.SWAMP);
         }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
