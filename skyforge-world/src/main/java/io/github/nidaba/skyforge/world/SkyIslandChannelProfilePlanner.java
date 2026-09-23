@@ -28,27 +28,31 @@ public final class SkyIslandChannelProfilePlanner {
 
             double authoredDrop = Math.max(0.0, source.surfacePotential() - downstream.surfacePotential());
             double gradient = clamp01(authoredDrop / DROP_REFERENCE);
+            /*
+             * H3 hydraulic-geometry contract. Relative discharge remains a dimensionless authored
+             * quantity, but channel size now follows monotonic power-law scaling rather than an
+             * arbitrary blend with stream order and local slope. This guarantees that accumulating
+             * flow cannot make a downstream channel narrower merely because the reach class changed.
+             */
+            double discharge = Math.max(1.0e-6, segment.relativeDischarge());
+            double width = clamp01(0.04 + 0.92 * Math.pow(discharge, 0.50));
+            double hydraulicDepth = clamp01(0.03 + 0.72 * Math.pow(discharge, 0.35));
+
+            // Effective stream power couples discharge with slope. It is still normalized semantic
+            // authority, not a claim of SI-unit hydraulic power.
             double streamPower = clamp01(
-                    0.50 * gradient
-                            + 0.32 * segment.relativeDischarge()
-                            + 0.18 * segment.corridorScale());
+                    Math.pow(discharge, 0.45)
+                            * (0.18 + 0.82 * gradient));
 
             double erodibility = 1.0 - descriptor.rockCompetence();
             double incision = clamp01(
-                    0.50 * streamPower
-                            + 0.25 * erodibility
-                            + 0.25 * descriptor.erosionMaturity());
+                    0.58 * streamPower
+                            + 0.22 * erodibility
+                            + 0.20 * descriptor.erosionMaturity());
 
-            double width = clamp01(
-                    0.10
-                            + 0.42 * segment.corridorScale()
-                            + 0.28 * segment.relativeDischarge()
-                            + 0.20 * (1.0 - gradient));
             double depth = clamp01(
-                    0.10
-                            + 0.30 * segment.relativeDischarge()
-                            + 0.22 * segment.corridorScale()
-                            + 0.38 * incision);
+                    hydraulicDepth
+                            * (0.82 + 0.18 * incision));
 
             SkyIslandChannelProfileKind kind;
             if (gradient >= 0.60 && streamPower >= 0.45) {
