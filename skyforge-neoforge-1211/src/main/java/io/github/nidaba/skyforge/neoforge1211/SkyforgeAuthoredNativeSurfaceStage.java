@@ -145,13 +145,9 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                 }
                 var range = optionalRange.orElseThrow();
                 for (int worldY = range.minimumY(); worldY <= range.maximumY(); worldY++) {
-                    boolean owned = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
-                                    volumeId, worldX, worldY, worldZ)
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Skyforge terrain binding disappeared during native surfacing"));
-                    if (!owned) {
-                        continue;
-                    }
+                    // integerSolidRange() is the certified exact solid interval for this
+                    // volume's continuous compiled column; do not re-run the full density graph at
+                    // every Y merely to rediscover the same ownership fact.
                     cursor.set(worldX, worldY, worldZ);
                     BlockState liveState = live.getBlockState(cursor);
                     if (liveState.isAir()) {
@@ -188,19 +184,11 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                 }
 
                 var range = optionalRange.orElseThrow();
-                int solidDepthFromExposure = Integer.MAX_VALUE;
                 for (int worldY = range.maximumY(); worldY >= range.minimumY(); worldY--) {
                     cursor.set(worldX, worldY, worldZ);
                     BlockState nativeState = scratch.getBlockState(cursor);
                     if (nativeState.isAir() || !nativeState.getFluidState().isEmpty()) {
-                        solidDepthFromExposure = -1;
                         continue;
-                    }
-
-                    if (solidDepthFromExposure == Integer.MAX_VALUE || solidDepthFromExposure < 0) {
-                        solidDepthFromExposure = 0;
-                    } else {
-                        solidDepthFromExposure++;
                     }
 
                     SkyIslandTerrainSemantic semantic = SkyforgeNeoForge1211SurfaceStage.terrainSemantic(
@@ -208,18 +196,14 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                             .orElseThrow(() -> new IllegalStateException(
                                     "Skyforge terrain binding disappeared during native surface copy"));
 
+                    // Native topsoil belongs to the authored exterior surface. Do not reset depth
+                    // after arbitrary live AIR: doing so turned cave floors carved earlier in H5
+                    // into grass/dirt. Thin EDGE_SHELL columns still receive a bounded top profile.
+                    int depthFromCompiledTop = range.maximumY() - worldY;
                     boolean surfaceRepresentation = semantic == SkyIslandTerrainSemantic.SURFACE_MANTLE
-                            || solidDepthFromExposure < NEWLY_EXPOSED_PROFILE_DEPTH;
+                            || depthFromCompiledTop < NEWLY_EXPOSED_PROFILE_DEPTH;
                     if (!surfaceRepresentation
                             || !resolver.supportsSurface(volumeId, worldX, worldY, worldZ)) {
-                        continue;
-                    }
-
-                    boolean owned = SkyforgeNeoForge1211SurfaceStage.isSolidOwnedBy(
-                                    volumeId, worldX, worldY, worldZ)
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "Skyforge terrain binding disappeared during native surface copy"));
-                    if (!owned) {
                         continue;
                     }
 
