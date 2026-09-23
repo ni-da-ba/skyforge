@@ -46,6 +46,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
+    static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 3;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
@@ -298,7 +299,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         Map<Column, ChannelPathProjection> candidateProjections =
                 candidateColumnProjections(volume, reach);
-        double channelVerticalOffset = channelVerticalRegistration(
+        OptionalDouble registration = channelVerticalRegistration(
                 descriptor,
                 volume,
                 terrain,
@@ -306,10 +307,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 reach,
                 candidateProjections,
                 solidRangeCache,
-                basePotentialCache);
-        if (!Double.isFinite(channelVerticalOffset)) {
+                basePotentialCache,
+                dryPotentialCache);
+        if (registration.isEmpty()) {
             return Optional.empty();
         }
+        double channelVerticalOffset = registration.orElseThrow();
 
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
         for (var candidate : candidateProjections.entrySet()) {
@@ -351,18 +354,21 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int waterTopY = Integer.MIN_VALUE;
             if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
-                // Use one island-level semantic-to-carrier vertical registration. Re-anchoring
-                // the authored free surface independently to every physical column makes carrier
-                // bumps appear as hydraulic steps even when the authored grade is coherent.
                 int projected = (int) Math.round(
                         channelVerticalOffset
                                 + authoredWater.orElseThrow() * descriptor.reliefBudget());
-                // A constant reach registration preserves the authored non-climbing grade after
-                // integer quantization. Never clamp the free surface independently per column:
-                // doing so reintroduces one-block uphill steps. Columns whose local carrier cannot
-                // contain the reach grade remain dry and are handled by the ordinary containment
-                // narrowing below.
-                if (projected >= drySurfaceY + 1 && projected <= baseSurfaceY - 1) {
+
+                // The free surface follows one constant reach registration, so rounding cannot
+                // make it climb downstream. Reconcile small independent-carrier mismatches by
+                // lowering the narrow channel bed instead of raising/clamping the water surface.
+                // This is the channel analogue of bounded retained-basin conditioning and prevents
+                // both staircase water and silently dropped authored reaches.
+                int requiredBedY = projected - 1;
+                int extraCut = Math.max(0, drySurfaceY - requiredBedY);
+                if (projected <= baseSurfaceY - 1
+                        && projected >= range.minimumY() + 1
+                        && extraCut <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
+                    drySurfaceY = Math.max(range.minimumY(), Math.min(drySurfaceY, requiredBedY));
                     waterTopY = projected;
                 }
             }
@@ -568,13 +574,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * within the valley half-width. Distances are merged by minimum and returned in canonical z/x
      * order so deployment ordering remains unchanged.
      */
-    /**
-     * Registers one authored reach to the independently compiled carrier with one constant vertical
-     * translation. A reach-local translation preserves hydraulic grade while avoiding the opposite
-     * failure mode of a single island-wide offset, which can strand a distant reach above or below
-     * its local carrier.
-     */
-    private static double channelVerticalRegistration(
+    private static OptionalDouble channelVerticalRegistration(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain,
@@ -582,11 +582,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
-            Map<Column, Double> basePotentialCache) {
-        List<Double> offsets = new ArrayList<>();
-        double registrationHalfWidth = Math.min(1.0, reach.wetHalfWidth());
+            Map<Column, Double> basePotentialCache,
+            Map<Column, Double> dryPotentialCache) {
+        List<Double> desiredOffsets = new ArrayList<>();
+        double minimumOffset = Double.NEGATIVE_INFINITY;
+        double maximumOffset = Double.POSITIVE_INFINITY;
+        double centerlineWidth = Math.min(0.75, reach.wetHalfWidth());
+
         for (var entry : candidateProjections.entrySet()) {
-            if (entry.getValue().distance() > registrationHalfWidth) {
+            if (entry.getValue().distance() > centerlineWidth) {
                 continue;
             }
             Column column = entry.getKey();
@@ -597,46 +601,69 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (optionalRange.isEmpty()) {
                 continue;
             }
+            var range = optionalRange.orElseThrow();
             SkyIslandLocalPosition local = localPosition(volume, column);
             double basePotential = basePotentialCache.computeIfAbsent(
                     column,
                     ignored -> fluvial.baseTerrain().sample(local));
-            offsets.add(
-                    optionalRange.orElseThrow().maximumY()
-                            - basePotential * descriptor.reliefBudget());
+            double dryPotential = dryPotentialCache.computeIfAbsent(
+                    column,
+                    ignored -> fluvial.sample(local));
+            double lowering = Math.max(0.0, basePotential - dryPotential);
+            if (lowering <= 1.0e-12) {
+                continue;
+            }
+
+            int baseSurfaceY = range.maximumY();
+            int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
+            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
+            double waterPotential = fluvial.reachWaterSurfacePotential(
+                    reach, entry.getValue().fraction());
+            if (waterPotential <= dryPotential + 1.0e-12) {
+                continue;
+            }
+
+            double scaledWater = waterPotential * descriptor.reliefBudget();
+            desiredOffsets.add(
+                    baseSurfaceY - basePotential * descriptor.reliefBudget());
+
+            int minimumWaterTop = Math.max(
+                    range.minimumY() + 1,
+                    drySurfaceY + 1 - MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS);
+            int maximumWaterTop = baseSurfaceY - 1;
+            minimumOffset = Math.max(minimumOffset, minimumWaterTop - scaledWater);
+            maximumOffset = Math.min(maximumOffset, maximumWaterTop - scaledWater);
         }
-        if (offsets.isEmpty()) {
-            // A rasterized visible reach with no physical centerline support cannot be realized
-            // without inventing carrier terrain. Let the ordinary one-for-one intent check fail
-            // loudly at the plan boundary rather than manufacturing a bridge.
-            return Double.NaN;
+
+        if (desiredOffsets.isEmpty()) {
+            return OptionalDouble.empty();
         }
-        offsets.sort(Double::compareTo);
-        int middle = offsets.size() / 2;
-        return offsets.size() % 2 == 0
-                ? 0.5 * (offsets.get(middle - 1) + offsets.get(middle))
-                : offsets.get(middle);
+        desiredOffsets.sort(Double::compareTo);
+        int middle = desiredOffsets.size() / 2;
+        double desired = desiredOffsets.size() % 2 == 0
+                ? 0.5 * (desiredOffsets.get(middle - 1) + desiredOffsets.get(middle))
+                : desiredOffsets.get(middle);
+
+        if (minimumOffset <= maximumOffset) {
+            return OptionalDouble.of(Math.max(minimumOffset, Math.min(maximumOffset, desired)));
+        }
+
+        // A complete centerline intersection can fail at a sharp authored cascade. Preserve the
+        // robust local registration and let the per-column three-block reconciliation/containment
+        // rules narrow only the genuinely incompatible fringe rather than discarding the reach.
+        return OptionalDouble.of(desired);
     }
 
-    /**
-     * Rasterizes one reach corridor while retaining each column's longitudinal fraction as well as
-     * its minimum path distance. The fraction lets Minecraft consume the reach's authored hydraulic
-     * grade directly instead of asking the island-wide water field to choose another overlapping
-     * reach at a confluence.
-     */
     private static Map<Column, ChannelPathProjection> candidateColumnProjections(
             SkyIslandWorldVolume volume,
             SkyIslandFluvialReachGeometry reach) {
         var points = reach.path().points();
-        if (points.size() < 2) {
+        if (points.size() < 2 || !(reach.path().pathLength() > 0.0)) {
             return Map.of();
         }
 
         double margin = reach.valleyHalfWidth();
         double pathLength = reach.path().pathLength();
-        if (!(pathLength > 0.0)) {
-            return Map.of();
-        }
         var physical = volume.compiledVolume().descriptor();
         Map<Column, ChannelPathProjection> projections = new HashMap<>();
         double cumulativeBefore = 0.0;
@@ -707,7 +734,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (projections.isEmpty()) {
             return Map.of();
         }
-
         var ordered = new ArrayList<>(projections.entrySet());
         ordered.sort(Comparator
                 .comparingInt((Map.Entry<Column, ChannelPathProjection> entry) -> entry.getKey().z())
