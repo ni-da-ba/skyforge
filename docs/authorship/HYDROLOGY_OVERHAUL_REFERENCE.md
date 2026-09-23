@@ -136,3 +136,27 @@ scaled directly from island radius rather than the watershed lattice spacing. St
 potential couples discharge and gradient; rock competence and erosion maturity then control
 incision. This preserves topology authority while preventing a planning-resolution change from
 silently resizing rivers.
+
+
+## H2.5 visible transport separation
+
+Priority-Flood remains authoritative for catchment transport and accumulation, including transport
+across filled depressions. A filled-depression ascent is no longer automatically authored as a
+visible channel reach. Visible channel candidates must descend or remain level on the raw authored
+terrain; downstream accumulation still includes hidden transport.
+
+Reference evidence reports the fraction of watershed transport edges that are raw-terrain uphill.
+If suppressing those edges fragments visible drainage excessively, the next authorship step is an
+explicit retained-basin or subsurface-transfer fate rather than restoring uphill trench carving.
+
+## H4 terrain-conditioned valley shaping
+
+Fluvial geometry now measures lateral terrain confinement along each accepted fine corridor.
+Unconfined alluvial reaches receive broader valley envelopes; confined/incised/cascade reaches
+remain narrower and gain stronger dry-landform relief. Longitudinal bed shaping uses the local
+centerline terrain plus a bounded profile-sensitive grade ceiling instead of imposing one straight
+start-to-end trench grade.
+
+Evidence now records mean confinement and the fraction of active samples that saturate the global
+fluvial-lowering cap. The cap-saturation fraction is a diagnostic failure signal even when the
+maximum lowering remains formally bounded.
