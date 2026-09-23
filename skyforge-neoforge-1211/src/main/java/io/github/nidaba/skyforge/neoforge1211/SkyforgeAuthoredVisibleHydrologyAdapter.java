@@ -127,10 +127,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         Optional<BlockState> populationState(BlockPos position) {
             BlockState state = states.get(Objects.requireNonNull(position, "position"));
-            if (state == null || state.is(Blocks.DIRT)) {
-                return Optional.empty();
-            }
-            return Optional.of(state);
+            return Optional.ofNullable(state);
         }
     }
 
@@ -942,7 +939,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(deployments, "deployments");
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
-            indexStates(mutable, deployment.surfacePositions(), Blocks.DIRT.defaultBlockState());
+            indexStates(mutable, deployment.surfacePositions(), substrateState(deployment.feature()));
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
         }
@@ -952,6 +949,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             result.put(entry.getKey(), new ChunkProjection(entry.getValue()));
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    private static BlockState substrateState(Feature feature) {
+        return switch (Objects.requireNonNull(feature, "feature")) {
+            case CHANNEL -> Blocks.GRAVEL.defaultBlockState();
+            case RETAINED_WATER -> Blocks.MUD.defaultBlockState();
+        };
     }
 
     private static void indexStates(
@@ -991,14 +995,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     chunk.setBlockState(position, desired, false);
                     written++;
                 }
-            } else if (desired.is(Blocks.DIRT)) {
-                if (!current.is(Blocks.DIRT)) {
+            } else {
+                if (!current.equals(desired)) {
                     chunk.setBlockState(position, desired, false);
                     written++;
                 }
-            } else {
-                throw new IllegalStateException(
-                        "unsupported authored hydrology projection state " + desired);
             }
         }
         return written;
@@ -1016,11 +1017,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
-            // AUTH-0105 requires material dressing after dry terrain projection. Reuse the
-            // accepted Minecraft carrier for Skyforge SURFACE_MANTLE rather than inheriting
-            // an unrelated native-ocean top block into the fluvial bed/bank corridor.
-            if (!chunk.getBlockState(position).is(Blocks.DIRT)) {
-                chunk.setBlockState(position, Blocks.DIRT.defaultBlockState(), false);
+            BlockState substrate = substrateState(deployment.feature());
+            if (!chunk.getBlockState(position).equals(substrate)) {
+                chunk.setBlockState(position, substrate, false);
                 written++;
             }
         }
