@@ -28,6 +28,15 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
     private final double realizedCenterZ;
 
     SkyforgeProductionEcologyResolver(SkyIslandAuthoredRealizationAssociation association) {
+        this(
+                association,
+                SkyIslandFluvialTerrainField.create(
+                        Objects.requireNonNull(association, "association").authoredDescriptor()));
+    }
+
+    SkyforgeProductionEcologyResolver(
+            SkyIslandAuthoredRealizationAssociation association,
+            SkyIslandFluvialTerrainField fluvial) {
         Objects.requireNonNull(association, "association");
         this.volumeId = association.realizedVolumeId();
         var catalog = new SkyIslandAuthoredRealizationCatalog(
@@ -37,7 +46,11 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
         this.ecology = new SkyIslandAuthoredRealizationSurfaceEcologyResolver(catalog);
         this.hydrology = new SkyforgeAuthoredSurfaceCellRasterizer(
                 new SkyIslandSurfaceSiteCapabilityProfiler().profile(association));
-        this.fluvial = SkyIslandFluvialTerrainField.create(association.authoredDescriptor());
+        this.fluvial = Objects.requireNonNull(fluvial, "fluvial");
+        if (!this.fluvial.descriptor().equals(association.authoredDescriptor())) {
+            throw new IllegalArgumentException(
+                    "production ecology fluvial field must match the authored descriptor");
+        }
         var realized = association.realizedVolume().compiledVolume().descriptor();
         this.realizedCenterX = realized.centerX();
         this.realizedCenterZ = realized.centerZ();
