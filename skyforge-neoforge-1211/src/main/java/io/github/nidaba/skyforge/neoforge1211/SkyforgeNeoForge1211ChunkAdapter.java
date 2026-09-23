@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
@@ -53,6 +54,8 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                     SkyIslandWorldVolumeId,
                     Map<Long, SkyforgeAuthoredVisibleHydrologyAdapter.ChunkProjection>>
             authoredHydrologyByChunkByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandFluvialTerrainField>
+            authoredFluvialTerrainByVolumeId;
 
     public SkyforgeNeoForge1211ChunkAdapter(
             SkyIslandWorldCatalog catalog,
@@ -93,10 +96,14 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         var cachedDeployments = new LinkedHashMap<
                 SkyIslandWorldVolumeId,
                 List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment>>();
+        var cachedFluvial = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandFluvialTerrainField>();
         for (SkyIslandWorldVolumeId volumeId : this.authoredDescriptorsByVolumeId.keySet()) {
-            cachedDeployments.put(volumeId, deriveAuthoredHydrologyDeployments(volumeId));
+            var planned = deriveAuthoredHydrologyPlan(volumeId);
+            cachedDeployments.put(volumeId, planned.deployments());
+            cachedFluvial.put(volumeId, planned.fluvial());
         }
         this.authoredHydrologyDeploymentsByVolumeId = Map.copyOf(cachedDeployments);
+        this.authoredFluvialTerrainByVolumeId = Map.copyOf(cachedFluvial);
 
         // Runtime consumers are chunk-local. Index the normalized immutable plan once so chunk
         // realization, fluid fencing, and population reads never rebuild whole-island position sets
@@ -199,18 +206,25 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 .get(chunkPos.toLong()));
     }
 
-    private List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deriveAuthoredHydrologyDeployments(
+    private SkyforgeAuthoredVisibleHydrologyAdapter.PlanningResult deriveAuthoredHydrologyPlan(
             SkyIslandWorldVolumeId volumeId) {
         SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
         if (descriptor == null) {
-            return List.of();
+            throw new IllegalArgumentException(
+                    "authored hydrology planning requested for an unbound descriptor");
         }
         SkyIslandWorldVolume volume = catalog.volumes().stream()
                 .filter(candidate -> candidate.id().equals(volumeId))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "authored hydrology references unknown runtime volume " + volumeId.path()));
-        return List.copyOf(SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this));
+        return SkyforgeAuthoredVisibleHydrologyAdapter.planWithField(descriptor, volume, this);
+    }
+
+    Optional<SkyIslandFluvialTerrainField> authoredFluvialTerrainField(
+            SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(authoredFluvialTerrainByVolumeId.get(volumeId));
     }
 
     /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
