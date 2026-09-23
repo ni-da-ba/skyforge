@@ -46,7 +46,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
-    static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 3;
+    static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 6;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
@@ -579,6 +579,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * of those intervals. The resulting profile follows local carrier elevation without ever
      * reintroducing per-column hydraulic steps.
      */
+    /**
+     * Builds the least-change bounded isotonic projection of one authored reach onto Minecraft Y.
+     *
+     * <p>The optimization domain is the actual rasterized wet carrier, not only authored path
+     * vertices. One canonical column is selected for each approximately one-block longitudinal bin,
+     * preferring the column nearest the authored centerline. Each sample contributes a preferred
+     * local water Y and a feasible interval bounded above by the untouched carrier and below by the
+     * maximum narrow-channel reconciliation cut. Dynamic programming then solves the exact integer
+     * least-squares problem subject to a non-increasing downstream grade.
+     */
     private static Optional<PhysicalChannelGrade> physicalChannelGrade(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
@@ -589,80 +599,40 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
-        var points = reach.path().points();
-        if (points.isEmpty() || candidateProjections.isEmpty()) {
+        if (candidateProjections.isEmpty() || !(reach.path().pathLength() > 0.0)) {
             return Optional.empty();
         }
 
-        var physical = volume.compiledVolume().descriptor();
+        Map<Integer, ChannelCarrierCandidate> carrierByBin = new java.util.TreeMap<>();
         double pathLength = reach.path().pathLength();
-        List<ChannelGradeSample> samples = new ArrayList<>();
-        double cumulative = 0.0;
-
-        for (int index = 0; index < points.size(); index++) {
-            if (index > 0) {
-                SkyIslandLocalPosition previous = points.get(index - 1);
-                SkyIslandLocalPosition current = points.get(index);
-                cumulative += Math.hypot(
-                        current.x() - previous.x(),
-                        current.z() - previous.z());
-            }
-            double fraction = index == points.size() - 1
-                    ? 1.0
-                    : Math.max(0.0, Math.min(1.0, cumulative / pathLength));
-            SkyIslandLocalPosition point = points.get(index);
-
-            int roundedX = (int) Math.round(physical.centerX() + point.x());
-            int roundedZ = (int) Math.round(physical.centerZ() + point.z());
-            Column bestColumn = null;
-            double bestDistance = Double.POSITIVE_INFINITY;
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    Column candidate = new Column(roundedX + dx, roundedZ + dz);
-                    ChannelPathProjection projection = candidateProjections.get(candidate);
-                    if (projection == null || projection.distance() > reach.wetHalfWidth()) {
-                        continue;
-                    }
-                    var optionalRange = solidRangeCache.computeIfAbsent(
-                            candidate,
-                            ignored -> terrain.integerSolidRange(
-                                    volume.id(), candidate.x(), candidate.z()));
-                    if (optionalRange.isEmpty()) {
-                        continue;
-                    }
-                    SkyIslandLocalPosition candidateLocal = localPosition(volume, candidate);
-                    double distance = Math.hypot(
-                            candidateLocal.x() - point.x(),
-                            candidateLocal.z() - point.z());
-                    if (distance < bestDistance - 1.0e-12
-                            || (Math.abs(distance - bestDistance) <= 1.0e-12
-                                    && (bestColumn == null
-                                            || candidate.z() < bestColumn.z()
-                                            || (candidate.z() == bestColumn.z()
-                                                    && candidate.x() < bestColumn.x())))) {
-                        bestColumn = candidate;
-                        bestDistance = distance;
-                    }
-                }
-            }
-            if (bestColumn == null) {
+        for (var entry : candidateProjections.entrySet()) {
+            ChannelPathProjection projection = entry.getValue();
+            if (projection.distance() > reach.wetHalfWidth()) {
                 continue;
             }
-
-            var range = solidRangeCache.get(bestColumn).orElseThrow();
-            SkyIslandLocalPosition local = localPosition(volume, bestColumn);
+            Column column = entry.getKey();
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    column,
+                    ignored -> terrain.integerSolidRange(
+                            volume.id(), column.x(), column.z()));
+            if (optionalRange.isEmpty()) {
+                continue;
+            }
+            var range = optionalRange.orElseThrow();
+            SkyIslandLocalPosition local = localPosition(volume, column);
             double basePotential = basePotentialCache.computeIfAbsent(
-                    bestColumn,
+                    column,
                     ignored -> fluvial.baseTerrain().sample(local));
             double dryPotential = dryPotentialCache.computeIfAbsent(
-                    bestColumn,
+                    column,
                     ignored -> fluvial.sample(local));
             double lowering = Math.max(0.0, basePotential - dryPotential);
             if (lowering <= 1.0e-12) {
                 continue;
             }
 
-            double waterPotential = fluvial.reachWaterSurfacePotential(reach, fraction);
+            double waterPotential = fluvial.reachWaterSurfacePotential(
+                    reach, projection.fraction());
             if (waterPotential <= dryPotential + 1.0e-12) {
                 continue;
             }
@@ -685,45 +655,146 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             desiredWaterTop = Math.max(
                     minimumWaterTop,
                     Math.min(maximumWaterTop, desiredWaterTop));
-            samples.add(new ChannelGradeSample(
-                    fraction,
+
+            int bin = (int) Math.round(projection.fraction() * pathLength);
+            ChannelCarrierCandidate candidate = new ChannelCarrierCandidate(
+                    column,
+                    projection.distance(),
+                    projection.fraction(),
                     minimumWaterTop,
                     maximumWaterTop,
-                    desiredWaterTop));
+                    desiredWaterTop);
+            ChannelCarrierCandidate previous = carrierByBin.get(bin);
+            if (previous == null
+                    || candidate.distance() < previous.distance() - 1.0e-12
+                    || (Math.abs(candidate.distance() - previous.distance()) <= 1.0e-12
+                            && (candidate.column().z() < previous.column().z()
+                                    || (candidate.column().z() == previous.column().z()
+                                            && candidate.column().x() < previous.column().x())))) {
+                carrierByBin.put(bin, candidate);
+            }
         }
 
+        if (carrierByBin.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<ChannelGradeSample> samples = carrierByBin.values().stream()
+                .map(candidate -> new ChannelGradeSample(
+                        candidate.fraction(),
+                        candidate.minimumWaterTop(),
+                        candidate.maximumWaterTop(),
+                        candidate.desiredWaterTop()))
+                .toList();
+        Optional<List<Integer>> solved = solveBoundedNonIncreasingGrade(samples);
+        if (solved.isEmpty()) {
+            return Optional.empty();
+        }
+
+        List<Double> fractions = samples.stream()
+                .map(ChannelGradeSample::fraction)
+                .toList();
+        return Optional.of(new PhysicalChannelGrade(fractions, solved.orElseThrow()));
+    }
+
+    /**
+     * Exact integer bounded isotonic regression for a downstream-non-increasing profile.
+     *
+     * <p>Minimizes sum((y_i - desired_i)^2) subject to lower_i <= y_i <= upper_i and
+     * y_i >= y_(i+1). The Minecraft build-height span is small, so an O(samples * Y-span)
+     * dynamic program is simpler and more robust than a bespoke floating-point active-set solver.
+     */
+    static Optional<List<Integer>> solveBoundedNonIncreasingGrade(
+            List<ChannelGradeSample> samples) {
+        Objects.requireNonNull(samples, "samples");
         if (samples.isEmpty()) {
             return Optional.empty();
         }
 
-        int[] suffixMinimum = new int[samples.size()];
-        int required = Integer.MIN_VALUE;
-        for (int index = samples.size() - 1; index >= 0; index--) {
-            required = Math.max(required, samples.get(index).minimumWaterTop());
-            suffixMinimum[index] = required;
+        int minimumY = samples.stream()
+                .mapToInt(ChannelGradeSample::minimumWaterTop)
+                .min()
+                .orElseThrow();
+        int maximumY = samples.stream()
+                .mapToInt(ChannelGradeSample::maximumWaterTop)
+                .max()
+                .orElseThrow();
+        if (minimumY > maximumY) {
+            return Optional.empty();
         }
 
-        List<Double> fractions = new ArrayList<>(samples.size());
-        List<Integer> waterTops = new ArrayList<>(samples.size());
-        int previousWaterTop = Integer.MAX_VALUE;
-        for (int index = 0; index < samples.size(); index++) {
+        int span = maximumY - minimumY + 1;
+        long infinite = Long.MAX_VALUE / 8;
+        long[] previous = new long[span];
+        java.util.Arrays.fill(previous, infinite);
+        int[][] predecessor = new int[samples.size()][span];
+        for (int[] row : predecessor) {
+            java.util.Arrays.fill(row, -1);
+        }
+
+        ChannelGradeSample first = samples.getFirst();
+        for (int y = first.minimumWaterTop(); y <= first.maximumWaterTop(); y++) {
+            long delta = (long) y - first.desiredWaterTop();
+            previous[y - minimumY] = delta * delta;
+        }
+
+        for (int index = 1; index < samples.size(); index++) {
+            long[] suffixCost = new long[span];
+            int[] suffixArg = new int[span];
+            long bestCost = infinite;
+            int bestY = -1;
+            for (int offset = span - 1; offset >= 0; offset--) {
+                long cost = previous[offset];
+                if (cost < bestCost) {
+                    bestCost = cost;
+                    bestY = minimumY + offset;
+                }
+                suffixCost[offset] = bestCost;
+                suffixArg[offset] = bestY;
+            }
+
+            long[] current = new long[span];
+            java.util.Arrays.fill(current, infinite);
             ChannelGradeSample sample = samples.get(index);
-            int minimumWaterTop = suffixMinimum[index];
-            int maximumWaterTop = Math.min(
-                    sample.maximumWaterTop(),
-                    previousWaterTop);
-            if (minimumWaterTop > maximumWaterTop) {
+            for (int y = sample.minimumWaterTop(); y <= sample.maximumWaterTop(); y++) {
+                int offset = y - minimumY;
+                if (suffixCost[offset] >= infinite || suffixArg[offset] < 0) {
+                    continue;
+                }
+                long delta = (long) y - sample.desiredWaterTop();
+                current[offset] = suffixCost[offset] + delta * delta;
+                predecessor[index][offset] = suffixArg[offset];
+            }
+            previous = current;
+        }
+
+        long bestCost = infinite;
+        int terminalY = -1;
+        for (int offset = 0; offset < span; offset++) {
+            if (previous[offset] < bestCost) {
+                bestCost = previous[offset];
+                terminalY = minimumY + offset;
+            }
+        }
+        if (terminalY < 0) {
+            return Optional.empty();
+        }
+
+        int[] solved = new int[samples.size()];
+        solved[solved.length - 1] = terminalY;
+        for (int index = solved.length - 1; index > 0; index--) {
+            int previousY = predecessor[index][solved[index] - minimumY];
+            if (previousY < 0) {
                 return Optional.empty();
             }
-            int waterTop = Math.max(
-                    minimumWaterTop,
-                    Math.min(maximumWaterTop, sample.desiredWaterTop()));
-            fractions.add(sample.fraction());
-            waterTops.add(waterTop);
-            previousWaterTop = waterTop;
+            solved[index - 1] = previousY;
         }
 
-        return Optional.of(new PhysicalChannelGrade(fractions, waterTops));
+        List<Integer> result = new ArrayList<>(solved.length);
+        for (int y : solved) {
+            result.add(y);
+        }
+        return Optional.of(List.copyOf(result));
     }
 
     private static Map<Column, ChannelPathProjection> candidateColumnProjections(
@@ -1582,6 +1653,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         var fluid = state.getFluidState().getType();
         return fluid == Fluids.WATER || fluid == Fluids.FLOWING_WATER;
     }
+
+    private record ChannelCarrierCandidate(
+            Column column,
+            double distance,
+            double fraction,
+            int minimumWaterTop,
+            int maximumWaterTop,
+            int desiredWaterTop) {}
 
     private record ChannelGradeSample(
             double fraction,
