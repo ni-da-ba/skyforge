@@ -345,7 +345,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     ignored -> fluvial.sample(local));
             double lowering = Math.max(0.0, basePotential - dryPotential);
-            if (lowering <= 1.0e-12) {
+            boolean spineCarrier = physicalGrade.orElseThrow().contains(column);
+            if (lowering <= 1.0e-12 && !spineCarrier) {
                 continue;
             }
 
@@ -353,7 +354,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             OptionalDouble authoredWater = OptionalDouble.empty();
             if (distance <= reach.wetHalfWidth()) {
                 double reachWater = fluvial.reachWaterSurfacePotential(reach, fraction);
-                if (reachWater > dryPotential + 1.0e-12) {
+                if (reachWater > dryPotential + 1.0e-12 || spineCarrier) {
+                    // The accepted visible reach owns its connected centerline spine. Independent
+                    // dry-field voxel quantization may erase a one-column semantic lowering, but it
+                    // must not punch a hole through an otherwise solid authored channel carrier.
                     authoredWater = OptionalDouble.of(reachWater);
                 }
             }
@@ -819,17 +823,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     ignored -> fluvial.sample(local));
             double lowering = Math.max(0.0, basePotential - dryPotential);
-            if (lowering <= 1.0e-12) {
-                continue;
-            }
-
             double waterPotential = fluvial.reachWaterSurfacePotential(
                     reach, projection.fraction());
-            if (waterPotential <= dryPotential + 1.0e-12) {
-                continue;
-            }
 
             int baseSurfaceY = range.maximumY();
+            // Connectivity is solved for the accepted visible reach before the dry-field lowering
+            // test is allowed to remove raster cells. The semantic channel may therefore condition
+            // its narrow spine by the same minimum two-block bed recess used for ordinary wet
+            // samples, while the surrounding corridor still follows the sampled fluvial lowering.
             int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
             int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
             int ownerMinimumWaterTop = range.minimumY() + 1;
@@ -954,10 +955,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             List<Double> fractions = samples.stream()
                     .map(ChannelGradeSample::fraction)
                     .toList();
+            Set<Column> spineColumns = spine.stream()
+                    .map(ChannelCarrierCandidate::column)
+                    .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
             return Optional.of(new PhysicalChannelGrade(
                     fractions,
                     solved.orElseThrow(),
-                    reconciliationDepth));
+                    reconciliationDepth,
+                    spineColumns));
         }
         throw channelProjectionFailure(
                 volume,
@@ -2220,18 +2225,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     private record PhysicalChannelGrade(
             List<Double> fractions,
             List<Integer> waterTops,
-            int reconciliationDepth) {
+            int reconciliationDepth,
+            Set<Column> spineColumns) {
         private PhysicalChannelGrade {
             fractions = List.copyOf(fractions);
             waterTops = List.copyOf(waterTops);
-            if (fractions.isEmpty() || fractions.size() != waterTops.size()) {
+            spineColumns = Collections.unmodifiableSet(new LinkedHashSet<>(spineColumns));
+            if (fractions.isEmpty() || fractions.size() != waterTops.size() || spineColumns.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "physical channel grade requires matching nonempty samples");
+                        "physical channel grade requires matching nonempty samples and spine");
             }
             if (reconciliationDepth < 0
                     || reconciliationDepth > MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
                 throw new IllegalArgumentException("invalid channel reconciliation depth");
             }
+        }
+
+        private boolean contains(Column column) {
+            return spineColumns.contains(column);
         }
 
         private int sample(double fraction) {
