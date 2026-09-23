@@ -779,7 +779,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 Column column = new Column(x, z);
                 var optionalRange = solidRangeCache.computeIfAbsent(
                         column,
-                        ignored -> terrain.integerSolidRange(volume.id(), x, z));
+                        ignored -> terrain.integerSolidRange(
+                                volume.id(), column.x(), column.z()));
                 if (optionalRange.isEmpty()) {
                     continue;
                 }
