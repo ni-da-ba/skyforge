@@ -2141,21 +2141,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * Backend material expression for exposed fluvial/lacustrine substrate.
      *
      * <p>Do not paint authored beds with the ordinary biome top block: that produced grass/dirt
-     * slabs through rivers and lakes. The coordinate hash is deterministic and feature-independent,
-     * so overlapping channel/lake surface authority resolves to the same sediment state.
+     * slabs through rivers and lakes. Runtime-authored substrate must also be mechanically stable:
+     * falling blocks can receive delayed neighbor ticks after water realization and move into an
+     * authored wet cell, making both hydrology persistence and later native ecology scheduler-
+     * dependent. Use non-falling clay/stone here; gravel remains recognized as legacy hydrology
+     * material by {@link #isHydrologySurfaceMaterial(BlockState)} but is no longer newly emitted.
+     * The coordinate hash is deterministic and feature-independent, so overlapping channel/lake
+     * surface authority resolves to the same sediment state.
      */
     static BlockState hydrologySurfaceState(BlockPos position) {
         Objects.requireNonNull(position, "position");
         long mixed = position.asLong() * 0x9E3779B97F4A7C15L;
         mixed ^= mixed >>> 33;
         int bucket = Math.floorMod((int) (mixed ^ (mixed >>> 32)), 16);
-        if (bucket < 10) {
-            return Blocks.GRAVEL.defaultBlockState();
-        }
-        if (bucket < 14) {
-            return Blocks.CLAY.defaultBlockState();
-        }
-        return Blocks.STONE.defaultBlockState();
+        return bucket < 12
+                ? Blocks.CLAY.defaultBlockState()
+                : Blocks.STONE.defaultBlockState();
     }
 
     private static void indexStates(
