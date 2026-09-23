@@ -358,6 +358,18 @@ final class SkyforgeComposedCaveStage {
         return Collections.unmodifiableSet(keys);
     }
 
+    static boolean completed(SkyIslandWorldVolumeId volumeId, long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return true;
+        }
+        synchronized (binding) {
+            Obligation obligation = binding.obligations().get(new ObligationKey(volumeId, chunkKey));
+            return obligation == null || obligation.state() == State.COMPLETED;
+        }
+    }
+
     static Snapshot snapshot() {
         Binding binding = ACTIVE.get();
         if (binding == null) {
