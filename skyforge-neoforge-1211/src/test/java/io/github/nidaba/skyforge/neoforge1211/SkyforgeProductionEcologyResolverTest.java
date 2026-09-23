@@ -126,6 +126,32 @@ final class SkyforgeProductionEcologyResolverTest {
     }
 
     @Test
+    void sharedAuthoredFluvialFieldMatchesStandaloneResolverAndRejectsForeignDescriptor() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
+        var fluvial = SkyIslandFluvialTerrainField.create(fixture.descriptor());
+        var standalone = new SkyforgeProductionEcologyResolver(association);
+        var shared = new SkyforgeProductionEcologyResolver(association, fluvial);
+
+        var realized = fixture.volume().compiledVolume().descriptor();
+        for (var reach : fluvial.reaches()) {
+            var local = reach.path().points().get(reach.path().points().size() / 2);
+            int worldX = Math.toIntExact(Math.round(realized.centerX() + local.x()));
+            int worldZ = Math.toIntExact(Math.round(realized.centerZ() + local.z()));
+            assertEquals(
+                    standalone.resolveAuthoredSurface(fixture.volume().id(), worldX, worldZ),
+                    shared.resolveAuthoredSurface(fixture.volume().id(), worldX, worldZ));
+        }
+
+        var foreign = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyforgeProductionEcologyResolver(
+                        association,
+                        SkyIslandFluvialTerrainField.create(foreign.descriptor())));
+    }
+
+    @Test
     void foreignVolumeFailsClosed() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var resolver = new SkyforgeProductionEcologyResolver(
