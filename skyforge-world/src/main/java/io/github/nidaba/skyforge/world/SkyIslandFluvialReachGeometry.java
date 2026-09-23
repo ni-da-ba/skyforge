@@ -17,7 +17,9 @@ public record SkyIslandFluvialReachGeometry(
         double waterDepthPotential,
         double bankReliefPotential,
         double crossSectionExponent,
-        double confinementPotential) {
+        double confinementPotential,
+        double lateralAsymmetryPotential,
+        double confluenceScale) {
 
     public SkyIslandFluvialReachGeometry {
         path = Objects.requireNonNull(path, "path");
@@ -33,6 +35,16 @@ public record SkyIslandFluvialReachGeometry(
                 || confinementPotential > 1.0) {
             throw new IllegalArgumentException(
                     "confinementPotential must be finite and in [0, 1]");
+        }
+        if (!Double.isFinite(lateralAsymmetryPotential)
+                || lateralAsymmetryPotential < -1.0
+                || lateralAsymmetryPotential > 1.0) {
+            throw new IllegalArgumentException(
+                    "lateralAsymmetryPotential must be finite and in [-1, 1]");
+        }
+        if (!Double.isFinite(confluenceScale) || confluenceScale < 1.0) {
+            throw new IllegalArgumentException(
+                    "confluenceScale must be finite and >= 1");
         }
         if (wetHalfWidth >= bankfullHalfWidth) {
             throw new IllegalArgumentException("wet corridor must remain inside the bankfull corridor");
