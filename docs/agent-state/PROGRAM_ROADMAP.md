@@ -84,7 +84,7 @@ On a useful wake, select work in this order:
 3. Execute the next bounded tranche inside the PRIMARY_ACTIVE phase.
 4. If the active phase exit is satisfied, evaluate transition gates and activate NEXT_AUTHORIZED.
 5. Permit a later-phase feasibility spike only if failure could materially invalidate current architecture.
-6. Otherwise leave PLANNED and OPTIONAL_EXPANSION work dormant.
+6. Otherwise leave PLANNED, POST_ALPHA_PLANNED, and OPTIONAL_EXPANSION work dormant.
 ```
 
 ### 4.2 Existing-work exception
@@ -201,7 +201,7 @@ accepted consumer
 
 ## 7. Phase 1 — Production geography convergence
 
-**State:** PRIMARY_ACTIVE.
+**State:** COMPLETE / downstream repair only.
 
 ### Objective
 
@@ -257,7 +257,7 @@ Phase 1 exits when evidence supports all of the following:
 
 ## 8. Phase 2 — Integrated physical world
 
-**State:** NEXT_AUTHORIZED.
+**State:** PRIMARY_ACTIVE.
 
 ### Objective
 
@@ -550,20 +550,22 @@ Use coarse semantic state, deterministic reconstruction, and bounded updates rat
 
 Treat Distant Horizons (or an equivalent accepted solution) as distant **solid-terrain** infrastructure, not atmosphere authority.
 
-### 10.4 Reference shader stack
+### 10.4 Alpha reference rendering stack
 
-Develop/adapt a Skyforge reference Iris-compatible shaderpack only after the combined-stack feasibility result justifies it.
+Converge one intentionally supported Iris-compatible rendering path only after the combined-stack feasibility result justifies it.
 
-Prioritize Skyforge-specific needs:
+Prefer retained/configured/adapted rendering capability over bespoke shader development. A custom Skyforge shader or renderer is authorized pre-alpha only when the retained stack cannot honestly express an alpha-critical requirement.
 
-- atmospheric scattering/extinction;
-- DH compositing/depth integration;
-- altitude-dependent sky presentation;
+The selected alpha path must adequately support:
+
+- atmospheric scattering/extinction or a credible retained equivalent;
+- Distant Horizons compositing/depth behavior;
+- altitude-dependent sky presentation where mechanically/presentationally necessary;
 - coherent sunlight/shadow/weather response;
 - water;
-- performance appropriate for long view distance and volumetric atmosphere.
+- performance appropriate for long-distance aviation.
 
-Reuse a permissively licensed existing shader foundation where practical before writing generic rendering machinery from scratch.
+If a retained shader/cloud solution is selected into the alpha production baseline, integrate and qualify it as part of that stack. Do not turn pre-alpha presentation into a custom-renderer project merely to establish visual ownership.
 
 ### 10.5 Clouds and weather presentation
 
@@ -966,28 +968,30 @@ The console, ChatGPT, CLI, and future Studio remain clients of one development b
 
 ## 19. What the orchestrator should do today
 
-At the time this roadmap is introduced:
+Current roadmap state:
 
 ```text
-Phase 0 = COMPLETE
-Phase 1 = PRIMARY_ACTIVE
-Phase 2 = NEXT_AUTHORIZED
+Phase 0   = COMPLETE
+Phase 1   = COMPLETE / downstream repair only
+Phase 2   = PRIMARY_ACTIVE
+Phase 2.5 = NEXT_AUTHORIZED after the active DR-70 human gate
+Phase 3+  = PLANNED or POST_ALPHA_PLANNED as classified above
 ```
 
 The orchestrator should therefore:
 
 1. preserve healthy current producer work and human gates;
-2. drive the current production-morphology boundary to information-bearing closure rather than restarting older foundation work;
-3. stop for the remaining human morphology judgment when ready;
-4. after that judgment, execute only bounded corrective morphology work if required;
-5. complete the representative hybrid/provider/regional smoke described by RM-R01;
-6. then pivot the primary program focus into Phase 2 materials/geology -> hydrology -> structures -> ecology;
-7. allow current already-authorized Bootstrap civilization/runtime work to continue without interpreting Phase 3's PLANNED state as cancellation;
-8. leave post-alpha content breadth—full Guild realization, mature optional industry, bespoke adventure/Nether/End content, Lower Sea realization, large bespoke bestiaries, and future-backend work—dormant except for explicitly authorized feasibility/dependency exceptions; alpha-critical atmosphere/airspace and production-stack integration remain on the pre-alpha path.
+2. finish only the bounded active Phase-2/DR-70 repair and obtain the required human judgment;
+3. after DR-70 acceptance, activate Phase 2.5 rather than promoting Bootstrap directly;
+4. in Phase 2.5, classify the actual alpha production dependency roster and converge the complete island -> cluster -> province -> coarse-world substrate;
+5. require every dependency actually selected to ship in the alpha stack to have an intentional supported disposition and combined-stack evidence; do not confuse the broader development/reference pack with the shipping alpha stack;
+6. move to Bootstrap only after substrate uncertainty is low enough that gameplay tuning is meaningful;
+7. complete alpha-critical airspace/atmosphere/presentation before the Phase-4.5 public-alpha gate;
+8. leave full Guild realization, Bellanca bureaucracy, bespoke adventure/Nether/End/Lower-Sea content, large bespoke bestiaries, complex air-war AI, and other POST_ALPHA_PLANNED breadth dormant unless a concrete missing fundamental alpha capability requires the smallest possible exception.
 
 If repository state has advanced beyond this snapshot, use current accepted evidence to determine which criteria have already been satisfied rather than blindly repeating them.
 
-**Current transition:** RM-R06 has been accepted and the bounded post-platform DR-70 repair is active. Preserve the current #754/#1062 authority and human-review boundary. When DR-70 receives human acceptance, RM-R07 makes Phase 2.5 Cohesive World / Production Stack Convergence the next product-convergence focus. Bootstrap does not become PRIMARY_ACTIVE directly from DR-70.
+**Current transition:** RM-R06 has been accepted and the bounded post-platform DR-70 repair remains the active product boundary. Preserve the current #754/#1062 authority and human-review boundary. When DR-70 receives human acceptance, RM-R07 makes Phase 2.5 Cohesive World / Production Stack Convergence the next product-convergence focus. Bootstrap does not become PRIMARY_ACTIVE directly from DR-70.
 
 ## 20. Maintenance rule
 
