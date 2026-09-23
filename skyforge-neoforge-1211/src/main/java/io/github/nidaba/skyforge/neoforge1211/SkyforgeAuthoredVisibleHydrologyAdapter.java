@@ -550,6 +550,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
         int outletBreaches = 0;
+        int syntheticBanks = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] direction : directions) {
             Column bank = new Column(
@@ -584,17 +585,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    return Optional.empty();
-                }
-                var range = optionalRange.orElseThrow();
-                bankTopY = range.maximumY();
-                if (!uncontestedOwnedRangeCell(
-                        terrain,
-                        volume.id(),
-                        bank.x(),
-                        bankTopY,
-                        bank.z())) {
-                    return Optional.empty();
+                    if (syntheticBanks >= 1) {
+                        return Optional.empty();
+                    }
+                    // Mirror channelBankCeiling exactly: one absent side bank may be rebuilt as a
+                    // narrow shelf rooted at the carved bed elevation, never as an unbounded wall.
+                    bankTopY = candidate.drySurfaceY() - 1;
+                    syntheticBanks++;
+                } else {
+                    var range = optionalRange.orElseThrow();
+                    bankTopY = range.maximumY();
+                    if (!uncontestedOwnedRangeCell(
+                            terrain,
+                            volume.id(),
+                            bank.x(),
+                            bankTopY,
+                            bank.z())) {
+                        return Optional.empty();
+                    }
                 }
             }
 
@@ -834,6 +842,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     candidateProjections,
                     column,
+                    drySurfaceY,
                     routedEdgeOutlet,
                     solidRangeCache,
                     basePotentialCache,
@@ -1225,34 +1234,63 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
             Column wet,
+            int candidateDrySurfaceY,
             boolean routedEdgeOutlet,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
         int ceiling = Integer.MAX_VALUE;
         int outletBreaches = 0;
+        int syntheticBanks = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
         for (int[] direction : directions) {
             Column bank = new Column(wet.x() + direction[0], wet.z() + direction[1]);
             ChannelPathProjection bankProjection = candidateProjections.get(bank);
-            if (bankProjection != null && bankProjection.distance() <= reach.wetHalfWidth()) {
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    bank,
+                    ignored -> terrain.integerSolidRange(
+                            volume.id(), bank.x(), bank.z()));
+
+            // A physically supported neighbor inside the authored wet corridor is expected to be
+            // another wet carrier cell, so it is not a lateral bank constraint. A geometric wet
+            // neighbor with no physical carrier is different: it leaves an actual voxel-side gap
+            // and must be handled by the same bounded shelf rule as an absent dry bank.
+            if (bankProjection != null
+                    && bankProjection.distance() <= reach.wetHalfWidth()
+                    && optionalRange.isPresent()) {
                 continue;
             }
 
             boolean outletBreach = routedEdgeOutlet
                     && outletBreaches == 0
                     && channelOutletBreachAllowed(volume, wet, reach, reach.path());
-            var optionalRange = solidRangeCache.computeIfAbsent(
-                    bank,
-                    ignored -> terrain.integerSolidRange(
-                            volume.id(), bank.x(), bank.z()));
             if (optionalRange.isEmpty()) {
                 if (outletBreach) {
                     outletBreaches++;
                     continue;
                 }
-                return OptionalInt.empty();
+
+                // Sky-island rasterization can leave one side of an otherwise real channel bed
+                // immediately over void. Permit one narrow, laterally anchored shelf instead of
+                // deleting that carrier node. The virtual top is one block below the carved bed,
+                // which means MAX_CHANNEL_BANK_FILL_BLOCKS bounds the complete constructed wall.
+                if (syntheticBanks >= 1) {
+                    return OptionalInt.empty();
+                }
+                int virtualBankTopY = candidateDrySurfaceY - 1;
+                for (int y = virtualBankTopY + 1;
+                        y <= virtualBankTopY + MAX_CHANNEL_BANK_FILL_BLOCKS;
+                        y++) {
+                    if (!volume.bounds().contains(bank.x(), y, bank.z())
+                            || terrain.isSolidOwnedByOtherVolume(
+                                    volume.id(), bank.x(), y, bank.z())) {
+                        return OptionalInt.empty();
+                    }
+                }
+                syntheticBanks++;
+                ceiling = Math.min(ceiling, virtualBankTopY);
+                continue;
             }
 
             var range = optionalRange.orElseThrow();
