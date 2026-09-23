@@ -514,7 +514,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             throw new IllegalStateException("hydrology reference review failed to save prepared island");
         }
         releaseTickets(level, active.chunkKeys());
-        closePipeline();
+        closeGenerationPipelineForReview();
         ready = true;
         move(player, "above");
         say(player, "READY. Inspect river geometry, lake/spill behavior, edge discharge, banks, "
@@ -560,9 +560,20 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     }
 
     private static int info(ServerPlayer player) {
-        var fixture = preparation != null
-                ? preparation.fixture()
-                : SkyforgeHydrologyReferenceReviewFixture.create();
+        Preparation active = preparation;
+        PipelineBootstrap bootstrap = completedBootstrap;
+        if (!ready && active == null && bootstrap == null) {
+            // Fixture construction is synchronized and intentionally runs on the bootstrap worker.
+            // Do not let an informational command re-enter it from the server thread and turn the
+            // responsive bootstrap back into a hidden main-thread stall.
+            say(player, "Reference metadata is still bootstrapping.");
+            return 1;
+        }
+        var fixture = active != null
+                ? active.fixture()
+                : bootstrap != null
+                        ? bootstrap.fixture()
+                        : SkyforgeHydrologyReferenceReviewFixture.create();
         var hydrology = SkyIslandVisibleHydrologicRealizationPlanner.plan(fixture.descriptor());
         say(player, "key=" + SkyforgeHydrologyReferenceReviewFixture.ISLAND_KEY
                 + ", morphology=" + fixture.descriptor().morphologyFamily().identifier()
@@ -781,6 +792,25 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 || populationBinding != null
                 || caveBinding != null
                 || interiorBinding != null;
+    }
+
+    /**
+     * Ends all mutable generation obligations while retaining the immutable terrain adapter.
+     *
+     * <p>The terrain binding is also the runtime authority for authored-water membership. Keeping it
+     * installed after READY preserves the exact AUTHORED_HYDROLOGY propagation fence during the
+     * human review instead of silently falling back to unrestricted vanilla water behavior.
+     */
+    private static synchronized void closeGenerationPipelineForReview() {
+        closeBinding(interiorBinding, "interior");
+        interiorBinding = null;
+        closeBinding(caveBinding, "cave");
+        caveBinding = null;
+        closeBinding(populationBinding, "surface population");
+        populationBinding = null;
+        closeBinding(admissionBinding, "admission");
+        admissionBinding = null;
+        preparation = null;
     }
 
     private static synchronized void closePipeline() {
