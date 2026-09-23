@@ -154,16 +154,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 topByColumn.values().stream().map(BlockPos::getY).distinct().count(),
                 "one retained waterbody must expose one level Minecraft water surface");
         int waterTopY = topByColumn.values().iterator().next().getY();
-        assertTrue(topByColumn.values().stream().allMatch(position ->
-                terrain.integerSolidRange(
-                                fixture.volume().id(),
-                                position.getX(),
-                                position.getZ())
-                        .map(range -> Math.max(0, range.maximumY() - waterTopY)
-                                <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BASIN_CUT_BLOCKS)
-                        .orElse(false)),
-                "retained water may only condition a bounded local basin; one low column must never "
-                        + "plane the whole footprint downward");
+        assertRetainedShorelineCutBounded(
+                fixture.volume().id(),
+                topByColumn.values(),
+                waterTopY,
+                terrain);
 
         var watershed = io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner.plan(
                 fixture.descriptor());
@@ -242,15 +237,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     "key-287 retained water must remain one face-connected waterbody");
 
             int waterTopY = topByColumn.values().iterator().next().getY();
-            assertTrue(topByColumn.values().stream().allMatch(position ->
-                    terrain.integerSolidRange(
-                                    fixture.volume().id(),
-                                    position.getX(),
-                                    position.getZ())
-                            .map(range -> Math.max(0, range.maximumY() - waterTopY)
-                                    <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BASIN_CUT_BLOCKS)
-                            .orElse(false)),
-                    "key 287 must not recreate the review bathtub by cutting upland to a low global datum");
+            assertRetainedShorelineCutBounded(
+                    fixture.volume().id(),
+                    topByColumn.values(),
+                    waterTopY,
+                    terrain);
             assertTrue(deployment.surfacePositions().stream().allMatch(position ->
                     SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
                             terrain.authoredHydrologyPopulationState(fixture.volume().id(), position)
@@ -552,6 +543,32 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertFalse(upper.isEmpty());
         assertOwned(lower, terrain);
         assertOwned(upper, terrain);
+    }
+
+    private static void assertRetainedShorelineCutBounded(
+            io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId volumeId,
+            java.util.Collection<BlockPos> waterSurfacePositions,
+            int waterTopY,
+            SkyforgeNeoForge1211ChunkAdapter terrain) {
+        var wetColumns = waterSurfacePositions.stream()
+                .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ()))
+                .collect(java.util.stream.Collectors.toSet());
+        for (BlockPos position : waterSurfacePositions) {
+            var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                    position.getX(), position.getZ());
+            if (!SkyforgeAuthoredVisibleHydrologyAdapter.retainedFootprintBoundary(
+                    wetColumns, column)) {
+                continue;
+            }
+            assertTrue(
+                    terrain.integerSolidRange(volumeId, position.getX(), position.getZ())
+                            .map(range -> Math.max(0, range.maximumY() - waterTopY)
+                                    <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BASIN_CUT_BLOCKS)
+                            .orElse(false),
+                    "retained-water perimeter may only use bounded local conditioning; deep carrier "
+                            + "reconciliation must remain submerged inside the authored basin");
+        }
     }
 
     private static void assertCanonicalColumnOrder(List<BlockPos> positions) {
