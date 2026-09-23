@@ -5,13 +5,18 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandExteriorConnectedCaveVolumeField;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import net.minecraft.world.level.ChunkPos;
 
 /** Fixed production-stack specimen for rapid hydrology-overhaul visual iteration. */
 final class SkyforgeHydrologyReferenceReviewFixture {
@@ -56,23 +61,56 @@ final class SkyforgeHydrologyReferenceReviewFixture {
                 0,
                 0,
                 PHYSICAL_SEED);
-        SkyIslandWorldVolume volume = new SkyIslandWorldVolume(
-                id,
-                new WorldBounds(
-                        -radius * 1.08,
-                        radius * 1.08,
-                        SUSPENSION_Y - 110.0,
-                        SUSPENSION_Y + 80.0,
-                        -radius * 1.08,
-                        radius * 1.08),
-                compiled);
+        WorldBounds bounds = new WorldBounds(
+                -radius * 1.08,
+                radius * 1.08,
+                SUSPENSION_Y - 110.0,
+                SUSPENSION_Y + 80.0,
+                -radius * 1.08,
+                radius * 1.08);
+        SkyIslandWorldVolume volume = new SkyIslandWorldVolume(id, bounds, compiled);
+        Set<Long> footprintChunkKeys = occupiedChunkKeys(compiled, bounds);
         var caves = SkyIslandExteriorConnectedCaveVolumeField.create(descriptor);
         return new RuntimeFixture(
                 descriptor,
                 caves,
                 volume,
                 new SkyIslandWorldCatalog(WORLD_SEED, List.of(volume)),
-                Map.of(id, descriptor));
+                Map.of(id, descriptor),
+                footprintChunkKeys);
+    }
+
+    private static Set<Long> occupiedChunkKeys(
+            io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume compiled,
+            WorldBounds bounds) {
+        SkyIslandTerrainInterpreter interpreter =
+                new SkyIslandTerrainInterpreter(compiled, SkyIslandTerrainProfile.reference());
+        int minimumX = (int) Math.floor(bounds.minimumX());
+        int maximumX = (int) Math.floor(bounds.maximumX());
+        int minimumZ = (int) Math.floor(bounds.minimumZ());
+        int maximumZ = (int) Math.floor(bounds.maximumZ());
+
+        LinkedHashSet<Long> chunks = new LinkedHashSet<>();
+        boolean touchedBoundary = false;
+        for (int x = minimumX; x <= maximumX; x++) {
+            for (int z = minimumZ; z <= maximumZ; z++) {
+                if (SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, x, z).isEmpty()) {
+                    continue;
+                }
+                chunks.add(new ChunkPos(Math.floorDiv(x, 16), Math.floorDiv(z, 16)).toLong());
+                if (x == minimumX || x == maximumX || z == minimumZ || z == maximumZ) {
+                    touchedBoundary = true;
+                }
+            }
+        }
+        if (chunks.isEmpty()) {
+            throw new IllegalStateException("hydrology reference island has no occupied Minecraft chunks");
+        }
+        if (touchedBoundary) {
+            throw new IllegalStateException(
+                    "hydrology reference island support touches conservative review bounds");
+        }
+        return Set.copyOf(chunks);
     }
 
     record RuntimeFixture(
@@ -80,9 +118,14 @@ final class SkyforgeHydrologyReferenceReviewFixture {
             SkyIslandExteriorConnectedCaveVolumeField caveField,
             SkyIslandWorldVolume volume,
             SkyIslandWorldCatalog catalog,
-            Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> descriptorsByVolumeId) {
+            Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> descriptorsByVolumeId,
+            Set<Long> footprintChunkKeys) {
         RuntimeFixture {
             descriptorsByVolumeId = Map.copyOf(descriptorsByVolumeId);
+            footprintChunkKeys = Set.copyOf(footprintChunkKeys);
+            if (footprintChunkKeys.isEmpty()) {
+                throw new IllegalArgumentException("hydrology reference footprint must not be empty");
+            }
         }
     }
 }
