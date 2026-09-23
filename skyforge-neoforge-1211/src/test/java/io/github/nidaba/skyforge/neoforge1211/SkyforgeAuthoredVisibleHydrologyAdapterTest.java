@@ -511,8 +511,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var first = indexed.entrySet().stream().findFirst().orElseThrow();
         var chunkPos = new net.minecraft.world.level.ChunkPos(first.getKey());
         var chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
-        for (BlockPos position : first.getValue().states().keySet()) {
-            chunk.setBlockState(position, Blocks.STONE.defaultBlockState(), false);
+        for (var state : first.getValue().states().entrySet()) {
+            // Seed a guaranteed mismatch for every indexed role. Hydrology sediment may
+            // legitimately resolve to STONE, so a blanket STONE seed would make those entries
+            // idempotent before the first replay and undercount actual mutations.
+            var seed = state.getValue().is(Blocks.STONE)
+                    ? Blocks.DIRT.defaultBlockState()
+                    : Blocks.STONE.defaultBlockState();
+            chunk.setBlockState(state.getKey(), seed, false);
         }
 
         assertEquals(
