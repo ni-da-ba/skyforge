@@ -58,12 +58,18 @@ final class SkyforgePhysicalVolumeCatchupService {
     private SkyforgePhysicalVolumeCatchupService() {}
 
     private static long activeTerrainCatchupTimeBudgetNanos() {
+        if (SkyforgeHydrologyReferenceReviewRuntime.foregroundPreparationActive()) {
+            return SkyforgeHydrologyReferenceReviewRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS;
+        }
         return SkyforgeDr70HumanReviewAtlasRuntime.foregroundPreparationActive()
                 ? SkyforgeDr70HumanReviewAtlasRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS
                 : TERRAIN_CATCHUP_TIME_BUDGET_NANOS;
     }
 
     private static long activeComposedCaveTimeBudgetNanos() {
+        if (SkyforgeHydrologyReferenceReviewRuntime.foregroundPreparationActive()) {
+            return SkyforgeHydrologyReferenceReviewRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS;
+        }
         return SkyforgeDr70HumanReviewAtlasRuntime.foregroundPreparationActive()
                 ? SkyforgeDr70HumanReviewAtlasRuntime.FOREGROUND_PREPARATION_TIME_BUDGET_NANOS
                 : COMPOSED_CAVE_TIME_BUDGET_NANOS;
@@ -109,7 +115,8 @@ final class SkyforgePhysicalVolumeCatchupService {
             // DR-70's neutral review carrier intentionally excludes DR-30 native structure
             // authoring. Production remains fail-closed through the runtime operation.
             if (packet.completed()
-                    && !SkyforgeDr70HumanReviewAtlasRuntime.suppressNativeStructureRuntime()) {
+                    && !SkyforgeDr70HumanReviewAtlasRuntime.suppressNativeStructureRuntime()
+                    && !SkyforgeHydrologyReferenceReviewRuntime.suppressNativeStructureRuntime()) {
                 SkyforgeNativeStructureRuntimeOperation.execute(
                         level,
                         chunk,
