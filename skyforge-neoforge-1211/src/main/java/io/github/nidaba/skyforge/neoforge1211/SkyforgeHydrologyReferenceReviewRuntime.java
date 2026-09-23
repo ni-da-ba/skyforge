@@ -53,6 +53,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
     private static AutoCloseable caveBinding;
     private static AutoCloseable interiorBinding;
     private static Preparation preparation;
+    private static volatile PipelineBootstrap completedBootstrap;
+    private static volatile Throwable bootstrapFailure;
+    private static volatile boolean bootstrapStarted;
+    private static volatile long bootstrapStartedNanos;
     private static boolean ready;
     private static long tickCounter;
     private static volatile Thread watchdogServerThread;
@@ -84,6 +88,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         }
         ready = false;
         preparation = null;
+        completedBootstrap = null;
+        bootstrapFailure = null;
+        bootstrapStarted = false;
+        bootstrapStartedNanos = 0L;
     }
 
     @SubscribeEvent
@@ -96,8 +104,8 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             move(player, "above");
             return;
         }
-        if (preparation == null) {
-            installPipeline(player.getUUID());
+        if (preparation == null && !bootstrapStarted) {
+            beginPipelineBootstrap(player.getUUID());
         }
         say(player, "Preparing hydrology reference island key "
                 + SkyforgeHydrologyReferenceReviewFixture.ISLAND_KEY
@@ -146,7 +154,18 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
 
         Preparation active = preparation;
         if (active == null) {
-            return;
+            if (bootstrapFailure != null) {
+                throw new IllegalStateException("hydrology reference bootstrap failed", bootstrapFailure);
+            }
+            PipelineBootstrap bootstrap = completedBootstrap;
+            if (bootstrap != null) {
+                installPreparedPipeline(bootstrap);
+                completedBootstrap = null;
+                active = preparation;
+            } else {
+                reportBootstrapProgress(event);
+                return;
+            }
         }
         markWatchdog(active, "review-handler");
         ServerLevel level = event.getServer().getLevel(Level.OVERWORLD);
@@ -252,16 +271,35 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         return enabled();
     }
 
-    private static synchronized void installPipeline(UUID playerId) {
+    private static synchronized void beginPipelineBootstrap(UUID playerId) {
+        if (preparation != null || bootstrapStarted || hasBindings()) {
+            return;
+        }
+        bootstrapStarted = true;
+        bootstrapStartedNanos = System.nanoTime();
+        Thread thread = new Thread(() -> {
+            try {
+                var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+                var terrain = new SkyforgeNeoForge1211ChunkAdapter(
+                        fixture.catalog(),
+                        io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                        new SkyforgeMinecraftBlockPalette(),
+                        fixture.descriptorsByVolumeId());
+                completedBootstrap = new PipelineBootstrap(fixture, terrain, playerId);
+            } catch (Throwable failure) {
+                bootstrapFailure = failure;
+            }
+        }, "Skyforge hydrology reference bootstrap");
+        thread.setDaemon(true);
+        thread.start();
+    }
+
+    private static synchronized void installPreparedPipeline(PipelineBootstrap bootstrap) {
         if (preparation != null || hasBindings()) {
             throw new IllegalStateException("hydrology reference pipeline already active");
         }
-        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = new SkyforgeNeoForge1211ChunkAdapter(
-                fixture.catalog(),
-                io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
-                new SkyforgeMinecraftBlockPalette(),
-                fixture.descriptorsByVolumeId());
+        var fixture = bootstrap.fixture();
+        var terrain = bootstrap.terrain();
         terrainBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 terrain,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
@@ -302,8 +340,28 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 .thenComparingInt(key -> (ChunkPos.getX(key) & 1) == 0
                         ? ChunkPos.getZ(key)
                         : -ChunkPos.getZ(key)));
-        preparation = new Preparation(fixture, List.copyOf(chunkKeys), playerId);
+        preparation = new Preparation(fixture, List.copyOf(chunkKeys), bootstrap.playerId());
+        bootstrapStarted = false;
         startWatchdog();
+
+        var server = net.neoforged.neoforge.server.ServerLifecycleHooks.getCurrentServer();
+        if (server != null) {
+            ServerPlayer player = server.getPlayerList().getPlayer(bootstrap.playerId());
+            if (player != null) {
+                long elapsedMillis = (System.nanoTime() - bootstrapStartedNanos) / 1_000_000L;
+                say(player, "Authored hydrology bootstrap complete in "
+                        + elapsedMillis + " ms; beginning admission survey.");
+            }
+        }
+    }
+
+    private static void reportBootstrapProgress(ServerTickEvent.Post event) {
+        if (!bootstrapStarted || tickCounter % 100L != 0L) {
+            return;
+        }
+        for (ServerPlayer player : event.getServer().getPlayerList().getPlayers()) {
+            say(player, "Precomputing immutable authored hydrology off-thread; server remains responsive.");
+        }
     }
 
     private static synchronized void startWatchdog() {
@@ -441,7 +499,16 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         }
         Preparation active = preparation;
         if (active == null) {
-            say(player, "Waiting for preparation to start.");
+            if (bootstrapFailure != null) {
+                say(player, "Bootstrap failed: " + bootstrapFailure.getClass().getSimpleName()
+                        + ": " + bootstrapFailure.getMessage());
+            } else if (bootstrapStarted) {
+                long elapsedMillis = (System.nanoTime() - bootstrapStartedNanos) / 1_000_000L;
+                say(player, "Precomputing authored hydrology off-thread; elapsed="
+                        + elapsedMillis + " ms.");
+            } else {
+                say(player, "Waiting for preparation to start.");
+            }
             return 1;
         }
         var volumeId = active.fixture().volume().id();
@@ -726,6 +793,11 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             float yaw,
             float pitch,
             String description) {}
+
+    private record PipelineBootstrap(
+            SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture fixture,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            UUID playerId) {}
 
     private enum PreparationPhase {
         ADMISSION_SURVEY("admission survey"),
