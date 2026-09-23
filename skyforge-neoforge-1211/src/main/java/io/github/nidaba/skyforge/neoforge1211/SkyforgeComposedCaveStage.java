@@ -63,6 +63,7 @@ final class SkyforgeComposedCaveStage {
 
         LinkedHashMap<ObligationKey, Obligation> obligations = new LinkedHashMap<>();
         LinkedHashMap<Long, List<ObligationKey>> obligationKeysByChunk = new LinkedHashMap<>();
+        LinkedHashMap<SkyIslandWorldVolumeId, Integer> pendingByVolume = new LinkedHashMap<>();
         Set<SkyIslandWorldVolumeId> volumeIds = new HashSet<>();
         for (SkyforgeComposedCavePlan plan : List.copyOf(plans)) {
             Objects.requireNonNull(plan, "composed cave plan");
@@ -83,6 +84,7 @@ final class SkyforgeComposedCaveStage {
             chunkKeys.sort(Comparator
                     .comparingInt((Long key) -> ChunkPos.getX(key))
                     .thenComparingInt(key -> ChunkPos.getZ(key)));
+            pendingByVolume.put(volumeId, chunkKeys.size());
             for (long chunkKey : chunkKeys) {
                 ObligationKey key = new ObligationKey(volumeId, chunkKey);
                 Obligation previous = obligations.put(
@@ -117,6 +119,7 @@ final class SkyforgeComposedCaveStage {
                 obligations,
                 java.util.Collections.unmodifiableMap(new LinkedHashMap<>(obligationKeysByChunk)),
                 new LinkedHashSet<>(obligationKeysByChunk.keySet()),
+                pendingByVolume,
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
                 new LinkedHashMap<>(),
@@ -406,14 +409,20 @@ final class SkyforgeComposedCaveStage {
             return false;
         }
         synchronized (binding) {
-            for (var entry : binding.obligations().entrySet()) {
-                if (entry.getKey().volumeId().equals(volumeId)
-                        && entry.getValue().state() == State.PENDING) {
-                    return true;
-                }
-            }
+            return binding.pendingByVolume().getOrDefault(volumeId, 0) > 0;
         }
-        return false;
+    }
+
+    static boolean ready(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Integer pending = binding.pendingByVolume().get(volumeId);
+            return pending != null && pending == 0;
+        }
     }
 
     static Snapshot snapshot(SkyIslandWorldVolumeId volumeId) {
@@ -521,6 +530,11 @@ final class SkyforgeComposedCaveStage {
                             current.spatialIndex(),
                             State.COMPLETED,
                             completion));
+            int pendingForVolume = binding.pendingByVolume().getOrDefault(key.volumeId(), 0);
+            if (pendingForVolume <= 0) {
+                throw new IllegalStateException("composed cave pending-volume count underflow");
+            }
+            binding.pendingByVolume().put(key.volumeId(), pendingForVolume - 1);
             if (binding.obligationKeysByChunk()
                     .getOrDefault(key.chunkKey(), List.of()).stream()
                     .map(binding.obligations()::get)
@@ -736,6 +750,7 @@ final class SkyforgeComposedCaveStage {
             LinkedHashMap<ObligationKey, Obligation> obligations,
             Map<Long, List<ObligationKey>> obligationKeysByChunk,
             LinkedHashSet<Long> pendingChunkKeys,
+            LinkedHashMap<SkyIslandWorldVolumeId, Integer> pendingByVolume,
             LinkedHashMap<ObligationKey, Optional<OwnerSpan>> ownerSpans,
             LinkedHashMap<ObligationKey, SkyforgeExteriorConnectedCavePreparationCursor> preparations,
             LinkedHashMap<ObligationKey, SkyforgeNativeCarverCursor> nativeCarvers,
@@ -744,6 +759,7 @@ final class SkyforgeComposedCaveStage {
             Objects.requireNonNull(obligations, "obligations");
             Objects.requireNonNull(obligationKeysByChunk, "obligationKeysByChunk");
             Objects.requireNonNull(pendingChunkKeys, "pendingChunkKeys");
+            Objects.requireNonNull(pendingByVolume, "pendingByVolume");
             Objects.requireNonNull(ownerSpans, "ownerSpans");
             Objects.requireNonNull(preparations, "preparations");
             Objects.requireNonNull(nativeCarvers, "nativeCarvers");
