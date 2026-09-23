@@ -34,8 +34,20 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         }
         this.baseTerrain = coherent.continuousTerrain();
         this.extent = descriptor.nominalRadius();
+        SkyIslandDrainageTransferPlan transfers = SkyIslandDrainageTransferPlanner.plan(descriptor);
         this.reaches = coherent.naturalizedChannels().paths().stream()
-                .map(path -> geometry(path, coherent.naturalizedChannels().planningSpacing()))
+                .map(path -> new RoutedPath(
+                        path,
+                        transfers.transferFrom(path.profile().segment().sourceCellIndex())
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "missing physical drainage transfer for channel source "
+                                                + path.profile().segment().sourceCellIndex()))))
+                .filter(routed -> routed.transfer().kind()
+                        != SkyIslandDrainageTransferKind.BASIN_INTERIOR)
+                .map(routed -> geometry(
+                        routed.path(),
+                        coherent.naturalizedChannels().planningSpacing(),
+                        routed.transfer()))
                 .toList();
     }
 
@@ -173,7 +185,8 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
     private static SkyIslandFluvialReachGeometry geometry(
             SkyIslandNaturalizedChannelPath path,
-            double spacing) {
+            double spacing,
+            SkyIslandDrainageTransfer transfer) {
         SkyIslandChannelProfile profile = path.profile();
         SkyIslandChannelSegment segment = profile.segment();
 
@@ -182,8 +195,13 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                         + 0.95 * profile.bankfullWidthPotential()
                         + 0.48 * segment.relativeDischarge()
                         + 0.20 * segment.corridorScale());
+        if (transfer.kind() == SkyIslandDrainageTransferKind.BREACH) {
+            bankfullHalfWidth *= 0.55;
+        }
 
-        double valleyMultiplier = switch (profile.kind()) {
+        double valleyMultiplier = transfer.kind() == SkyIslandDrainageTransferKind.BREACH
+                ? 1.30 + 0.45 * profile.incisionPotential()
+                : switch (profile.kind()) {
             case ALLUVIAL -> 3.6 + 1.8 * segment.corridorScale();
             case INCISED -> 2.2 + 1.2 * profile.incisionPotential();
             case CASCADE -> 1.55 + 0.80 * profile.incisionPotential();
@@ -210,8 +228,17 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                         0.55 * profile.incisionPotential()
                                 + 0.25 * profile.streamPowerPotential()
                                 + 0.20 * profile.depthPotential());
+        if (transfer.kind() == SkyIslandDrainageTransferKind.BREACH) {
+            bedDepth = Math.max(
+                    bedDepth,
+                    Math.min(
+                            MAX_FLUVIAL_LOWERING * 0.92,
+                            transfer.requiredCutPotential() + waterDepth + 0.010));
+        }
 
-        double exponent = switch (profile.kind()) {
+        double exponent = transfer.kind() == SkyIslandDrainageTransferKind.BREACH
+                ? 1.10
+                : switch (profile.kind()) {
             case ALLUVIAL -> 1.8;
             case INCISED -> 1.35;
             case CASCADE -> 1.15;
@@ -221,6 +248,8 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
         return new SkyIslandFluvialReachGeometry(
                 path,
+                transfer.kind(),
+                transfer.requiredCutPotential(),
                 bankfullHalfWidth,
                 wetHalfWidth,
                 valleyHalfWidth,
@@ -286,6 +315,10 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private static double clamp01(double value) {
         return clamp(value, 0.0, 1.0);
     }
+
+    private record RoutedPath(
+            SkyIslandNaturalizedChannelPath path,
+            SkyIslandDrainageTransfer transfer) {}
 
     private record Projection(double distance, double fraction, double x, double z) {}
 }
