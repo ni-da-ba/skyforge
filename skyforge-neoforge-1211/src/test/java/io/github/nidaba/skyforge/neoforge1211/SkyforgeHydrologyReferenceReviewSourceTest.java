@@ -42,6 +42,13 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
     }
 
     @Test
+    void reviewEcologyReusesTheFluvialFieldThatProducedMinecraftHydrology() throws IOException {
+        String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
+        assertTrue(runtime.contains("terrain.authoredFluvialTerrainField(fixture.volume().id())"));
+    }
+
+    @Test
     void bootstrapInfoCommandDoesNotSynchronouslyReenterFixtureConstruction() throws IOException {
         String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
