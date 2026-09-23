@@ -49,6 +49,7 @@ final class SkyforgeDr70ReviewRepairTest {
     }
 
     @Test
+    @Tag("qualification")
     void atlasKey2754HydrologyProjectsWithoutOrphanDropSourcesOrCrash() {
         var fixture = SkyforgeDr70HumanReviewAtlasFixture.runtimeFixture(44);
         assertEquals(2754L, fixture.member().islandKey());
