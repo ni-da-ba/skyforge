@@ -56,6 +56,34 @@ final class SkyforgePopulationExecutionStageTest {
     }
 
     @Test
+    void stableDeferredWriteAuthorityIsChunkLocalAndResidencyIndependent() {
+        var volumeId = new SkyIslandWorldVolumeId(38L, "stable-deferred-write-authority", 0, 0, 45L);
+        var operation = SkyforgePopulationOperation.create(
+                volumeId,
+                new ChunkPos(0, 0),
+                ResourceLocation.fromNamespaceAndPath("minecraft", "trees_birch_and_oak"),
+                GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),
+                0);
+
+        BlockPos local = new BlockPos(15, 100, 15);
+        BlockPos eastNeighbor = new BlockPos(16, 100, 15);
+        BlockPos northNeighbor = new BlockPos(15, 100, -1);
+
+        assertTrue(SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                operation, local, true));
+        assertFalse(SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                operation, eastNeighbor, true));
+        assertFalse(SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                operation, northNeighbor, true));
+
+        // Non-deferred/WorldGenRegion fixtures retain the accepted bounded attachment model.
+        assertTrue(SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                operation, eastNeighbor, false));
+        assertTrue(SkyforgePopulationExecutionStage.directWriteAuthorityAllows(
+                operation, northNeighbor, false));
+    }
+
+    @Test
     void vegetationReadsVirtualizeNeighborOwnerTerrainWithoutBlockingCrossChunkAttachments() {
         var volumeId = new SkyIslandWorldVolumeId(39L, "population-neighbor-read", 0, 0, 47L);
         var operation = SkyforgePopulationOperation.create(
