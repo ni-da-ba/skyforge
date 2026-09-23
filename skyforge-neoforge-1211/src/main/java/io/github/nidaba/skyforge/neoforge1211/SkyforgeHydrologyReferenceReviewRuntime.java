@@ -140,26 +140,54 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return;
         }
 
-        int warmed = 0;
-        while (active.cursor() < active.chunkKeys().size() && warmed < WARM_CHUNKS_PER_TICK) {
+        int advanced = 0;
+        while (active.cursor() < active.chunkKeys().size() && advanced < WARM_CHUNKS_PER_TICK) {
             long key = active.chunkKeys().get(active.cursor());
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
             level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
 
-            // Never synchronously generate a review chunk on the server thread. The region ticket
-            // owns loading; this bounded loop consumes the chunk only after Minecraft reports it
-            // already available. A slow outer chunk therefore yields instead of freezing the
-            // entire interactive review client at one warmup count.
+            // The review harness deliberately owns only the current ticket. Admission needs every
+            // exact footprint chunk to be observed, but it does not need those chunks retained.
+            // After admission, revisit the same footprint while the production catch-up services
+            // consume their immutable deferred records, then make one final canonical X/Z pass for
+            // serialized native population and durable biome presentation.
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             if (chunk == null) {
                 break;
             }
-            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+
+            if (active.phase() == PreparationPhase.ADMISSION_SURVEY) {
+                SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+            } else if (active.phase() == PreparationPhase.PRODUCTION_CATCHUP) {
+                if (!productionCatchupComplete(level, active.fixture(), chunk)) {
+                    break;
+                }
+            } else if (!downstreamPopulationComplete(active.fixture(), key)) {
+                break;
+            }
+
+            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
             active.advance();
-            warmed++;
+            advanced++;
         }
         if (active.cursor() < active.chunkKeys().size()) {
             reportProgress(player, active);
+            return;
+        }
+
+        if (active.phase() == PreparationPhase.ADMISSION_SURVEY) {
+            var state = SkyforgePhysicalVolumeAdmissionStage.snapshot(active.fixture().volume().id()).state();
+            if (state != SkyforgePhysicalVolumeAdmissionState.ADMITTED) {
+                throw new IllegalStateException(
+                        "hydrology reference admission survey completed without ADMITTED state: " + state);
+            }
+            active.beginProductionCatchup();
+            say(player, "Admission survey complete; revisiting bounded chunks for terrain, caves and authored surfaces.");
+            return;
+        }
+        if (active.phase() == PreparationPhase.PRODUCTION_CATCHUP) {
+            active.beginDownstreamPopulation();
+            say(player, "Terrain/cave/surface catch-up complete; running canonical native population and presentation.");
             return;
         }
 
@@ -457,9 +485,35 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 description);
     }
 
+    private static boolean productionCatchupComplete(
+            ServerLevel level,
+            SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture fixture,
+            LevelChunk chunk) {
+        var volumeId = fixture.volume().id();
+        long chunkKey = chunk.getPos().toLong();
+        if (SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).contains(chunkKey)
+                || !SkyforgeComposedCaveStage.completed(volumeId, chunkKey)) {
+            return false;
+        }
+        boolean requiresAuthoredSurface =
+                SkyforgeNativeSurfacePopulationStage.planForVolume(chunk, volumeId).isPresent();
+        return !requiresAuthoredSurface
+                || SkyforgeAuthoredNativeSurfaceStage.completed(level, volumeId, chunkKey);
+    }
+
+    private static boolean downstreamPopulationComplete(
+            SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture fixture,
+            long chunkKey) {
+        var volumeId = fixture.volume().id();
+        return !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId)
+                        .contains(chunkKey)
+                && !SkyforgeNativeInteriorPopulationStage.pendingChunkKeys().contains(chunkKey);
+    }
+
     private static void reportProgress(ServerPlayer player, Preparation active) {
         if (tickCounter % 20L == 0L) {
-            say(player, "chunk warmup " + active.cursor() + "/" + active.chunkKeys().size());
+            say(player, active.phase().label() + " "
+                    + active.cursor() + "/" + active.chunkKeys().size());
         }
     }
 
@@ -529,10 +583,27 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             float pitch,
             String description) {}
 
+    private enum PreparationPhase {
+        ADMISSION_SURVEY("admission survey"),
+        PRODUCTION_CATCHUP("production catch-up"),
+        DOWNSTREAM_POPULATION("downstream population");
+
+        private final String label;
+
+        PreparationPhase(String label) {
+            this.label = label;
+        }
+
+        String label() {
+            return label;
+        }
+    }
+
     private static final class Preparation {
         private final SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture fixture;
         private final List<Long> chunkKeys;
         private final UUID playerId;
+        private PreparationPhase phase = PreparationPhase.ADMISSION_SURVEY;
         private int cursor;
         private long readySinceTick = -1L;
 
@@ -541,7 +612,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 List<Long> chunkKeys,
                 UUID playerId) {
             this.fixture = fixture;
-            this.chunkKeys = chunkKeys;
+            this.chunkKeys = new ArrayList<>(chunkKeys);
             this.playerId = playerId;
         }
 
@@ -557,6 +628,10 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return playerId;
         }
 
+        PreparationPhase phase() {
+            return phase;
+        }
+
         int cursor() {
             return cursor;
         }
@@ -567,6 +642,19 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
 
         void advance() {
             cursor++;
+        }
+
+        void beginProductionCatchup() {
+            phase = PreparationPhase.PRODUCTION_CATCHUP;
+            cursor = 0;
+        }
+
+        void beginDownstreamPopulation() {
+            phase = PreparationPhase.DOWNSTREAM_POPULATION;
+            chunkKeys.sort(Comparator
+                    .comparingInt((Long key) -> ChunkPos.getX(key))
+                    .thenComparingInt(ChunkPos::getZ));
+            cursor = 0;
         }
 
         void markReadySince(long value) {
