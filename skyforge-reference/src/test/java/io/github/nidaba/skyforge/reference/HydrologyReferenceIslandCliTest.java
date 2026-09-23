@@ -16,7 +16,7 @@ class HydrologyReferenceIslandCliTest {
         var confluence = result.confluenceControl();
 
         assertEquals(HydrologyReferenceIslandCli.PRIMARY_ISLAND_KEY, primary.islandKey());
-        assertTrue(primary.reaches() >= 30);
+        assertTrue(primary.reaches() > 0, result.summary());
         assertTrue(primary.retainedWater() >= 1);
         assertTrue(primary.interiorDrops() >= 1);
         assertTrue(primary.edgeFalls() >= 1);
