@@ -299,6 +299,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         Map<Column, ChannelPathProjection> candidateProjections =
                 candidateColumnProjections(volume, reach);
+        if (candidateProjections.isEmpty()) {
+            throw channelProjectionFailure(volume, path, "no raster carrier columns");
+        }
         Optional<PhysicalChannelGrade> physicalGrade = physicalChannelGrade(
                 descriptor,
                 volume,
@@ -310,7 +313,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 basePotentialCache,
                 dryPotentialCache);
         if (physicalGrade.isEmpty()) {
-            return Optional.empty();
+            throw channelProjectionFailure(
+                    volume,
+                    path,
+                    "bounded isotonic grade has no feasible raster-spine solution; candidateColumns="
+                            + candidateProjections.size());
         }
 
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
@@ -387,9 +394,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 containedWet.add(column.column());
             }
         }
+        int plannedWetColumns = (int) columns.values().stream()
+                .filter(column -> column.waterTopY() != Integer.MIN_VALUE)
+                .count();
+        int containedWetColumns = containedWet.size();
         containedWet = largestConnectedFootprint(containedWet);
         if (containedWet.isEmpty()) {
-            return Optional.empty();
+            throw channelProjectionFailure(
+                    volume,
+                    path,
+                    "no laterally contained wet component; candidateColumns="
+                            + candidateProjections.size()
+                            + ", plannedWetColumns=" + plannedWetColumns
+                            + ", containedWetColumns=" + containedWetColumns);
         }
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
@@ -436,7 +453,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         if (water.isEmpty()) {
-            return Optional.empty();
+            throw channelProjectionFailure(
+                    volume,
+                    path,
+                    "contained wet component produced no water cells; connectedWetColumns="
+                            + containedWet.size());
         }
         carved.removeAll(water);
         return Optional.of(rawDeployment(
@@ -445,6 +466,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 new ArrayList<>(water),
                 new ArrayList<>(carved),
                 new ArrayList<>(surface)));
+    }
+
+    private static IllegalStateException channelProjectionFailure(
+            SkyIslandWorldVolume volume,
+            SkyIslandNaturalizedChannelPath path,
+            String reason) {
+        return new IllegalStateException(
+                "accepted channel cannot project: sourceCell="
+                        + path.profile().segment().sourceCellIndex()
+                        + ", downstreamCell="
+                        + path.profile().segment().downstreamCellIndex()
+                        + ", reason=" + reason
+                        + ", volume=" + volume.id().path());
     }
 
     private static boolean laterallyContained(
