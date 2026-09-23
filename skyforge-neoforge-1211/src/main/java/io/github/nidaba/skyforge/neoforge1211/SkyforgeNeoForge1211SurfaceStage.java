@@ -555,6 +555,11 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return binding.adapter().integerSolidRange(volumeId, worldX, worldZ);
     }
 
+    static boolean hasMultipleCompiledVolumes() {
+        RuntimeBinding binding = ACTIVE.get();
+        return binding != null && binding.adapter().hasMultipleCompiledVolumes();
+    }
+
     static Optional<List<SurfaceSupportAssessment>> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
         Objects.requireNonNull(requirements, "requirements");
         RuntimeBinding binding = ACTIVE.get();
