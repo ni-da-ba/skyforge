@@ -160,3 +160,8 @@ start-to-end trench grade.
 Evidence now records mean confinement and the fraction of active samples that saturate the global
 fluvial-lowering cap. The cap-saturation fraction is a diagnostic failure signal even when the
 maximum lowering remains formally bounded.
+
+
+H3 also enforces a small-channel voxel-quantization floor. This is not a return to lattice-sized
+rivers: the floor exists only so an accepted headwater cannot vanish when continuous geometry is
+rasterized into one-unit blocks; discharge scaling controls width above that floor.
