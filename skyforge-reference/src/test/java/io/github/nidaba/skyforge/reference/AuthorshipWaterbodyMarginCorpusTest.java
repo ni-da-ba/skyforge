@@ -26,7 +26,10 @@ class AuthorshipWaterbodyMarginCorpusTest {
                 .orElseThrow()
                 .split(",");
         assertEquals("1", key83[2]);
-        assertEquals("241", key83[3]);
+        // AUTH-0009 retained water now requires shared-edge coarse-cell connectivity rather than
+        // accepting corner-touching cells. Key 83 therefore has the canonical 275-cell footprint
+        // that maps to one face-connected backend waterbody.
+        assertEquals("275", key83[3]);
         assertTrue(Integer.parseInt(key83[4]) > 0);
         assertTrue(Integer.parseInt(key83[5]) > 0);
 
