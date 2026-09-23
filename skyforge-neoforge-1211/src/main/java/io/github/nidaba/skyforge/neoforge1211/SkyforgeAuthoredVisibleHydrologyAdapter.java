@@ -45,6 +45,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  * rather than painting water onto an unchanged terrain surface.
  */
 final class SkyforgeAuthoredVisibleHydrologyAdapter {
+    private static final int MAX_RETAINED_BASIN_CUT_BLOCKS = 3;
+
     enum Feature { CHANNEL, RETAINED_WATER }
 
     record Deployment(
@@ -642,26 +644,46 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return Optional.empty();
         }
 
-        // The authored descriptor and the independently compiled physical carrier deliberately do
-        // not promise an absolute world-Y isomorphism. A lake therefore cannot map each coarse
-        // sample to an independent Y without becoming stepped source blocks. Choose the highest
-        // single recessed plane that every represented physical column can own. Relative authored
-        // water depth still controls the basin bed beneath that common surface.
-        int minimumSurfaceY = columns.values().stream()
-                .mapToInt(RetainedColumnPlan::baseSurfaceY)
-                .min()
-                .orElseThrow();
-        int waterTopY = minimumSurfaceY - 1;
-        if (columns.values().stream().anyMatch(column -> waterTopY <= column.minimumY())) {
-            return Optional.empty();
+        // Project the authored lake datum relative to each accepted cell's authored terrain.
+        // The physical carrier is not absolutely Y-isomorphic to the semantic terrain, so absolute
+        // authored Y cannot be copied directly. Relative water-minus-terrain potential is invariant
+        // enough to project onto each physical column. A robust median then yields one flat Minecraft
+        // water surface without allowing one unusually low column to drag the entire basin downward.
+        List<Integer> projectedWaterTops = new ArrayList<>(columns.size());
+        for (RetainedColumnPlan column : columns.values()) {
+            double relativeWater = footprint.waterSurfacePotential()
+                    - column.sourceCell().surfacePotential();
+            projectedWaterTops.add(
+                    column.baseSurfaceY()
+                            + physicalSignedDeltaBlocks(descriptor, relativeWater));
         }
+        projectedWaterTops.sort(Integer::compareTo);
+        int waterTopY = projectedWaterTops.get(projectedWaterTops.size() / 2);
 
         Map<Column, RetainedColumnPlan> realizable = new LinkedHashMap<>();
         for (RetainedColumnPlan column : columns.values()) {
-            int depthBlocks = Math.max(
+            // Retained water fills an authored depression; it must never manufacture that depression
+            // by planing arbitrary upland down to a global minimum. Permit only a small local cut to
+            // reconcile integer discretization and the independently compiled carrier.
+            int cutAboveWater = Math.max(0, column.baseSurfaceY() - waterTopY);
+            if (cutAboveWater > MAX_RETAINED_BASIN_CUT_BLOCKS) {
+                continue;
+            }
+
+            int naturalBedY = Math.min(column.baseSurfaceY(), waterTopY - 1);
+            if (naturalBedY < column.minimumY()) {
+                continue;
+            }
+
+            int desiredDepth = Math.max(
                     1,
                     physicalLoweringBlocks(descriptor, column.sourceCell().waterDepthPotential()));
-            int bedY = Math.max(column.minimumY(), waterTopY - depthBlocks);
+            int deepestPermittedBed = Math.max(
+                    column.minimumY(),
+                    naturalBedY - MAX_RETAINED_BASIN_CUT_BLOCKS);
+            int desiredBedY = Math.max(column.minimumY(), waterTopY - desiredDepth);
+            int bedY = Math.max(deepestPermittedBed, Math.min(naturalBedY, desiredBedY));
+
             if (bedY >= waterTopY
                     || !ownedSolidInterval(
                             volume,
@@ -774,6 +796,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandWaterbodyFootprintCell sourceCell = cellsByIndex.get(cellIndex);
                 if (sourceCell == null) {
                     continue;
+                }
+                if (sourceCell.shoreline()) {
+                    // A coarse retained-water planning cell is not authority for a full square
+                    // Minecraft shoreline tile. Preserve its center while tapering the perimeter
+                    // according to authored depth, eliminating the conspicuous grid-cell shoreline.
+                    double dx = local.x() - sourceCell.position().x();
+                    double dz = local.z() - sourceCell.position().z();
+                    double depth = Math.sqrt(Math.max(0.0, sourceCell.waterDepthPotential()));
+                    double shorelineRadius = halfSpacing * (0.40 + 0.60 * depth);
+                    if (Math.hypot(dx, dz) > shorelineRadius) {
+                        continue;
+                    }
                 }
                 Column column = new Column(x, z);
                 var optionalRange = solidRangeCache.computeIfAbsent(
