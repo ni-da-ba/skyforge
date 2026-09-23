@@ -813,20 +813,6 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         preparation = null;
     }
 
-    private static synchronized void closePipeline() {
-        closeBinding(interiorBinding, "interior");
-        interiorBinding = null;
-        closeBinding(caveBinding, "cave");
-        caveBinding = null;
-        closeBinding(populationBinding, "surface population");
-        populationBinding = null;
-        closeBinding(admissionBinding, "admission");
-        admissionBinding = null;
-        closeBinding(terrainBinding, "terrain");
-        terrainBinding = null;
-        preparation = null;
-    }
-
     private static void closeBinding(AutoCloseable binding, String name) {
         if (binding == null) {
             return;
