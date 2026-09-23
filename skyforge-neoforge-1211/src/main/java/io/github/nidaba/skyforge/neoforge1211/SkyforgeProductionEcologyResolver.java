@@ -96,11 +96,20 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
         }
 
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
-        if (cell.isPresent() && hydrology.hasAuthoredRetainedOrRiparianContext(cell.orElseThrow())) {
-            // Retained water, shoreline and riparian context remain wetland-like presentation
-            // authority. Coarse channelRelativeDischarge alone no longer paints a whole watershed
-            // cell as swamp now that fine channel geometry is available.
-            return Optional.of(Biomes.SWAMP);
+        if (cell.isPresent()) {
+            var retained = cell.orElseThrow();
+            if (retained.retainedWaterbody()
+                    && retained.waterDepthPotential() > 0.0
+                    && !retained.shoreline()) {
+                // Open standing freshwater is not a swamp. RIVER is the current registered
+                // neutral-freshwater carrier: it supplies ordinary blue water presentation without
+                // imposing swamp fog/color/vegetation across the lake interior.
+                return Optional.of(Biomes.RIVER);
+            }
+            if (hydrology.hasAuthoredRetainedOrRiparianContext(retained)) {
+                // Shoreline, saturated fringe and riparian context may use wetland presentation.
+                return Optional.of(Biomes.SWAMP);
+            }
         }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
         var authored = surface.ecologySample();
