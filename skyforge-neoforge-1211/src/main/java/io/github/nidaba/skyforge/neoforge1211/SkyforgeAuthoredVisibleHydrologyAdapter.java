@@ -203,6 +203,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
 
+        long projectedChannels = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.CHANNEL)
+                .count();
+        long projectedRetainedWater = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.RETAINED_WATER)
+                .count();
+        if (projectedChannels != intent.channels().size()
+                || projectedRetainedWater != intent.retainedWater().size()) {
+            throw new IllegalStateException(
+                    "Minecraft hydrology projection lost accepted authored intent: channels="
+                            + projectedChannels + "/" + intent.channels().size()
+                            + ", retainedWater="
+                            + projectedRetainedWater + "/" + intent.retainedWater().size()
+                            + ", volume=" + volume.id().path());
+        }
+
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
         // already consumed by the fluvial terrain field. Literal Minecraft fluid authority comes
         // only from connected routed channels or retained basins; a drop must never manufacture an
@@ -664,6 +680,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         List<Integer> waterTopCandidates = retainedWaterTopCandidates(projectedWaterTops);
         Map<Column, RetainedColumnPlan> realizable = Map.of();
         int waterTopY = Integer.MIN_VALUE;
+        int maximumRepresentedCells = 0;
+        int maximumConnectedColumns = 0;
+        int candidatesWithFullCellCoverage = 0;
+        int candidatesWithFullConnectivity = 0;
+        int candidatesRejectedByContainment = 0;
         for (int candidateWaterTopY : waterTopCandidates) {
             Map<Column, RetainedColumnPlan> candidate = realizableRetainedColumns(
                     descriptor,
@@ -671,14 +692,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     terrain,
                     columns,
                     candidateWaterTopY);
+            Set<Integer> representedCells = candidate.values().stream()
+                    .map(column -> column.sourceCell().watershedCellIndex())
+                    .collect(java.util.stream.Collectors.toSet());
+            maximumRepresentedCells = Math.max(maximumRepresentedCells, representedCells.size());
             if (candidate.isEmpty()
-                    || !coversEveryRetainedCell(candidate.values(), cellsByIndex.keySet())) {
+                    || !representedCells.containsAll(cellsByIndex.keySet())) {
                 continue;
             }
+            candidatesWithFullCellCoverage++;
+
             Set<Column> connected = largestConnectedFootprint(candidate.keySet());
+            maximumConnectedColumns = Math.max(maximumConnectedColumns, connected.size());
             if (connected.size() != candidate.size()) {
                 continue;
             }
+            candidatesWithFullConnectivity++;
 
             boolean contained = true;
             for (RetainedColumnPlan column : candidate.values()) {
@@ -694,6 +723,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 }
             }
             if (!contained) {
+                candidatesRejectedByContainment++;
                 continue;
             }
 
@@ -702,7 +732,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             break;
         }
         if (realizable.isEmpty()) {
-            return Optional.empty();
+            throw new IllegalStateException(
+                    "retained-water footprint cannot project without unbounded terrain surgery: "
+                            + "requiredCells=" + cellsByIndex.size()
+                            + ", candidateColumns=" + columns.size()
+                            + ", candidatePlanes=" + waterTopCandidates.size()
+                            + ", maxRepresentedCells=" + maximumRepresentedCells
+                            + ", fullCoveragePlanes=" + candidatesWithFullCellCoverage
+                            + ", maxConnectedColumns=" + maximumConnectedColumns
+                            + ", fullConnectivityPlanes=" + candidatesWithFullConnectivity
+                            + ", containmentRejectedPlanes=" + candidatesRejectedByContainment
+                            + ", volume=" + volume.id().path());
         }
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
