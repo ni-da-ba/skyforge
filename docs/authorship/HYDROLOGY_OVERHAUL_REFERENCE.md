@@ -183,3 +183,26 @@ topology for the whole exact volume. The cave realizer consumes the already-auth
 directly and no longer waits for vegetation or persistent biome presentation. This prevents a later
 cave mutation from removing support beneath already-placed mushrooms, grass, trees, or other
 surface features.
+
+
+## H6 focused visual reference runtime
+
+The hydrology development loop now has a dedicated production-stack visual harness for island key
+287. Run:
+
+`gradlew.bat :skyforge-neoforge-1211:hydrologyReferenceReview`
+
+The task deletes and recreates `run-hydrology-reference-review-v1` before bootstrapping the world,
+so topology changes cannot inherit stale chunks. Once preparation completes, use:
+
+- `/skyforge_hydrology_ref status`
+- `/skyforge_hydrology_ref info`
+- `/skyforge_hydrology_ref above`
+- `/skyforge_hydrology_ref approach`
+- `/skyforge_hydrology_ref river`
+- `/skyforge_hydrology_ref lake`
+- `/skyforge_hydrology_ref outlet`
+- `/skyforge_hydrology_ref below`
+
+This is the next human-eye gate. The 100-island DR-70 atlas remains frozen and is not the tuning
+loop.
