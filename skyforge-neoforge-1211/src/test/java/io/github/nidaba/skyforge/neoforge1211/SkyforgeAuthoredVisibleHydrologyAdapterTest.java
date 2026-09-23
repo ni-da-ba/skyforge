@@ -300,10 +300,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .isAir());
             }
             for (var position : deployment.surfacePositions()) {
-                assertTrue(chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
-                        .getBlockState(position)
-                        .is(Blocks.DIRT),
-                        "fluvial bed/bank surface must use the accepted Skyforge surface-mantle carrier");
+                assertTrue(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
+                                chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
+                                        .getBlockState(position)),
+                        "fluvial bed/bank surface must retain authoritative hydrology sediment");
             }
         }
 
