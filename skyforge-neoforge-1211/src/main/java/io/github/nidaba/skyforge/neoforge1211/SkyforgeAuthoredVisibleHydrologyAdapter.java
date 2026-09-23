@@ -819,12 +819,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, RetainedColumnPlan> columns,
             int waterTopY) {
         Map<Column, RetainedColumnPlan> realizable = new LinkedHashMap<>();
+        Set<Column> intendedFootprint = columns.keySet();
         for (RetainedColumnPlan column : columns.values()) {
-            // Retained water fills an authored depression; it must never manufacture that depression
-            // by planing arbitrary upland down to a global minimum. Permit only a small local cut to
-            // reconcile integer discretization and the independently compiled carrier.
             int cutAboveWater = Math.max(0, column.baseSurfaceY() - waterTopY);
-            if (cutAboveWater > MAX_RETAINED_BASIN_CUT_BLOCKS) {
+
+            // The old global cut cap fragmented large authored lakes whenever the independently
+            // compiled Minecraft carrier placed an incidental ridge through their interior. That
+            // carrier ridge is not hydrologic authority: the accepted retained-water footprint says
+            // the column is inundated. Preserve the strict cap where terrain surgery is visible at
+            // the actual lake perimeter, but allow submerged interior ridges to be removed down to
+            // the robust authored lake datum. This keeps the anti-bathtub invariant at shore while
+            // allowing one connected physical realization of one connected authored basin.
+            if (retainedFootprintBoundary(intendedFootprint, column.column())
+                    && cutAboveWater > MAX_RETAINED_BASIN_CUT_BLOCKS) {
                 continue;
             }
 
@@ -863,6 +870,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             bedY));
         }
         return realizable;
+    }
+
+    static boolean retainedFootprintBoundary(Set<Column> footprint, Column candidate) {
+        Objects.requireNonNull(footprint, "footprint");
+        Objects.requireNonNull(candidate, "candidate");
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            if (!footprint.contains(new Column(
+                    candidate.x() + direction[0],
+                    candidate.z() + direction[1]))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static Map<Column, RetainedColumnPlan> retainedCandidateColumns(
