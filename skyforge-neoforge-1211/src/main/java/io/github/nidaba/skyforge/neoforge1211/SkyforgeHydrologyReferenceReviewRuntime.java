@@ -34,6 +34,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeHydrologyReferenceReviewRuntime {
     private static final int TICKET_DISTANCE = 3;
+    private static final int WARM_TICKET_WINDOW = 32;
     private static final int WARM_CHUNKS_PER_TICK = 16;
     private static final int FLUID_SETTLE_TICKS = 100;
     static final long FOREGROUND_PREPARATION_TIME_BUDGET_NANOS = 40_000_000L;
@@ -140,17 +141,30 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return;
         }
 
+        // Keep a small look-ahead window live. One-ticket-at-a-time warmup creates head-of-line
+        // blocking when an outer chunk needs longer to finish generation; retaining the whole
+        // footprint creates the opposite failure mode by exhausting the live chunk working set.
+        // Thirty-two tickets is enough for Minecraft to pipeline nearby generation while remaining
+        // strictly bounded independent of island size.
+        int ticketWindowEnd = Math.min(
+                active.chunkKeys().size(),
+                active.cursor() + WARM_TICKET_WINDOW);
+        for (int index = active.cursor(); index < ticketWindowEnd; index++) {
+            long ticketKey = active.chunkKeys().get(index);
+            ChunkPos ticketPos =
+                    new ChunkPos(ChunkPos.getX(ticketKey), ChunkPos.getZ(ticketKey));
+            level.getChunkSource().addRegionTicket(
+                    REVIEW_TICKET, ticketPos, TICKET_DISTANCE, ticketPos);
+        }
+
         int advanced = 0;
         while (active.cursor() < active.chunkKeys().size() && advanced < WARM_CHUNKS_PER_TICK) {
             long key = active.chunkKeys().get(active.cursor());
             ChunkPos pos = new ChunkPos(ChunkPos.getX(key), ChunkPos.getZ(key));
-            level.getChunkSource().addRegionTicket(REVIEW_TICKET, pos, TICKET_DISTANCE, pos);
 
-            // The review harness deliberately owns only the current ticket. Admission needs every
-            // exact footprint chunk to be observed, but it does not need those chunks retained.
-            // After admission, revisit the same footprint while the production catch-up services
-            // consume their immutable deferred records, then make one final canonical X/Z pass for
-            // serialized native population and durable biome presentation.
+            // Admission needs every exact footprint chunk to be observed, but it does not need
+            // already-consumed chunks retained. Catch-up and downstream phases likewise release
+            // each cursor ticket as soon as that chunk reaches its phase barrier.
             LevelChunk chunk = level.getChunkSource().getChunkNow(pos.x, pos.z);
             if (chunk == null) {
                 break;
@@ -306,7 +320,12 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             return 1;
         }
         var volumeId = active.fixture().volume().id();
-        say(player, "warm=" + active.cursor() + "/" + active.chunkKeys().size()
+        String currentChunk = active.cursor() < active.chunkKeys().size()
+                ? new ChunkPos(active.chunkKeys().get(active.cursor())).toString()
+                : "complete";
+        say(player, "phase=" + active.phase().label()
+                + ", warm=" + active.cursor() + "/" + active.chunkKeys().size()
+                + ", current=" + currentChunk
                 + ", admission=" + SkyforgePhysicalVolumeAdmissionStage.snapshot(volumeId).state()
                 + ", terrainPending="
                 + SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).size()
