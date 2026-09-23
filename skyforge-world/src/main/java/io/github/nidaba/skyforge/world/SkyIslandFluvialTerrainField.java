@@ -62,6 +62,33 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return reaches;
     }
 
+    /**
+     * Classifies one surface position against the accepted fine fluvial geometry.
+     *
+     * <p>This is semantic geometry only. Backends may map the zone to native biome/surface
+     * machinery, but they must not use it to invent or reroute channels.
+     */
+    public SkyIslandFluvialSurfaceZone surfaceZone(SkyIslandLocalPosition position) {
+        Objects.requireNonNull(position, "position");
+        if (outsideExtent(position)) {
+            return SkyIslandFluvialSurfaceZone.NONE;
+        }
+        SkyIslandFluvialSurfaceZone result = SkyIslandFluvialSurfaceZone.NONE;
+        for (SkyIslandFluvialReachGeometry reach : reaches) {
+            Projection projection = project(position, reach.path());
+            if (projection.distance() <= reach.wetHalfWidth()) {
+                return SkyIslandFluvialSurfaceZone.WET_CHANNEL;
+            }
+            if (projection.distance() <= reach.bankfullHalfWidth()) {
+                result = SkyIslandFluvialSurfaceZone.BANKFULL;
+            } else if (result == SkyIslandFluvialSurfaceZone.NONE
+                    && projection.distance() <= reach.valleyHalfWidth()) {
+                result = SkyIslandFluvialSurfaceZone.VALLEY;
+            }
+        }
+        return result;
+    }
+
     public double adjustment(SkyIslandLocalPosition position) {
         Objects.requireNonNull(position, "position");
         return sample(position) - baseTerrain.sample(position);
