@@ -758,6 +758,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             SkyforgeNeoForge1211ChunkAdapter terrain) {
         for (var deployment : deployments) {
             assertFalse(deployment.positions().isEmpty());
+            Set<SkyforgeAuthoredVisibleHydrologyAdapter.Column> wetColumns = deployment.positions().stream()
+                    .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            position.getX(), position.getZ()))
+                    .collect(java.util.stream.Collectors.toSet());
             for (var wet : deployment.positions()) {
                 assertEquals(
                         java.util.Optional.of(deployment.volumeId()),
@@ -778,19 +782,43 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ())) {
                     continue;
                 }
-                assertEquals(
-                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER,
-                        deployment.feature(),
-                        "only retained-water shoreline conditioning may add authored solid support");
                 var range = terrain.integerSolidRange(
                                 deployment.volumeId(), position.getX(), position.getZ())
                         .orElseThrow();
                 int fillDepth = position.getY() - range.maximumY();
+                if (deployment.feature()
+                        == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER) {
+                    assertTrue(
+                            fillDepth >= 1
+                                    && fillDepth
+                                            <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS,
+                            "authored retained-water bank fill must stay within the bounded shoreline budget");
+                    continue;
+                }
+
+                assertEquals(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                        deployment.feature(),
+                        "only explicit retained-water or channel-bank conditioning may add solid support");
                 assertTrue(
                         fillDepth >= 1
                                 && fillDepth
-                                        <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS,
-                        "authored retained-water bank fill must stay within the bounded shoreline budget");
+                                        <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS,
+                        "authored channel bank fill must stay within the bounded side-bank budget");
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ());
+                boolean adjacentToWet = wetColumns.contains(
+                                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                        column.x() + 1, column.z()))
+                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                column.x() - 1, column.z()))
+                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                column.x(), column.z() + 1))
+                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                column.x(), column.z() - 1));
+                assertTrue(
+                        adjacentToWet,
+                        "authored channel bank fill must remain cardinally adjacent to its wet corridor");
             }
         }
     }
