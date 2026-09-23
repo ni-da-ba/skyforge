@@ -70,6 +70,8 @@ final class SkyforgePersistentBiomePresentationStage {
         }
         SkyforgeNativeSurfacePopulationPlan plan = optionalPlan.orElseThrow();
         WorldBounds volumeBounds = SkyforgePhysicalVolumeAdmissionStage.volumeBounds(volumeId);
+        Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRanges =
+                new HashMap<>();
 
         var biomeRegistry = level.registryAccess().registryOrThrow(Registries.BIOME);
         var sampler = level.getChunkSource().randomState().sampler();
@@ -104,6 +106,7 @@ final class SkyforgePersistentBiomePresentationStage {
                         Optional<BlockPos> ownedSample = firstPresentationSample(
                                 volumeId,
                                 volumeBounds,
+                                solidRanges,
                                 quartX,
                                 quartY,
                                 quartZ);
@@ -119,6 +122,7 @@ final class SkyforgePersistentBiomePresentationStage {
                         Optional<BlockPos> sample = firstSupportedPresentationSample(
                                 volumeId,
                                 volumeBounds,
+                                solidRanges,
                                 quartX,
                                 quartY,
                                 quartZ,
@@ -240,6 +244,7 @@ final class SkyforgePersistentBiomePresentationStage {
     private static Optional<BlockPos> firstPresentationSample(
             SkyIslandWorldVolumeId volumeId,
             WorldBounds volumeBounds,
+            Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRanges,
             int quartX,
             int quartY,
             int quartZ) {
@@ -252,14 +257,18 @@ final class SkyforgePersistentBiomePresentationStage {
                     int worldX = minimumX + offsetX;
                     int worldY = minimumY + offsetY;
                     int worldZ = minimumZ + offsetZ;
-                    boolean currentOwned = contains(volumeBounds, worldX, worldY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, worldY, worldZ);
+                    var range = solidRange(volumeId, solidRanges, worldX, worldZ);
+                    boolean currentOwned = range.isPresent()
+                            && worldY >= range.orElseThrow().minimumY()
+                            && worldY <= range.orElseThrow().maximumY();
                     if (currentOwned) {
                         return Optional.of(new BlockPos(worldX, worldY, worldZ));
                     }
                     int supportingY = worldY - 1;
-                    if (contains(volumeBounds, worldX, supportingY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, supportingY, worldZ)) {
+                    if (range.isPresent()
+                            && supportingY >= range.orElseThrow().minimumY()
+                            && supportingY <= range.orElseThrow().maximumY()
+                            && contains(volumeBounds, worldX, supportingY, worldZ)) {
                         return Optional.of(new BlockPos(worldX, supportingY, worldZ));
                     }
                 }
@@ -271,6 +280,7 @@ final class SkyforgePersistentBiomePresentationStage {
     private static Optional<BlockPos> firstSupportedPresentationSample(
             SkyIslandWorldVolumeId volumeId,
             WorldBounds volumeBounds,
+            Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRanges,
             int quartX,
             int quartY,
             int quartZ,
@@ -284,12 +294,16 @@ final class SkyforgePersistentBiomePresentationStage {
                     int worldX = minimumX + offsetX;
                     int worldY = minimumY + offsetY;
                     int worldZ = minimumZ + offsetZ;
-                    boolean currentOwned = contains(volumeBounds, worldX, worldY, worldZ)
-                            && solidOwnedBy(volumeId, worldX, worldY, worldZ);
+                    var range = solidRange(volumeId, solidRanges, worldX, worldZ);
+                    boolean currentOwned = range.isPresent()
+                            && worldY >= range.orElseThrow().minimumY()
+                            && worldY <= range.orElseThrow().maximumY();
                     int semanticY = currentOwned ? worldY : worldY - 1;
                     boolean supportedOwned = currentOwned
-                            || (contains(volumeBounds, worldX, semanticY, worldZ)
-                                    && solidOwnedBy(volumeId, worldX, semanticY, worldZ));
+                            || (range.isPresent()
+                                    && semanticY >= range.orElseThrow().minimumY()
+                                    && semanticY <= range.orElseThrow().maximumY()
+                                    && contains(volumeBounds, worldX, semanticY, worldZ));
                     if (supportedOwned
                             && resolver.supportsSurface(volumeId, worldX, semanticY, worldZ)) {
                         return Optional.of(new BlockPos(worldX, semanticY, worldZ));
@@ -325,6 +339,20 @@ final class SkyforgePersistentBiomePresentationStage {
             }
         }
         return false;
+    }
+
+    private static Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> solidRange(
+            SkyIslandWorldVolumeId volumeId,
+            Map<Long, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> cache,
+            int worldX,
+            int worldZ) {
+        long key = ((long) worldX << 32) ^ (worldZ & 0xffffffffL);
+        return cache.computeIfAbsent(
+                key,
+                ignored -> SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                        volumeId,
+                        worldX,
+                        worldZ));
     }
 
     private static boolean solidOwnedBy(
