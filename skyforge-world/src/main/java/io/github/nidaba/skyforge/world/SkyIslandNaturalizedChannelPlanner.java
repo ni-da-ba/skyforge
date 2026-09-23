@@ -15,7 +15,7 @@ import java.util.Objects;
  */
 public final class SkyIslandNaturalizedChannelPlanner {
     public static final int SUBDIVISIONS = SkyIslandTerrainAwareChannelCorridorPlanner.STATIONS;
-    public static final double MAX_CHORD_DEVIATION_SPACING_FRACTION = 0.42;
+    public static final double MAX_CHORD_DEVIATION_SPACING_FRACTION = 0.70;
 
     private SkyIslandNaturalizedChannelPlanner() {}
 
