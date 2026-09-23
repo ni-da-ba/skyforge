@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
@@ -191,6 +192,16 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
             return List.of();
         }
         return authoredHydrologyDeploymentsByVolumeId.getOrDefault(volumeId, List.of());
+    }
+
+    Set<Long> authoredHydrologyChunkKeys(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return Set.of();
+        }
+        return authoredHydrologyByChunkByVolumeId
+                .getOrDefault(volumeId, Map.of())
+                .keySet();
     }
 
     Optional<SkyforgeAuthoredVisibleHydrologyAdapter.ChunkProjection> authoredHydrologyChunkProjection(
