@@ -46,6 +46,7 @@ final class SkyforgeNativeInteriorPopulationStage {
 
         LinkedHashMap<ObligationKey, Obligation> obligations = new LinkedHashMap<>();
         LinkedHashMap<Long, List<ObligationKey>> obligationKeysByChunk = new LinkedHashMap<>();
+        LinkedHashMap<SkyIslandWorldVolumeId, Integer> pendingByVolume = new LinkedHashMap<>();
         Set<SkyIslandWorldVolumeId> volumeIds = new HashSet<>();
         for (SkyforgeNativeInteriorPopulationPlan plan : List.copyOf(plans)) {
             Objects.requireNonNull(plan, "native interior population plan");
@@ -59,6 +60,7 @@ final class SkyforgeNativeInteriorPopulationStage {
             chunkKeys.sort(Comparator
                     .comparingInt((Long key) -> ChunkPos.getX(key))
                     .thenComparingInt(key -> ChunkPos.getZ(key)));
+            pendingByVolume.put(plan.volumeId(), chunkKeys.size());
             for (long chunkKey : chunkKeys) {
                 ObligationKey key = new ObligationKey(plan.volumeId(), chunkKey);
                 Obligation previous = obligations.put(key, new Obligation(plan));
@@ -86,7 +88,8 @@ final class SkyforgeNativeInteriorPopulationStage {
         Binding binding = new Binding(
                 obligations,
                 java.util.Collections.unmodifiableMap(new LinkedHashMap<>(obligationKeysByChunk)),
-                new LinkedHashSet<>(obligationKeysByChunk.keySet()));
+                new LinkedHashSet<>(obligationKeysByChunk.keySet()),
+                pendingByVolume);
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a native interior population stage is already installed");
         }
@@ -140,10 +143,7 @@ final class SkyforgeNativeInteriorPopulationStage {
                 continue;
             }
 
-            var caveSnapshot = SkyforgeComposedCaveStage.snapshot(volumeId);
-            if (caveSnapshot.totalObligations() <= 0
-                    || caveSnapshot.pendingObligations() > 0
-                    || caveSnapshot.completedObligations() != caveSnapshot.totalObligations()) {
+            if (!SkyforgeComposedCaveStage.completed(volumeId)) {
                 continue;
             }
 
@@ -193,6 +193,13 @@ final class SkyforgeNativeInteriorPopulationStage {
                             "native interior population obligation changed during service");
                 }
                 current.complete(completion);
+                Integer remaining = binding.pendingByVolume().computeIfPresent(
+                        volumeId,
+                        (ignored, count) -> count - 1);
+                if (remaining == null || remaining < 0) {
+                    throw new IllegalStateException(
+                            "native interior pending-volume ledger underflow for " + volumeId.path());
+                }
                 if (binding.obligationKeysByChunk()
                         .getOrDefault(chunkKey, List.of()).stream()
                         .map(binding.obligations()::get)
@@ -229,14 +236,8 @@ final class SkyforgeNativeInteriorPopulationStage {
             return false;
         }
         synchronized (binding) {
-            for (var entry : binding.obligations().entrySet()) {
-                if (entry.getKey().volumeId().equals(volumeId)
-                        && !entry.getValue().completed()) {
-                    return true;
-                }
-            }
+            return binding.pendingByVolume().getOrDefault(volumeId, 0) > 0;
         }
-        return false;
     }
 
     static Set<Long> pendingChunkKeys() {
@@ -363,11 +364,13 @@ final class SkyforgeNativeInteriorPopulationStage {
     private record Binding(
             LinkedHashMap<ObligationKey, Obligation> obligations,
             Map<Long, List<ObligationKey>> obligationKeysByChunk,
-            LinkedHashSet<Long> pendingChunkKeys) {
+            LinkedHashSet<Long> pendingChunkKeys,
+            LinkedHashMap<SkyIslandWorldVolumeId, Integer> pendingByVolume) {
         private Binding {
             Objects.requireNonNull(obligations, "obligations");
             Objects.requireNonNull(obligationKeysByChunk, "obligationKeysByChunk");
             Objects.requireNonNull(pendingChunkKeys, "pendingChunkKeys");
+            Objects.requireNonNull(pendingByVolume, "pendingByVolume");
         }
     }
 
