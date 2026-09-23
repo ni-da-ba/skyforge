@@ -50,6 +50,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
+    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 3;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
@@ -388,19 +389,32 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     new ChannelColumnPlan(column, distance, baseSurfaceY, drySurfaceY, waterTopY));
         }
 
-        Set<Column> containedWet = new LinkedHashSet<>();
+        Set<Column> plannedWet = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
-            if (column.waterTopY() != Integer.MIN_VALUE
-                    && laterallyContained(
-                            volume,
-                            terrain,
-                            columns,
-                            column,
-                            reach,
-                            path,
-                            routedEdgeOutlet,
-                            solidRangeCache)) {
+            if (column.waterTopY() != Integer.MIN_VALUE) {
+                plannedWet.add(column.column());
+            }
+        }
+
+        Set<Column> containedWet = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> channelBankFill = new LinkedHashSet<>();
+        for (ChannelColumnPlan column : columns.values()) {
+            if (column.waterTopY() == Integer.MIN_VALUE) {
+                continue;
+            }
+            Optional<List<BlockPos>> bankFill = channelBankFillPositions(
+                    volume,
+                    terrain,
+                    columns,
+                    plannedWet,
+                    column,
+                    reach,
+                    path,
+                    routedEdgeOutlet,
+                    solidRangeCache);
+            if (bankFill.isPresent()) {
                 containedWet.add(column.column());
+                channelBankFill.addAll(bankFill.orElseThrow());
             }
         }
         int plannedWetColumns = (int) columns.values().stream()
@@ -443,7 +457,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(channelBankFill);
         for (ChannelColumnPlan column : columns.values()) {
             if (column.distance() <= reach.bankfullHalfWidth()
                     && uncontestedOwnedRangeCell(
@@ -492,6 +506,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + containedWet.size());
         }
         carved.removeAll(water);
+        carved.removeAll(channelBankFill);
         return Optional.of(rawDeployment(
                 volume.id(),
                 Feature.CHANNEL,
@@ -511,6 +526,104 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         + path.profile().segment().downstreamCellIndex()
                         + ", reason=" + reason
                         + ", volume=" + volume.id().path());
+    }
+
+    /**
+     * Returns the bounded solid-bank reconciliation needed to contain one planned wet column.
+     *
+     * <p>AUTH-0105 owns the channel route and dry bank geometry; the independently compiled
+     * Minecraft carrier may quantize a neighboring dry bank a few blocks below the isotonic water
+     * grade. Preserve the authored route by retaining/filling only that narrow bank discrepancy.
+     * True void, foreign ownership, or a bank deeper than the small fill allowance still fails
+     * closed. This is deliberately distinct from retained-basin terrain surgery: channel fill is
+     * local to dry cardinal banks around an already-authored wet corridor.
+     */
+    private static Optional<List<BlockPos>> channelBankFillPositions(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, ChannelColumnPlan> columns,
+            Set<Column> plannedWet,
+            ChannelColumnPlan candidate,
+            SkyIslandFluvialReachGeometry reach,
+            SkyIslandNaturalizedChannelPath path,
+            boolean routedEdgeOutlet,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
+        LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
+        int outletBreaches = 0;
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            Column bank = new Column(
+                    candidate.column().x() + direction[0],
+                    candidate.column().z() + direction[1]);
+            if (plannedWet.contains(bank)) {
+                continue;
+            }
+
+            ChannelColumnPlan plannedBank = columns.get(bank);
+            int bankTopY;
+            if (plannedBank != null) {
+                bankTopY = plannedBank.drySurfaceY();
+                if (!uncontestedOwnedRangeCell(
+                        terrain,
+                        volume.id(),
+                        bank.x(),
+                        bankTopY,
+                        bank.z())) {
+                    return Optional.empty();
+                }
+            } else {
+                var optionalRange = solidRangeCache.computeIfAbsent(
+                        bank,
+                        ignored -> terrain.integerSolidRange(
+                                volume.id(), bank.x(), bank.z()));
+                if (optionalRange.isEmpty()) {
+                    boolean outletBreach = routedEdgeOutlet
+                            && outletBreaches == 0
+                            && channelOutletBreachAllowed(volume, candidate.column(), reach, path);
+                    if (outletBreach) {
+                        outletBreaches++;
+                        continue;
+                    }
+                    return Optional.empty();
+                }
+                var range = optionalRange.orElseThrow();
+                bankTopY = range.maximumY();
+                if (!uncontestedOwnedRangeCell(
+                        terrain,
+                        volume.id(),
+                        bank.x(),
+                        bankTopY,
+                        bank.z())) {
+                    return Optional.empty();
+                }
+            }
+
+            if (bankTopY >= candidate.waterTopY()) {
+                continue;
+            }
+
+            int fillDepth = candidate.waterTopY() - bankTopY;
+            if (fillDepth > MAX_CHANNEL_BANK_FILL_BLOCKS) {
+                boolean outletBreach = routedEdgeOutlet
+                        && outletBreaches == 0
+                        && channelOutletBreachAllowed(volume, candidate.column(), reach, path);
+                if (outletBreach) {
+                    outletBreaches++;
+                    continue;
+                }
+                return Optional.empty();
+            }
+
+            for (int y = bankTopY + 1; y <= candidate.waterTopY(); y++) {
+                if (!volume.bounds().contains(bank.x(), y, bank.z())
+                        || terrain.isSolidOwnedByOtherVolume(
+                                volume.id(), bank.x(), y, bank.z())) {
+                    return Optional.empty();
+                }
+                fill.add(new BlockPos(bank.x(), y, bank.z()));
+            }
+        }
+        return Optional.of(List.copyOf(fill));
     }
 
     private static boolean laterallyContained(
