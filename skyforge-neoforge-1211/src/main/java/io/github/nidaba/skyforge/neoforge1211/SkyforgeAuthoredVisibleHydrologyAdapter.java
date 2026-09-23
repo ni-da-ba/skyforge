@@ -129,10 +129,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         Optional<BlockState> populationState(BlockPos position) {
             BlockState state = states.get(Objects.requireNonNull(position, "position"));
-            if (state == null || state.is(Blocks.DIRT)) {
-                return Optional.empty();
-            }
-            return Optional.of(state);
+            return Optional.ofNullable(state);
         }
     }
 
@@ -976,7 +973,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(deployments, "deployments");
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
-            indexStates(mutable, deployment.surfacePositions(), Blocks.DIRT.defaultBlockState());
+            indexHydrologySurfaceStates(mutable, deployment.surfacePositions());
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
         }
@@ -986,6 +983,42 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             result.put(entry.getKey(), new ChunkProjection(entry.getValue()));
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    private static void indexHydrologySurfaceStates(
+            Map<Long, LinkedHashMap<BlockPos, BlockState>> byChunk,
+            Iterable<BlockPos> positions) {
+        for (BlockPos position : positions) {
+            long chunkKey = new ChunkPos(position).toLong();
+            var states = byChunk.computeIfAbsent(chunkKey, ignored -> new LinkedHashMap<>());
+            BlockState desired = hydrologySurfaceState(position);
+            BlockState previous = states.putIfAbsent(position, desired);
+            if (previous != null && !previous.equals(desired)) {
+                throw new IllegalStateException(
+                        "normalized authored hydrology assigned conflicting surface states at " + position);
+            }
+        }
+    }
+
+    /**
+     * Backend material expression for exposed fluvial/lacustrine substrate.
+     *
+     * <p>Do not paint authored beds with the ordinary biome top block: that produced grass/dirt
+     * slabs through rivers and lakes. The coordinate hash is deterministic and feature-independent,
+     * so overlapping channel/lake surface authority resolves to the same sediment state.
+     */
+    static BlockState hydrologySurfaceState(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        long mixed = position.asLong() * 0x9E3779B97F4A7C15L;
+        mixed ^= mixed >>> 33;
+        int bucket = Math.floorMod((int) (mixed ^ (mixed >>> 32)), 16);
+        if (bucket < 10) {
+            return Blocks.GRAVEL.defaultBlockState();
+        }
+        if (bucket < 14) {
+            return Blocks.CLAY.defaultBlockState();
+        }
+        return Blocks.STONE.defaultBlockState();
     }
 
     private static void indexStates(
@@ -1025,8 +1058,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     chunk.setBlockState(position, desired, false);
                     written++;
                 }
-            } else if (desired.is(Blocks.DIRT)) {
-                if (!current.is(Blocks.DIRT)) {
+            } else if (isHydrologySurfaceMaterial(desired)) {
+                if (!current.equals(desired)) {
                     chunk.setBlockState(position, desired, false);
                     written++;
                 }
@@ -1050,11 +1083,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
-            // AUTH-0105 requires material dressing after dry terrain projection. Reuse the
-            // accepted Minecraft carrier for Skyforge SURFACE_MANTLE rather than inheriting
-            // an unrelated native-ocean top block into the fluvial bed/bank corridor.
-            if (!chunk.getBlockState(position).is(Blocks.DIRT)) {
-                chunk.setBlockState(position, Blocks.DIRT.defaultBlockState(), false);
+            BlockState desired = hydrologySurfaceState(position);
+            if (!chunk.getBlockState(position).equals(desired)) {
+                chunk.setBlockState(position, desired, false);
                 written++;
             }
         }
@@ -1085,6 +1116,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * <p>Literal WATER, FLOWING_WATER, and water-bearing states such as BUBBLE_COLUMN are all valid
      * physical realizations of the same authored wet cell. Air, lava, and unrelated blocks are not.
      */
+    static boolean isHydrologySurfaceMaterial(BlockState state) {
+        Objects.requireNonNull(state, "state");
+        return state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(Blocks.STONE);
+    }
+
     static boolean isWaterBearing(BlockState state) {
         Objects.requireNonNull(state, "state");
         var fluid = state.getFluidState().getType();
