@@ -42,6 +42,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211ComposedCaveDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionComposedCaveDevRuntime.installFromSystemProperty();
         SkyforgeDr70HumanReviewAtlasRuntime.installFromSystemProperty();
+        SkyforgeHydrologyReferenceReviewRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionInteriorPopulationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionInteriorPopulationReloadDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211ProductionInteriorPopulationStackedDevRuntime.installFromSystemProperty();
