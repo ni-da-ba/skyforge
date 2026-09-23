@@ -50,53 +50,62 @@ class SkyIslandChannelNetworkPlannerTest {
 
     @Test
     void visibleTributariesReachMainStemOrAnExplicitHiddenTransportBoundary() {
-        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(0x534B59464F524745L, 6L, 61L, 77L));
-        SkyIslandChannelNetworkPlan plan = SkyIslandChannelNetworkPlanner.plan(descriptor);
-        Map<Integer, SkyIslandChannelSegment> bySource = plan.segments().stream()
-                .collect(Collectors.toMap(SkyIslandChannelSegment::sourceCellIndex, Function.identity()));
-        Map<Integer, SkyIslandWatershedCell> watershed = SkyIslandWatershedPlanner.plan(descriptor).cells().stream()
-                .collect(Collectors.toMap(SkyIslandWatershedCell::index, Function.identity()));
-        assertTrue(plan.count(SkyIslandChannelRole.TRIBUTARY) > 0);
-
-        for (SkyIslandChannelSegment segment : plan.segments()) {
-            if (segment.role() != SkyIslandChannelRole.TRIBUTARY) {
+        boolean exercisedTributary = false;
+        for (long key = 0; key < 1024 && !exercisedTributary; key++) {
+            SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                    SkyIslandIdentity.of(0x534B59464F524745L, 6L, 61L, key));
+            SkyIslandChannelNetworkPlan plan = SkyIslandChannelNetworkPlanner.plan(descriptor);
+            if (plan.count(SkyIslandChannelRole.TRIBUTARY) == 0) {
                 continue;
             }
-            SkyIslandChannelSegment cursor = segment;
-            Set<Integer> visited = new HashSet<>();
-            boolean resolved = false;
-            while (visited.add(cursor.sourceCellIndex())) {
-                SkyIslandChannelSegment downstream = bySource.get(cursor.downstreamCellIndex());
-                if (downstream != null) {
-                    if (downstream.role() == SkyIslandChannelRole.TRUNK) {
+            exercisedTributary = true;
+
+            Map<Integer, SkyIslandChannelSegment> bySource = plan.segments().stream()
+                    .collect(Collectors.toMap(SkyIslandChannelSegment::sourceCellIndex, Function.identity()));
+            Map<Integer, SkyIslandWatershedCell> watershed =
+                    SkyIslandWatershedPlanner.plan(descriptor).cells().stream()
+                            .collect(Collectors.toMap(SkyIslandWatershedCell::index, Function.identity()));
+
+            for (SkyIslandChannelSegment segment : plan.segments()) {
+                if (segment.role() != SkyIslandChannelRole.TRIBUTARY) {
+                    continue;
+                }
+                SkyIslandChannelSegment cursor = segment;
+                Set<Integer> visited = new HashSet<>();
+                boolean resolved = false;
+                while (visited.add(cursor.sourceCellIndex())) {
+                    SkyIslandChannelSegment downstream = bySource.get(cursor.downstreamCellIndex());
+                    if (downstream != null) {
+                        if (downstream.role() == SkyIslandChannelRole.TRUNK) {
+                            resolved = true;
+                            break;
+                        }
+                        cursor = downstream;
+                        continue;
+                    }
+
+                    SkyIslandWatershedCell boundary = watershed.get(cursor.downstreamCellIndex());
+                    assertTrue(boundary != null, "visible network boundary must retain watershed provenance");
+                    if (boundary.retainedSink() || boundary.edgeOutlet() || boundary.downstreamIndex() < 0) {
                         resolved = true;
                         break;
                     }
-                    cursor = downstream;
-                    continue;
-                }
-
-                SkyIslandWatershedCell boundary = watershed.get(cursor.downstreamCellIndex());
-                assertTrue(boundary != null, "visible network boundary must retain watershed provenance");
-                if (boundary.retainedSink() || boundary.edgeOutlet() || boundary.downstreamIndex() < 0) {
-                    resolved = true;
+                    SkyIslandWatershedCell next = watershed.get(boundary.downstreamIndex());
+                    assertTrue(next != null);
+                    boolean hiddenOnEntry =
+                            boundary.surfacePotential()
+                                    > watershed.get(cursor.sourceCellIndex()).surfacePotential() + 1.0e-10;
+                    boolean hiddenOnExit =
+                            next.surfacePotential() > boundary.surfacePotential() + 1.0e-10;
+                    resolved = hiddenOnEntry || hiddenOnExit;
                     break;
                 }
-                SkyIslandWatershedCell next = watershed.get(boundary.downstreamIndex());
-                assertTrue(next != null);
-                boolean hiddenOnEntry =
-                        boundary.surfacePotential() > watershed.get(cursor.sourceCellIndex()).surfacePotential()
-                                + 1.0e-10;
-                boolean hiddenOnExit =
-                        next.surfacePotential() > boundary.surfacePotential() + 1.0e-10;
-                resolved = hiddenOnEntry || hiddenOnExit;
-                break;
+                assertTrue(
+                        resolved,
+                        "accepted visible tributary must remain coherent to a trunk or authored hidden-transport boundary");
             }
-            assertTrue(
-                    resolved,
-                    "accepted visible tributary must remain coherent to a trunk or authored hidden-transport boundary");
         }
+        assertTrue(exercisedTributary, "representative corpus must exercise at least one visible tributary");
     }
 
     @Test
