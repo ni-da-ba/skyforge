@@ -873,6 +873,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             desiredWaterTop));
         }
 
+        // A semantic wet corridor that is mostly physical void is not a conditioning problem:
+        // there is no credible Minecraft carrier to preserve. Fail closed before endpoint/path
+        // relaxation so historical atlas specimens cannot be rescued by a few isolated columns.
+        if (solidCarrierCandidates * 2 < wetCorridorCandidates) {
+            throw channelProjectionFailure(
+                    volume,
+                    reach.path(),
+                    "authored wet corridor is mostly physical void; wetCorridorCandidates="
+                            + wetCorridorCandidates
+                            + ", solidCarrierCandidates=" + solidCarrierCandidates
+                            + ", bankableCarrierCandidates=" + bankableCarrierCandidates);
+        }
+
         if (carrierCandidates.isEmpty()) {
             throw channelProjectionFailure(
                     volume,
@@ -966,27 +979,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         SkyIslandLocalPosition upstream = reach.path().points().getFirst();
         SkyIslandLocalPosition downstream = reach.path().points().getLast();
 
-        ChannelCarrierCandidate start = candidates.values().stream()
-                .min(Comparator
+        // Raster quantization can make the individually nearest endpoint samples belong to
+        // different otherwise-credible carrier components. Search from every candidate that still
+        // represents the authored endpoint within the same tolerance enforced by the qualification
+        // surface, and accept any equivalently bounded downstream endpoint. This keeps connectivity
+        // authoritative without turning one unlucky rounded pixel into a false no-carrier result.
+        double endpointTolerance = reach.wetHalfWidth() + 1.0;
+        List<ChannelCarrierCandidate> starts = candidates.values().stream()
+                .filter(candidate -> Math.hypot(
+                                candidate.column().x() - physical.centerX() - upstream.x(),
+                                candidate.column().z() - physical.centerZ() - upstream.z())
+                        <= endpointTolerance)
+                .sorted(Comparator
                         .comparingDouble((ChannelCarrierCandidate candidate) -> Math.hypot(
                                 candidate.column().x() - physical.centerX() - upstream.x(),
                                 candidate.column().z() - physical.centerZ() - upstream.z()))
                         .thenComparingDouble(ChannelCarrierCandidate::distance)
                         .thenComparingInt(candidate -> candidate.column().z())
                         .thenComparingInt(candidate -> candidate.column().x()))
-                .orElseThrow();
-        ChannelCarrierCandidate goal = candidates.values().stream()
-                .min(Comparator
-                        .comparingDouble((ChannelCarrierCandidate candidate) -> Math.hypot(
+                .toList();
+        Set<Column> goals = candidates.values().stream()
+                .filter(candidate -> Math.hypot(
                                 candidate.column().x() - physical.centerX() - downstream.x(),
-                                candidate.column().z() - physical.centerZ() - downstream.z()))
-                        .thenComparingDouble(ChannelCarrierCandidate::distance)
-                        .thenComparingInt(candidate -> candidate.column().z())
-                        .thenComparingInt(candidate -> candidate.column().x()))
-                .orElseThrow();
-
-        if (start.column().equals(goal.column())) {
-            return Optional.of(List.of(start));
+                                candidate.column().z() - physical.centerZ() - downstream.z())
+                        <= endpointTolerance)
+                .map(ChannelCarrierCandidate::column)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        if (starts.isEmpty() || goals.isEmpty()) {
+            return Optional.empty();
         }
 
         record QueueEntry(Column column, double cost) {}
@@ -996,23 +1016,55 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         .thenComparingInt(entry -> entry.column().x()));
         Map<Column, Double> cost = new HashMap<>();
         Map<Column, Column> predecessor = new HashMap<>();
-        cost.put(start.column(), 0.0);
-        queue.add(new QueueEntry(start.column(), 0.0));
+        Set<Column> startColumns = new LinkedHashSet<>();
+        for (ChannelCarrierCandidate startCandidate : starts) {
+            Column column = startCandidate.column();
+            double upstreamDistance = Math.hypot(
+                    column.x() - physical.centerX() - upstream.x(),
+                    column.z() - physical.centerZ() - upstream.z());
+            double startCost = upstreamDistance * upstreamDistance
+                    + startCandidate.distance() * startCandidate.distance();
+            double previousCost = cost.getOrDefault(column, Double.POSITIVE_INFINITY);
+            if (startCost + 1.0e-12 < previousCost) {
+                cost.put(column, startCost);
+                predecessor.remove(column);
+                queue.add(new QueueEntry(column, startCost));
+            }
+            startColumns.add(column);
+        }
 
         double pathLength = Math.max(1.0, reach.path().pathLength());
         double reverseTolerance = Math.min(0.08, 1.5 / pathLength);
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        ChannelCarrierCandidate bestGoal = null;
+        double bestGoalCost = Double.POSITIVE_INFINITY;
         while (!queue.isEmpty()) {
             QueueEntry currentEntry = queue.remove();
             double knownCost = cost.getOrDefault(currentEntry.column(), Double.POSITIVE_INFINITY);
             if (currentEntry.cost() > knownCost + 1.0e-12) {
                 continue;
             }
-            if (currentEntry.column().equals(goal.column())) {
+            if (knownCost > bestGoalCost + 1.0e-12) {
                 break;
             }
 
             ChannelCarrierCandidate current = candidates.get(currentEntry.column());
+            if (goals.contains(currentEntry.column())) {
+                double downstreamDistance = Math.hypot(
+                        current.column().x() - physical.centerX() - downstream.x(),
+                        current.column().z() - physical.centerZ() - downstream.z());
+                double terminalCost = knownCost + downstreamDistance * downstreamDistance;
+                if (terminalCost + 1.0e-12 < bestGoalCost
+                        || (Math.abs(terminalCost - bestGoalCost) <= 1.0e-12
+                                && (bestGoal == null
+                                        || current.column().z() < bestGoal.column().z()
+                                        || (current.column().z() == bestGoal.column().z()
+                                                && current.column().x() < bestGoal.column().x())))) {
+                    bestGoal = current;
+                    bestGoalCost = terminalCost;
+                }
+            }
+
             for (int[] direction : directions) {
                 Column neighborColumn = new Column(
                         currentEntry.column().x() + direction[0],
@@ -1036,19 +1088,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
 
-        if (!cost.containsKey(goal.column())) {
+        if (bestGoal == null) {
             return Optional.empty();
         }
 
         ArrayDeque<ChannelCarrierCandidate> reversed = new ArrayDeque<>();
-        Column cursor = goal.column();
+        Column cursor = bestGoal.column();
         reversed.addFirst(candidates.get(cursor));
-        while (!cursor.equals(start.column())) {
-            cursor = predecessor.get(cursor);
-            if (cursor == null) {
-                return Optional.empty();
+        while (!startColumns.contains(cursor) || predecessor.containsKey(cursor)) {
+            Column previous = predecessor.get(cursor);
+            if (previous == null) {
+                break;
             }
+            cursor = previous;
             reversed.addFirst(candidates.get(cursor));
+        }
+        if (!startColumns.contains(cursor)) {
+            return Optional.empty();
         }
         return Optional.of(List.copyOf(reversed));
     }
