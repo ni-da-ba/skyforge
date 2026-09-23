@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandWatershedPlannerTest {
@@ -37,4 +38,56 @@ class SkyIslandWatershedPlannerTest {
             assertTrue(steps <= plan.cells().size());
         }
     }
+
+    @Test
+    void flowDirectionUsesTerrainDescentRatherThanFloodDiscoveryOrder() {
+        int gridSize = 3;
+        boolean[] active = new boolean[gridSize * gridSize];
+        Arrays.fill(active, true);
+        double[] surface = {
+            0.70, 0.50, 0.60,
+            0.10, 0.90, 0.70,
+            0.40, 0.20, 0.30
+        };
+        double[] spill = new double[gridSize * gridSize];
+        Arrays.fill(spill, 0.90);
+        int[] rank = {
+            0, 1, 2,
+            3, 8, 4,
+            5, 6, 7
+        };
+
+        int[] downstream =
+                SkyIslandWatershedPlanner.flowDirections(active, surface, spill, rank, gridSize);
+
+        assertEquals(3, downstream[4], "center cell should choose the steepest raw-terrain descent");
+    }
+
+    @Test
+    void filledDepressionUsesDrainageSurfaceBeforeFlatRankTieBreak() {
+        int gridSize = 3;
+        boolean[] active = new boolean[gridSize * gridSize];
+        Arrays.fill(active, true);
+        double[] surface = {
+            0.80, 0.70, 0.80,
+            0.65, 0.10, 0.60,
+            0.80, 0.75, 0.80
+        };
+        double[] spill = {
+            0.55, 0.62, 0.70,
+            0.58, 0.80, 0.72,
+            0.70, 0.74, 0.78
+        };
+        int[] rank = {
+            0, 1, 2,
+            3, 8, 4,
+            5, 6, 7
+        };
+
+        int[] downstream =
+                SkyIslandWatershedPlanner.flowDirections(active, surface, spill, rank, gridSize);
+
+        assertEquals(3, downstream[4], "filled-surface gradient should resolve unavoidable raw uphill flow");
+    }
+
 }
