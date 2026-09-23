@@ -655,8 +655,99 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + physicalSignedDeltaBlocks(descriptor, relativeWater));
         }
         projectedWaterTops.sort(Integer::compareTo);
-        int waterTopY = projectedWaterTops.get(projectedWaterTops.size() / 2);
 
+        // The semantic waterbody requires one flat Minecraft surface, but the independently compiled
+        // carrier does not preserve authored absolute Y exactly. Search the finite set of projected
+        // authored datums rather than committing to one median and either excavating a bathtub or
+        // dropping the lake. Candidates nearest the median are preferred; ties prefer the higher
+        // plane because filling an existing depression is less destructive than cutting upland.
+        List<Integer> waterTopCandidates = retainedWaterTopCandidates(projectedWaterTops);
+        Map<Column, RetainedColumnPlan> realizable = Map.of();
+        int waterTopY = Integer.MIN_VALUE;
+        for (int candidateWaterTopY : waterTopCandidates) {
+            Map<Column, RetainedColumnPlan> candidate = realizableRetainedColumns(
+                    descriptor,
+                    volume,
+                    terrain,
+                    columns,
+                    candidateWaterTopY);
+            if (candidate.isEmpty()
+                    || !coversEveryRetainedCell(candidate.values(), cellsByIndex.keySet())) {
+                continue;
+            }
+            Set<Column> connected = largestConnectedFootprint(candidate.keySet());
+            if (connected.size() != candidate.size()) {
+                continue;
+            }
+
+            boolean contained = true;
+            for (RetainedColumnPlan column : candidate.values()) {
+                if (!retainedWaterContained(
+                        volume,
+                        terrain,
+                        solidRangeCache,
+                        candidate.keySet(),
+                        column.column(),
+                        candidateWaterTopY)) {
+                    contained = false;
+                    break;
+                }
+            }
+            if (!contained) {
+                continue;
+            }
+
+            realizable = candidate;
+            waterTopY = candidateWaterTopY;
+            break;
+        }
+        if (realizable.isEmpty()) {
+            return Optional.empty();
+        }
+
+        LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (RetainedColumnPlan column : realizable.values()) {
+            surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
+            for (int y = column.bedY() + 1; y <= waterTopY; y++) {
+                water.add(new BlockPos(column.column().x(), y, column.column().z()));
+            }
+            for (int y = waterTopY + 1; y <= column.baseSurfaceY(); y++) {
+                carved.add(new BlockPos(column.column().x(), y, column.column().z()));
+            }
+        }
+        if (water.isEmpty()) {
+            return Optional.empty();
+        }
+        return Optional.of(rawDeployment(
+                volume.id(),
+                Feature.RETAINED_WATER,
+                new ArrayList<>(water),
+                new ArrayList<>(carved),
+                new ArrayList<>(surface)));
+    }
+
+    private static List<Integer> retainedWaterTopCandidates(List<Integer> sortedProjectedWaterTops) {
+        Objects.requireNonNull(sortedProjectedWaterTops, "sortedProjectedWaterTops");
+        if (sortedProjectedWaterTops.isEmpty()) {
+            return List.of();
+        }
+        List<Integer> distinct = sortedProjectedWaterTops.stream().distinct().toList();
+        int median = sortedProjectedWaterTops.get(sortedProjectedWaterTops.size() / 2);
+        return distinct.stream()
+                .sorted(Comparator
+                        .comparingInt((Integer value) -> Math.abs(value - median))
+                        .thenComparing(Comparator.reverseOrder()))
+                .toList();
+    }
+
+    private static Map<Column, RetainedColumnPlan> realizableRetainedColumns(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, RetainedColumnPlan> columns,
+            int waterTopY) {
         Map<Column, RetainedColumnPlan> realizable = new LinkedHashMap<>();
         for (RetainedColumnPlan column : columns.values()) {
             // Retained water fills an authored depression; it must never manufacture that depression
@@ -701,52 +792,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             column.baseSurfaceY(),
                             bedY));
         }
-
-        if (realizable.isEmpty()
-                || !coversEveryRetainedCell(realizable.values(), cellsByIndex.keySet())) {
-            return Optional.empty();
-        }
-
-        Set<Column> connected = largestConnectedFootprint(realizable.keySet());
-        if (connected.size() != realizable.size()) {
-            // Retained water has no channel-style projection authority to discard a disconnected
-            // lobe. If the complete accepted footprint cannot become one physical waterbody, fail
-            // closed instead of silently changing the basin.
-            return Optional.empty();
-        }
-        for (RetainedColumnPlan column : realizable.values()) {
-            if (!retainedWaterContained(
-                    volume,
-                    terrain,
-                    solidRangeCache,
-                    realizable.keySet(),
-                    column.column(),
-                    waterTopY)) {
-                return Optional.empty();
-            }
-        }
-
-        LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
-        for (RetainedColumnPlan column : realizable.values()) {
-            surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
-            for (int y = column.bedY() + 1; y <= waterTopY; y++) {
-                water.add(new BlockPos(column.column().x(), y, column.column().z()));
-            }
-            for (int y = waterTopY + 1; y <= column.baseSurfaceY(); y++) {
-                carved.add(new BlockPos(column.column().x(), y, column.column().z()));
-            }
-        }
-        if (water.isEmpty()) {
-            return Optional.empty();
-        }
-        return Optional.of(rawDeployment(
-                volume.id(),
-                Feature.RETAINED_WATER,
-                new ArrayList<>(water),
-                new ArrayList<>(carved),
-                new ArrayList<>(surface)));
+        return realizable;
     }
 
     private static Map<Column, RetainedColumnPlan> retainedCandidateColumns(
