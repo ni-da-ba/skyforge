@@ -10,6 +10,8 @@ import java.util.Objects;
  */
 public record SkyIslandFluvialReachGeometry(
         SkyIslandNaturalizedChannelPath path,
+        SkyIslandDrainageTransferKind transferKind,
+        double requiredCutPotential,
         double bankfullHalfWidth,
         double wetHalfWidth,
         double valleyHalfWidth,
@@ -20,6 +22,13 @@ public record SkyIslandFluvialReachGeometry(
 
     public SkyIslandFluvialReachGeometry {
         path = Objects.requireNonNull(path, "path");
+        transferKind = Objects.requireNonNull(transferKind, "transferKind");
+        if (!Double.isFinite(requiredCutPotential) || requiredCutPotential < 0.0) {
+            throw new IllegalArgumentException("requiredCutPotential must be finite and non-negative");
+        }
+        if (transferKind == SkyIslandDrainageTransferKind.BASIN_INTERIOR) {
+            throw new IllegalArgumentException("basin-interior transfers do not own fluvial reach geometry");
+        }
         requirePositive("bankfullHalfWidth", bankfullHalfWidth);
         requirePositive("wetHalfWidth", wetHalfWidth);
         requirePositive("valleyHalfWidth", valleyHalfWidth);
