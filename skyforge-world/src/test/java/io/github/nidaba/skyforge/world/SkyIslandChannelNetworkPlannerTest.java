@@ -49,7 +49,7 @@ class SkyIslandChannelNetworkPlannerTest {
     }
 
     @Test
-    void tributariesReachMainStemOrAnExplicitVisibleTransportBoundary() {
+    void visibleTributariesReachMainStemOrAnExplicitHiddenTransportBoundary() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(0x534B59464F524745L, 6L, 61L, 77L));
         SkyIslandChannelNetworkPlan plan = SkyIslandChannelNetworkPlanner.plan(descriptor);
