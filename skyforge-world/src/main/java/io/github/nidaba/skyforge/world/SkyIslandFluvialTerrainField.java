@@ -24,6 +24,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private final SkyIslandDescriptor descriptor;
     private final SkyIslandContinuousHydrologicTerrainField baseTerrain;
     private final List<SkyIslandFluvialReachGeometry> reaches;
+    private final Map<SkyIslandFluvialReachGeometry, HydraulicGradeProfile> hydraulicGrades;
     private final double extent;
 
     private SkyIslandFluvialTerrainField(
@@ -48,6 +49,11 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                         baseTerrain,
                         incomingCounts.getOrDefault(path.profile().segment().sourceCellIndex(), 0)))
                 .toList();
+        Map<SkyIslandFluvialReachGeometry, HydraulicGradeProfile> grades = new HashMap<>();
+        for (SkyIslandFluvialReachGeometry reach : reaches) {
+            grades.put(reach, buildHydraulicGradeProfile(reach));
+        }
+        this.hydraulicGrades = Map.copyOf(grades);
     }
 
     public static SkyIslandFluvialTerrainField create(SkyIslandDescriptor descriptor) {
@@ -165,11 +171,10 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     /**
      * Returns one reach's authored hydraulic-grade potential at a longitudinal fraction.
      *
-     * <p>The grade is intentionally independent of local bed excursions. It descends linearly from
-     * the reach's accepted upstream terrain reference to its bounded downstream reference, offset
-     * by the same profile-sensitive grade cut used to constrain bed shaping, then adds the authored
-     * water-depth potential. Local depressions therefore increase effective water depth instead of
-     * pulling the free surface down and forcing it to climb again downstream.
+     * <p>The raw hydraulic requirement is the terrain-conditioned centerline bed plus authored water
+     * depth. The retained grade is the minimal downstream-nonclimbing envelope over those path
+     * samples. A local bed recovery therefore raises the upstream pool/backwater surface instead of
+     * either making the free surface climb downstream or deleting visible water from the reach.
      */
     public double reachWaterSurfacePotential(
             SkyIslandFluvialReachGeometry reach,
@@ -187,9 +192,49 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private double reachWaterSurfacePotentialUnchecked(
             SkyIslandFluvialReachGeometry reach,
             double fraction) {
-        double gradeBed = longitudinalReference(reach, fraction)
-                - reach.bedDepthPotential() * gradeCutFraction(reach);
-        return clamp01(gradeBed + reach.waterDepthPotential());
+        HydraulicGradeProfile profile = hydraulicGrades.get(reach);
+        if (profile == null) {
+            throw new IllegalStateException("fluvial reach lost its hydraulic-grade profile");
+        }
+        return profile.sample(fraction);
+    }
+
+    private HydraulicGradeProfile buildHydraulicGradeProfile(
+            SkyIslandFluvialReachGeometry reach) {
+        var points = reach.path().points();
+        List<Double> fractions = new ArrayList<>(points.size());
+        List<Double> surfaces = new ArrayList<>(points.size());
+        double cumulative = 0.0;
+        for (int index = 0; index < points.size(); index++) {
+            if (index > 0) {
+                SkyIslandLocalPosition previous = points.get(index - 1);
+                SkyIslandLocalPosition current = points.get(index);
+                cumulative += Math.hypot(
+                        current.x() - previous.x(),
+                        current.z() - previous.z());
+            }
+            double fraction = index == points.size() - 1
+                    ? 1.0
+                    : clamp01(cumulative / reach.path().pathLength());
+            SkyIslandLocalPosition point = points.get(index);
+            Projection projection = new Projection(
+                    0.0,
+                    0.0,
+                    fraction,
+                    point.x(),
+                    point.z());
+            fractions.add(fraction);
+            surfaces.add(clamp01(
+                    bedElevation(reach, projection) + reach.waterDepthPotential()));
+        }
+
+        // Minimal non-increasing majorant of the local bed+depth requirement. Walking upstream,
+        // raise only the samples required to prevent a later bed recovery from forcing an uphill
+        // free surface. This preserves every accepted reach's minimum local water depth.
+        for (int index = surfaces.size() - 2; index >= 0; index--) {
+            surfaces.set(index, Math.max(surfaces.get(index), surfaces.get(index + 1)));
+        }
+        return new HydraulicGradeProfile(fractions, surfaces);
     }
 
     private boolean outsideExtent(SkyIslandLocalPosition position) {
@@ -499,6 +544,46 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
     private static double clamp01(double value) {
         return clamp(value, 0.0, 1.0);
+    }
+
+    private record HydraulicGradeProfile(
+            List<Double> fractions,
+            List<Double> surfaces) {
+        private HydraulicGradeProfile {
+            fractions = List.copyOf(fractions);
+            surfaces = List.copyOf(surfaces);
+            if (fractions.size() != surfaces.size() || fractions.size() < 2) {
+                throw new IllegalArgumentException(
+                        "hydraulic-grade profile requires matching multi-sample arrays");
+            }
+        }
+
+        private double sample(double fraction) {
+            if (fraction <= fractions.getFirst()) {
+                return surfaces.getFirst();
+            }
+            if (fraction >= fractions.getLast()) {
+                return surfaces.getLast();
+            }
+
+            int low = 0;
+            int high = fractions.size() - 1;
+            while (high - low > 1) {
+                int middle = (low + high) >>> 1;
+                if (fractions.get(middle) <= fraction) {
+                    low = middle;
+                } else {
+                    high = middle;
+                }
+            }
+            double lowerFraction = fractions.get(low);
+            double upperFraction = fractions.get(high);
+            if (upperFraction - lowerFraction <= EPSILON) {
+                return Math.max(surfaces.get(low), surfaces.get(high));
+            }
+            double t = (fraction - lowerFraction) / (upperFraction - lowerFraction);
+            return lerp(surfaces.get(low), surfaces.get(high), t);
+        }
     }
 
     private record Projection(
