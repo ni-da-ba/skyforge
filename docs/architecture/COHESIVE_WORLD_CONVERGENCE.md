@@ -13,7 +13,9 @@ A missing integration boundary exists between those concerns.
 
 Phase 2.5 therefore asks:
 
-> Can the intended production stack generate and sustain a recognizably Skyforge world across the spatial scales the game actually depends on, before gameplay balancing is asked to compensate for substrate uncertainty?
+> Can the intended **alpha production stack** generate and sustain a recognizably Skyforge world across the spatial scales the game actually depends on, before gameplay balancing is asked to compensate for substrate uncertainty?
+
+The companion pre-alpha scope policy is `docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`. Phase 2.5 must establish a complete production substrate for that alpha without dragging post-alpha bespoke-content breadth onto the critical path.
 
 The phase is intentionally narrower than "finish the game before Bootstrap." It exists to retire production-stack, scale, compatibility, persistence, and performance unknowns that would otherwise contaminate Bootstrap playtesting.
 
@@ -34,7 +36,9 @@ Do not move gameplay balancing problems backward into Phase 2.5 unless they expo
 
 ## 3. Production-baseline dependency roster
 
-Phase 2.5 establishes a **production-baseline roster**, not a permanently frozen final mod list.
+Phase 2.5 establishes an **alpha production-baseline roster**, not a permanently frozen final mod list.
+
+The roster is an executable shipping commitment: every dependency selected as `CORE` for the alpha must be intentionally supported, and every capability marked `INTEGRATED` must have its intended user-facing path exercised in the combined production stack. Reference-only, test-only, `OPTIONAL`, `REJECTED`, and `DEFERRED` dependencies do not create that obligation.
 
 Every retained capability should be classified as one of:
 
@@ -66,7 +70,7 @@ Representative boundaries:
 - CC:Tweaked supplies programmable computation; Skyforge exposes instrumentation/network capabilities without yielding game-state authority.
 - camera/schematic/utility addons may supply implementation capabilities without becoming semantic authorities.
 
-Complete only the adapters needed by the production baseline and its Bootstrap consumers.
+Complete the adapters needed by the alpha production baseline and its Bootstrap consumers. Do not carry a half-integrated dependency into alpha merely because the jar is present in the development pack.
 
 ## 5. Spatial certification ladder
 
@@ -113,7 +117,7 @@ Prove several clusters can support the minimum regional world semantics Bootstra
 
 - differentiated resource/service roles;
 - sparse civilization/infrastructure;
-- at least one eligible Guild-connected settlement form;
+- at least one inhabited/service location sufficient to prove civilization, producer/consumer, and freight roles without requiring full Guild content;
 - producer/consumer asymmetry;
 - freight-capable route geometry and landing/service opportunity;
 - regional ecology and atmosphere variation;
@@ -172,6 +176,7 @@ Phase 2.5 does not require:
 - final radar/network infrastructure;
 - mature CC:Tweaked progression;
 - dragons, whaling, warfare, or every adventure system;
+- the full Guild institution, bespoke Guild Hall breadth, Bellanca bureaucracy/restitution narrative, or mature faction content;
 - final civilization breadth;
 - final weather/cloud/shader presentation;
 - final soundtrack/adaptive audio;
@@ -187,8 +192,10 @@ A capability without a Phase-2.5 or Bootstrap consumer remains later work.
 
 Phase 2.5 exits when all of the following are true:
 
-- a production-baseline dependency roster exists with explicit CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED dispositions;
-- required semantic ownership/adapters for the baseline are explicit and sufficient;
+- an alpha production-baseline dependency roster exists with explicit CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED dispositions;
+- every alpha-critical CANDIDATE has been resolved;
+- every CORE dependency is intentionally supported and every INTEGRATED capability has been exercised through its intended user-facing combined-stack path;
+- required semantic ownership/adapters for the alpha baseline are explicit and sufficient;
 - representative island-scale composition is accepted;
 - representative cluster-scale composition is accepted;
 - representative province-scale substrate exists for civilization/resource/freight consumers without requiring gameplay tuning;
@@ -214,8 +221,7 @@ Its primary concerns remain:
 - engineering experimentation budget;
 - failure/recovery;
 - first meaningful powered journey;
-- civilization/Guild arrival;
-- Bellanca onboarding closure;
+- arrival at an inhabited/service location sufficient to demonstrate civilization and regional logistics;
 - first real freight/economy loop;
 - recipes, rewards, prices, timing, guidance, and playtesting.
 
