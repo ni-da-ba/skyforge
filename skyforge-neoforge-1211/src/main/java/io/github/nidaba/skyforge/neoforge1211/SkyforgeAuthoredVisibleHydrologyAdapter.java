@@ -413,6 +413,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", containedWetColumns=" + containedWetColumns);
         }
 
+        var physicalDescriptor = volume.compiledVolume().descriptor();
+        for (int pointIndex = 0; pointIndex < path.points().size(); pointIndex++) {
+            SkyIslandLocalPosition point = path.points().get(pointIndex);
+            double nearestWetDistance = containedWet.stream()
+                    .mapToDouble(column -> Math.hypot(
+                            column.x() - physicalDescriptor.centerX() - point.x(),
+                            column.z() - physicalDescriptor.centerZ() - point.z()))
+                    .min()
+                    .orElse(Double.POSITIVE_INFINITY);
+            if (nearestWetDistance > reach.wetHalfWidth() + 1.0) {
+                throw channelProjectionFailure(
+                        volume,
+                        path,
+                        "connected raster spine lost authored centerline coverage at point="
+                                + pointIndex + "/" + path.points().size()
+                                + ", nearestWetDistance=" + nearestWetDistance
+                                + ", wetHalfWidth=" + reach.wetHalfWidth()
+                                + ", connectedWetColumns=" + containedWet.size()
+                                + ", plannedWetColumns=" + plannedWetColumns
+                                + ", containedWetColumns=" + containedWetColumns);
+            }
+        }
+
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
