@@ -50,7 +50,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
-    private static final int MAX_EDGE_OUTLET_OPEN_FACES = 2;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
 
     enum Feature { CHANNEL, RETAINED_WATER }
@@ -520,12 +519,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (breaches == 0) {
             return true;
         }
-        if (!routedEdgeOutlet || breaches > MAX_EDGE_OUTLET_OPEN_FACES) {
+        if (!routedEdgeOutlet || breaches != 1) {
             return false;
         }
-        // A diagonal Minecraft lip can expose two cardinal faces while still representing one
-        // authored downstream discharge front. Limit that exception strictly to the outlet zone.
-        return channelOutletBreachAllowed(volume, candidate.column(), reach, path);
+        SkyIslandLocalPosition local = localPosition(volume, candidate.column());
+        SkyIslandLocalPosition outlet = path.points().getLast();
+        return Math.hypot(local.x() - outlet.x(), local.z() - outlet.z())
+                <= Math.max(1.5, reach.wetHalfWidth() * 0.75);
     }
 
     static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
@@ -694,7 +694,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     candidateProjections,
                     column,
-                    ownerMinimumWaterTop,
                     routedEdgeOutlet,
                     solidRangeCache,
                     basePotentialCache,
@@ -908,7 +907,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
             Column wet,
-            int minimumWaterTop,
             boolean routedEdgeOutlet,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
@@ -924,10 +922,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
 
-            boolean outletZone = routedEdgeOutlet
+            boolean outletBreach = routedEdgeOutlet
+                    && outletBreaches == 0
                     && channelOutletBreachAllowed(volume, wet, reach, reach.path());
-            boolean outletBreach = outletZone
-                    && outletBreaches < MAX_EDGE_OUTLET_OPEN_FACES;
             var optionalRange = solidRangeCache.computeIfAbsent(
                     bank,
                     ignored -> terrain.integerSolidRange(
@@ -959,17 +956,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 }
             }
 
-            if (bankTopY < minimumWaterTop) {
-                // At an authored edge discharge the final lip may expose two cardinal faces when
-                // the continuous outlet lands diagonally on the voxel grid. A low neighboring
-                // carrier is the same physical open face as true void here; do not force the water
-                // surface below the owning column's minimum Y merely to manufacture a bank.
-                if (outletBreach) {
-                    outletBreaches++;
-                    continue;
-                }
-                return OptionalInt.empty();
-            }
             if (!uncontestedOwnedRangeCell(
                     terrain,
                     volume.id(),
