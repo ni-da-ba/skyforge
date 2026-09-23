@@ -336,7 +336,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (optionalRange.isEmpty()) {
                 continue;
             }
-            solidCarrierCandidates++;
             var range = optionalRange.orElseThrow();
             double basePotential = basePotentialCache.computeIfAbsent(
                     column,
@@ -662,6 +661,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (optionalRange.isEmpty()) {
                 continue;
             }
+            solidCarrierCandidates++;
             var range = optionalRange.orElseThrow();
             SkyIslandLocalPosition local = localPosition(volume, column);
             double basePotential = basePotentialCache.computeIfAbsent(
