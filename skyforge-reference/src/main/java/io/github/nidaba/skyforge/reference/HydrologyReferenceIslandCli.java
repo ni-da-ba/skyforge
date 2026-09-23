@@ -32,7 +32,9 @@ import java.util.Map;
 public final class HydrologyReferenceIslandCli {
     public static final String EVIDENCE_ID = "hydrology-reference-island-v1";
     public static final long PRIMARY_ISLAND_KEY = 287L;
-    public static final long CONFLUENCE_CONTROL_ISLAND_KEY = 649L;
+    private static final long[] CONFLUENCE_CONTROL_CANDIDATES = {
+        649L, 2083L, 2150L, 1776L, 3610L, 632L, 3426L, 2975L, 609L, 811L
+    };
 
     private static final long WORLD_SEED = 0x534B59464F524745L;
     private static final long PROVINCE_KEY = 8L;
@@ -51,13 +53,26 @@ public final class HydrologyReferenceIslandCli {
     static Result generate(Path out) throws IOException {
         Files.createDirectories(out);
         Diagnostic primary = diagnose("primary", descriptor(PRIMARY_ISLAND_KEY));
-        Diagnostic confluence =
-                diagnose("confluence-control", descriptor(CONFLUENCE_CONTROL_ISLAND_KEY));
+        Diagnostic confluence = selectConfluenceControl();
         String csv = csv(List.of(primary, confluence));
         String summary = summary(primary, confluence);
         Files.writeString(out.resolve("diagnostics.csv"), csv, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("summary.txt"), summary, StandardCharsets.UTF_8);
         return new Result(primary, confluence, summary);
+    }
+
+    private static Diagnostic selectConfluenceControl() {
+        Diagnostic fallback = null;
+        for (long islandKey : CONFLUENCE_CONTROL_CANDIDATES) {
+            Diagnostic candidate = diagnose("confluence-control", descriptor(islandKey));
+            if (fallback == null) {
+                fallback = candidate;
+            }
+            if (candidate.confluences() > 0) {
+                return candidate;
+            }
+        }
+        return java.util.Objects.requireNonNull(fallback);
     }
 
     private static Diagnostic diagnose(String specimen, SkyIslandDescriptor descriptor) {
