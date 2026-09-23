@@ -117,6 +117,22 @@ final class SkyforgeAuthoredSurfaceCellRasterizer {
 
     boolean hasAuthoredFreshwaterOrRiparianContext(
             SkyIslandSurfaceSiteCapabilityCell cell) {
+        return hasAuthoredRetainedOrRiparianContext(cell)
+                || canonicalCell(cell).channelRelativeDischarge() > 0.0;
+    }
+
+    boolean hasAuthoredRetainedOrRiparianContext(
+            SkyIslandSurfaceSiteCapabilityCell cell) {
+        SkyIslandSurfaceSiteCapabilityCell canonical = canonicalCell(cell);
+        return canonical.retainedWaterbody()
+                || canonical.shoreline()
+                || canonical.waterDepthPotential() > 0.0
+                || canonical.waterbodyMarginPotential() > 0.0
+                || canonical.riparianPotential() > 0.0;
+    }
+
+    private SkyIslandSurfaceSiteCapabilityCell canonicalCell(
+            SkyIslandSurfaceSiteCapabilityCell cell) {
         Objects.requireNonNull(cell, "cell");
         SkyIslandSurfaceSiteCapabilityCell canonical =
                 cellsByIndex.get(cell.watershedCellIndex());
@@ -124,12 +140,7 @@ final class SkyforgeAuthoredSurfaceCellRasterizer {
             throw new IllegalArgumentException(
                     "surface cell does not belong to this exact AUTH-0096 profile");
         }
-        return cell.retainedWaterbody()
-                || cell.shoreline()
-                || cell.waterDepthPotential() > 0.0
-                || cell.waterbodyMarginPotential() > 0.0
-                || cell.riparianPotential() > 0.0
-                || cell.channelRelativeDischarge() > 0.0;
+        return canonical;
     }
 
     private int nearestGridCoordinate(double localCoordinate) {
