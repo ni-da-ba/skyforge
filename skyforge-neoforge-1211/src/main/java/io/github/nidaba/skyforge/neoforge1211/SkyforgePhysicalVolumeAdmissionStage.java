@@ -529,6 +529,18 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         return false;
     }
 
+    static boolean hasPendingCatchup(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Binding binding = ACTIVE.get();
+        if (binding == null) {
+            return false;
+        }
+        synchronized (binding) {
+            Map<Long, PendingRealization> pending = binding.pendingByVolume().get(volumeId);
+            return pending != null && !pending.isEmpty();
+        }
+    }
+
     /** Chunks skipped before later whole-volume admission; exposed for proof diagnostics. */
     static Set<Long> pendingCatchupChunks(SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
