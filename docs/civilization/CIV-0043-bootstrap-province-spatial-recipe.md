@@ -2,6 +2,8 @@
 
 Status: PRECOMMIT / OWNER-APPROVED BOOTSTRAP CONTRACT
 
+**Alpha-scope refinement:** `docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md` supersedes this document only where earlier language made full Guild/Bellanca content mandatory for first public alpha. The underlying settlement/service/freight capability guarantees remain binding.
+
 ## Purpose
 
 This document turns the accepted first-hours progression and guarantee philosophy into a backend-neutral spatial recipe for the Bootstrap Province.
@@ -29,8 +31,8 @@ The following times are design targets for a player following the critical path 
 | Glider and local thermal/vertical traversal | 45–90 min |
 | First-flight materials and crude powered aircraft | 75–150 min |
 | First serious powered journey / specialized resource | 120–210 min |
-| Reach civilization/Guild and resolve Bellanca arc | 180–240 min |
-| Tutorial closure / first optional freight work | about 3–4 hr |
+| Reach inhabited/service location and first regional opportunity | 180–240 min |
+| Core-loop closure / first freight work | about 3–4 hr |
 
 These are calibration targets only. Exact timing remains a playtest variable.
 
@@ -90,7 +92,7 @@ The crash island or immediate foothold must provide:
 
 - reliable food, wood, stone, and shelter opportunity;
 - basic Iron sufficient to avoid an early tool/workshop soft-lock;
-- Bellanca wreck access and bounded salvage;
+- bounded crash/wreck salvage if the selected alpha opening uses a wreck;
 - enough basic Create-entry capability to establish the first workshop, either directly on-island or through a trivial adjacent `WALK_BUILD` hop;
 - a viable place to remain and build rather than an artificial "leave immediately or starve" pressure;
 - at least one legible path toward the surrounding starting group.
@@ -138,7 +140,7 @@ The generated province must contain, within the expected operating envelope of t
 
 - at least one Copper-specialized resource zone;
 - at least one Zinc-specialized resource zone;
-- at least one eligible Guild-connected civilization/settlement able to continue and terminate the Bellanca onboarding arc;
+- at least one inhabited/service settlement able to support the alpha civilization/logistics role;
 - at least one producer/consumer pairing that can become a meaningful first freight opportunity;
 - enough safe or recoverable route geometry that a crude aircraft can reach the intended civilization/resources without one perfect flight being mandatory.
 
@@ -146,11 +148,11 @@ Copper and Zinc should **prefer separate resource zones and/or directions** so r
 
 Petroleum is not a Bootstrap guarantee. Levitite is not a Bootstrap guarantee.
 
-## First civilization placement
+## First civilization / service placement
 
-The first eligible Guild destination is a deliberate province guarantee, not a random discovery outcome.
+The first inhabited/service destination is a deliberate province guarantee, not a random discovery outcome.
 
-The recipe must place at least one eligible Guild-connected settlement:
+The recipe must place at least one eligible inhabited/service settlement:
 
 - outside the ordinary reliable walking/building closure of the crash site;
 - normally outside the comfortable glider-only solution envelope;
@@ -163,13 +165,13 @@ Useful evidence may include one or more of:
 - a distant tower or substantial skyline;
 - beacon/light/smoke;
 - old route markers or navigation aids;
-- Bellanca wreck records, maps, notes, or surviving instrumentation;
-- Guild route signs;
+- crash/wreck records, maps, notes, or surviving instrumentation when present;
+- route signs or retained/adapted navigation infrastructure;
 - visible traffic or infrastructure where population-tone policy permits it.
 
 The system should prefer observation and world evidence over compulsory quest arrows. FTB Quests may clarify the objective, but geography and infrastructure should make the route intelligible.
 
-Per CIV-0041, another eligible Guild Hall reached first by an unusual player route may satisfy the Bellanca claim. The spatial recipe guarantees a valid destination without requiring one uniquely scripted NPC at one coordinate.
+Full Guild/Bellanca handling remains valid optional or post-alpha content under CIV-0041. When that content is enabled, any eligible destination may consume the same route/service substrate. The alpha spatial recipe itself guarantees the **capability-bearing destination**, not a specific institution, bespoke Hall, or uniquely scripted NPC.
 
 ## First freight route
 
@@ -180,7 +182,7 @@ At least one guaranteed producer/consumer pair should satisfy all of the followi
 - producer and consumer have an authored economic reason to exchange goods;
 - the route is materially easier or more valuable with powered cargo movement than with personal gliding;
 - repeated round trips are physically plausible for early aircraft;
-- the route exposes at least one mature Skyforge concept: specialization, Guild information, local prices, cargo custody, infrastructure, or route risk;
+- the route exposes at least one mature Skyforge concept: specialization, route/service information, local prices, cargo custody, infrastructure, or route risk;
 - completing or ignoring this route does not determine whether the player is allowed to leave the tutorial.
 
 A preferred early pattern is that one resource-specialized regional node creates a natural supply relationship with the first settlement or another nearby settlement. The exact commodity pair remains Content tuning.
@@ -194,7 +196,7 @@ The recipe and gameplay systems together must account for at least:
 - lost or destroyed glider -> deterministic replacement material;
 - destroyed or badly designed first aircraft -> deterministic rebuild supply;
 - exhausted critical first-flight resource during experimentation -> alternate guaranteed supply within the appropriate capability closure;
-- misplaced Bellanca recorder -> recoverable evidence semantics or authoritative reacquisition path;
+- any progression-critical opening evidence/item -> recoverable semantics or authoritative reacquisition path;
 - dismantled progression-relevant structure -> repair, replacement, alternate service, or system state that does not permanently delete the critical path;
 - failed first regional flight -> a credible way to land, recover, rebuild, or try again.
 
@@ -212,7 +214,7 @@ Failure should cost time, material, and inconvenience. It should not require wor
 | Safe launch/landing opportunity | Starting cluster | credible flight test site |
 | Copper | Bootstrap Province, post-flight reachable | regional specialization |
 | Zinc | Bootstrap Province, post-flight reachable | regional specialization |
-| Eligible civilization/Guild Hall | Bootstrap Province | guaranteed onboarding destination |
+| Eligible inhabited/service location | Bootstrap Province | guaranteed regional destination |
 | First freight producer/consumer pair | Bootstrap Province | guaranteed sandbox opening |
 | Petroleum | Not guaranteed in Bootstrap | mature strategic node |
 | Levitite | Not guaranteed in Bootstrap | late/extreme material |
@@ -244,7 +246,7 @@ mandatory survival/workshop roles <= WALK_BUILD closure
 mandatory glider roles            <= local closure
 mandatory first-flight materials  <= GLIDE closure
 first regional specialization     <= FIRST_FLIGHT closure
-first Guild destination           <= FIRST_FLIGHT closure
+first inhabited/service destination <= FIRST_FLIGHT closure
 first freight loop                <= FREIGHT closure
 ```
 
@@ -287,8 +289,8 @@ A generated Bootstrap Province is invalid if any of the following fail:
 5. **First-aircraft closure:** every mandatory first-flight ingredient lies in the `WALK_BUILD` + `GLIDE` transitive closure.
 6. **Rebuild path:** reasonable early experimentation cannot exhaust all deterministic first-flight recovery supply.
 7. **Tier separation:** the regional lesson is not accidentally collapsed so every post-flight objective is trivial before powered flight.
-8. **Guild reachability:** at least one eligible Guild settlement is reachable within the crude-aircraft envelope.
-9. **Guild legibility:** the player receives sufficient world evidence to infer a civilization route without blind random search.
+8. **Civilization/service reachability:** at least one eligible inhabited/service settlement is reachable within the crude-aircraft envelope.
+9. **Civilization/service legibility:** the player receives sufficient world evidence to infer a destination route without blind random search.
 10. **Regional specialization:** Copper and Zinc are available post-flight without both being routinely collapsed into the same trivial pickup.
 11. **Freight opening:** at least one economically motivated producer/consumer pair forms a viable early freight edge.
 12. **No lucky closure:** no mandatory Bootstrap capability depends on a random chest, random merchant appearance, or other unbounded chance event.
@@ -333,8 +335,9 @@ This document narrows the Bootstrap spatial/progression problem. It does not rep
 
 In particular:
 
-- CIV-0041 remains authoritative for the Bellanca onboarding state and tutorial terminus;
+- CIV-0041 remains authoritative for Bellanca onboarding state when that optional/post-alpha content is enabled; it no longer makes the Bellanca arc a first-public-alpha prerequisite;
 - CIV-0042 remains authoritative for civilization implementation/acceptance boundaries;
-- existing resource, market, route, freight, Guild, and semantic/physical reconciliation contracts remain authoritative within their domains.
+- existing resource, market, route, freight, Guild, and semantic/physical reconciliation contracts remain authoritative within their domains when their content is enabled;
+- `FIRST_PUBLIC_ALPHA_SCOPE.md` is authoritative for whether those content layers are required before first public alpha.
 
 Where a future implementation cannot satisfy this recipe without violating an accepted cross-lane contract, stop and surface the conflict rather than silently weakening the Bootstrap guarantee.
