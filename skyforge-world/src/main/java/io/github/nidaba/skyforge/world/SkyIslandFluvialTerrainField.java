@@ -35,7 +35,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         this.baseTerrain = coherent.continuousTerrain();
         this.extent = descriptor.nominalRadius();
         this.reaches = coherent.naturalizedChannels().paths().stream()
-                .map(path -> geometry(path, coherent.naturalizedChannels().planningSpacing()))
+                .map(path -> geometry(path, descriptor.nominalRadius()))
                 .toList();
     }
 
@@ -173,15 +173,19 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
     private static SkyIslandFluvialReachGeometry geometry(
             SkyIslandNaturalizedChannelPath path,
-            double spacing) {
+            double islandRadius) {
         SkyIslandChannelProfile profile = path.profile();
         SkyIslandChannelSegment segment = profile.segment();
 
-        double bankfullHalfWidth = spacing * (
-                0.48
-                        + 0.95 * profile.bankfullWidthPotential()
-                        + 0.48 * segment.relativeDischarge()
-                        + 0.20 * segment.corridorScale());
+        /*
+         * H3: derive physical width from island scale and the hydraulic-geometry potential, not
+         * from watershed lattice spacing. Changing planning resolution must not resize rivers.
+         * The floor keeps small headwaters visible after Minecraft quantization while discharge
+         * remains the dominant source of downstream widening.
+         */
+        double bankfullHalfWidth = Math.max(
+                1.25,
+                islandRadius * (0.0045 + 0.020 * profile.bankfullWidthPotential()));
 
         double valleyMultiplier = switch (profile.kind()) {
             case ALLUVIAL -> 3.6 + 1.8 * segment.corridorScale();
