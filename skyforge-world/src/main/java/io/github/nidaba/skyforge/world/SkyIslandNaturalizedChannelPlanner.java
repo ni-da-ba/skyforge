@@ -12,6 +12,8 @@ import java.util.Objects;
 public final class SkyIslandNaturalizedChannelPlanner {
     public static final int SUBDIVISIONS = 8;
     public static final double MAX_CHORD_DEVIATION_SPACING_FRACTION = 0.42;
+    private static final double[] TERRAIN_BEND_FRACTIONS =
+            {0.0, -0.25, 0.25, -0.50, 0.50, -0.75, 0.75, -1.0, 1.0};
 
     private SkyIslandNaturalizedChannelPlanner() {}
 
@@ -27,6 +29,9 @@ public final class SkyIslandNaturalizedChannelPlanner {
         Objects.requireNonNull(descriptor, "descriptor");
         profiles = List.copyOf(profiles);
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        SkyIslandSemanticFieldSet semanticFields = SkyIslandSemanticFieldSet.create(descriptor);
+        SkyIslandSemanticField terrain = semanticFields.elevationTendency();
+        SkyIslandSemanticField interiority = semanticFields.interiority();
         double spacing = watershed.spacing();
 
         Map<Integer, SkyIslandChannelProfile> outgoing = new HashMap<>();
@@ -55,15 +60,16 @@ public final class SkyIslandNaturalizedChannelPlanner {
 
         List<SkyIslandNaturalizedChannelPath> paths = new ArrayList<>(profiles.size());
         for (SkyIslandChannelProfile profile : profiles) {
-            paths.add(naturalize(descriptor, profile, tangents, spacing));
+            paths.add(naturalize(profile, tangents, terrain, interiority, spacing));
         }
         return new SkyIslandNaturalizedChannelPlan(descriptor, spacing, paths);
     }
 
     private static SkyIslandNaturalizedChannelPath naturalize(
-            SkyIslandDescriptor descriptor,
             SkyIslandChannelProfile profile,
             Map<Integer, Vector> tangents,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
             double spacing) {
         SkyIslandChannelSegment segment = profile.segment();
         SkyIslandLocalPosition start = segment.start();
@@ -94,17 +100,59 @@ public final class SkyIslandNaturalizedChannelPlanner {
                 end.z() - endTangent.z() * controlLength);
 
         Vector normal = normalize(-chordZ, chordX);
-        double bendScale = switch (profile.kind()) {
-            case ALLUVIAL -> 0.16;
-            case INCISED -> 0.08;
-            case CASCADE -> 0.035;
+        double reachBendScale = switch (profile.kind()) {
+            case ALLUVIAL -> 0.38;
+            case INCISED -> 0.25;
+            case CASCADE -> 0.14;
         };
-        double bendAmplitude = spacing
-                * bendScale
-                * (0.55 + 0.45 * profile.bankfullWidthPotential())
-                * (0.65 + 0.35 * (1.0 - profile.gradientPotential()))
-                * signedUnit(hashKey(descriptor, segment));
+        double maximumAmplitude = spacing
+                * reachBendScale
+                * (0.58 + 0.42 * profile.bankfullWidthPotential())
+                * (0.68 + 0.32 * (1.0 - profile.gradientPotential()));
 
+        Candidate best = null;
+        for (double bendFraction : TERRAIN_BEND_FRACTIONS) {
+            Candidate candidate = candidate(
+                    start,
+                    end,
+                    chordX,
+                    chordZ,
+                    chordLength,
+                    c1,
+                    c2,
+                    normal,
+                    maximumAmplitude * bendFraction,
+                    terrain,
+                    interiority,
+                    spacing);
+            if (best == null || candidate.cost() < best.cost() - 1.0e-12) {
+                best = candidate;
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException("terrain-aware naturalization produced no candidate");
+        }
+        return new SkyIslandNaturalizedChannelPath(
+                profile,
+                best.points(),
+                chordLength,
+                best.pathLength(),
+                best.maxDeviation());
+    }
+
+    private static Candidate candidate(
+            SkyIslandLocalPosition start,
+            SkyIslandLocalPosition end,
+            double chordX,
+            double chordZ,
+            double chordLength,
+            Point c1,
+            Point c2,
+            Vector normal,
+            double bendAmplitude,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double spacing) {
         List<SkyIslandLocalPosition> points = new ArrayList<>(SUBDIVISIONS + 1);
         double maxDeviation = 0.0;
         SkyIslandLocalPosition previous = null;
@@ -148,8 +196,56 @@ public final class SkyIslandNaturalizedChannelPlanner {
             previous = point;
         }
 
-        return new SkyIslandNaturalizedChannelPath(
-                profile, points, chordLength, pathLength, maxDeviation);
+        double cost = terrainAlignmentCost(points, terrain, interiority, spacing)
+                + 0.08 * Math.max(0.0, pathLength / chordLength - 1.0);
+        return new Candidate(List.copyOf(points), pathLength, maxDeviation, cost);
+    }
+
+    /**
+     * Scores one candidate centerline against the pre-channel authored terrain.
+     *
+     * <p>Positive downstream climbs and ridge crossings are expensive. Running through a local
+     * valley floor is rewarded. This keeps naturalization deterministic while ensuring curvature is
+     * selected by the landform rather than by an unrelated seed hash.
+     */
+    private static double terrainAlignmentCost(
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double spacing) {
+        double ascent = 0.0;
+        double ridge = 0.0;
+        double valley = 0.0;
+        double exterior = 0.0;
+        double probeDistance = spacing * 0.22;
+
+        for (int i = 1; i < points.size(); i++) {
+            double previous = terrain.sample(points.get(i - 1));
+            double current = terrain.sample(points.get(i));
+            ascent += Math.max(0.0, current - previous);
+        }
+
+        for (int i = 1; i + 1 < points.size(); i++) {
+            SkyIslandLocalPosition previous = points.get(i - 1);
+            SkyIslandLocalPosition current = points.get(i);
+            SkyIslandLocalPosition next = points.get(i + 1);
+            Vector tangent = normalize(next.x() - previous.x(), next.z() - previous.z());
+            Vector localNormal = new Vector(-tangent.z(), tangent.x());
+            SkyIslandLocalPosition left = new SkyIslandLocalPosition(
+                    current.x() + localNormal.x() * probeDistance,
+                    current.z() + localNormal.z() * probeDistance);
+            SkyIslandLocalPosition right = new SkyIslandLocalPosition(
+                    current.x() - localNormal.x() * probeDistance,
+                    current.z() - localNormal.z() * probeDistance);
+
+            double centerElevation = terrain.sample(current);
+            double sideMean = 0.5 * (terrain.sample(left) + terrain.sample(right));
+            ridge += Math.max(0.0, centerElevation - sideMean);
+            valley += Math.max(0.0, sideMean - centerElevation);
+            exterior += Math.max(0.0, 0.035 - interiority.sample(current));
+        }
+
+        return 9.0 * ascent + 4.0 * ridge - 1.5 * valley + 6.0 * exterior;
     }
 
     private static Vector tangent(
@@ -197,25 +293,6 @@ public final class SkyIslandNaturalizedChannelPlanner {
                 b0 * start.z() + b1 * c1.z() + b2 * c2.z() + b3 * end.z());
     }
 
-    private static long hashKey(SkyIslandDescriptor descriptor, SkyIslandChannelSegment segment) {
-        long value = descriptor.authorshipSeed();
-        value ^= Long.rotateLeft((long) segment.sourceCellIndex() * 0x9E3779B97F4A7C15L, 17);
-        value ^= Long.rotateLeft((long) segment.downstreamCellIndex() * 0xC2B2AE3D27D4EB4FL, 41);
-        return mix64(value);
-    }
-
-    private static double signedUnit(long value) {
-        double unit = (value >>> 11) * 0x1.0p-53;
-        return 2.0 * unit - 1.0;
-    }
-
-    private static long mix64(long value) {
-        long z = value;
-        z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
-        z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
-        return z ^ (z >>> 31);
-    }
-
     private static Vector normalize(double x, double z) {
         double length = Math.hypot(x, z);
         if (length <= 1.0e-12) {
@@ -230,4 +307,9 @@ public final class SkyIslandNaturalizedChannelPlanner {
 
     private record Vector(double x, double z) {}
     private record Point(double x, double z) {}
+    private record Candidate(
+            List<SkyIslandLocalPosition> points,
+            double pathLength,
+            double maxDeviation,
+            double cost) {}
 }
