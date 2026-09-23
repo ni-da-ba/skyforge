@@ -134,9 +134,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
     }
 
+    record PlanningResult(
+            List<Deployment> deployments,
+            SkyIslandFluvialTerrainField fluvial) {
+        PlanningResult {
+            deployments = List.copyOf(Objects.requireNonNull(deployments, "deployments"));
+            fluvial = Objects.requireNonNull(fluvial, "fluvial");
+        }
+    }
+
     private SkyforgeAuthoredVisibleHydrologyAdapter() {}
 
     static List<Deployment> plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain) {
+        return planWithField(descriptor, volume, terrain).deployments();
+    }
+
+    static PlanningResult planWithField(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyforgeNeoForge1211ChunkAdapter terrain) {
@@ -226,7 +242,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     carved,
                     surface));
         }
-        return List.copyOf(deployments);
+        return new PlanningResult(deployments, fluvial);
     }
 
     /** Applies every authored deployment whose exact cells occur in an already-available chunk. */
