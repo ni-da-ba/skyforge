@@ -61,17 +61,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
-            var overlap = new java.util.HashSet<>(positions);
-            overlap.retainAll(carvedPositions);
-            if (!overlap.isEmpty()) {
+            // These collections can contain hundreds of thousands of Minecraft positions.
+            // Never use a List as the membership side of retainAll/contains here: that makes
+            // deployment validation quadratic and can turn deterministic hydrology planning into
+            // a multi-minute bootstrap. Build hash sets once and keep all overlap checks linear.
+            Set<BlockPos> waterSet = new HashSet<>(positions);
+            Set<BlockPos> carvedSet = new HashSet<>(carvedPositions);
+            if (!java.util.Collections.disjoint(waterSet, carvedSet)) {
                 throw new IllegalArgumentException("hydrology water and dry carved positions must be disjoint");
             }
-            var surfaceOverlap = new java.util.HashSet<>(surfacePositions);
-            surfaceOverlap.retainAll(positions);
-            surfaceOverlap.addAll(surfacePositions.stream()
-                    .filter(carvedPositions::contains)
-                    .toList());
-            if (!surfaceOverlap.isEmpty()) {
+            Set<BlockPos> surfaceSet = new HashSet<>(surfacePositions);
+            if (!java.util.Collections.disjoint(surfaceSet, waterSet)
+                    || !java.util.Collections.disjoint(surfaceSet, carvedSet)) {
                 throw new IllegalArgumentException(
                         "hydrology surface dressing must remain below wet and carved cells");
             }
@@ -375,10 +376,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 }
             }
             if (component.size() > largest.size()) {
-                largest = Set.copyOf(component);
+                // Component is no longer mutated after this iteration. Retain it directly and copy
+                // only the final winner rather than repeatedly rehashing large intermediate sets.
+                largest = component;
             }
         }
-        return largest;
+        return Set.copyOf(largest);
     }
 
     /**
