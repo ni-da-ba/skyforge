@@ -33,7 +33,7 @@ final class SkyforgeHydrologyReferenceReviewFixtureTest {
                 (maxChunkX - minChunkX + 1) * (maxChunkZ - minChunkZ + 1);
         assertTrue(
                 fixture.footprintChunkKeys().size() < conservativeRectangleChunks,
-                "fast review must not warm the full conservative bounds rectangle");
+                "fast review must admit and warm only occupied chunks, not the full conservative bounds rectangle");
         assertEquals(
                 fixture.descriptor(),
                 fixture.descriptorsByVolumeId().get(fixture.volume().id()));
