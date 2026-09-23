@@ -16,6 +16,8 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -177,12 +179,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
 
         Map<Column, ChannelColumnPlan> columns = new LinkedHashMap<>();
-        for (Column column : candidateColumns(volume, reach)) {
+        for (var candidate : candidateColumnDistances(volume, reach).entrySet()) {
+            Column column = candidate.getKey();
             SkyIslandLocalPosition local = localPosition(volume, column);
-            double distance = distanceToPath(local, path);
-            if (distance > reach.valleyHalfWidth()) {
-                continue;
-            }
+            double distance = candidate.getValue();
             var optionalRange = terrain.integerSolidRange(volume.id(), column.x(), column.z());
             if (optionalRange.isEmpty()) {
                 continue;
@@ -390,41 +390,94 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return (int) Math.round(normalizedDelta * descriptor.reliefBudget());
     }
 
-    private static LinkedHashSet<Column> candidateColumns(
+    /**
+     * Returns exactly the integer columns within one reach's valley corridor, together with each
+     * column's minimum distance to the authored path.
+     *
+     * <p>The former implementation scanned the path's complete expanded bounding rectangle and then
+     * compared every column against every segment. A long diagonal or meandering reach therefore
+     * paid for large areas that were nowhere near the channel. Segment-local rasterization is
+     * geometrically equivalent: a point lies within the path corridor iff it lies within the
+     * expanded bounding box of at least one segment and its exact point-to-segment distance is
+     * within the valley half-width. Distances are merged by minimum and returned in canonical z/x
+     * order so deployment ordering remains unchanged.
+     */
+    private static Map<Column, Double> candidateColumnDistances(
             SkyIslandWorldVolume volume,
             SkyIslandFluvialReachGeometry reach) {
-        double minimumLocalX = Double.POSITIVE_INFINITY;
-        double maximumLocalX = Double.NEGATIVE_INFINITY;
-        double minimumLocalZ = Double.POSITIVE_INFINITY;
-        double maximumLocalZ = Double.NEGATIVE_INFINITY;
-        for (SkyIslandLocalPosition point : reach.path().points()) {
-            minimumLocalX = Math.min(minimumLocalX, point.x());
-            maximumLocalX = Math.max(maximumLocalX, point.x());
-            minimumLocalZ = Math.min(minimumLocalZ, point.z());
-            maximumLocalZ = Math.max(maximumLocalZ, point.z());
+        var points = reach.path().points();
+        if (points.size() < 2) {
+            return Map.of();
         }
+
         double margin = reach.valleyHalfWidth();
         var physical = volume.compiledVolume().descriptor();
-        int minimumX = (int) Math.ceil(Math.max(
-                volume.bounds().minimumX(),
-                physical.centerX() + minimumLocalX - margin));
-        int maximumX = (int) Math.floor(Math.min(
-                volume.bounds().maximumX(),
-                physical.centerX() + maximumLocalX + margin));
-        int minimumZ = (int) Math.ceil(Math.max(
-                volume.bounds().minimumZ(),
-                physical.centerZ() + minimumLocalZ - margin));
-        int maximumZ = (int) Math.floor(Math.min(
-                volume.bounds().maximumZ(),
-                physical.centerZ() + maximumLocalZ + margin));
+        Map<Column, Double> distances = new HashMap<>();
 
-        LinkedHashSet<Column> columns = new LinkedHashSet<>();
-        for (int z = minimumZ; z <= maximumZ; z++) {
-            for (int x = minimumX; x <= maximumX; x++) {
-                columns.add(new Column(x, z));
+        for (int index = 1; index < points.size(); index++) {
+            SkyIslandLocalPosition a = points.get(index - 1);
+            SkyIslandLocalPosition b = points.get(index);
+
+            int minimumX = (int) Math.ceil(Math.max(
+                    volume.bounds().minimumX(),
+                    physical.centerX() + Math.min(a.x(), b.x()) - margin));
+            int maximumX = (int) Math.floor(Math.min(
+                    volume.bounds().maximumX(),
+                    physical.centerX() + Math.max(a.x(), b.x()) + margin));
+            int minimumZ = (int) Math.ceil(Math.max(
+                    volume.bounds().minimumZ(),
+                    physical.centerZ() + Math.min(a.z(), b.z()) - margin));
+            int maximumZ = (int) Math.floor(Math.min(
+                    volume.bounds().maximumZ(),
+                    physical.centerZ() + Math.max(a.z(), b.z()) + margin));
+
+            for (int z = minimumZ; z <= maximumZ; z++) {
+                for (int x = minimumX; x <= maximumX; x++) {
+                    SkyIslandLocalPosition local = new SkyIslandLocalPosition(
+                            x - physical.centerX(),
+                            z - physical.centerZ());
+                    double distance = distanceToSegment(local, a, b);
+                    if (distance > margin) {
+                        continue;
+                    }
+                    distances.merge(new Column(x, z), distance, Math::min);
+                }
             }
         }
-        return columns;
+
+        if (distances.isEmpty()) {
+            return Map.of();
+        }
+
+        var ordered = new ArrayList<>(distances.entrySet());
+        ordered.sort(Comparator
+                .comparingInt((Map.Entry<Column, Double> entry) -> entry.getKey().z())
+                .thenComparingInt(entry -> entry.getKey().x()));
+        Map<Column, Double> canonical = new LinkedHashMap<>();
+        for (var entry : ordered) {
+            canonical.put(entry.getKey(), entry.getValue());
+        }
+        return canonical;
+    }
+
+    private static double distanceToSegment(
+            SkyIslandLocalPosition position,
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b) {
+        double dx = b.x() - a.x();
+        double dz = b.z() - a.z();
+        double lengthSquared = dx * dx + dz * dz;
+        if (lengthSquared <= 1.0e-12) {
+            return Math.hypot(position.x() - a.x(), position.z() - a.z());
+        }
+        double px = position.x() - a.x();
+        double pz = position.z() - a.z();
+        double fraction = Math.max(
+                0.0,
+                Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
+        double nearestX = a.x() + fraction * dx;
+        double nearestZ = a.z() + fraction * dz;
+        return Math.hypot(position.x() - nearestX, position.z() - nearestZ);
     }
 
     private static SkyIslandLocalPosition localPosition(
@@ -434,35 +487,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return new SkyIslandLocalPosition(
                 column.x() - physical.centerX(),
                 column.z() - physical.centerZ());
-    }
-
-    private static double distanceToPath(
-            SkyIslandLocalPosition position,
-            SkyIslandNaturalizedChannelPath path) {
-        double best = Double.POSITIVE_INFINITY;
-        var points = path.points();
-        for (int index = 1; index < points.size(); index++) {
-            SkyIslandLocalPosition a = points.get(index - 1);
-            SkyIslandLocalPosition b = points.get(index);
-            double dx = b.x() - a.x();
-            double dz = b.z() - a.z();
-            double lengthSquared = dx * dx + dz * dz;
-            if (lengthSquared <= 1.0e-12) {
-                best = Math.min(best, Math.hypot(position.x() - a.x(), position.z() - a.z()));
-                continue;
-            }
-            double px = position.x() - a.x();
-            double pz = position.z() - a.z();
-            double fraction = Math.max(
-                    0.0,
-                    Math.min(1.0, (px * dx + pz * dz) / lengthSquared));
-            double nearestX = a.x() + fraction * dx;
-            double nearestZ = a.z() + fraction * dz;
-            best = Math.min(
-                    best,
-                    Math.hypot(position.x() - nearestX, position.z() - nearestZ));
-        }
-        return best;
     }
 
     private static Optional<Deployment> atFootprint(
