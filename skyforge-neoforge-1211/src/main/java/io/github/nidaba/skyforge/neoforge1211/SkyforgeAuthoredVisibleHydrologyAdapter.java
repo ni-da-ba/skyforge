@@ -56,6 +56,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
+            // Preserve the retained plan even if a package-local caller supplies mutable lists.
+            // List.copyOf can reuse JDK immutable planner inputs without exposing caller mutation.
             positions = List.copyOf(Objects.requireNonNull(positions, "positions"));
             carvedPositions = List.copyOf(Objects.requireNonNull(carvedPositions, "carvedPositions"));
             surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
@@ -200,6 +202,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 solidRangeCache)
                         .ifPresent(rawDeployments::add);
             }
+        }
+
+        long projectedChannels = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.CHANNEL)
+                .count();
+        long projectedRetainedWater = rawDeployments.stream()
+                .filter(deployment -> deployment.feature() == Feature.RETAINED_WATER)
+                .count();
+        if (projectedChannels != intent.channels().size()
+                || projectedRetainedWater != intent.retainedWater().size()) {
+            throw new IllegalStateException(
+                    "Minecraft hydrology projection lost accepted authored intent: channels="
+                            + projectedChannels + "/" + intent.channels().size()
+                            + ", retainedWater="
+                            + projectedRetainedWater + "/" + intent.retainedWater().size()
+                            + ", volume=" + volume.id().path());
         }
 
         // Drop events remain authored geomorphic semantics. Their cascade/waterfall shaping is
@@ -447,16 +465,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 <= Math.max(1.5, reach.wetHalfWidth() * 0.75);
     }
 
-    private static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
+    static Set<Column> largestConnectedFootprint(Set<Column> candidates) {
         if (candidates.isEmpty()) {
             return Set.of();
         }
         Set<Column> unvisited = new LinkedHashSet<>(candidates);
         Set<Column> largest = Set.of();
-        int[][] directions = {
-                {1, 0}, {-1, 0}, {0, 1}, {0, -1},
-                {1, 1}, {1, -1}, {-1, 1}, {-1, -1}
-        };
+        // Minecraft fluids connect through shared block faces. Corner-touching columns
+        // are not one physically connected waterbody.
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         while (!unvisited.isEmpty()) {
             Column seed = unvisited.iterator().next();
             var queue = new ArrayDeque<Column>();
@@ -832,6 +849,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (minimumY < authoritativeMinimumY || maximumY > authoritativeMaximumY) {
             return false;
         }
+        // The accepted built-in volume compiler proves vertical continuity between the
+        // exact range endpoints. Single-volume projection therefore needs no interior density
+        // reclassification; stacked projection still excludes any foreign owner per cell.
         if (!terrain.hasMultipleCompiledVolumes()) {
             return true;
         }
@@ -882,6 +902,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return uncontestedOwnedRangeCell(terrain, volume.id(), column.x(), y, column.z());
     }
 
+    /**
+     * Ownership check for a Y already proven inside the accepted compiler's continuous solid range.
+     *
+     * <p>The range itself proves target-volume occupancy. Only stacked catalogs need an additional
+     * per-cell exclusion for a foreign exact volume.
+     */
     private static boolean uncontestedOwnedRangeCell(
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandWorldVolumeId volumeId,
@@ -1061,5 +1087,5 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int baseSurfaceY,
             int bedY) {}
 
-    private record Column(int x, int z) {}
+    record Column(int x, int z) {}
 }
