@@ -589,11 +589,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    if (syntheticBanks >= 2) {
+                    int syntheticBankLimit = channelEndpointCapAllowed(
+                            volume, candidate.column(), reach, path) ? 3 : 2;
+                    if (syntheticBanks >= syntheticBankLimit) {
                         return Optional.empty();
                     }
-                    // Mirror channelBankCeiling exactly: up to two absent side banks may be rebuilt as
-                    // narrow shelf rooted at the carved bed elevation, never as an unbounded wall.
+                    // Interior spine cells may rebuild at most two absent side banks. A bounded
+                    // authored endpoint may additionally require one closing cap bank; permitting
+                    // that third face only at the endpoint keeps the channel contained without
+                    // authorizing a three-sided synthetic trench along the reach.
                     bankTopY = candidate.drySurfaceY() - 1;
                     syntheticBanks++;
                 } else {
@@ -1280,7 +1284,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 // immediately over void. Permit up to two narrow, laterally anchored shelves instead of
                 // deleting that carrier node. The virtual top is one block below the carved bed,
                 // which means MAX_CHANNEL_BANK_FILL_BLOCKS bounds the complete constructed wall.
-                if (syntheticBanks >= 2) {
+                int syntheticBankLimit = channelEndpointCapAllowed(
+                        volume, wet, reach, reach.path()) ? 3 : 2;
+                if (syntheticBanks >= syntheticBankLimit) {
                     return OptionalInt.empty();
                 }
                 int virtualBankTopY = candidateDrySurfaceY - 1;
@@ -1328,6 +1334,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ceiling = Math.min(ceiling, bankTopY);
         }
         return OptionalInt.of(ceiling);
+    }
+
+    private static boolean channelEndpointCapAllowed(
+            SkyIslandWorldVolume volume,
+            Column wet,
+            SkyIslandFluvialReachGeometry reach,
+            SkyIslandNaturalizedChannelPath path) {
+        SkyIslandLocalPosition local = localPosition(volume, wet);
+        double tolerance = Math.max(1.5, reach.wetHalfWidth() * 0.75);
+        SkyIslandLocalPosition upstream = path.points().getFirst();
+        SkyIslandLocalPosition downstream = path.points().getLast();
+        return Math.hypot(local.x() - upstream.x(), local.z() - upstream.z()) <= tolerance
+                || Math.hypot(local.x() - downstream.x(), local.z() - downstream.z()) <= tolerance;
     }
 
     private static boolean channelOutletBreachAllowed(
