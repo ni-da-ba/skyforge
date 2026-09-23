@@ -213,3 +213,15 @@ The visible-network closure contract treats a raw-DEM climb as an explicit hidde
 boundary. That hidden interval may begin on the edge entering the first non-visible watershed cell
 or on that cell's outgoing edge; visible tributaries must resolve to a trunk, terminal fate, or one
 of those explicit climb boundaries rather than terminate because of selection-budget tie breaking.
+
+
+Current H2 reference evidence after terrain-aware routing and downstream closure:
+
+- primary key 287: 3.33% sub-grid uphill steps, 19.09% ridge-crossing samples, zero
+  endpoint-uphill visible reaches;
+- confluence control key 632: 0% sub-grid uphill steps, 34.55% ridge-crossing samples, zero
+  endpoint-uphill visible reaches.
+
+Conservative regression thresholds are now enforced around these gains. The remaining ridge-crossing
+rate is diagnostic pressure for later refinement, not permission to restore the old coarse-routing
+behavior.
