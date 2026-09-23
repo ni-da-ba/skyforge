@@ -265,7 +265,16 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             case CASCADE -> 1.15;
         };
         double wetFraction = Math.pow(waterDepth / bankRelief, 1.0 / exponent) * 0.94;
-        double wetHalfWidth = bankfullHalfWidth * clamp(wetFraction, 0.28, 0.78);
+        /*
+         * The continuous field may author sub-block headwaters, but the Minecraft consumer samples
+         * integer X/Z columns. Preserve the discharge-driven bankfull scale while guaranteeing that
+         * an accepted visible channel has at least one rasterizable wet column near its centerline.
+         * 0.75 exceeds the square-grid half-diagonal tolerance (~0.707) without inflating the
+         * bankfull envelope itself.
+         */
+        double wetHalfWidth = Math.min(
+                bankfullHalfWidth * 0.78,
+                Math.max(0.75, bankfullHalfWidth * clamp(wetFraction, 0.28, 0.78)));
 
         return new SkyIslandFluvialReachGeometry(
                 path,
