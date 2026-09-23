@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
@@ -308,6 +309,39 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .mapToInt(chunk -> SkyforgeAuthoredVisibleHydrologyAdapter.apply(chunk, reloadedDeployment))
                     .sum());
         }
+    }
+
+    @Test
+    void deploymentRejectsWaterCarveAndSurfaceOverlap() {
+        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
+        var volumeId = fixture.volume().id();
+        BlockPos water = new BlockPos(1, 64, 1);
+        BlockPos carved = new BlockPos(2, 64, 1);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                        volumeId,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                        List.of(water),
+                        List.of(water),
+                        List.of()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                        volumeId,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                        List.of(water),
+                        List.of(),
+                        List.of(water)));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                        volumeId,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                        List.of(water),
+                        List.of(carved),
+                        List.of(carved)));
     }
 
     @Test
