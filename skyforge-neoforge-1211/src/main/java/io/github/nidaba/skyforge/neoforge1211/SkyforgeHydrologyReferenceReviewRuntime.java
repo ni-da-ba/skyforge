@@ -731,7 +731,7 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             LevelChunk chunk) {
         var volumeId = fixture.volume().id();
         long chunkKey = chunk.getPos().toLong();
-        if (SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(volumeId).contains(chunkKey)
+        if (SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId, chunk.getPos())
                 || !SkyforgeComposedCaveStage.completed(volumeId, chunkKey)) {
             return false;
         }
@@ -745,9 +745,8 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
             SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture fixture,
             long chunkKey) {
         var volumeId = fixture.volume().id();
-        return !SkyforgePhysicalVolumeAdmissionStage.pendingBiomePresentationChunks(volumeId)
-                        .contains(chunkKey)
-                && !SkyforgeNativeInteriorPopulationStage.pendingChunkKeys().contains(chunkKey);
+        return !SkyforgePhysicalVolumeAdmissionStage.hasPendingBiomePresentation(volumeId, chunkKey)
+                && !SkyforgeNativeInteriorPopulationStage.hasPending(volumeId, chunkKey);
     }
 
     private static void reportProgress(ServerPlayer player, Preparation active) {
