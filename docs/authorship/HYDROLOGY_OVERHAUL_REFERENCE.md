@@ -120,3 +120,10 @@ This is still a coarse 49x49 / eight-neighbor drainage graph. It is an architect
 the final fine-corridor solution. If H2 materially improves the reference metrics but leaves visible
 grid/corridor artifacts, the next step is finer terrain-aware routing between semantic
 junctions/basins/outlets rather than additional coarse-graph cosmetic smoothing.
+
+
+## H2 validation note
+
+Historical seed-specific expectations are not hydrology contracts. After the watershed flow-direction
+rewrite, regression tests assert topology/coherence invariants while the proving-ground diagnostics
+select the next fixed confluence specimen from the new production behavior.
