@@ -33,7 +33,7 @@ public final class SkyIslandWaterbodyFootprintPlanner {
         }
 
         List<SkyIslandWaterbodyFootprint> footprints = new ArrayList<>();
-        for (List<CandidateSeed> group : overlapGroups(seeds)) {
+        for (List<CandidateSeed> group : overlapGroups(seeds, watershed.gridSize())) {
             footprints.add(merge(group, watershed, cells));
         }
         footprints.sort(Comparator.comparingInt(footprint -> footprint.sourceCandidates().getFirst().sinkCellIndex()));
@@ -74,7 +74,12 @@ public final class SkyIslandWaterbodyFootprintPlanner {
                 Set.copyOf(inundated));
     }
 
-    private static List<List<CandidateSeed>> overlapGroups(List<CandidateSeed> seeds) {
+    private static List<List<CandidateSeed>> overlapGroups(
+            List<CandidateSeed> seeds,
+            int gridSize) {
+        if (gridSize < 1) {
+            throw new IllegalArgumentException("gridSize must be positive");
+        }
         List<List<CandidateSeed>> groups = new ArrayList<>();
         boolean[] assigned = new boolean[seeds.size()];
         for (int start = 0; start < seeds.size(); start++) {
@@ -93,7 +98,10 @@ public final class SkyIslandWaterbodyFootprintPlanner {
                     if (assigned[otherIndex]) {
                         continue;
                     }
-                    if (intersects(current.inundatedCells(), seeds.get(otherIndex).inundatedCells())) {
+                    if (intersectsOrTouches(
+                            current.inundatedCells(),
+                            seeds.get(otherIndex).inundatedCells(),
+                            gridSize)) {
                         assigned[otherIndex] = true;
                         queue.addLast(otherIndex);
                     }
@@ -163,12 +171,26 @@ public final class SkyIslandWaterbodyFootprintPlanner {
         return eligible;
     }
 
-    private static boolean intersects(Set<Integer> a, Set<Integer> b) {
+    static boolean intersectsOrTouches(
+            Set<Integer> a,
+            Set<Integer> b,
+            int gridSize) {
+        if (gridSize < 1) {
+            throw new IllegalArgumentException("gridSize must be positive");
+        }
         Set<Integer> smaller = a.size() <= b.size() ? a : b;
         Set<Integer> larger = a.size() <= b.size() ? b : a;
         for (int value : smaller) {
             if (larger.contains(value)) {
                 return true;
+            }
+            for (int neighbor : neighbors(value, gridSize)) {
+                if (larger.contains(neighbor)) {
+                    // Retained cells occupy finite coarse areas. Cardinally adjacent wet cells
+                    // share a physical edge, so they are one connected inundation component and
+                    // must not be assigned independent standing-water datums.
+                    return true;
+                }
             }
         }
         return false;
