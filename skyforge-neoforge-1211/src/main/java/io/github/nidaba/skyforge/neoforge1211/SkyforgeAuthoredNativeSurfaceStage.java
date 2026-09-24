@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -235,21 +236,32 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                         continue;
                     }
 
-                    BlockState liveState = live.getBlockState(cursor);
+                    BlockPos currentPosition = cursor.immutable();
+                    BlockState liveState = live.getBlockState(currentPosition);
                     if (liveState.isAir() || !liveState.getFluidState().isEmpty()) {
                         continue;
                     }
-                    // Hydrology owns occupancy and geometry, not the final material palette.
-                    // The scratch chunk already preserves authored AIR/water, so native surface rules
-                    // can safely realize the exposed/submerged solid bed and banks using the exact
-                    // island biome context. This keeps fluvial material expression adaptable instead
-                    // of freezing a Skyforge-authored clay/stone palette into the backend.
-                    if (!stableWhenCopied(live, cursor, nativeState)) {
+
+                    // High suspended islands are far above vanilla sea level, so otherwise-native
+                    // surface rules can choose grass/mycelium topsoil even for an authored submerged
+                    // bed. Preserve Minecraft material authority but use the native subsurface member
+                    // of that same generated profile whenever the block immediately above is authored
+                    // water. Registered DiskFeature dressing can then add biome-native sand/clay/
+                    // gravel variation instead of starting from a grassy lake floor.
+                    boolean submergedBed = SkyforgeNeoForge1211SurfaceStage
+                            .authoredHydrologyPopulationState(volumeId, currentPosition.above())
+                            .map(SkyforgeAuthoredVisibleHydrologyAdapter::isWaterBearing)
+                            .orElse(false);
+                    BlockState representationState = submergedBed
+                            ? nativeSubmergedState(scratch, currentPosition, nativeState)
+                            : nativeState;
+
+                    if (!stableWhenCopied(live, currentPosition, representationState)) {
                         continue;
                     }
-                    if (!liveState.equals(nativeState)) {
-                        BlockPos changedPosition = cursor.immutable();
-                        live.setBlockState(changedPosition, nativeState, false);
+                    if (!liveState.equals(representationState)) {
+                        BlockPos changedPosition = currentPosition;
+                        live.setBlockState(changedPosition, representationState, false);
                         level.getChunkSource().getLightEngine().checkBlock(changedPosition);
                         level.getChunkSource().blockChanged(changedPosition);
                         changed++;
@@ -258,6 +270,29 @@ final class SkyforgeAuthoredNativeSurfaceStage {
             }
         }
         return changed;
+    }
+
+    private static BlockState nativeSubmergedState(
+            ProtoChunk scratch,
+            BlockPos position,
+            BlockState nativeState) {
+        if (!nativeState.is(Blocks.GRASS_BLOCK)
+                && !nativeState.is(Blocks.MYCELIUM)
+                && !nativeState.is(Blocks.PODZOL)) {
+            return nativeState;
+        }
+        for (int depth = 1; depth <= NEWLY_EXPOSED_PROFILE_DEPTH; depth++) {
+            BlockState candidate = scratch.getBlockState(position.below(depth));
+            if (candidate.isAir() || !candidate.getFluidState().isEmpty()) {
+                continue;
+            }
+            if (!candidate.is(Blocks.GRASS_BLOCK)
+                    && !candidate.is(Blocks.MYCELIUM)
+                    && !candidate.is(Blocks.PODZOL)) {
+                return candidate;
+            }
+        }
+        return nativeState;
     }
 
     /**
