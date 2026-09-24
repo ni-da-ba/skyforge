@@ -368,6 +368,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             addMembershipByChunk(waterByChunk, water);
         }
 
+        // Every individual channel/basin deployment authors a contiguous vertical water interval,
+        // but two accepted reaches can share one raster column at different physical grades. The
+        // final Minecraft state is their union, so leaving an air voxel between those intervals
+        // creates literal hovering water. Close only gaps bounded by authored water above and below;
+        // never extend beyond the existing vertical envelope, and never cross a foreign stacked
+        // volume. Assign a gap to the nearest authored water above it so provenance follows the
+        // descending upper interval rather than manufacturing a new independent water source.
+        normalizedWater = closeVerticalWaterGaps(
+                normalizedWater, volume, terrain);
+        waterByChunk.clear();
+        for (List<BlockPos> water : normalizedWater) {
+            addMembershipByChunk(waterByChunk, water);
+        }
+
         Map<Long, Set<BlockPos>> carvedByChunk = new HashMap<>();
         for (RawDeployment deployment : rawDeployments) {
             for (BlockPos position : deployment.carvedPositions()) {
@@ -389,9 +403,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .toList();
+            Set<BlockPos> explicitBankRepair = deployment.feature() == Feature.CHANNEL
+                    ? new HashSet<>(deployment.forcedSurfacePositions())
+                    : Set.of();
             List<BlockPos> surface = deployment.surfacePositions().stream()
                     .filter(position -> deployment.feature() != Feature.CHANNEL
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
+                    .filter(position -> deployment.feature() != Feature.CHANNEL
+                            || !explicitBankRepair.contains(position)
+                            || !touchesRetainedColumn(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
@@ -2472,6 +2492,70 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 canonicalCarved,
                 canonicalSurface,
                 canonicalForcedSurface);
+    }
+
+    private static List<List<BlockPos>> closeVerticalWaterGaps(
+            List<List<BlockPos>> waterByDeployment,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain) {
+        Objects.requireNonNull(waterByDeployment, "waterByDeployment");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(terrain, "terrain");
+
+        List<LinkedHashSet<BlockPos>> closed = new ArrayList<>(waterByDeployment.size());
+        Map<Column, java.util.TreeMap<Integer, Integer>> ownerByHeightByColumn =
+                new LinkedHashMap<>();
+        for (int deploymentIndex = 0; deploymentIndex < waterByDeployment.size(); deploymentIndex++) {
+            LinkedHashSet<BlockPos> positions =
+                    new LinkedHashSet<>(waterByDeployment.get(deploymentIndex));
+            closed.add(positions);
+            for (BlockPos position : positions) {
+                ownerByHeightByColumn
+                        .computeIfAbsent(
+                                new Column(position.getX(), position.getZ()),
+                                ignored -> new java.util.TreeMap<>())
+                        .putIfAbsent(position.getY(), deploymentIndex);
+            }
+        }
+
+        for (var entry : ownerByHeightByColumn.entrySet()) {
+            var heights = entry.getValue();
+            if (heights.size() < 2) {
+                continue;
+            }
+            int minimumY = heights.firstKey();
+            int maximumY = heights.lastKey();
+            for (int y = minimumY + 1; y < maximumY; y++) {
+                if (heights.containsKey(y)) {
+                    continue;
+                }
+                Column column = entry.getKey();
+                if (!volume.bounds().contains(column.x(), y, column.z())
+                        || terrain.isSolidOwnedByOtherVolume(
+                                volume.id(), column.x(), y, column.z())) {
+                    continue;
+                }
+                var upper = heights.ceilingEntry(y);
+                if (upper == null) {
+                    throw new IllegalStateException(
+                            "bounded hydrology water gap has no authored upper interval");
+                }
+                closed.get(upper.getValue())
+                        .add(new BlockPos(column.x(), y, column.z()));
+            }
+        }
+
+        Comparator<BlockPos> canonicalPositionOrder = Comparator
+                .comparingInt((BlockPos position) -> position.getZ())
+                .thenComparingInt(position -> position.getX())
+                .thenComparingInt(position -> position.getY());
+        List<List<BlockPos>> result = new ArrayList<>(closed.size());
+        for (LinkedHashSet<BlockPos> positions : closed) {
+            var canonical = new ArrayList<>(positions);
+            canonical.sort(canonicalPositionOrder);
+            result.add(List.copyOf(canonical));
+        }
+        return List.copyOf(result);
     }
 
     private static Map<Column, Integer> retainedWaterTopByColumn(
