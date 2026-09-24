@@ -558,12 +558,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .getBlockState(position)
                         .isAir());
             }
+            var forcedSurface = new java.util.HashSet<>(deployment.forcedSurfacePositions());
             for (var position : deployment.surfacePositions()) {
+                var actual = chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
+                        .getBlockState(position);
+                if (forcedSurface.contains(position)) {
+                    assertTrue(
+                            SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(actual),
+                            "synthetic hydrology bank repair must retain stable authored material");
+                } else {
+                    assertFalse(actual.isAir(),
+                            "preserved hydrology bed must retain compiled/native solid geology");
+                    assertTrue(actual.getFluidState().isEmpty(),
+                            "preserved hydrology bed must remain a dry solid substrate");
+                }
                 assertTrue(
-                        SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
-                                chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
-                                        .getBlockState(position)),
-                        "fluvial bed/bank surface must retain authoritative hydrology sediment");
+                        terrain.authoredHydrologyPopulationState(fixture.volume().id(), position)
+                                .map(SkyforgeAuthoredVisibleHydrologyAdapter::isHydrologySurfaceMaterial)
+                                .orElse(false),
+                        "preserved and repaired beds must remain hydrology-owned for native dressing");
             }
         }
 
@@ -603,8 +616,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var indexed = SkyforgeAuthoredVisibleHydrologyAdapter.indexByChunk(deployments);
 
         var expected = new java.util.LinkedHashMap<BlockPos, net.minecraft.world.level.block.state.BlockState>();
+        var expectedSurface = new java.util.LinkedHashSet<BlockPos>();
         for (var deployment : deployments) {
-            for (var position : deployment.surfacePositions()) {
+            expectedSurface.addAll(deployment.surfacePositions());
+            for (var position : deployment.forcedSurfacePositions()) {
                 var desired = SkyforgeAuthoredVisibleHydrologyAdapter.hydrologySurfaceState(position);
                 var previous = expected.putIfAbsent(position, desired);
                 assertTrue(previous == null || previous.equals(desired));
@@ -622,15 +637,28 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(
                 expected.size(),
                 indexed.values().stream().mapToInt(projection -> projection.states().size()).sum());
+        assertEquals(
+                expectedSurface.size(),
+                indexed.values().stream().mapToInt(projection -> projection.surfacePositions().size()).sum());
         for (var entry : indexed.entrySet()) {
             long chunkKey = entry.getKey();
             for (var state : entry.getValue().states().entrySet()) {
                 assertEquals(chunkKey, new net.minecraft.world.level.ChunkPos(state.getKey()).toLong());
                 assertEquals(expected.get(state.getKey()), state.getValue());
             }
+            for (var surface : entry.getValue().surfacePositions()) {
+                assertEquals(chunkKey, new net.minecraft.world.level.ChunkPos(surface).toLong());
+                assertTrue(expectedSurface.contains(surface));
+                assertTrue(entry.getValue().populationState(surface)
+                        .map(SkyforgeAuthoredVisibleHydrologyAdapter::isHydrologySurfaceMaterial)
+                        .orElse(false));
+            }
         }
 
-        var first = indexed.entrySet().stream().findFirst().orElseThrow();
+        var first = indexed.entrySet().stream()
+                .filter(entry -> !entry.getValue().states().isEmpty())
+                .findFirst()
+                .orElseThrow();
         var chunkPos = new net.minecraft.world.level.ChunkPos(first.getKey());
         var chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
         for (var state : first.getValue().states().entrySet()) {
@@ -682,23 +710,28 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var water = new java.util.ArrayList<BlockPos>();
         var carved = new java.util.ArrayList<BlockPos>();
         var surface = new java.util.ArrayList<BlockPos>();
+        var forcedSurface = new java.util.ArrayList<BlockPos>();
         water.add(new BlockPos(1, 64, 1));
         carved.add(new BlockPos(2, 64, 1));
         surface.add(new BlockPos(3, 64, 1));
+        forcedSurface.add(new BlockPos(3, 64, 1));
 
         var deployment = new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
                 volumeId,
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 water,
                 carved,
-                surface);
+                surface,
+                forcedSurface);
         water.clear();
         carved.clear();
         surface.clear();
+        forcedSurface.clear();
 
         assertEquals(1, deployment.positions().size());
         assertEquals(1, deployment.carvedPositions().size());
         assertEquals(1, deployment.surfacePositions().size());
+        assertEquals(1, deployment.forcedSurfacePositions().size());
     }
 
     @Test
@@ -715,6 +748,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                         List.of(water),
                         List.of(water),
+                        List.of(),
                         List.of()));
         assertThrows(
                 IllegalArgumentException.class,
@@ -723,7 +757,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                         List.of(water),
                         List.of(),
-                        List.of(water)));
+                        List.of(water),
+                        List.of()));
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
@@ -731,7 +766,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                         List.of(water),
                         List.of(carved),
-                        List.of(carved)));
+                        List.of(carved),
+                        List.of()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyforgeAuthoredVisibleHydrologyAdapter.Deployment(
+                        volumeId,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
+                        List.of(water),
+                        List.of(),
+                        List.of(),
+                        List.of(new BlockPos(3, 64, 1))));
     }
 
     @Test
@@ -741,6 +786,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.volume().id(),
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 List.of(new BlockPos(1, 64, 1)),
+                List.of(),
                 List.of(),
                 List.of());
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
@@ -758,6 +804,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.volume().id(),
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                 List.of(position),
+                List.of(),
                 List.of(),
                 List.of());
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
@@ -903,6 +950,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
             }
+            var forcedSurface = new java.util.HashSet<>(deployment.forcedSurfacePositions());
+            assertTrue(deployment.surfacePositions().containsAll(forcedSurface));
             for (var position : deployment.surfacePositions()) {
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
@@ -910,6 +959,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ())) {
                     continue;
                 }
+                assertTrue(
+                        forcedSurface.contains(position),
+                        "only explicit bank-repair positions may extend solid support beyond compiled geology");
                 var range = terrain.integerSolidRange(
                                 deployment.volumeId(), position.getX(), position.getZ())
                         .orElseThrow();
