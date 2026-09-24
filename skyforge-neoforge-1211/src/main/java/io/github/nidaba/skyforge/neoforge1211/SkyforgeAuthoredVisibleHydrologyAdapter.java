@@ -592,15 +592,53 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", containedWetColumns=" + containedWetColumns);
         }
 
-        // Recompute bank reconciliation against the final connected wet component. A wet
-        // candidate that lost connectivity is now dry terrain and must no longer suppress the
-        // cardinal bank check of a surviving water column.
+        // Re-evaluate containment against the surviving connected component. Removing one rejected
+        // fringe cell can expose a neighboring wet cell as a new lateral edge, so prune to a fixed
+        // point instead of either (a) treating disconnected candidates as imaginary banks or
+        // (b) rejecting the entire accepted reach because a widened mouth/fringe cell cannot be
+        // contained. The authored centerline/path-coverage checks below remain authoritative.
+        for (int iteration = 0; iteration <= plannedWetColumns; iteration++) {
+            LinkedHashSet<Column> stillContained = new LinkedHashSet<>();
+            for (Column wetColumn : containedWet) {
+                ChannelColumnPlan column = columns.get(wetColumn);
+                if (column == null) {
+                    throw new IllegalStateException("connected wet component lost its channel plan");
+                }
+                if (channelBankFillPositions(
+                                volume,
+                                terrain,
+                                columns,
+                                containedWet,
+                                column,
+                                reach,
+                                path,
+                                routedEdgeOutlet,
+                                solidRangeCache)
+                        .isPresent()) {
+                    stillContained.add(wetColumn);
+                }
+            }
+            Set<Column> next = largestConnectedFootprint(stillContained);
+            if (next.equals(containedWet)) {
+                break;
+            }
+            containedWet = next;
+            if (containedWet.isEmpty()) {
+                throw channelProjectionFailure(
+                        volume,
+                        path,
+                        "iterative bank containment pruned the entire wet component; "
+                                + "plannedWetColumns=" + plannedWetColumns
+                                + ", initiallyContainedWetColumns=" + containedWetColumns);
+            }
+            if (iteration == plannedWetColumns) {
+                throw new IllegalStateException("channel containment pruning failed to converge");
+            }
+        }
+
         LinkedHashSet<BlockPos> channelBankFill = new LinkedHashSet<>();
         for (Column wetColumn : containedWet) {
             ChannelColumnPlan column = columns.get(wetColumn);
-            if (column == null) {
-                throw new IllegalStateException("connected wet component lost its channel plan");
-            }
             Optional<List<BlockPos>> bankFill = channelBankFillPositions(
                     volume,
                     terrain,
@@ -612,10 +650,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     routedEdgeOutlet,
                     solidRangeCache);
             if (bankFill.isEmpty()) {
-                throw channelProjectionFailure(
-                        volume,
-                        path,
-                        "final connected wet component lost lateral containment at " + wetColumn);
+                throw new IllegalStateException(
+                        "fixed-point channel containment lost a previously verified wet column");
             }
             channelBankFill.addAll(bankFill.orElseThrow());
         }
