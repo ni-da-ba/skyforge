@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -242,6 +243,9 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                     // can safely realize the exposed/submerged solid bed and banks using the exact
                     // island biome context. This keeps fluvial material expression adaptable instead
                     // of freezing a Skyforge-authored clay/stone palette into the backend.
+                    if (!stableWhenCopied(live, cursor, nativeState)) {
+                        continue;
+                    }
                     if (!liveState.equals(nativeState)) {
                         live.setBlockState(cursor, nativeState, false);
                         changed++;
@@ -250,6 +254,25 @@ final class SkyforgeAuthoredNativeSurfaceStage {
             }
         }
         return changed;
+    }
+
+    /**
+     * Native surface authority may choose gravity-affected sand/gravel, but it may not invalidate
+     * authoritative Skyforge occupancy. Preserve the same support invariant as the pre-decoration
+     * native-surface adapter: a falling representation is copied only onto a real dry support block.
+     */
+    private static boolean stableWhenCopied(
+            LevelChunk live,
+            BlockPos position,
+            BlockState nativeState) {
+        if (!(nativeState.getBlock() instanceof FallingBlock)) {
+            return true;
+        }
+        if (position.getY() <= live.getMinBuildHeight()) {
+            return false;
+        }
+        BlockState support = live.getBlockState(position.below());
+        return !support.isAir() && support.getFluidState().isEmpty();
     }
 
     private static synchronized Evaluator evaluator(
