@@ -157,8 +157,7 @@ final class SkyforgeNativeBiomePopulationRunner {
                     originChunk,
                     nativeChunkOrigin,
                     maximumAttachmentDepth,
-                    featureSteps,
-                    featureSteps.get(stepIndex).size());
+                    featureSteps);
             featureResults.addAll(diskResults);
             attempted = Math.addExact(attempted, diskResults.size());
             for (var diskResult : diskResults) {
@@ -353,8 +352,7 @@ final class SkyforgeNativeBiomePopulationRunner {
             ChunkPos originChunk,
             BlockPos nativeChunkOrigin,
             int maximumAttachmentDepth,
-            List<? extends Iterable<Holder<PlacedFeature>>> featureSteps,
-            int firstOccurrenceIndex) {
+            List<? extends Iterable<Holder<PlacedFeature>>> featureSteps) {
         Objects.requireNonNull(level, "level");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(biome, "biome");
@@ -362,15 +360,13 @@ final class SkyforgeNativeBiomePopulationRunner {
         Objects.requireNonNull(originChunk, "originChunk");
         Objects.requireNonNull(nativeChunkOrigin, "nativeChunkOrigin");
         Objects.requireNonNull(featureSteps, "featureSteps");
-        if (firstOccurrenceIndex < 0) {
-            throw new IllegalArgumentException("firstOccurrenceIndex must be non-negative");
-        }
 
         var registry = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
         List<FeatureResult> results = new ArrayList<>();
-        int occurrenceIndex = firstOccurrenceIndex;
-        for (Iterable<Holder<PlacedFeature>> stepFeatures : featureSteps) {
-            for (Holder<PlacedFeature> placedFeature : stepFeatures) {
+        for (int sourceStepIndex = 0; sourceStepIndex < featureSteps.size(); sourceStepIndex++) {
+            int sourceOccurrenceIndex = 0;
+            for (Holder<PlacedFeature> placedFeature : featureSteps.get(sourceStepIndex)) {
+                int occurrenceIndex = sourceOccurrenceIndex++;
                 if (SkyforgeNativeHydrologyDressingStage.classify(placedFeature.value())
                         != SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK) {
                     continue;
@@ -382,12 +378,15 @@ final class SkyforgeNativeBiomePopulationRunner {
                     throw new IllegalStateException(
                             "biome generation settings contain a DiskFeature absent from the final registry");
                 }
+                // Preserve the placed feature's original biome-generation provenance. BiomeFilter
+                // validates the top feature against its actual source step; replaying every disk as
+                // VEGETAL_DECORATION silently rejects otherwise-native river/lake substrate disks.
                 var operation = SkyforgePopulationOperation.create(
                         volumeId,
                         originChunk,
                         featureKey,
-                        GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),
-                        occurrenceIndex++);
+                        sourceStepIndex,
+                        occurrenceIndex);
                 var result = SkyforgeRuntimePerformanceMetrics.measure(
                         "surfacePopulation.hydrologyDisk",
                         () -> SkyforgeNativePlacedFeatureRunner.place(
