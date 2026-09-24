@@ -136,6 +136,15 @@ final class SkyforgeNativeHydrologyDressingStage {
             return new Scope(Role.NONE);
         }
 
+        void requireActive() {
+            if (closed) {
+                throw new IllegalStateException("native hydrology dressing scope is closed");
+            }
+            if (role != Role.NONE && ACTIVE.get() != role) {
+                throw new IllegalStateException("native hydrology dressing scope changed before use");
+            }
+        }
+
         @Override
         public void close() {
             if (closed) {
