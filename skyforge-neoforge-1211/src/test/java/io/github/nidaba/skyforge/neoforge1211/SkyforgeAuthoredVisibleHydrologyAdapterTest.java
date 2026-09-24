@@ -645,6 +645,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             if (!semanticallyConnectedToRetained) {
                 continue;
             }
+            record Contact(
+                    java.util.Map.Entry<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer> entry,
+                    int datum,
+                    double startDistance,
+                    double endDistance) {}
+            var contacts = new java.util.ArrayList<Contact>();
             for (var entry : channelTop.entrySet()) {
                 if (retainedTop.containsKey(entry.getKey())) {
                     continue;
@@ -654,36 +660,48 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 if (target.isEmpty()) {
                     continue;
                 }
-                int retainedDatum = target.orElseThrow();
                 var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
                         entry.getKey().x() - physical.centerX(),
                         entry.getKey().z() - physical.centerZ());
                 var start = channelIntent.path().points().getFirst();
                 var end = channelIntent.path().points().getLast();
-                double startDistance = Math.hypot(local.x() - start.x(), local.z() - start.z());
-                double endDistance = Math.hypot(local.x() - end.x(), local.z() - end.z());
-                double approachRadius =
-                        SkyforgeAuthoredVisibleHydrologyAdapter.RETAINED_JUNCTION_BLEND_BLOCKS + 1.0;
-                boolean inAuthorizedApproach =
-                        (sourceConnectedToRetained && startDistance <= approachRadius)
-                                || (downstreamConnectedToRetained && endDistance <= approachRadius);
-                if (!inAuthorizedApproach) {
+                contacts.add(new Contact(
+                        entry,
+                        target.orElseThrow(),
+                        Math.hypot(local.x() - start.x(), local.z() - start.z()),
+                        Math.hypot(local.x() - end.x(), local.z() - end.z())));
+            }
+            if (contacts.isEmpty()) {
+                continue;
+            }
+
+            double bestEndpointDistance = contacts.stream()
+                    .mapToDouble(contact -> sourceConnectedToRetained
+                            ? contact.startDistance()
+                            : contact.endDistance())
+                    .min()
+                    .orElseThrow();
+            for (var contact : contacts) {
+                double endpointDistance = sourceConnectedToRetained
+                        ? contact.startDistance()
+                        : contact.endDistance();
+                if (endpointDistance > bestEndpointDistance + 1.0e-9) {
                     continue;
                 }
                 junctionColumns++;
                 var terminalDrop = fluvial.terminalDrop(reach);
                 assertTrue(
-                        Math.abs(entry.getValue() - retainedDatum) <= 2,
+                        Math.abs(contact.entry().getValue() - contact.datum()) <= 2,
                         "channel/lake transition must remain a bounded cascade rather than a separate terrace: "
                                 + "channelIndex=" + (channelIndex - 1)
                                 + ", sourceCell=" + sourceCell
                                 + ", downstreamCell=" + downstreamCell
                                 + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
-                                + ", startDistance=" + startDistance
-                                + ", endDistance=" + endDistance
-                                + ", column=" + entry.getKey()
-                                + ", channelTop=" + entry.getValue()
-                                + ", retainedDatum=" + retainedDatum);
+                                + ", startDistance=" + contact.startDistance()
+                                + ", endDistance=" + contact.endDistance()
+                                + ", column=" + contact.entry().getKey()
+                                + ", channelTop=" + contact.entry().getValue()
+                                + ", retainedDatum=" + contact.datum());
             }
             assertTrue(
                     deployment.forcedSurfacePositions().isEmpty(),

@@ -509,6 +509,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         if (candidateProjections.isEmpty()) {
             throw channelProjectionFailure(volume, path, "no raster carrier columns");
         }
+        RetainedApproachWindow retainedApproach = retainedApproachWindow(
+                candidateProjections,
+                retainedWaterTopByColumn,
+                sourceConnectedToRetained,
+                downstreamConnectedToRetained);
         Optional<PhysicalChannelGrade> physicalGrade = physicalChannelGrade(
                 descriptor,
                 volume,
@@ -518,8 +523,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 candidateProjections,
                 routedDropOutlet,
                 retainedWaterTopByColumn,
-                sourceConnectedToRetained,
-                downstreamConnectedToRetained,
+                retainedApproach,
                 solidRangeCache,
                 basePotentialCache,
                 dryPotentialCache);
@@ -564,8 +568,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     candidate.getValue(),
                     column,
                     retainedWaterTopByColumn,
-                    sourceConnectedToRetained,
-                    downstreamConnectedToRetained)) {
+                    retainedApproach)) {
                 double reachWater = fluvial.reachWaterSurfacePotential(reach, fraction);
                 if (reachWater > dryPotential + 1.0e-12 || spineCarrier) {
                     // The accepted visible reach owns its connected centerline spine. Independent
@@ -1089,8 +1092,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, ChannelPathProjection> candidateProjections,
             boolean routedEdgeOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
-            boolean sourceConnectedToRetained,
-            boolean downstreamConnectedToRetained,
+            RetainedApproachWindow retainedApproach,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
@@ -1116,8 +1118,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     projection,
                     entry.getKey(),
                     retainedWaterTopByColumn,
-                    sourceConnectedToRetained,
-                    downstreamConnectedToRetained)) {
+                    retainedApproach)) {
                 continue;
             }
             wetCorridorCandidates++;
@@ -1162,8 +1163,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     drySurfaceY,
                     routedEdgeOutlet,
                     retainedWaterTopByColumn,
-                    sourceConnectedToRetained,
-                    downstreamConnectedToRetained,
+                    retainedApproach,
                     solidRangeCache,
                     basePotentialCache,
                     dryPotentialCache);
@@ -1198,13 +1198,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             descriptor,
                             waterPotential - basePotential);
             int preferenceWeight = 1;
-            boolean retainedApproach = retainedApproachAuthorized(
-                    projection.fraction(),
-                    reach.path().pathLength(),
-                    sourceConnectedToRetained,
-                    downstreamConnectedToRetained);
             Optional<RetainedJunctionTarget> retainedTarget =
-                    reachTouchesRetainedWater && retainedApproach
+                    reachTouchesRetainedWater
+                            && retainedApproach.authorizes(
+                                    projection.fraction(), reach.path().pathLength())
                     ? retainedHydraulicBlendTarget(column, retainedWaterTopByColumn)
                     : Optional.empty();
             if (retainedTarget.isPresent()) {
@@ -1653,8 +1650,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int candidateDrySurfaceY,
             boolean routedEdgeOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
-            boolean sourceConnectedToRetained,
-            boolean downstreamConnectedToRetained,
+            RetainedApproachWindow retainedApproach,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
@@ -1686,8 +1682,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             bankProjection,
                             bank,
                             retainedWaterTopByColumn,
-                            sourceConnectedToRetained,
-                            downstreamConnectedToRetained)
+                            retainedApproach)
                     && optionalRange.isPresent()) {
                 continue;
             }
@@ -2948,21 +2943,39 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 : Optional.of(new RetainedJunctionTarget(datum, bestDistance));
     }
 
-    private static boolean retainedApproachAuthorized(
-            double fraction,
-            double pathLength,
+    private static RetainedApproachWindow retainedApproachWindow(
+            Map<Column, ChannelPathProjection> candidateProjections,
+            Map<Column, Integer> retainedWaterTopByColumn,
             boolean sourceConnectedToRetained,
             boolean downstreamConnectedToRetained) {
-        if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
-            throw new IllegalArgumentException("fraction must be finite and in [0,1]");
+        if (retainedWaterTopByColumn.isEmpty()
+                || (!sourceConnectedToRetained && !downstreamConnectedToRetained)) {
+            return RetainedApproachWindow.none();
         }
-        double endpointFraction = Math.min(
-                1.0,
-                RETAINED_JUNCTION_BLEND_BLOCKS / Math.max(1.0, pathLength));
-        return (sourceConnectedToRetained
-                        && fraction <= endpointFraction + 1.0e-12)
-                || (downstreamConnectedToRetained
-                        && fraction >= 1.0 - endpointFraction - 1.0e-12);
+
+        double firstOutsideContact = Double.POSITIVE_INFINITY;
+        double lastOutsideContact = Double.NEGATIVE_INFINITY;
+        for (var entry : candidateProjections.entrySet()) {
+            if (retainedWaterTopByColumn.containsKey(entry.getKey())) {
+                continue;
+            }
+            if (retainedHydraulicTarget(entry.getKey(), retainedWaterTopByColumn).isEmpty()) {
+                continue;
+            }
+            double fraction = entry.getValue().fraction();
+            firstOutsideContact = Math.min(firstOutsideContact, fraction);
+            lastOutsideContact = Math.max(lastOutsideContact, fraction);
+        }
+
+        double sourceContact =
+                sourceConnectedToRetained && Double.isFinite(firstOutsideContact)
+                        ? firstOutsideContact
+                        : Double.NaN;
+        double downstreamContact =
+                downstreamConnectedToRetained && Double.isFinite(lastOutsideContact)
+                        ? lastOutsideContact
+                        : Double.NaN;
+        return new RetainedApproachWindow(sourceContact, downstreamContact);
     }
 
     private static double effectiveWetHalfWidth(
@@ -2971,14 +2984,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ChannelPathProjection projection,
             Column column,
             Map<Column, Integer> retainedWaterTopByColumn,
-            boolean sourceConnectedToRetained,
-            boolean downstreamConnectedToRetained) {
+            RetainedApproachWindow retainedApproach) {
         double base = fluvial.wetHalfWidthAt(reach, projection.fraction());
-        if (!retainedApproachAuthorized(
-                projection.fraction(),
-                reach.path().pathLength(),
-                sourceConnectedToRetained,
-                downstreamConnectedToRetained)) {
+        if (!retainedApproach.authorizes(
+                projection.fraction(), reach.path().pathLength())) {
             return base;
         }
         Optional<RetainedJunctionTarget> target =
@@ -3408,6 +3417,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int minimumY,
             int baseSurfaceY,
             int bedY) {}
+
+    private record RetainedApproachWindow(
+            double sourceContactFraction,
+            double downstreamContactFraction) {
+        static RetainedApproachWindow none() {
+            return new RetainedApproachWindow(Double.NaN, Double.NaN);
+        }
+
+        boolean authorizes(double fraction, double pathLength) {
+            if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
+                throw new IllegalArgumentException("fraction must be finite and in [0,1]");
+            }
+            double blendFraction = Math.min(
+                    1.0,
+                    RETAINED_JUNCTION_BLEND_BLOCKS / Math.max(1.0, pathLength));
+            return (Double.isFinite(sourceContactFraction)
+                            && Math.abs(fraction - sourceContactFraction)
+                                    <= blendFraction + 1.0e-12)
+                    || (Double.isFinite(downstreamContactFraction)
+                            && Math.abs(fraction - downstreamContactFraction)
+                                    <= blendFraction + 1.0e-12);
+        }
+    }
 
     private record RetainedHydraulicBoundaryMatch(
             Map<Column, Integer> waterTopByColumn,
