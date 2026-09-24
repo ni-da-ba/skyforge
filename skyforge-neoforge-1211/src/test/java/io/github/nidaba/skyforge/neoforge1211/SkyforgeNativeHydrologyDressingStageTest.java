@@ -57,6 +57,11 @@ final class SkyforgeNativeHydrologyDressingStageTest {
                 SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK,
                 Blocks.STONE.defaultBlockState(),
                 Blocks.GRAVEL.defaultBlockState()));
+        assertTrue(SkyforgeNativeHydrologyDressingStage.allowsReplacement(
+                SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK,
+                Blocks.DIRT.defaultBlockState(),
+                Blocks.CLAY.defaultBlockState()),
+                "native dirt beds must remain eligible for registered substrate-disk diversification");
         assertFalse(SkyforgeNativeHydrologyDressingStage.allowsReplacement(
                 SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK,
                 Blocks.CLAY.defaultBlockState(),
