@@ -80,6 +80,37 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
     }
 
     @Test
+    void surfaceEcologyPreservesExactAuthoredHydrologyRoles() {
+        var vegetation = operation(GenerationStep.Decoration.VEGETAL_DECORATION);
+        var ores = operation(GenerationStep.Decoration.UNDERGROUND_ORES);
+
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                vegetation,
+                java.util.Optional.of(Blocks.AIR.defaultBlockState()),
+                Blocks.OAK_LEAVES.defaultBlockState()));
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                vegetation,
+                java.util.Optional.of(Blocks.CLAY.defaultBlockState()),
+                Blocks.GRASS_BLOCK.defaultBlockState()));
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                vegetation,
+                java.util.Optional.of(Blocks.WATER.defaultBlockState()),
+                Blocks.OAK_LEAVES.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                vegetation,
+                java.util.Optional.of(Blocks.WATER.defaultBlockState()),
+                Blocks.WATER.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                vegetation,
+                java.util.Optional.empty(),
+                Blocks.OAK_LEAVES.defaultBlockState()));
+        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                ores,
+                java.util.Optional.of(Blocks.CLAY.defaultBlockState()),
+                Blocks.IRON_ORE.defaultBlockState()));
+    }
+
+    @Test
     void interiorOwnerCellRequiresAllSixCardinalNeighbors() {
         Predicate<BlockPos> solidCube = cubeOwner(0, 2);
 
