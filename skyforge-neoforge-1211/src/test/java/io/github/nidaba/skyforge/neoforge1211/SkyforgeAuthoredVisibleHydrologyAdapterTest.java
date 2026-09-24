@@ -419,6 +419,70 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceChannelLakeJunctionApproachesBasinDatumWithoutSyntheticLip() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        var retainedTop =
+                new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
+        for (var deployment : deployments) {
+            if (deployment.feature()
+                    != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER) {
+                continue;
+            }
+            for (var wet : deployment.positions()) {
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        wet.getX(), wet.getZ());
+                retainedTop.merge(column, wet.getY(), Math::max);
+            }
+        }
+        assertFalse(retainedTop.isEmpty());
+
+        int junctionColumns = 0;
+        for (var deployment : deployments) {
+            if (deployment.feature()
+                    != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
+                continue;
+            }
+            var channelTop =
+                    new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
+            for (var wet : deployment.positions()) {
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        wet.getX(), wet.getZ());
+                channelTop.merge(column, wet.getY(), Math::max);
+            }
+            for (var entry : channelTop.entrySet()) {
+                if (retainedTop.containsKey(entry.getKey())) {
+                    continue;
+                }
+                var target = SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicTarget(
+                        entry.getKey(), retainedTop);
+                if (target.isEmpty()) {
+                    continue;
+                }
+                junctionColumns++;
+                assertTrue(
+                        Math.abs(entry.getValue() - target.orElseThrow()) <= 1,
+                        "channel free surface must blend into retained basin datum at the shoreline");
+            }
+            for (var forced : deployment.forcedSurfacePositions()) {
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        forced.getX(), forced.getZ());
+                assertTrue(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicTarget(
+                                        column, retainedTop)
+                                .isEmpty(),
+                        "synthetic channel bank repair must not create a lip directly against retained water");
+            }
+        }
+        assertTrue(
+                junctionColumns > 0,
+                "key-287 review specimen must exercise at least one river/lake hydraulic junction");
+    }
+
+    @Test
+    @Tag("qualification")
     void retainedWaterOwnsChannelOverlapColumns() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
