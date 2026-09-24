@@ -79,6 +79,42 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return reaches;
     }
 
+    /** Local wet-channel half-width, including only the short topology-derived confluence throat. */
+    public double wetHalfWidthAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        requireReachFraction(reach, fraction);
+        return wetHalfWidthAtStatic(reach, fraction);
+    }
+
+    /** Local bankfull half-width; tributary-junction expansion tapers out downstream. */
+    public double bankfullHalfWidthAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        requireReachFraction(reach, fraction);
+        return bankfullHalfWidthAtStatic(reach, fraction);
+    }
+
+    /** Local valley half-width used by the dry fluvial terrain field. */
+    public double valleyHalfWidthAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        requireReachFraction(reach, fraction);
+        return valleyHalfWidthAtStatic(reach, fraction);
+    }
+
+    private void requireReachFraction(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        Objects.requireNonNull(reach, "reach");
+        if (!reaches.contains(reach)) {
+            throw new IllegalArgumentException("reach must belong to this fluvial field");
+        }
+        if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
+            throw new IllegalArgumentException("fraction must be finite and in [0, 1]");
+        }
+    }
+
     /**
      * Classifies one surface position against the accepted fine fluvial geometry.
      *
@@ -93,13 +129,13 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         SkyIslandFluvialSurfaceZone result = SkyIslandFluvialSurfaceZone.NONE;
         for (SkyIslandFluvialReachGeometry reach : reaches) {
             Projection projection = project(position, reach.path());
-            if (projection.distance() <= reach.wetHalfWidth()) {
+            if (projection.distance() <= wetHalfWidthAt(reach, projection.fraction())) {
                 return SkyIslandFluvialSurfaceZone.WET_CHANNEL;
             }
-            if (projection.distance() <= reach.bankfullHalfWidth()) {
+            if (projection.distance() <= bankfullHalfWidthAt(reach, projection.fraction())) {
                 result = SkyIslandFluvialSurfaceZone.BANKFULL;
             } else if (result == SkyIslandFluvialSurfaceZone.NONE
-                    && projection.distance() <= reach.valleyHalfWidth()) {
+                    && projection.distance() <= valleyHalfWidthAt(reach, projection.fraction())) {
                 result = SkyIslandFluvialSurfaceZone.VALLEY;
             }
         }
@@ -122,7 +158,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         double shaped = base;
         for (SkyIslandFluvialReachGeometry reach : reaches) {
             Projection projection = project(position, reach.path());
-            if (projection.distance() >= reach.valleyHalfWidth()) {
+            if (projection.distance() >= valleyHalfWidthAt(reach, projection.fraction())) {
                 continue;
             }
             double bed = bedElevation(reach, projection);
@@ -152,7 +188,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         double drySurface = sample(position);
         for (SkyIslandFluvialReachGeometry reach : reaches) {
             Projection projection = project(position, reach.path());
-            if (projection.distance() > reach.wetHalfWidth()) {
+            if (projection.distance() > wetHalfWidthAt(reach, projection.fraction())) {
                 continue;
             }
             // Water owns a longitudinal hydraulic grade, not "bed + constant depth" at each local
@@ -309,9 +345,12 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         };
         double distance = Math.abs(signedDistance - thalwegShift);
 
-        double localBankfullHalfWidth = reach.bankfullHalfWidth() * (1.0 + asymmetry);
-        double localValleyHalfWidth = reach.valleyHalfWidth() * (1.0 + 0.55 * asymmetry);
-        localBankfullHalfWidth = Math.max(reach.wetHalfWidth() * 1.04, localBankfullHalfWidth);
+        double localWetHalfWidth = wetHalfWidthAtStatic(reach, projection.fraction());
+        double localBankfullHalfWidth = bankfullHalfWidthAtStatic(reach, projection.fraction())
+                * (1.0 + asymmetry);
+        double localValleyHalfWidth = valleyHalfWidthAtStatic(reach, projection.fraction())
+                * (1.0 + 0.55 * asymmetry);
+        localBankfullHalfWidth = Math.max(localWetHalfWidth * 1.04, localBankfullHalfWidth);
         localValleyHalfWidth = Math.max(localBankfullHalfWidth * 1.05, localValleyHalfWidth);
 
         if (distance <= localBankfullHalfWidth) {
@@ -367,7 +406,6 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         double confluenceScale = incomingReachCount >= 2
                 ? 1.0 + 0.12 * Math.min(2, incomingReachCount - 1)
                 : 1.0;
-        bankfullHalfWidth *= confluenceScale;
 
         double confinement = confinementPotential(
                 path, baseTerrain, bankfullHalfWidth, islandRadius);
@@ -376,9 +414,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             case INCISED -> lerp(3.4, 1.85, confinement);
             case CASCADE -> lerp(2.2, 1.40, confinement);
         };
-        double valleyHalfWidth = bankfullHalfWidth
-                * valleyMultiplier
-                * (1.0 + 0.10 * (confluenceScale - 1.0) / 0.12);
+        double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier;
         double lateralAsymmetry = lateralAsymmetryPotential(
                 path, baseTerrain, bankfullHalfWidth, islandRadius);
 
@@ -578,6 +614,38 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         }
         double signedSine = (ax * bz - az * bx) / (aLength * bLength);
         return clamp(signedSine, -1.0, 1.0);
+    }
+
+    private static double confluenceScaleAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction,
+            double strength) {
+        if (reach.confluenceScale() <= 1.0 || strength <= 0.0) {
+            return 1.0;
+        }
+        // Junction expansion belongs to the merge, not the entire downstream reach. Fade the
+        // tributary-count bonus over the first third; normal discharge/profile geometry then owns
+        // the persistent channel scale downstream.
+        double fade = 1.0 - smootherstep(clamp01(fraction / 0.34));
+        return 1.0 + strength * (reach.confluenceScale() - 1.0) * fade;
+    }
+
+    private static double wetHalfWidthAtStatic(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        return reach.wetHalfWidth() * confluenceScaleAt(reach, fraction, 0.70);
+    }
+
+    private static double bankfullHalfWidthAtStatic(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        return reach.bankfullHalfWidth() * confluenceScaleAt(reach, fraction, 1.0);
+    }
+
+    private static double valleyHalfWidthAtStatic(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        return reach.valleyHalfWidth() * confluenceScaleAt(reach, fraction, 0.65);
     }
 
     private static double smootherstep(double value) {
