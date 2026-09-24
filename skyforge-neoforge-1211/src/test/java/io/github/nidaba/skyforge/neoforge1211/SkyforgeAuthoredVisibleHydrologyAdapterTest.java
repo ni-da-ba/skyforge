@@ -404,11 +404,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .map(BlockPos::getY)
                     .sorted()
                     .toList();
+            var contributors = deployments.stream()
+                    .filter(deployment -> deployment.positions().stream().anyMatch(position ->
+                            position.getX() == entry.getKey().x()
+                                    && position.getZ() == entry.getKey().z()))
+                    .map(deployment -> deployment.feature() + "="
+                            + deployment.positions().stream()
+                                    .filter(position -> position.getX() == entry.getKey().x()
+                                            && position.getZ() == entry.getKey().z())
+                                    .map(BlockPos::getY)
+                                    .sorted()
+                                    .toList())
+                    .toList();
             assertEquals(
                     ys.getLast() - ys.getFirst() + 1,
                     ys.size(),
                     "normalized authored water must fill every vertical voxel from bed to free surface: "
-                            + entry.getKey());
+                            + entry.getKey()
+                            + ", ys=" + ys
+                            + ", contributors=" + contributors);
             BlockPos bed = new BlockPos(
                     entry.getKey().x(),
                     ys.getFirst() - 1,
@@ -1246,8 +1260,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             for (var position : deployment.surfacePositions()) {
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
-                boolean compiledSupport = terrain.integerSolidRange(
-                                deployment.volumeId(), position.getX(), position.getZ())
+                var optionalRange = terrain.integerSolidRange(
+                        deployment.volumeId(), position.getX(), position.getZ());
+                boolean compiledSupport = optionalRange
                         .map(range -> position.getY() >= range.minimumY()
                                 && position.getY() <= range.maximumY())
                         .orElse(false);
@@ -1256,10 +1271,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 }
                 assertTrue(
                         forcedSurface.contains(position),
-                        "only explicit bank-repair positions may extend solid support beyond compiled geology");
-                var range = terrain.integerSolidRange(
-                                deployment.volumeId(), position.getX(), position.getZ())
-                        .orElseThrow();
+                        "only explicit bank-repair positions may extend solid support beyond compiled geology: "
+                                + "volume=" + deployment.volumeId().path()
+                                + ", feature=" + deployment.feature()
+                                + ", position=" + position
+                                + ", range=" + optionalRange
+                                + ", forced=" + forcedSurface.contains(position));
+                var range = optionalRange.orElseThrow();
                 int fillDepth = position.getY() - range.maximumY();
                 if (deployment.feature()
                         == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER) {
