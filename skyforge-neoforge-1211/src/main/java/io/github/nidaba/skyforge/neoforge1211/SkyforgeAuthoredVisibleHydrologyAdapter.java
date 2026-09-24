@@ -63,7 +63,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Feature feature,
             List<BlockPos> positions,
             List<BlockPos> carvedPositions,
-            List<BlockPos> surfacePositions) {
+            List<BlockPos> surfacePositions,
+            List<BlockPos> forcedSurfacePositions) {
         Deployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
@@ -72,6 +73,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             positions = List.copyOf(Objects.requireNonNull(positions, "positions"));
             carvedPositions = List.copyOf(Objects.requireNonNull(carvedPositions, "carvedPositions"));
             surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
+            forcedSurfacePositions = List.copyOf(
+                    Objects.requireNonNull(forcedSurfacePositions, "forcedSurfacePositions"));
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
@@ -86,10 +89,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 }
             }
             occupied.addAll(carvedPositions);
+            Set<BlockPos> authoredSurface = new HashSet<>(surfacePositions);
             for (BlockPos surface : surfacePositions) {
                 if (occupied.contains(surface)) {
                     throw new IllegalArgumentException(
                             "hydrology surface dressing must remain below wet and carved cells");
+                }
+            }
+            for (BlockPos forced : forcedSurfacePositions) {
+                if (!authoredSurface.contains(forced)) {
+                    throw new IllegalArgumentException(
+                            "forced hydrology surface material must be a subset of authored surface ownership");
                 }
             }
         }
@@ -104,13 +114,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Feature feature,
             List<BlockPos> positions,
             List<BlockPos> carvedPositions,
-            List<BlockPos> surfacePositions) {
+            List<BlockPos> surfacePositions,
+            List<BlockPos> forcedSurfacePositions) {
         private RawDeployment {
             volumeId = Objects.requireNonNull(volumeId, "volumeId");
             feature = Objects.requireNonNull(feature, "feature");
             positions = List.copyOf(positions);
             carvedPositions = List.copyOf(carvedPositions);
             surfacePositions = List.copyOf(surfacePositions);
+            forcedSurfacePositions = List.copyOf(forcedSurfacePositions);
         }
     }
 
@@ -121,14 +133,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * for mutation, fluid-boundary membership, and population-state lookup. Keeping this index
      * chunk-local prevents every chunk realization from rescanning whole-island hydrology lists.
      */
-    record ChunkProjection(Map<BlockPos, BlockState> states) {
+    record ChunkProjection(
+            Map<BlockPos, BlockState> states,
+            Set<BlockPos> surfacePositions) {
         ChunkProjection {
             Objects.requireNonNull(states, "states");
+            Objects.requireNonNull(surfacePositions, "surfacePositions");
             states = Collections.unmodifiableMap(new LinkedHashMap<>(states));
+            surfacePositions = Collections.unmodifiableSet(new LinkedHashSet<>(surfacePositions));
         }
 
         Optional<BlockState> stateAt(BlockPos position) {
-            return Optional.ofNullable(states.get(Objects.requireNonNull(position, "position")));
+            Objects.requireNonNull(position, "position");
+            BlockState state = states.get(position);
+            if (state != null) {
+                return Optional.of(state);
+            }
+            if (surfacePositions.contains(position)) {
+                // Preserved beds are hydrology-owned without being physically repainted. Expose a
+                // stable non-falling substrate sentinel to placement predicates; the live block
+                // remains the compiled/native geology until a registered dressing feature changes it.
+                return Optional.of(Blocks.STONE.defaultBlockState());
+            }
+            return Optional.empty();
         }
 
         boolean containsWater(BlockPos position) {
@@ -136,9 +163,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return state != null && state.is(Blocks.WATER);
         }
 
+        boolean containsSurface(BlockPos position) {
+            return surfacePositions.contains(Objects.requireNonNull(position, "position"));
+        }
+
         Optional<BlockState> populationState(BlockPos position) {
-            BlockState state = states.get(Objects.requireNonNull(position, "position"));
-            return Optional.ofNullable(state);
+            return stateAt(position);
         }
     }
 
@@ -331,12 +361,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
+            List<BlockPos> forcedSurface = deployment.forcedSurfacePositions().stream()
+                    .filter(position -> deployment.feature() != Feature.CHANNEL
+                            || !containsColumnByChunk(retainedColumnsByChunk, position))
+                    .filter(position -> !containsByChunk(waterByChunk, position))
+                    .filter(position -> !containsByChunk(carvedByChunk, position))
+                    .toList();
             deployments.add(new Deployment(
                     deployment.volumeId(),
                     deployment.feature(),
                     normalizedWater.get(index),
                     carved,
-                    surface));
+                    surface,
+                    forcedSurface));
         }
         return new PlanningResult(deployments, fluvial);
     }
@@ -539,6 +576,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(channelBankFill);
+        LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(channelBankFill);
         for (ChannelColumnPlan column : columns.values()) {
             if (column.distance() <= reach.bankfullHalfWidth()
                     && uncontestedOwnedRangeCell(
@@ -593,7 +631,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 Feature.CHANNEL,
                 new ArrayList<>(water),
                 new ArrayList<>(carved),
-                new ArrayList<>(surface)));
+                new ArrayList<>(surface),
+                new ArrayList<>(forcedSurface)));
     }
 
     private static IllegalStateException channelProjectionFailure(
@@ -1720,6 +1759,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(retainedBankFill);
+        LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(retainedBankFill);
         for (RetainedColumnPlan column : realizable.values()) {
             surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
             for (int y = column.bedY() + 1; y <= waterTopY; y++) {
@@ -1737,7 +1777,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 Feature.RETAINED_WATER,
                 new ArrayList<>(water),
                 new ArrayList<>(carved),
-                new ArrayList<>(surface)));
+                new ArrayList<>(surface),
+                new ArrayList<>(forcedSurface)));
     }
 
     private static List<Integer> retainedWaterTopCandidates(List<Integer> sortedProjectedWaterTops) {
@@ -2139,7 +2180,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Feature feature,
             List<BlockPos> positions,
             List<BlockPos> carvedPositions,
-            List<BlockPos> surfacePositions) {
+            List<BlockPos> surfacePositions,
+            List<BlockPos> forcedSurfacePositions) {
         Comparator<BlockPos> canonicalPositionOrder = Comparator
                 .comparingInt((BlockPos position) -> position.getZ())
                 .thenComparingInt(position -> position.getX())
@@ -2147,15 +2189,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         List<BlockPos> canonicalPositions = new ArrayList<>(new LinkedHashSet<>(positions));
         List<BlockPos> canonicalCarved = new ArrayList<>(new LinkedHashSet<>(carvedPositions));
         List<BlockPos> canonicalSurface = new ArrayList<>(new LinkedHashSet<>(surfacePositions));
+        List<BlockPos> canonicalForcedSurface =
+                new ArrayList<>(new LinkedHashSet<>(forcedSurfacePositions));
         canonicalPositions.sort(canonicalPositionOrder);
         canonicalCarved.sort(canonicalPositionOrder);
         canonicalSurface.sort(canonicalPositionOrder);
+        canonicalForcedSurface.sort(canonicalPositionOrder);
         return new RawDeployment(
                 volumeId,
                 feature,
                 canonicalPositions,
                 canonicalCarved,
-                canonicalSurface);
+                canonicalSurface,
+                canonicalForcedSurface);
     }
 
     private static void addMembershipByChunk(
@@ -2202,17 +2248,35 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static Map<Long, ChunkProjection> indexByChunk(List<Deployment> deployments) {
         Objects.requireNonNull(deployments, "deployments");
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
+        Map<Long, LinkedHashSet<BlockPos>> surfaceOwnership = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
-            indexHydrologySurfaceStates(mutable, deployment.surfacePositions());
+            indexSurfaceOwnership(surfaceOwnership, deployment.surfacePositions());
+            indexHydrologySurfaceStates(mutable, deployment.forcedSurfacePositions());
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
         }
 
+        LinkedHashSet<Long> chunkKeys = new LinkedHashSet<>();
+        chunkKeys.addAll(mutable.keySet());
+        chunkKeys.addAll(surfaceOwnership.keySet());
         Map<Long, ChunkProjection> result = new LinkedHashMap<>();
-        for (var entry : mutable.entrySet()) {
-            result.put(entry.getKey(), new ChunkProjection(entry.getValue()));
+        for (long chunkKey : chunkKeys) {
+            result.put(
+                    chunkKey,
+                    new ChunkProjection(
+                            mutable.getOrDefault(chunkKey, new LinkedHashMap<>()),
+                            surfaceOwnership.getOrDefault(chunkKey, new LinkedHashSet<>())));
         }
         return Collections.unmodifiableMap(result);
+    }
+
+    private static void indexSurfaceOwnership(
+            Map<Long, LinkedHashSet<BlockPos>> byChunk,
+            Iterable<BlockPos> positions) {
+        for (BlockPos position : positions) {
+            long chunkKey = new ChunkPos(position).toLong();
+            byChunk.computeIfAbsent(chunkKey, ignored -> new LinkedHashSet<>()).add(position);
+        }
     }
 
     private static void indexHydrologySurfaceStates(
@@ -2310,7 +2374,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
         int written = 0;
-        for (BlockPos position : deployment.surfacePositions()) {
+        for (BlockPos position : deployment.forcedSurfacePositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
