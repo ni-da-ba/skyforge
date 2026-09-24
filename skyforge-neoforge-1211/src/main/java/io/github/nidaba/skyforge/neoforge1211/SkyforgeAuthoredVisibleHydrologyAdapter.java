@@ -2074,7 +2074,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int bedY = plan.bedY();
             if (ring != null && ring < RETAINED_LITTORAL_GRADE_RINGS) {
                 int maximumDepth = ring + 1;
-                bedY = Math.max(bedY, waterTopY - maximumDepth);
+                // Littoral grading may preserve more of the existing carrier by reducing a cut,
+                // but it is not terrain-fill authority. Never raise the submerged bed above the
+                // compiled surface; any genuine bank fill remains explicit/provenanced through the
+                // retained-bank reconciliation path.
+                bedY = Math.min(
+                        plan.baseSurfaceY(),
+                        Math.max(bedY, waterTopY - maximumDepth));
             }
             graded.put(
                     entry.getKey(),
