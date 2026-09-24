@@ -678,6 +678,24 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 : binding.adapter().authoredHydrologyPopulationState(volumeId, position);
     }
 
+    static OptionalInt authoredHydrologyOceanFloorHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        RuntimeBinding binding = ACTIVE.get();
+        return binding == null
+                ? OptionalInt.empty()
+                : binding.adapter().authoredHydrologyOceanFloorHeight(
+                        volumeId,
+                        worldX,
+                        worldZ,
+                        minimumY,
+                        height);
+    }
+
     static boolean hasActiveBinding() {
         return ACTIVE.get() != null;
     }
