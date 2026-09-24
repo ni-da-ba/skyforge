@@ -56,6 +56,39 @@ class SkyIslandWaterbodyFootprintPlannerTest {
     }
 
     @Test
+    void cardinallyTouchingRetainedSeedsAreOneConnectedWaterbodyRelation() {
+        assertTrue(SkyIslandWaterbodyFootprintPlanner.intersectsOrTouches(
+                Set.of(5), Set.of(6), 4));
+        assertTrue(SkyIslandWaterbodyFootprintPlanner.intersectsOrTouches(
+                Set.of(5), Set.of(5), 4));
+        assertFalse(SkyIslandWaterbodyFootprintPlanner.intersectsOrTouches(
+                Set.of(5), Set.of(10), 4),
+                "corner-only contact must not merge retained waterbodies");
+    }
+
+    @Test
+    void hydrologyReferenceNeverLeavesCardinallyTouchingRetainedFootprintsSeparate() {
+        SkyIslandDescriptor descriptor = descriptor(287L);
+        SkyIslandWaterbodyFootprintPlan plan = SkyIslandWaterbodyFootprintPlanner.plan(descriptor);
+        int gridSize = SkyIslandWatershedPlanner.plan(descriptor).gridSize();
+
+        for (int first = 0; first < plan.footprints().size(); first++) {
+            Set<Integer> firstCells = plan.footprints().get(first).cells().stream()
+                    .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                    .collect(java.util.stream.Collectors.toSet());
+            for (int second = first + 1; second < plan.footprints().size(); second++) {
+                Set<Integer> secondCells = plan.footprints().get(second).cells().stream()
+                        .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                        .collect(java.util.stream.Collectors.toSet());
+                assertFalse(
+                        SkyIslandWaterbodyFootprintPlanner.intersectsOrTouches(
+                                firstCells, secondCells, gridSize),
+                        "distinct retained footprints must not share a wet cardinal edge");
+            }
+        }
+    }
+
+    @Test
     void watershedCarriesPriorityFloodSpillMetadata() {
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor(83L));
         for (SkyIslandWatershedCell cell : watershed.cells()) {
