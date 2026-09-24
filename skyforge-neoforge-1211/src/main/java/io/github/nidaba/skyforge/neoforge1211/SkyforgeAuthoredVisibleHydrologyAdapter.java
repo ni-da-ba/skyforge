@@ -1963,18 +1963,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             for (int x = minimumX; x <= maximumX; x++) {
                 SkyIslandLocalPosition local = new SkyIslandLocalPosition(
                         x - physical.centerX(), z - physical.centerZ());
-                int cellIndex = nearestWatershedCellIndex(descriptor, watershed, local);
-                SkyIslandWaterbodyFootprintCell sourceCell = cellsByIndex.get(cellIndex);
+                SkyIslandWaterbodyFootprintCell sourceCell = retainedSourceCellForLocal(
+                        descriptor,
+                        watershed,
+                        cellsByIndex,
+                        local,
+                        halfSpacing);
                 if (sourceCell == null) {
-                    continue;
-                }
-                if (sourceCell.shoreline()
-                        && !retainedShorelineContains(
-                                local,
-                                sourceCell,
-                                cellsByIndex,
-                                watershed,
-                                halfSpacing)) {
                     continue;
                 }
                 Column column = new Column(x, z);
@@ -2003,14 +1998,66 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     }
 
     /**
+     * Resolves the retained source semantically instead of clipping every block to one nearest
+     * watershed-cell square. Considering the local 3x3 retained neighborhood lets adjacent rounded
+     * shoreline lobes/corridors overlap naturally and removes the visible rectangular cell seams
+     * reported in H6 while remaining bounded to accepted retained cells.
+     */
+    private static SkyIslandWaterbodyFootprintCell retainedSourceCellForLocal(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWatershedPlan watershed,
+            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex,
+            SkyIslandLocalPosition local,
+            double halfSpacing) {
+        double radius = descriptor.nominalRadius();
+        int centerX = (int) Math.round((local.x() + radius) / watershed.spacing());
+        int centerZ = (int) Math.round((local.z() + radius) / watershed.spacing());
+        SkyIslandWaterbodyFootprintCell best = null;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int gx = centerX + dx;
+                int gz = centerZ + dz;
+                if (gx < 0 || gz < 0 || gx >= watershed.gridSize() || gz >= watershed.gridSize()) {
+                    continue;
+                }
+                SkyIslandWaterbodyFootprintCell candidate =
+                        cellsByIndex.get(gz * watershed.gridSize() + gx);
+                if (candidate == null) {
+                    continue;
+                }
+                boolean contains;
+                if (candidate.shoreline()) {
+                    contains = retainedShorelineContains(
+                            local, candidate, cellsByIndex, watershed, halfSpacing);
+                } else {
+                    contains = Math.abs(local.x() - candidate.position().x()) <= halfSpacing
+                            && Math.abs(local.z() - candidate.position().z()) <= halfSpacing;
+                }
+                if (!contains) {
+                    continue;
+                }
+                double distance = Math.hypot(
+                        local.x() - candidate.position().x(),
+                        local.z() - candidate.position().z());
+                if (distance < bestDistance) {
+                    best = candidate;
+                    bestDistance = distance;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
      * Rasterizes one coarse shoreline cell without breaking the footprint's authored topology.
      *
      * <p>An isolated disk per shoreline cell looks less grid-like, but it also turns cardinally
      * connected coarse cells into disconnected Minecraft puddles whenever the disk radius is less
      * than half the watershed spacing. Keep the rounded center lobe, then join it to every retained
-     * cardinal neighbor with a rounded corridor. The nearest-cell gate in
-     * {@link #retainedCandidateColumns} still bounds authority to the accepted coarse footprint, so
-     * these corridors preserve topology without expanding the lake into unauthored cells.
+     * cardinal neighbor with a rounded corridor. Candidate resolution considers only the local
+     * retained-cell neighborhood, so these corridors preserve topology without exposing the coarse
+     * nearest-cell square as a visible shoreline.
      */
     static boolean retainedShorelineContains(
             SkyIslandLocalPosition local,
