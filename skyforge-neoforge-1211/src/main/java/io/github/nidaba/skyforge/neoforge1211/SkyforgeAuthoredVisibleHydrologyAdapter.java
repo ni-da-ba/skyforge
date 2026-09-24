@@ -505,7 +505,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int baseSurfaceY = range.maximumY();
             OptionalDouble authoredWater = OptionalDouble.empty();
-            if (distance <= fluvial.wetHalfWidthAt(reach, fraction)) {
+            if (distance <= effectiveWetHalfWidth(
+                    fluvial,
+                    reach,
+                    candidate.getValue(),
+                    column,
+                    retainedWaterTopByColumn)) {
                 double reachWater = fluvial.reachWaterSurfacePotential(reach, fraction);
                 if (reachWater > dryPotential + 1.0e-12 || spineCarrier) {
                     // The accepted visible reach owns its connected centerline spine. Independent
@@ -1000,8 +1005,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         int bankableCarrierCandidates = 0;
         for (var entry : candidateProjections.entrySet()) {
             ChannelPathProjection projection = entry.getValue();
-            if (projection.distance() > fluvial.wetHalfWidthAt(
-                    reach, projection.fraction())) {
+            if (projection.distance() > effectiveWetHalfWidth(
+                    fluvial,
+                    reach,
+                    projection,
+                    entry.getKey(),
+                    retainedWaterTopByColumn)) {
                 continue;
             }
             wetCorridorCandidates++;
@@ -1045,6 +1054,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     drySurfaceY,
                     routedEdgeOutlet,
+                    retainedWaterTopByColumn,
                     solidRangeCache,
                     basePotentialCache,
                     dryPotentialCache);
@@ -1490,6 +1500,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Column wet,
             int candidateDrySurfaceY,
             boolean routedEdgeOutlet,
+            Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
@@ -1510,8 +1521,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             // neighbor with no physical carrier is different: it leaves an actual voxel-side gap
             // and must be handled by the same bounded shelf rule as an absent dry bank.
             if (bankProjection != null
-                    && bankProjection.distance() <= fluvial.wetHalfWidthAt(
-                            reach, bankProjection.fraction())
+                    && bankProjection.distance() <= effectiveWetHalfWidth(
+                            fluvial,
+                            reach,
+                            bankProjection,
+                            bank,
+                            retainedWaterTopByColumn)
                     && optionalRange.isPresent()) {
                 continue;
             }
@@ -2427,6 +2442,30 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return datum == null
                 ? Optional.empty()
                 : Optional.of(new RetainedJunctionTarget(datum, bestDistance));
+    }
+
+    private static double effectiveWetHalfWidth(
+            SkyIslandFluvialTerrainField fluvial,
+            SkyIslandFluvialReachGeometry reach,
+            ChannelPathProjection projection,
+            Column column,
+            Map<Column, Integer> retainedWaterTopByColumn) {
+        double base = fluvial.wetHalfWidthAt(reach, projection.fraction());
+        Optional<RetainedJunctionTarget> target =
+                retainedHydraulicBlendTarget(column, retainedWaterTopByColumn);
+        if (target.isEmpty()) {
+            return base;
+        }
+
+        // A reach that approaches standing water should broaden into that boundary rather than
+        // remain a one-width trench touching a broad basin. Keep the flare inside the bankfull
+        // corridor and within the same short datum-blend envelope used by the hydraulic grade.
+        double blend = 1.0 - target.orElseThrow().distanceBlocks()
+                / (double) (RETAINED_JUNCTION_BLEND_BLOCKS + 1);
+        double flared = base * (1.0 + 0.55 * clamp01(blend));
+        double bankfullLimit =
+                fluvial.bankfullHalfWidthAt(reach, projection.fraction()) * 0.92;
+        return Math.min(bankfullLimit, flared);
     }
 
     private static int retainedJunctionPreferenceWeight(int distanceBlocks) {
