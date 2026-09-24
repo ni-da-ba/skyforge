@@ -26,6 +26,12 @@ final class SkyforgeAuthoredNativeSurfaceStageSourceTest {
         assertTrue(stage.contains("Hydrology owns occupancy and geometry, not the final material palette."));
         assertTrue(stage.contains("instanceof FallingBlock"));
         assertTrue(stage.contains("stableWhenCopied"));
+        assertTrue(stage.contains("nativeSubmergedState"));
+        assertTrue(stage.contains("Blocks.GRASS_BLOCK"));
+        assertTrue(stage.contains("Blocks.MYCELIUM"));
+        assertTrue(stage.contains("Blocks.PODZOL"));
+        assertTrue(stage.contains("getChunkSource().blockChanged"));
+        assertTrue(stage.contains("getLightEngine().checkBlock"));
         assertFalse(stage.contains("must not repaint"));
         assertFalse(stage.contains("dr70_surface_donor"));
     }
