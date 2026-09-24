@@ -379,6 +379,47 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceWaterColumnsRemainVerticallyFilledAndSupported() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+
+        for (var deployment : terrain.authoredHydrologyDeployments(fixture.volume().id())) {
+            var byColumn = deployment.positions().stream().collect(java.util.stream.Collectors.groupingBy(
+                    position -> position.getX() + "," + position.getZ()));
+            for (var column : byColumn.values()) {
+                var ordered = column.stream()
+                        .sorted(java.util.Comparator.comparingInt(BlockPos::getY))
+                        .toList();
+                for (int index = 1; index < ordered.size(); index++) {
+                    assertEquals(
+                            ordered.get(index - 1).getY() + 1,
+                            ordered.get(index).getY(),
+                            "authored water must fill every vertical voxel in its realized column");
+                }
+                BlockPos support = ordered.getFirst().below();
+                boolean ownedSolid = terrain.isSolidOwnedBy(
+                                fixture.volume().id(),
+                                support.getX(),
+                                support.getY(),
+                                support.getZ())
+                        && !terrain.isSolidOwnedByOtherVolume(
+                                fixture.volume().id(),
+                                support.getX(),
+                                support.getY(),
+                                support.getZ());
+                boolean authoredSolid = terrain.authoredHydrologyPopulationState(
+                                fixture.volume().id(), support)
+                        .map(state -> !state.isAir() && state.getFluidState().isEmpty())
+                        .orElse(false);
+                assertTrue(
+                        ownedSolid || authoredSolid,
+                        "realized river/lake water must rest on a dry owned bed rather than hover");
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
