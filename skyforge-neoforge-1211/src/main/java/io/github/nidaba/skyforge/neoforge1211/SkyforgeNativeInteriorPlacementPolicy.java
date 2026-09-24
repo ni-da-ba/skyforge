@@ -115,13 +115,15 @@ final class SkyforgeNativeInteriorPlacementPolicy {
     }
 
     /**
-     * Keeps the exact authored hydrology domain exclusive during native surface ecology.
+     * Keeps the exact authored hydrology domain exclusive during every native population phase.
      *
      * <p>Water, deliberate dry clearance above a channel/lake, and authored bed/bank substrate are
-     * already final hydrologic roles. Native vegetation may still populate ordinary riparian terrain
-     * immediately beside those cells, but it may not overwrite the hydrology role itself. This
-     * prevents biome vegetation patches and tree geometry from slicing through the finished
-     * shoreline while preserving a natural, non-barren ecotone outside the exact authored domain.
+     * final hydrologic roles. Native vegetation may still populate ordinary riparian terrain
+     * immediately beside those cells, while ores, local modifications, cave decoration, lakes, and
+     * springs may continue elsewhere inside the exact owner. None of those generic systems may
+     * reinterpret the authored hydrology footprint itself. In particular, underwater magma or other
+     * local-modification features require an explicit future geothermal hydrology semantic rather
+     * than appearing opportunistically on ordinary lake and river beds.
      */
     static boolean allowsAuthoredHydrologyReplacement(
             SkyforgePopulationOperation operation,
@@ -130,9 +132,7 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         Objects.requireNonNull(operation, "operation");
         Objects.requireNonNull(authoredState, "authoredState");
         Objects.requireNonNull(replacementState, "replacementState");
-        if (operation.generationStep()
-                != GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
-                || authoredState.isEmpty()) {
+        if (authoredState.isEmpty()) {
             return true;
         }
         BlockState authored = authoredState.orElseThrow();
