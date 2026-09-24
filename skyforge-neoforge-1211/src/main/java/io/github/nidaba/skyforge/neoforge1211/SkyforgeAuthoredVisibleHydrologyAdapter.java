@@ -446,7 +446,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
 
         Map<Column, ChannelPathProjection> candidateProjections =
-                candidateColumnProjections(volume, reach);
+                candidateColumnProjections(volume, fluvial, reach);
         if (candidateProjections.isEmpty()) {
             throw channelProjectionFailure(volume, path, "no raster carrier columns");
         }
@@ -497,7 +497,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int baseSurfaceY = range.maximumY();
             OptionalDouble authoredWater = OptionalDouble.empty();
-            if (distance <= reach.wetHalfWidth()) {
+            if (distance <= fluvial.wetHalfWidthAt(reach, fraction)) {
                 double reachWater = fluvial.reachWaterSurfacePotential(reach, fraction);
                 if (reachWater > dryPotential + 1.0e-12 || spineCarrier) {
                     // The accepted visible reach owns its connected centerline spine. Independent
@@ -590,14 +590,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             column.z() - physicalDescriptor.centerZ() - point.z()))
                     .min()
                     .orElse(Double.POSITIVE_INFINITY);
-            if (nearestWetDistance > reach.wetHalfWidth() + 1.0) {
+            double localWetTolerance = Math.max(
+                    fluvial.wetHalfWidthAt(reach, 0.0),
+                    fluvial.wetHalfWidthAt(reach, 1.0)) + 1.0;
+            if (nearestWetDistance > localWetTolerance) {
                 throw channelProjectionFailure(
                         volume,
                         path,
                         "connected raster spine lost authored centerline coverage at point="
                                 + pointIndex + "/" + path.points().size()
                                 + ", nearestWetDistance=" + nearestWetDistance
-                                + ", wetHalfWidth=" + reach.wetHalfWidth()
+                                + ", wetTolerance=" + localWetTolerance
                                 + ", connectedWetColumns=" + containedWet.size()
                                 + ", plannedWetColumns=" + plannedWetColumns
                                 + ", containedWetColumns=" + containedWetColumns);
@@ -609,7 +612,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(channelBankFill);
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(channelBankFill);
         for (ChannelColumnPlan column : columns.values()) {
-            if (column.distance() <= reach.bankfullHalfWidth()
+            ChannelPathProjection projection = candidateProjections.get(column.column());
+            if (projection != null
+                    && column.distance() <= fluvial.bankfullHalfWidthAt(
+                            reach, projection.fraction())
                     && uncontestedOwnedRangeCell(
                             terrain,
                             volume.id(),
@@ -951,7 +957,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         int bankableCarrierCandidates = 0;
         for (var entry : candidateProjections.entrySet()) {
             ChannelPathProjection projection = entry.getValue();
-            if (projection.distance() > reach.wetHalfWidth()) {
+            if (projection.distance() > fluvial.wetHalfWidthAt(
+                    reach, projection.fraction())) {
                 continue;
             }
             wetCorridorCandidates++;
@@ -1077,10 +1084,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         Optional<List<ChannelCarrierCandidate>> connectedSpine =
-                connectedChannelCarrierSpine(volume, reach, carrierCandidates);
+                connectedChannelCarrierSpine(volume, fluvial, reach, carrierCandidates);
         if (connectedSpine.isEmpty()) {
             var physicalDescriptor = volume.compiledVolume().descriptor();
-            double endpointTolerance = reach.wetHalfWidth() + 1.0;
+            double endpointTolerance = Math.max(
+                    fluvial.wetHalfWidthAt(reach, 0.0),
+                    fluvial.wetHalfWidthAt(reach, 1.0)) + 1.0;
             SkyIslandLocalPosition upstream = reach.path().points().getFirst();
             SkyIslandLocalPosition downstream = reach.path().points().getLast();
             long upstreamCandidates = carrierCandidates.values().stream()
@@ -1175,6 +1184,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      */
     private static Optional<List<ChannelCarrierCandidate>> connectedChannelCarrierSpine(
             SkyIslandWorldVolume volume,
+            SkyIslandFluvialTerrainField fluvial,
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelCarrierCandidate> candidates) {
         if (candidates.isEmpty()) {
@@ -1189,7 +1199,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // represents the authored endpoint within the same tolerance enforced by the qualification
         // surface, and accept any equivalently bounded downstream endpoint. This keeps connectivity
         // authoritative without turning one unlucky rounded pixel into a false no-carrier result.
-        double endpointTolerance = reach.wetHalfWidth() + 1.0;
+        double endpointTolerance = Math.max(
+                fluvial.wetHalfWidthAt(reach, 0.0),
+                fluvial.wetHalfWidthAt(reach, 1.0)) + 1.0;
         List<ChannelCarrierCandidate> starts = candidates.values().stream()
                 .filter(candidate -> Math.hypot(
                                 candidate.column().x() - physical.centerX() - upstream.x(),
@@ -1455,7 +1467,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             // neighbor with no physical carrier is different: it leaves an actual voxel-side gap
             // and must be handled by the same bounded shelf rule as an absent dry bank.
             if (bankProjection != null
-                    && bankProjection.distance() <= reach.wetHalfWidth()
+                    && bankProjection.distance() <= fluvial.wetHalfWidthAt(
+                            reach, bankProjection.fraction())
                     && optionalRange.isPresent()) {
                 continue;
             }
@@ -1531,13 +1544,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
     private static Map<Column, ChannelPathProjection> candidateColumnProjections(
             SkyIslandWorldVolume volume,
+            SkyIslandFluvialTerrainField fluvial,
             SkyIslandFluvialReachGeometry reach) {
         var points = reach.path().points();
         if (points.size() < 2 || !(reach.path().pathLength() > 0.0)) {
             return Map.of();
         }
 
-        double margin = reach.valleyHalfWidth();
+        double margin = Math.max(
+                fluvial.valleyHalfWidthAt(reach, 0.0),
+                fluvial.valleyHalfWidthAt(reach, 1.0));
         double pathLength = reach.path().pathLength();
         var physical = volume.compiledVolume().descriptor();
         Map<Column, ChannelPathProjection> projections = new HashMap<>();
