@@ -44,7 +44,10 @@ final class SkyforgeLevelChunkPopulationReadMixinSourceTest {
         assertTrue(bridge.contains("public static boolean populationHeightVirtualizationActive()"));
         assertTrue(bridge.contains("public static Optional<BlockState> authoredHydrologyPopulationState"));
         assertTrue(bridge.contains("SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState"));
-        assertTrue(bridge.contains("authoredHydrologyPopulationState(position).isEmpty()"));
+        assertTrue(bridge.contains("rawAuthoredHydrologyState(active, position)"));
+        assertTrue(bridge.contains("SkyforgeNativeHydrologyDressingStage.active()"));
+        assertTrue(bridge.contains("SkyforgeNativeHydrologyDressingStage.allowsPreflight("));
+        assertTrue(bridge.contains("SkyforgeNativeHydrologyDressingStage.allowsReplacement("));
         assertTrue(bridge.contains("GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()"));
 
         String mixins = Files.readString(PROJECT_DIRECTORY.resolve("src/main/resources/skyforge.mixins.json"));
