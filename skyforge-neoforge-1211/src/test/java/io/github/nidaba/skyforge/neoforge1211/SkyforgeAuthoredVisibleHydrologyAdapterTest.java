@@ -308,6 +308,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     topByColumn.values(),
                     waterTopY,
                     terrain);
+            int maximumInteriorCut =
+                    SkyforgeAuthoredVisibleHydrologyAdapter.maximumRetainedInteriorCutBlocks(
+                            fixture.descriptor());
+            for (BlockPos position : topByColumn.values()) {
+                var range = terrain.integerSolidRange(
+                                fixture.volume().id(),
+                                position.getX(),
+                                position.getZ())
+                        .orElseThrow();
+                assertTrue(
+                        Math.max(0, range.maximumY() - waterTopY) <= maximumInteriorCut,
+                        "retained-water interior conditioning must stay inside the neutral "
+                                + "hydrologic-relief budget");
+            }
             assertTrue(deployment.surfacePositions().stream().allMatch(position ->
                     SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
                             terrain.authoredHydrologyPopulationState(fixture.volume().id(), position)
@@ -623,15 +637,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 + ", channelTop=" + entry.getValue()
                                 + ", retainedDatum=" + retainedDatum);
             }
-            for (var forced : deployment.forcedSurfacePositions()) {
-                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                        forced.getX(), forced.getZ());
-                assertTrue(
-                        SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicTarget(
-                                        column, retainedTop)
-                                .isEmpty(),
-                        "synthetic channel bank repair must not create a lip directly against retained water");
-            }
+            assertTrue(
+                    deployment.forcedSurfacePositions().isEmpty(),
+                    "key-287 channels must reach standing water without synthetic bank repair");
         }
         assertTrue(
                 junctionColumns > 0,
@@ -871,10 +879,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
-        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS > 0);
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS);
         assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS > 0);
         for (var deployment : deployments) {
             assertTrue(deployment.surfacePositions().containsAll(deployment.forcedSurfacePositions()));
+            if (deployment.feature()
+                    == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
+                assertTrue(
+                        deployment.forcedSurfacePositions().isEmpty(),
+                        "flowing channels must not synthesize levees to repair carrier mismatch");
+            }
             for (var position : deployment.forcedSurfacePositions()) {
                 var range = terrain.integerSolidRange(
                                 deployment.volumeId(), position.getX(), position.getZ())
@@ -1295,25 +1309,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                         deployment.feature(),
                         "only explicit retained-water or channel-bank conditioning may add solid support");
-                assertTrue(
-                        fillDepth >= 1
-                                && fillDepth
-                                        <= SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS,
-                        "authored channel bank fill must stay within the bounded side-bank budget");
-                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                        position.getX(), position.getZ());
-                boolean adjacentToWet = wetColumns.contains(
-                                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                                        column.x() + 1, column.z()))
-                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                                column.x() - 1, column.z()))
-                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                                column.x(), column.z() + 1))
-                        || wetColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                                column.x(), column.z() - 1));
-                assertTrue(
-                        adjacentToWet,
-                        "authored channel bank fill must remain cardinally adjacent to its wet corridor");
+                assertEquals(
+                        0,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS,
+                        "flowing channel geometry must not authorize synthetic bank fill");
+                throw new AssertionError(
+                        "channel deployment unexpectedly contains forced bank geometry at " + position);
+
             }
         }
     }

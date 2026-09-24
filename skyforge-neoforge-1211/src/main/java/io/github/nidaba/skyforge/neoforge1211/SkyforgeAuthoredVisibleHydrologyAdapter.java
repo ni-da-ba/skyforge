@@ -1,13 +1,17 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.world.SkyIslandContinuousHydrologicTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialReachGeometry;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologicTerrainSurfacePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
 import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprint;
 import io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyMargin;
+import io.github.nidaba.skyforge.world.SkyIslandWaterbodyMarginCell;
 import io.github.nidaba.skyforge.world.SkyIslandWatershedPlan;
 import io.github.nidaba.skyforge.world.SkyIslandWatershedPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan;
@@ -50,12 +54,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
-    // These are geometry-reconciliation budgets, not material palettes. Hydrology may extend an
-    // already-existing physical bank by a few blocks when required to contain its accepted water
-    // surface, but it may not bridge true exterior void. Runtime realization inherits the local
-    // native substrate state from the supporting bank rather than emitting a Skyforge clay/stone
-    // palette.
-    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
+    // Flowing channels may never manufacture a levee to compensate for a carrier mismatch.
+    // Accepted cascade/waterfall/edge-discharge semantics own the only physical breach. Standing
+    // retained water keeps a small explicit bank-reconciliation budget because a flat datum can
+    // legitimately meet a slightly low but otherwise supported shoreline column.
+    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 0;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
     // The first wet rings of a retained basin form a shallow littoral ramp instead of a vertical
     // bathtub cut. Deeper authored basin geometry remains unchanged beyond this bounded fringe.
@@ -239,6 +242,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 terrain,
                                 watershed,
                                 retained.footprint(),
+                                retained.margin(),
+                                fluvial.baseTerrain(),
                                 solidRangeCache)
                         .ifPresent(rawRetained::add);
             }
@@ -472,6 +477,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
+        boolean routedDropOutlet =
+                routedEdgeOutlet || fluvial.terminalDrop(reach).isPresent();
 
         Map<Column, ChannelPathProjection> candidateProjections =
                 candidateColumnProjections(volume, fluvial, reach);
@@ -485,7 +492,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 fluvial,
                 reach,
                 candidateProjections,
-                routedEdgeOutlet,
+                routedDropOutlet,
                 retainedWaterTopByColumn,
                 solidRangeCache,
                 basePotentialCache,
@@ -591,7 +598,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     reach,
                     path,
-                    routedEdgeOutlet,
+                    routedDropOutlet,
                     solidRangeCache);
             if (bankFill.isPresent()) {
                 containedWet.add(column.column());
@@ -632,7 +639,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 column,
                                 reach,
                                 path,
-                                routedEdgeOutlet,
+                                routedDropOutlet,
                                 solidRangeCache)
                         .isPresent()) {
                     stillContained.add(wetColumn);
@@ -667,7 +674,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     reach,
                     path,
-                    routedEdgeOutlet,
+                    routedDropOutlet,
                     solidRangeCache);
             if (bankFill.isEmpty()) {
                 throw new IllegalStateException(
@@ -819,6 +826,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (plannedWet.contains(bank)) {
                 continue;
             }
+            if (routedEdgeOutlet
+                    && outletBreaches == 0
+                    && channelOutletBreachAllowed(
+                            volume, candidate.column(), bank, reach, path)) {
+                outletBreaches++;
+                continue;
+            }
 
             ChannelColumnPlan plannedBank = columns.get(bank);
             int bankTopY;
@@ -848,16 +862,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         ignored -> terrain.integerSolidRange(
                                 volume.id(), bank.x(), bank.z()));
                 if (optionalRange.isEmpty()) {
-                    boolean outletBreach = routedEdgeOutlet
-                            && outletBreaches == 0
-                            && channelOutletBreachAllowed(volume, candidate.column(), reach, path);
-                    if (outletBreach) {
-                        outletBreaches++;
-                        continue;
-                    }
-                    // A missing cardinal carrier is true exterior geometry. Do not hide it behind a
-                    // synthetic wall; either the authored outlet owns the breach or this wet raster
-                    // cell is not physically containable.
+                    // A missing cardinal carrier is true exterior geometry. Only the exact authored
+                    // downstream outlet was admitted above; every other gap fails closed.
                     return Optional.empty();
                 } else {
                     var range = optionalRange.orElseThrow();
@@ -879,13 +885,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             int fillDepth = candidate.waterTopY() - bankTopY;
             if (fillDepth > MAX_CHANNEL_BANK_FILL_BLOCKS) {
-                boolean outletBreach = routedEdgeOutlet
-                        && outletBreaches == 0
-                        && channelOutletBreachAllowed(volume, candidate.column(), reach, path);
-                if (outletBreach) {
-                    outletBreaches++;
-                    continue;
-                }
                 return Optional.empty();
             }
 
@@ -1599,14 +1598,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
             boolean outletBreach = routedEdgeOutlet
                     && outletBreaches == 0
-                    && channelOutletBreachAllowed(volume, wet, reach, reach.path());
+                    && channelOutletBreachAllowed(
+                            volume, wet, bank, reach, reach.path());
+            if (outletBreach) {
+                outletBreaches++;
+                continue;
+            }
             if (optionalRange.isEmpty()) {
-                if (outletBreach) {
-                    outletBreaches++;
-                    continue;
-                }
-                // Do not invent a lateral shelf over exterior void. The grade solver may lower the
-                // channel against real banks, but a reach with no physical side carrier fails closed.
+                // Do not invent a lateral shelf over exterior void. The exact authored downstream
+                // outlet was handled above; every other missing side carrier fails closed.
                 return OptionalInt.empty();
             }
 
@@ -1658,12 +1658,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     private static boolean channelOutletBreachAllowed(
             SkyIslandWorldVolume volume,
             Column wet,
+            Column bank,
             SkyIslandFluvialReachGeometry reach,
             SkyIslandNaturalizedChannelPath path) {
         SkyIslandLocalPosition local = localPosition(volume, wet);
         SkyIslandLocalPosition outlet = path.points().getLast();
-        return Math.hypot(local.x() - outlet.x(), local.z() - outlet.z())
-                <= Math.max(1.5, reach.wetHalfWidth() * 0.75);
+        if (Math.hypot(local.x() - outlet.x(), local.z() - outlet.z())
+                > Math.max(1.5, reach.wetHalfWidth() * 0.75)) {
+            return false;
+        }
+        if (path.points().size() < 2) {
+            return false;
+        }
+
+        SkyIslandLocalPosition previous =
+                path.points().get(path.points().size() - 2);
+        double dx = outlet.x() - previous.x();
+        double dz = outlet.z() - previous.z();
+        int expectedX;
+        int expectedZ;
+        if (Math.abs(dx) >= Math.abs(dz)) {
+            expectedX = dx >= 0.0 ? 1 : -1;
+            expectedZ = 0;
+        } else {
+            expectedX = 0;
+            expectedZ = dz >= 0.0 ? 1 : -1;
+        }
+        return bank.x() - wet.x() == expectedX
+                && bank.z() - wet.z() == expectedZ;
     }
 
     private static Map<Column, ChannelPathProjection> candidateColumnProjections(
@@ -1795,13 +1817,21 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandWatershedPlan watershed,
             SkyIslandWaterbodyFootprint footprint,
+            SkyIslandWaterbodyMargin margin,
+            SkyIslandContinuousHydrologicTerrainField hydrologicTerrain,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(volume, "volume");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(watershed, "watershed");
         Objects.requireNonNull(footprint, "footprint");
+        Objects.requireNonNull(margin, "margin");
+        Objects.requireNonNull(hydrologicTerrain, "hydrologicTerrain");
         Objects.requireNonNull(solidRangeCache, "solidRangeCache");
+        if (!margin.footprint().equals(footprint)) {
+            throw new IllegalArgumentException(
+                    "retained-water margin must reference the exact projected footprint");
+        }
         Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex = new LinkedHashMap<>();
         for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
             cellsByIndex.put(cell.watershedCellIndex(), cell);
@@ -1917,9 +1947,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", volume=" + volume.id().path());
         }
 
+        RetainedMarginConditioning marginConditioning = retainedMarginConditioning(
+                descriptor,
+                volume,
+                terrain,
+                watershed,
+                margin,
+                hydrologicTerrain,
+                realizable.keySet(),
+                waterTopY,
+                solidRangeCache);
+
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved =
+                new LinkedHashSet<>(marginConditioning.carvedPositions());
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(retainedBankFill);
+        surface.addAll(marginConditioning.surfacePositions());
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(retainedBankFill);
         for (RetainedColumnPlan column : realizable.values()) {
             surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
@@ -1940,6 +1983,134 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 new ArrayList<>(carved),
                 new ArrayList<>(surface),
                 new ArrayList<>(forcedSurface)));
+    }
+
+    static int maximumRetainedInteriorCutBlocks(SkyIslandDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        return Math.max(
+                MAX_RETAINED_BASIN_CUT_BLOCKS,
+                physicalLoweringBlocks(
+                        descriptor,
+                        SkyIslandHydrologicTerrainSurfacePlanner.MAX_LOWERING));
+    }
+
+    private static RetainedMarginConditioning retainedMarginConditioning(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandWatershedPlan watershed,
+            SkyIslandWaterbodyMargin margin,
+            SkyIslandContinuousHydrologicTerrainField hydrologicTerrain,
+            Set<Column> wetColumns,
+            int waterTopY,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
+        if (margin.cells().isEmpty()) {
+            return new RetainedMarginConditioning(List.of(), List.of());
+        }
+
+        Map<Integer, SkyIslandWaterbodyMarginCell> marginByIndex = new HashMap<>();
+        for (SkyIslandWaterbodyMarginCell cell : margin.cells()) {
+            marginByIndex.put(cell.watershedCellIndex(), cell);
+        }
+
+        double halfSpacing = watershed.spacing() * 0.5;
+        double minimumLocalX = margin.cells().stream()
+                .mapToDouble(cell -> cell.position().x())
+                .min()
+                .orElseThrow() - halfSpacing;
+        double maximumLocalX = margin.cells().stream()
+                .mapToDouble(cell -> cell.position().x())
+                .max()
+                .orElseThrow() + halfSpacing;
+        double minimumLocalZ = margin.cells().stream()
+                .mapToDouble(cell -> cell.position().z())
+                .min()
+                .orElseThrow() - halfSpacing;
+        double maximumLocalZ = margin.cells().stream()
+                .mapToDouble(cell -> cell.position().z())
+                .max()
+                .orElseThrow() + halfSpacing;
+
+        var physical = volume.compiledVolume().descriptor();
+        int minimumX = (int) Math.ceil(Math.max(
+                volume.bounds().minimumX(), physical.centerX() + minimumLocalX));
+        int maximumX = (int) Math.floor(Math.min(
+                volume.bounds().maximumX(), physical.centerX() + maximumLocalX));
+        int minimumZ = (int) Math.ceil(Math.max(
+                volume.bounds().minimumZ(), physical.centerZ() + minimumLocalZ));
+        int maximumZ = (int) Math.floor(Math.min(
+                volume.bounds().maximumZ(), physical.centerZ() + maximumLocalZ));
+
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (int z = minimumZ; z <= maximumZ; z++) {
+            for (int x = minimumX; x <= maximumX; x++) {
+                Column column = new Column(x, z);
+                if (wetColumns.contains(column)) {
+                    continue;
+                }
+                SkyIslandLocalPosition local = new SkyIslandLocalPosition(
+                        x - physical.centerX(), z - physical.centerZ());
+                int cellIndex = nearestWatershedCellIndex(descriptor, watershed, local);
+                if (!marginByIndex.containsKey(cellIndex)) {
+                    continue;
+                }
+
+                var optionalRange = solidRangeCache.computeIfAbsent(
+                        column,
+                        ignored -> terrain.integerSolidRange(
+                                volume.id(), column.x(), column.z()));
+                if (optionalRange.isEmpty()) {
+                    continue;
+                }
+                var range = optionalRange.orElseThrow();
+                if (!uncontestedOwnedRangeCell(
+                        terrain,
+                        volume.id(),
+                        column.x(),
+                        range.maximumY(),
+                        column.z())) {
+                    continue;
+                }
+
+                double lowering = Math.max(
+                        0.0,
+                        hydrologicTerrain.baseElevation(local)
+                                - hydrologicTerrain.sample(local));
+                if (lowering <= 1.0e-12) {
+                    continue;
+                }
+                int targetSurfaceY = Math.max(
+                        waterTopY,
+                        Math.max(
+                                range.minimumY(),
+                                range.maximumY()
+                                        - physicalLoweringBlocks(descriptor, lowering)));
+                if (targetSurfaceY >= range.maximumY()) {
+                    continue;
+                }
+
+                boolean uncontested = true;
+                for (int y = targetSurfaceY; y <= range.maximumY(); y++) {
+                    if (terrain.isSolidOwnedByOtherVolume(
+                            volume.id(), column.x(), y, column.z())) {
+                        uncontested = false;
+                        break;
+                    }
+                }
+                if (!uncontested) {
+                    continue;
+                }
+
+                surface.add(new BlockPos(column.x(), targetSurfaceY, column.z()));
+                for (int y = targetSurfaceY + 1; y <= range.maximumY(); y++) {
+                    carved.add(new BlockPos(column.x(), y, column.z()));
+                }
+            }
+        }
+        return new RetainedMarginConditioning(
+                List.copyOf(carved),
+                List.copyOf(surface));
     }
 
     private static List<Integer> retainedWaterTopCandidates(List<Integer> sortedProjectedWaterTops) {
@@ -1981,15 +2152,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         for (RetainedColumnPlan column : columns.values()) {
             int cutAboveWater = Math.max(0, column.baseSurfaceY() - waterTopY);
 
-            // The old global cut cap fragmented large authored lakes whenever the independently
-            // compiled Minecraft carrier placed an incidental ridge through their interior. That
-            // carrier ridge is not hydrologic authority: the accepted retained-water footprint says
-            // the column is inundated. Preserve the strict cap where terrain surgery is visible at
-            // the actual lake perimeter, but allow submerged interior ridges to be removed down to
-            // the robust authored lake datum. This keeps the anti-bathtub invariant at shore while
-            // allowing one connected physical realization of one connected authored basin.
-            if (retainedFootprintBoundary(intendedFootprint, column.column())
-                    && cutAboveWater > MAX_RETAINED_BASIN_CUT_BLOCKS) {
+            // The accepted footprint owns inundation, but it is still coarse semantic intent rather
+            // than permission to excavate an arbitrarily tall physical ridge. Visible perimeter
+            // conditioning remains very strict; submerged interior conditioning may use the neutral
+            // authored hydrologic-relief budget, but never an unbounded cut.
+            int maximumCut = retainedFootprintBoundary(intendedFootprint, column.column())
+                    ? MAX_RETAINED_BASIN_CUT_BLOCKS
+                    : maximumRetainedInteriorCutBlocks(descriptor);
+            if (cutAboveWater > maximumCut) {
                 continue;
             }
 
@@ -3085,6 +3255,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int minimumY,
             int baseSurfaceY,
             int bedY) {}
+
+    private record RetainedMarginConditioning(
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
+        private RetainedMarginConditioning {
+            carvedPositions = List.copyOf(carvedPositions);
+            surfacePositions = List.copyOf(surfacePositions);
+        }
+    }
 
     record Column(int x, int z) {}
 }
