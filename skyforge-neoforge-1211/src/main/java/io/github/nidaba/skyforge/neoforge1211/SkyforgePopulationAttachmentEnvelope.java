@@ -1,7 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.Objects;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
@@ -90,6 +92,11 @@ final class SkyforgePopulationAttachmentEnvelope {
 
     int attachmentCount() {
         return attachmentDepths.size();
+    }
+
+    Set<BlockPos> attachmentPositions() {
+        return java.util.Collections.unmodifiableSet(
+                new LinkedHashSet<>(attachmentDepths.keySet()));
     }
 
     /**
