@@ -2090,29 +2090,100 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 halfSpacing)) {
                     continue;
                 }
-                Column column = new Column(x, z);
-                var optionalRange = solidRangeCache.computeIfAbsent(
-                        column,
-                        ignored -> terrain.integerSolidRange(
-                                volume.id(), column.x(), column.z()));
-                if (optionalRange.isEmpty()) {
-                    continue;
-                }
-                var range = optionalRange.orElseThrow();
-                if (!uncontestedOwnedRangeCell(terrain, volume.id(), x, range.maximumY(), z)) {
-                    continue;
-                }
-                result.put(
-                        column,
-                        new RetainedColumnPlan(
-                                column,
-                                sourceCell,
-                                range.minimumY(),
-                                range.maximumY(),
-                                Integer.MIN_VALUE));
+                addRetainedCandidateColumn(
+                        result,
+                        volume,
+                        terrain,
+                        sourceCell,
+                        new Column(x, z),
+                        solidRangeCache);
             }
         }
+
+        // Close only tiny voxel pinholes that are already inside an accepted shoreline watershed
+        // cell. This repairs square one-/two-column notches without expanding the lake into an
+        // unauthored coarse cell or changing its hydraulic datum.
+        for (int pass = 0; pass < 2; pass++) {
+            Map<Column, RetainedColumnPlan> additions = new LinkedHashMap<>();
+            for (int z = minimumZ; z <= maximumZ; z++) {
+                for (int x = minimumX; x <= maximumX; x++) {
+                    Column column = new Column(x, z);
+                    if (result.containsKey(column)
+                            || retainedRasterNeighborCount(result.keySet(), column) < 3) {
+                        continue;
+                    }
+                    SkyIslandLocalPosition local = new SkyIslandLocalPosition(
+                            x - physical.centerX(), z - physical.centerZ());
+                    int cellIndex = nearestWatershedCellIndex(descriptor, watershed, local);
+                    SkyIslandWaterbodyFootprintCell sourceCell = cellsByIndex.get(cellIndex);
+                    if (sourceCell == null || !sourceCell.shoreline()) {
+                        continue;
+                    }
+                    addRetainedCandidateColumn(
+                            additions,
+                            volume,
+                            terrain,
+                            sourceCell,
+                            column,
+                            solidRangeCache);
+                }
+            }
+            if (additions.isEmpty()) {
+                break;
+            }
+            result.putAll(additions);
+        }
         return result;
+    }
+
+    private static void addRetainedCandidateColumn(
+            Map<Column, RetainedColumnPlan> target,
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandWaterbodyFootprintCell sourceCell,
+            Column column,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
+        var optionalRange = solidRangeCache.computeIfAbsent(
+                column,
+                ignored -> terrain.integerSolidRange(
+                        volume.id(), column.x(), column.z()));
+        if (optionalRange.isEmpty()) {
+            return;
+        }
+        var range = optionalRange.orElseThrow();
+        if (!uncontestedOwnedRangeCell(
+                terrain,
+                volume.id(),
+                column.x(),
+                range.maximumY(),
+                column.z())) {
+            return;
+        }
+        target.put(
+                column,
+                new RetainedColumnPlan(
+                        column,
+                        sourceCell,
+                        range.minimumY(),
+                        range.maximumY(),
+                        Integer.MIN_VALUE));
+    }
+
+    static int retainedRasterNeighborCount(
+            Set<Column> footprint,
+            Column candidate) {
+        Objects.requireNonNull(footprint, "footprint");
+        Objects.requireNonNull(candidate, "candidate");
+        int count = 0;
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            if (footprint.contains(new Column(
+                    candidate.x() + direction[0],
+                    candidate.z() + direction[1]))) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**
