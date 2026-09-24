@@ -50,12 +50,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
-    // Hydrology may carve/lower authored terrain, but it must not manufacture final-material
-    // levees or dams. Minecraft/native surface systems own the material expression of existing
-    // banks. A carrier that cannot contain the solved water level without raising terrain therefore
-    // lowers its grade/datum or fails closed.
-    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 0;
-    static final int MAX_RETAINED_BANK_FILL_BLOCKS = 0;
+    // These are geometry-reconciliation budgets, not material palettes. Hydrology may extend an
+    // already-existing physical bank by a few blocks when required to contain its accepted water
+    // surface, but it may not bridge true exterior void. Runtime realization inherits the local
+    // native substrate state from the supporting bank rather than emitting a Skyforge clay/stone
+    // palette.
+    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
+    static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
     // A channel touching retained water should hydraulically converge to the basin datum without
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
@@ -83,10 +84,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
             forcedSurfacePositions = List.copyOf(
                     Objects.requireNonNull(forcedSurfacePositions, "forcedSurfacePositions"));
-            if (!forcedSurfacePositions.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "hydrology geometry may not author final bank/bed material blocks");
-            }
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
@@ -2407,10 +2404,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
         Map<Long, LinkedHashSet<BlockPos>> surfaceOwnership = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
-            if (!deployment.forcedSurfacePositions().isEmpty()) {
-                throw new IllegalStateException(
-                        "normalized hydrology unexpectedly contains authored final surface material");
-            }
             indexSurfaceOwnership(surfaceOwnership, deployment.surfacePositions());
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
@@ -2458,6 +2451,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(projection, "projection");
         int written = 0;
+
+        // Surface ownership includes preserved bed/bank cells plus the small bounded geometry
+        // extensions needed to contain water. Existing solids keep their already-native material.
+        // Only an authored extension that is still AIR is filled, and it inherits the live dry
+        // substrate directly beneath it; this preserves local/native material identity.
+        for (BlockPos position : projection.surfacePositions()) {
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
+                throw new IllegalArgumentException(
+                        "authored hydrology chunk projection contains a foreign surface position");
+            }
+            BlockState current = chunk.getBlockState(position);
+            if (!current.isAir()) {
+                continue;
+            }
+            BlockState support = structuralSurfaceExtensionState(chunk, position);
+            chunk.setBlockState(position, support, false);
+            written++;
+        }
+
         for (var entry : projection.states().entrySet()) {
             BlockPos position = entry.getKey();
             BlockState desired = entry.getValue();
@@ -2496,11 +2508,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static int apply(ChunkAccess chunk, Deployment deployment) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
-        if (!deployment.forcedSurfacePositions().isEmpty()) {
-            throw new IllegalStateException(
-                    "authored hydrology may not apply a backend-specific bank/bed material palette");
-        }
         int written = 0;
+        for (BlockPos position : deployment.forcedSurfacePositions()) {
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
+                continue;
+            }
+            if (chunk.getBlockState(position).isAir()) {
+                chunk.setBlockState(
+                        position,
+                        structuralSurfaceExtensionState(chunk, position),
+                        false);
+                written++;
+            }
+        }
         for (BlockPos position : deployment.carvedPositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
@@ -2528,6 +2548,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * <p>Literal WATER, FLOWING_WATER, and water-bearing states such as BUBBLE_COLUMN are all valid
      * physical realizations of the same authored wet cell. Air, lava, and unrelated blocks are not.
      */
+    /**
+     * Chooses representation for bounded bank geometry without authoring a hydrology palette.
+     *
+     * <p>Every permitted extension must grow upward from a real dry bank carrier. Copying that
+     * carrier's live state means vanilla/native surface realization remains the material authority.
+     * True void, fluids, or unsupported falling blocks fail closed.
+     */
+    private static BlockState structuralSurfaceExtensionState(
+            ChunkAccess chunk,
+            BlockPos position) {
+        BlockPos supportPosition = position.below();
+        BlockState support = chunk.getBlockState(supportPosition);
+        if (support.isAir() || !support.getFluidState().isEmpty()) {
+            throw new IllegalStateException(
+                    "hydrology bank extension lost its native dry support at " + supportPosition);
+        }
+        return support;
+    }
+
     static boolean isHydrologySurfaceMaterial(BlockState state) {
         Objects.requireNonNull(state, "state");
         return state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(Blocks.STONE);
