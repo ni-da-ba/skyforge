@@ -1162,6 +1162,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     drySurfaceY,
                     routedEdgeOutlet,
                     retainedWaterTopByColumn,
+                    sourceConnectedToRetained,
+                    downstreamConnectedToRetained,
                     solidRangeCache,
                     basePotentialCache,
                     dryPotentialCache);
@@ -1651,6 +1653,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int candidateDrySurfaceY,
             boolean routedEdgeOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
+            boolean sourceConnectedToRetained,
+            boolean downstreamConnectedToRetained,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
@@ -1681,7 +1685,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             reach,
                             bankProjection,
                             bank,
-                            retainedWaterTopByColumn)
+                            retainedWaterTopByColumn,
+                            sourceConnectedToRetained,
+                            downstreamConnectedToRetained)
                     && optionalRange.isPresent()) {
                 continue;
             }
