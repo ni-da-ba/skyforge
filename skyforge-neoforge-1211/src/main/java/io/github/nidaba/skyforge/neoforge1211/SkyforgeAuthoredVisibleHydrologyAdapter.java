@@ -226,6 +226,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
         Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache =
                 new HashMap<>();
+        // Physical hydrology must share one vertical datum across channels and retained water.
+        // Cache the raw authored elevation here; the continuous hydrologic/fluvial fields remain
+        // the target dry surface relative to that datum. Using the already-adjusted hydrologic
+        // surface as the channel datum double-counts terrain response and can offset river/lake
+        // junctions by several physical blocks.
         Map<Column, Double> basePotentialCache = new HashMap<>();
         Map<Column, Double> dryPotentialCache = new HashMap<>();
 
@@ -535,7 +540,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             var range = optionalRange.orElseThrow();
             double basePotential = basePotentialCache.computeIfAbsent(
                     column,
-                    ignored -> fluvial.baseTerrain().sample(local));
+                    ignored -> fluvial.baseTerrain().baseElevation(local));
             double dryPotential = dryPotentialCache.computeIfAbsent(
                     column,
                     ignored -> fluvial.sample(local));
@@ -1117,7 +1122,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandLocalPosition local = localPosition(volume, column);
             double basePotential = basePotentialCache.computeIfAbsent(
                     column,
-                    ignored -> fluvial.baseTerrain().sample(local));
+                    ignored -> fluvial.baseTerrain().baseElevation(local));
             double dryPotential = dryPotentialCache.computeIfAbsent(
                     column,
                     ignored -> fluvial.sample(local));
@@ -1683,7 +1688,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandLocalPosition bankLocal = localPosition(volume, bank);
                 double basePotential = basePotentialCache.computeIfAbsent(
                         bank,
-                        ignored -> fluvial.baseTerrain().sample(bankLocal));
+                        ignored -> fluvial.baseTerrain().baseElevation(bankLocal));
                 double dryPotential = dryPotentialCache.computeIfAbsent(
                         bank,
                         ignored -> fluvial.sample(bankLocal));
