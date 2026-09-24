@@ -1,8 +1,14 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.WeakHashMap;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -14,6 +20,10 @@ import net.minecraft.world.level.block.state.BlockState;
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
+    private static final WeakHashMap<
+                    ServerLevel,
+                    Map<SkyIslandWorldVolumeId, Set<Long>>>
+            COMMITTED_ATTACHMENTS = new WeakHashMap<>();
 
     private SkyforgePopulationExecutionStage() {}
 
@@ -107,6 +117,33 @@ final class SkyforgePopulationExecutionStage {
         return Optional.ofNullable(ACTIVE.get());
     }
 
+    private static synchronized boolean committedAttachment(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId,
+            BlockPos position) {
+        Map<SkyIslandWorldVolumeId, Set<Long>> byVolume = COMMITTED_ATTACHMENTS.get(level);
+        if (byVolume == null) {
+            return false;
+        }
+        Set<Long> positions = byVolume.get(volumeId);
+        return positions != null && positions.contains(position.asLong());
+    }
+
+    private static synchronized void commitAttachments(
+            ServerLevel level,
+            SkyIslandWorldVolumeId volumeId,
+            Set<BlockPos> positions) {
+        if (positions.isEmpty()) {
+            return;
+        }
+        Set<Long> committed = COMMITTED_ATTACHMENTS
+                .computeIfAbsent(level, ignored -> new HashMap<>())
+                .computeIfAbsent(volumeId, ignored -> new LinkedHashSet<>());
+        for (BlockPos position : positions) {
+            committed.add(position.asLong());
+        }
+    }
+
     private static boolean originChunkContains(
             SkyforgePopulationOperation operation,
             BlockPos position) {
@@ -182,6 +219,7 @@ final class SkyforgePopulationExecutionStage {
         private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
         private final boolean stableDeferredLevel;
+        private final LinkedHashSet<BlockPos> acceptedStableWrites = new LinkedHashSet<>();
 
         private Execution(
                 Optional<WorldGenLevel> level,
@@ -209,8 +247,15 @@ final class SkyforgePopulationExecutionStage {
 
         boolean isVisible(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return (ownerSolid.test(position) && originChunkContains(position))
-                    || attachmentEnvelope.ownsAttachment(position);
+            if ((ownerSolid.test(position) && originChunkContains(position))
+                    || attachmentEnvelope.ownsAttachment(position)) {
+                return true;
+            }
+            if (!stableDeferredLevel || !originChunkContains(position)) {
+                return false;
+            }
+            ServerLevel server = (ServerLevel) level.orElseThrow();
+            return committedAttachment(server, operation.volumeId(), position);
         }
 
         /**
@@ -258,9 +303,13 @@ final class SkyforgePopulationExecutionStage {
 
         boolean acceptWrite(BlockPos position) {
             Objects.requireNonNull(position, "position");
-            return directWriteAuthorityAllows(position)
+            boolean accepted = directWriteAuthorityAllows(position)
                     && SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)
                     && attachmentEnvelope.acceptWrite(position);
+            if (accepted) {
+                recordStableWrite(position);
+            }
+            return accepted;
         }
 
         boolean acceptWrite(BlockPos position, BlockState state) {
@@ -279,7 +328,32 @@ final class SkyforgePopulationExecutionStage {
                             ownerSolid)) {
                 return false;
             }
-            return attachmentEnvelope.acceptWrite(position);
+            boolean accepted = attachmentEnvelope.acceptWrite(position);
+            if (accepted) {
+                recordStableWrite(position);
+            }
+            return accepted;
+        }
+
+        private void recordStableWrite(BlockPos position) {
+            if (stableDeferredLevel) {
+                acceptedStableWrites.add(position.immutable());
+            }
+        }
+
+        private void commitDeferredEffects() {
+            if (!stableDeferredLevel) {
+                return;
+            }
+            ServerLevel server = (ServerLevel) level.orElseThrow();
+            commitAttachments(
+                    server,
+                    operation.volumeId(),
+                    attachmentEnvelope.attachmentPositions());
+            for (BlockPos position : acceptedStableWrites) {
+                server.getChunkSource().getLightEngine().checkBlock(position);
+                server.getChunkSource().blockChanged(position);
+            }
         }
 
         int attachmentCount() {
@@ -364,6 +438,7 @@ final class SkyforgePopulationExecutionStage {
         @Override
         public void close() {
             requireActive();
+            execution.commitDeferredEffects();
             execution.recordPerformanceEvidence();
             closed = true;
             ACTIVE.remove();
