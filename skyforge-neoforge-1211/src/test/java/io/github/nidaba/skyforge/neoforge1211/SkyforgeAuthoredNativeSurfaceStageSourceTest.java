@@ -24,6 +24,8 @@ final class SkyforgeAuthoredNativeSurfaceStageSourceTest {
         assertTrue(stage.contains("new ProtoChunk("));
         assertTrue(stage.contains("SkyIslandTerrainSemantic.SURFACE_MANTLE"));
         assertTrue(stage.contains("Hydrology owns occupancy and geometry, not the final material palette."));
+        assertTrue(stage.contains("instanceof FallingBlock"));
+        assertTrue(stage.contains("stableWhenCopied"));
         assertFalse(stage.contains("must not repaint"));
         assertFalse(stage.contains("dr70_surface_donor"));
     }
