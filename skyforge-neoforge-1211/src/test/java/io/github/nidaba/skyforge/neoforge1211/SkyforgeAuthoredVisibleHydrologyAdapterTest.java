@@ -363,6 +363,57 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void retainedWaterOwnsChannelOverlapColumns() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        var retainedWater = new java.util.HashSet<BlockPos>();
+        var retainedColumns =
+                new java.util.HashSet<SkyforgeAuthoredVisibleHydrologyAdapter.Column>();
+        for (var deployment : deployments) {
+            if (deployment.feature()
+                    != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER) {
+                continue;
+            }
+            retainedWater.addAll(deployment.positions());
+            for (var position : deployment.positions()) {
+                retainedColumns.add(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ()));
+            }
+        }
+        assertFalse(retainedColumns.isEmpty());
+
+        for (var deployment : deployments) {
+            if (deployment.feature()
+                    != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
+                continue;
+            }
+            for (var wet : deployment.positions()) {
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        wet.getX(), wet.getZ());
+                if (retainedColumns.contains(column)) {
+                    assertTrue(
+                            retainedWater.contains(wet),
+                            "channel water inside a retained basin column must coincide with the "
+                                    + "basin's own vertical water volume");
+                }
+            }
+            assertTrue(
+                    deployment.carvedPositions().stream().noneMatch(position ->
+                            retainedColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                    position.getX(), position.getZ()))),
+                    "retained water must suppress channel excavation through the lake bed");
+            assertTrue(
+                    deployment.surfacePositions().stream().noneMatch(position ->
+                            retainedColumns.contains(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                    position.getX(), position.getZ()))),
+                    "retained water must suppress channel substrate stripes through the lake bed");
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
