@@ -55,6 +55,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // that the resulting banks do not read as artificial levees or walls.
     static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
+    // A channel touching retained water should hydraulically converge to the basin datum without
+    // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
+    // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
+    static final int RETAINED_JUNCTION_GRADE_WEIGHT = 32;
 
     enum Feature { CHANNEL, RETAINED_WATER }
 
@@ -201,12 +205,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
         SkyIslandFluvialTerrainField fluvial =
                 SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
-        List<RawDeployment> rawDeployments = new ArrayList<>();
         Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache =
                 new HashMap<>();
         Map<Column, Double> basePotentialCache = new HashMap<>();
         Map<Column, Double> dryPotentialCache = new HashMap<>();
 
+        // Retained basins are the hydraulic boundary condition for any channel that enters or exits
+        // them. Project those basins first so the channel grade solver can target the actual
+        // qualified Minecraft datum instead of solving independently and being clipped afterward.
+        List<RawDeployment> rawRetained = new ArrayList<>();
+        if (!intent.retainedWater().isEmpty()) {
+            SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+            for (var retained : intent.retainedWater()) {
+                atFootprint(
+                                descriptor,
+                                volume,
+                                terrain,
+                                watershed,
+                                retained.footprint(),
+                                solidRangeCache)
+                        .ifPresent(rawRetained::add);
+            }
+        }
+        Map<Column, Integer> retainedWaterTopByColumn = retainedWaterTopByColumn(rawRetained);
+
+        List<RawDeployment> rawChannels = new ArrayList<>();
         Set<Integer> routedEdgeOutlets = intent.drops().stream()
                 .filter(drop -> drop.kind() == SkyIslandVisibleHydrologicRealizationKind.EDGE_DISCHARGE)
                 .map(drop -> drop.drop().sourceCellIndex())
@@ -221,24 +244,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             terrain,
                             channel.path(),
                             routedEdgeOutlet,
+                            retainedWaterTopByColumn,
                             solidRangeCache,
                             basePotentialCache,
                             dryPotentialCache)
-                    .ifPresent(rawDeployments::add);
+                    .ifPresent(rawChannels::add);
         }
-        if (!intent.retainedWater().isEmpty()) {
-            SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
-            for (var retained : intent.retainedWater()) {
-                atFootprint(
-                                descriptor,
-                                volume,
-                                terrain,
-                                watershed,
-                                retained.footprint(),
-                                solidRangeCache)
-                        .ifPresent(rawDeployments::add);
-            }
-        }
+
+        // Preserve the historical external deployment order (channels, then retained water) even
+        // though retained basins are projected first internally for hydraulic boundary conditions.
+        List<RawDeployment> rawDeployments =
+                new ArrayList<>(rawChannels.size() + rawRetained.size());
+        rawDeployments.addAll(rawChannels);
+        rawDeployments.addAll(rawRetained);
 
         long projectedChannels = rawDeployments.stream()
                 .filter(deployment -> deployment.feature() == Feature.CHANNEL)
@@ -364,6 +382,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             List<BlockPos> forcedSurface = deployment.forcedSurfacePositions().stream()
                     .filter(position -> deployment.feature() != Feature.CHANNEL
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
+                    .filter(position -> deployment.feature() != Feature.CHANNEL
+                            || !touchesRetainedColumn(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
@@ -399,12 +419,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandNaturalizedChannelPath path,
             boolean routedEdgeOutlet,
+            Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(fluvial, "fluvial");
         Objects.requireNonNull(path, "path");
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
         if (path.points().isEmpty()) {
             throw new IllegalArgumentException("authored channel path requires at least one point");
         }
@@ -428,6 +450,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 reach,
                 candidateProjections,
                 routedEdgeOutlet,
+                retainedWaterTopByColumn,
                 solidRangeCache,
                 basePotentialCache,
                 dryPotentialCache);
@@ -908,6 +931,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
             boolean routedEdgeOutlet,
+            Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
             Map<Column, Double> basePotentialCache,
             Map<Column, Double> dryPotentialCache) {
@@ -1000,6 +1024,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     + physicalSignedDeltaBlocks(
                             descriptor,
                             waterPotential - basePotential);
+            int preferenceWeight = 1;
+            OptionalInt retainedDatum = retainedHydraulicTarget(
+                    column, retainedWaterTopByColumn);
+            if (retainedDatum.isPresent()) {
+                desiredWaterTop = retainedDatum.orElseThrow();
+                preferenceWeight = RETAINED_JUNCTION_GRADE_WEIGHT;
+            }
             desiredWaterTop = Math.max(
                     ownerMinimumWaterTop,
                     Math.min(maximumWaterTop, desiredWaterTop));
@@ -1013,7 +1044,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             ownerMinimumWaterTop,
                             drySurfaceY,
                             maximumWaterTop,
-                            desiredWaterTop));
+                            desiredWaterTop,
+                            preferenceWeight));
         }
 
         // A semantic wet corridor that is mostly physical void is not a conditioning problem:
@@ -1092,7 +1124,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         fraction,
                         minimumWaterTop,
                         candidate.maximumWaterTop(),
-                        candidate.desiredWaterTop()));
+                        candidate.desiredWaterTop(),
+                        candidate.preferenceWeight()));
                 previousFraction = fraction;
             }
             if (!feasibleBounds) {
@@ -1315,7 +1348,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         ChannelGradeSample first = samples.getFirst();
         for (int y = first.minimumWaterTop(); y <= first.maximumWaterTop(); y++) {
             long delta = (long) y - first.desiredWaterTop();
-            previous[y - minimumY] = delta * delta;
+            previous[y - minimumY] = first.preferenceWeight() * delta * delta;
         }
 
         for (int index = 1; index < samples.size(); index++) {
@@ -1342,7 +1375,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     continue;
                 }
                 long delta = (long) y - sample.desiredWaterTop();
-                current[offset] = suffixCost[offset] + delta * delta;
+                current[offset] = suffixCost[offset]
+                        + sample.preferenceWeight() * delta * delta;
                 predecessor[index][offset] = suffixArg[offset];
             }
             previous = current;
@@ -2204,6 +2238,71 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 canonicalForcedSurface);
     }
 
+    private static Map<Column, Integer> retainedWaterTopByColumn(
+            List<RawDeployment> retainedDeployments) {
+        Objects.requireNonNull(retainedDeployments, "retainedDeployments");
+        Map<Column, Integer> tops = new LinkedHashMap<>();
+        for (RawDeployment deployment : retainedDeployments) {
+            if (deployment.feature() != Feature.RETAINED_WATER) {
+                throw new IllegalArgumentException(
+                        "retained water-top index received non-retained deployment");
+            }
+            Map<Column, Integer> deploymentTops = new LinkedHashMap<>();
+            for (BlockPos position : deployment.positions()) {
+                Column column = new Column(position.getX(), position.getZ());
+                deploymentTops.merge(column, position.getY(), Math::max);
+            }
+            for (var entry : deploymentTops.entrySet()) {
+                Integer previous = tops.putIfAbsent(entry.getKey(), entry.getValue());
+                if (previous != null && previous.intValue() != entry.getValue().intValue()) {
+                    throw new IllegalStateException(
+                            "connected retained-water column exposes conflicting physical datums at "
+                                    + entry.getKey() + ": " + previous + " vs " + entry.getValue());
+                }
+            }
+        }
+        return Collections.unmodifiableMap(tops);
+    }
+
+    static OptionalInt retainedHydraulicTarget(
+            Column column,
+            Map<Column, Integer> retainedWaterTopByColumn) {
+        Objects.requireNonNull(column, "column");
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
+        Integer datum = retainedWaterTopByColumn.get(column);
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            Integer neighbor = retainedWaterTopByColumn.get(new Column(
+                    column.x() + direction[0],
+                    column.z() + direction[1]));
+            if (neighbor == null) {
+                continue;
+            }
+            if (datum == null) {
+                datum = neighbor;
+            } else if (datum.intValue() != neighbor.intValue()) {
+                throw new IllegalStateException(
+                        "channel contact touches retained water with conflicting physical datums");
+            }
+        }
+        return datum == null ? OptionalInt.empty() : OptionalInt.of(datum);
+    }
+
+    private static boolean touchesRetainedColumn(
+            Map<Long, Set<Column>> retainedColumnsByChunk,
+            BlockPos position) {
+        Objects.requireNonNull(retainedColumnsByChunk, "retainedColumnsByChunk");
+        Objects.requireNonNull(position, "position");
+        int[][] directions = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (int[] direction : directions) {
+            BlockPos probe = position.offset(direction[0], 0, direction[1]);
+            if (containsColumnByChunk(retainedColumnsByChunk, probe)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static void addMembershipByChunk(
             Map<Long, Set<BlockPos>> byChunk,
             Iterable<BlockPos> positions) {
@@ -2429,19 +2528,30 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int ownerMinimumWaterTop,
             int drySurfaceY,
             int maximumWaterTop,
-            int desiredWaterTop) {}
+            int desiredWaterTop,
+            int preferenceWeight) {
+        private ChannelCarrierCandidate {
+            if (preferenceWeight < 1) {
+                throw new IllegalArgumentException("channel grade preference weight must be positive");
+            }
+        }
+    }
 
     private record ChannelGradeSample(
             double fraction,
             int minimumWaterTop,
             int maximumWaterTop,
-            int desiredWaterTop) {
+            int desiredWaterTop,
+            int preferenceWeight) {
         private ChannelGradeSample {
             if (!Double.isFinite(fraction) || fraction < 0.0 || fraction > 1.0) {
                 throw new IllegalArgumentException("channel grade fraction must be finite and in [0, 1]");
             }
             if (minimumWaterTop > maximumWaterTop) {
                 throw new IllegalArgumentException("invalid channel grade sample bounds");
+            }
+            if (preferenceWeight < 1) {
+                throw new IllegalArgumentException("channel grade preference weight must be positive");
             }
         }
     }
