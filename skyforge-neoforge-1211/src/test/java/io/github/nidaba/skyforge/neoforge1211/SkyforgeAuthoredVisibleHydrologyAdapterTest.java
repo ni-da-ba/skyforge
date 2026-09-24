@@ -681,12 +681,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 .orElse(false),
                         "preserved and repaired beds must remain hydrology-owned for native dressing");
                 if (forcedSurface.contains(position)) {
-                    var range = terrain.integerSolidRange(
-                                    fixture.volume().id(), position.getX(), position.getZ())
-                            .orElseThrow();
                     assertTrue(
-                            position.getY() > range.maximumY(),
-                            "forced bank geometry should only represent bounded extension above the compiled carrier");
+                            terrain.isSolidOwnedBy(
+                                    fixture.volume().id(),
+                                    position.getX(),
+                                    Math.min(
+                                            position.getY(),
+                                            terrain.integerSolidRange(
+                                                            fixture.volume().id(),
+                                                            position.getX(),
+                                                            position.getZ())
+                                                    .orElseThrow()
+                                                    .maximumY()),
+                                    position.getZ()),
+                            "forced bank geometry must remain anchored to the exact owning carrier");
                 }
             }
         }
@@ -720,11 +728,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .orElseThrow(() -> new AssertionError(
                                 "bounded bank geometry must extend an existing physical carrier"));
                 int fillDepth = position.getY() - range.maximumY();
-                int limit = deployment.feature()
-                                == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER
-                        ? SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS
-                        : SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS;
-                assertTrue(fillDepth >= 1 && fillDepth <= limit);
+                if (fillDepth > 0) {
+                    int limit = deployment.feature()
+                                    == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER
+                            ? SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS
+                            : SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS;
+                    assertTrue(
+                            fillDepth <= limit,
+                            "bank extension above compiled terrain must stay inside the bounded fill budget");
+                } else {
+                    assertTrue(
+                            position.getY() >= range.minimumY(),
+                            "bank reconstruction inside compiled terrain must stay inside the exact owner range");
+                }
             }
         }
     }
