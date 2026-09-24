@@ -57,6 +57,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // palette.
     static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
+    static final int RETAINED_LITTORAL_TERRACE_RINGS = 3;
+    static final int MAX_RETAINED_LITTORAL_CUT_BLOCKS = 6;
     // A channel touching retained water should hydraulically converge to the basin datum without
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
@@ -1796,9 +1798,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", volume=" + volume.id().path());
         }
 
+        RetainedShoreTerrace shoreTerrace = retainedShoreTerrace(
+                volume,
+                terrain,
+                solidRangeCache,
+                realizable.keySet(),
+                waterTopY);
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>(shoreTerrace.carvedPositions());
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(retainedBankFill);
+        surface.addAll(shoreTerrace.surfacePositions());
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(retainedBankFill);
         for (RetainedColumnPlan column : realizable.values()) {
             surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
@@ -2227,6 +2236,93 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
         return Optional.of(List.copyOf(fill));
+    }
+
+    /**
+     * Grades the dry side of a retained shoreline over a short bounded terrace.
+     *
+     * <p>The retained basin already grades its submerged littoral inward. Without a corresponding
+     * outward transition, a high neighboring carrier remains a vertical bathtub wall. This helper
+     * lowers only existing owner terrain, never expands water, never bridges void, and never cuts
+     * deeper than the explicit local reconciliation budget.
+     */
+    private static RetainedShoreTerrace retainedShoreTerrace(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Set<Column> wetColumns,
+            int waterTopY) {
+        Map<Column, Integer> ringByColumn = new LinkedHashMap<>();
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (Column wet : wetColumns) {
+            if (!retainedFootprintBoundary(wetColumns, wet)) {
+                continue;
+            }
+            for (int[] direction : directions) {
+                Column first = new Column(wet.x() + direction[0], wet.z() + direction[1]);
+                if (wetColumns.contains(first)) {
+                    continue;
+                }
+                for (int ring = 1; ring <= RETAINED_LITTORAL_TERRACE_RINGS; ring++) {
+                    Column dry = new Column(
+                            wet.x() + direction[0] * ring,
+                            wet.z() + direction[1] * ring);
+                    if (wetColumns.contains(dry)) {
+                        break;
+                    }
+                    ringByColumn.merge(dry, ring, Math::min);
+                }
+            }
+        }
+
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (var entry : ringByColumn.entrySet()) {
+            Column column = entry.getKey();
+            int ring = entry.getValue();
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    column,
+                    ignored -> terrain.integerSolidRange(
+                            volume.id(), column.x(), column.z()));
+            if (optionalRange.isEmpty()) {
+                continue;
+            }
+            var range = optionalRange.orElseThrow();
+            int targetTopY = waterTopY + ring;
+            if (targetTopY < range.minimumY()
+                    || range.maximumY() <= targetTopY
+                    || !uncontestedOwnedRangeCell(
+                            terrain, volume.id(), column.x(), targetTopY, column.z())) {
+                continue;
+            }
+            int cutDepth = range.maximumY() - targetTopY;
+            if (cutDepth > MAX_RETAINED_LITTORAL_CUT_BLOCKS) {
+                continue;
+            }
+            surface.add(new BlockPos(column.x(), targetTopY, column.z()));
+            for (int y = targetTopY + 1; y <= range.maximumY(); y++) {
+                if (terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                    carved.clear();
+                    surface.clear();
+                    return RetainedShoreTerrace.empty();
+                }
+                carved.add(new BlockPos(column.x(), y, column.z()));
+            }
+        }
+        return new RetainedShoreTerrace(List.copyOf(carved), List.copyOf(surface));
+    }
+
+    private record RetainedShoreTerrace(
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
+        RetainedShoreTerrace {
+            carvedPositions = List.copyOf(carvedPositions);
+            surfacePositions = List.copyOf(surfacePositions);
+        }
+
+        private static RetainedShoreTerrace empty() {
+            return new RetainedShoreTerrace(List.of(), List.of());
+        }
     }
 
     private static boolean ownedSolidAt(
