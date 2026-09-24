@@ -87,24 +87,29 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
         SkyIslandFluvialSurfaceZone fluvialZone = fluvial.surfaceZone(new SkyIslandLocalPosition(
                 worldX - realizedCenterX,
                 worldZ - realizedCenterZ));
-        if (fluvialZone == SkyIslandFluvialSurfaceZone.WET_CHANNEL) {
-            // The literal wet corridor may borrow Minecraft's native river feature vocabulary.
-            // Dry banks and floodplain/valley terrain deliberately fall through to the authored
-            // ecology below so an alpine, forest, dry-scrub or wetland river keeps its surrounding
-            // environmental material identity instead of becoming a generic river strip.
-            return Optional.of(Biomes.RIVER);
-        }
-
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
         if (cell.isPresent()) {
             var authoredHydrology = cell.orElseThrow();
             if (authoredHydrology.retainedWaterbody()
                     || authoredHydrology.waterDepthPotential() > 0.0) {
-                // Retained standing water needs a native aquatic feature carrier. Shore transitions,
-                // saturated margins and riparian dry land still fall through to the ordinary authored
-                // ecology carrier rather than being globally relabeled as swamp.
+                // Retained standing water remains an aquatic native carrier even where a river reach
+                // enters/exits the basin.
                 return Optional.of(Biomes.SWAMP);
             }
+        }
+
+        if (fluvialZone == SkyIslandFluvialSurfaceZone.WET_CHANNEL) {
+            // The literal wet corridor borrows Minecraft's native river feature vocabulary.
+            return Optional.of(Biomes.RIVER);
+        }
+
+        if (fluvialZone != SkyIslandFluvialSurfaceZone.BANKFULL
+                && cell.isPresent()
+                && hydrology.hasAuthoredRetainedOrRiparianContext(cell.orElseThrow())) {
+            // Coarse wetland/riparian context remains available to native ecology away from the
+            // immediate dry bankfull corridor. This preserves established DR-40 wetland semantics
+            // while keeping the actual river banks in their local authored ecology.
+            return Optional.of(Biomes.SWAMP);
         }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
         var authored = surface.ecologySample();
