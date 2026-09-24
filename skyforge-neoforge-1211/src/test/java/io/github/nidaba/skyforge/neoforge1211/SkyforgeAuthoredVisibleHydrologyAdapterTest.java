@@ -631,9 +631,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .orElseThrow();
             int sourceCell = channelIntent.path().profile().segment().sourceCellIndex();
             int downstreamCell = channelIntent.path().profile().segment().downstreamCellIndex();
+            boolean sourceConnectedToRetained = retainedCellIndices.contains(sourceCell);
+            boolean downstreamConnectedToRetained = retainedCellIndices.contains(downstreamCell);
             boolean semanticallyConnectedToRetained =
-                    retainedCellIndices.contains(sourceCell)
-                            || retainedCellIndices.contains(downstreamCell);
+                    sourceConnectedToRetained || downstreamConnectedToRetained;
             var channelTop =
                     new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
             for (var wet : deployment.positions()) {
@@ -653,7 +654,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 if (target.isEmpty()) {
                     continue;
                 }
-                junctionColumns++;
                 int retainedDatum = target.orElseThrow();
                 var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
                         entry.getKey().x() - physical.centerX(),
@@ -662,6 +662,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 var end = channelIntent.path().points().getLast();
                 double startDistance = Math.hypot(local.x() - start.x(), local.z() - start.z());
                 double endDistance = Math.hypot(local.x() - end.x(), local.z() - end.z());
+                double approachRadius =
+                        SkyforgeAuthoredVisibleHydrologyAdapter.RETAINED_JUNCTION_BLEND_BLOCKS + 1.0;
+                boolean inAuthorizedApproach =
+                        (sourceConnectedToRetained && startDistance <= approachRadius)
+                                || (downstreamConnectedToRetained && endDistance <= approachRadius);
+                if (!inAuthorizedApproach) {
+                    continue;
+                }
+                junctionColumns++;
                 var terminalDrop = fluvial.terminalDrop(reach);
                 assertTrue(
                         Math.abs(entry.getValue() - retainedDatum) <= 2,
