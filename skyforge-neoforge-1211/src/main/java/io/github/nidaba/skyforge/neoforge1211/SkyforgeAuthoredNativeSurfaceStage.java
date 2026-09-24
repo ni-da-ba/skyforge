@@ -101,7 +101,7 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                 biomeRegistry,
                 Blender.empty());
 
-        int changed = copySurfaceRepresentation(chunk, scratch, volumeId, resolver);
+        int changed = copySurfaceRepresentation(level, chunk, scratch, volumeId, resolver);
         if (changed > 0) {
             chunk.setUnsaved(true);
         }
@@ -169,6 +169,7 @@ final class SkyforgeAuthoredNativeSurfaceStage {
     }
 
     private static int copySurfaceRepresentation(
+            ServerLevel level,
             LevelChunk live,
             ProtoChunk scratch,
             SkyIslandWorldVolumeId volumeId,
@@ -247,7 +248,10 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                         continue;
                     }
                     if (!liveState.equals(nativeState)) {
-                        live.setBlockState(cursor, nativeState, false);
+                        BlockPos changedPosition = cursor.immutable();
+                        live.setBlockState(changedPosition, nativeState, false);
+                        level.getChunkSource().getLightEngine().checkBlock(changedPosition);
+                        level.getChunkSource().blockChanged(changedPosition);
                         changed++;
                     }
                 }
