@@ -404,25 +404,27 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .map(BlockPos::getY)
                     .sorted()
                     .toList();
-            var contributors = deployments.stream()
-                    .filter(deployment -> deployment.positions().stream().anyMatch(position ->
-                            position.getX() == entry.getKey().x()
-                                    && position.getZ() == entry.getKey().z()))
-                    .map(deployment -> deployment.feature() + "="
-                            + deployment.positions().stream()
-                                    .filter(position -> position.getX() == entry.getKey().x()
-                                            && position.getZ() == entry.getKey().z())
-                                    .map(BlockPos::getY)
-                                    .sorted()
-                                    .toList())
-                    .toList();
             assertEquals(
                     ys.getLast() - ys.getFirst() + 1,
                     ys.size(),
-                    "normalized authored water must fill every vertical voxel from bed to free surface: "
-                            + entry.getKey()
-                            + ", ys=" + ys
-                            + ", contributors=" + contributors);
+                    () -> {
+                        var contributors = deployments.stream()
+                                .filter(deployment -> deployment.positions().stream().anyMatch(position ->
+                                        position.getX() == entry.getKey().x()
+                                                && position.getZ() == entry.getKey().z()))
+                                .map(deployment -> deployment.feature() + "="
+                                        + deployment.positions().stream()
+                                                .filter(position -> position.getX() == entry.getKey().x()
+                                                        && position.getZ() == entry.getKey().z())
+                                                .map(BlockPos::getY)
+                                                .sorted()
+                                                .toList())
+                                .toList();
+                        return "normalized authored water must fill every vertical voxel from bed to free surface: "
+                                + entry.getKey()
+                                + ", ys=" + ys
+                                + ", contributors=" + contributors;
+                    });
             BlockPos bed = new BlockPos(
                     entry.getKey().x(),
                     ys.getFirst() - 1,
