@@ -2620,7 +2620,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             BlockState support = structuralSurfaceExtensionState(chunk, position);
+            BlockState previous = current;
             chunk.setBlockState(position, support, false);
+            SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                    chunk, position, previous, chunk.getBlockState(position));
             written++;
         }
 
@@ -2634,17 +2637,26 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             BlockState current = chunk.getBlockState(position);
             if (desired.is(Blocks.WATER)) {
                 if (!isWaterBearing(current)) {
+                    BlockState previous = current;
                     chunk.setBlockState(position, desired, false);
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                            chunk, position, previous, chunk.getBlockState(position));
                     written++;
                 }
             } else if (desired.isAir()) {
                 if (!current.isAir()) {
+                    BlockState previous = current;
                     chunk.setBlockState(position, desired, false);
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                            chunk, position, previous, chunk.getBlockState(position));
                     written++;
                 }
             } else if (isHydrologySurfaceMaterial(desired)) {
                 if (!current.equals(desired)) {
+                    BlockState previous = current;
                     chunk.setBlockState(position, desired, false);
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                            chunk, position, previous, chunk.getBlockState(position));
                     written++;
                 }
             } else {
@@ -2668,10 +2680,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (chunk.getBlockState(position).isAir()) {
+                BlockState previous = chunk.getBlockState(position);
                 chunk.setBlockState(
                         position,
                         structuralSurfaceExtensionState(chunk, position),
                         false);
+                SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                        chunk, position, previous, chunk.getBlockState(position));
                 written++;
             }
         }
@@ -2680,7 +2695,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (!chunk.getBlockState(position).isAir()) {
+                BlockState previous = chunk.getBlockState(position);
                 chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
+                SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                        chunk, position, previous, chunk.getBlockState(position));
                 written++;
             }
         }
@@ -2689,7 +2707,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (!isWaterBearing(chunk.getBlockState(position))) {
+                BlockState previous = chunk.getBlockState(position);
                 chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
+                SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                        chunk, position, previous, chunk.getBlockState(position));
                 written++;
             }
         }
