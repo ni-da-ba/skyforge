@@ -59,10 +59,20 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         Objects.requireNonNull(position, "position");
         return SkyforgePopulationExecutionStage.activeExecution()
                 .filter(execution -> execution.operation().generationStep()
-                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal())
-                .flatMap(execution -> SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState(
-                        execution.operation().volumeId(),
-                        position));
+                                == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
+                        || SkyforgeNativeHydrologyDressingStage.active())
+                .flatMap(execution -> rawAuthoredHydrologyState(execution, position))
+                .map(SkyforgeNativeHydrologyDressingStage::populationReadState);
+    }
+
+    private static Optional<BlockState> rawAuthoredHydrologyState(
+            SkyforgePopulationExecutionStage.Execution execution,
+            BlockPos position) {
+        Objects.requireNonNull(execution, "execution");
+        Objects.requireNonNull(position, "position");
+        return SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState(
+                execution.operation().volumeId(),
+                position);
     }
 
     /** Phase- and position-aware virtual block state for reads hidden from the active operation. */
@@ -90,7 +100,10 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+        var authoredHydrology = rawAuthoredHydrologyState(active, position);
+        boolean accepted = (authoredHydrology.isEmpty()
+                        || SkyforgeNativeHydrologyDressingStage.allowsPreflight(
+                                authoredHydrology.orElseThrow()))
                 && active.canWrite(position);
         SkyforgeUndergroundPlacementProbe.observeWritePreflight(
                 active.operation(),
@@ -109,7 +122,9 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+        // Stateless remove/write paths never gain authored-hydrology authority. Native dressing
+        // must commit a concrete replacement state so the role-specific policy can validate it.
+        boolean accepted = rawAuthoredHydrologyState(active, position).isEmpty()
                 && active.acceptWrite(position);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
@@ -130,7 +145,11 @@ public final class SkyforgeWorldGenRegionDomainBridge {
             return true;
         }
         var active = execution.orElseThrow();
-        boolean accepted = authoredHydrologyPopulationState(position).isEmpty()
+        var authoredHydrology = rawAuthoredHydrologyState(active, position);
+        boolean accepted = (authoredHydrology.isEmpty()
+                        || SkyforgeNativeHydrologyDressingStage.allowsReplacement(
+                                authoredHydrology.orElseThrow(),
+                                state))
                 && active.acceptWrite(position, state);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
