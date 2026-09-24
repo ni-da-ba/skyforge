@@ -696,16 +696,28 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void productionHydrologyDoesNotAuthorFinalSurfaceMaterialOrSyntheticBanks() {
+    void productionHydrologyUsesOnlyBoundedSupportedBankGeometry() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
-        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS);
-        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS);
-        assertTrue(
-                deployments.stream().allMatch(deployment -> deployment.forcedSurfacePositions().isEmpty()),
-                "hydrology must own shape/surface semantics without emitting a final clay/stone bank palette");
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS > 0);
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS > 0);
+        for (var deployment : deployments) {
+            assertTrue(deployment.surfacePositions().containsAll(deployment.forcedSurfacePositions()));
+            for (var position : deployment.forcedSurfacePositions()) {
+                var range = terrain.integerSolidRange(
+                                deployment.volumeId(), position.getX(), position.getZ())
+                        .orElseThrow(() -> new AssertionError(
+                                "bounded bank geometry must extend an existing physical carrier"));
+                int fillDepth = position.getY() - range.maximumY();
+                int limit = deployment.feature()
+                                == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER
+                        ? SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS
+                        : SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS;
+                assertTrue(fillDepth >= 1 && fillDepth <= limit);
+            }
+        }
     }
 
     @Test
