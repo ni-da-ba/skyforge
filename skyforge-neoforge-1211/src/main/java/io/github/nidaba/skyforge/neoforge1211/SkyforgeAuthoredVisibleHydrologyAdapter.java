@@ -2565,9 +2565,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ordered.add(position);
         }
         ordered.sort(Comparator
-                .comparingInt(BlockPos::getY)
-                .thenComparingInt(BlockPos::getZ)
-                .thenComparingInt(BlockPos::getX));
+                .comparingInt((BlockPos position) -> position.getY())
+                .thenComparingInt(position -> position.getZ())
+                .thenComparingInt(position -> position.getX()));
         return ordered;
     }
 
