@@ -231,17 +231,51 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // only from connected routed channels or retained basins; a drop must never manufacture an
         // independent source column disconnected from its upstream watercourse.
 
-        // Connected reaches can overlap at confluences. Resolve conflicts through chunk-partitioned
-        // membership sets instead of one enormous whole-island Set<BlockPos>. The latter scales
-        // poorly for production-size basins and needlessly rehashes millions of positions.
+        // Retained water owns its complete submerged physical column. A routed reach may enter or
+        // leave that footprint, but it must not excavate a second river trench through the lake bed
+        // or extend a different water grade above/below the retained basin. Keep only channel-water
+        // cells that coincide with the basin's own water volume, and suppress channel carve/surface
+        // authority anywhere inside the retained (x,z) footprint.
+        //
+        // Use chunk-partitioned membership so production-size basins retain the existing bounded
+        // lookup behavior instead of creating one enormous whole-island position set.
+        Map<Long, Set<BlockPos>> retainedWaterByChunk = new HashMap<>();
+        Map<Long, Set<Column>> retainedColumnsByChunk = new HashMap<>();
+        for (RawDeployment deployment : rawDeployments) {
+            if (deployment.feature() != Feature.RETAINED_WATER) {
+                continue;
+            }
+            addMembershipByChunk(retainedWaterByChunk, deployment.positions());
+            for (BlockPos position : deployment.positions()) {
+                addColumnMembershipByChunk(retainedColumnsByChunk, position);
+            }
+        }
+
+        List<List<BlockPos>> normalizedWater = new ArrayList<>(rawDeployments.size());
         Map<Long, Set<BlockPos>> waterByChunk = new HashMap<>();
         for (RawDeployment deployment : rawDeployments) {
-            addMembershipByChunk(waterByChunk, deployment.positions());
+            List<BlockPos> water = deployment.feature() == Feature.CHANNEL
+                    ? deployment.positions().stream()
+                            .filter(position -> !containsColumnByChunk(retainedColumnsByChunk, position)
+                                    || containsByChunk(retainedWaterByChunk, position))
+                            .toList()
+                    : deployment.positions();
+            if (water.isEmpty()) {
+                throw new IllegalStateException(
+                        "retained-water precedence fully absorbed an accepted channel deployment: volume="
+                                + deployment.volumeId().path());
+            }
+            normalizedWater.add(water);
+            addMembershipByChunk(waterByChunk, water);
         }
 
         Map<Long, Set<BlockPos>> carvedByChunk = new HashMap<>();
         for (RawDeployment deployment : rawDeployments) {
             for (BlockPos position : deployment.carvedPositions()) {
+                if (deployment.feature() == Feature.CHANNEL
+                        && containsColumnByChunk(retainedColumnsByChunk, position)) {
+                    continue;
+                }
                 if (!containsByChunk(waterByChunk, position)) {
                     addMembershipByChunk(carvedByChunk, position);
                 }
@@ -249,18 +283,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         List<Deployment> deployments = new ArrayList<>(rawDeployments.size());
-        for (RawDeployment deployment : rawDeployments) {
+        for (int index = 0; index < rawDeployments.size(); index++) {
+            RawDeployment deployment = rawDeployments.get(index);
             List<BlockPos> carved = deployment.carvedPositions().stream()
+                    .filter(position -> deployment.feature() != Feature.CHANNEL
+                            || !containsColumnByChunk(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .toList();
             List<BlockPos> surface = deployment.surfacePositions().stream()
+                    .filter(position -> deployment.feature() != Feature.CHANNEL
+                            || !containsColumnByChunk(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
             deployments.add(new Deployment(
                     deployment.volumeId(),
                     deployment.feature(),
-                    deployment.positions(),
+                    normalizedWater.get(index),
                     carved,
                     surface));
         }
@@ -2104,6 +2143,25 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             BlockPos position) {
         Set<BlockPos> positions = byChunk.get(new ChunkPos(position).toLong());
         return positions != null && positions.contains(position);
+    }
+
+    private static void addColumnMembershipByChunk(
+            Map<Long, Set<Column>> byChunk,
+            BlockPos position) {
+        Objects.requireNonNull(byChunk, "byChunk");
+        Objects.requireNonNull(position, "position");
+        long chunkKey = new ChunkPos(position).toLong();
+        byChunk.computeIfAbsent(chunkKey, ignored -> new HashSet<>())
+                .add(new Column(position.getX(), position.getZ()));
+    }
+
+    private static boolean containsColumnByChunk(
+            Map<Long, Set<Column>> byChunk,
+            BlockPos position) {
+        Objects.requireNonNull(byChunk, "byChunk");
+        Objects.requireNonNull(position, "position");
+        Set<Column> columns = byChunk.get(new ChunkPos(position).toLong());
+        return columns != null && columns.contains(new Column(position.getX(), position.getZ()));
     }
 
     static Map<Long, ChunkProjection> indexByChunk(List<Deployment> deployments) {
