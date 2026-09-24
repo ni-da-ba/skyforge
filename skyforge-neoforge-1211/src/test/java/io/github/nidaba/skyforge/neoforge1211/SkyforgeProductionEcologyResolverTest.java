@@ -84,7 +84,7 @@ final class SkyforgeProductionEcologyResolverTest {
 
     @Test
     void retainedWaterRemainsNativeAquaticCarrierOutsideFineChannel() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
         var profile = new SkyIslandSurfaceSiteCapabilityProfiler().profile(association);
@@ -130,7 +130,7 @@ final class SkyforgeProductionEcologyResolverTest {
 
     @Test
     void dryRiparianAndBankContextKeepsAuthoredLocalEcologyCarrier() {
-        var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
         var profile = new SkyIslandSurfaceSiteCapabilityProfiler().profile(association);
