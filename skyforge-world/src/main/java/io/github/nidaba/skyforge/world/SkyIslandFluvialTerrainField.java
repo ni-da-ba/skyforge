@@ -87,6 +87,16 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return wetHalfWidthAtStatic(reach, fraction);
     }
 
+    /** Whether this position lies inside this exact reach's authored wet corridor. */
+    public boolean wetCorridorContains(
+            SkyIslandFluvialReachGeometry reach,
+            SkyIslandLocalPosition position) {
+        Objects.requireNonNull(position, "position");
+        requireReachFraction(reach, 0.0);
+        Projection projection = project(position, reach.path());
+        return projection.distance() <= wetHalfWidthAt(reach, projection.fraction());
+    }
+
     /** Local bankfull half-width; tributary-junction expansion tapers out downstream. */
     public double bankfullHalfWidthAt(
             SkyIslandFluvialReachGeometry reach,
