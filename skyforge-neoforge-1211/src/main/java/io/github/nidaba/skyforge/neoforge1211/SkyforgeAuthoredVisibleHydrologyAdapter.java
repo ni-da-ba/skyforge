@@ -241,6 +241,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // lookup behavior instead of creating one enormous whole-island position set.
         Map<Long, Set<BlockPos>> retainedWaterByChunk = new HashMap<>();
         Map<Long, Set<Column>> retainedColumnsByChunk = new HashMap<>();
+        Map<Long, Map<Column, List<BlockPos>>> retainedWaterByColumnByChunk = new HashMap<>();
         for (RawDeployment deployment : rawDeployments) {
             if (deployment.feature() != Feature.RETAINED_WATER) {
                 continue;
@@ -248,21 +249,55 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             addMembershipByChunk(retainedWaterByChunk, deployment.positions());
             for (BlockPos position : deployment.positions()) {
                 addColumnMembershipByChunk(retainedColumnsByChunk, position);
+                long chunkKey = new ChunkPos(position).toLong();
+                retainedWaterByColumnByChunk
+                        .computeIfAbsent(chunkKey, ignored -> new HashMap<>())
+                        .computeIfAbsent(
+                                new Column(position.getX(), position.getZ()),
+                                ignored -> new ArrayList<>())
+                        .add(position);
             }
         }
 
         List<List<BlockPos>> normalizedWater = new ArrayList<>(rawDeployments.size());
         Map<Long, Set<BlockPos>> waterByChunk = new HashMap<>();
         for (RawDeployment deployment : rawDeployments) {
-            List<BlockPos> water = deployment.feature() == Feature.CHANNEL
-                    ? deployment.positions().stream()
-                            .filter(position -> !containsColumnByChunk(retainedColumnsByChunk, position)
-                                    || containsByChunk(retainedWaterByChunk, position))
-                            .toList()
-                    : deployment.positions();
+            List<BlockPos> water;
+            if (deployment.feature() != Feature.CHANNEL) {
+                water = deployment.positions();
+            } else {
+                LinkedHashSet<BlockPos> sharedWater = new LinkedHashSet<>();
+                for (BlockPos position : deployment.positions()) {
+                    if (!containsColumnByChunk(retainedColumnsByChunk, position)) {
+                        sharedWater.add(position);
+                        continue;
+                    }
+                    Map<Column, List<BlockPos>> retainedByColumn =
+                            retainedWaterByColumnByChunk.get(new ChunkPos(position).toLong());
+                    if (retainedByColumn == null) {
+                        continue;
+                    }
+                    List<BlockPos> retainedColumn = retainedByColumn.get(
+                            new Column(position.getX(), position.getZ()));
+                    if (retainedColumn != null) {
+                        // A reach absorbed by a lake still retains channel evidence, but its
+                        // physical water role is exactly the basin's flat water column. This keeps
+                        // route/corridor diagnostics meaningful without reintroducing an independent
+                        // submerged grade or trench.
+                        sharedWater.addAll(retainedColumn);
+                    }
+                }
+                var canonicalPositionOrder = Comparator
+                        .comparingInt((BlockPos position) -> position.getZ())
+                        .thenComparingInt(position -> position.getX())
+                        .thenComparingInt(position -> position.getY());
+                var canonicalSharedWater = new ArrayList<>(sharedWater);
+                canonicalSharedWater.sort(canonicalPositionOrder);
+                water = List.copyOf(canonicalSharedWater);
+            }
             if (water.isEmpty()) {
                 throw new IllegalStateException(
-                        "retained-water precedence fully absorbed an accepted channel deployment: volume="
+                        "retained-water precedence lost all physical water authority for an accepted channel: volume="
                                 + deployment.volumeId().path());
             }
             normalizedWater.add(water);
