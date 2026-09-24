@@ -60,6 +60,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // The first wet rings of a retained basin form a shallow littoral ramp instead of a vertical
     // bathtub cut. Deeper authored basin geometry remains unchanged beyond this bounded fringe.
     static final int RETAINED_LITTORAL_GRADE_RINGS = 4;
+    static final int RETAINED_DRY_LITTORAL_RINGS = 3;
+    static final int MAX_RETAINED_DRY_LITTORAL_CUT_BLOCKS = 6;
     // A channel touching retained water should hydraulically converge to the basin datum without
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
@@ -1851,9 +1853,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + ", volume=" + volume.id().path());
         }
 
+        RetainedDryLittoral dryLittoral = retainedDryLittoral(
+                volume,
+                terrain,
+                solidRangeCache,
+                realizable.keySet(),
+                waterTopY);
         LinkedHashSet<BlockPos> water = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>(dryLittoral.carvedPositions());
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(retainedBankFill);
+        surface.addAll(dryLittoral.surfacePositions());
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(retainedBankFill);
         for (RetainedColumnPlan column : realizable.values()) {
             surface.add(new BlockPos(column.column().x(), column.bedY(), column.column().z()));
@@ -2076,18 +2085,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             for (int x = minimumX; x <= maximumX; x++) {
                 SkyIslandLocalPosition local = new SkyIslandLocalPosition(
                         x - physical.centerX(), z - physical.centerZ());
-                int cellIndex = nearestWatershedCellIndex(descriptor, watershed, local);
-                SkyIslandWaterbodyFootprintCell sourceCell = cellsByIndex.get(cellIndex);
+                SkyIslandWaterbodyFootprintCell sourceCell = retainedSourceCellForLocal(
+                        descriptor,
+                        watershed,
+                        cellsByIndex,
+                        local,
+                        halfSpacing);
                 if (sourceCell == null) {
-                    continue;
-                }
-                if (sourceCell.shoreline()
-                        && !retainedShorelineContains(
-                                local,
-                                sourceCell,
-                                cellsByIndex,
-                                watershed,
-                                halfSpacing)) {
                     continue;
                 }
                 Column column = new Column(x, z);
@@ -2116,14 +2120,62 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     }
 
     /**
+     * Selects a retained source from the local accepted neighborhood rather than clipping every
+     * block to one nearest watershed-cell square. Adjacent rounded shoreline lobes and corridors can
+     * therefore overlap smoothly across coarse-cell boundaries without exposing rectilinear seams.
+     */
+    private static SkyIslandWaterbodyFootprintCell retainedSourceCellForLocal(
+            SkyIslandDescriptor descriptor,
+            SkyIslandWatershedPlan watershed,
+            Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex,
+            SkyIslandLocalPosition local,
+            double halfSpacing) {
+        double radius = descriptor.nominalRadius();
+        int centerX = (int) Math.round((local.x() + radius) / watershed.spacing());
+        int centerZ = (int) Math.round((local.z() + radius) / watershed.spacing());
+        SkyIslandWaterbodyFootprintCell best = null;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (int dz = -1; dz <= 1; dz++) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int gx = centerX + dx;
+                int gz = centerZ + dz;
+                if (gx < 0 || gz < 0 || gx >= watershed.gridSize() || gz >= watershed.gridSize()) {
+                    continue;
+                }
+                SkyIslandWaterbodyFootprintCell candidate =
+                        cellsByIndex.get(gz * watershed.gridSize() + gx);
+                if (candidate == null) {
+                    continue;
+                }
+                boolean contains = candidate.shoreline()
+                        ? retainedShorelineContains(
+                                local, candidate, cellsByIndex, watershed, halfSpacing)
+                        : Math.abs(local.x() - candidate.position().x()) <= halfSpacing
+                                && Math.abs(local.z() - candidate.position().z()) <= halfSpacing;
+                if (!contains) {
+                    continue;
+                }
+                double distance = Math.hypot(
+                        local.x() - candidate.position().x(),
+                        local.z() - candidate.position().z());
+                if (distance < bestDistance) {
+                    best = candidate;
+                    bestDistance = distance;
+                }
+            }
+        }
+        return best;
+    }
+
+    /**
      * Rasterizes one coarse shoreline cell without breaking the footprint's authored topology.
      *
      * <p>An isolated disk per shoreline cell looks less grid-like, but it also turns cardinally
      * connected coarse cells into disconnected Minecraft puddles whenever the disk radius is less
      * than half the watershed spacing. Keep the rounded center lobe, then join it to every retained
-     * cardinal neighbor with a rounded corridor. The nearest-cell gate in
-     * {@link #retainedCandidateColumns} still bounds authority to the accepted coarse footprint, so
-     * these corridors preserve topology without expanding the lake into unauthored cells.
+     * cardinal neighbor with a rounded corridor. Candidate resolution remains restricted to nearby
+     * accepted retained cells, so these corridors preserve topology without exposing the coarse
+     * nearest-cell square as a visible shoreline.
      */
     static boolean retainedShorelineContains(
             SkyIslandLocalPosition local,
@@ -2293,6 +2345,92 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
         return Optional.of(List.copyOf(fill));
+    }
+
+    /**
+     * Grades high dry terrain immediately outside retained water into a bounded outward littoral
+     * terrace. The submerged ramp already handles the wet side; this removes the remaining vertical
+     * bathtub wall without expanding the water footprint or bridging exterior void.
+     */
+    private static RetainedDryLittoral retainedDryLittoral(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
+            Set<Column> wetColumns,
+            int waterTopY) {
+        Map<Column, Integer> ringByColumn = new LinkedHashMap<>();
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (Column wet : wetColumns) {
+            if (!retainedFootprintBoundary(wetColumns, wet)) {
+                continue;
+            }
+            for (int[] direction : directions) {
+                if (wetColumns.contains(new Column(
+                        wet.x() + direction[0],
+                        wet.z() + direction[1]))) {
+                    continue;
+                }
+                for (int ring = 1; ring <= RETAINED_DRY_LITTORAL_RINGS; ring++) {
+                    Column dry = new Column(
+                            wet.x() + direction[0] * ring,
+                            wet.z() + direction[1] * ring);
+                    if (wetColumns.contains(dry)) {
+                        break;
+                    }
+                    ringByColumn.merge(dry, ring, Math::min);
+                }
+            }
+        }
+
+        LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
+        LinkedHashSet<BlockPos> surface = new LinkedHashSet<>();
+        for (var entry : ringByColumn.entrySet()) {
+            Column column = entry.getKey();
+            int ring = entry.getValue();
+            var optionalRange = solidRangeCache.computeIfAbsent(
+                    column,
+                    ignored -> terrain.integerSolidRange(
+                            volume.id(), column.x(), column.z()));
+            if (optionalRange.isEmpty()) {
+                continue;
+            }
+            var range = optionalRange.orElseThrow();
+            int targetTopY = waterTopY + ring;
+            if (targetTopY < range.minimumY()
+                    || range.maximumY() <= targetTopY
+                    || !uncontestedOwnedRangeCell(
+                            terrain, volume.id(), column.x(), targetTopY, column.z())) {
+                continue;
+            }
+            int cutDepth = range.maximumY() - targetTopY;
+            if (cutDepth > MAX_RETAINED_DRY_LITTORAL_CUT_BLOCKS) {
+                continue;
+            }
+            boolean foreign = false;
+            for (int y = targetTopY + 1; y <= range.maximumY(); y++) {
+                if (terrain.isSolidOwnedByOtherVolume(volume.id(), column.x(), y, column.z())) {
+                    foreign = true;
+                    break;
+                }
+            }
+            if (foreign) {
+                continue;
+            }
+            surface.add(new BlockPos(column.x(), targetTopY, column.z()));
+            for (int y = targetTopY + 1; y <= range.maximumY(); y++) {
+                carved.add(new BlockPos(column.x(), y, column.z()));
+            }
+        }
+        return new RetainedDryLittoral(List.copyOf(carved), List.copyOf(surface));
+    }
+
+    private record RetainedDryLittoral(
+            List<BlockPos> carvedPositions,
+            List<BlockPos> surfacePositions) {
+        RetainedDryLittoral {
+            carvedPositions = List.copyOf(carvedPositions);
+            surfacePositions = List.copyOf(surfacePositions);
+        }
     }
 
     private static boolean ownedSolidAt(
