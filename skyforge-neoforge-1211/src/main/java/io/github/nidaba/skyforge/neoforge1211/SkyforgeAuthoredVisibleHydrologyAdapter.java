@@ -50,11 +50,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // Hard safety ceiling only. The isotonic solver searches from zero upward and uses the
     // smallest additional submerged bed cut that admits a contained non-climbing profile.
     static final int MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS = 16;
-    // Bounded vertical side-bank reconciliation for narrow voxelized channels. Six blocks is
-    // intentionally well below the submerged-bed safety ceiling; human H6 review still verifies
-    // that the resulting banks do not read as artificial levees or walls.
-    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
-    static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
+    // Hydrology may carve/lower authored terrain, but it must not manufacture final-material
+    // levees or dams. Minecraft/native surface systems own the material expression of existing
+    // banks. A carrier that cannot contain the solved water level without raising terrain therefore
+    // lowers its grade/datum or fails closed.
+    static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 0;
+    static final int MAX_RETAINED_BANK_FILL_BLOCKS = 0;
     // A channel touching retained water should hydraulically converge to the basin datum without
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
@@ -79,6 +80,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             surfacePositions = List.copyOf(Objects.requireNonNull(surfacePositions, "surfacePositions"));
             forcedSurfacePositions = List.copyOf(
                     Objects.requireNonNull(forcedSurfacePositions, "forcedSurfacePositions"));
+            if (!forcedSurfacePositions.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "hydrology geometry may not author final bank/bed material blocks");
+            }
             if (positions.isEmpty()) {
                 throw new IllegalArgumentException("hydrology deployment requires owned water positions");
             }
@@ -693,7 +698,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
         int outletBreaches = 0;
-        int syntheticBanks = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
         for (int[] direction : directions) {
             Column bank = new Column(
@@ -728,17 +732,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         outletBreaches++;
                         continue;
                     }
-                    int syntheticBankLimit = channelEndpointCapAllowed(
-                            volume, candidate.column(), reach, path) ? 3 : 2;
-                    if (syntheticBanks >= syntheticBankLimit) {
-                        return Optional.empty();
-                    }
-                    // Interior spine cells may rebuild at most two absent side banks. A bounded
-                    // authored endpoint may additionally require one closing cap bank; permitting
-                    // that third face only at the endpoint keeps the channel contained without
-                    // authorizing a three-sided synthetic trench along the reach.
-                    bankTopY = candidate.drySurfaceY() - 1;
-                    syntheticBanks++;
+                    // A missing cardinal carrier is true exterior geometry. Do not hide it behind a
+                    // synthetic wall; either the authored outlet owns the breach or this wet raster
+                    // cell is not physically containable.
+                    return Optional.empty();
                 } else {
                     var range = optionalRange.orElseThrow();
                     bankTopY = range.maximumY();
@@ -1434,7 +1431,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, Double> dryPotentialCache) {
         int ceiling = Integer.MAX_VALUE;
         int outletBreaches = 0;
-        int syntheticBanks = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
 
         for (int[] direction : directions) {
@@ -1463,29 +1459,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     outletBreaches++;
                     continue;
                 }
-
-                // Sky-island rasterization can leave one side of an otherwise real channel bed
-                // immediately over void. Permit up to two narrow, laterally anchored shelves instead of
-                // deleting that carrier node. The virtual top is one block below the carved bed,
-                // which means MAX_CHANNEL_BANK_FILL_BLOCKS bounds the complete constructed wall.
-                int syntheticBankLimit = channelEndpointCapAllowed(
-                        volume, wet, reach, reach.path()) ? 3 : 2;
-                if (syntheticBanks >= syntheticBankLimit) {
-                    return OptionalInt.empty();
-                }
-                int virtualBankTopY = candidateDrySurfaceY - 1;
-                for (int y = virtualBankTopY + 1;
-                        y <= virtualBankTopY + MAX_CHANNEL_BANK_FILL_BLOCKS;
-                        y++) {
-                    if (!volume.bounds().contains(bank.x(), y, bank.z())
-                            || terrain.isSolidOwnedByOtherVolume(
-                                    volume.id(), bank.x(), y, bank.z())) {
-                        return OptionalInt.empty();
-                    }
-                }
-                syntheticBanks++;
-                ceiling = Math.min(ceiling, virtualBankTopY);
-                continue;
+                // Do not invent a lateral shelf over exterior void. The grade solver may lower the
+                // channel against real banks, but a reach with no physical side carrier fails closed.
+                return OptionalInt.empty();
             }
 
             var range = optionalRange.orElseThrow();
@@ -2349,8 +2325,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
         Map<Long, LinkedHashSet<BlockPos>> surfaceOwnership = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
+            if (!deployment.forcedSurfacePositions().isEmpty()) {
+                throw new IllegalStateException(
+                        "normalized hydrology unexpectedly contains authored final surface material");
+            }
             indexSurfaceOwnership(surfaceOwnership, deployment.surfacePositions());
-            indexHydrologySurfaceStates(mutable, deployment.forcedSurfacePositions());
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
         }
@@ -2376,43 +2355,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             long chunkKey = new ChunkPos(position).toLong();
             byChunk.computeIfAbsent(chunkKey, ignored -> new LinkedHashSet<>()).add(position);
         }
-    }
-
-    private static void indexHydrologySurfaceStates(
-            Map<Long, LinkedHashMap<BlockPos, BlockState>> byChunk,
-            Iterable<BlockPos> positions) {
-        for (BlockPos position : positions) {
-            long chunkKey = new ChunkPos(position).toLong();
-            var states = byChunk.computeIfAbsent(chunkKey, ignored -> new LinkedHashMap<>());
-            BlockState desired = hydrologySurfaceState(position);
-            BlockState previous = states.putIfAbsent(position, desired);
-            if (previous != null && !previous.equals(desired)) {
-                throw new IllegalStateException(
-                        "normalized authored hydrology assigned conflicting surface states at " + position);
-            }
-        }
-    }
-
-    /**
-     * Backend material expression for exposed fluvial/lacustrine substrate.
-     *
-     * <p>Do not paint authored beds with the ordinary biome top block: that produced grass/dirt
-     * slabs through rivers and lakes. Runtime-authored substrate must also be mechanically stable:
-     * falling blocks can receive delayed neighbor ticks after water realization and move into an
-     * authored wet cell, making both hydrology persistence and later native ecology scheduler-
-     * dependent. Use non-falling clay/stone here; gravel remains recognized as legacy hydrology
-     * material by {@link #isHydrologySurfaceMaterial(BlockState)} but is no longer newly emitted.
-     * The coordinate hash is deterministic and feature-independent, so overlapping channel/lake
-     * surface authority resolves to the same sediment state.
-     */
-    static BlockState hydrologySurfaceState(BlockPos position) {
-        Objects.requireNonNull(position, "position");
-        long mixed = position.asLong() * 0x9E3779B97F4A7C15L;
-        mixed ^= mixed >>> 33;
-        int bucket = Math.floorMod((int) (mixed ^ (mixed >>> 32)), 16);
-        return bucket < 12
-                ? Blocks.CLAY.defaultBlockState()
-                : Blocks.STONE.defaultBlockState();
     }
 
     private static void indexStates(
@@ -2472,17 +2414,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static int apply(ChunkAccess chunk, Deployment deployment) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
-        int written = 0;
-        for (BlockPos position : deployment.forcedSurfacePositions()) {
-            if (!chunk.getPos().equals(new ChunkPos(position))) {
-                continue;
-            }
-            BlockState desired = hydrologySurfaceState(position);
-            if (!chunk.getBlockState(position).equals(desired)) {
-                chunk.setBlockState(position, desired, false);
-                written++;
-            }
+        if (!deployment.forcedSurfacePositions().isEmpty()) {
+            throw new IllegalStateException(
+                    "authored hydrology may not apply a backend-specific bank/bed material palette");
         }
+        int written = 0;
         for (BlockPos position : deployment.carvedPositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
