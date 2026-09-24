@@ -60,6 +60,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
     static final int RETAINED_JUNCTION_GRADE_WEIGHT = 32;
+    // Blend a short physical approach into an accepted retained-water datum. This is not a new
+    // watershed relation: it is enabled only for a reach that actually touches retained water.
+    static final int RETAINED_JUNCTION_BLEND_BLOCKS = 4;
 
     enum Feature { CHANNEL, RETAINED_WATER }
 
@@ -937,6 +940,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         Map<Column, ChannelCarrierCandidate> carrierCandidates = new LinkedHashMap<>();
+        boolean reachTouchesRetainedWater = candidateProjections.keySet().stream()
+                .anyMatch(column -> retainedHydraulicTarget(
+                                column, retainedWaterTopByColumn)
+                        .isPresent());
+
         List<String> carrierRejections = new ArrayList<>();
         int wetCorridorCandidates = 0;
         int solidCarrierCandidates = 0;
@@ -998,10 +1006,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             bankableCarrierCandidates++;
-            // A dry cardinal bank may be raised by the same bounded three-block allowance
-            // applied during raster realization. Account for that allowance in the optimization
-            // bound instead of deleting the carrier column before spatial pathfinding; otherwise
-            // harmless one- or two-block bank quantization holes can disconnect the wet spine.
+            // Bank containment is a grade constraint, not permission to manufacture a levee.
+            // MAX_CHANNEL_BANK_FILL_BLOCKS is zero by policy, so this reduces the admissible water
+            // surface to the real post-fluvial bank ceiling.
             int rawBankCeiling = bankCeiling.orElseThrow();
             if (rawBankCeiling != Integer.MAX_VALUE) {
                 maximumWaterTop = Math.min(
@@ -1022,11 +1029,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             descriptor,
                             waterPotential - basePotential);
             int preferenceWeight = 1;
-            OptionalInt retainedDatum = retainedHydraulicTarget(
-                    column, retainedWaterTopByColumn);
-            if (retainedDatum.isPresent()) {
-                desiredWaterTop = retainedDatum.orElseThrow();
-                preferenceWeight = RETAINED_JUNCTION_GRADE_WEIGHT;
+            Optional<RetainedJunctionTarget> retainedTarget = reachTouchesRetainedWater
+                    ? retainedHydraulicBlendTarget(column, retainedWaterTopByColumn)
+                    : Optional.empty();
+            if (retainedTarget.isPresent()) {
+                RetainedJunctionTarget target = retainedTarget.orElseThrow();
+                desiredWaterTop = target.datum();
+                preferenceWeight = retainedJunctionPreferenceWeight(target.distanceBlocks());
             }
             desiredWaterTop = Math.max(
                     ownerMinimumWaterTop,
@@ -2262,6 +2271,63 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
         return datum == null ? OptionalInt.empty() : OptionalInt.of(datum);
+    }
+
+    static Optional<RetainedJunctionTarget> retainedHydraulicBlendTarget(
+            Column column,
+            Map<Column, Integer> retainedWaterTopByColumn) {
+        Objects.requireNonNull(column, "column");
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
+
+        Integer datum = null;
+        int bestDistance = RETAINED_JUNCTION_BLEND_BLOCKS + 1;
+        for (int dx = -RETAINED_JUNCTION_BLEND_BLOCKS;
+                dx <= RETAINED_JUNCTION_BLEND_BLOCKS;
+                dx++) {
+            for (int dz = -RETAINED_JUNCTION_BLEND_BLOCKS;
+                    dz <= RETAINED_JUNCTION_BLEND_BLOCKS;
+                    dz++) {
+                int distance = Math.abs(dx) + Math.abs(dz);
+                if (distance > RETAINED_JUNCTION_BLEND_BLOCKS || distance > bestDistance) {
+                    continue;
+                }
+                Integer candidate = retainedWaterTopByColumn.get(
+                        new Column(column.x() + dx, column.z() + dz));
+                if (candidate == null) {
+                    continue;
+                }
+                if (distance < bestDistance) {
+                    datum = candidate;
+                    bestDistance = distance;
+                } else if (datum != null && datum.intValue() != candidate.intValue()) {
+                    throw new IllegalStateException(
+                            "channel transition is equally close to retained water with conflicting datums");
+                }
+            }
+        }
+        return datum == null
+                ? Optional.empty()
+                : Optional.of(new RetainedJunctionTarget(datum, bestDistance));
+    }
+
+    private static int retainedJunctionPreferenceWeight(int distanceBlocks) {
+        if (distanceBlocks < 0 || distanceBlocks > RETAINED_JUNCTION_BLEND_BLOCKS) {
+            throw new IllegalArgumentException("retained junction distance outside blend envelope");
+        }
+        int remaining = RETAINED_JUNCTION_BLEND_BLOCKS + 1 - distanceBlocks;
+        return Math.max(
+                2,
+                RETAINED_JUNCTION_GRADE_WEIGHT
+                        * remaining
+                        / (RETAINED_JUNCTION_BLEND_BLOCKS + 1));
+    }
+
+    record RetainedJunctionTarget(int datum, int distanceBlocks) {
+        RetainedJunctionTarget {
+            if (distanceBlocks < 0 || distanceBlocks > RETAINED_JUNCTION_BLEND_BLOCKS) {
+                throw new IllegalArgumentException("retained junction distance outside blend envelope");
+            }
+        }
     }
 
     private static boolean touchesRetainedColumn(
