@@ -170,26 +170,15 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
         }
 
-        int featureOrdinal = 0;
-        for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
-            int occurrenceIndex = featureOrdinal++;
-            if (!route.accepts(generationStep, placedFeature.value())) {
-                continue;
-            }
-            if (route == SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY
-                    && SkyforgeNativeHydrologyDressingStage.classify(placedFeature.value())
-                            == SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK) {
-                // DiskFeature dressing is replayed once in the hydrology-only prepass above.
-                continue;
-            }
-
-            ResourceLocation featureKey = placedFeature.unwrapKey()
-                    .map(key -> key.location())
-                    .orElseGet(() -> placedFeatureRegistry.getKey(placedFeature.value()));
-            if (featureKey == null) {
-                throw new IllegalStateException(
-                        "biome generation settings contain a PlacedFeature absent from the final registry");
-            }
+        List<OrderedPlacedFeature> orderedFeatures = orderedPlacedFeatures(
+                featureSteps.get(stepIndex),
+                generationStep,
+                route,
+                placedFeatureRegistry);
+        for (OrderedPlacedFeature ordered : orderedFeatures) {
+            Holder<PlacedFeature> placedFeature = ordered.placedFeature();
+            int occurrenceIndex = ordered.occurrenceIndex();
+            ResourceLocation featureKey = ordered.featureKey();
             if (!SkyforgeCreateUndergroundResourceAuthority.admits(featureKey, generationStep)) {
                 continue;
             }
@@ -200,7 +189,7 @@ final class SkyforgeNativeBiomePopulationRunner {
                     featureKey,
                     stepIndex,
                     occurrenceIndex);
-            boolean treeFeature = featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
+            boolean treeFeature = ordered.structuralVegetation();
             int featureAttachmentDepth = treeFeature
                     ? treeAttachmentDepth(maximumAttachmentDepth)
                     : maximumAttachmentDepth;
@@ -344,6 +333,61 @@ final class SkyforgeNativeBiomePopulationRunner {
                         : LakeEvidence.empty());
     }
 
+    /**
+     * Exact-volume vegetation executes structural vegetation before low vegetation while retaining
+     * each feature's original occurrence ordinal for deterministic seeding. Vanilla biome lists can
+     * interleave mushrooms/patches with trees because ordinary chunk decoration has different
+     * spatial/lifecycle assumptions; in deferred exact-volume population that ordering can let a
+     * later tree replace the support of an earlier plant, producing sliced vegetation or floating
+     * trunks. Relative order is preserved inside each class.
+     */
+    static List<OrderedPlacedFeature> orderedPlacedFeatures(
+            Iterable<Holder<PlacedFeature>> placedFeatures,
+            GenerationStep.Decoration generationStep,
+            SkyforgeNativeVegetalFeatureRoute route,
+            net.minecraft.core.Registry<PlacedFeature> placedFeatureRegistry) {
+        Objects.requireNonNull(placedFeatures, "placedFeatures");
+        Objects.requireNonNull(generationStep, "generationStep");
+        Objects.requireNonNull(route, "route");
+        Objects.requireNonNull(placedFeatureRegistry, "placedFeatureRegistry");
+
+        List<OrderedPlacedFeature> accepted = new ArrayList<>();
+        int occurrenceIndex = 0;
+        for (Holder<PlacedFeature> holder : placedFeatures) {
+            int ordinal = occurrenceIndex++;
+            PlacedFeature placedFeature = holder.value();
+            if (!route.accepts(generationStep, placedFeature)) {
+                continue;
+            }
+            if (route == SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY
+                    && SkyforgeNativeHydrologyDressingStage.classify(placedFeature)
+                            == SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK) {
+                continue;
+            }
+            ResourceLocation featureKey = holder.unwrapKey()
+                    .map(key -> key.location())
+                    .orElseGet(() -> placedFeatureRegistry.getKey(placedFeature));
+            if (featureKey == null) {
+                throw new IllegalStateException(
+                        "biome generation settings contain a PlacedFeature absent from the final registry");
+            }
+            boolean structuralVegetation = generationStep == GenerationStep.Decoration.VEGETAL_DECORATION
+                    && featureKey.getPath().toLowerCase(Locale.ROOT).contains("tree");
+            accepted.add(new OrderedPlacedFeature(
+                    holder,
+                    ordinal,
+                    featureKey,
+                    structuralVegetation));
+        }
+        if (generationStep == GenerationStep.Decoration.VEGETAL_DECORATION) {
+            accepted.sort(java.util.Comparator
+                    .comparing(OrderedPlacedFeature::structuralVegetation)
+                    .reversed()
+                    .thenComparingInt(OrderedPlacedFeature::occurrenceIndex));
+        }
+        return List.copyOf(accepted);
+    }
+
     private static List<FeatureResult> populateHydrologyDiskDressing(
             WorldGenLevel level,
             ChunkGenerator generator,
@@ -479,6 +523,20 @@ final class SkyforgeNativeBiomePopulationRunner {
 
     private static String encodeMetricPath(String path) {
         return path.replace('/', '~');
+    }
+
+    record OrderedPlacedFeature(
+            Holder<PlacedFeature> placedFeature,
+            int occurrenceIndex,
+            ResourceLocation featureKey,
+            boolean structuralVegetation) {
+        OrderedPlacedFeature {
+            Objects.requireNonNull(placedFeature, "placedFeature");
+            Objects.requireNonNull(featureKey, "featureKey");
+            if (occurrenceIndex < 0) {
+                throw new IllegalArgumentException("feature occurrence index must be nonnegative");
+            }
+        }
     }
 
     record FeatureResult(

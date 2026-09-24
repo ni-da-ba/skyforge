@@ -17,6 +17,7 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeInteriorPopulationStage.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeInteriorPlacementPolicy.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211SurfaceStage.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgePhysicalVolumeAdmissionStage.java"
@@ -54,6 +55,9 @@ jobs:
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.boundedAcceptedCorpusCoversEveryRequiredImplementationKind
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceKey287RetainedWaterIsFlatConnectedAndLocallyConditioned
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceWaterColumnsAreVerticallyFilledOntoOwnedBeds
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceRetainedWaterHasNoStronglyEnclosedRasterPinhole
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceRiverLakeMouthIsMultiColumnAndFaceConnected
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceChannelLakeJunctionApproachesBasinDatumWithoutSyntheticLip
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.retainedWaterOwnsChannelOverlapColumns

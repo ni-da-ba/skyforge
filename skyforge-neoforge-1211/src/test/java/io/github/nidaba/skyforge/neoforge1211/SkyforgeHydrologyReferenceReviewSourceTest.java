@@ -42,6 +42,27 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
     }
 
     @Test
+    void deferredHydrologyWritesNotifyTheStableChunkMutationLifecycle() throws IOException {
+        String adapter = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapter.java"));
+
+        assertTrue(adapter.contains("private static void writeState("));
+        assertTrue(adapter.contains("SkyforgeDeferredChunkMutationLifecycle.afterWrite("));
+    }
+
+    @Test
+    void deferredVegetationPlacesStructuralFeaturesBeforeLowVegetation() throws IOException {
+        String runner = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"));
+
+        assertTrue(runner.contains("orderedPlacedFeatures("));
+        assertTrue(runner.contains("comparing(OrderedPlacedFeature::structuralVegetation)"));
+        assertTrue(runner.contains("thenComparingInt(OrderedPlacedFeature::occurrenceIndex)"));
+        assertTrue(runner.contains("sourceStepIndex"));
+        assertFalse(runner.contains("GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),\n                        occurrenceIndex++"));
+    }
+
+    @Test
     void reviewEcologyReusesTheFluvialFieldThatProducedMinecraftHydrology() throws IOException {
         String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));

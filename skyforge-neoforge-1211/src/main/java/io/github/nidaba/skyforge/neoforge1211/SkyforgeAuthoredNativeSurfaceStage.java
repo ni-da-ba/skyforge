@@ -242,6 +242,7 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                         continue;
                     }
 
+                    // Hydrology owns occupancy and geometry, not the final material palette.
                     // High suspended islands are far above vanilla sea level, so otherwise-native
                     // surface rules can choose grass/mycelium topsoil even for an authored submerged
                     // bed. Preserve Minecraft material authority but use the native subsurface member

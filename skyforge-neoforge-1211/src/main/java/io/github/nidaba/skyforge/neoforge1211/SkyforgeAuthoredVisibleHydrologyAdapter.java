@@ -803,7 +803,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ChannelColumnPlan plannedBank = columns.get(bank);
             int bankTopY;
             if (plannedBank != null) {
-                bankTopY = plannedBank.drySurfaceY();
+                // A semantically wet column removed from the final contained component is not
+                // carved later: realization restores it as ordinary solid terrain at baseSurfaceY.
+                // Evaluate that same realized bank here. Using its lowered drySurfaceY would make
+                // fixed-point containment pessimistically erode inward through perfectly solid
+                // restored terrain and can eventually disconnect the authored centerline.
+                boolean restoredRejectedWet =
+                        plannedBank.waterTopY() != Integer.MIN_VALUE
+                                && !plannedWet.contains(bank);
+                bankTopY = restoredRejectedWet
+                        ? plannedBank.baseSurfaceY()
+                        : plannedBank.drySurfaceY();
                 if (!uncontestedOwnedRangeCell(
                         terrain,
                         volume.id(),
