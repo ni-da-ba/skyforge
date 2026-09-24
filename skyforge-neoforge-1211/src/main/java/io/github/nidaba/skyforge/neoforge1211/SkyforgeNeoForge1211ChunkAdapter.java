@@ -184,6 +184,56 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         return authoredHydrologyPopulationState(volumeId, position).isPresent();
     }
 
+    /**
+     * Returns the authored hydrology bed height for native OCEAN_FLOOR placement.
+     *
+     * <p>The immutable hydrology projection already owns the final carved bed material. Scan only
+     * the finite authored volume interval for this one column and return the first free block above
+     * the highest bed/bank substrate cell. This keeps registry-native aquatic features aligned with
+     * the finished river/lake bed without exposing mutable live-chunk scheduling state.
+     */
+    OptionalInt authoredHydrologyOceanFloorHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        if (!authoredDescriptorsByVolumeId.containsKey(volumeId)) {
+            return OptionalInt.empty();
+        }
+        var projection = authoredHydrologyChunkProjection(
+                volumeId,
+                new ChunkPos(Math.floorDiv(worldX, CHUNK_WIDTH), Math.floorDiv(worldZ, CHUNK_WIDTH)));
+        if (projection.isEmpty()) {
+            return OptionalInt.empty();
+        }
+        WorldBounds bounds = boundsByVolumeId.get(volumeId);
+        if (bounds == null) {
+            return OptionalInt.empty();
+        }
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        int boundedMinimumY = Math.max(minimumY, floorToInt(bounds.minimumY()));
+        int boundedMaximumY = Math.min(maximumYExclusive - 1, floorToInt(bounds.maximumY()));
+        if (boundedMaximumY < boundedMinimumY) {
+            return OptionalInt.empty();
+        }
+
+        var states = projection.orElseThrow();
+        for (int y = boundedMaximumY; y >= boundedMinimumY; y--) {
+            var state = states.stateAt(new BlockPos(worldX, y, worldZ));
+            if (state.isPresent()
+                    && SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
+                            state.orElseThrow())) {
+                return OptionalInt.of(y + 1);
+            }
+        }
+        return OptionalInt.empty();
+    }
+
     List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> authoredHydrologyDeployments(
             SkyIslandWorldVolumeId volumeId) {
         Objects.requireNonNull(volumeId, "volumeId");
