@@ -430,23 +430,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .toList();
-            Set<BlockPos> explicitBankRepair = deployment.feature() == Feature.CHANNEL
-                    ? new HashSet<>(deployment.forcedSurfacePositions())
-                    : Set.of();
             List<BlockPos> surface = deployment.surfacePositions().stream()
                     .filter(position -> deployment.feature() != Feature.CHANNEL
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
-                    .filter(position -> deployment.feature() != Feature.CHANNEL
-                            || !explicitBankRepair.contains(position)
-                            || !touchesRetainedColumn(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
             List<BlockPos> forcedSurface = deployment.forcedSurfacePositions().stream()
                     .filter(position -> deployment.feature() != Feature.CHANNEL
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
-                    .filter(position -> deployment.feature() != Feature.CHANNEL
-                            || !touchesRetainedColumn(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
@@ -554,13 +546,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             double dryPotential = dryPotentialCache.computeIfAbsent(
                     column,
                     ignored -> fluvial.sample(local));
-            double lowering = Math.max(0.0, basePotential - dryPotential);
+            double dryAdjustment = dryPotential - basePotential;
             boolean spineCarrier = physicalGrade.orElseThrow().contains(column);
-            if (lowering <= 1.0e-12 && !spineCarrier) {
+            if (Math.abs(dryAdjustment) <= 1.0e-12 && !spineCarrier) {
                 continue;
             }
 
             int baseSurfaceY = range.maximumY();
+            double authoredBankPotential = fluvial.baseTerrain().sample(local);
+            int authoredBankSurfaceY = projectedTerrainSurfaceY(
+                    descriptor,
+                    baseSurfaceY,
+                    range.minimumY(),
+                    basePotential,
+                    authoredBankPotential);
+            if (!authoredSurfaceExtensionFeasible(
+                    volume, terrain, column, baseSurfaceY, authoredBankSurfaceY)) {
+                continue;
+            }
             OptionalDouble authoredWater = OptionalDouble.empty();
             if (distance <= effectiveWetHalfWidth(
                     fluvial,
@@ -577,14 +580,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     authoredWater = OptionalDouble.of(reachWater);
                 }
             }
-            int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
+            int drySurfaceY = projectedTerrainSurfaceY(
+                    descriptor,
+                    baseSurfaceY,
+                    range.minimumY(),
+                    basePotential,
+                    dryPotential);
             if (authoredWater.isPresent()) {
-                loweringBlocks = Math.max(2, loweringBlocks);
+                drySurfaceY = Math.max(
+                        range.minimumY(),
+                        Math.min(drySurfaceY, authoredBankSurfaceY - 2));
             }
-            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
+            if (!authoredSurfaceExtensionFeasible(
+                    volume, terrain, column, baseSurfaceY, drySurfaceY)) {
+                continue;
+            }
 
             int waterTopY = Integer.MIN_VALUE;
-            if (authoredWater.isPresent() && drySurfaceY <= baseSurfaceY - 2) {
+            if (authoredWater.isPresent()) {
                 int projected = physicalGrade.orElseThrow().sample(fraction);
 
                 // The discrete physical grade is solved from centerline carrier constraints and is
@@ -592,7 +605,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 // lowering the narrow channel bed instead of raising/clamping the water surface.
                 int requiredBedY = projected - 1;
                 int extraCut = Math.max(0, drySurfaceY - requiredBedY);
-                if (projected <= baseSurfaceY - 1
+                if (projected <= authoredBankSurfaceY - 1
                         && projected >= range.minimumY() + 1
                         && extraCut <= MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS) {
                     // The isotonic spine still chooses the least-change water grade and the
@@ -747,6 +760,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> carved = new LinkedHashSet<>();
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(channelBankFill);
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(channelBankFill);
+        LinkedHashSet<BlockPos> authoredTerrainFill = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
             boolean wet = containedWet.contains(column.column());
             boolean plannedAsWet = column.waterTopY() != Integer.MIN_VALUE;
@@ -756,6 +770,23 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             // hovering edges reported in H6.
             if (plannedAsWet && !wet) {
                 continue;
+            }
+
+            if (column.drySurfaceY() > column.baseSurfaceY()) {
+                Optional<List<BlockPos>> extension = authoredSurfaceExtensionPositions(
+                        volume,
+                        terrain,
+                        column.column(),
+                        column.baseSurfaceY(),
+                        column.drySurfaceY());
+                if (extension.isEmpty()) {
+                    throw channelProjectionFailure(
+                            volume,
+                            path,
+                            "authored positive terrain response conflicts with volume ownership at "
+                                    + column.column());
+                }
+                authoredTerrainFill.addAll(extension.orElseThrow());
             }
 
             ChannelPathProjection projection = candidateProjections.get(column.column());
@@ -806,8 +837,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     "contained wet component produced no water cells; connectedWetColumns="
                             + containedWet.size());
         }
+        surface.addAll(authoredTerrainFill);
+        forcedSurface.addAll(authoredTerrainFill);
         carved.removeAll(water);
         carved.removeAll(channelBankFill);
+        carved.removeAll(authoredTerrainFill);
         return Optional.of(rawDeployment(
                 volume.id(),
                 Feature.CHANNEL,
@@ -1051,6 +1085,80 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return (int) Math.round(normalizedDelta * descriptor.reliefBudget());
     }
 
+    static int physicalTerrainDeltaBlocks(
+            SkyIslandDescriptor descriptor,
+            double normalizedDelta) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        if (!Double.isFinite(normalizedDelta)) {
+            throw new IllegalArgumentException("normalizedDelta must be finite");
+        }
+        if (Math.abs(normalizedDelta) <= 1.0e-12) {
+            return 0;
+        }
+        int magnitude = Math.max(
+                1,
+                (int) Math.round(Math.abs(normalizedDelta) * descriptor.reliefBudget()));
+        return normalizedDelta < 0.0 ? -magnitude : magnitude;
+    }
+
+    static int maximumAuthoredTerrainRaisingBlocks(SkyIslandDescriptor descriptor) {
+        return physicalTerrainDeltaBlocks(
+                descriptor,
+                SkyIslandHydrologicTerrainSurfacePlanner.MAX_RAISING);
+    }
+
+    private static int projectedTerrainSurfaceY(
+            SkyIslandDescriptor descriptor,
+            int baseSurfaceY,
+            int minimumY,
+            double basePotential,
+            double targetPotential) {
+        int projected = baseSurfaceY
+                + physicalTerrainDeltaBlocks(
+                        descriptor,
+                        targetPotential - basePotential);
+        return Math.max(minimumY, projected);
+    }
+
+    private static boolean authoredSurfaceExtensionFeasible(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Column column,
+            int baseSurfaceY,
+            int targetSurfaceY) {
+        if (targetSurfaceY <= baseSurfaceY) {
+            return true;
+        }
+        for (int y = baseSurfaceY + 1; y <= targetSurfaceY; y++) {
+            if (!volume.bounds().contains(column.x(), y, column.z())
+                    || terrain.isSolidOwnedByOtherVolume(
+                            volume.id(), column.x(), y, column.z())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Optional<List<BlockPos>> authoredSurfaceExtensionPositions(
+            SkyIslandWorldVolume volume,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Column column,
+            int baseSurfaceY,
+            int targetSurfaceY) {
+        if (!authoredSurfaceExtensionFeasible(
+                volume, terrain, column, baseSurfaceY, targetSurfaceY)) {
+            return Optional.empty();
+        }
+        if (targetSurfaceY <= baseSurfaceY) {
+            return Optional.of(List.of());
+        }
+        List<BlockPos> result = new ArrayList<>(targetSurfaceY - baseSurfaceY);
+        for (int y = baseSurfaceY + 1; y <= targetSurfaceY; y++) {
+            result.add(new BlockPos(column.x(), y, column.z()));
+        }
+        return Optional.of(List.copyOf(result));
+    }
+
     /**
      * Returns exactly the integer columns within one reach's valley corridor, together with each
      * column's minimum distance to the authored path.
@@ -1139,19 +1247,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             double dryPotential = dryPotentialCache.computeIfAbsent(
                     column,
                     ignored -> fluvial.sample(local));
-            double lowering = Math.max(0.0, basePotential - dryPotential);
             double waterPotential = fluvial.reachWaterSurfacePotential(
                     reach, projection.fraction());
 
             int baseSurfaceY = range.maximumY();
-            // Connectivity is solved for the accepted visible reach before the dry-field lowering
-            // test is allowed to remove raster cells. The semantic channel may therefore condition
-            // its narrow spine by the same minimum two-block bed recess used for ordinary wet
-            // samples, while the surrounding corridor still follows the sampled fluvial lowering.
-            int loweringBlocks = Math.max(2, physicalLoweringBlocks(descriptor, lowering));
-            int drySurfaceY = Math.max(range.minimumY(), baseSurfaceY - loweringBlocks);
+            double authoredBankPotential = fluvial.baseTerrain().sample(local);
+            int authoredBankSurfaceY = projectedTerrainSurfaceY(
+                    descriptor,
+                    baseSurfaceY,
+                    range.minimumY(),
+                    basePotential,
+                    authoredBankPotential);
+            int drySurfaceY = projectedTerrainSurfaceY(
+                    descriptor,
+                    baseSurfaceY,
+                    range.minimumY(),
+                    basePotential,
+                    dryPotential);
+            drySurfaceY = Math.max(
+                    range.minimumY(),
+                    Math.min(drySurfaceY, authoredBankSurfaceY - 2));
+            if (!authoredSurfaceExtensionFeasible(
+                    volume, terrain, column, baseSurfaceY, authoredBankSurfaceY)
+                    || !authoredSurfaceExtensionFeasible(
+                            volume, terrain, column, baseSurfaceY, drySurfaceY)) {
+                continue;
+            }
             int ownerMinimumWaterTop = range.minimumY() + 1;
-            int maximumWaterTop = baseSurfaceY - 1;
+            int maximumWaterTop = authoredBankSurfaceY - 1;
             OptionalInt bankCeiling = channelBankCeiling(
                     descriptor,
                     volume,
@@ -1711,12 +1834,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 double dryPotential = dryPotentialCache.computeIfAbsent(
                         bank,
                         ignored -> fluvial.sample(bankLocal));
-                double lowering = Math.max(0.0, basePotential - dryPotential);
-                if (lowering > 1.0e-12) {
-                    int loweringBlocks = physicalLoweringBlocks(descriptor, lowering);
-                    bankTopY = Math.max(
-                            range.minimumY(),
-                            range.maximumY() - loweringBlocks);
+                bankTopY = projectedTerrainSurfaceY(
+                        descriptor,
+                        range.maximumY(),
+                        range.minimumY(),
+                        basePotential,
+                        dryPotential);
+                if (!authoredSurfaceExtensionFeasible(
+                        volume,
+                        terrain,
+                        bank,
+                        range.maximumY(),
+                        bankTopY)) {
+                    return OptionalInt.empty();
                 }
             }
 

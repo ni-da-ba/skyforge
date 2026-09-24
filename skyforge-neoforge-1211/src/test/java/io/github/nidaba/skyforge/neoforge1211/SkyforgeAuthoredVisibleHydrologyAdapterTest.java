@@ -30,7 +30,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
         assertEquals(first, replay);
         assertEquals(authoredFeatureKinds(fixture.descriptor()), featureKinds(first));
-        assertOwned(first, terrain);
+        assertOwned(first, terrain, fixture.descriptor());
     }
 
     @Test
@@ -74,28 +74,26 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertTrue(fluvial.reaches().getFirst().bankfullHalfWidth()
                 < fluvial.reaches().getFirst().valleyHalfWidth());
 
+        int maximumAuthoredRaise =
+                SkyforgeAuthoredVisibleHydrologyAdapter.maximumAuthoredTerrainRaisingBlocks(
+                        fixture.descriptor());
         assertTrue(channel.positions().stream().allMatch(position ->
                 terrain.integerSolidRange(
                                 fixture.volume().id(),
                                 position.getX(),
                                 position.getZ())
-                        .map(range -> position.getY() < range.maximumY())
+                        .map(range -> position.getY() <= range.maximumY() + maximumAuthoredRaise)
                         .orElse(false)),
-                "authored wet cells must remain recessed below the pre-fluvial surface");
+                "authored wet cells may exceed compiled carrier only inside the neutral terrain-raising budget");
         assertTrue(
                 SkyforgeAuthoredVisibleHydrologyAdapter.physicalLoweringBlocks(
                                 fixture.descriptor(),
                                 io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.MAX_FLUVIAL_LOWERING)
                         >= 1,
                 "accepted neutral fluvial lowering must survive Minecraft integer discretization");
-        assertTrue(channel.positions().stream().noneMatch(position ->
-                terrain.integerSolidRange(
-                                fixture.volume().id(),
-                                position.getX(),
-                                position.getZ())
-                        .map(range -> position.getY() == range.maximumY())
-                        .orElse(true)),
-                "wet channel realization must never consume the original top-surface voxel");
+        assertTrue(
+                SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS == 0,
+                "authored positive terrain response must remain distinct from synthetic bank fill");
 
         for (var deployment : deployments) {
             for (var wet : deployment.positions()) {
@@ -136,7 +134,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 "standing water must materialize at least one authored wet cell");
         assertFalse(deployment.surfacePositions().isEmpty(),
                 "standing water must retain a dry owned bed below its fluid volume");
-        assertOwned(List.of(deployment), terrain);
+        assertOwned(List.of(deployment), terrain, fixture.descriptor());
 
         var topByColumn = new java.util.LinkedHashMap<String, BlockPos>();
         for (var wet : deployment.positions()) {
@@ -703,9 +701,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 + ", channelTop=" + contact.entry().getValue()
                                 + ", retainedDatum=" + contact.datum());
             }
-            assertTrue(
-                    deployment.forcedSurfacePositions().isEmpty(),
-                    "key-287 channels must reach standing water without synthetic bank repair");
+            int maximumAuthoredRaise =
+                    SkyforgeAuthoredVisibleHydrologyAdapter.maximumAuthoredTerrainRaisingBlocks(
+                            fixture.descriptor());
+            for (var forced : deployment.forcedSurfacePositions()) {
+                var range = terrain.integerSolidRange(
+                                deployment.volumeId(), forced.getX(), forced.getZ())
+                        .orElseThrow();
+                assertTrue(
+                        forced.getY() - range.maximumY() <= maximumAuthoredRaise,
+                        "key-287 channel support above compiled terrain must be authored by the neutral raising budget");
+            }
         }
         assertTrue(
                 junctionColumns > 0,
@@ -845,7 +851,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             var terrain = terrain(fixture.catalog(), fixture.descriptor());
             var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
             observed.addAll(featureKinds(deployments));
-            assertOwned(deployments, terrain);
+            assertOwned(deployments, terrain, fixture.descriptor());
         }
 
         assertEquals(requiredFeatureKinds(), observed);
@@ -951,8 +957,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             assertTrue(deployment.surfacePositions().containsAll(deployment.forcedSurfacePositions()));
             if (deployment.feature()
                     == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
-                assertTrue(
-                        deployment.forcedSurfacePositions().isEmpty(),
+                assertEquals(
+                        0,
+                        SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS,
                         "flowing channels must not synthesize levees to repair carrier mismatch");
             }
             for (var position : deployment.forcedSurfacePositions()) {
@@ -965,7 +972,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     int limit = deployment.feature()
                                     == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER
                             ? SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS
-                            : SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS;
+                            : SkyforgeAuthoredVisibleHydrologyAdapter.maximumAuthoredTerrainRaisingBlocks(
+                                    fixture.descriptor());
                     assertTrue(
                             fillDepth <= limit,
                             "bank extension above compiled terrain must stay inside the bounded fill budget");
@@ -1215,8 +1223,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertNotEquals(fixture.lower().id(), fixture.upper().id());
         assertFalse(lower.isEmpty());
         assertFalse(upper.isEmpty());
-        assertOwned(lower, terrain);
-        assertOwned(upper, terrain);
+        assertOwned(lower, terrain, fixture.descriptor());
+        assertOwned(upper, terrain, fixture.descriptor());
     }
 
     private static void assertRetainedShorelineCutBounded(
@@ -1317,7 +1325,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     private static void assertOwned(
             List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deployments,
-            SkyforgeNeoForge1211ChunkAdapter terrain) {
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor) {
         for (var deployment : deployments) {
             assertFalse(deployment.positions().isEmpty());
             Set<SkyforgeAuthoredVisibleHydrologyAdapter.Column> wetColumns = deployment.positions().stream()
@@ -1374,13 +1383,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 assertEquals(
                         SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL,
                         deployment.feature(),
-                        "only explicit retained-water or channel-bank conditioning may add solid support");
+                        "only retained-water reconciliation or authored channel terrain response may add support");
                 assertEquals(
                         0,
                         SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS,
                         "flowing channel geometry must not authorize synthetic bank fill");
-                throw new AssertionError(
-                        "channel deployment unexpectedly contains forced bank geometry at " + position);
+                assertTrue(
+                        fillDepth >= 1
+                                && fillDepth
+                                        <= SkyforgeAuthoredVisibleHydrologyAdapter.maximumAuthoredTerrainRaisingBlocks(
+                                                descriptor),
+                        "channel support above compiled geology must stay inside the neutral authored terrain-raising budget");
 
             }
         }
