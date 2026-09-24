@@ -384,34 +384,39 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
+        // Deployment lists preserve authored feature provenance, so overlapping channel/lake or
+        // retained-water intents may share one final physical water column. Validate the normalized
+        // physical union rather than requiring every provenance list to expose its own independent
+        // bed inside water owned by another deployment.
+        var globalWater = deployments.stream()
+                .flatMap(deployment -> deployment.positions().stream())
+                .collect(java.util.stream.Collectors.toSet());
         var globalSurface = deployments.stream()
                 .flatMap(deployment -> deployment.surfacePositions().stream())
                 .collect(java.util.stream.Collectors.toSet());
 
-        for (var deployment : deployments) {
-            var byColumn = deployment.positions().stream()
-                    .collect(java.util.stream.Collectors.groupingBy(
-                            position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
-                                    position.getX(), position.getZ())));
-            for (var entry : byColumn.entrySet()) {
-                var ys = entry.getValue().stream()
-                        .map(BlockPos::getY)
-                        .sorted()
-                        .toList();
-                assertEquals(
-                        ys.getLast() - ys.getFirst() + 1,
-                        ys.size(),
-                        "authored water must fill every vertical voxel from bed to free surface: "
-                                + entry.getKey());
-                BlockPos bed = new BlockPos(
-                        entry.getKey().x(),
-                        ys.getFirst() - 1,
-                        entry.getKey().z());
-                assertTrue(
-                        globalSurface.contains(bed),
-                        "lowest authored water voxel must rest on a hydrology-owned bed: "
-                                + entry.getKey());
-            }
+        var byColumn = globalWater.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                position.getX(), position.getZ())));
+        for (var entry : byColumn.entrySet()) {
+            var ys = entry.getValue().stream()
+                    .map(BlockPos::getY)
+                    .sorted()
+                    .toList();
+            assertEquals(
+                    ys.getLast() - ys.getFirst() + 1,
+                    ys.size(),
+                    "normalized authored water must fill every vertical voxel from bed to free surface: "
+                            + entry.getKey());
+            BlockPos bed = new BlockPos(
+                    entry.getKey().x(),
+                    ys.getFirst() - 1,
+                    entry.getKey().z());
+            assertTrue(
+                    globalSurface.contains(bed),
+                    "lowest normalized authored water voxel must rest on a hydrology-owned bed: "
+                            + entry.getKey());
         }
     }
 
@@ -478,8 +483,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             if (channelColumns.stream().noneMatch(retainedColumns::contains)) {
                 continue;
             }
-            var mouth = channelColumns.stream()
+            var outsideColumns = channelColumns.stream()
                     .filter(column -> !retainedColumns.contains(column))
+                    .collect(java.util.stream.Collectors.toSet());
+            if (outsideColumns.isEmpty()) {
+                // A reach fully absorbed by a retained basin has no external shoreline mouth.
+                // Its overlap remains valid provenance, but mouth geometry is tested only where
+                // channel water actually crosses from non-basin columns into retained water.
+                continue;
+            }
+            var mouth = outsideColumns.stream()
                     .filter(column -> {
                         for (int[] direction : directions) {
                             if (retainedColumns.contains(
@@ -1233,8 +1246,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             for (var position : deployment.surfacePositions()) {
                 assertFalse(terrain.isSolidOwnedByOtherVolume(
                         deployment.volumeId(), position.getX(), position.getY(), position.getZ()));
-                if (terrain.isSolidOwnedBy(
-                        deployment.volumeId(), position.getX(), position.getY(), position.getZ())) {
+                boolean compiledSupport = terrain.integerSolidRange(
+                                deployment.volumeId(), position.getX(), position.getZ())
+                        .map(range -> position.getY() >= range.minimumY()
+                                && position.getY() <= range.maximumY())
+                        .orElse(false);
+                if (compiledSupport) {
                     continue;
                 }
                 assertTrue(
