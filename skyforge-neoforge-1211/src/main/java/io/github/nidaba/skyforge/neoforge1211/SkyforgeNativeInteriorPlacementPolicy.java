@@ -111,7 +111,8 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         Objects.requireNonNull(replacementState, "replacementState");
         return operation.generationStep() != GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
                 || !existingState.is(Blocks.WATER)
-                || replacementState.is(Blocks.WATER);
+                || replacementState.is(Blocks.WATER)
+                || SkyforgeNativeHydrologyDressingStage.allowsVisibleWaterReplacement(replacementState);
     }
 
     /**
@@ -136,7 +137,8 @@ final class SkyforgeNativeInteriorPlacementPolicy {
             return true;
         }
         BlockState authored = authoredState.orElseThrow();
-        return replacementState.equals(authored)
+        return SkyforgeNativeHydrologyDressingStage.allowsReplacement(authored, replacementState)
+                || replacementState.equals(authored)
                 || (authored.is(Blocks.WATER) && replacementState.is(Blocks.WATER));
     }
 
