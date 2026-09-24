@@ -462,9 +462,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     continue;
                 }
                 junctionColumns++;
+                int retainedDatum = target.orElseThrow();
                 assertTrue(
-                        Math.abs(entry.getValue() - target.orElseThrow()) <= 1,
-                        "channel free surface must blend into retained basin datum at the shoreline");
+                        Math.abs(entry.getValue() - retainedDatum) <= 1,
+                        "channel free surface must blend into retained basin datum at the shoreline: "
+                                + "column=" + entry.getKey()
+                                + ", channelTop=" + entry.getValue()
+                                + ", retainedDatum=" + retainedDatum);
             }
             for (var forced : deployment.forcedSurfacePositions()) {
                 var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
