@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import net.minecraft.core.BlockPos;
 import org.junit.jupiter.api.Test;
@@ -67,6 +68,21 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
         assertFalse(envelope.acceptWrite(foreign));
         assertFalse(envelope.ownsAttachment(foreign));
         assertEquals(1, envelope.attachmentCount());
+    }
+
+    @Test
+    void attachmentPositionsExposeOnlyCommittedAttachmentGeometry() {
+        var envelope = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 3);
+        BlockPos first = new BlockPos(0, 101, 0);
+        BlockPos second = new BlockPos(1, 102, 0);
+
+        assertTrue(envelope.acceptWrite(first));
+        assertTrue(envelope.acceptWrite(second));
+        assertEquals(java.util.Set.of(first, second), envelope.attachmentPositions());
+        assertThrows(
+                UnsupportedOperationException.class,
+                () -> envelope.attachmentPositions().clear());
+        assertFalse(envelope.attachmentPositions().contains(OWNER));
     }
 
     @Test
