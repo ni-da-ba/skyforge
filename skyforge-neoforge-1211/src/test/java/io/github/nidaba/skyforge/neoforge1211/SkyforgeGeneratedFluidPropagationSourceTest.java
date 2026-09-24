@@ -44,6 +44,7 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
         String stage = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
         assertTrue(stage.contains("SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId)"));
+        assertTrue(stage.contains("pendingBiomePresentationChunks(volumeId)"));
         assertTrue(stage.contains("SkyforgeComposedCaveStage.hasPending(volumeId)"));
         assertTrue(stage.contains("SkyforgeNativeInteriorPopulationStage.hasPending(volumeId)"));
         assertTrue(stage.contains("serverLevel.scheduleTick(position, state.getType(), 20)"));

@@ -184,6 +184,9 @@ public final class SkyforgeGeneratedFluidPropagationStage {
         // This predicate runs on every scheduled authored-water tick while the volume is preparing.
         // Use direct ledger predicates rather than materializing full pending sets/snapshots.
         return SkyforgePhysicalVolumeAdmissionStage.hasPendingCatchup(volumeId)
+                || !SkyforgePhysicalVolumeAdmissionStage
+                        .pendingBiomePresentationChunks(volumeId)
+                        .isEmpty()
                 || SkyforgeComposedCaveStage.hasPending(volumeId)
                 || SkyforgeNativeInteriorPopulationStage.hasPending(volumeId);
     }
