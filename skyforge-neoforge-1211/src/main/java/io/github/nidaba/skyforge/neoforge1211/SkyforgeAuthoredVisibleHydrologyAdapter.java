@@ -2614,7 +2614,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             BlockState support = structuralSurfaceExtensionState(chunk, position);
-            chunk.setBlockState(position, support, false);
+            setHydrologyState(chunk, position, support);
             written++;
         }
 
@@ -2628,17 +2628,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             BlockState current = chunk.getBlockState(position);
             if (desired.is(Blocks.WATER)) {
                 if (!isWaterBearing(current)) {
-                    chunk.setBlockState(position, desired, false);
+                    setHydrologyState(chunk, position, desired);
                     written++;
                 }
             } else if (desired.isAir()) {
                 if (!current.isAir()) {
-                    chunk.setBlockState(position, desired, false);
+                    setHydrologyState(chunk, position, desired);
                     written++;
                 }
             } else if (isHydrologySurfaceMaterial(desired)) {
                 if (!current.equals(desired)) {
-                    chunk.setBlockState(position, desired, false);
+                    setHydrologyState(chunk, position, desired);
                     written++;
                 }
             } else {
@@ -2662,10 +2662,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (chunk.getBlockState(position).isAir()) {
-                chunk.setBlockState(
+                setHydrologyState(
+                        chunk,
                         position,
-                        structuralSurfaceExtensionState(chunk, position),
-                        false);
+                        structuralSurfaceExtensionState(chunk, position));
                 written++;
             }
         }
@@ -2674,7 +2674,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (!chunk.getBlockState(position).isAir()) {
-                chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
+                setHydrologyState(chunk, position, Blocks.AIR.defaultBlockState());
                 written++;
             }
         }
@@ -2683,11 +2683,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
             if (!isWaterBearing(chunk.getBlockState(position))) {
-                chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
+                setHydrologyState(chunk, position, Blocks.WATER.defaultBlockState());
                 written++;
             }
         }
         return written;
+    }
+
+    private static void setHydrologyState(
+            ChunkAccess chunk,
+            BlockPos position,
+            BlockState desired) {
+        BlockState previous = chunk.getBlockState(position);
+        chunk.setBlockState(position, desired, false);
+        SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                chunk,
+                position,
+                previous,
+                chunk.getBlockState(position));
     }
 
     /**
