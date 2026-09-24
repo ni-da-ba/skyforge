@@ -6,6 +6,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.OptionalDouble;
 
 /**
@@ -25,6 +26,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private final SkyIslandContinuousHydrologicTerrainField baseTerrain;
     private final List<SkyIslandFluvialReachGeometry> reaches;
     private final Map<SkyIslandFluvialReachGeometry, HydraulicGradeProfile> hydraulicGrades;
+    private final Map<SkyIslandFluvialReachGeometry, SkyIslandChannelDrop> terminalDrops;
     private final double extent;
 
     private SkyIslandFluvialTerrainField(
@@ -54,6 +56,26 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             grades.put(reach, buildHydraulicGradeProfile(reach));
         }
         this.hydraulicGrades = Map.copyOf(grades);
+
+        Map<SkyIslandFluvialReachGeometry, SkyIslandChannelDrop> drops = new HashMap<>();
+        for (SkyIslandChannelDrop drop : coherent.drops().drops()) {
+            if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
+                continue;
+            }
+            SkyIslandFluvialReachGeometry reach = this.reaches.stream()
+                    .filter(candidate ->
+                            candidate.profile().segment().sourceCellIndex() == drop.sourceCellIndex()
+                                    && candidate.profile().segment().downstreamCellIndex()
+                                            == drop.downstreamCellIndex())
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "accepted interior channel drop lost its exact fluvial reach"));
+            if (drops.put(reach, drop) != null) {
+                throw new IllegalStateException(
+                        "one accepted fluvial reach cannot own multiple terminal drop events");
+            }
+        }
+        this.terminalDrops = Map.copyOf(drops);
     }
 
     public static SkyIslandFluvialTerrainField create(SkyIslandDescriptor descriptor) {
@@ -79,12 +101,23 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return reaches;
     }
 
-    /** Local wet-channel half-width, including only the short topology-derived confluence throat. */
+    /** Exact accepted interior drop, when this reach terminates in a cascade or waterfall. */
+    public Optional<SkyIslandChannelDrop> terminalDrop(
+            SkyIslandFluvialReachGeometry reach) {
+        Objects.requireNonNull(reach, "reach");
+        if (!reaches.contains(reach)) {
+            throw new IllegalArgumentException("reach must belong to this fluvial field");
+        }
+        return Optional.ofNullable(terminalDrops.get(reach));
+    }
+
+    /** Local wet-channel half-width, including confluence expansion and an accepted drop throat. */
     public double wetHalfWidthAt(
             SkyIslandFluvialReachGeometry reach,
             double fraction) {
         requireReachFraction(reach, fraction);
-        return wetHalfWidthAtStatic(reach, fraction);
+        return wetHalfWidthAtStatic(reach, fraction)
+                * terminalDropThroatScaleAt(reach, fraction);
     }
 
     /** Whether this position lies inside this exact reach's authored wet corridor. */
@@ -637,6 +670,38 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         // the persistent channel scale downstream.
         double fade = 1.0 - smootherstep(clamp01(fraction / 0.34));
         return 1.0 + strength * (reach.confluenceScale() - 1.0) * fade;
+    }
+
+    private double terminalDropThroatScaleAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        SkyIslandChannelDrop drop = terminalDrops.get(reach);
+        if (drop == null) {
+            return 1.0;
+        }
+
+        double pathLength = Math.max(EPSILON, reach.path().pathLength());
+        double transitionLength = Math.min(
+                pathLength,
+                Math.max(
+                        2.0 * reach.bankfullHalfWidth(),
+                        4.0 * reach.wetHalfWidth()));
+        double startFraction = Math.max(0.0, 1.0 - transitionLength / pathLength);
+        if (fraction <= startFraction) {
+            return 1.0;
+        }
+
+        // The event has already been selected by accepted hydrology. Its accepted strength only
+        // controls how tightly the visible wet corridor converges on the terminal lip; dry
+        // bankfull and valley geometry remain unchanged.
+        double terminalScale = clamp(
+                1.0 - 0.60 * drop.dropPotential(),
+                0.40,
+                0.65);
+        double t = smootherstep(
+                (fraction - startFraction)
+                        / Math.max(EPSILON, 1.0 - startFraction));
+        return lerp(1.0, terminalScale, t);
     }
 
     private static double wetHalfWidthAtStatic(

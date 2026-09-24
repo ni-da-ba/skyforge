@@ -51,15 +51,26 @@ public final class SkyIslandHydrologicTerrainSurfacePlanner {
             riparianByIndex.put(cell.watershedCellIndex(), cell);
         }
 
-        Set<Integer> reserved = new HashSet<>();
+        Set<Integer> retainedWater = new HashSet<>();
         for (SkyIslandWaterbodyFootprint footprint : waterbodies.footprints()) {
             for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
-                reserved.add(cell.watershedCellIndex());
+                retainedWater.add(cell.watershedCellIndex());
             }
         }
+
+        Map<Integer, SkyIslandWaterbodyMarginCell> marginByIndex = new HashMap<>();
+        Map<Integer, Double> marginWaterSurfaceByIndex = new HashMap<>();
         for (SkyIslandWaterbodyMargin margin : margins.margins()) {
+            double waterSurface = margin.footprint().waterSurfacePotential();
             for (SkyIslandWaterbodyMarginCell cell : margin.cells()) {
-                reserved.add(cell.watershedCellIndex());
+                SkyIslandWaterbodyMarginCell previous =
+                        marginByIndex.put(cell.watershedCellIndex(), cell);
+                Double previousSurface =
+                        marginWaterSurfaceByIndex.put(cell.watershedCellIndex(), waterSurface);
+                if (previous != null || previousSurface != null) {
+                    throw new IllegalStateException(
+                            "accepted waterbody margin ownership must remain one-to-one");
+                }
             }
         }
 
@@ -67,8 +78,23 @@ public final class SkyIslandHydrologicTerrainSurfacePlanner {
         for (SkyIslandWatershedCell watershedCell : watershed.cells()) {
             int index = watershedCell.index();
             double base = clamp01(watershedCell.surfacePotential());
+            if (retainedWater.contains(index)) {
+                result.add(unchanged(watershedCell, base));
+                continue;
+            }
+
+            SkyIslandWaterbodyMarginCell marginCell = marginByIndex.get(index);
+            if (marginCell != null) {
+                result.add(shorelineMargin(
+                        watershedCell,
+                        base,
+                        marginCell,
+                        marginWaterSurfaceByIndex.get(index)));
+                continue;
+            }
+
             SkyIslandHydrologicTerrainCell terrainInfluence = influenceByIndex.get(index);
-            if (reserved.contains(index) || terrainInfluence == null) {
+            if (terrainInfluence == null) {
                 result.add(unchanged(watershedCell, base));
                 continue;
             }
@@ -114,6 +140,40 @@ public final class SkyIslandHydrologicTerrainSurfacePlanner {
                 watershed.gridSize(),
                 watershed.spacing(),
                 result);
+    }
+
+    private static SkyIslandHydrologicTerrainSurfaceCell shorelineMargin(
+            SkyIslandWatershedCell cell,
+            double base,
+            SkyIslandWaterbodyMarginCell margin,
+            double waterSurface) {
+        if (!Double.isFinite(waterSurface)) {
+            throw new IllegalArgumentException("waterSurface must be finite");
+        }
+        if (base <= waterSurface + 1.0e-12) {
+            // A semantically dry margin cell below the standing-water datum is not terrain-fill
+            // authority. Preserve it; physical containment must fail closed rather than invent
+            // an embankment.
+            return unchanged(cell, base);
+        }
+
+        double desired = base
+                + (waterSurface - base) * margin.marginPotential();
+        double adjustment = clamp(
+                desired - base,
+                -MAX_LOWERING,
+                0.0);
+        double adjusted = clamp01(base + adjustment);
+        return new SkyIslandHydrologicTerrainSurfaceCell(
+                cell.index(),
+                cell.position(),
+                base,
+                adjusted,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                adjustment);
     }
 
     private static SkyIslandHydrologicTerrainSurfaceCell unchanged(

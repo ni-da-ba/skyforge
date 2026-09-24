@@ -11,7 +11,8 @@ public record SkyIslandHydrologicTerrainSurfaceCell(
         double incisionLowering,
         double depositionRaising,
         double floodplainAdjustment,
-        double dropLowering) {
+        double dropLowering,
+        double waterbodyMarginAdjustment) {
 
     private static final double EPSILON = 1.0e-12;
 
@@ -26,6 +27,33 @@ public record SkyIslandHydrologicTerrainSurfaceCell(
         requireNormalized("depositionRaising", depositionRaising);
         requireSignedNormalized("floodplainAdjustment", floodplainAdjustment);
         requireNormalized("dropLowering", dropLowering);
+        requireSignedNormalized("waterbodyMarginAdjustment", waterbodyMarginAdjustment);
+        if (waterbodyMarginAdjustment > EPSILON) {
+            throw new IllegalArgumentException(
+                    "waterbodyMarginAdjustment may only preserve or lower dry shoreline terrain");
+        }
+    }
+
+    /** Compatibility constructor for pre-margin hydrologic surface producers. */
+    public SkyIslandHydrologicTerrainSurfaceCell(
+            int watershedCellIndex,
+            SkyIslandLocalPosition position,
+            double baseElevationPotential,
+            double adjustedElevationPotential,
+            double incisionLowering,
+            double depositionRaising,
+            double floodplainAdjustment,
+            double dropLowering) {
+        this(
+                watershedCellIndex,
+                position,
+                baseElevationPotential,
+                adjustedElevationPotential,
+                incisionLowering,
+                depositionRaising,
+                floodplainAdjustment,
+                dropLowering,
+                0.0);
     }
 
     /** Signed change in normalized authored surface potential. */

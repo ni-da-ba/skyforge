@@ -36,6 +36,12 @@ class SkyIslandHydrologicTerrainSurfacePlannerTest {
         for (SkyIslandHydrologicTerrainCell cell : influence.cells()) {
             influenced.add(cell.watershedCellIndex());
         }
+        for (SkyIslandWaterbodyMargin margin :
+                SkyIslandWaterbodyMarginPlanner.plan(descriptor).margins()) {
+            for (SkyIslandWaterbodyMarginCell cell : margin.cells()) {
+                influenced.add(cell.watershedCellIndex());
+            }
+        }
         Set<Integer> unique = new HashSet<>();
         for (SkyIslandHydrologicTerrainSurfaceCell cell : first.cells()) {
             assertTrue(unique.add(cell.watershedCellIndex()));
@@ -50,7 +56,7 @@ class SkyIslandHydrologicTerrainSurfacePlannerTest {
     }
 
     @Test
-    void retainedWaterAndMarginOwnershipRemainExact() {
+    void retainedWaterStaysExactWhileAcceptedDryMarginsGradeTowardTheDatum() {
         SkyIslandDescriptor descriptor = descriptor(83L);
         SkyIslandHydrologicTerrainSurfacePlan surface =
                 SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor);
@@ -61,24 +67,40 @@ class SkyIslandHydrologicTerrainSurfacePlannerTest {
         for (SkyIslandHydrologicTerrainSurfaceCell cell : surface.cells()) {
             byIndex.put(cell.watershedCellIndex(), cell);
         }
-        Set<Integer> reserved = new HashSet<>();
+
+        Set<Integer> retained = new HashSet<>();
         for (SkyIslandWaterbodyFootprint footprint : waterbodies.footprints()) {
             for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
-                reserved.add(cell.watershedCellIndex());
+                retained.add(cell.watershedCellIndex());
             }
         }
-        for (SkyIslandWaterbodyMargin margin : margins.margins()) {
-            for (SkyIslandWaterbodyMarginCell cell : margin.cells()) {
-                reserved.add(cell.watershedCellIndex());
-            }
-        }
-
-        assertFalse(reserved.isEmpty());
-        for (int index : reserved) {
+        assertFalse(retained.isEmpty());
+        for (int index : retained) {
             SkyIslandHydrologicTerrainSurfaceCell cell = byIndex.get(index);
             assertEquals(cell.baseElevationPotential(), cell.adjustedElevationPotential());
-            assertFalse(cell.changed());
+            assertEquals(0.0, cell.waterbodyMarginAdjustment(), EPSILON);
         }
+
+        boolean sawGradedMargin = false;
+        for (SkyIslandWaterbodyMargin margin : margins.margins()) {
+            double datum = margin.footprint().waterSurfacePotential();
+            for (SkyIslandWaterbodyMarginCell marginCell : margin.cells()) {
+                SkyIslandHydrologicTerrainSurfaceCell cell =
+                        byIndex.get(marginCell.watershedCellIndex());
+                assertTrue(cell.adjustedElevationPotential()
+                        <= cell.baseElevationPotential() + EPSILON);
+                assertTrue(cell.adjustedElevationPotential() >= datum - EPSILON);
+                assertEquals(
+                        cell.netAdjustment(),
+                        cell.waterbodyMarginAdjustment(),
+                        EPSILON);
+                if (cell.changed()) {
+                    sawGradedMargin = true;
+                    assertTrue(cell.waterbodyMarginAdjustment() < 0.0);
+                }
+            }
+        }
+        assertTrue(sawGradedMargin, "reference retained water must exercise a graded dry margin");
     }
 
     @Test

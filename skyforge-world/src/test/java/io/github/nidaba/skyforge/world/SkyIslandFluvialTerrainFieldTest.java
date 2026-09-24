@@ -198,13 +198,45 @@ class SkyIslandFluvialTerrainFieldTest {
                 assertTrue(field.wetHalfWidthAt(reach, 0.0) > field.wetHalfWidthAt(reach, 1.0));
                 assertTrue(field.bankfullHalfWidthAt(reach, 0.0) > field.bankfullHalfWidthAt(reach, 1.0));
                 assertTrue(field.valleyHalfWidthAt(reach, 0.0) > field.valleyHalfWidthAt(reach, 1.0));
-                assertEquals(reach.wetHalfWidth(), field.wetHalfWidthAt(reach, 1.0), EPSILON);
+                if (field.terminalDrop(reach).isEmpty()) {
+                    assertEquals(reach.wetHalfWidth(), field.wetHalfWidthAt(reach, 1.0), EPSILON);
+                } else {
+                    assertTrue(field.wetHalfWidthAt(reach, 1.0) < reach.wetHalfWidth());
+                }
                 assertEquals(reach.bankfullHalfWidth(), field.bankfullHalfWidthAt(reach, 1.0), EPSILON);
                 assertEquals(reach.valleyHalfWidth(), field.valleyHalfWidthAt(reach, 1.0), EPSILON);
                 exercised = true;
             }
         }
         assertTrue(exercised, "reference corpus must exercise at least one routed confluence");
+    }
+
+    @Test
+    void interiorDropReachesConvergeToANarrowVisibleThroatWithoutChangingDryBankScale() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 287L));
+        SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor);
+
+        boolean exercised = false;
+        for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+            if (field.terminalDrop(reach).isEmpty()) {
+                continue;
+            }
+            double upstreamWet = field.wetHalfWidthAt(reach, 0.50);
+            double terminalWet = field.wetHalfWidthAt(reach, 1.0);
+            assertTrue(terminalWet < upstreamWet);
+            assertTrue(terminalWet >= reach.wetHalfWidth() * 0.40 - EPSILON);
+            assertEquals(
+                    reach.bankfullHalfWidth(),
+                    field.bankfullHalfWidthAt(reach, 1.0),
+                    EPSILON);
+            assertEquals(
+                    reach.valleyHalfWidth(),
+                    field.valleyHalfWidthAt(reach, 1.0),
+                    EPSILON);
+            exercised = true;
+        }
+        assertTrue(exercised, "key-287 must exercise at least one accepted interior drop");
     }
 
     @Test
