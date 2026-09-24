@@ -171,9 +171,24 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
         }
 
-        int featureOrdinal = 0;
+        List<IndexedPlacedFeature> orderedFeatures = new ArrayList<>();
+        int sourceOrdinal = 0;
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
-            int occurrenceIndex = featureOrdinal++;
+            orderedFeatures.add(new IndexedPlacedFeature(sourceOrdinal++, placedFeature));
+        }
+        if (generationStep == GenerationStep.Decoration.VEGETAL_DECORATION
+                && route == SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY) {
+            // Exact-volume population runs native features as independent bounded operations.
+            // Preserve each feature's original occurrence index/seed, but commit tree structure
+            // before low vegetation. Later grass/mushroom/patch features then see trunks, roots and
+            // canopies as occupied world state instead of being sliced by a tree committed later.
+            orderedFeatures.sort(java.util.Comparator.comparing(
+                    indexed -> !isTreeFeature(indexed.placedFeature(), placedFeatureRegistry)));
+        }
+
+        for (IndexedPlacedFeature indexed : orderedFeatures) {
+            Holder<PlacedFeature> placedFeature = indexed.placedFeature();
+            int occurrenceIndex = indexed.occurrenceIndex();
             if (!route.accepts(generationStep, placedFeature.value())) {
                 continue;
             }
@@ -406,6 +421,26 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
         }
         return List.copyOf(results);
+    }
+
+    private static boolean isTreeFeature(
+            Holder<PlacedFeature> placedFeature,
+            net.minecraft.core.Registry<PlacedFeature> registry) {
+        ResourceLocation key = placedFeature.unwrapKey()
+                .map(resourceKey -> resourceKey.location())
+                .orElseGet(() -> registry.getKey(placedFeature.value()));
+        return key != null && key.getPath().toLowerCase(Locale.ROOT).contains("tree");
+    }
+
+    private record IndexedPlacedFeature(
+            int occurrenceIndex,
+            Holder<PlacedFeature> placedFeature) {
+        private IndexedPlacedFeature {
+            if (occurrenceIndex < 0) {
+                throw new IllegalArgumentException("feature occurrence index must be non-negative");
+            }
+            Objects.requireNonNull(placedFeature, "placedFeature");
+        }
     }
 
     static int treeAttachmentDepth(int configuredMaximumAttachmentDepth) {
