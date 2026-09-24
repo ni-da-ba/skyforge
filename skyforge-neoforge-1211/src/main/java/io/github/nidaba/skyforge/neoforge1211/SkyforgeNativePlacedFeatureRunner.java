@@ -178,6 +178,7 @@ final class SkyforgeNativePlacedFeatureRunner {
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
                 var execution = openExecution(level, operation, domainBiome, maximumAttachmentDepth);
+                var hydrologyDressing = SkyforgeNativeHydrologyDressingStage.open(placedFeature.value());
                 var verticalFrame = SkyforgeVerticalPlacementFrame.open(level, operation);
                 var generatedFluid = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation);
                 var lakeAdmission = SkyforgeNativeLakeAdmissionStage.open(operation)) {
