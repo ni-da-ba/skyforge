@@ -796,18 +796,37 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 .orElseThrow();
         var chunkPos = new net.minecraft.world.level.ChunkPos(first.getKey());
         var chunk = MinecraftTestChunkFactory.protoChunk(chunkPos);
+
+        // Reproduce the real runtime precondition for bounded bank reconciliation: the compiled
+        // island terrain already exists beneath every extension column. The replay test previously
+        // used an otherwise-empty ProtoChunk, which cannot exercise support-inheriting geometry.
+        var forcedByColumn = first.getValue().forcedSurfacePositions().stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        position -> position.getX() + "," + position.getZ()));
+        for (var column : forcedByColumn.values()) {
+            int minimumExtensionY = column.stream().mapToInt(BlockPos::getY).min().orElseThrow();
+            BlockPos firstExtension = column.stream()
+                    .filter(position -> position.getY() == minimumExtensionY)
+                    .findFirst()
+                    .orElseThrow();
+            chunk.setBlockState(
+                    firstExtension.below(),
+                    Blocks.STONE.defaultBlockState(),
+                    false);
+        }
+
         for (var state : first.getValue().states().entrySet()) {
-            // Seed a guaranteed mismatch for every indexed role. Hydrology sediment may
-            // legitimately resolve to STONE, so a blanket STONE seed would make those entries
-            // idempotent before the first replay and undercount actual mutations.
-            var seed = state.getValue().is(Blocks.STONE)
-                    ? Blocks.DIRT.defaultBlockState()
-                    : Blocks.STONE.defaultBlockState();
+            // Seed a guaranteed mismatch for every indexed AIR/water role.
+            var seed = state.getValue().isAir()
+                    ? Blocks.STONE.defaultBlockState()
+                    : Blocks.DIRT.defaultBlockState();
             chunk.setBlockState(state.getKey(), seed, false);
         }
 
+        int expectedWrites = first.getValue().states().size()
+                + first.getValue().forcedSurfacePositions().size();
         assertEquals(
-                first.getValue().states().size(),
+                expectedWrites,
                 SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain));
         assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, terrain));
         for (var state : first.getValue().states().entrySet()) {
