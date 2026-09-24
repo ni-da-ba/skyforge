@@ -446,15 +446,14 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         };
         double wetFraction = Math.pow(waterDepth / bankRelief, 1.0 / exponent) * 0.94;
         /*
-         * The continuous field may author sub-block headwaters, but the Minecraft consumer samples
-         * integer X/Z columns. Preserve the discharge-driven bankfull scale while guaranteeing that
-         * an accepted visible channel has at least one rasterizable wet column near its centerline.
-         * 0.75 exceeds the square-grid half-diagonal tolerance (~0.707) without inflating the
-         * bankfull envelope itself.
+         * The wet corridor must survive integer-grid realization as a coherent landform, not merely
+         * as a one-pixel polyline. A ~3.2-unit minimum full width keeps small accepted headwaters
+         * face-connected and visually legible while remaining well inside the >=6-unit minimum
+         * bankfull corridor. Above that floor, discharge/profile geometry remains authoritative.
          */
         double wetHalfWidth = Math.min(
                 bankfullHalfWidth * 0.78,
-                Math.max(0.75, bankfullHalfWidth * clamp(wetFraction, 0.28, 0.78)));
+                Math.max(1.60, bankfullHalfWidth * clamp(wetFraction, 0.28, 0.78)));
 
         return new SkyIslandFluvialReachGeometry(
                 path,
