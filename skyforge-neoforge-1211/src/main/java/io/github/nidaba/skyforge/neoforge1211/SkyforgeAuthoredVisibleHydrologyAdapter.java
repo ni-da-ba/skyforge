@@ -1025,10 +1025,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             descriptor,
                             waterPotential - basePotential);
             int preferenceWeight = 1;
+            int retainedJunctionDatum = Integer.MIN_VALUE;
             OptionalInt retainedDatum = retainedHydraulicTarget(
                     column, retainedWaterTopByColumn);
             if (retainedDatum.isPresent()) {
-                desiredWaterTop = retainedDatum.orElseThrow();
+                retainedJunctionDatum = retainedDatum.orElseThrow();
+                desiredWaterTop = retainedJunctionDatum;
                 preferenceWeight = RETAINED_JUNCTION_GRADE_WEIGHT;
             }
             desiredWaterTop = Math.max(
@@ -1045,7 +1047,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             drySurfaceY,
                             maximumWaterTop,
                             desiredWaterTop,
-                            preferenceWeight));
+                            preferenceWeight,
+                            retainedJunctionDatum));
         }
 
         // A semantic wet corridor that is mostly physical void is not a conditioning problem:
@@ -1113,7 +1116,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 int minimumWaterTop = Math.max(
                         candidate.ownerMinimumWaterTop(),
                         candidate.drySurfaceY() + 1 - reconciliationDepth);
-                if (minimumWaterTop > candidate.maximumWaterTop()) {
+                int maximumWaterTop = candidate.maximumWaterTop();
+                if (candidate.retainedJunctionDatum() != Integer.MIN_VALUE) {
+                    // A lake is a hydraulic boundary, not merely another soft preference. Keep the
+                    // connected river carrier within one voxel of the already-qualified standing
+                    // datum; deeper reconciliation may lower the bed, but the surface itself may not
+                    // remain a visually separate two-plus-block terrace at the shoreline.
+                    minimumWaterTop = Math.max(
+                            minimumWaterTop,
+                            candidate.retainedJunctionDatum() - 1);
+                    maximumWaterTop = Math.min(
+                            maximumWaterTop,
+                            candidate.retainedJunctionDatum() + 1);
+                }
+                if (minimumWaterTop > maximumWaterTop) {
                     feasibleBounds = false;
                     break;
                 }
@@ -1123,7 +1139,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 samples.add(new ChannelGradeSample(
                         fraction,
                         minimumWaterTop,
-                        candidate.maximumWaterTop(),
+                        maximumWaterTop,
                         candidate.desiredWaterTop(),
                         candidate.preferenceWeight()));
                 previousFraction = fraction;
@@ -2529,7 +2545,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int drySurfaceY,
             int maximumWaterTop,
             int desiredWaterTop,
-            int preferenceWeight) {
+            int preferenceWeight,
+            int retainedJunctionDatum) {
         private ChannelCarrierCandidate {
             if (preferenceWeight < 1) {
                 throw new IllegalArgumentException("channel grade preference weight must be positive");
