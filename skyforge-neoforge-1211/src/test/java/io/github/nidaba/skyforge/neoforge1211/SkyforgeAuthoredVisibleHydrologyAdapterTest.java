@@ -379,6 +379,46 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var retained = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .toList();
+
+        var topByColumn =
+                new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
+        for (var deployment : retained) {
+            for (var wet : deployment.positions()) {
+                var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        wet.getX(), wet.getZ());
+                topByColumn.merge(column, wet.getY(), Math::max);
+            }
+        }
+        assertFalse(topByColumn.isEmpty());
+
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (var entry : topByColumn.entrySet()) {
+            var column = entry.getKey();
+            for (int[] direction : directions) {
+                var neighbor = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        column.x() + direction[0],
+                        column.z() + direction[1]);
+                Integer neighborTop = topByColumn.get(neighbor);
+                if (neighborTop == null) {
+                    continue;
+                }
+                assertEquals(
+                        entry.getValue(),
+                        neighborTop,
+                        "face-connected retained water cannot expose split standing-water datums");
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void retainedWaterOwnsChannelOverlapColumns() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
