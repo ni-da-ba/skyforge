@@ -80,9 +80,10 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
     }
 
     @Test
-    void surfaceEcologyPreservesExactAuthoredHydrologyRoles() {
+    void authoredHydrologyRolesAreExclusiveAcrossNativePopulation() {
         var vegetation = operation(GenerationStep.Decoration.VEGETAL_DECORATION);
         var ores = operation(GenerationStep.Decoration.UNDERGROUND_ORES);
+        var localModifications = operation(GenerationStep.Decoration.LOCAL_MODIFICATIONS);
 
         assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
                 vegetation,
@@ -104,10 +105,14 @@ final class SkyforgeNativeInteriorPlacementPolicyTest {
                 vegetation,
                 java.util.Optional.empty(),
                 Blocks.OAK_LEAVES.defaultBlockState()));
-        assertTrue(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
                 ores,
                 java.util.Optional.of(Blocks.CLAY.defaultBlockState()),
                 Blocks.IRON_ORE.defaultBlockState()));
+        assertFalse(SkyforgeNativeInteriorPlacementPolicy.allowsAuthoredHydrologyReplacement(
+                localModifications,
+                java.util.Optional.of(Blocks.STONE.defaultBlockState()),
+                Blocks.MAGMA_BLOCK.defaultBlockState()));
     }
 
     @Test
