@@ -1246,7 +1246,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 int minimumWaterTop = Math.max(
                         candidate.ownerMinimumWaterTop(),
                         candidate.drySurfaceY() + 1 - reconciliationDepth);
-                if (minimumWaterTop > candidate.maximumWaterTop()) {
+                int crossSectionMaximumWaterTop = crossSectionMaximumWaterTop(
+                        reach,
+                        candidate,
+                        carrierCandidates.values());
+                if (minimumWaterTop > crossSectionMaximumWaterTop) {
                     feasibleBounds = false;
                     break;
                 }
@@ -1256,8 +1260,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 samples.add(new ChannelGradeSample(
                         fraction,
                         minimumWaterTop,
-                        candidate.maximumWaterTop(),
-                        candidate.desiredWaterTop(),
+                        crossSectionMaximumWaterTop,
+                        Math.min(candidate.desiredWaterTop(), crossSectionMaximumWaterTop),
                         candidate.preferenceWeight()));
                 previousFraction = fraction;
             }
@@ -1289,6 +1293,31 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         + MAX_CHANNEL_CARRIER_RECONCILIATION_BLOCKS
                         + ", spineColumns=" + spine.size()
                         + ", bankableCarrierCandidates=" + carrierCandidates.size());
+    }
+
+    /**
+     * Lowest real lateral-bank ceiling represented by the wet raster around one longitudinal
+     * spine sample.
+     *
+     * <p>The connected spine chooses where the river travels, but the free surface belongs to the
+     * whole cross-section. Constraining the isotonic solve only with the selected spine lets a
+     * nearby wet pixel discover a lower real bank later and get pruned, which can break authored
+     * centerline coverage. A one-and-a-half-voxel longitudinal window folds those lateral carrier
+     * constraints into the grade solve without changing routing or manufacturing solid support.
+     */
+    private static int crossSectionMaximumWaterTop(
+            SkyIslandFluvialReachGeometry reach,
+            ChannelCarrierCandidate center,
+            java.util.Collection<ChannelCarrierCandidate> candidates) {
+        double pathLength = Math.max(1.0, reach.path().pathLength());
+        double fractionRadius = 1.5 / pathLength;
+        int maximum = center.maximumWaterTop();
+        for (ChannelCarrierCandidate candidate : candidates) {
+            if (Math.abs(candidate.fraction() - center.fraction()) <= fractionRadius + 1.0e-12) {
+                maximum = Math.min(maximum, candidate.maximumWaterTop());
+            }
+        }
+        return maximum;
     }
 
     /**
