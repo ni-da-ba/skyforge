@@ -57,6 +57,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     // palette.
     static final int MAX_CHANNEL_BANK_FILL_BLOCKS = 6;
     static final int MAX_RETAINED_BANK_FILL_BLOCKS = 3;
+    // The first wet rings of a retained basin form a shallow littoral ramp instead of a vertical
+    // bathtub cut. Deeper authored basin geometry remains unchanged beyond this bounded fringe.
+    static final int RETAINED_LITTORAL_GRADE_RINGS = 4;
     // A channel touching retained water should hydraulically converge to the basin datum without
     // replacing the bounded isotonic solve. Weight those contact samples strongly enough that the
     // least-change solution prefers a seamless inlet/outlet whenever carrier bounds permit it.
@@ -1766,18 +1769,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
             candidatesWithFullConnectivity++;
 
+            Map<Column, RetainedColumnPlan> gradedCandidate =
+                    gradeRetainedLittoral(connectedCandidate, candidateWaterTopY);
             Optional<List<BlockPos>> bankFill = retainedBankFillPositions(
                     volume,
                     terrain,
                     solidRangeCache,
-                    connectedCandidate.keySet(),
+                    gradedCandidate.keySet(),
                     candidateWaterTopY);
             if (bankFill.isEmpty()) {
                 candidatesRejectedByContainment++;
                 continue;
             }
 
-            realizable = connectedCandidate;
+            realizable = gradedCandidate;
             retainedBankFill = bankFill.orElseThrow();
             waterTopY = candidateWaterTopY;
             break;
@@ -1907,6 +1912,64 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             bedY));
         }
         return realizable;
+    }
+
+    static Map<Column, RetainedColumnPlan> gradeRetainedLittoral(
+            Map<Column, RetainedColumnPlan> basin,
+            int waterTopY) {
+        Objects.requireNonNull(basin, "basin");
+        if (basin.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<Column, Integer> inwardDistance = new HashMap<>();
+        ArrayDeque<Column> queue = new ArrayDeque<>();
+        for (Column column : basin.keySet()) {
+            if (retainedFootprintBoundary(basin.keySet(), column)) {
+                inwardDistance.put(column, 0);
+                queue.addLast(column);
+            }
+        }
+
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        while (!queue.isEmpty()) {
+            Column current = queue.removeFirst();
+            int nextDistance = inwardDistance.get(current) + 1;
+            if (nextDistance >= RETAINED_LITTORAL_GRADE_RINGS) {
+                continue;
+            }
+            for (int[] direction : directions) {
+                Column neighbor = new Column(
+                        current.x() + direction[0],
+                        current.z() + direction[1]);
+                if (!basin.containsKey(neighbor)
+                        || inwardDistance.containsKey(neighbor)) {
+                    continue;
+                }
+                inwardDistance.put(neighbor, nextDistance);
+                queue.addLast(neighbor);
+            }
+        }
+
+        Map<Column, RetainedColumnPlan> graded = new LinkedHashMap<>();
+        for (var entry : basin.entrySet()) {
+            RetainedColumnPlan plan = entry.getValue();
+            Integer ring = inwardDistance.get(entry.getKey());
+            int bedY = plan.bedY();
+            if (ring != null && ring < RETAINED_LITTORAL_GRADE_RINGS) {
+                int maximumDepth = ring + 1;
+                bedY = Math.max(bedY, waterTopY - maximumDepth);
+            }
+            graded.put(
+                    entry.getKey(),
+                    new RetainedColumnPlan(
+                            plan.column(),
+                            plan.sourceCell(),
+                            plan.minimumY(),
+                            plan.baseSurfaceY(),
+                            bedY));
+        }
+        return Collections.unmodifiableMap(graded);
     }
 
     static boolean retainedFootprintBoundary(Set<Column> footprint, Column candidate) {
