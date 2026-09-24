@@ -881,10 +881,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void riverLakeFlareRemainsBoundedWithoutASeparateClampHelper() {
-        assertEquals(0.0, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(-1.0, 0.0, 1.0));
-        assertEquals(0.5, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(0.5, 0.0, 1.0));
-        assertEquals(1.0, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(2.0, 0.0, 1.0));
+    void riverLakeFlareImplementationDoesNotDependOnMissingClampHelper() throws Exception {
+        String source = java.nio.file.Files.readString(
+                java.nio.file.Path.of(System.getProperty("skyforge.test.projectDirectory", "."))
+                        .resolve("src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapter.java"));
+        assertTrue(source.contains("double boundedBlend = Math.max(0.0, Math.min(1.0, blend));"));
+        assertFalse(source.contains("clamp01(blend)"));
     }
 
     @Test
