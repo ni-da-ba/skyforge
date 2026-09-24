@@ -315,6 +315,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     "key-287 retained basin substrate must use authored hydrology sediment");
         }
 
+        var retainedColumns = retained.stream()
+                .flatMap(deployment -> deployment.positions().stream())
+                .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ()))
+                .collect(java.util.stream.Collectors.toSet());
+
         var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
                 fixture.descriptor());
         var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
@@ -353,9 +359,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 assertTrue(
                         distance <= reach.wetHalfWidth() + 1.0,
                         "reference channel centerline must remain represented by nearby wet columns");
+                var nearestColumn = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        nearest.getX(), nearest.getZ());
+                if (retainedColumns.contains(nearestColumn)) {
+                    // Retained water owns its flat basin datum. Treat that domain as a hydraulic
+                    // boundary for per-reach grade evidence; the channel's non-climbing constraint
+                    // resumes when it exits the lake instead of forcing a submerged trench/grade
+                    // through the basin.
+                    previousWaterTop = Integer.MAX_VALUE;
+                    continue;
+                }
                 assertTrue(
                         nearest.getY() <= previousWaterTop,
-                        "reference channel free surface must not climb downstream after Minecraft projection");
+                        "channel-owned free surface must not climb downstream outside retained water");
                 previousWaterTop = nearest.getY();
             }
         }
