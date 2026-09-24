@@ -101,9 +101,11 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         }
         var active = execution.orElseThrow();
         var authoredHydrology = rawAuthoredHydrologyState(active, position);
-        boolean accepted = (authoredHydrology.isEmpty()
-                        || SkyforgeNativeHydrologyDressingStage.allowsPreflight(
-                                authoredHydrology.orElseThrow()))
+        boolean accepted = (SkyforgeNativeHydrologyDressingStage.active()
+                        ? authoredHydrology.isPresent()
+                                && SkyforgeNativeHydrologyDressingStage.allowsPreflight(
+                                        authoredHydrology.orElseThrow())
+                        : authoredHydrology.isEmpty())
                 && active.canWrite(position);
         SkyforgeUndergroundPlacementProbe.observeWritePreflight(
                 active.operation(),
@@ -146,10 +148,12 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         }
         var active = execution.orElseThrow();
         var authoredHydrology = rawAuthoredHydrologyState(active, position);
-        boolean accepted = (authoredHydrology.isEmpty()
-                        || SkyforgeNativeHydrologyDressingStage.allowsReplacement(
-                                authoredHydrology.orElseThrow(),
-                                state))
+        boolean accepted = (SkyforgeNativeHydrologyDressingStage.active()
+                        ? authoredHydrology.isPresent()
+                                && SkyforgeNativeHydrologyDressingStage.allowsReplacement(
+                                        authoredHydrology.orElseThrow(),
+                                        state)
+                        : authoredHydrology.isEmpty())
                 && active.acceptWrite(position, state);
         SkyforgeUndergroundPlacementProbe.observeWriteDecision(
                 active.operation(),
