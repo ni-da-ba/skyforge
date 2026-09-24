@@ -153,6 +153,90 @@ public final class SkyIslandChannelDropPlanner {
         return new SkyIslandChannelDropPlan(descriptor, result);
     }
 
+    /**
+     * Preserves the already-selected drop identities/strengths but moves each interior event from
+     * the coarse graph endpoint onto the strongest actual descent of its naturalized path.
+     *
+     * <p>This keeps watershed/drop selection unchanged while ensuring later geomorphic and backend
+     * realization agree on where the discrete fall occurs.
+     */
+    public static SkyIslandChannelDropPlan localize(
+            SkyIslandDescriptor descriptor,
+            SkyIslandChannelDropPlan selected,
+            SkyIslandNaturalizedChannelPlan naturalized) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(selected, "selected");
+        Objects.requireNonNull(naturalized, "naturalized");
+        if (!selected.descriptor().equals(descriptor)
+                || !naturalized.descriptor().equals(descriptor)) {
+            throw new IllegalArgumentException(
+                    "drop localization inputs must share the same descriptor");
+        }
+
+        Map<SegmentKey, SkyIslandNaturalizedChannelPath> pathBySegment = new HashMap<>();
+        for (SkyIslandNaturalizedChannelPath path : naturalized.paths()) {
+            var segment = path.profile().segment();
+            pathBySegment.put(
+                    new SegmentKey(segment.sourceCellIndex(), segment.downstreamCellIndex()),
+                    path);
+        }
+
+        SkyIslandSemanticField terrain =
+                SkyIslandSemanticFieldSet.create(descriptor).elevationTendency();
+        List<SkyIslandChannelDrop> localized = new ArrayList<>(selected.drops().size());
+        for (SkyIslandChannelDrop drop : selected.drops()) {
+            if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
+                localized.add(drop);
+                continue;
+            }
+            SkyIslandNaturalizedChannelPath path = pathBySegment.get(
+                    new SegmentKey(drop.sourceCellIndex(), drop.downstreamCellIndex()));
+            if (path == null) {
+                throw new IllegalStateException(
+                        "selected interior drop lost its naturalized channel path");
+            }
+            SkyIslandLocalPosition position = strongestDescentPosition(path, terrain);
+            localized.add(new SkyIslandChannelDrop(
+                    drop.kind(),
+                    drop.sourceCellIndex(),
+                    drop.downstreamCellIndex(),
+                    position,
+                    drop.dropPotential(),
+                    drop.dischargePotential(),
+                    drop.persistencePotential(),
+                    drop.plungePoolPotential()));
+        }
+        return new SkyIslandChannelDropPlan(descriptor, localized);
+    }
+
+    private static SkyIslandLocalPosition strongestDescentPosition(
+            SkyIslandNaturalizedChannelPath path,
+            SkyIslandSemanticField terrain) {
+        List<SkyIslandLocalPosition> points = path.points();
+        double bestScore = Double.NEGATIVE_INFINITY;
+        SkyIslandLocalPosition best = path.profile().segment().end();
+
+        for (int index = 1; index < points.size(); index++) {
+            SkyIslandLocalPosition a = points.get(index - 1);
+            SkyIslandLocalPosition b = points.get(index);
+            double length = Math.hypot(b.x() - a.x(), b.z() - a.z());
+            if (length <= EPSILON) {
+                continue;
+            }
+            double descent = terrain.sample(a) - terrain.sample(b);
+            double score = descent / length;
+            if (score > bestScore + EPSILON) {
+                bestScore = score;
+                best = new SkyIslandLocalPosition(
+                        0.5 * (a.x() + b.x()),
+                        0.5 * (a.z() + b.z()));
+            }
+        }
+        return best;
+    }
+
+    private record SegmentKey(int source, int downstream) {}
+
     private static boolean spatiallySeparated(
             InteriorCandidate candidate,
             List<InteriorCandidate> selected,

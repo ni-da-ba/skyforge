@@ -688,13 +688,26 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 }
                 junctionColumns++;
                 var terminalDrop = fluvial.terminalDrop(reach);
+                var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                        contact.entry().getKey().x() - physical.centerX(),
+                        contact.entry().getKey().z() - physical.centerZ());
+                double dropDistance = terminalDrop
+                        .map(drop -> Math.hypot(
+                                local.x() - drop.position().x(),
+                                local.z() - drop.position().z()))
+                        .orElse(Double.POSITIVE_INFINITY);
+                boolean localizedAuthoredFall = terminalDrop.isPresent()
+                        && dropDistance <= Math.max(2.0, reach.bankfullHalfWidth())
+                        && contact.entry().getValue() < contact.datum();
                 assertTrue(
-                        Math.abs(contact.entry().getValue() - contact.datum()) <= 2,
-                        "channel/lake transition must remain a bounded cascade rather than a separate terrace: "
+                        Math.abs(contact.entry().getValue() - contact.datum()) <= 2
+                                || localizedAuthoredFall,
+                        "channel/lake transition may depart the basin datum only at the localized authored fall: "
                                 + "channelIndex=" + (channelIndex - 1)
                                 + ", sourceCell=" + sourceCell
                                 + ", downstreamCell=" + downstreamCell
                                 + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
+                                + ", dropDistance=" + dropDistance
                                 + ", startDistance=" + contact.startDistance()
                                 + ", endDistance=" + contact.endDistance()
                                 + ", column=" + contact.entry().getKey()

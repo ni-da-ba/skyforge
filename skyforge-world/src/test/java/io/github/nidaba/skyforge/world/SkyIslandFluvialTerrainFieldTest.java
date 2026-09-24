@@ -200,8 +200,6 @@ class SkyIslandFluvialTerrainFieldTest {
                 assertTrue(field.valleyHalfWidthAt(reach, 0.0) > field.valleyHalfWidthAt(reach, 1.0));
                 if (field.terminalDrop(reach).isEmpty()) {
                     assertEquals(reach.wetHalfWidth(), field.wetHalfWidthAt(reach, 1.0), EPSILON);
-                } else {
-                    assertTrue(field.wetHalfWidthAt(reach, 1.0) < reach.wetHalfWidth());
                 }
                 assertEquals(reach.bankfullHalfWidth(), field.bankfullHalfWidthAt(reach, 1.0), EPSILON);
                 assertEquals(reach.valleyHalfWidth(), field.valleyHalfWidthAt(reach, 1.0), EPSILON);
@@ -222,18 +220,13 @@ class SkyIslandFluvialTerrainFieldTest {
             if (field.terminalDrop(reach).isEmpty()) {
                 continue;
             }
-            double upstreamWet = field.wetHalfWidthAt(reach, 0.50);
-            double terminalWet = field.wetHalfWidthAt(reach, 1.0);
-            assertTrue(terminalWet < upstreamWet);
-            assertTrue(terminalWet >= reach.wetHalfWidth() * 0.40 - EPSILON);
-            assertEquals(
-                    reach.bankfullHalfWidth(),
-                    field.bankfullHalfWidthAt(reach, 1.0),
-                    EPSILON);
-            assertEquals(
-                    reach.valleyHalfWidth(),
-                    field.valleyHalfWidthAt(reach, 1.0),
-                    EPSILON);
+            double dropFraction = field.terminalDropFraction(reach).orElseThrow();
+            double throatWet = field.wetHalfWidthAt(reach, dropFraction);
+            assertTrue(throatWet < reach.wetHalfWidth());
+            assertTrue(throatWet >= reach.wetHalfWidth() * 0.40 - EPSILON);
+            assertTrue(field.bankfullHalfWidthAt(reach, dropFraction) >= throatWet);
+            assertTrue(field.valleyHalfWidthAt(reach, dropFraction)
+                    > field.bankfullHalfWidthAt(reach, dropFraction));
             exercised = true;
         }
         assertTrue(exercised, "key-287 must exercise at least one accepted interior drop");

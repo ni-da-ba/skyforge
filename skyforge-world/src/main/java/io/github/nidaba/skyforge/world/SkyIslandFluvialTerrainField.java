@@ -120,6 +120,20 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 * terminalDropThroatScaleAt(reach, fraction);
     }
 
+    /** Longitudinal fraction of the exact localized interior drop on this reach, when present. */
+    public OptionalDouble terminalDropFraction(
+            SkyIslandFluvialReachGeometry reach) {
+        Objects.requireNonNull(reach, "reach");
+        if (!reaches.contains(reach)) {
+            throw new IllegalArgumentException("reach must belong to this fluvial field");
+        }
+        SkyIslandChannelDrop drop = terminalDrops.get(reach);
+        if (drop == null) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(project(drop.position(), reach.path()).fraction());
+    }
+
     /** Whether this position lies inside this exact reach's authored wet corridor. */
     public boolean wetCorridorContains(
             SkyIslandFluvialReachGeometry reach,
@@ -681,27 +695,39 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         }
 
         double pathLength = Math.max(EPSILON, reach.path().pathLength());
+        double dropFraction = project(drop.position(), reach.path()).fraction();
         double transitionLength = Math.min(
                 pathLength,
                 Math.max(
                         2.0 * reach.bankfullHalfWidth(),
                         4.0 * reach.wetHalfWidth()));
-        double startFraction = Math.max(0.0, 1.0 - transitionLength / pathLength);
-        if (fraction <= startFraction) {
-            return 1.0;
-        }
+        double transitionFraction = Math.min(
+                1.0,
+                transitionLength / pathLength);
+        double startFraction = Math.max(0.0, dropFraction - transitionFraction);
+        double endFraction = Math.min(
+                1.0,
+                dropFraction + 0.65 * transitionFraction);
 
-        // The event has already been selected by accepted hydrology. Its accepted strength only
-        // controls how tightly the visible wet corridor converges on the terminal lip; dry
-        // bankfull and valley geometry remain unchanged.
-        double terminalScale = clamp(
+        // The selected drop is a localized throat, not a property of the whole downstream reach.
+        // Converge into the lip, then reopen downstream as physical channel geometry resumes.
+        double throatScale = clamp(
                 1.0 - 0.60 * drop.dropPotential(),
                 0.40,
                 0.65);
+        if (fraction < startFraction || fraction > endFraction) {
+            return 1.0;
+        }
+        if (fraction <= dropFraction) {
+            double t = smootherstep(
+                    (fraction - startFraction)
+                            / Math.max(EPSILON, dropFraction - startFraction));
+            return lerp(1.0, throatScale, t);
+        }
         double t = smootherstep(
-                (fraction - startFraction)
-                        / Math.max(EPSILON, 1.0 - startFraction));
-        return lerp(1.0, terminalScale, t);
+                (fraction - dropFraction)
+                        / Math.max(EPSILON, endFraction - dropFraction));
+        return lerp(throatScale, 1.0, t);
     }
 
     private static double wetHalfWidthAtStatic(

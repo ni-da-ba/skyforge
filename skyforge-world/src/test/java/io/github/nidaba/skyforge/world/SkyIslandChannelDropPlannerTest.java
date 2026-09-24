@@ -59,6 +59,53 @@ class SkyIslandChannelDropPlannerTest {
     }
 
     @Test
+    void localizedInteriorDropsPreserveSelectionAndMoveOntoNaturalizedPaths() {
+        SkyIslandDescriptor descriptor = descriptor(287L);
+        var profiles = SkyIslandChannelProfilePlanner.plan(descriptor).profiles();
+        var selected = SkyIslandChannelDropPlanner.plan(descriptor, profiles);
+        var naturalized = SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
+        var localized = SkyIslandChannelDropPlanner.localize(
+                descriptor, selected, naturalized);
+
+        assertEquals(selected.drops().size(), localized.drops().size());
+        Map<String, SkyIslandChannelDrop> selectedByIdentity = new HashMap<>();
+        for (SkyIslandChannelDrop drop : selected.drops()) {
+            selectedByIdentity.put(
+                    drop.kind() + ":" + drop.sourceCellIndex() + ":" + drop.downstreamCellIndex(),
+                    drop);
+        }
+
+        boolean movedInterior = false;
+        for (SkyIslandChannelDrop drop : localized.drops()) {
+            SkyIslandChannelDrop original = selectedByIdentity.get(
+                    drop.kind() + ":" + drop.sourceCellIndex() + ":" + drop.downstreamCellIndex());
+            assertTrue(original != null);
+            assertEquals(original.dropPotential(), drop.dropPotential());
+            assertEquals(original.dischargePotential(), drop.dischargePotential());
+            assertEquals(original.persistencePotential(), drop.persistencePotential());
+            assertEquals(original.plungePoolPotential(), drop.plungePoolPotential());
+            if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
+                assertEquals(original.position(), drop.position());
+                continue;
+            }
+
+            var path = naturalized.paths().stream()
+                    .filter(candidate ->
+                            candidate.profile().segment().sourceCellIndex() == drop.sourceCellIndex()
+                                    && candidate.profile().segment().downstreamCellIndex()
+                                            == drop.downstreamCellIndex())
+                    .findFirst()
+                    .orElseThrow();
+            double distance = distanceToPath(drop.position(), path);
+            assertTrue(distance <= 1.0e-9);
+            if (!drop.position().equals(original.position())) {
+                movedInterior = true;
+            }
+        }
+        assertTrue(movedInterior, "key-287 must exercise localization away from a coarse endpoint");
+    }
+
+    @Test
     void representativeNetworksProduceSparseSeparatedInteriorDropsAndEdgeFalls() {
         long interior = 0;
         long edges = 0;
@@ -88,6 +135,31 @@ class SkyIslandChannelDropPlannerTest {
         }
         assertTrue(interior > 0);
         assertTrue(edges > 0);
+    }
+
+    private static double distanceToPath(
+            SkyIslandLocalPosition position,
+            SkyIslandNaturalizedChannelPath path) {
+        double best = Double.POSITIVE_INFINITY;
+        var points = path.points();
+        for (int index = 1; index < points.size(); index++) {
+            var a = points.get(index - 1);
+            var b = points.get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            if (lengthSquared <= 1.0e-12) {
+                continue;
+            }
+            double t = Math.max(0.0, Math.min(
+                    1.0,
+                    ((position.x() - a.x()) * dx + (position.z() - a.z()) * dz)
+                            / lengthSquared));
+            double x = a.x() + t * dx;
+            double z = a.z() + t * dz;
+            best = Math.min(best, Math.hypot(position.x() - x, position.z() - z));
+        }
+        return best;
     }
 
     private static SkyIslandDescriptor descriptor(long key) {

@@ -15,16 +15,19 @@ public final class SkyIslandCoherentHydrologicRealizationPlanner {
 
         SkyIslandRiparianCorridorPlan riparian =
                 SkyIslandRiparianCorridorPlanner.plan(descriptor, profiles);
-        SkyIslandChannelDropPlan drops =
+        SkyIslandNaturalizedChannelPlan naturalized =
+                SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
+        SkyIslandChannelDropPlan selectedDrops =
                 SkyIslandChannelDropPlanner.plan(descriptor, profiles);
+        SkyIslandChannelDropPlan drops =
+                SkyIslandChannelDropPlanner.localize(
+                        descriptor, selectedDrops, naturalized);
         SkyIslandHydrologicTerrainInfluencePlan influence =
                 SkyIslandHydrologicTerrainInfluencePlanner.plan(
                         descriptor, profiles, riparian, drops);
         SkyIslandHydrologicTerrainSurfacePlan surface =
                 SkyIslandHydrologicTerrainSurfacePlanner.plan(
                         descriptor, influence, riparian);
-        SkyIslandNaturalizedChannelPlan naturalized =
-                SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
 
         return new SkyIslandCoherentHydrologicRealizationPlan(
                 descriptor,

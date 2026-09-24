@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.world.SkyIslandChannelDrop;
 import io.github.nidaba.skyforge.world.SkyIslandContinuousHydrologicTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialReachGeometry;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField;
@@ -493,8 +494,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException(
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
-        boolean routedDropOutlet =
-                routedEdgeOutlet || fluvial.terminalDrop(reach).isPresent();
+        Optional<SkyIslandLocalPosition> routedOutlet =
+                fluvial.terminalDrop(reach).map(SkyIslandChannelDrop::position);
+        if (routedOutlet.isEmpty() && routedEdgeOutlet) {
+            routedOutlet = Optional.of(path.points().getLast());
+        }
 
         Map<Column, ChannelPathProjection> candidateProjections =
                 candidateColumnProjections(volume, fluvial, reach);
@@ -513,7 +517,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 fluvial,
                 reach,
                 candidateProjections,
-                routedDropOutlet,
+                routedOutlet,
                 retainedWaterTopByColumn,
                 retainedApproach,
                 solidRangeCache,
@@ -642,7 +646,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     reach,
                     path,
-                    routedDropOutlet,
+                    routedOutlet,
                     retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isPresent()) {
@@ -684,7 +688,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 column,
                                 reach,
                                 path,
-                                routedDropOutlet,
+                                routedOutlet,
                                 retainedWaterTopByColumn,
                                 solidRangeCache)
                         .isPresent()) {
@@ -720,7 +724,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     column,
                     reach,
                     path,
-                    routedDropOutlet,
+                    routedOutlet,
                     retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isEmpty()) {
@@ -882,7 +886,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ChannelColumnPlan candidate,
             SkyIslandFluvialReachGeometry reach,
             SkyIslandNaturalizedChannelPath path,
-            boolean routedEdgeOutlet,
+            Optional<SkyIslandLocalPosition> routedOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
@@ -901,10 +905,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 // is lake bed, not a dry side bank, and must not cap or reject the river surface.
                 continue;
             }
-            if (routedEdgeOutlet
+            if (routedOutlet.isPresent()
                     && outletBreaches == 0
                     && channelOutletBreachAllowed(
-                            volume, candidate.column(), bank, reach, path)) {
+                            volume,
+                            candidate.column(),
+                            bank,
+                            reach,
+                            path,
+                            routedOutlet.orElseThrow())) {
                 outletBreaches++;
                 continue;
             }
@@ -1198,7 +1207,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialTerrainField fluvial,
             SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
-            boolean routedEdgeOutlet,
+            Optional<SkyIslandLocalPosition> routedOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
             RetainedApproachWindow retainedApproach,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
@@ -1284,7 +1293,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     candidateProjections,
                     column,
                     drySurfaceY,
-                    routedEdgeOutlet,
+                    routedOutlet,
                     retainedWaterTopByColumn,
                     retainedApproach,
                     solidRangeCache,
@@ -1771,7 +1780,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Column, ChannelPathProjection> candidateProjections,
             Column wet,
             int candidateDrySurfaceY,
-            boolean routedEdgeOutlet,
+            Optional<SkyIslandLocalPosition> routedOutlet,
             Map<Column, Integer> retainedWaterTopByColumn,
             RetainedApproachWindow retainedApproach,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache,
@@ -1810,10 +1819,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 continue;
             }
 
-            boolean outletBreach = routedEdgeOutlet
+            boolean outletBreach = routedOutlet.isPresent()
                     && outletBreaches == 0
                     && channelOutletBreachAllowed(
-                            volume, wet, bank, reach, reach.path());
+                            volume,
+                            wet,
+                            bank,
+                            reach,
+                            reach.path(),
+                            routedOutlet.orElseThrow());
             if (outletBreach) {
                 outletBreaches++;
                 continue;
@@ -1881,9 +1895,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Column wet,
             Column bank,
             SkyIslandFluvialReachGeometry reach,
-            SkyIslandNaturalizedChannelPath path) {
+            SkyIslandNaturalizedChannelPath path,
+            SkyIslandLocalPosition outlet) {
         SkyIslandLocalPosition local = localPosition(volume, wet);
-        SkyIslandLocalPosition outlet = path.points().getLast();
         if (Math.hypot(local.x() - outlet.x(), local.z() - outlet.z())
                 > Math.max(1.5, reach.wetHalfWidth() * 0.75)) {
             return false;
@@ -1892,18 +1906,40 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             return false;
         }
 
-        SkyIslandLocalPosition previous =
-                path.points().get(path.points().size() - 2);
-        double dx = outlet.x() - previous.x();
-        double dz = outlet.z() - previous.z();
+        double bestDistance = Double.POSITIVE_INFINITY;
+        double downstreamX = 0.0;
+        double downstreamZ = 0.0;
+        for (int index = 1; index < path.points().size(); index++) {
+            SkyIslandLocalPosition a = path.points().get(index - 1);
+            SkyIslandLocalPosition b = path.points().get(index);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            if (!(lengthSquared > 0.0)) {
+                continue;
+            }
+            double t = Math.max(0.0, Math.min(
+                    1.0,
+                    ((outlet.x() - a.x()) * dx + (outlet.z() - a.z()) * dz)
+                            / lengthSquared));
+            double qx = a.x() + t * dx;
+            double qz = a.z() + t * dz;
+            double distance = Math.hypot(outlet.x() - qx, outlet.z() - qz);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                downstreamX = dx;
+                downstreamZ = dz;
+            }
+        }
+
         int expectedX;
         int expectedZ;
-        if (Math.abs(dx) >= Math.abs(dz)) {
-            expectedX = dx >= 0.0 ? 1 : -1;
+        if (Math.abs(downstreamX) >= Math.abs(downstreamZ)) {
+            expectedX = downstreamX >= 0.0 ? 1 : -1;
             expectedZ = 0;
         } else {
             expectedX = 0;
-            expectedZ = dz >= 0.0 ? 1 : -1;
+            expectedZ = downstreamZ >= 0.0 ? 1 : -1;
         }
         return bank.x() - wet.x() == expectedX
                 && bank.z() - wet.z() == expectedZ;
