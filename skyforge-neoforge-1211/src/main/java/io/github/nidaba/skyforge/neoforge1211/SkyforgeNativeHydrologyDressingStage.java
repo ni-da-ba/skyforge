@@ -42,7 +42,11 @@ final class SkyforgeNativeHydrologyDressingStage {
 
     static Role classify(PlacedFeature placedFeature) {
         Objects.requireNonNull(placedFeature, "placedFeature");
-        Feature<?> feature = placedFeature.feature().value().feature();
+        return classifyFeature(placedFeature.feature().value().feature());
+    }
+
+    static Role classifyFeature(Feature<?> feature) {
+        Objects.requireNonNull(feature, "feature");
         if (feature == Feature.SEAGRASS || feature == Feature.KELP || feature == Feature.SEA_PICKLE) {
             return Role.AQUATIC_VEGETATION;
         }
@@ -80,9 +84,17 @@ final class SkyforgeNativeHydrologyDressingStage {
     }
 
     static boolean allowsReplacement(BlockState authoredState, BlockState replacementState) {
+        return allowsReplacement(activeRole(), authoredState, replacementState);
+    }
+
+    static boolean allowsReplacement(
+            Role role,
+            BlockState authoredState,
+            BlockState replacementState) {
+        Objects.requireNonNull(role, "role");
         Objects.requireNonNull(authoredState, "authoredState");
         Objects.requireNonNull(replacementState, "replacementState");
-        return switch (activeRole()) {
+        return switch (role) {
             case AQUATIC_VEGETATION -> authoredState.is(Blocks.WATER)
                     && isWaterBearing(replacementState);
             case SUBSTRATE_DISK -> SkyforgeAuthoredVisibleHydrologyAdapter
