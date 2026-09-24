@@ -42,6 +42,18 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
     }
 
     @Test
+    void reviewerDoesNotTrackSpecimenUntilDeferredLifecycleIsComplete() throws IOException {
+        String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
+        int start = runtime.indexOf("static void onPlayerLoggedIn");
+        int end = runtime.indexOf("@SubscribeEvent", start + 1);
+        assertTrue(start >= 0 && end > start);
+        String login = runtime.substring(start, end);
+        assertTrue(login.contains("nominalRadius() * 3.0 + 512.0"));
+        assertFalse(login.contains("SUSPENSION_Y + 92.0),\n                    0.0"));
+    }
+
+    @Test
     void reviewEcologyReusesTheFluvialFieldThatProducedMinecraftHydrology() throws IOException {
         String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
