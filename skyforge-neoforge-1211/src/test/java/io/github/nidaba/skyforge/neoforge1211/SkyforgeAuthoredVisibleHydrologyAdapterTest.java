@@ -486,6 +486,46 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void retainedJunctionBlendExtendsOnlyAcrossBoundedPhysicalApproach() {
+        var retained = java.util.Map.of(
+                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0), 100);
+
+        var atLake = SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicBlendTarget(
+                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0), retained).orElseThrow();
+        assertEquals(100, atLake.datum());
+        assertEquals(0, atLake.distanceBlocks());
+
+        var approach = SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicBlendTarget(
+                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(2, 1), retained).orElseThrow();
+        assertEquals(100, approach.datum());
+        assertEquals(3, approach.distanceBlocks());
+
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicBlendTarget(
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                SkyforgeAuthoredVisibleHydrologyAdapter.RETAINED_JUNCTION_BLEND_BLOCKS,
+                                0),
+                        retained)
+                .isPresent());
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicBlendTarget(
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                SkyforgeAuthoredVisibleHydrologyAdapter.RETAINED_JUNCTION_BLEND_BLOCKS + 1,
+                                0),
+                        retained)
+                .isEmpty());
+    }
+
+    @Test
+    void retainedJunctionBlendRejectsEquidistantConflictingLakeDatums() {
+        var retained = java.util.Map.of(
+                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(-1, 0), 100,
+                new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0), 102);
+        assertThrows(
+                IllegalStateException.class,
+                () -> SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicBlendTarget(
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0), retained));
+    }
+
+    @Test
     @Tag("qualification")
     void retainedWaterOwnsChannelOverlapColumns() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
