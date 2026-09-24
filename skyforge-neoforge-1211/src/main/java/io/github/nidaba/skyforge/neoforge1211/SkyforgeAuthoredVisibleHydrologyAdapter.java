@@ -599,6 +599,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     path,
                     routedDropOutlet,
+                    retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isPresent()) {
                 containedWet.add(column.column());
@@ -640,6 +641,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 reach,
                                 path,
                                 routedDropOutlet,
+                                retainedWaterTopByColumn,
                                 solidRangeCache)
                         .isPresent()) {
                     stillContained.add(wetColumn);
@@ -675,6 +677,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     path,
                     routedDropOutlet,
+                    retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isEmpty()) {
                 throw new IllegalStateException(
@@ -815,7 +818,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             SkyIslandNaturalizedChannelPath path,
             boolean routedEdgeOutlet,
+            Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
         LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
         int outletBreaches = 0;
         int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
@@ -824,6 +829,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     candidate.column().x() + direction[0],
                     candidate.column().z() + direction[1]);
             if (plannedWet.contains(bank)) {
+                continue;
+            }
+            if (retainedWaterTopByColumn.containsKey(bank)) {
+                // Standing water is an authored hydraulic opening. Its submerged physical carrier
+                // is lake bed, not a dry side bank, and must not cap or reject the river surface.
                 continue;
             }
             if (routedEdgeOutlet
@@ -1612,6 +1622,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
         for (int[] direction : directions) {
             Column bank = new Column(wet.x() + direction[0], wet.z() + direction[1]);
+            if (retainedWaterTopByColumn.containsKey(bank)) {
+                // The basin supplies water at this face. Its submerged support is not a dry-bank
+                // ceiling and must not drag the adjoining channel down to the lake bed.
+                continue;
+            }
             ChannelPathProjection bankProjection = candidateProjections.get(bank);
             var optionalRange = solidRangeCache.computeIfAbsent(
                     bank,
