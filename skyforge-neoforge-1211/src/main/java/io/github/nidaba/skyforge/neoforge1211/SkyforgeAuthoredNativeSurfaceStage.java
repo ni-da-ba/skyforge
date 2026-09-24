@@ -14,6 +14,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeManager;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -241,8 +242,21 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                     // Hydrology owns occupancy and geometry, not the final material palette.
                     // The scratch chunk already preserves authored AIR/water, so native surface rules
                     // can safely realize the exposed/submerged solid bed and banks using the exact
-                    // island biome context. This keeps fluvial material expression adaptable instead
-                    // of freezing a Skyforge-authored clay/stone palette into the backend.
+                    // island biome context. Terrestrial turf is the one exception: grass/mycelium/
+                    // podzol copied directly beneath authored water produces a terrestrial lawn on
+                    // the lake floor. Keep the existing stable substrate there and let native
+                    // aquatic vegetation / substrate disks provide the wet expression later.
+                    boolean submergedHydrologyTop = hydrologyExposureDepth == 0
+                            && SkyforgeNeoForge1211SurfaceStage
+                                    .authoredHydrologyPopulationState(volumeId, cursor.above())
+                                    .map(state -> state.is(Blocks.WATER))
+                                    .orElse(false);
+                    if (submergedHydrologyTop
+                            && (nativeState.is(Blocks.GRASS_BLOCK)
+                                    || nativeState.is(Blocks.MYCELIUM)
+                                    || nativeState.is(Blocks.PODZOL))) {
+                        continue;
+                    }
                     if (!stableWhenCopied(live, cursor, nativeState)) {
                         continue;
                     }
