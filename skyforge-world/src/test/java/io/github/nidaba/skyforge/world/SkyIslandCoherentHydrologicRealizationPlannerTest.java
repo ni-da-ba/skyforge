@@ -27,11 +27,32 @@ class SkyIslandCoherentHydrologicRealizationPlannerTest {
             }
             exercised = true;
 
-            assertEquals(SkyIslandRiparianCorridorPlanner.plan(descriptor), coherent.riparian());
-            assertEquals(SkyIslandChannelDropPlanner.plan(descriptor), coherent.drops());
-            assertEquals(SkyIslandHydrologicTerrainInfluencePlanner.plan(descriptor), coherent.terrainInfluence());
-            assertEquals(SkyIslandHydrologicTerrainSurfacePlanner.plan(descriptor), coherent.terrainSurface());
-            assertEquals(SkyIslandNaturalizedChannelPlanner.plan(descriptor), coherent.naturalizedChannels());
+            SkyIslandRiparianCorridorPlan riparian =
+                    SkyIslandRiparianCorridorPlanner.plan(descriptor);
+            SkyIslandNaturalizedChannelPlan naturalized =
+                    SkyIslandNaturalizedChannelPlanner.plan(descriptor);
+            SkyIslandChannelDropPlan localizedDrops =
+                    SkyIslandChannelDropPlanner.localize(
+                            descriptor,
+                            SkyIslandChannelDropPlanner.plan(descriptor),
+                            naturalized);
+            SkyIslandHydrologicTerrainInfluencePlan localizedInfluence =
+                    SkyIslandHydrologicTerrainInfluencePlanner.plan(
+                            descriptor,
+                            coherent.channels().profiles(),
+                            riparian,
+                            localizedDrops);
+            SkyIslandHydrologicTerrainSurfacePlan localizedSurface =
+                    SkyIslandHydrologicTerrainSurfacePlanner.plan(
+                            descriptor,
+                            localizedInfluence,
+                            riparian);
+
+            assertEquals(riparian, coherent.riparian());
+            assertEquals(localizedDrops, coherent.drops());
+            assertEquals(localizedInfluence, coherent.terrainInfluence());
+            assertEquals(localizedSurface, coherent.terrainSurface());
+            assertEquals(naturalized, coherent.naturalizedChannels());
         }
         assertTrue(exercised, "representative corpus must retain at least one genuinely unpruned network");
     }

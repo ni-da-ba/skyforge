@@ -3109,6 +3109,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 : Optional.of(new RetainedJunctionTarget(datum, bestDistance));
     }
 
+    static boolean retainedApproachAuthorizesColumn(
+            SkyIslandWorldVolume volume,
+            SkyIslandFluvialTerrainField fluvial,
+            SkyIslandFluvialReachGeometry reach,
+            Column column,
+            Map<Column, Integer> retainedWaterTopByColumn,
+            boolean sourceConnectedToRetained,
+            boolean downstreamConnectedToRetained) {
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(fluvial, "fluvial");
+        Objects.requireNonNull(reach, "reach");
+        Objects.requireNonNull(column, "column");
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
+
+        Map<Column, ChannelPathProjection> projections =
+                candidateColumnProjections(volume, fluvial, reach);
+        ChannelPathProjection projection = projections.get(column);
+        if (projection == null) {
+            return false;
+        }
+        RetainedApproachWindow window = retainedApproachWindow(
+                projections,
+                retainedWaterTopByColumn,
+                sourceConnectedToRetained,
+                downstreamConnectedToRetained);
+        return window.authorizes(projection.fraction(), reach.path().pathLength());
+    }
+
     private static RetainedApproachWindow retainedApproachWindow(
             Map<Column, ChannelPathProjection> candidateProjections,
             Map<Column, Integer> retainedWaterTopByColumn,

@@ -673,17 +673,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 continue;
             }
 
-            double bestEndpointDistance = contacts.stream()
-                    .mapToDouble(contact -> sourceConnectedToRetained
-                            ? contact.startDistance()
-                            : contact.endDistance())
-                    .min()
-                    .orElseThrow();
             for (var contact : contacts) {
-                double endpointDistance = sourceConnectedToRetained
-                        ? contact.startDistance()
-                        : contact.endDistance();
-                if (endpointDistance > bestEndpointDistance + 1.0e-9) {
+                if (!SkyforgeAuthoredVisibleHydrologyAdapter.retainedApproachAuthorizesColumn(
+                        fixture.volume(),
+                        fluvial,
+                        reach,
+                        contact.entry().getKey(),
+                        retainedTop,
+                        sourceConnectedToRetained,
+                        downstreamConnectedToRetained)) {
                     continue;
                 }
                 junctionColumns++;
