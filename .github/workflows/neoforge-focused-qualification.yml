@@ -54,6 +54,8 @@ jobs:
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.boundedAcceptedCorpusCoversEveryRequiredImplementationKind
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceKey287RetainedWaterIsFlatConnectedAndLocallyConditioned
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum
+              --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.hydrologyReferenceChannelLakeJunctionApproachesBasinDatumWithoutSyntheticLip
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.retainedWaterOwnsChannelOverlapColumns
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeNativeInteriorPlacementPolicyTest
               --tests io.github.nidaba.skyforge.neoforge1211.SkyforgeAuthoredVisibleHydrologyAdapterTest.stackedVolumesKeepAcceptedCorpusWaterExactOwnerLocal
