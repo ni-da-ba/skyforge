@@ -184,6 +184,7 @@ final class SkyforgeNativePlacedFeatureRunner {
                 var lakeAdmission = SkyforgeNativeLakeAdmissionStage.open(operation)) {
             domain.requireActive();
             execution.requireActive();
+            hydrologyDressing.requireActive();
             verticalFrame.requireActive();
             generatedFluid.requireActive();
             lakeAdmission.requireActive();
