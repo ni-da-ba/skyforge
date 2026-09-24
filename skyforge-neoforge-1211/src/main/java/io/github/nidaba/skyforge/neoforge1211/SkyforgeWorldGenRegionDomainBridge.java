@@ -169,8 +169,22 @@ public final class SkyforgeWorldGenRegionDomainBridge {
         if (execution.isEmpty()) {
             return OptionalInt.empty();
         }
+        var active = execution.orElseThrow();
+        if (SkyforgeNativeHydrologyDressingStage.active()
+                && (heightmapType == Heightmap.Types.OCEAN_FLOOR
+                        || heightmapType == Heightmap.Types.OCEAN_FLOOR_WG)) {
+            var authoredFloor = SkyforgeNeoForge1211SurfaceStage.authoredHydrologyOceanFloorHeight(
+                    active.operation().volumeId(),
+                    worldX,
+                    worldZ,
+                    minimumY,
+                    height);
+            if (authoredFloor.isPresent()) {
+                return authoredFloor;
+            }
+        }
         var claim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
-                execution.orElseThrow().operation().volumeId(),
+                active.operation().volumeId(),
                 worldX,
                 worldZ,
                 heightmapType,
