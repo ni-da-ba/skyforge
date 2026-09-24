@@ -772,6 +772,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(
                 expectedSurface.size(),
                 indexed.values().stream().mapToInt(projection -> projection.surfacePositions().size()).sum());
+        assertEquals(
+                deployments.stream().mapToInt(deployment -> deployment.forcedSurfacePositions().size()).sum(),
+                indexed.values().stream().mapToInt(projection -> projection.forcedSurfacePositions().size()).sum());
         for (var entry : indexed.entrySet()) {
             long chunkKey = entry.getKey();
             for (var state : entry.getValue().states().entrySet()) {
@@ -863,7 +866,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(1, deployment.positions().size());
         assertEquals(1, deployment.carvedPositions().size());
         assertEquals(1, deployment.surfacePositions().size());
-        assertTrue(deployment.forcedSurfacePositions().isEmpty());
+        assertEquals(1, deployment.forcedSurfacePositions().size());
     }
 
     @Test
