@@ -881,6 +881,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void riverLakeFlareRemainsBoundedWithoutASeparateClampHelper() {
+        assertEquals(0.0, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(-1.0, 0.0, 1.0));
+        assertEquals(0.5, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(0.5, 0.0, 1.0));
+        assertEquals(1.0, SkyforgeAuthoredVisibleHydrologyAdapter.clamp(2.0, 0.0, 1.0));
+    }
+
+    @Test
     void connectedHydrologyFootprintRequiresSharedBlockFaces() {
         var origin = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0);
         var cardinal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0);
