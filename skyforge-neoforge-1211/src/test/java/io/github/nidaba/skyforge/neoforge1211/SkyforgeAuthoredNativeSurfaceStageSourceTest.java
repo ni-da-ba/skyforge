@@ -23,6 +23,8 @@ final class SkyforgeAuthoredNativeSurfaceStageSourceTest {
         assertTrue(stage.contains("NoiseGeneratorSettings.OVERWORLD"));
         assertTrue(stage.contains("new ProtoChunk("));
         assertTrue(stage.contains("SkyIslandTerrainSemantic.SURFACE_MANTLE"));
+        assertTrue(stage.contains("Hydrology owns occupancy and geometry, not the final material palette."));
+        assertFalse(stage.contains("must not repaint"));
         assertFalse(stage.contains("dr70_surface_donor"));
     }
 
