@@ -116,13 +116,18 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
         }
         player.setGameMode(GameType.SPECTATOR);
         if (!ready) {
-            // Keep the reviewer at the eventual overhead inspection location while immutable
-            // authored hydrology is prepared; the blank bootstrap world otherwise spawns near the
-            // void floor and looks like the review fixture failed to load.
+            // Do not let the review client track the specimen while deferred terrain, fluids and
+            // native population are still mutating stable chunks. A client that observes those
+            // intermediate states can retain stale section/water/vegetation presentation until the
+            // chunk is unloaded and retracked. Hold the reviewer well outside the specimen's view
+            // footprint and enter only after the complete production lifecycle is saved.
+            double holding = SkyforgeHydrologyReferenceReviewFixture.create()
+                    .descriptor()
+                    .nominalRadius() * 3.0 + 512.0;
             player.teleportTo(
-                    0.0,
-                    Math.min(315.0, SkyforgeHydrologyReferenceReviewFixture.SUSPENSION_Y + 92.0),
-                    0.0);
+                    holding,
+                    SkyforgeHydrologyReferenceReviewFixture.SUSPENSION_Y + 32.0,
+                    holding);
         }
         if (ready) {
             move(player, "above");
