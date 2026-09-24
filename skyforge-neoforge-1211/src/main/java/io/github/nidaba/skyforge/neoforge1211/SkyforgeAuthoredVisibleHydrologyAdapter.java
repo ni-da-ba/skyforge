@@ -1309,6 +1309,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             ChannelCarrierCandidate center,
             java.util.Collection<ChannelCarrierCandidate> candidates) {
+        // A retained-water junction is an authored hydraulic opening, not a closed river
+        // cross-section. Its exact local carrier ceiling remains authoritative while the weighted
+        // grade solve converges on the retained datum; importing a neighboring dry-bank ceiling
+        // here would recreate a separate terrace immediately before the lake.
+        if (center.preferenceWeight() > 1) {
+            return center.maximumWaterTop();
+        }
+
         double pathLength = Math.max(1.0, reach.path().pathLength());
         double fractionRadius = 1.5 / pathLength;
         int maximum = center.maximumWaterTop();
