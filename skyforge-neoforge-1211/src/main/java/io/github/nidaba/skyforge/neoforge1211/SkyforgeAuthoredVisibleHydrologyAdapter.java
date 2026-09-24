@@ -2467,7 +2467,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // Surface ownership also includes preserved bed/bank cells that must never be filled merely
         // because this replay chunk currently contains AIR (for example after a carve). Only the
         // explicit bounded geometry-reconciliation subset is allowed to construct support.
-        for (BlockPos position : projection.forcedSurfacePositions()) {
+        for (BlockPos position : bottomUp(projection.forcedSurfacePositions())) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 throw new IllegalArgumentException(
                         "authored hydrology chunk projection contains a foreign surface position");
@@ -2520,7 +2520,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(deployment, "deployment");
         int written = 0;
-        for (BlockPos position : deployment.forcedSurfacePositions()) {
+        for (BlockPos position : bottomUp(deployment.forcedSurfacePositions())) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
@@ -2559,6 +2559,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      * <p>Literal WATER, FLOWING_WATER, and water-bearing states such as BUBBLE_COLUMN are all valid
      * physical realizations of the same authored wet cell. Air, lava, and unrelated blocks are not.
      */
+    private static List<BlockPos> bottomUp(Iterable<BlockPos> positions) {
+        List<BlockPos> ordered = new ArrayList<>();
+        for (BlockPos position : positions) {
+            ordered.add(position);
+        }
+        ordered.sort(Comparator
+                .comparingInt(BlockPos::getY)
+                .thenComparingInt(BlockPos::getZ)
+                .thenComparingInt(BlockPos::getX));
+        return ordered;
+    }
+
     /**
      * Chooses representation for bounded bank geometry without authoring a hydrology palette.
      *
