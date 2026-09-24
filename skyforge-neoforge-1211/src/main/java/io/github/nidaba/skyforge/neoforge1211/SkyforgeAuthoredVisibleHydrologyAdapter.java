@@ -2592,7 +2592,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
 
     static boolean isHydrologySurfaceMaterial(BlockState state) {
         Objects.requireNonNull(state, "state");
-        return state.is(Blocks.GRAVEL) || state.is(Blocks.CLAY) || state.is(Blocks.STONE);
+        // This is a semantic "solid hydrology substrate" predicate, not a Skyforge-authored
+        // palette. Native surfacing may legitimately leave ordinary local soil/sand under a river
+        // or lake before registered DiskFeature dressing runs. Keep those states eligible so the
+        // native hydrology pass can diversify an all-dirt bed rather than locking it in place.
+        return state.is(Blocks.GRAVEL)
+                || state.is(Blocks.CLAY)
+                || state.is(Blocks.STONE)
+                || state.is(Blocks.DIRT)
+                || state.is(Blocks.COARSE_DIRT)
+                || state.is(Blocks.SAND)
+                || state.is(Blocks.RED_SAND)
+                || state.is(Blocks.MUD);
     }
 
     static boolean isWaterBearing(BlockState state) {
