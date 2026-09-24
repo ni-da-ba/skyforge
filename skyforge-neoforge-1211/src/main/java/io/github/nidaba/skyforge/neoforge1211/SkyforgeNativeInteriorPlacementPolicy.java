@@ -49,6 +49,13 @@ final class SkyforgeNativeInteriorPlacementPolicy {
                 operation, level.getBlockState(position), state)) {
             return false;
         }
+        if (!allowsAuthoredHydrologyReplacement(
+                operation,
+                SkyforgeNeoForge1211SurfaceStage.authoredHydrologyPopulationState(
+                        operation.volumeId(), position),
+                state)) {
+            return false;
+        }
 
         if (state.is(Blocks.GLOW_LICHEN)) {
             // Glow lichen remains native cave decoration, but the outer compiled shell is not a
@@ -105,6 +112,32 @@ final class SkyforgeNativeInteriorPlacementPolicy {
         return operation.generationStep() != GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
                 || !existingState.is(Blocks.WATER)
                 || replacementState.is(Blocks.WATER);
+    }
+
+    /**
+     * Keeps the exact authored hydrology domain exclusive during native surface ecology.
+     *
+     * <p>Water, deliberate dry clearance above a channel/lake, and authored bed/bank substrate are
+     * already final hydrologic roles. Native vegetation may still populate ordinary riparian terrain
+     * immediately beside those cells, but it may not overwrite the hydrology role itself. This
+     * prevents biome vegetation patches and tree geometry from slicing through the finished
+     * shoreline while preserving a natural, non-barren ecotone outside the exact authored domain.
+     */
+    static boolean allowsAuthoredHydrologyReplacement(
+            SkyforgePopulationOperation operation,
+            java.util.Optional<BlockState> authoredState,
+            BlockState replacementState) {
+        Objects.requireNonNull(operation, "operation");
+        Objects.requireNonNull(authoredState, "authoredState");
+        Objects.requireNonNull(replacementState, "replacementState");
+        if (operation.generationStep()
+                != GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
+                || authoredState.isEmpty()) {
+            return true;
+        }
+        BlockState authored = authoredState.orElseThrow();
+        return replacementState.equals(authored)
+                || (authored.is(Blocks.WATER) && replacementState.is(Blocks.WATER));
     }
 
     static boolean isInteriorOwnerCell(
