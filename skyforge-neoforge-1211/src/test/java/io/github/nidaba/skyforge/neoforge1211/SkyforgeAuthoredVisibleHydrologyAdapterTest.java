@@ -603,7 +603,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         wet.getX() - physical.centerX(),
                         wet.getZ() - physical.centerZ());
                 assertTrue(
-                        distanceToPath(local, path) <= reach.wetHalfWidth() + 1.0e-9,
+                        fluvial.wetCorridorContains(reach, local),
                         "one channel deployment must not borrow a neighboring reach's water surface");
             }
         }
@@ -666,7 +666,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .getBlockState(position)
                         .isAir());
             }
-            assertTrue(deployment.forcedSurfacePositions().isEmpty());
+            var forcedSurface = new java.util.HashSet<>(deployment.forcedSurfacePositions());
+            assertTrue(deployment.surfacePositions().containsAll(forcedSurface));
             for (var position : deployment.surfacePositions()) {
                 var actual = chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
                         .getBlockState(position);
@@ -679,6 +680,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 .map(SkyforgeAuthoredVisibleHydrologyAdapter::isHydrologySurfaceMaterial)
                                 .orElse(false),
                         "preserved and repaired beds must remain hydrology-owned for native dressing");
+                if (forcedSurface.contains(position)) {
+                    var range = terrain.integerSolidRange(
+                                    fixture.volume().id(), position.getX(), position.getZ())
+                            .orElseThrow();
+                    assertTrue(
+                            position.getY() > range.maximumY(),
+                            "forced bank geometry should only represent bounded extension above the compiled carrier");
+                }
             }
         }
 
