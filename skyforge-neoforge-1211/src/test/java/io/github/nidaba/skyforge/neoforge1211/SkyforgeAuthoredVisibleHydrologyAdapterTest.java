@@ -612,6 +612,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 fixture.descriptor(), intent.coherentHydrology());
         var physical = fixture.volume().compiledVolume().descriptor();
 
+        var retainedCellIndices = intent.retainedWater().stream()
+                .flatMap(retained -> retained.footprint().cells().stream())
+                .map(io.github.nidaba.skyforge.world.SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                .collect(java.util.stream.Collectors.toSet());
+
         int junctionColumns = 0;
         int channelIndex = 0;
         for (var deployment : deployments) {
@@ -624,12 +629,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                     .filter(candidate -> candidate.path().equals(channelIntent.path()))
                     .findFirst()
                     .orElseThrow();
+            int sourceCell = channelIntent.path().profile().segment().sourceCellIndex();
+            int downstreamCell = channelIntent.path().profile().segment().downstreamCellIndex();
+            boolean semanticallyConnectedToRetained =
+                    retainedCellIndices.contains(sourceCell)
+                            || retainedCellIndices.contains(downstreamCell);
             var channelTop =
                     new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
             for (var wet : deployment.positions()) {
                 var column = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
                         wet.getX(), wet.getZ());
                 channelTop.merge(column, wet.getY(), Math::max);
+            }
+            if (!semanticallyConnectedToRetained) {
+                continue;
             }
             for (var entry : channelTop.entrySet()) {
                 if (retainedTop.containsKey(entry.getKey())) {
@@ -654,8 +667,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         Math.abs(entry.getValue() - retainedDatum) <= 2,
                         "channel/lake transition must remain a bounded cascade rather than a separate terrace: "
                                 + "channelIndex=" + (channelIndex - 1)
-                                + ", sourceCell=" + channelIntent.path().profile().segment().sourceCellIndex()
-                                + ", downstreamCell=" + channelIntent.path().profile().segment().downstreamCellIndex()
+                                + ", sourceCell=" + sourceCell
+                                + ", downstreamCell=" + downstreamCell
                                 + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
                                 + ", startDistance=" + startDistance
                                 + ", endDistance=" + endDistance

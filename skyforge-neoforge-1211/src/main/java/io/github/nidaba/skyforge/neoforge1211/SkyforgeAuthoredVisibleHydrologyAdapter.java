@@ -233,19 +233,30 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // them. Project those basins first so the channel grade solver can target the actual
         // qualified Minecraft datum instead of solving independently and being clipped afterward.
         List<RawDeployment> rawRetained = new ArrayList<>();
+        List<RetainedHydraulicBoundary> retainedHydraulicBoundaries = new ArrayList<>();
         if (!intent.retainedWater().isEmpty()) {
             SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
             for (var retained : intent.retainedWater()) {
-                atFootprint(
-                                descriptor,
-                                volume,
-                                terrain,
-                                watershed,
-                                retained.footprint(),
-                                retained.margin(),
-                                fluvial.baseTerrain(),
-                                solidRangeCache)
-                        .ifPresent(rawRetained::add);
+                Optional<RawDeployment> projected = atFootprint(
+                        descriptor,
+                        volume,
+                        terrain,
+                        watershed,
+                        retained.footprint(),
+                        retained.margin(),
+                        fluvial.baseTerrain(),
+                        solidRangeCache);
+                if (projected.isEmpty()) {
+                    continue;
+                }
+                RawDeployment deployment = projected.orElseThrow();
+                rawRetained.add(deployment);
+                Set<Integer> watershedCells = retained.footprint().cells().stream()
+                        .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                retainedHydraulicBoundaries.add(new RetainedHydraulicBoundary(
+                        watershedCells,
+                        retainedWaterTopByColumn(List.of(deployment))));
             }
         }
         Map<Column, Integer> retainedWaterTopByColumn = retainedWaterTopByColumn(rawRetained);
@@ -258,6 +269,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         for (var channel : intent.channels()) {
             boolean routedEdgeOutlet =
                     routedEdgeOutlets.contains(channel.path().profile().segment().downstreamCellIndex());
+            Map<Column, Integer> junctionRetainedWaterTopByColumn =
+                    retainedHydraulicBoundaryFor(
+                            channel.path(),
+                            retainedHydraulicBoundaries);
             atPath(
                             descriptor,
                             fluvial,
@@ -265,7 +280,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             terrain,
                             channel.path(),
                             routedEdgeOutlet,
-                            retainedWaterTopByColumn,
+                            junctionRetainedWaterTopByColumn,
                             solidRangeCache,
                             basePotentialCache,
                             dryPotentialCache)
@@ -2786,6 +2801,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return List.copyOf(result);
     }
 
+    private static Map<Column, Integer> retainedHydraulicBoundaryFor(
+            SkyIslandNaturalizedChannelPath path,
+            List<RetainedHydraulicBoundary> boundaries) {
+        Objects.requireNonNull(path, "path");
+        Objects.requireNonNull(boundaries, "boundaries");
+        int sourceCell = path.profile().segment().sourceCellIndex();
+        int downstreamCell = path.profile().segment().downstreamCellIndex();
+
+        RetainedHydraulicBoundary match = null;
+        for (RetainedHydraulicBoundary boundary : boundaries) {
+            if (!boundary.watershedCellIndices().contains(sourceCell)
+                    && !boundary.watershedCellIndices().contains(downstreamCell)) {
+                continue;
+            }
+            if (match != null && match != boundary) {
+                throw new IllegalStateException(
+                        "one authored channel endpoint belongs to multiple retained-water bodies");
+            }
+            match = boundary;
+        }
+        return match == null ? Map.of() : match.waterTopByColumn();
+    }
+
     private static Map<Column, Integer> retainedWaterTopByColumn(
             List<RawDeployment> retainedDeployments) {
         Objects.requireNonNull(retainedDeployments, "retainedDeployments");
@@ -3307,6 +3345,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int minimumY,
             int baseSurfaceY,
             int bedY) {}
+
+    private record RetainedHydraulicBoundary(
+            Set<Integer> watershedCellIndices,
+            Map<Column, Integer> waterTopByColumn) {
+        private RetainedHydraulicBoundary {
+            watershedCellIndices = Set.copyOf(watershedCellIndices);
+            waterTopByColumn = Map.copyOf(waterTopByColumn);
+        }
+    }
 
     private record RetainedMarginConditioning(
             List<BlockPos> carvedPositions,
