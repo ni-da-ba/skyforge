@@ -606,12 +606,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         }
         assertFalse(retainedTop.isEmpty());
 
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var fluvial = io.github.nidaba.skyforge.world.SkyIslandFluvialTerrainField.create(
+                fixture.descriptor(), intent.coherentHydrology());
+        var physical = fixture.volume().compiledVolume().descriptor();
+
         int junctionColumns = 0;
+        int channelIndex = 0;
         for (var deployment : deployments) {
             if (deployment.feature()
                     != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
                 continue;
             }
+            var channelIntent = intent.channels().get(channelIndex++);
+            var reach = fluvial.reaches().stream()
+                    .filter(candidate -> candidate.path().equals(channelIntent.path()))
+                    .findFirst()
+                    .orElseThrow();
             var channelTop =
                     new java.util.LinkedHashMap<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer>();
             for (var wet : deployment.positions()) {
@@ -630,10 +642,24 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 }
                 junctionColumns++;
                 int retainedDatum = target.orElseThrow();
+                var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                        entry.getKey().x() - physical.centerX(),
+                        entry.getKey().z() - physical.centerZ());
+                var start = channelIntent.path().points().getFirst();
+                var end = channelIntent.path().points().getLast();
+                double startDistance = Math.hypot(local.x() - start.x(), local.z() - start.z());
+                double endDistance = Math.hypot(local.x() - end.x(), local.z() - end.z());
+                var terminalDrop = fluvial.terminalDrop(reach);
                 assertTrue(
                         Math.abs(entry.getValue() - retainedDatum) <= 2,
                         "channel/lake transition must remain a bounded cascade rather than a separate terrace: "
-                                + "column=" + entry.getKey()
+                                + "channelIndex=" + (channelIndex - 1)
+                                + ", sourceCell=" + channelIntent.path().profile().segment().sourceCellIndex()
+                                + ", downstreamCell=" + channelIntent.path().profile().segment().downstreamCellIndex()
+                                + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
+                                + ", startDistance=" + startDistance
+                                + ", endDistance=" + endDistance
+                                + ", column=" + entry.getKey()
                                 + ", channelTop=" + entry.getValue()
                                 + ", retainedDatum=" + retainedDatum);
             }
