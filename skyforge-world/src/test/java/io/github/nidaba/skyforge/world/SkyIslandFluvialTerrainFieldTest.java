@@ -187,6 +187,27 @@ class SkyIslandFluvialTerrainFieldTest {
     }
 
     @Test
+    void confluenceExpansionIsLocalizedToTheJunctionThroat() {
+        boolean exercised = false;
+        for (long key : new long[] {287L, 649L, 811L, 512L, 83L}) {
+            SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor(key));
+            for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
+                if (reach.confluenceScale() <= 1.0 + EPSILON) {
+                    continue;
+                }
+                assertTrue(field.wetHalfWidthAt(reach, 0.0) > field.wetHalfWidthAt(reach, 1.0));
+                assertTrue(field.bankfullHalfWidthAt(reach, 0.0) > field.bankfullHalfWidthAt(reach, 1.0));
+                assertTrue(field.valleyHalfWidthAt(reach, 0.0) > field.valleyHalfWidthAt(reach, 1.0));
+                assertEquals(reach.wetHalfWidth(), field.wetHalfWidthAt(reach, 1.0), EPSILON);
+                assertEquals(reach.bankfullHalfWidth(), field.bankfullHalfWidthAt(reach, 1.0), EPSILON);
+                assertEquals(reach.valleyHalfWidth(), field.valleyHalfWidthAt(reach, 1.0), EPSILON);
+                exercised = true;
+            }
+        }
+        assertTrue(exercised, "reference corpus must exercise at least one routed confluence");
+    }
+
+    @Test
     void authoredHydraulicGradeNeverClimbsDownstreamWithinAReach() {
         for (long key : new long[] {287L, 632L, 649L, 811L, 83L}) {
             SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(
