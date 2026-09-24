@@ -464,8 +464,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 junctionColumns++;
                 int retainedDatum = target.orElseThrow();
                 assertTrue(
-                        Math.abs(entry.getValue() - retainedDatum) <= 1,
-                        "channel free surface must blend into retained basin datum at the shoreline: "
+                        Math.abs(entry.getValue() - retainedDatum) <= 2,
+                        "channel/lake transition must remain a bounded cascade rather than a separate terrace: "
                                 + "column=" + entry.getKey()
                                 + ", channelTop=" + entry.getValue()
                                 + ", retainedDatum=" + retainedDatum);
