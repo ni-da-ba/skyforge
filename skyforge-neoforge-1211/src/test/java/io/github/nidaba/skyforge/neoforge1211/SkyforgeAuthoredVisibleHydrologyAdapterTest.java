@@ -626,20 +626,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .getBlockState(position)
                         .isAir());
             }
-            var forcedSurface = new java.util.HashSet<>(deployment.forcedSurfacePositions());
+            assertTrue(deployment.forcedSurfacePositions().isEmpty());
             for (var position : deployment.surfacePositions()) {
                 var actual = chunks.get(new net.minecraft.world.level.ChunkPos(position).toLong())
                         .getBlockState(position);
-                if (forcedSurface.contains(position)) {
-                    assertTrue(
-                            SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(actual),
-                            "synthetic hydrology bank repair must retain stable authored material");
-                } else {
-                    assertFalse(actual.isAir(),
-                            "preserved hydrology bed must retain compiled/native solid geology");
-                    assertTrue(actual.getFluidState().isEmpty(),
-                            "preserved hydrology bed must remain a dry solid substrate");
-                }
+                assertFalse(actual.isAir(),
+                        "hydrology bed/bank geometry must retain a solid substrate for native surfacing");
+                assertTrue(actual.getFluidState().isEmpty(),
+                        "hydrology bed/bank geometry must remain a dry solid substrate");
                 assertTrue(
                         terrain.authoredHydrologyPopulationState(fixture.volume().id(), position)
                                 .map(SkyforgeAuthoredVisibleHydrologyAdapter::isHydrologySurfaceMaterial)
@@ -662,18 +656,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
-    void authoredHydrologySurfaceMaterialCannotFallAfterWaterRealization() {
-        for (int x = -32; x <= 32; x++) {
-            for (int z = -32; z <= 32; z++) {
-                var state = SkyforgeAuthoredVisibleHydrologyAdapter.hydrologySurfaceState(
-                        new BlockPos(x, 128, z));
-                assertTrue(
-                        SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(state));
-                assertFalse(
-                        state.getBlock() instanceof net.minecraft.world.level.block.FallingBlock,
-                        "new authored hydrology substrate must not schedule gravity into wet cells");
-            }
-        }
+    void productionHydrologyDoesNotAuthorFinalSurfaceMaterialOrSyntheticBanks() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS);
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_RETAINED_BANK_FILL_BLOCKS);
+        assertTrue(
+                deployments.stream().allMatch(deployment -> deployment.forcedSurfacePositions().isEmpty()),
+                "hydrology must own shape/surface semantics without emitting a final clay/stone bank palette");
     }
 
     @Test
@@ -687,11 +679,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var expectedSurface = new java.util.LinkedHashSet<BlockPos>();
         for (var deployment : deployments) {
             expectedSurface.addAll(deployment.surfacePositions());
-            for (var position : deployment.forcedSurfacePositions()) {
-                var desired = SkyforgeAuthoredVisibleHydrologyAdapter.hydrologySurfaceState(position);
-                var previous = expected.putIfAbsent(position, desired);
-                assertTrue(previous == null || previous.equals(desired));
-            }
             for (var position : deployment.carvedPositions()) {
                 var previous = expected.putIfAbsent(position, Blocks.AIR.defaultBlockState());
                 assertTrue(previous == null || previous.isAir());
@@ -799,7 +786,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(1, deployment.positions().size());
         assertEquals(1, deployment.carvedPositions().size());
         assertEquals(1, deployment.surfacePositions().size());
-        assertEquals(1, deployment.forcedSurfacePositions().size());
+        assertTrue(deployment.forcedSurfacePositions().isEmpty());
     }
 
     @Test
