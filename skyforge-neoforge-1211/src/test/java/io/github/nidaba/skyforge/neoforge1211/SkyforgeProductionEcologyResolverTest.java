@@ -129,7 +129,7 @@ final class SkyforgeProductionEcologyResolverTest {
     }
 
     @Test
-    void dryRiparianAndBankContextKeepsAuthoredLocalEcologyCarrier() {
+    void dryBankfullContextKeepsAuthoredLocalEcologyCarrier() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var association = SkyIslandAuthoredRealizationAssociation.of(fixture.descriptor(), fixture.volume());
         var resolver = new SkyforgeProductionEcologyResolver(association);
@@ -166,7 +166,7 @@ final class SkyforgeProductionEcologyResolverTest {
             SkyIslandFluvialSurfaceZone zone = fluvial.surfaceZone(new SkyIslandLocalPosition(
                     anchor.worldX() - realized.centerX(),
                     anchor.worldZ() - realized.centerZ()));
-            if (zone == SkyIslandFluvialSurfaceZone.WET_CHANNEL) {
+            if (zone != SkyIslandFluvialSurfaceZone.BANKFULL) {
                 continue;
             }
             var ecologySample = authoredEcology.sample(
@@ -183,10 +183,10 @@ final class SkyforgeProductionEcologyResolverTest {
                                     anchor.worldX(),
                                     anchor.worldZ())
                             .orElseThrow(),
-                    "dry riparian/bank terrain must inherit its authored local ecology carrier");
+                    "dry bankfull terrain must inherit its authored local ecology carrier");
             verified++;
         }
-        assertTrue(verified > 0, "fixture must expose at least one dry riparian/bank ecology sample");
+        assertTrue(verified > 0, "fixture must expose at least one dry bankfull ecology sample");
     }
 
     @Test
