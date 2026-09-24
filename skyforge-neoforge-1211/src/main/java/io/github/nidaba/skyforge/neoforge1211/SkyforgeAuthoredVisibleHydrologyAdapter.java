@@ -398,8 +398,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             List<BlockPos> forcedSurface = deployment.forcedSurfacePositions().stream()
                     .filter(position -> deployment.feature() != Feature.CHANNEL
                             || !containsColumnByChunk(retainedColumnsByChunk, position))
-                    .filter(position -> deployment.feature() != Feature.CHANNEL
-                            || !touchesRetainedColumn(retainedColumnsByChunk, position))
                     .filter(position -> !containsByChunk(waterByChunk, position))
                     .filter(position -> !containsByChunk(carvedByChunk, position))
                     .toList();
@@ -572,6 +570,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     path,
                     routedEdgeOutlet,
+                    retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isPresent()) {
                 containedWet.add(column.column());
@@ -613,6 +612,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                                 reach,
                                 path,
                                 routedEdgeOutlet,
+                                retainedWaterTopByColumn,
                                 solidRangeCache)
                         .isPresent()) {
                     stillContained.add(wetColumn);
@@ -648,6 +648,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     reach,
                     path,
                     routedEdgeOutlet,
+                    retainedWaterTopByColumn,
                     solidRangeCache);
             if (bankFill.isEmpty()) {
                 throw new IllegalStateException(
@@ -698,15 +699,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
 
             ChannelPathProjection projection = candidateProjections.get(column.column());
-            if (projection != null
-                    && column.distance() <= fluvial.bankfullHalfWidthAt(
-                            reach, projection.fraction())
+            boolean ownsBed = wet
+                    || (projection != null
+                            && column.distance() <= fluvial.bankfullHalfWidthAt(
+                                    reach, projection.fraction()));
+            if (ownsBed
                     && uncontestedOwnedRangeCell(
                             terrain,
                             volume.id(),
                             column.column().x(),
                             column.drySurfaceY(),
                             column.column().z())) {
+                // Wet occupancy is defined from this bed upward, so the bed itself must remain
+                // hydrology-owned even where the rasterized wet flare extends beyond bankfull.
                 surface.add(new BlockPos(
                         column.column().x(), column.drySurfaceY(), column.column().z()));
             }
@@ -788,6 +793,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             SkyIslandFluvialReachGeometry reach,
             SkyIslandNaturalizedChannelPath path,
             boolean routedEdgeOutlet,
+            Map<Column, Integer> retainedWaterTopByColumn,
             Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache) {
         LinkedHashSet<BlockPos> fill = new LinkedHashSet<>();
         int outletBreaches = 0;
@@ -797,6 +803,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     candidate.column().x() + direction[0],
                     candidate.column().z() + direction[1]);
             if (plannedWet.contains(bank)) {
+                continue;
+            }
+            // Standing retained water is a hydraulic opening, not a lateral bank. Treating the
+            // lake cell as solid containment prunes the last river columns before the shoreline
+            // and produces a visually disconnected mouth after retained-water precedence.
+            if (retainedWaterTopByColumn.containsKey(bank)) {
                 continue;
             }
 
@@ -2604,21 +2616,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 throw new IllegalArgumentException("retained junction distance outside blend envelope");
             }
         }
-    }
-
-    private static boolean touchesRetainedColumn(
-            Map<Long, Set<Column>> retainedColumnsByChunk,
-            BlockPos position) {
-        Objects.requireNonNull(retainedColumnsByChunk, "retainedColumnsByChunk");
-        Objects.requireNonNull(position, "position");
-        int[][] directions = {{0, 0}, {1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] direction : directions) {
-            BlockPos probe = position.offset(direction[0], 0, direction[1]);
-            if (containsColumnByChunk(retainedColumnsByChunk, probe)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static void addMembershipByChunk(
