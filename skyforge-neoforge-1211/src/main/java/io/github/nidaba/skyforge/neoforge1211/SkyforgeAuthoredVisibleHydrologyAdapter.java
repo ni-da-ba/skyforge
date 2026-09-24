@@ -2600,7 +2600,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // corridor and within the same short datum-blend envelope used by the hydraulic grade.
         double blend = 1.0 - target.orElseThrow().distanceBlocks()
                 / (double) (RETAINED_JUNCTION_BLEND_BLOCKS + 1);
-        double flared = base * (1.0 + 0.55 * clamp01(blend));
+        double flared = base * (1.0 + 0.55 * clamp(blend, 0.0, 1.0));
         double bankfullLimit =
                 fluvial.bankfullHalfWidthAt(reach, projection.fraction()) * 0.92;
         return Math.min(bankfullLimit, flared);
