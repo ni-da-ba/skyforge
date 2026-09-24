@@ -379,6 +379,48 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceWaterColumnsAreContiguousAndRestOnOwnedBed() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+
+        for (var deployment : terrain.authoredHydrologyDeployments(fixture.volume().id())) {
+            var byColumn = deployment.positions().stream().collect(java.util.stream.Collectors.groupingBy(
+                    position -> position.getX() + "," + position.getZ()));
+            for (var column : byColumn.values()) {
+                var sorted = column.stream()
+                        .sorted(java.util.Comparator.comparingInt(BlockPos::getY))
+                        .toList();
+                for (int index = 1; index < sorted.size(); index++) {
+                    assertEquals(
+                            sorted.get(index - 1).getY() + 1,
+                            sorted.get(index).getY(),
+                            "authored water volume must fill every vertical voxel between bed and surface");
+                }
+                BlockPos bottom = sorted.getFirst();
+                BlockPos support = bottom.below();
+                boolean compiledSolid = terrain.isSolidOwnedBy(
+                                fixture.volume().id(),
+                                support.getX(),
+                                support.getY(),
+                                support.getZ())
+                        && !terrain.isSolidOwnedByOtherVolume(
+                                fixture.volume().id(),
+                                support.getX(),
+                                support.getY(),
+                                support.getZ());
+                boolean authoredSolid = terrain.authoredHydrologyPopulationState(
+                                fixture.volume().id(), support)
+                        .map(state -> !state.isAir() && state.getFluidState().isEmpty())
+                        .orElse(false);
+                assertTrue(
+                        compiledSolid || authoredSolid,
+                        "lowest authored water voxel must rest on a dry owned bed rather than hover over air");
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
     void hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
