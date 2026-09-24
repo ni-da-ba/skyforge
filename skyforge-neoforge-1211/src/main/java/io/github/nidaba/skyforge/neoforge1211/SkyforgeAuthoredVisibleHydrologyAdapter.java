@@ -554,7 +554,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
 
         Set<Column> containedWet = new LinkedHashSet<>();
-        LinkedHashSet<BlockPos> channelBankFill = new LinkedHashSet<>();
         for (ChannelColumnPlan column : columns.values()) {
             if (column.waterTopY() == Integer.MIN_VALUE) {
                 continue;
@@ -571,7 +570,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     solidRangeCache);
             if (bankFill.isPresent()) {
                 containedWet.add(column.column());
-                channelBankFill.addAll(bankFill.orElseThrow());
             }
         }
         int plannedWetColumns = (int) columns.values().stream()
@@ -587,6 +585,34 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             + "candidateColumns=" + candidateProjections.size()
                             + ", plannedWetColumns=" + plannedWetColumns
                             + ", containedWetColumns=" + containedWetColumns);
+        }
+
+        // Recompute bank reconciliation against the final connected wet component. A wet
+        // candidate that lost connectivity is now dry terrain and must no longer suppress the
+        // cardinal bank check of a surviving water column.
+        LinkedHashSet<BlockPos> channelBankFill = new LinkedHashSet<>();
+        for (Column wetColumn : containedWet) {
+            ChannelColumnPlan column = columns.get(wetColumn);
+            if (column == null) {
+                throw new IllegalStateException("connected wet component lost its channel plan");
+            }
+            Optional<List<BlockPos>> bankFill = channelBankFillPositions(
+                    volume,
+                    terrain,
+                    columns,
+                    containedWet,
+                    column,
+                    reach,
+                    path,
+                    routedEdgeOutlet,
+                    solidRangeCache);
+            if (bankFill.isEmpty()) {
+                throw channelProjectionFailure(
+                        volume,
+                        path,
+                        "final connected wet component lost lateral containment at " + wetColumn);
+            }
+            channelBankFill.addAll(bankFill.orElseThrow());
         }
 
         var physicalDescriptor = volume.compiledVolume().descriptor();
@@ -620,6 +646,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<BlockPos> surface = new LinkedHashSet<>(channelBankFill);
         LinkedHashSet<BlockPos> forcedSurface = new LinkedHashSet<>(channelBankFill);
         for (ChannelColumnPlan column : columns.values()) {
+            boolean wet = containedWet.contains(column.column());
+            boolean plannedAsWet = column.waterTopY() != Integer.MIN_VALUE;
+
+            // A column that was semantically wet but did not survive the final contained component
+            // must remain solid terrain. Carving it without water creates the visible dry slots and
+            // hovering edges reported in H6.
+            if (plannedAsWet && !wet) {
+                continue;
+            }
+
             ChannelPathProjection projection = candidateProjections.get(column.column());
             if (projection != null
                     && column.distance() <= fluvial.bankfullHalfWidthAt(
@@ -634,7 +670,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         column.column().x(), column.drySurfaceY(), column.column().z()));
             }
 
-            boolean wet = containedWet.contains(column.column());
             int carveFrom = column.drySurfaceY() + 1;
             int carveTo = column.baseSurfaceY();
             if (wet) {
