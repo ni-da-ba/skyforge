@@ -126,8 +126,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 continue;
             }
             double bed = bedElevation(reach, projection);
-            double candidate = crossSectionElevation(
-                    base, bed, projection.distance(), projection.signedDistance(), reach);
+            double candidate = crossSectionElevation(base, bed, projection, reach);
             shaped = Math.min(shaped, candidate);
         }
         return clamp01(Math.max(shaped, base - MAX_FLUVIAL_LOWERING));
@@ -222,7 +221,8 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                     0.0,
                     fraction,
                     point.x(),
-                    point.z());
+                    point.z(),
+                    0.0);
             fractions.add(fraction);
             surfaces.add(clamp01(
                     bedElevation(reach, projection) + reach.waterDepthPotential()));
@@ -280,15 +280,35 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private static double crossSectionElevation(
             double base,
             double bed,
-            double distance,
-            double signedDistance,
+            Projection projection,
             SkyIslandFluvialReachGeometry reach) {
+        double signedDistance = projection.signedDistance();
         double side = Math.signum(signedDistance);
-        double asymmetry = reach.profile().kind() == SkyIslandChannelProfileKind.ALLUVIAL
-                ? 0.22 * reach.lateralAsymmetryPotential() * side
+
+        // Terrain confinement may favor one side of an entire reach, while planform curvature
+        // changes side locally from bend to bend. Keep both backend-neutral: on an alluvial bend the
+        // inside bank receives the broader depositional shoulder and the thalweg shifts modestly
+        // toward the outside bank. Incised channels retain a smaller response; cascades remain
+        // essentially symmetric.
+        double terrainAsymmetry = reach.profile().kind() == SkyIslandChannelProfileKind.ALLUVIAL
+                ? 0.14 * reach.lateralAsymmetryPotential() * side
                 : reach.profile().kind() == SkyIslandChannelProfileKind.INCISED
-                        ? 0.08 * reach.lateralAsymmetryPotential() * side
+                        ? 0.06 * reach.lateralAsymmetryPotential() * side
                         : 0.0;
+        double bendAsymmetry = reach.profile().kind() == SkyIslandChannelProfileKind.ALLUVIAL
+                ? 0.24 * projection.bendPotential() * side
+                : reach.profile().kind() == SkyIslandChannelProfileKind.INCISED
+                        ? 0.08 * projection.bendPotential() * side
+                        : 0.0;
+        double asymmetry = clamp(terrainAsymmetry + bendAsymmetry, -0.32, 0.32);
+
+        double thalwegShift = switch (reach.profile().kind()) {
+            case ALLUVIAL -> -0.22 * projection.bendPotential() * reach.wetHalfWidth();
+            case INCISED -> -0.08 * projection.bendPotential() * reach.wetHalfWidth();
+            case CASCADE -> 0.0;
+        };
+        double distance = Math.abs(signedDistance - thalwegShift);
+
         double localBankfullHalfWidth = reach.bankfullHalfWidth() * (1.0 + asymmetry);
         double localValleyHalfWidth = reach.valleyHalfWidth() * (1.0 + 0.55 * asymmetry);
         localBankfullHalfWidth = Math.max(reach.wetHalfWidth() * 1.04, localBankfullHalfWidth);
@@ -496,6 +516,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         double bestX = points.getFirst().x();
         double bestZ = points.getFirst().z();
         double bestSignedDistance = 0.0;
+        double bestBendPotential = 0.0;
 
         for (int i = 1; i < points.size(); i++) {
             SkyIslandLocalPosition a = points.get(i - 1);
@@ -520,13 +541,43 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
                 bestZ = qz;
                 double cross = dx * (position.z() - qz) - dz * (position.x() - qx);
                 bestSignedDistance = Math.copySign(distance, cross);
+                int bendVertex = t < 0.5 ? i - 1 : i;
+                bestBendPotential = localBendPotential(points, bendVertex);
             }
             prefix += length;
         }
 
         double denominator = Math.max(path.pathLength(), prefix);
         double fraction = denominator <= EPSILON ? 0.0 : clamp01(bestAlong / denominator);
-        return new Projection(bestDistance, bestSignedDistance, fraction, bestX, bestZ);
+        return new Projection(
+                bestDistance,
+                bestSignedDistance,
+                fraction,
+                bestX,
+                bestZ,
+                bestBendPotential);
+    }
+
+    private static double localBendPotential(
+            List<SkyIslandLocalPosition> points,
+            int vertexIndex) {
+        if (vertexIndex <= 0 || vertexIndex + 1 >= points.size()) {
+            return 0.0;
+        }
+        SkyIslandLocalPosition previous = points.get(vertexIndex - 1);
+        SkyIslandLocalPosition center = points.get(vertexIndex);
+        SkyIslandLocalPosition next = points.get(vertexIndex + 1);
+        double ax = center.x() - previous.x();
+        double az = center.z() - previous.z();
+        double bx = next.x() - center.x();
+        double bz = next.z() - center.z();
+        double aLength = Math.hypot(ax, az);
+        double bLength = Math.hypot(bx, bz);
+        if (aLength <= EPSILON || bLength <= EPSILON) {
+            return 0.0;
+        }
+        double signedSine = (ax * bz - az * bx) / (aLength * bLength);
+        return clamp(signedSine, -1.0, 1.0);
     }
 
     private static double smootherstep(double value) {
@@ -591,5 +642,6 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             double signedDistance,
             double fraction,
             double x,
-            double z) {}
+            double z,
+            double bendPotential) {}
 }
