@@ -87,20 +87,24 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
         SkyIslandFluvialSurfaceZone fluvialZone = fluvial.surfaceZone(new SkyIslandLocalPosition(
                 worldX - realizedCenterX,
                 worldZ - realizedCenterZ));
-        if (fluvialZone == SkyIslandFluvialSurfaceZone.WET_CHANNEL
-                || fluvialZone == SkyIslandFluvialSurfaceZone.BANKFULL) {
-            // Fine AUTH-0105 geometry owns literal channel and bank context. Use Minecraft's native
-            // river generation settings here so surface rules and river-specific placed features can
-            // supply the physical bed/bank vocabulary without re-authoring hydrology in the adapter.
+        if (fluvialZone == SkyIslandFluvialSurfaceZone.WET_CHANNEL) {
+            // The literal wet corridor may borrow Minecraft's native river feature vocabulary.
+            // Dry banks and floodplain/valley terrain deliberately fall through to the authored
+            // ecology below so an alpine, forest, dry-scrub or wetland river keeps its surrounding
+            // environmental material identity instead of becoming a generic river strip.
             return Optional.of(Biomes.RIVER);
         }
 
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
-        if (cell.isPresent() && hydrology.hasAuthoredRetainedOrRiparianContext(cell.orElseThrow())) {
-            // Retained water, shoreline and riparian context remain wetland-like presentation
-            // authority. Coarse channelRelativeDischarge alone no longer paints a whole watershed
-            // cell as swamp now that fine channel geometry is available.
-            return Optional.of(Biomes.SWAMP);
+        if (cell.isPresent()) {
+            var authoredHydrology = cell.orElseThrow();
+            if (authoredHydrology.retainedWaterbody()
+                    || authoredHydrology.waterDepthPotential() > 0.0) {
+                // Retained standing water needs a native aquatic feature carrier. Shore transitions,
+                // saturated margins and riparian dry land still fall through to the ordinary authored
+                // ecology carrier rather than being globally relabeled as swamp.
+                return Optional.of(Biomes.SWAMP);
+            }
         }
         var surface = ecology.sample(volumeId, new Coordinate2(worldX, worldZ));
         var authored = surface.ecologySample();
