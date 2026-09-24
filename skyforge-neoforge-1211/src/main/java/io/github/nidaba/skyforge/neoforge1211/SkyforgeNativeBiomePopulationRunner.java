@@ -147,10 +147,40 @@ final class SkyforgeNativeBiomePopulationRunner {
         boolean treeHeadroomEvaluated = false;
         boolean treeHeadroomAdmitted = true;
 
+        if (generationStep == GenerationStep.Decoration.VEGETAL_DECORATION
+                && route == SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY) {
+            var diskResults = populateHydrologyDiskDressing(
+                    level,
+                    generator,
+                    biome,
+                    volumeId,
+                    originChunk,
+                    nativeChunkOrigin,
+                    maximumAttachmentDepth,
+                    featureSteps,
+                    featureSteps.get(stepIndex).size());
+            featureResults.addAll(diskResults);
+            attempted = Math.addExact(attempted, diskResults.size());
+            for (var diskResult : diskResults) {
+                if (diskResult.placed()) {
+                    successful = Math.addExact(successful, 1);
+                }
+                attachmentWrites = Math.addExact(
+                        attachmentWrites,
+                        diskResult.attachmentWrites());
+            }
+        }
+
         int featureOrdinal = 0;
         for (Holder<PlacedFeature> placedFeature : featureSteps.get(stepIndex)) {
             int occurrenceIndex = featureOrdinal++;
             if (!route.accepts(generationStep, placedFeature.value())) {
+                continue;
+            }
+            if (route == SkyforgeNativeVegetalFeatureRoute.SURFACE_ECOLOGY
+                    && SkyforgeNativeHydrologyDressingStage.classify(placedFeature.value())
+                            == SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK) {
+                // DiskFeature dressing is replayed once in the hydrology-only prepass above.
                 continue;
             }
 
@@ -313,6 +343,69 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 List.copyOf(admittedLakeOrigins),
                                 List.copyOf(rejectedLakeOrigins))
                         : LakeEvidence.empty());
+    }
+
+    private static List<FeatureResult> populateHydrologyDiskDressing(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            Holder<Biome> biome,
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos originChunk,
+            BlockPos nativeChunkOrigin,
+            int maximumAttachmentDepth,
+            List<? extends Iterable<Holder<PlacedFeature>>> featureSteps,
+            int firstOccurrenceIndex) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(biome, "biome");
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(originChunk, "originChunk");
+        Objects.requireNonNull(nativeChunkOrigin, "nativeChunkOrigin");
+        Objects.requireNonNull(featureSteps, "featureSteps");
+        if (firstOccurrenceIndex < 0) {
+            throw new IllegalArgumentException("firstOccurrenceIndex must be non-negative");
+        }
+
+        var registry = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+        List<FeatureResult> results = new ArrayList<>();
+        int occurrenceIndex = firstOccurrenceIndex;
+        for (Iterable<Holder<PlacedFeature>> stepFeatures : featureSteps) {
+            for (Holder<PlacedFeature> placedFeature : stepFeatures) {
+                if (SkyforgeNativeHydrologyDressingStage.classify(placedFeature.value())
+                        != SkyforgeNativeHydrologyDressingStage.Role.SUBSTRATE_DISK) {
+                    continue;
+                }
+                ResourceLocation featureKey = placedFeature.unwrapKey()
+                        .map(key -> key.location())
+                        .orElseGet(() -> registry.getKey(placedFeature.value()));
+                if (featureKey == null) {
+                    throw new IllegalStateException(
+                            "biome generation settings contain a DiskFeature absent from the final registry");
+                }
+                var operation = SkyforgePopulationOperation.create(
+                        volumeId,
+                        originChunk,
+                        featureKey,
+                        GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),
+                        occurrenceIndex++);
+                var result = SkyforgeRuntimePerformanceMetrics.measure(
+                        "surfacePopulation.hydrologyDisk",
+                        () -> SkyforgeNativePlacedFeatureRunner.place(
+                                level,
+                                generator,
+                                placedFeature,
+                                biome,
+                                operation,
+                                nativeChunkOrigin,
+                                maximumAttachmentDepth));
+                results.add(new FeatureResult(
+                        featureKey,
+                        result.placed(),
+                        result.attachmentWrites(),
+                        result.attachmentPositionDigest()));
+            }
+        }
+        return List.copyOf(results);
     }
 
     static int treeAttachmentDepth(int configuredMaximumAttachmentDepth) {
