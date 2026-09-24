@@ -840,6 +840,28 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void retainedRasterPinholeClosureRequiresStrongCardinalEnclosure() {
+        var candidate = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0);
+        var footprint = new java.util.LinkedHashSet<SkyforgeAuthoredVisibleHydrologyAdapter.Column>(
+                java.util.List.of(
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0),
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(-1, 0),
+                        new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 1)));
+
+        assertEquals(
+                3,
+                SkyforgeAuthoredVisibleHydrologyAdapter.retainedRasterNeighborCount(
+                        footprint,
+                        candidate));
+        footprint.remove(new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 1));
+        assertEquals(
+                2,
+                SkyforgeAuthoredVisibleHydrologyAdapter.retainedRasterNeighborCount(
+                        footprint,
+                        candidate));
+    }
+
+    @Test
     void connectedHydrologyFootprintRequiresSharedBlockFaces() {
         var origin = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(0, 0);
         var cardinal = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(1, 0);
