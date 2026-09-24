@@ -42,6 +42,15 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
     }
 
     @Test
+    void deferredHydrologyWritesParticipateInStableChunkClientRefresh() throws IOException {
+        String adapter = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAuthoredVisibleHydrologyAdapter.java"));
+
+        assertTrue(adapter.contains("private static void writeState("));
+        assertTrue(adapter.contains("SkyforgeDeferredChunkMutationLifecycle.afterWrite("));
+    }
+
+    @Test
     void reviewEcologyReusesTheFluvialFieldThatProducedMinecraftHydrology() throws IOException {
         String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
