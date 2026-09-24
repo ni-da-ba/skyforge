@@ -379,6 +379,130 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void hydrologyReferenceWaterColumnsAreVerticallyFilledOntoOwnedBeds() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        var globalSurface = deployments.stream()
+                .flatMap(deployment -> deployment.surfacePositions().stream())
+                .collect(java.util.stream.Collectors.toSet());
+
+        for (var deployment : deployments) {
+            var byColumn = deployment.positions().stream()
+                    .collect(java.util.stream.Collectors.groupingBy(
+                            position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                    position.getX(), position.getZ())));
+            for (var entry : byColumn.entrySet()) {
+                var ys = entry.getValue().stream()
+                        .map(BlockPos::getY)
+                        .sorted()
+                        .toList();
+                assertEquals(
+                        ys.getLast() - ys.getFirst() + 1,
+                        ys.size(),
+                        "authored water must fill every vertical voxel from bed to free surface: "
+                                + entry.getKey());
+                BlockPos bed = new BlockPos(
+                        entry.getKey().x(),
+                        ys.getFirst() - 1,
+                        entry.getKey().z());
+                assertTrue(
+                        globalSurface.contains(bed),
+                        "lowest authored water voxel must rest on a hydrology-owned bed: "
+                                + entry.getKey());
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
+    void hydrologyReferenceRetainedWaterHasNoStronglyEnclosedRasterPinhole() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var wet = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .flatMap(deployment -> deployment.positions().stream())
+                .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ()))
+                .collect(java.util.stream.Collectors.toSet());
+        assertFalse(wet.isEmpty());
+
+        int minimumX = wet.stream().mapToInt(SkyforgeAuthoredVisibleHydrologyAdapter.Column::x).min().orElseThrow();
+        int maximumX = wet.stream().mapToInt(SkyforgeAuthoredVisibleHydrologyAdapter.Column::x).max().orElseThrow();
+        int minimumZ = wet.stream().mapToInt(SkyforgeAuthoredVisibleHydrologyAdapter.Column::z).min().orElseThrow();
+        int maximumZ = wet.stream().mapToInt(SkyforgeAuthoredVisibleHydrologyAdapter.Column::z).max().orElseThrow();
+        for (int z = minimumZ; z <= maximumZ; z++) {
+            for (int x = minimumX; x <= maximumX; x++) {
+                var candidate = new SkyforgeAuthoredVisibleHydrologyAdapter.Column(x, z);
+                if (wet.contains(candidate)) {
+                    continue;
+                }
+                assertTrue(
+                        SkyforgeAuthoredVisibleHydrologyAdapter.retainedRasterNeighborCount(
+                                wet, candidate) < 3,
+                        "retained-water raster must not leave a strongly enclosed rectangular pinhole at "
+                                + candidate);
+            }
+        }
+    }
+
+    @Test
+    @Tag("qualification")
+    void hydrologyReferenceRiverLakeMouthIsMultiColumnAndFaceConnected() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+
+        var retainedColumns = deployments.stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .flatMap(deployment -> deployment.positions().stream())
+                .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                        position.getX(), position.getZ()))
+                .collect(java.util.stream.Collectors.toSet());
+        assertFalse(retainedColumns.isEmpty());
+
+        int testedMouths = 0;
+        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+        for (var deployment : deployments) {
+            if (deployment.feature()
+                    != SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL) {
+                continue;
+            }
+            var channelColumns = deployment.positions().stream()
+                    .map(position -> new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                            position.getX(), position.getZ()))
+                    .collect(java.util.stream.Collectors.toSet());
+            if (channelColumns.stream().noneMatch(retainedColumns::contains)) {
+                continue;
+            }
+            var mouth = channelColumns.stream()
+                    .filter(column -> !retainedColumns.contains(column))
+                    .filter(column -> {
+                        for (int[] direction : directions) {
+                            if (retainedColumns.contains(
+                                    new SkyforgeAuthoredVisibleHydrologyAdapter.Column(
+                                            column.x() + direction[0],
+                                            column.z() + direction[1]))) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    })
+                    .collect(java.util.stream.Collectors.toSet());
+            assertTrue(
+                    mouth.size() >= 2,
+                    "river/lake junction must expose a multi-column face-connected wet mouth; mouth="
+                            + mouth);
+            testedMouths++;
+        }
+        assertTrue(testedMouths > 0, "key-287 fixture must exercise at least one river/lake mouth");
+    }
+
+    @Test
+    @Tag("qualification")
     void hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
