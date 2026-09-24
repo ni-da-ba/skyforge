@@ -237,16 +237,11 @@ final class SkyforgeAuthoredNativeSurfaceStage {
                     if (liveState.isAir() || !liveState.getFluidState().isEmpty()) {
                         continue;
                     }
-                    // Authored hydrology substrate is already an explicit backend representation.
-                    // Native biome surface rules may dress surrounding terrain, but must not repaint
-                    // river/lake beds into grass, mycelium, sand, or another unrelated top block.
-                    var authoredHydrology = SkyforgeNeoForge1211SurfaceStage
-                            .authoredHydrologyPopulationState(volumeId, cursor);
-                    if (authoredHydrology.isPresent()
-                            && SkyforgeAuthoredVisibleHydrologyAdapter.isHydrologySurfaceMaterial(
-                                    authoredHydrology.orElseThrow())) {
-                        continue;
-                    }
+                    // Hydrology owns occupancy and geometry, not the final material palette.
+                    // The scratch chunk already preserves authored AIR/water, so native surface rules
+                    // can safely realize the exposed/submerged solid bed and banks using the exact
+                    // island biome context. This keeps fluvial material expression adaptable instead
+                    // of freezing a Skyforge-authored clay/stone palette into the backend.
                     if (!liveState.equals(nativeState)) {
                         live.setBlockState(cursor, nativeState, false);
                         changed++;
