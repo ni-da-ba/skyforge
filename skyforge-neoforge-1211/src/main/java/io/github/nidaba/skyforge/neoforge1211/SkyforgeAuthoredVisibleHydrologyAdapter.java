@@ -144,12 +144,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
      */
     record ChunkProjection(
             Map<BlockPos, BlockState> states,
-            Set<BlockPos> surfacePositions) {
+            Set<BlockPos> surfacePositions,
+            Set<BlockPos> forcedSurfacePositions) {
         ChunkProjection {
             Objects.requireNonNull(states, "states");
             Objects.requireNonNull(surfacePositions, "surfacePositions");
+            Objects.requireNonNull(forcedSurfacePositions, "forcedSurfacePositions");
             states = Collections.unmodifiableMap(new LinkedHashMap<>(states));
             surfacePositions = Collections.unmodifiableSet(new LinkedHashSet<>(surfacePositions));
+            forcedSurfacePositions = Collections.unmodifiableSet(
+                    new LinkedHashSet<>(forcedSurfacePositions));
+            if (!surfacePositions.containsAll(forcedSurfacePositions)) {
+                throw new IllegalArgumentException(
+                        "forced chunk-local hydrology surface must remain inside surface ownership");
+            }
         }
 
         Optional<BlockState> stateAt(BlockPos position) {
@@ -2403,8 +2411,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(deployments, "deployments");
         Map<Long, LinkedHashMap<BlockPos, BlockState>> mutable = new LinkedHashMap<>();
         Map<Long, LinkedHashSet<BlockPos>> surfaceOwnership = new LinkedHashMap<>();
+        Map<Long, LinkedHashSet<BlockPos>> forcedSurfaceOwnership = new LinkedHashMap<>();
         for (Deployment deployment : deployments) {
             indexSurfaceOwnership(surfaceOwnership, deployment.surfacePositions());
+            indexSurfaceOwnership(forcedSurfaceOwnership, deployment.forcedSurfacePositions());
             indexStates(mutable, deployment.carvedPositions(), Blocks.AIR.defaultBlockState());
             indexStates(mutable, deployment.positions(), Blocks.WATER.defaultBlockState());
         }
@@ -2412,13 +2422,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         LinkedHashSet<Long> chunkKeys = new LinkedHashSet<>();
         chunkKeys.addAll(mutable.keySet());
         chunkKeys.addAll(surfaceOwnership.keySet());
+        chunkKeys.addAll(forcedSurfaceOwnership.keySet());
         Map<Long, ChunkProjection> result = new LinkedHashMap<>();
         for (long chunkKey : chunkKeys) {
             result.put(
                     chunkKey,
                     new ChunkProjection(
                             mutable.getOrDefault(chunkKey, new LinkedHashMap<>()),
-                            surfaceOwnership.getOrDefault(chunkKey, new LinkedHashSet<>())));
+                            surfaceOwnership.getOrDefault(chunkKey, new LinkedHashSet<>()),
+                            forcedSurfaceOwnership.getOrDefault(chunkKey, new LinkedHashSet<>())));
         }
         return Collections.unmodifiableMap(result);
     }
@@ -2452,11 +2464,10 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(projection, "projection");
         int written = 0;
 
-        // Surface ownership includes preserved bed/bank cells plus the small bounded geometry
-        // extensions needed to contain water. Existing solids keep their already-native material.
-        // Only an authored extension that is still AIR is filled, and it inherits the live dry
-        // substrate directly beneath it; this preserves local/native material identity.
-        for (BlockPos position : projection.surfacePositions()) {
+        // Surface ownership also includes preserved bed/bank cells that must never be filled merely
+        // because this replay chunk currently contains AIR (for example after a carve). Only the
+        // explicit bounded geometry-reconciliation subset is allowed to construct support.
+        for (BlockPos position : projection.forcedSurfacePositions()) {
             if (!chunk.getPos().equals(new ChunkPos(position))) {
                 throw new IllegalArgumentException(
                         "authored hydrology chunk projection contains a foreign surface position");
