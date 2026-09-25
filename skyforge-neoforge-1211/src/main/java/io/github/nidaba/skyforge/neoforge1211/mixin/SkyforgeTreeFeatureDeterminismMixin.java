@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211.mixin;
 
 import io.github.nidaba.skyforge.neoforge1211.SkyforgeWorldGenRegionDomainBridge;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
@@ -10,6 +11,7 @@ import net.minecraft.world.level.levelgen.feature.TreeFeature;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 /**
  * Canonicalizes vanilla tree-finalization working sets only for stable deferred Skyforge ecology.
@@ -36,6 +38,27 @@ abstract class SkyforgeTreeFeatureDeterminismMixin {
     @ModifyVariable(method = "updateLeaves", at = @At("HEAD"), argsOnly = true, index = 4)
     private static Set<BlockPos> skyforge$canonicalizeFoliage(Set<BlockPos> positions) {
         return canonicalize(positions);
+    }
+
+
+    /**
+     * Replaces TreeFeature's seven leaf-distance frontier buckets with insertion-ordered sets.
+     *
+     * <p>Vanilla creates these buckets with Guava HashSet and repeatedly consumes each bucket via
+     * iterator().next(). That makes traversal order depend on hash iteration even after the three
+     * input sets are canonicalized. In deferred Skyforge tree finalization the resulting write order
+     * is observable through exact-volume write admission, so use LinkedHashSet only for this scoped
+     * execution. Ordinary Minecraft tree generation keeps the original HashSet behavior.
+     */
+    @Redirect(
+            method = "updateLeaves",
+            at = @At(
+                    value = "INVOKE",
+                    target = "Lcom/google/common/collect/Sets;newHashSet()Ljava/util/HashSet;"))
+    private static HashSet<BlockPos> skyforge$canonicalizeLeafDistanceFrontier() {
+        return SkyforgeWorldGenRegionDomainBridge.deterministicDeferredTreeFinalizationActive()
+                ? new LinkedHashSet<>()
+                : new HashSet<>();
     }
 
     private static Set<BlockPos> canonicalize(Set<BlockPos> positions) {
