@@ -20,7 +20,7 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
     private static final double SOURCE_SEARCH_RADIUS_SPACING_FRACTION = 0.55;
     private static final double CONFLUENCE_SEARCH_RADIUS_SPACING_FRACTION = 0.85;
     private static final double TERMINAL_SEARCH_RADIUS_SPACING_FRACTION = 0.35;
-    private static final double ROUTE_CORRIDOR_SPACING_FRACTION = 1.65;
+    public static final double ROUTE_CORRIDOR_SPACING_FRACTION = 1.65;
 
     private static final double RIDGE_WEIGHT = 26.0;
     private static final double TERRAIN_LEVEL_WEIGHT = 2.0;
