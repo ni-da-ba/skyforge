@@ -3,9 +3,12 @@ package io.github.nidaba.skyforge.reference;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
+import io.github.nidaba.skyforge.world.SkyIslandChannelProfileKind;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnostics;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnosticsPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachRoute;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlanner;
@@ -37,6 +40,7 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
 
         List<Specimen> specimens = List.of(
                 new Specimen("primary-287", descriptor(8L, 81L, 287L)),
+                new Specimen("control-241", descriptor(8L, 81L, 241L)),
                 new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
                 new Specimen("legacy-control-649", descriptor(8L, 81L, 649L)),
                 new Specimen("stress-811", descriptor(8L, 81L, 811L)),
@@ -49,13 +53,27 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                 "specimen,islandKey,morphology,nodes,confluences,reaches,"
                         + "maxRequiredLowering,meanRequiredLowering,maxWaterSlope,"
                         + "meanUphillFraction,maxRidgeFraction,meanValleyAdvantage,"
-                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth\n");
+                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth,"
+                        + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
+                        + "maxDepthToBankfullWidth,maxReliefToValleyWidth,"
+                        + "maxExcavationBurden,maxExcavationVolume,maxCurvatureWidthRatio,"
+                        + "maxLongitudinalGradeWorld\n");
+
+        StringBuilder reachCsv = new StringBuilder(
+                "specimen,islandKey,startCell,endCell,profileKind,coarseSegments,"
+                        + "pathLength,maxLoweringPotential,maxLoweringWorld,maxLateralRecoveryGrade,"
+                        + "maxContainmentDeficitWorld,maxDepthToBankfullWidth,maxReliefToValleyWidth,"
+                        + "normalizedExcavationBurden,excavationVolume,maxCurvatureWidthRatio,"
+                        + "ridgeFraction,maxLongitudinalGradeWorld\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandGeomorphicChannelNetworkPlan geometry =
                     SkyIslandGeomorphicChannelNetworkPlanner.plan(specimen.descriptor());
             SkyIslandHydraulicChannelNetworkPlan hydraulics =
                     SkyIslandHydraulicChannelNetworkPlanner.plan(specimen.descriptor());
+
+            List<SkyIslandGeomorphicReachDiagnostics> geomorphicDiagnostics =
+                    SkyIslandGeomorphicReachDiagnosticsPlanner.measure(specimen.descriptor());
 
             double meanUphill = geometry.routes().stream()
                     .mapToDouble(route -> route.route().uphillStepFraction())
@@ -82,6 +100,39 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .max()
                     .orElse(0.0);
 
+            double maxLateralRecoveryGrade = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumLateralRecoveryGrade)
+                    .max()
+                    .orElse(0.0);
+            double maxContainmentDeficit = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumBankContainmentDeficitWorldUnits)
+                    .max()
+                    .orElse(0.0);
+            double maxDepthToWidth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumDepthToBankfullWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxReliefToValleyWidth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumReliefToValleyWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxExcavationBurden = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::normalizedExcavationBurden)
+                    .max()
+                    .orElse(0.0);
+            double maxExcavationVolume = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::excavationVolumeProxyWorldUnitsCubed)
+                    .max()
+                    .orElse(0.0);
+            double maxCurvatureWidthRatio = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumCurvatureWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxLongitudinalGradeWorld = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumLongitudinalGrade)
+                    .max()
+                    .orElse(0.0);
+
             csv.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
                     .append(specimen.descriptor().morphologyFamily().identifier()).append(',')
@@ -96,10 +147,46 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .append(format(meanValley)).append(',')
                     .append(format(maxDeviation)).append(',')
                     .append(format(maxWidth)).append(',')
-                    .append(format(maxDepth)).append('\n');
+                    .append(format(maxDepth)).append(',')
+                    .append(format(maxLateralRecoveryGrade)).append(',')
+                    .append(format(maxContainmentDeficit)).append(',')
+                    .append(format(maxDepthToWidth)).append(',')
+                    .append(format(maxReliefToValleyWidth)).append(',')
+                    .append(format(maxExcavationBurden)).append(',')
+                    .append(format(maxExcavationVolume)).append(',')
+                    .append(format(maxCurvatureWidthRatio)).append(',')
+                    .append(format(maxLongitudinalGradeWorld)).append('\n');
+
+            for (SkyIslandGeomorphicReachDiagnostics diagnostic : geomorphicDiagnostics) {
+                var semantic = diagnostic.hydraulicReach().geomorphicRoute().semanticReach();
+                SkyIslandChannelProfileKind profileKind =
+                        semantic.profiles().getFirst().kind();
+                boolean mixedProfile = semantic.profiles().stream()
+                        .anyMatch(profile -> profile.kind() != profileKind);
+                String profileLabel = mixedProfile ? "mixed" : profileKind.name().toLowerCase(Locale.ROOT);
+                reachCsv.append(specimen.name()).append(',')
+                        .append(specimen.descriptor().identity().islandKey()).append(',')
+                        .append(semantic.startCellIndex()).append(',')
+                        .append(semantic.endCellIndex()).append(',')
+                        .append(profileLabel).append(',')
+                        .append(semantic.coarseSegmentCount()).append(',')
+                        .append(format(diagnostic.hydraulicReach().pathLength())).append(',')
+                        .append(format(diagnostic.maximumCenterlineLoweringPotential())).append(',')
+                        .append(format(diagnostic.maximumCenterlineLoweringWorldUnits())).append(',')
+                        .append(format(diagnostic.maximumLateralRecoveryGrade())).append(',')
+                        .append(format(diagnostic.maximumBankContainmentDeficitWorldUnits())).append(',')
+                        .append(format(diagnostic.maximumDepthToBankfullWidthRatio())).append(',')
+                        .append(format(diagnostic.maximumReliefToValleyWidthRatio())).append(',')
+                        .append(format(diagnostic.normalizedExcavationBurden())).append(',')
+                        .append(format(diagnostic.excavationVolumeProxyWorldUnitsCubed())).append(',')
+                        .append(format(diagnostic.maximumCurvatureWidthRatio())).append(',')
+                        .append(format(diagnostic.ridgeSampleFraction())).append(',')
+                        .append(format(diagnostic.maximumLongitudinalGrade())).append('\n');
+            }
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("reach-manifest.csv"), reachCsv, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), readme(), StandardCharsets.UTF_8);
         System.out.println(out.resolve("manifest.csv").toAbsolutePath());
     }
@@ -115,15 +202,15 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
 
     private static String readme() {
         return """
-                Hydrology geomorphic diagnostics v1
+                Hydrology geomorphic diagnostics v2
 
-                This corpus records pre-carving route and hydraulic metrics for threshold calibration.
+                This corpus records pre-carving route and hydraulic metrics for threshold calibration.\n                manifest.csv is specimen-level evidence; reach-manifest.csv preserves per-reach/profile evidence.
                 It is not an acceptance oracle. Do not infer pass/fail from one specimen or tune a
                 threshold merely to preserve the current corpus.
 
                 Metrics are intended to support the next #1084 qualification tranche, particularly
-                hard envelopes for ridge occupancy, required lowering, longitudinal grade, and later
-                lateral cross-section/excavation diagnostics.
+                hard envelopes for ridge occupancy, required lowering, longitudinal grade, lateral recovery,
+                bank containment, width/depth compatibility, excavation burden/volume, and curvature.
                 """;
     }
 

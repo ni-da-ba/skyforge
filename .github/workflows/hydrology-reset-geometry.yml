@@ -8,6 +8,10 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachDiagnosticsPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachDiagnosticsPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C1.md"
@@ -67,7 +71,15 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             --no-configuration-cache
+
+      - name: Print hydrology diagnostic calibration manifest
+        if: success()
+        run: |
+          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
+          echo "--- reach-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
 
       - name: Dump focused failure report
         if: failure()
