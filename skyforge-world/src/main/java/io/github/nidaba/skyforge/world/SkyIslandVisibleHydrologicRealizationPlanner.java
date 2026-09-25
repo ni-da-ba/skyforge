@@ -9,10 +9,7 @@ import java.util.Objects;
  * Projects accepted authored hydrology into exact backend-neutral visible-water realization intent.
  *
  * <p>This planner introduces no new hydrologic threshold, route, retained basin, or drop event.
- * It only binds already accepted source semantics into a downstream-consumable contract. A channel
- * whose two graph endpoints are owned by the same retained basin remains part of submerged fluvial
- * geomorphology but is omitted as separate visible channel water because the standing basin owns
- * that water surface.
+ * It only binds already accepted source semantics into a downstream-consumable contract.
  */
 public final class SkyIslandVisibleHydrologicRealizationPlanner {
     private SkyIslandVisibleHydrologicRealizationPlanner() {}
@@ -28,9 +25,7 @@ public final class SkyIslandVisibleHydrologicRealizationPlanner {
                 SkyIslandWaterbodyMarginPlanner.plan(descriptor);
 
         List<SkyIslandVisibleChannelWaterIntent> channels = new ArrayList<>();
-        for (SkyIslandNaturalizedChannelPath path :
-                SkyIslandVisibleHydrologicRealizationPlan.visibleChannelPaths(
-                        coherent, waterbodies)) {
+        for (SkyIslandNaturalizedChannelPath path : coherent.naturalizedChannels().paths()) {
             SkyIslandChannelSegment segment = path.profile().segment();
             List<SkyIslandRiparianCell> riparian = coherent.riparian().cells().stream()
                     .filter(cell -> cell.channelSourceCellIndex() == segment.sourceCellIndex()
