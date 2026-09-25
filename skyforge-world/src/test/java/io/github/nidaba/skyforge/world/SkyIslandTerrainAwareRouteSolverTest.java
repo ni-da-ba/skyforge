@@ -43,6 +43,28 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void zeroRadiusGlobalLatticeAnchorsArePreservedExactly() {
+        double planningSpacing = 4.0;
+        double step = planningSpacing / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
+        SkyIslandLocalPosition startPosition = new SkyIslandLocalPosition(-7 * step, 3 * step);
+        SkyIslandLocalPosition endPosition = new SkyIslandLocalPosition(11 * step, -2 * step);
+        SkyIslandSemanticField terrain = position -> clamp01(0.65 - 0.006 * position.x());
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+
+        SkyIslandGeomorphicCandidateRoute route = SkyIslandTerrainAwareRouteSolver.solve(
+                terrain,
+                interiority,
+                List.of(startPosition, endPosition),
+                planningSpacing,
+                5.0,
+                new SkyIslandGeomorphicRouteAnchor(startPosition, 0.0),
+                new SkyIslandGeomorphicRouteAnchor(endPosition, 0.0));
+
+        assertEquals(startPosition, route.points().getFirst());
+        assertEquals(endPosition, route.points().getLast());
+    }
+
+    @Test
     void routeDiagnosticsRemainFiniteAndBounded() {
         SkyIslandSemanticField terrain = position -> clamp01(0.70 - 0.012 * position.x());
         SkyIslandSemanticField interiority = ignored -> 1.0;

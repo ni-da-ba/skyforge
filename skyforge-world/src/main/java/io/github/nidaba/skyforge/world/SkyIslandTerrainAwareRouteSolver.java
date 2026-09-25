@@ -57,13 +57,12 @@ public final class SkyIslandTerrainAwareRouteSolver {
         double step = planningSpacing / FINE_DIVISIONS_PER_PLANNING_CELL;
         double padding = corridorHalfWidth + Math.max(startAnchor.radius(), endAnchor.radius()) + step;
         Bounds rawBounds = bounds(guidance, startAnchor.center(), endAnchor.center(), padding);
-        Bounds bounds = new Bounds(
-                Math.floor(rawBounds.minX() / step) * step,
-                Math.ceil(rawBounds.maxX() / step) * step,
-                Math.floor(rawBounds.minZ() / step) * step,
-                Math.ceil(rawBounds.maxZ() / step) * step);
-        int width = Math.max(2, (int) Math.round((bounds.maxX() - bounds.minX()) / step) + 1);
-        int height = Math.max(2, (int) Math.round((bounds.maxZ() - bounds.minZ()) / step) + 1);
+        int minimumGridX = (int) Math.floor(rawBounds.minX() / step);
+        int maximumGridX = (int) Math.ceil(rawBounds.maxX() / step);
+        int minimumGridZ = (int) Math.floor(rawBounds.minZ() / step);
+        int maximumGridZ = (int) Math.ceil(rawBounds.maxZ() / step);
+        int width = Math.max(2, Math.addExact(Math.subtractExact(maximumGridX, minimumGridX), 1));
+        int height = Math.max(2, Math.addExact(Math.subtractExact(maximumGridZ, minimumGridZ), 1));
         int count = Math.multiplyExact(width, height);
 
         SkyIslandLocalPosition[] positions = new SkyIslandLocalPosition[count];
@@ -84,8 +83,10 @@ public final class SkyIslandTerrainAwareRouteSolver {
         for (int z = 0; z < height; z++) {
             for (int x = 0; x < width; x++) {
                 int index = index(x, z, width);
+                int globalGridX = Math.addExact(minimumGridX, x);
+                int globalGridZ = Math.addExact(minimumGridZ, z);
                 SkyIslandLocalPosition position =
-                        new SkyIslandLocalPosition(bounds.minX() + x * step, bounds.minZ() + z * step);
+                        new SkyIslandLocalPosition(globalGridX * step, globalGridZ * step);
                 double deviation = distanceToPolyline(position, guidance);
                 boolean inStart = startAnchor.contains(position, anchorTolerance);
                 boolean inGoal = endAnchor.contains(position, anchorTolerance);
