@@ -13,6 +13,17 @@ to repair the gap.
 
 Every semantic graph node now receives exactly one shared physical position before reach routing.
 
+## Pre-hydrologic substrate
+
+All node placement and route search operate on `SkyIslandPreHydrologicTerrainField`, which exposes the
+authored elevation tendency **before** AUTH-0014/AUTH-0015 incision, deposition, floodplain, drop,
+or retained-waterbody terrain response. The legacy continuous hydrologic terrain field is not an
+allowed substrate for the reset because it already contains consequences of the retired hydrology
+architecture.
+
+This boundary is explicit so a later compiled-surface projection can replace the semantic elevation
+carrier without reintroducing legacy hydrologic shaping.
+
 ## Shared node solve
 
 For each semantic source, confluence, or terminal, Skyforge defines a bounded search region around
