@@ -39,6 +39,7 @@ public final class HydrologyWaterbodyDiagnosticsCorpusCli {
         StringBuilder csv = new StringBuilder(
                 "specimen,islandKey,morphology,basinIndex,kind,area,equivalentDiameter,"
                         + "maxDepthWorld,depthToDiameter,maxShorelineGrade,spillHeadroomWorld,"
+                        + "matchedTerminalReaches,maxChannelDatumMismatchWorld,"
                         + "reachesSearchBoundary,shorelineCrossings\n");
 
         for (Specimen specimen : specimens) {
@@ -57,6 +58,8 @@ public final class HydrologyWaterbodyDiagnosticsCorpusCli {
                         .append(format(d.depthToEquivalentDiameterRatio())).append(',')
                         .append(format(d.maximumShorelineGrade())).append(',')
                         .append(format(d.spillHeadroomWorldUnits())).append(',')
+                        .append(d.matchedTerminalReachCount()).append(',')
+                        .append(format(d.maximumChannelDatumMismatchWorldUnits())).append(',')
                         .append(d.reachesSearchBoundary()).append(',')
                         .append(d.shorelineCrossingCount()).append('\n');
             }
