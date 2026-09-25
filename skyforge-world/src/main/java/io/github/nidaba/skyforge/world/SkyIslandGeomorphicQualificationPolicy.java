@@ -32,6 +32,27 @@ public record SkyIslandGeomorphicQualificationPolicy(
         requirePositive(maxRawTerrainUphillStepPotential, "maxRawTerrainUphillStepPotential");
     }
 
+    /**
+     * First evidence-informed hard-safety envelope.
+     *
+     * <p>These are deliberately permissive rejection limits, not target natural-channel geometry.
+     * The curvature guard W/R <= 1 is substantially looser than the common observed meander
+     * R/W range near 2-3; its purpose is only to reject bends tighter than their own channel width.
+     */
+    public static SkyIslandGeomorphicQualificationPolicy safetyV1() {
+        return new SkyIslandGeomorphicQualificationPolicy(
+                0.20,
+                1.00,
+                2.00,
+                1.00,
+                0.50,
+                0.10,
+                1.00,
+                0.50,
+                1.00,
+                0.03);
+    }
+
     private static void requirePositive(double value, String name) {
         if (!Double.isFinite(value) || value <= 0.0) {
             throw new IllegalArgumentException(name + " must be finite and positive");
