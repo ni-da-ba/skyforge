@@ -200,6 +200,20 @@ final class SkyforgeNativePlacedFeatureRunner {
             // as worldgen, then resolves them here before the exact-volume execution scope closes.
             // Direct worldgen never opens the bridge, so this is a no-op on the accepted path.
             SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
+            if (registryLocation.equals(ResourceLocation.fromNamespaceAndPath(
+                            "minecraft", "patch_grass_savanna"))
+                    && operation.originChunk().x == 5
+                    && operation.originChunk().z == -2) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "SKYFORGE DR40 GRASS TRACE: chunk="
+                                + operation.originChunk()
+                                + ", seed=" + Long.toUnsignedString(operation.seed())
+                                + ", attachments="
+                                + execution.execution().attachmentPositions().stream()
+                                        .map(position -> Long.toString(position.asLong()))
+                                        .toList());
+            }
             return new Result(
                     placed,
                     execution.execution().attachmentCount(),

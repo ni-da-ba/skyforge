@@ -102,49 +102,53 @@ class SkyIslandChannelDropPlannerTest {
 
     @Test
     void retainedEndpointDropsLocalizeAtCanonicalShorelineCrossing() {
-        SkyIslandDescriptor descriptor = descriptor(287L);
-        var profiles = SkyIslandChannelProfilePlanner.plan(descriptor).profiles();
-        var selected = SkyIslandChannelDropPlanner.plan(descriptor, profiles);
-        var naturalized = SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
-        var localized = SkyIslandChannelDropPlanner.localize(
-                descriptor, selected, naturalized);
-        var watershed = SkyIslandWatershedPlanner.plan(descriptor);
-        var footprints = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints();
-
-        Map<Integer, SkyIslandWaterbodyFootprint> retainedByCell = new HashMap<>();
-        for (var footprint : footprints) {
-            for (var cell : footprint.cells()) {
-                retainedByCell.put(cell.watershedCellIndex(), footprint);
-            }
-        }
-
         boolean exercised = false;
-        for (var drop : localized.drops()) {
-            if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
-                continue;
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 649L, 811L}) {
+            SkyIslandDescriptor descriptor = descriptor(key);
+            var profiles = SkyIslandChannelProfilePlanner.plan(descriptor).profiles();
+            var selected = SkyIslandChannelDropPlanner.plan(descriptor, profiles);
+            var naturalized = SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
+            var localized = SkyIslandChannelDropPlanner.localize(
+                    descriptor, selected, naturalized);
+            var watershed = SkyIslandWatershedPlanner.plan(descriptor);
+            var footprints = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints();
+
+            Map<Integer, SkyIslandWaterbodyFootprint> retainedByCell = new HashMap<>();
+            for (var footprint : footprints) {
+                for (var cell : footprint.cells()) {
+                    retainedByCell.put(cell.watershedCellIndex(), footprint);
+                }
             }
-            var source = retainedByCell.get(drop.sourceCellIndex());
-            var downstream = retainedByCell.get(drop.downstreamCellIndex());
-            if ((source == null) == (downstream == null)) {
-                continue;
+
+            for (var drop : localized.drops()) {
+                if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
+                    continue;
+                }
+                var source = retainedByCell.get(drop.sourceCellIndex());
+                var downstream = retainedByCell.get(drop.downstreamCellIndex());
+                if ((source == null) == (downstream == null)) {
+                    continue;
+                }
+                var path = naturalized.paths().stream()
+                        .filter(candidate ->
+                                candidate.profile().segment().sourceCellIndex() == drop.sourceCellIndex()
+                                        && candidate.profile().segment().downstreamCellIndex()
+                                                == drop.downstreamCellIndex())
+                        .findFirst()
+                        .orElseThrow();
+                var retained = source != null ? source : downstream;
+                var crossing =
+                        SkyIslandRetainedWaterFootprintGeometry.endpointBoundaryCrossing(
+                                        descriptor, watershed, retained, path)
+                                .orElseThrow();
+                assertEquals(crossing.x(), drop.position().x(), 1.0e-9);
+                assertEquals(crossing.z(), drop.position().z(), 1.0e-9);
+                exercised = true;
             }
-            var path = naturalized.paths().stream()
-                    .filter(candidate ->
-                            candidate.profile().segment().sourceCellIndex() == drop.sourceCellIndex()
-                                    && candidate.profile().segment().downstreamCellIndex()
-                                            == drop.downstreamCellIndex())
-                    .findFirst()
-                    .orElseThrow();
-            var retained = source != null ? source : downstream;
-            var crossing =
-                    SkyIslandRetainedWaterFootprintGeometry.endpointBoundaryCrossing(
-                                    descriptor, watershed, retained, path)
-                            .orElseThrow();
-            assertEquals(crossing.x(), drop.position().x(), 1.0e-9);
-            assertEquals(crossing.z(), drop.position().z(), 1.0e-9);
-            exercised = true;
         }
-        assertTrue(exercised, "key-287 must exercise a retained-endpoint localized drop");
+        assertTrue(
+                exercised,
+                "representative corpus must exercise a retained-endpoint localized drop");
     }
 
     @Test
