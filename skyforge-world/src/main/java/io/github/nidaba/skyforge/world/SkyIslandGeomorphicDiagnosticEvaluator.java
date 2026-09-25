@@ -28,6 +28,8 @@ public final class SkyIslandGeomorphicDiagnosticEvaluator {
         }
 
         double radius = descriptor.nominalRadius();
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
         double minimumContainment = Double.POSITIVE_INFINITY;
         double maximumRecoveryGrade = 0.0;
         double maximumCurvatureWidthRatio = 0.0;
@@ -35,6 +37,17 @@ public final class SkyIslandGeomorphicDiagnosticEvaluator {
         int sampleCount = 0;
 
         for (SkyIslandHydraulicReachGeometry reach : hydraulics.reaches()) {
+            SkyIslandContinuousChannelCenterline centerline =
+                    SkyIslandContinuousChannelCenterlinePlanner.refine(
+                            reach.geomorphicRoute().route(),
+                            terrain,
+                            interiority,
+                            hydraulics.geomorphicNetwork().planningSpacing());
+            maximumCurvatureWidthRatio = Math.max(
+                    maximumCurvatureWidthRatio,
+                    maximumCurvature(centerline.points())
+                            * (2.0 * reach.maximumBankfullHalfWidth()));
+
             List<SkyIslandHydraulicGeometrySample> samples = reach.samples();
             for (int i = 0; i < samples.size(); i++) {
                 SkyIslandHydraulicGeometrySample sample = samples.get(i);
@@ -81,15 +94,6 @@ public final class SkyIslandGeomorphicDiagnosticEvaluator {
                                     * normalizedDs;
                 }
 
-                if (i > 0 && i < samples.size() - 1) {
-                    double curvature = curvature(
-                            samples.get(i - 1).position(),
-                            sample.position(),
-                            samples.get(i + 1).position());
-                    maximumCurvatureWidthRatio = Math.max(
-                            maximumCurvatureWidthRatio,
-                            curvature * (2.0 * halfWidth));
-                }
                 sampleCount++;
             }
         }
@@ -126,6 +130,17 @@ public final class SkyIslandGeomorphicDiagnosticEvaluator {
             return new Vector(1.0, 0.0);
         }
         return new Vector(dx / length, dz / length);
+    }
+
+    private static double maximumCurvature(
+            List<SkyIslandLocalPosition> points) {
+        double maximum = 0.0;
+        for (int i = 1; i < points.size() - 1; i++) {
+            maximum = Math.max(
+                    maximum,
+                    curvature(points.get(i - 1), points.get(i), points.get(i + 1)));
+        }
+        return maximum;
     }
 
     private static double curvature(
