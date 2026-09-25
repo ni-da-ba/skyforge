@@ -254,8 +254,13 @@ final class SkyforgePopulationExecutionStage {
             if (!stableDeferredLevel || !originChunkContains(position)) {
                 return false;
             }
-            ServerLevel server = (ServerLevel) level.orElseThrow();
-            return committedAttachment(server, operation.volumeId(), position);
+            // Separate deferred native features must not inherit visibility from the historical
+            // attachment-provenance ledger. That ledger records admitted write attempts, including
+            // attempts that can leave the same live block state, so exposing it as read authority
+            // makes later feature geometry depend on incidental prior feature internals even when
+            // the observable pre-state is identical. A feature may see exact owner terrain and its
+            // own current attachment envelope only.
+            return false;
         }
 
         /**
