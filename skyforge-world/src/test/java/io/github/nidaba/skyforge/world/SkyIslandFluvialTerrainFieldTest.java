@@ -198,8 +198,7 @@ class SkyIslandFluvialTerrainFieldTest {
                 assertTrue(field.wetHalfWidthAt(reach, 0.0) > field.wetHalfWidthAt(reach, 1.0));
                 assertTrue(field.bankfullHalfWidthAt(reach, 0.0) > field.bankfullHalfWidthAt(reach, 1.0));
                 assertTrue(field.valleyHalfWidthAt(reach, 0.0) > field.valleyHalfWidthAt(reach, 1.0));
-                if (field.terminalDrop(reach).isEmpty()
-                        && field.retainedEndpointLip(reach).isEmpty()) {
+                if (field.terminalDrop(reach).isEmpty()) {
                     assertEquals(reach.wetHalfWidth(), field.wetHalfWidthAt(reach, 1.0), EPSILON);
                 }
                 assertEquals(reach.bankfullHalfWidth(), field.bankfullHalfWidthAt(reach, 1.0), EPSILON);
@@ -208,31 +207,6 @@ class SkyIslandFluvialTerrainFieldTest {
             }
         }
         assertTrue(exercised, "reference corpus must exercise at least one routed confluence");
-    }
-
-    @Test
-    void retainedEndpointLipsProvideNarrowHydraulicThroatsWithoutInventingDrops() {
-        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(SEED, 8L, 81L, 287L));
-        SkyIslandFluvialTerrainField field = SkyIslandFluvialTerrainField.create(descriptor);
-
-        boolean exercisedWithoutSparseDrop = false;
-        for (SkyIslandFluvialReachGeometry reach : field.reaches()) {
-            var lip = field.retainedEndpointLip(reach);
-            if (lip.isEmpty()) {
-                continue;
-            }
-            double fraction = field.retainedEndpointLipFraction(reach).orElseThrow();
-            double wet = field.wetHalfWidthAt(reach, fraction);
-            assertTrue(wet < field.bankfullHalfWidthAt(reach, fraction));
-            assertTrue(wet > 0.0);
-            if (field.terminalDrop(reach).isEmpty()) {
-                exercisedWithoutSparseDrop = true;
-            }
-        }
-        assertTrue(
-                exercisedWithoutSparseDrop,
-                "key-287 must exercise a retained spill lip independent of sparse drop selection");
     }
 
     @Test

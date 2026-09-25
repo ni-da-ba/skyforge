@@ -23,7 +23,9 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
 
             assertEquals(first, second);
             assertEquals(
-                    first.coherentHydrology().naturalizedChannels().paths().size(),
+                    SkyIslandVisibleHydrologicRealizationPlan.visibleChannelPaths(
+                                    first.coherentHydrology(), first.waterbodies())
+                            .size(),
                     first.channels().size());
             assertEquals(first.waterbodies().footprints().size(), first.retainedWater().size());
             assertEquals(first.coherentHydrology().drops().drops().size(), first.drops().size());
@@ -38,10 +40,12 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
         for (long key : KEYS) {
             SkyIslandVisibleHydrologicRealizationPlan plan =
                     SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor(key));
+            List<SkyIslandNaturalizedChannelPath> visibleSources =
+                    SkyIslandVisibleHydrologicRealizationPlan.visibleChannelPaths(
+                            plan.coherentHydrology(), plan.waterbodies());
             for (int i = 0; i < plan.channels().size(); i++) {
                 SkyIslandVisibleChannelWaterIntent intent = plan.channels().get(i);
-                SkyIslandNaturalizedChannelPath source =
-                        plan.coherentHydrology().naturalizedChannels().paths().get(i);
+                SkyIslandNaturalizedChannelPath source = visibleSources.get(i);
                 assertEquals(source, intent.path());
                 assertEquals(SkyIslandVisibleHydrologicRealizationKind.CHANNEL_WATER, intent.kind());
 
@@ -53,6 +57,26 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
                 assertEquals(expected, intent.riparianCells());
             }
         }
+    }
+
+    @Test
+    void sameBasinChannelSegmentsRemainSubmergedInsteadOfBecomingSeparateVisibleWater() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 287L));
+        SkyIslandVisibleHydrologicRealizationPlan plan =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        List<SkyIslandNaturalizedChannelPath> all =
+                plan.coherentHydrology().naturalizedChannels().paths();
+        List<SkyIslandNaturalizedChannelPath> visible =
+                SkyIslandVisibleHydrologicRealizationPlan.visibleChannelPaths(
+                        plan.coherentHydrology(), plan.waterbodies());
+
+        assertTrue(
+                visible.size() < all.size(),
+                "key-287 must exercise at least one channel submerged by a retained basin");
+        assertEquals(
+                visible,
+                plan.channels().stream().map(SkyIslandVisibleChannelWaterIntent::path).toList());
     }
 
     @Test
@@ -177,9 +201,11 @@ final class SkyIslandVisibleHydrologicRealizationPlannerTest {
         assertEquals(SkyIslandVisibleHydrologicRealizationKind.CHANNEL_WATER, channel.kind());
         assertTrue(channel.path().points().size() > 1);
         assertEquals(
-                first.coherentHydrology().naturalizedChannels().paths().getFirst(),
+                SkyIslandVisibleHydrologicRealizationPlan.visibleChannelPaths(
+                                first.coherentHydrology(), first.waterbodies())
+                        .getFirst(),
                 channel.path(),
-                "AUTH-0104 must preserve exact accepted channel provenance rather than synthesize topology");
+                "AUTH-0104 must preserve exact non-submerged channel provenance rather than synthesize topology");
         assertEquals(
                 first.coherentHydrology().drops().drops(),
                 first.drops().stream().map(SkyIslandVisibleDropWaterIntent::drop).toList(),
