@@ -36,7 +36,7 @@ public record SkyIslandVisibleHydrologicRealizationPlan(
                     "visible hydrologic realization sources must belong to one exact island");
         }
 
-        requireExactChannelProjection(coherentHydrology, waterbodies, channels);
+        requireExactChannelProjection(coherentHydrology, channels);
         requireExactRetainedWaterProjection(waterbodies, waterbodyMargins, retainedWater);
         requireExactDropProjection(coherentHydrology, drops);
     }
@@ -57,13 +57,12 @@ public record SkyIslandVisibleHydrologicRealizationPlan(
 
     private static void requireExactChannelProjection(
             SkyIslandCoherentHydrologicRealizationPlan coherentHydrology,
-            SkyIslandWaterbodyFootprintPlan waterbodies,
             List<SkyIslandVisibleChannelWaterIntent> channels) {
         List<SkyIslandNaturalizedChannelPath> sourcePaths =
-                visibleChannelPaths(coherentHydrology, waterbodies);
+                coherentHydrology.naturalizedChannels().paths();
         if (channels.size() != sourcePaths.size()) {
             throw new IllegalArgumentException(
-                    "visible channel projection must cover every non-submerged naturalized path exactly once");
+                    "visible channel projection must cover every accepted naturalized path exactly once");
         }
         for (int i = 0; i < sourcePaths.size(); i++) {
             SkyIslandNaturalizedChannelPath sourcePath = sourcePaths.get(i);
@@ -71,7 +70,7 @@ public record SkyIslandVisibleHydrologicRealizationPlan(
                     Objects.requireNonNull(channels.get(i), "channel intent");
             if (!intent.path().equals(sourcePath)) {
                 throw new IllegalArgumentException(
-                        "visible channel projection must preserve exact visible-source ordering and identity");
+                        "visible channel projection must preserve exact source ordering and identity");
             }
             SkyIslandChannelSegment segment = sourcePath.profile().segment();
             List<SkyIslandRiparianCell> expectedRiparian = coherentHydrology.riparian().cells().stream()
@@ -83,39 +82,6 @@ public record SkyIslandVisibleHydrologicRealizationPlan(
                         "visible channel projection must retain the exact authored riparian relationship");
             }
         }
-    }
-
-    static List<SkyIslandNaturalizedChannelPath> visibleChannelPaths(
-            SkyIslandCoherentHydrologicRealizationPlan coherentHydrology,
-            SkyIslandWaterbodyFootprintPlan waterbodies) {
-        Objects.requireNonNull(coherentHydrology, "coherentHydrology");
-        Objects.requireNonNull(waterbodies, "waterbodies");
-
-        java.util.Map<Integer, Integer> retainedOwnerByCell = new java.util.HashMap<>();
-        for (int footprintIndex = 0; footprintIndex < waterbodies.footprints().size(); footprintIndex++) {
-            SkyIslandWaterbodyFootprint footprint = waterbodies.footprints().get(footprintIndex);
-            for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
-                Integer previous =
-                        retainedOwnerByCell.put(cell.watershedCellIndex(), footprintIndex);
-                if (previous != null && previous.intValue() != footprintIndex) {
-                    throw new IllegalStateException(
-                            "accepted retained-water footprints overlap one watershed cell");
-                }
-            }
-        }
-
-        return coherentHydrology.naturalizedChannels().paths().stream()
-                .filter(path -> {
-                    SkyIslandChannelSegment segment = path.profile().segment();
-                    Integer sourceOwner =
-                            retainedOwnerByCell.get(segment.sourceCellIndex());
-                    Integer downstreamOwner =
-                            retainedOwnerByCell.get(segment.downstreamCellIndex());
-                    return sourceOwner == null
-                            || downstreamOwner == null
-                            || !sourceOwner.equals(downstreamOwner);
-                })
-                .toList();
     }
 
     private static void requireExactRetainedWaterProjection(
