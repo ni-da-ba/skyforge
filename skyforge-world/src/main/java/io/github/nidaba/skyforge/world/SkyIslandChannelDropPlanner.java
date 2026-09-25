@@ -154,11 +154,13 @@ public final class SkyIslandChannelDropPlanner {
     }
 
     /**
-     * Preserves the already-selected drop identities/strengths but moves each interior event from
-     * the coarse graph endpoint onto the strongest actual descent of its naturalized path.
+     * Preserves already-selected drop identities/strengths while localizing each interior event
+     * onto its naturalized path.
      *
-     * <p>This keeps watershed/drop selection unchanged while ensuring later geomorphic and backend
-     * realization agree on where the discrete fall occurs.
+     * <p>A reach with exactly one retained-water endpoint localizes its discrete fall at the shared
+     * retained shoreline boundary; otherwise the strongest authored descent remains authoritative.
+     * This keeps watershed/drop selection unchanged while ensuring standing-water datum, fluvial
+     * throat geometry, and backend realization agree on where the discrete fall occurs.
      */
     public static SkyIslandChannelDropPlan localize(
             SkyIslandDescriptor descriptor,
@@ -183,6 +185,19 @@ public final class SkyIslandChannelDropPlanner {
 
         SkyIslandSemanticField terrain =
                 SkyIslandSemanticFieldSet.create(descriptor).elevationTendency();
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        Map<Integer, SkyIslandWaterbodyFootprint> retainedByCell = new HashMap<>();
+        for (SkyIslandWaterbodyFootprint footprint :
+                SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints()) {
+            for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
+                SkyIslandWaterbodyFootprint previous =
+                        retainedByCell.put(cell.watershedCellIndex(), footprint);
+                if (previous != null && previous != footprint) {
+                    throw new IllegalStateException(
+                            "accepted retained-water footprints overlap one watershed cell");
+                }
+            }
+        }
         List<SkyIslandChannelDrop> localized = new ArrayList<>(selected.drops().size());
         for (SkyIslandChannelDrop drop : selected.drops()) {
             if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
@@ -195,7 +210,18 @@ public final class SkyIslandChannelDropPlanner {
                 throw new IllegalStateException(
                         "selected interior drop lost its naturalized channel path");
             }
+            SkyIslandWaterbodyFootprint sourceRetained =
+                    retainedByCell.get(drop.sourceCellIndex());
+            SkyIslandWaterbodyFootprint downstreamRetained =
+                    retainedByCell.get(drop.downstreamCellIndex());
             SkyIslandLocalPosition position = strongestDescentPosition(path, terrain);
+            if ((sourceRetained == null) != (downstreamRetained == null)) {
+                SkyIslandWaterbodyFootprint retained =
+                        sourceRetained != null ? sourceRetained : downstreamRetained;
+                position = SkyIslandRetainedWaterFootprintGeometry.endpointBoundaryCrossing(
+                                descriptor, watershed, retained, path)
+                        .orElse(position);
+            }
             localized.add(new SkyIslandChannelDrop(
                     drop.kind(),
                     drop.sourceCellIndex(),

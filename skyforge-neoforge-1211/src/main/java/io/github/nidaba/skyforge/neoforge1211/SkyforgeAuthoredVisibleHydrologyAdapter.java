@@ -2703,60 +2703,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             Map<Integer, SkyIslandWaterbodyFootprintCell> cellsByIndex,
             SkyIslandWatershedPlan watershed,
             double halfSpacing) {
-        Objects.requireNonNull(local, "local");
-        Objects.requireNonNull(sourceCell, "sourceCell");
-        Objects.requireNonNull(cellsByIndex, "cellsByIndex");
-        Objects.requireNonNull(watershed, "watershed");
-        if (!sourceCell.shoreline()) {
-            return true;
-        }
-        if (!Double.isFinite(halfSpacing) || halfSpacing <= 0.0) {
-            throw new IllegalArgumentException("halfSpacing must be finite and positive");
-        }
-
-        double sourceRadius = retainedShorelineRadius(sourceCell, halfSpacing);
-        if (Math.hypot(
-                        local.x() - sourceCell.position().x(),
-                        local.z() - sourceCell.position().z())
-                <= sourceRadius) {
-            return true;
-        }
-
-        int sourceIndex = sourceCell.watershedCellIndex();
-        int sourceX = sourceIndex % watershed.gridSize();
-        int sourceZ = sourceIndex / watershed.gridSize();
-        int[][] directions = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
-        for (int[] direction : directions) {
-            int neighborX = sourceX + direction[0];
-            int neighborZ = sourceZ + direction[1];
-            if (neighborX < 0
-                    || neighborZ < 0
-                    || neighborX >= watershed.gridSize()
-                    || neighborZ >= watershed.gridSize()) {
-                continue;
-            }
-            SkyIslandWaterbodyFootprintCell neighbor =
-                    cellsByIndex.get(neighborZ * watershed.gridSize() + neighborX);
-            if (neighbor == null) {
-                continue;
-            }
-            double neighborRadius = neighbor.shoreline()
-                    ? retainedShorelineRadius(neighbor, halfSpacing)
-                    : halfSpacing;
-            double corridorRadius = Math.min(sourceRadius, neighborRadius);
-            if (distanceToSegment(local, sourceCell.position(), neighbor.position())
-                    <= corridorRadius) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static double retainedShorelineRadius(
-            SkyIslandWaterbodyFootprintCell cell,
-            double halfSpacing) {
-        double depth = Math.sqrt(Math.max(0.0, cell.waterDepthPotential()));
-        return halfSpacing * (0.40 + 0.60 * depth);
+        return io.github.nidaba.skyforge.world.SkyIslandRetainedWaterFootprintGeometry
+                .shorelineContains(local, sourceCell, cellsByIndex, watershed, halfSpacing);
     }
 
     private static int nearestWatershedCellIndex(
