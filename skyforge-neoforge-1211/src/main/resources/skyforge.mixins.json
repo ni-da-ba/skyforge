@@ -7,7 +7,6 @@
     "SkyforgeWorldGenRegionDomainMixin",
     "SkyforgeLevelDomainMixin",
     "SkyforgePopulationFeatureLightDomainMixin",
-    "SkyforgeTreeFeatureDeterminismMixin",
     "SkyforgeServerLevelWorldGenDomainMixin",
     "SkyforgeBiomeManagerDomainMixin",
     "SkyforgeChunkPostProcessingMixin",
