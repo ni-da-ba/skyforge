@@ -97,12 +97,20 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
             --no-configuration-cache
 
-      - name: Print hydrology diagnostic calibration manifest
+      - name: Print hydrology diagnostic calibration manifests
         if: success()
         run: |
+          if [ ! -f skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- basin-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv
 
 
       - name: Dump focused failure report
