@@ -55,6 +55,7 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         var nativeResults = nativePhases.stream()
                 .map(SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase::nativeResult)
                 .toList();
+        String populationPlanDigest = populationPlanDigest(nativePhases);
         String populationOutcomeDigest = populationOutcomeDigest(nativePhases);
         Set<ResourceKey<Biome>> nativeBiomes = new LinkedHashSet<>();
         int successfulFeatures = 0;
@@ -121,6 +122,10 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40NativeBiomeCount", nativeBiomes.size());
         evidence.put("dr40NativeAttemptedFeatures", attemptedFeatures);
         evidence.put("dr40NativeSuccessfulFeatures", successfulFeatures);
+        evidence.put("dr40PopulationPlanDigest", populationPlanDigest);
+        // Native Minecraft/mod vegetation is terminal decorative realization. Preserve the exact
+        // outcome digest for diagnosis, but do not make microscopic leaf/patch layout part of the
+        // authoritative Skyforge determinism contract.
         evidence.put("dr40PopulationOutcomeDigest", populationOutcomeDigest);
         evidence.put("dr40SupportedPopulationChunks", supportedPopulationChunks);
         evidence.put("dr40OmittedPhysicalEdgeChunks", omittedPhysicalEdgeChunks);
@@ -135,9 +140,9 @@ final class SkyforgeDr40ProductionEcologyEvidence {
         evidence.put("dr40StructureBeforePopulation", true);
         evidence.put("dr40ForeignVolumeFailClosed", true);
         // Retain exact per-phase native outcomes as diagnostics on every DR-40 run. These keys
-        // are intentionally not part of the deterministic acceptance key set; they exist so an
-        // aggregate digest mismatch can be localized to the exact chunk/feature without altering
-        // native execution or weakening the gate.
+        // are intentionally outside the authoritative deterministic acceptance set: Minecraft/mod
+        // decorative realization may vary microscopically while Skyforge's plan and write authority
+        // remain exact.
         appendDr50PopulationDiagnostics(evidence, nativePhases);
         return Map.copyOf(evidence);
     }
@@ -166,6 +171,34 @@ final class SkyforgeDr40ProductionEcologyEvidence {
                                 + Long.toUnsignedString(feature.attachmentPositionDigest(), 16));
             }
         }
+    }
+
+    /**
+     * Digest of the native ecology plan that Skyforge owns: chunk/phase identity, authored biome,
+     * and ordered native feature identities. It intentionally excludes placed outcomes, attachment
+     * counts, and exact block footprints, which belong to Minecraft/mod decorative realization.
+     */
+    static String populationPlanDigest(
+            java.util.List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> phases) {
+        long digest = 0xcbf29ce484222325L;
+        var canonicalPhases = phases.stream()
+                .sorted(java.util.Comparator
+                        .comparingLong(SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase::chunkKey)
+                        .thenComparingInt(phase -> phase.phase().ordinal()))
+                .toList();
+        for (var phase : canonicalPhases) {
+            digest = mix(digest, phase.chunkKey());
+            digest = mix(digest, phase.phase().ordinal());
+            var result = phase.nativeResult();
+            digest = mixText(digest, result.biomeKey().location().toString());
+            digest = mix(digest, result.attemptedFeatures());
+            for (int featureIndex = 0; featureIndex < result.featureResults().size(); featureIndex++) {
+                var feature = result.featureResults().get(featureIndex);
+                digest = mix(digest, featureIndex);
+                digest = mixText(digest, feature.featureKey().toString());
+            }
+        }
+        return Long.toUnsignedString(digest, 16);
     }
 
     static String populationOutcomeDigest(
