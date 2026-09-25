@@ -36,15 +36,10 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
     private static final Map<Mob, HawkState> HAWKS =
             Collections.synchronizedMap(new WeakHashMap<>());
 
-    @FunctionalInterface
-    private interface LiftSampler {
-        SkyforgeA4mcLiftBridge.Sample sample(ServerLevel level, Vec3 position);
-    }
-
     private static boolean installed;
-    private static SkyforgeA4mcLiftBridge atmosphere;
+    private static SkyforgeAtmosphereView atmosphere;
     private static SkyforgeFowlPlayHawkBridge birds;
-    private static LiftSampler liftSampler;
+    private static SkyforgeAtmosphereView liftSampler;
 
     private static boolean acceptanceMode;
     private static long acceptanceStartTick = Long.MIN_VALUE;
@@ -92,7 +87,7 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
 
         try {
-            atmosphere = SkyforgeA4mcLiftBridge.create();
+            atmosphere = SkyforgeA4mcAtmosphereBridge.create();
             birds = SkyforgeFowlPlayHawkBridge.create();
         } catch (ReflectiveOperationException failure) {
             throw new IllegalStateException(
@@ -163,9 +158,9 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
         state.nextSampleTick = gameTick + SAMPLE_PERIOD_TICKS;
 
-        SkyforgeA4mcLiftBridge.Sample sample = sampleLift(level, mob.position());
+        SkyforgeAtmosphereView.Sample sample = sampleLift(level, mob.position());
         SkyforgeThermalSoaringDecision.State next = SkyforgeThermalSoaringDecision.update(
-                state.decision, sample.trusted(), sample.updraftMetersPerSecond(), gameTick);
+                state.decision, sample.trustedForGameplay(), sample.updraftMetersPerSecond(), gameTick);
 
         if (next.soaring() != state.decision.soaring()) {
             try {
@@ -226,7 +221,7 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
 
     private static void steerTowardThermal(ServerLevel level, Mob hawk, HawkState state) {
         Vec3 center = hawk.position();
-        SkyforgeA4mcLiftBridge.Sample best = sampleLift(level, center);
+        SkyforgeAtmosphereView.Sample best = sampleLift(level, center);
         Vec3 bestPosition = center;
 
         Vec3[] candidates = {
@@ -237,16 +232,16 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         };
 
         for (Vec3 candidate : candidates) {
-            SkyforgeA4mcLiftBridge.Sample sampled = sampleLift(level, candidate);
-            if (sampled.trusted()
-                    && (!best.trusted()
+            SkyforgeAtmosphereView.Sample sampled = sampleLift(level, candidate);
+            if (sampled.trustedForGameplay()
+                    && (!best.trustedForGameplay()
                             || sampled.updraftMetersPerSecond() > best.updraftMetersPerSecond())) {
                 best = sampled;
                 bestPosition = candidate;
             }
         }
 
-        if (!best.trusted()) {
+        if (!best.trustedForGameplay()) {
             return;
         }
 
@@ -267,18 +262,39 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
     }
 
-    private static SkyforgeA4mcLiftBridge.Sample sampleLift(ServerLevel level, Vec3 position) {
-        LiftSampler sampler = liftSampler;
-        return sampler == null ? SkyforgeA4mcLiftBridge.Sample.unavailable() : sampler.sample(level, position);
+    private static SkyforgeAtmosphereView.Sample sampleLift(ServerLevel level, Vec3 position) {
+        SkyforgeAtmosphereView sampler = liftSampler;
+        return sampler == null ? SkyforgeAtmosphereView.Sample.unavailable() : sampler.sample(level, position);
     }
 
-    private static SkyforgeA4mcLiftBridge.Sample sampleAcceptanceLift(ServerLevel level, Vec3 position) {
+    private static SkyforgeAtmosphereView.Sample sampleAcceptanceLift(ServerLevel level, Vec3 position) {
         if (acceptanceEnteredTick != Long.MIN_VALUE
                 && level.getGameTime() - acceptanceEnteredTick >= SkyforgeThermalSoaringDecision.MIN_HOLD_TICKS) {
-            return new SkyforgeA4mcLiftBridge.Sample(true, 0.50);
+            return acceptanceAtmosphereSample(0.50);
         }
 
-        return new SkyforgeA4mcLiftBridge.Sample(true, 2.00);
+        return acceptanceAtmosphereSample(2.00);
+    }
+
+    private static SkyforgeAtmosphereView.Sample acceptanceAtmosphereSample(double updraftMetersPerSecond) {
+        return new SkyforgeAtmosphereView.Sample(
+                true,
+                0.0,
+                updraftMetersPerSecond,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                updraftMetersPerSecond,
+                0.0,
+                1.0,
+                "L1",
+                "SERVER_AUTHORITATIVE",
+                0L,
+                0L,
+                -1L);
     }
 
     private static void onServerTickPost(ServerTickEvent.Post event) {

@@ -4,7 +4,9 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wave-c6-hawk-thermal-compat.yml"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcLiftBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereView.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereViewTest.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeFowlPlayHawkBridge.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeThermalSoaringDecision.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC6SoaringFaunaDevRuntime.java"

@@ -27,20 +27,15 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
             ResourceLocation.fromNamespaceAndPath(RELIABLE_GLIDERS_MOD_ID, "glider");
     private static final double EPSILON = 1.0e-9;
 
-    @FunctionalInterface
-    private interface LiftSampler {
-        SkyforgeA4mcLiftBridge.Sample sample(ServerLevel level, Vec3 position);
-    }
-
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeWaveC7GliderLiftDevRuntime.class.getName());
 
     private static boolean installed;
     private static boolean disabled;
     private static boolean acceptanceMode;
-    private static SkyforgeA4mcLiftBridge atmosphere;
+    private static SkyforgeAtmosphereView atmosphere;
     private static SkyforgeReliableGlidersBridge gliders;
-    private static LiftSampler liftSampler;
+    private static SkyforgeAtmosphereView liftSampler;
 
     private SkyforgeWaveC7GliderLiftDevRuntime() {}
 
@@ -70,7 +65,7 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
         }
 
         try {
-            atmosphere = SkyforgeA4mcLiftBridge.create();
+            atmosphere = SkyforgeA4mcAtmosphereBridge.create();
             gliders = SkyforgeReliableGlidersBridge.create();
             liftSampler = atmosphere::sample;
         } catch (ReflectiveOperationException failure) {
@@ -109,20 +104,20 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
         applyLift(player, sampleLift(level, player.position()));
     }
 
-    private static void applyLift(ServerPlayer player, SkyforgeA4mcLiftBridge.Sample sample) {
+    private static void applyLift(ServerPlayer player, SkyforgeAtmosphereView.Sample sample) {
         Vec3 current = player.getDeltaMovement();
         double newY = SkyforgeGliderLiftCoupling.apply(
-                current.y, sample.trusted(), sample.updraftMetersPerSecond());
+                current.y, sample.trustedForGameplay(), sample.updraftMetersPerSecond());
 
         if (Double.doubleToLongBits(newY) != Double.doubleToLongBits(current.y)) {
             player.setDeltaMovement(current.x, newY, current.z);
         }
     }
 
-    private static SkyforgeA4mcLiftBridge.Sample sampleLift(ServerLevel level, Vec3 position) {
-        LiftSampler sampler = liftSampler;
+    private static SkyforgeAtmosphereView.Sample sampleLift(ServerLevel level, Vec3 position) {
+        SkyforgeAtmosphereView sampler = liftSampler;
         return sampler == null
-                ? SkyforgeA4mcLiftBridge.Sample.unavailable()
+                ? SkyforgeAtmosphereView.Sample.unavailable()
                 : sampler.sample(level, position);
     }
 
@@ -149,8 +144,7 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
 
             // Case A: trusted 4 m/s thermal raises the completed stock baseline through the actual
             // EntityTickEvent.Post handler. target=+0.15, smoothed result=-0.01.
-            liftSampler = (ignoredLevel, ignoredPosition) ->
-                    new SkyforgeA4mcLiftBridge.Sample(true, 4.0);
+            liftSampler = (ignoredLevel, ignoredPosition) -> acceptanceAtmosphereSample(true, 4.0);
             double baseline = player.getDeltaMovement().y;
             onEntityTickPost(new EntityTickEvent.Post(player));
             double lifted = player.getDeltaMovement().y;
@@ -165,8 +159,7 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
 
             // Case C: untrusted atmosphere cannot affect authoritative player motion.
             player.setDeltaMovement(0.0, -0.05, 0.0);
-            liftSampler = (ignoredLevel, ignoredPosition) ->
-                    new SkyforgeA4mcLiftBridge.Sample(false, 8.0);
+            liftSampler = (ignoredLevel, ignoredPosition) -> acceptanceAtmosphereSample(false, 8.0);
             onEntityTickPost(new EntityTickEvent.Post(player));
             requireNear("untrusted atmosphere", player.getDeltaMovement().y, -0.05);
 
@@ -177,8 +170,7 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
                 failAcceptance("Reliable Gliders remained active after exact glider item was removed");
                 return;
             }
-            liftSampler = (ignoredLevel, ignoredPosition) ->
-                    new SkyforgeA4mcLiftBridge.Sample(true, 8.0);
+            liftSampler = (ignoredLevel, ignoredPosition) -> acceptanceAtmosphereSample(true, 8.0);
             onEntityTickPost(new EntityTickEvent.Post(player));
             requireNear("non-gliding player", player.getDeltaMovement().y, -0.05);
 
@@ -196,6 +188,28 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
         } finally {
             liftSampler = atmosphere::sample;
         }
+    }
+
+    private static SkyforgeAtmosphereView.Sample acceptanceAtmosphereSample(
+            boolean trustedForGameplay, double updraftMetersPerSecond) {
+        return new SkyforgeAtmosphereView.Sample(
+                trustedForGameplay,
+                0.0,
+                updraftMetersPerSecond,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                updraftMetersPerSecond,
+                0.0,
+                trustedForGameplay ? 1.0 : 0.0,
+                "L1",
+                trustedForGameplay ? "SERVER_AUTHORITATIVE" : "UNTRUSTED",
+                0L,
+                0L,
+                -1L);
     }
 
     private static void requireNear(String label, double actual, double expected) {
