@@ -42,9 +42,14 @@ Normalized terrain potentials may remain storage/interchange values, but they mu
 the descriptor relief/vertical scale before being combined with lengths or grades. A dimensionless
 potential may not be subtracted from a world-space length inside one constraint.
 
-## 2. Ordinary longitudinal profile as a bounded convex solve
+## 2. Ordinary longitudinal profile as a network-global bounded convex solve
 
-For every ordinary continuous subreach, samples are ordered downstream by `s_i`.
+The authoritative solve is global over the currently coupled ordinary network, not a sequence of
+independent reach solves after locally choosing node datums.
+
+For every ordinary continuous subreach, samples are ordered downstream by `s_i`. Shared semantic
+nodes introduce shared head variables (or explicit transition-boundary variables when a transition
+owns a discontinuity). Reach endpoints reference those variables through equality constraints.
 
 The admissible ordinary water-surface grade is bounded:
 
@@ -65,31 +70,42 @@ derived from transition boundary conditions, pre-hydrologic terrain, bed/freeboa
 the same hard excavation/containment policy used by D2. The solver may not create feasibility by
 silently widening these bounds.
 
-The baseline objective is the strictly convex weighted projection:
+The baseline objective is the strictly convex weighted projection over all free sample and node
+heads:
 
 ```text
-minimize  sum_i w_i * (H_i - Hhat_i)^2
+minimize  sum_(r,i) w_(r,i) * (H_(r,i) - Hhat_(r,i))^2
+        + sum_n      w_n     * (N_n     - Nhat_n)^2
 
 subject to
-          g_min * ds_i <= H_i - H_(i+1) <= g_max * ds_i
-          L_i <= H_i <= U_i
-          exact transition endpoint equalities where owned
+          g_min(r,i) * ds_(r,i)
+              <= H_(r,i) - H_(r,i+1)
+              <= g_max(r,i) * ds_(r,i)
+
+          L_(r,i) <= H_(r,i) <= U_(r,i)
+
+          H_(r,0)   = boundary_upstream(r)
+          H_(r,last)= boundary_downstream(r)
+
+          shared ordinary node boundaries reference the same N_n
+          transition-owned boundaries obey the transition's explicit equalities/relations
 ```
 
-with every `w_i > 0`.
+with every free-variable weight strictly positive.
 
-This formulation has a unique optimum whenever the feasible set is nonempty. It is order-independent,
-globally defined, and exposes infeasibility directly.
+This formulation has a unique optimum whenever the feasible set is nonempty. It is independent of
+reach iteration and topological visitation order, globally defined, and exposes infeasibility
+directly. The existing topological node-surface clipping is therefore staging code, not F2 authority.
 
 ### Solver requirement
 
-A one-sided weighted isotonic/PAV solve is valid only in the special case where the upper-grade and
-box constraints are inactive.
+A one-sided weighted isotonic/PAV solve is valid only for a decoupled chain in the special case where
+the upper-grade, box, and shared-node/transition constraints are inactive.
 
-The general F2 solver must implement the full bounded one-dimensional convex problem deterministically.
-Acceptable implementations include a small dependency-free active-set solver specialized to this
-banded constraint matrix or another deterministic convex projection method with independently proven
-KKT/primal-feasibility checks.
+The general F2 solver must implement the full sparse convex problem deterministically. Acceptable
+implementations include a small dependency-free active-set solver specialized to the network's sparse
+difference/equality constraint matrix or another deterministic convex projection method with
+independently proven KKT/primal-feasibility checks.
 
 Do not emulate the global solve with sequential clipping.
 
