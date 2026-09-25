@@ -78,11 +78,11 @@ deferral reason separately so later transition tranches can consume it without w
 Within the currently authorized ordinary-reach subset, independent deepest-cut composition remains
 forbidden.
 
-Two ordinary reaches may share local influence only when their semantic reaches meet at an exact
-shared network node. In that narrow case deterministic selection resolves the numerically coincident
-ordinary-reach representation. If unrelated qualified reach envelopes overlap at a queried position,
-the field fails closed with an explicit unowned-overlap error; it does not choose the deepest,
-nearest, or highest-discharge reach as an implicit physical transition.
+F1 grants no implicit multi-reach composition authority. If two distinct qualified reach envelopes
+overlap at a queried position, the field fails closed with an explicit unowned-overlap error. Shared
+semantic endpoints do not authorize overlap by themselves; any actual multi-reach overlap must first
+be owned by an explicit transition model. No deepest, nearest, highest-discharge, or iteration-order
+winner is permitted.
 
 Any overlap requiring a confluence, drop, basin, or other transition must first be owned by that
 transition model. This defensive field-level guard is not a substitute for a later explicit
