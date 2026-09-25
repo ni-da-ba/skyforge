@@ -47,6 +47,12 @@ public final class SkyIslandContinuousWaterbodyQualificationEvaluator {
             violations.add(
                     SkyIslandContinuousWaterbodyQualificationViolation.INSUFFICIENT_SPILL_HEADROOM);
         }
+        if (diagnostics.matchedTerminalReachCount() > 0
+                && diagnostics.maximumChannelDatumMismatchWorldUnits()
+                        > limits.maximumChannelDatumMismatchWorldUnits() + EPSILON) {
+            violations.add(
+                    SkyIslandContinuousWaterbodyQualificationViolation.CHANNEL_DATUM_MISMATCH);
+        }
 
         violations.sort(Comparator.comparingInt(Enum::ordinal));
         return new SkyIslandContinuousWaterbodyQualification(
