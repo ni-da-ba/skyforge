@@ -6,15 +6,12 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 
 class HydrologyWaterbodyDiagnosticsCorpusTest {
-    @TempDir Path temp;
-
     @Test
     void retainedBasinCorpusIsDeterministic() throws Exception {
-        Path first = temp.resolve("a");
-        Path second = temp.resolve("b");
+        Path first = Path.of("build", "evidence", "hydrology-waterbody-diagnostics-test-a");
+        Path second = Path.of("build", "evidence", "hydrology-waterbody-diagnostics-test-b");
         HydrologyWaterbodyDiagnosticsCorpusCli.main(new String[] {first.toString()});
         HydrologyWaterbodyDiagnosticsCorpusCli.main(new String[] {second.toString()});
 
@@ -24,7 +21,5 @@ class HydrologyWaterbodyDiagnosticsCorpusTest {
         assertTrue(a.contains("maxShorelineGrade"));
         assertTrue(a.contains("reachesSearchBoundary"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
-        System.out.println("--- basin-manifest.csv ---");
-        System.out.println(a);
     }
 }
