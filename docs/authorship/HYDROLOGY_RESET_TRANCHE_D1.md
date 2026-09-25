@@ -10,6 +10,13 @@
 D0 records longitudinal and route diagnostics. D1 adds the lateral/cross-section measurements needed
 to detect the quarry/trench failure class before any channel terrain is authored.
 
+## Diagnostic substrate
+
+All D1 terrain sampling uses `SkyIslandPreHydrologicTerrainField`: the authored elevation substrate
+before legacy AUTH-0014/AUTH-0015 incision, deposition, floodplain, drop, or retained-waterbody
+terrain response. The diagnostic corpus therefore cannot receive credit for valleys already created
+by the retired hydrology line.
+
 ## Metrics
 
 ### Natural-bank containment
@@ -40,14 +47,20 @@ comparison before a backend chooses physical vertical scaling.
 
 ### Curvature-to-width ratio
 
-Local polyline curvature is estimated from each three-point route neighborhood and multiplied by full
-bankfull width:
+The fine-lattice least-cost path is search evidence rather than literal river geometry. Before
+curvature is measured, it is regularized by the bounded continuous-centerline stage: endpoints remain
+exact, smoothing stays near the accepted search corridor, and any candidate point that climbs
+materially higher terrain or leaves the authored island domain falls back to the accepted corridor.
+
+Curvature is then estimated from the refined centerline and multiplied by the reach's full bankfull
+width:
 
 ```text
-curvature_width = kappa * bankfull_width
+curvature_width = kappa_refined * bankfull_width
 ```
 
-Large values identify bends whose radius is small relative to the channel itself.
+Large values identify bends whose radius is small relative to the channel itself without treating
+A* grid turns as authored meanders.
 
 ### Lower-bound excavation volume
 
