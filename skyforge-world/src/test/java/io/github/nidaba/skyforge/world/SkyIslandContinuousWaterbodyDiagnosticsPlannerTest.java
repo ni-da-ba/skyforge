@@ -26,6 +26,9 @@ class SkyIslandContinuousWaterbodyDiagnosticsPlannerTest {
                 assertTrue(Double.isFinite(d.depthToEquivalentDiameterRatio()));
                 assertTrue(Double.isFinite(d.maximumShorelineGrade()));
                 assertTrue(Double.isFinite(d.spillHeadroomWorldUnits()));
+                assertTrue(d.matchedTerminalReachCount() >= 0);
+                assertTrue(Double.isFinite(d.maximumChannelDatumMismatchWorldUnits()));
+                assertTrue(d.maximumChannelDatumMismatchWorldUnits() >= 0.0);
             }
         }
     }
