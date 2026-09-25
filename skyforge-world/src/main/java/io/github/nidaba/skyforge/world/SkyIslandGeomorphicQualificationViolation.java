@@ -8,7 +8,6 @@ public enum SkyIslandGeomorphicQualificationViolation {
     DEPTH_TO_WIDTH,
     RELIEF_TO_VALLEY_WIDTH,
     EXCAVATION_BURDEN,
-    EXCAVATION_VOLUME,
     CURVATURE_TO_WIDTH,
     RIDGE_OCCUPANCY,
     LONGITUDINAL_GRADE
