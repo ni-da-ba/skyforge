@@ -5313,9 +5313,9 @@ fun requireBoundedNativeCarveVariance(first: Properties, second: Properties, gat
     val changedDelta = kotlin.math.abs(changedA - changedB)
     val airDelta = kotlin.math.abs(airA - airB)
     check(changedDelta <= allowedDelta && airDelta <= allowedDelta) {
-        "$gate native carve variance exceeded tolerance: "
-            + "changed A=$changedA B=$changedB delta=$changedDelta, "
-            + "air A=$airA B=$airB delta=$airDelta, allowed=$allowedDelta"
+        "$gate native carve variance exceeded tolerance: " +
+            "changed A=$changedA B=$changedB delta=$changedDelta, " +
+            "air A=$airA B=$airB delta=$airDelta, allowed=$allowedDelta"
     }
     val digestStable = first.getProperty("nativeCarveDigest") == second.getProperty("nativeCarveDigest")
     println(
