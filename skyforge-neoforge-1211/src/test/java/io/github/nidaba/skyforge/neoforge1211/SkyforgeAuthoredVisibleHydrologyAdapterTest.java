@@ -672,18 +672,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 local.x() - drop.position().x(),
                                 local.z() - drop.position().z()))
                         .orElse(Double.POSITIVE_INFINITY);
+                var retainedLip = fluvial.retainedEndpointLip(reach);
+                double retainedLipDistance = retainedLip
+                        .map(lip -> Math.hypot(
+                                local.x() - lip.x(),
+                                local.z() - lip.z()))
+                        .orElse(Double.POSITIVE_INFINITY);
                 boolean localizedAuthoredFall = terminalDrop.isPresent()
                         && dropDistance <= Math.max(2.0, reach.bankfullHalfWidth())
                         && entry.getValue() < datum;
+                boolean localizedRetainedSpill = retainedLip.isPresent()
+                        && retainedLipDistance <= Math.max(2.0, reach.bankfullHalfWidth())
+                        && entry.getValue() < datum;
                 assertTrue(
                         Math.abs(entry.getValue() - datum) <= 2
-                                || localizedAuthoredFall,
-                        "channel/lake transition may depart the basin datum only at the localized authored fall: "
+                                || localizedAuthoredFall
+                                || localizedRetainedSpill,
+                        "channel/lake transition may depart the basin datum only at a localized authored hydraulic break: "
                                 + "channelIndex=" + (channelIndex - 1)
                                 + ", sourceCell=" + sourceCell
                                 + ", downstreamCell=" + downstreamCell
                                 + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
                                 + ", dropDistance=" + dropDistance
+                                + ", retainedLipDistance=" + retainedLipDistance
                                 + ", startDistance=" + startDistance
                                 + ", endDistance=" + endDistance
                                 + ", column=" + entry.getKey()

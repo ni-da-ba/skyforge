@@ -27,6 +27,7 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
     private final List<SkyIslandFluvialReachGeometry> reaches;
     private final Map<SkyIslandFluvialReachGeometry, HydraulicGradeProfile> hydraulicGrades;
     private final Map<SkyIslandFluvialReachGeometry, SkyIslandChannelDrop> terminalDrops;
+    private final Map<SkyIslandFluvialReachGeometry, RetainedEndpointLip> retainedEndpointLips;
     private final double extent;
 
     private SkyIslandFluvialTerrainField(
@@ -76,6 +77,38 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
             }
         }
         this.terminalDrops = Map.copyOf(drops);
+
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        Map<Integer, SkyIslandWaterbodyFootprint> retainedByCell = new HashMap<>();
+        for (SkyIslandWaterbodyFootprint footprint :
+                SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints()) {
+            for (SkyIslandWaterbodyFootprintCell cell : footprint.cells()) {
+                SkyIslandWaterbodyFootprint previous =
+                        retainedByCell.put(cell.watershedCellIndex(), footprint);
+                if (previous != null && previous != footprint) {
+                    throw new IllegalStateException(
+                            "accepted retained-water footprints overlap one watershed cell");
+                }
+            }
+        }
+        Map<SkyIslandFluvialReachGeometry, RetainedEndpointLip> endpointLips = new HashMap<>();
+        for (SkyIslandFluvialReachGeometry reach : this.reaches) {
+            int sourceCell = reach.profile().segment().sourceCellIndex();
+            int downstreamCell = reach.profile().segment().downstreamCellIndex();
+            SkyIslandWaterbodyFootprint sourceRetained = retainedByCell.get(sourceCell);
+            SkyIslandWaterbodyFootprint downstreamRetained = retainedByCell.get(downstreamCell);
+            if ((sourceRetained == null) == (downstreamRetained == null)) {
+                continue;
+            }
+            SkyIslandWaterbodyFootprint retained =
+                    sourceRetained != null ? sourceRetained : downstreamRetained;
+            SkyIslandRetainedWaterFootprintGeometry.endpointBoundaryCrossing(
+                            descriptor, watershed, retained, reach.path())
+                    .ifPresent(position -> endpointLips.put(
+                            reach,
+                            new RetainedEndpointLip(position, sourceRetained != null)));
+        }
+        this.retainedEndpointLips = Map.copyOf(endpointLips);
     }
 
     public static SkyIslandFluvialTerrainField create(SkyIslandDescriptor descriptor) {
@@ -111,13 +144,43 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return Optional.ofNullable(terminalDrops.get(reach));
     }
 
-    /** Local wet-channel half-width, including confluence expansion and an accepted drop throat. */
+    /** Canonical retained-water shoreline lip for a reach with exactly one retained endpoint. */
+    public Optional<SkyIslandLocalPosition> retainedEndpointLip(
+            SkyIslandFluvialReachGeometry reach) {
+        requireReachFraction(reach, 0.0);
+        RetainedEndpointLip lip = retainedEndpointLips.get(reach);
+        return lip == null ? Optional.empty() : Optional.of(lip.position());
+    }
+
+    /** Source-side retained outlet lip, when this reach exits a standing-water footprint. */
+    public Optional<SkyIslandLocalPosition> retainedOutletLip(
+            SkyIslandFluvialReachGeometry reach) {
+        requireReachFraction(reach, 0.0);
+        RetainedEndpointLip lip = retainedEndpointLips.get(reach);
+        return lip != null && lip.sourceRetained()
+                ? Optional.of(lip.position())
+                : Optional.empty();
+    }
+
+    public OptionalDouble retainedEndpointLipFraction(
+            SkyIslandFluvialReachGeometry reach) {
+        requireReachFraction(reach, 0.0);
+        RetainedEndpointLip lip = retainedEndpointLips.get(reach);
+        if (lip == null) {
+            return OptionalDouble.empty();
+        }
+        return OptionalDouble.of(project(lip.position(), reach.path()).fraction());
+    }
+
+    /** Local wet-channel half-width, including confluence, drop, and retained spill throats. */
     public double wetHalfWidthAt(
             SkyIslandFluvialReachGeometry reach,
             double fraction) {
         requireReachFraction(reach, fraction);
-        return wetHalfWidthAtStatic(reach, fraction)
-                * terminalDropThroatScaleAt(reach, fraction);
+        double throatScale = Math.min(
+                terminalDropThroatScaleAt(reach, fraction),
+                retainedEndpointThroatScaleAt(reach, fraction));
+        return wetHalfWidthAtStatic(reach, fraction) * throatScale;
     }
 
     /** Longitudinal fraction of the exact localized interior drop on this reach, when present. */
@@ -730,6 +793,41 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
         return lerp(throatScale, 1.0, t);
     }
 
+    private double retainedEndpointThroatScaleAt(
+            SkyIslandFluvialReachGeometry reach,
+            double fraction) {
+        RetainedEndpointLip lip = retainedEndpointLips.get(reach);
+        if (lip == null) {
+            return 1.0;
+        }
+
+        double pathLength = Math.max(EPSILON, reach.path().pathLength());
+        double lipFraction = project(lip.position(), reach.path()).fraction();
+        double transitionLength = Math.min(
+                pathLength,
+                Math.max(
+                        2.0 * reach.bankfullHalfWidth(),
+                        4.0 * reach.wetHalfWidth()));
+        double transitionFraction = Math.min(1.0, transitionLength / pathLength);
+        double startFraction = Math.max(0.0, lipFraction - transitionFraction);
+        double endFraction = Math.min(1.0, lipFraction + transitionFraction);
+        if (fraction < startFraction || fraction > endFraction) {
+            return 1.0;
+        }
+
+        double throatScale = 0.65;
+        if (fraction <= lipFraction) {
+            double t = smootherstep(
+                    (fraction - startFraction)
+                            / Math.max(EPSILON, lipFraction - startFraction));
+            return lerp(1.0, throatScale, t);
+        }
+        double t = smootherstep(
+                (fraction - lipFraction)
+                        / Math.max(EPSILON, endFraction - lipFraction));
+        return lerp(throatScale, 1.0, t);
+    }
+
     private static double wetHalfWidthAtStatic(
             SkyIslandFluvialReachGeometry reach,
             double fraction) {
@@ -763,6 +861,14 @@ public final class SkyIslandFluvialTerrainField implements SkyIslandSemanticFiel
 
     private static double clamp01(double value) {
         return clamp(value, 0.0, 1.0);
+    }
+
+    private record RetainedEndpointLip(
+            SkyIslandLocalPosition position,
+            boolean sourceRetained) {
+        private RetainedEndpointLip {
+            Objects.requireNonNull(position, "position");
+        }
     }
 
     private record HydraulicGradeProfile(

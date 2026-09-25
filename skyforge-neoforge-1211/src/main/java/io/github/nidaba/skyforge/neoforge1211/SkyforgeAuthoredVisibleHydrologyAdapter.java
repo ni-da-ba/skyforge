@@ -496,6 +496,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                         "AUTH-0105 fluvial field lost accepted visible channel reach"));
         Optional<SkyIslandLocalPosition> routedOutlet =
                 fluvial.terminalDrop(reach).map(SkyIslandChannelDrop::position);
+        if (routedOutlet.isEmpty()) {
+            routedOutlet = fluvial.retainedOutletLip(reach);
+        }
         if (routedOutlet.isEmpty() && routedEdgeOutlet) {
             routedOutlet = Optional.of(path.points().getLast());
         }
