@@ -74,6 +74,11 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             --no-configuration-cache
 
+      - name: Print hydrology diagnostic calibration manifest
+        if: success()
+        run: |
+          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
+
       - name: Dump focused failure report
         if: failure()
         run: |
