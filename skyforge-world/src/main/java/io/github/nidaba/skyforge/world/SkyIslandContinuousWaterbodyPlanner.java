@@ -34,6 +34,8 @@ public final class SkyIslandContinuousWaterbodyPlanner {
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
         SkyIslandWaterbodyPlan semantics = SkyIslandWaterbodyPlanner.plan(descriptor);
         SkyIslandSemanticFieldSet fields = SkyIslandSemanticFieldSet.create(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
 
         Map<Integer, SkyIslandWatershedCell> cells = new HashMap<>();
         for (SkyIslandWatershedCell cell : watershed.cells()) {
