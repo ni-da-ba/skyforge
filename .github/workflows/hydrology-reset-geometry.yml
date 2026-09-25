@@ -18,6 +18,7 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F1.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialZone.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialProvenance.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
