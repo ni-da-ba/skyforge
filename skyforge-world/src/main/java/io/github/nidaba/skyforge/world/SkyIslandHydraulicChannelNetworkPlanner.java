@@ -77,14 +77,25 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
 
         Map<SkyIslandGeomorphicReachRoute, SkyIslandContinuousChannelCenterline> centerlines =
                 new HashMap<>();
+        double semanticCorridorHalfWidth =
+                network.planningSpacing()
+                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
         for (SkyIslandGeomorphicReachRoute route : network.routes()) {
+            double maximumBankfullWidth =
+                    2.0
+                            * bankfullHalfWidth(
+                                    descriptor.nominalRadius(),
+                                    route.semanticReach().downstreamRelativeDischarge());
             centerlines.put(
                     route,
-                    SkyIslandContinuousChannelCenterlinePlanner.refine(
+                    SkyIslandSemanticCorridorCenterlinePlanner.refine(
                             route.route(),
+                            route.semanticReach().guidancePoints(),
                             terrain,
                             interiority,
-                            network.planningSpacing()));
+                            network.planningSpacing(),
+                            semanticCorridorHalfWidth,
+                            maximumBankfullWidth));
         }
 
         Map<Integer, List<SkyIslandGeomorphicReachRoute>> incoming = new HashMap<>();
