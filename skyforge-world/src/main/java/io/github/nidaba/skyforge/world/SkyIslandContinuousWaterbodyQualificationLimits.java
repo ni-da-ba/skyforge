@@ -5,12 +5,14 @@ public record SkyIslandContinuousWaterbodyQualificationLimits(
         double maximumDepthToEquivalentDiameterRatio,
         double maximumShorelineGrade,
         double minimumSpillHeadroomWorldUnits,
+        double maximumChannelDatumMismatchWorldUnits,
         int minimumShorelineCrossings) {
 
     public SkyIslandContinuousWaterbodyQualificationLimits {
         requirePositive(maximumDepthToEquivalentDiameterRatio, "maximumDepthToEquivalentDiameterRatio");
         requirePositive(maximumShorelineGrade, "maximumShorelineGrade");
         requireNonNegative(minimumSpillHeadroomWorldUnits, "minimumSpillHeadroomWorldUnits");
+        requireNonNegative(maximumChannelDatumMismatchWorldUnits, "maximumChannelDatumMismatchWorldUnits");
         if (minimumShorelineCrossings < 1) {
             throw new IllegalArgumentException("minimumShorelineCrossings must be positive");
         }
