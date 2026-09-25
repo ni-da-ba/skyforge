@@ -557,6 +557,8 @@ AUTH-0088/0089/0090/0091/0092 are evidence inputs only. SF-IMP-0080 is the curre
 
 AUTH-0103 / PR #709 / merge `6d3a4873a45d62ee9bf18e080909d6d2ac465d07` is the accepted DR-40 consumer-driven bridge for exact AUTH-0046 associations whose runtime volumes are not AUTH-0058 publications. It preserves AUTH-0088 surface-projection semantics, AUTH-0090 area weighting, and AUTH-0092 raw isolation semantics without weakening AUTH-0087. The locked DR-00 singleton has no regional neighbor; that absence is diagnostic only and is not population-pressure authority.
 
+Native ecology determinism stops at the backend-detail boundary. Skyforge must deterministically own authored biome/ecology assignment, native feature identity and seed identity, execution phase/order, exact-volume ownership, write-admission envelopes, hydrology/terrain exclusions, and replay/reload/lifecycle behavior. Minecraft and modded features remain the terminal realization layer inside those constraints: exact leaf/foliage footprints, exact vegetation block counts, and attachment-position history are diagnostic rather than cross-run acceptance authority. Decorative native state must not feed back into later authoritative Skyforge generation, and Implementation must not patch vanilla/mod traversal internals solely to force bit-identical decorative vegetation.
+
 ## Nether / dimension routing
 
 - C10 proves live Nether `coordinate_scale=1.0`.
