@@ -506,6 +506,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             throw channelProjectionFailure(volume, path, "no raster carrier columns");
         }
         RetainedApproachWindow retainedApproach = retainedApproachWindow(
+                fluvial,
+                reach,
                 candidateProjections,
                 retainedWaterTopByColumn,
                 sourceConnectedToRetained,
@@ -3165,6 +3167,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Map<Column, ChannelPathProjection> projections =
                 candidateColumnProjections(volume, fluvial, reach);
         RetainedApproachWindow window = retainedApproachWindow(
+                fluvial,
+                reach,
                 projections,
                 boundary.waterTopByColumn(),
                 boundary.sourceConnected(),
@@ -3176,7 +3180,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (boundary.waterTopByColumn().containsKey(column)) {
                 continue;
             }
-            if (!window.authorizes(entry.getValue().fraction(), reach.path().pathLength())) {
+            ChannelPathProjection projection = entry.getValue();
+            if (!window.authorizes(projection.fraction(), reach.path().pathLength())) {
+                continue;
+            }
+            if (projection.distance() > effectiveWetHalfWidth(
+                    fluvial,
+                    reach,
+                    projection,
+                    column,
+                    boundary.waterTopByColumn(),
+                    window)) {
                 continue;
             }
             retainedHydraulicTarget(column, boundary.waterTopByColumn())
@@ -3186,10 +3200,14 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     }
 
     private static RetainedApproachWindow retainedApproachWindow(
+            SkyIslandFluvialTerrainField fluvial,
+            SkyIslandFluvialReachGeometry reach,
             Map<Column, ChannelPathProjection> candidateProjections,
             Map<Column, Integer> retainedWaterTopByColumn,
             boolean sourceConnectedToRetained,
             boolean downstreamConnectedToRetained) {
+        Objects.requireNonNull(fluvial, "fluvial");
+        Objects.requireNonNull(reach, "reach");
         if (retainedWaterTopByColumn.isEmpty()
                 || (!sourceConnectedToRetained && !downstreamConnectedToRetained)) {
             return RetainedApproachWindow.none();
@@ -3201,10 +3219,19 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             if (retainedWaterTopByColumn.containsKey(entry.getKey())) {
                 continue;
             }
+            ChannelPathProjection projection = entry.getValue();
+            // The hydraulic mouth belongs to authored wet flow, not the surrounding valley.
+            // A dry valley flank may approach a basin earlier/later than the river centerline;
+            // allowing that flank to anchor the contact window can move all retained-datum
+            // authorization off the actual wet corridor.
+            if (projection.distance()
+                    > fluvial.wetHalfWidthAt(reach, projection.fraction()) + 1.0e-12) {
+                continue;
+            }
             if (retainedHydraulicTarget(entry.getKey(), retainedWaterTopByColumn).isEmpty()) {
                 continue;
             }
-            double fraction = entry.getValue().fraction();
+            double fraction = projection.fraction();
             firstOutsideContact = Math.min(firstOutsideContact, fraction);
             lastOutsideContact = Math.max(lastOutsideContact, fraction);
         }
