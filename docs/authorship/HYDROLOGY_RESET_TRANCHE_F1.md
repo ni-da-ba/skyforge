@@ -34,7 +34,7 @@ This prevents a local priority rule from silently standing in for missing transi
 
 ## Continuous ordinary-reach cross-section
 
-For each realized C1 centerline sample, F1 interpolates the solved hydraulic:
+For each realized current accepted C2 semantic-corridor centerline sample, F1 interpolates the solved hydraulic:
 
 - bed potential;
 - water-surface potential;
