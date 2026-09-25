@@ -246,8 +246,11 @@ final class SkyforgeHydrologyReferenceReviewRuntime {
                 }
             }
 
-            markWatchdog(active, "release-ticket");
-            level.getChunkSource().removeRegionTicket(REVIEW_TICKET, pos, TICKET_RADIUS, pos);
+            // Keep every accepted footprint chunk resident for the full preparation pipeline.
+            // Releasing a chunk as soon as one phase clears lets the visual specimen disappear
+            // between admission, catch-up, and native population. The review harness is intentionally
+            // whole-island; production streaming behavior is exercised elsewhere.
+            markWatchdog(active, "retain-ticket");
             active.advance();
             advanced++;
         }
