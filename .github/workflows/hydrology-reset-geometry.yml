@@ -20,6 +20,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialTerrainField.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferralReason.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferral.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationViolation.java"
