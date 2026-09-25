@@ -51,7 +51,7 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
 
         SkyIslandContinuousWaterbodyQualificationLimits permissive =
                 new SkyIslandContinuousWaterbodyQualificationLimits(
-                        100.0, 100.0, 0.0, 1);
+                        100.0, 100.0, 0.0, 1000.0, 1);
         SkyIslandContinuousWaterbodyQualificationPolicy policy =
                 new SkyIslandContinuousWaterbodyQualificationPolicy(
                         permissive, permissive);
