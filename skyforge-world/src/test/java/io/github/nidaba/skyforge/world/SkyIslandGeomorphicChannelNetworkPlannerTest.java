@@ -18,9 +18,9 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 649L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandGeomorphicChannelNetworkPlan first =
-                    planWithDiagnostics(descriptor);
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
             SkyIslandGeomorphicChannelNetworkPlan second =
-                    planWithDiagnostics(descriptor);
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
 
             assertEquals(first, second);
             for (SkyIslandGeomorphicReachRoute routed : first.routes()) {
@@ -39,7 +39,7 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
     void physicalNetworkNodesStayInsideBoundedSemanticRegions() {
         for (long key : new long[] {287L, 632L, 649L}) {
             SkyIslandGeomorphicChannelNetworkPlan plan =
-                    planWithDiagnostics(descriptor(key));
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor(key));
             double step =
                     plan.planningSpacing() / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
 
@@ -60,7 +60,7 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
         boolean foundConfluence = false;
         for (long key : new long[] {287L, 632L, 649L, 811L}) {
             SkyIslandGeomorphicChannelNetworkPlan plan =
-                    planWithDiagnostics(descriptor(key));
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor(key));
             for (SkyIslandGeomorphicNetworkNode node : plan.nodes()) {
                 if (node.kind() != SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
                     continue;
@@ -90,7 +90,7 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
         SkyIslandSemanticChannelReachPlan semantics =
                 SkyIslandSemanticChannelReachPlanner.plan(descriptor);
         SkyIslandGeomorphicChannelNetworkPlan geometry =
-                planWithDiagnostics(descriptor);
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
 
         Map<Integer, Integer> expected = new HashMap<>();
         for (SkyIslandSemanticChannelReach reach : semantics.reaches()) {
@@ -102,16 +102,6 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
             assertEquals(1L, geometry.nodes().stream()
                     .filter(node -> node.cellIndex() == cellIndex)
                     .count());
-        }
-    }
-
-    private static SkyIslandGeomorphicChannelNetworkPlan planWithDiagnostics(
-            SkyIslandDescriptor descriptor) {
-        try {
-            return SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
-        } catch (RuntimeException exception) {
-            exception.printStackTrace(System.out);
-            throw exception;
         }
     }
 
