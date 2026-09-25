@@ -1,7 +1,7 @@
 # Hydrology reset tranche D0 — geomorphic diagnostic characterization
 
 **Status:** dependent evidence tranche under issue #1084  
-**Depends on:** Tranche C / PR #1089  
+**Depends on:** Tranche C1 continuous centerlines / PR #1104  
 **Terrain mutation:** none  
 **Acceptance thresholds:** deliberately not yet frozen
 
@@ -10,9 +10,9 @@
 The reset requires hard machine rejection for implausible hydromorphology, but choosing those limits
 from one failed screenshot would repeat the same overfitting mistake in a different form.
 
-D0 therefore persists a deterministic diagnostic corpus before introducing rejection thresholds.
+D0 therefore persists a deterministic diagnostic corpus after C1 continuous-centerline regularization and before introducing rejection thresholds.
 
-The first manifest records, per fixed specimen:
+The regenerated post-C1 manifest records, per fixed specimen:
 
 - route/node/confluence counts;
 - maximum and mean centerline lowering implied by the hydraulic candidate;
