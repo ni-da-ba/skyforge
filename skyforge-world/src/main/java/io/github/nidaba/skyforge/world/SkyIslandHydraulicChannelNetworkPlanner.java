@@ -46,18 +46,45 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
                 SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
         SkyIslandPreHydrologicTerrainField terrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
-        return plan(descriptor, network, terrain);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        return plan(descriptor, network, terrain, interiority);
     }
 
     static SkyIslandHydraulicChannelNetworkPlan plan(
             SkyIslandDescriptor descriptor,
             SkyIslandGeomorphicChannelNetworkPlan network,
             SkyIslandSemanticField terrain) {
+        return plan(
+                descriptor,
+                network,
+                terrain,
+                SkyIslandSemanticFieldSet.create(descriptor).interiority());
+    }
+
+    static SkyIslandHydraulicChannelNetworkPlan plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(network, "network");
         Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(interiority, "interiority");
         if (!descriptor.equals(network.descriptor())) {
             throw new IllegalArgumentException("geomorphic network descriptor must match hydraulic descriptor");
+        }
+
+        Map<SkyIslandGeomorphicReachRoute, SkyIslandContinuousChannelCenterline> centerlines =
+                new HashMap<>();
+        for (SkyIslandGeomorphicReachRoute route : network.routes()) {
+            centerlines.put(
+                    route,
+                    SkyIslandContinuousChannelCenterlinePlanner.refine(
+                            route.route(),
+                            terrain,
+                            interiority,
+                            network.planningSpacing()));
         }
 
         Map<Integer, List<SkyIslandGeomorphicReachRoute>> incoming = new HashMap<>();
@@ -96,7 +123,8 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
                 solved = Math.min(
                         solved,
                         upstreamSurface
-                                - MINIMUM_WATER_SURFACE_GRADE * inbound.route().pathLength());
+                                - MINIMUM_WATER_SURFACE_GRADE
+                                        * requireCenterline(centerlines, inbound).pathLength());
             }
             if (!(solved > EPSILON)) {
                 throw new IllegalStateException("candidate hydraulic network requires non-positive water datum");
@@ -114,14 +142,16 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             SkyIslandSemanticChannelReach semantic = routed.semanticReach();
             double startSurface = nodeSurface.get(semantic.startCellIndex());
             double endSurface = nodeSurface.get(semantic.endCellIndex());
+            SkyIslandContinuousChannelCenterline centerline =
+                    requireCenterline(centerlines, routed);
             double minimumDrop =
-                    MINIMUM_WATER_SURFACE_GRADE * routed.route().pathLength();
+                    MINIMUM_WATER_SURFACE_GRADE * centerline.pathLength();
             if (endSurface > startSurface - minimumDrop + EPSILON) {
                 throw new IllegalStateException("shared node hydraulic datums violate minimum downstream grade");
             }
 
             SkyIslandHydraulicReachGeometry reach = solveReach(
-                    descriptor, terrain, routed, startSurface, endSurface);
+                    descriptor, terrain, routed, centerline, startSurface, endSurface);
             reaches.add(reach);
             maximumLowering = Math.max(maximumLowering, reach.maximumRequiredLowering());
             maximumSlope = Math.max(maximumSlope, reach.maximumWaterSurfaceSlope());
@@ -150,11 +180,12 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicReachRoute routed,
+            SkyIslandContinuousChannelCenterline centerline,
             double startSurface,
             double endSurface) {
-        List<SkyIslandLocalPosition> points = routed.route().points();
+        List<SkyIslandLocalPosition> points = centerline.points();
         double[] cumulative = cumulativeDistance(points);
-        double pathLength = cumulative[cumulative.length - 1];
+        double pathLength = centerline.pathLength();
         if (!(pathLength > 0.0)) {
             throw new IllegalStateException("candidate geomorphic route must have positive length");
         }
@@ -232,6 +263,7 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
 
         return new SkyIslandHydraulicReachGeometry(
                 routed,
+                centerline,
                 samples,
                 pathLength,
                 maximumLowering,
@@ -293,6 +325,16 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             throw new IllegalStateException("candidate geomorphic channel network contains a cycle");
         }
         return List.copyOf(result);
+    }
+
+    private static SkyIslandContinuousChannelCenterline requireCenterline(
+            Map<SkyIslandGeomorphicReachRoute, SkyIslandContinuousChannelCenterline> centerlines,
+            SkyIslandGeomorphicReachRoute route) {
+        SkyIslandContinuousChannelCenterline centerline = centerlines.get(route);
+        if (centerline == null) {
+            throw new IllegalStateException("missing continuous centerline for geomorphic reach");
+        }
+        return centerline;
     }
 
     private static Comparator<SkyIslandGeomorphicReachRoute> routeComparator() {
