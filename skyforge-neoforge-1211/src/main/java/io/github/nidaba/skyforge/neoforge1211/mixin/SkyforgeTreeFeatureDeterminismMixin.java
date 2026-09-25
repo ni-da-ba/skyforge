@@ -45,9 +45,9 @@ abstract class SkyforgeTreeFeatureDeterminismMixin {
         }
         var ordered = positions.stream()
                 .map(BlockPos::immutable)
-                .sorted(Comparator.comparingInt(BlockPos::getX)
-                        .thenComparingInt(BlockPos::getZ)
-                        .thenComparingInt(BlockPos::getY))
+                .sorted(Comparator.comparingInt((BlockPos position) -> position.getX())
+                        .thenComparingInt(position -> position.getZ())
+                        .thenComparingInt(position -> position.getY()))
                 .toList();
         return new LinkedHashSet<>(ordered);
     }
