@@ -279,6 +279,16 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     retainedHydraulicBoundaryFor(
                             channel.path(),
                             retainedHydraulicBoundaries);
+            if (retainedBoundary.sourceConnected()
+                    && retainedBoundary.downstreamConnected()) {
+                rawChannels.add(submergedChannelDeployment(
+                        fluvial,
+                        volume,
+                        channel.path(),
+                        retainedBoundary.waterTopByColumn(),
+                        rawRetained));
+                continue;
+            }
             atPath(
                             descriptor,
                             fluvial,
@@ -2846,6 +2856,67 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             int z) {
         return !terrain.hasMultipleCompiledVolumes()
                 || !terrain.isSolidOwnedByOtherVolume(volumeId, x, y, z);
+    }
+
+    /**
+     * Projects a semantically explicit channel whose two endpoints belong to the same retained
+     * basin without giving it an independent submerged river grade.
+     *
+     * <p>The channel remains one-for-one authored evidence, but its physical water role is only the
+     * retained basin water already occupying the channel's own wet corridor. It contributes no
+     * carve or surface authority, so standing water remains the sole physical owner.
+     */
+    private static RawDeployment submergedChannelDeployment(
+            SkyIslandFluvialTerrainField fluvial,
+            SkyIslandWorldVolume volume,
+            SkyIslandNaturalizedChannelPath path,
+            Map<Column, Integer> retainedWaterTopByColumn,
+            List<RawDeployment> retainedDeployments) {
+        Objects.requireNonNull(fluvial, "fluvial");
+        Objects.requireNonNull(volume, "volume");
+        Objects.requireNonNull(path, "path");
+        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
+        Objects.requireNonNull(retainedDeployments, "retainedDeployments");
+
+        SkyIslandFluvialReachGeometry reach = fluvial.reaches().stream()
+                .filter(candidate -> candidate.path().equals(path))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "AUTH-0105 fluvial field lost accepted visible channel reach"));
+        Map<Column, ChannelPathProjection> projections =
+                candidateColumnProjections(volume, fluvial, reach);
+        LinkedHashSet<BlockPos> sharedWater = new LinkedHashSet<>();
+        for (RawDeployment retained : retainedDeployments) {
+            if (retained.feature() != Feature.RETAINED_WATER) {
+                continue;
+            }
+            for (BlockPos position : retained.positions()) {
+                Column column = new Column(position.getX(), position.getZ());
+                if (!retainedWaterTopByColumn.containsKey(column)) {
+                    continue;
+                }
+                ChannelPathProjection projection = projections.get(column);
+                if (projection == null
+                        || projection.distance()
+                                > fluvial.wetHalfWidthAt(reach, projection.fraction()) + 1.0e-12) {
+                    continue;
+                }
+                sharedWater.add(position);
+            }
+        }
+        if (sharedWater.isEmpty()) {
+            throw channelProjectionFailure(
+                    volume,
+                    path,
+                    "same-basin retained channel has no shared physical wet corridor");
+        }
+        return rawDeployment(
+                volume.id(),
+                Feature.CHANNEL,
+                List.copyOf(sharedWater),
+                List.of(),
+                List.of(),
+                List.of());
     }
 
     private static RawDeployment rawDeployment(
