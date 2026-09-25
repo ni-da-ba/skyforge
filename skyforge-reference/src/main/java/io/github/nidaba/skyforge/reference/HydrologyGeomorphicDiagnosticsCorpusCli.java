@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.reference;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
+import io.github.nidaba.skyforge.world.SkyIslandChannelProfileKind;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
@@ -56,6 +57,13 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                         + "maxDepthToBankfullWidth,maxReliefToValleyWidth,"
                         + "maxExcavationBurden,maxExcavationVolume,maxCurvatureWidthRatio,"
                         + "maxLongitudinalGradeWorld\n");
+
+        StringBuilder reachCsv = new StringBuilder(
+                "specimen,islandKey,startCell,endCell,profileKind,coarseSegments,"
+                        + "pathLength,maxLoweringPotential,maxLoweringWorld,maxLateralRecoveryGrade,"
+                        + "maxContainmentDeficitWorld,maxDepthToBankfullWidth,maxReliefToValleyWidth,"
+                        + "normalizedExcavationBurden,excavationVolume,maxCurvatureWidthRatio,"
+                        + "ridgeFraction,maxLongitudinalGradeWorld\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandGeomorphicChannelNetworkPlan geometry =
@@ -147,9 +155,37 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .append(format(maxExcavationVolume)).append(',')
                     .append(format(maxCurvatureWidthRatio)).append(',')
                     .append(format(maxLongitudinalGradeWorld)).append('\n');
+
+            for (SkyIslandGeomorphicReachDiagnostics diagnostic : geomorphicDiagnostics) {
+                var semantic = diagnostic.hydraulicReach().geomorphicRoute().semanticReach();
+                SkyIslandChannelProfileKind profileKind =
+                        semantic.profiles().getFirst().kind();
+                boolean mixedProfile = semantic.profiles().stream()
+                        .anyMatch(profile -> profile.kind() != profileKind);
+                String profileLabel = mixedProfile ? "mixed" : profileKind.name().toLowerCase(Locale.ROOT);
+                reachCsv.append(specimen.name()).append(',')
+                        .append(specimen.descriptor().identity().islandKey()).append(',')
+                        .append(semantic.startCellIndex()).append(',')
+                        .append(semantic.endCellIndex()).append(',')
+                        .append(profileLabel).append(',')
+                        .append(semantic.coarseSegmentCount()).append(',')
+                        .append(format(diagnostic.hydraulicReach().pathLength())).append(',')
+                        .append(format(diagnostic.maximumCenterlineLoweringPotential())).append(',')
+                        .append(format(diagnostic.maximumCenterlineLoweringWorldUnits())).append(',')
+                        .append(format(diagnostic.maximumLateralRecoveryGrade())).append(',')
+                        .append(format(diagnostic.maximumBankContainmentDeficitWorldUnits())).append(',')
+                        .append(format(diagnostic.maximumDepthToBankfullWidthRatio())).append(',')
+                        .append(format(diagnostic.maximumReliefToValleyWidthRatio())).append(',')
+                        .append(format(diagnostic.normalizedExcavationBurden())).append(',')
+                        .append(format(diagnostic.excavationVolumeProxyWorldUnitsCubed())).append(',')
+                        .append(format(diagnostic.maximumCurvatureWidthRatio())).append(',')
+                        .append(format(diagnostic.ridgeSampleFraction())).append(',')
+                        .append(format(diagnostic.maximumLongitudinalGrade())).append('\n');
+            }
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("reach-manifest.csv"), reachCsv, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), readme(), StandardCharsets.UTF_8);
         System.out.println(out.resolve("manifest.csv").toAbsolutePath());
     }
@@ -167,7 +203,7 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
         return """
                 Hydrology geomorphic diagnostics v2
 
-                This corpus records pre-carving route and hydraulic metrics for threshold calibration.
+                This corpus records pre-carving route and hydraulic metrics for threshold calibration.\n                manifest.csv is specimen-level evidence; reach-manifest.csv preserves per-reach/profile evidence.
                 It is not an acceptance oracle. Do not infer pass/fail from one specimen or tune a
                 threshold merely to preserve the current corpus.
 
