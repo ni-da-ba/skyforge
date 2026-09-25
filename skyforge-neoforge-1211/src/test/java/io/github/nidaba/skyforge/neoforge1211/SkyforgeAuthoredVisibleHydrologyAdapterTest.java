@@ -272,7 +272,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceKey287RetainedWaterIsFlatConnectedAndLocallyConditioned() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var retained = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
                 .filter(deployment ->
                         deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
@@ -393,7 +393,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceWaterColumnsAreVerticallyFilledOntoOwnedBeds() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         // Deployment lists preserve authored feature provenance, so overlapping channel/lake or
@@ -452,7 +452,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceRetainedWaterHasNoStronglyEnclosedRasterPinhole() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var wet = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
                 .filter(deployment ->
                         deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
@@ -485,7 +485,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceRiverLakeMouthIsMultiColumnAndFaceConnected() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         var retainedColumns = deployments.stream()
@@ -546,7 +546,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceConnectedRetainedRasterHasOnePhysicalDatum() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var retained = terrain.authoredHydrologyDeployments(fixture.volume().id()).stream()
                 .filter(deployment ->
                         deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
@@ -586,7 +586,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void hydrologyReferenceChannelLakeJunctionApproachesBasinDatumWithoutSyntheticLip() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         var retainedTop =
@@ -751,7 +751,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void retainedWaterOwnsChannelOverlapColumns() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         var retainedWater = new java.util.HashSet<BlockPos>();
@@ -802,7 +802,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Tag("qualification")
     void sameBasinChannelsRetainDeploymentIdentityWithoutIndependentPhysicalGrade() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
                 fixture.descriptor());
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
@@ -990,7 +990,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void productionHydrologyUsesOnlyBoundedSupportedBankGeometry() {
         var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
-        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var terrain = hydrologyReferenceTerrain();
         var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
 
         assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.MAX_CHANNEL_BANK_FILL_BLOCKS);
@@ -1517,6 +1517,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 -radius * 1.08,
                 radius * 1.08);
         return new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(id, bounds, compiled);
+    }
+
+    private static SkyforgeNeoForge1211ChunkAdapter hydrologyReferenceTerrain() {
+        return HydrologyReferenceTerrainHolder.TERRAIN;
+    }
+
+    /**
+     * The key-287 production projection is immutable and expensive. Qualification assertions inspect
+     * the same authored plan from multiple angles, so compute that plan once per test JVM instead of
+     * rebuilding the whole island for every assertion method.
+     */
+    private static final class HydrologyReferenceTerrainHolder {
+        private static final SkyforgeHydrologyReferenceReviewFixture.RuntimeFixture FIXTURE =
+                SkyforgeHydrologyReferenceReviewFixture.create();
+        private static final SkyforgeNeoForge1211ChunkAdapter TERRAIN =
+                terrain(FIXTURE.catalog(), FIXTURE.descriptor());
     }
 
     private static SkyforgeNeoForge1211ChunkAdapter terrain(
