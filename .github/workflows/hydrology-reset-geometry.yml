@@ -7,6 +7,9 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachGeometry.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlan.java"
@@ -58,6 +61,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             --no-configuration-cache
 
       - name: Dump focused failure report
