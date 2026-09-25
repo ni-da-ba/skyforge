@@ -16,7 +16,7 @@ class SkyIslandGeomorphicDiagnosticEvaluatorTest {
             SkyIslandHydraulicChannelNetworkPlan hydraulics =
                     SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
             SkyIslandSemanticField terrain =
-                    SkyIslandContinuousHydrologicTerrainField.create(descriptor);
+                    SkyIslandPreHydrologicTerrainField.create(descriptor);
 
             SkyIslandGeomorphicDiagnostics diagnostics =
                     SkyIslandGeomorphicDiagnosticEvaluator.evaluate(descriptor, hydraulics, terrain);
