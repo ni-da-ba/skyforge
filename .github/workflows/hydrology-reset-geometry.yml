@@ -12,6 +12,13 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E2.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationViolation.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationLimits.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationPolicy.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualification.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationEvaluator.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationEvaluatorTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnostics.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.java"
@@ -95,6 +102,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyQualificationEvaluatorTest' \
             --no-configuration-cache
 
       - name: Print hydrology diagnostic calibration manifests
