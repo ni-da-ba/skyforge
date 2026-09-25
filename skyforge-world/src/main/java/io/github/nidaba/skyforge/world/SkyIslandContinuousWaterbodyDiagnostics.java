@@ -10,6 +10,8 @@ public record SkyIslandContinuousWaterbodyDiagnostics(
         double depthToEquivalentDiameterRatio,
         double maximumShorelineGrade,
         double spillHeadroomWorldUnits,
+        int matchedTerminalReachCount,
+        double maximumChannelDatumMismatchWorldUnits,
         boolean reachesSearchBoundary,
         int shorelineCrossingCount) {
 
@@ -20,6 +22,10 @@ public record SkyIslandContinuousWaterbodyDiagnostics(
         requireNonNegative(depthToEquivalentDiameterRatio, "depthToEquivalentDiameterRatio");
         requireNonNegative(maximumShorelineGrade, "maximumShorelineGrade");
         requireNonNegative(spillHeadroomWorldUnits, "spillHeadroomWorldUnits");
+        if (matchedTerminalReachCount < 0) {
+            throw new IllegalArgumentException("matchedTerminalReachCount must be non-negative");
+        }
+        requireNonNegative(maximumChannelDatumMismatchWorldUnits, "maximumChannelDatumMismatchWorldUnits");
         if (shorelineCrossingCount < 0) {
             throw new IllegalArgumentException("shorelineCrossingCount must be non-negative");
         }
