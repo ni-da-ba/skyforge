@@ -16,10 +16,12 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
                 SkyIslandContinuousWaterbodyPlanner.plan(descriptor);
         SkyIslandSemanticField terrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandHydraulicChannelNetworkPlan hydraulics =
+                SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
         List<SkyIslandContinuousWaterbodyDiagnostics> result =
                 new ArrayList<>(plan.basins().size());
         for (SkyIslandContinuousWaterbodyBasin basin : plan.basins()) {
-            result.add(measure(descriptor, basin, terrain));
+            result.add(measure(descriptor, basin, terrain, hydraulics));
         }
         return List.copyOf(result);
     }
@@ -27,10 +29,12 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
     static SkyIslandContinuousWaterbodyDiagnostics measure(
             SkyIslandDescriptor descriptor,
             SkyIslandContinuousWaterbodyBasin basin,
-            SkyIslandSemanticField terrain) {
+            SkyIslandSemanticField terrain,
+            SkyIslandHydraulicChannelNetworkPlan hydraulics) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(basin, "basin");
         Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(hydraulics, "hydraulics");
 
         double equivalentDiameter =
                 2.0 * Math.sqrt(basin.approximateArea() / Math.PI);
@@ -55,6 +59,21 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
                     Math.max(maximumShorelineGrade, Math.hypot(worldDx, worldDz));
         }
 
+        int matchedTerminalReachCount = 0;
+        double maximumChannelDatumMismatch = 0.0;
+        int sinkCell = basin.sourceCandidate().sinkCellIndex();
+        for (SkyIslandHydraulicReachGeometry reach : hydraulics.reaches()) {
+            if (reach.geomorphicRoute().semanticReach().endCellIndex() != sinkCell) {
+                continue;
+            }
+            matchedTerminalReachCount++;
+            double mismatch =
+                    Math.abs(reach.endWaterSurfacePotential() - basin.waterSurfacePotential())
+                            * descriptor.reliefBudget();
+            maximumChannelDatumMismatch =
+                    Math.max(maximumChannelDatumMismatch, mismatch);
+        }
+
         return new SkyIslandContinuousWaterbodyDiagnostics(
                 basin,
                 equivalentDiameter,
@@ -62,6 +81,8 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
                 depthToDiameter,
                 maximumShorelineGrade,
                 spillHeadroom,
+                matchedTerminalReachCount,
+                maximumChannelDatumMismatch,
                 basin.reachesSearchBoundary(),
                 basin.shorelineCrossings().size());
     }
