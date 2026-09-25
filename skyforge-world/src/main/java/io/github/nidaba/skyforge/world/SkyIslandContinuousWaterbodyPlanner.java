@@ -125,7 +125,10 @@ public final class SkyIslandContinuousWaterbodyPlanner {
         }
 
         int seed = nearestEligibleSeed(
-                candidate.anchor(), positions, eligible);
+                candidate.anchor(),
+                positions,
+                eligible,
+                fineSpacing * Math.sqrt(2.0) * 1.05);
         if (seed < 0) {
             throw new IllegalStateException("retained semantic sink has no fine wet sample at solved datum");
         }
@@ -255,7 +258,11 @@ public final class SkyIslandContinuousWaterbodyPlanner {
     private static int nearestEligibleSeed(
             SkyIslandLocalPosition anchor,
             SkyIslandLocalPosition[] positions,
-            boolean[] eligible) {
+            boolean[] eligible,
+            double maximumDistance) {
+        if (!Double.isFinite(maximumDistance) || maximumDistance <= 0.0) {
+            throw new IllegalArgumentException("maximum seed distance must be finite and positive");
+        }
         int selected = -1;
         double best = Double.POSITIVE_INFINITY;
         for (int i = 0; i < positions.length; i++) {
@@ -271,7 +278,7 @@ public final class SkyIslandContinuousWaterbodyPlanner {
                 best = distance;
             }
         }
-        return selected;
+        return best <= maximumDistance + EPSILON ? selected : -1;
     }
 
     private static boolean[] floodFill(
