@@ -14,6 +14,8 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiscoveryCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiscoveryCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnostics.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.java"
@@ -95,6 +97,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
+            :skyforge-reference:test --tests '*HydrologyWaterbodyDiscoveryCorpusTest' \
             --no-configuration-cache
 
       - name: Print hydrology diagnostic calibration manifests
@@ -111,6 +114,11 @@ jobs:
           fi
           echo "--- basin-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-discovery-test-a/discovery.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiscoveryCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- waterbody-discovery.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-waterbody-discovery-test-a/discovery.csv
 
 
       - name: Dump focused failure report
