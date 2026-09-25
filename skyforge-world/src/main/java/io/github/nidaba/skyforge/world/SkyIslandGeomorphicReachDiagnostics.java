@@ -9,13 +9,16 @@ public record SkyIslandGeomorphicReachDiagnostics(
         double maximumCenterlineLoweringWorldUnits,
         double maximumLateralRecoveryGrade,
         double maximumBankContainmentDeficitWorldUnits,
+        double maximumContainmentDeficitToWaterDepthRatio,
         double maximumDepthToBankfullWidthRatio,
+        double maximumIncisionToBankfullWidthRatio,
         double maximumReliefToValleyWidthRatio,
         double normalizedExcavationBurden,
         double excavationVolumeProxyWorldUnitsCubed,
         double maximumCurvatureWidthRatio,
         double ridgeSampleFraction,
-        double maximumLongitudinalGrade) {
+        double maximumLongitudinalGrade,
+        double maximumRawTerrainUphillStepPotential) {
 
     public SkyIslandGeomorphicReachDiagnostics {
         hydraulicReach = Objects.requireNonNull(hydraulicReach, "hydraulicReach");
@@ -23,13 +26,16 @@ public record SkyIslandGeomorphicReachDiagnostics(
         requireNonNegative(maximumCenterlineLoweringWorldUnits, "maximumCenterlineLoweringWorldUnits");
         requireNonNegative(maximumLateralRecoveryGrade, "maximumLateralRecoveryGrade");
         requireNonNegative(maximumBankContainmentDeficitWorldUnits, "maximumBankContainmentDeficitWorldUnits");
+        requireNonNegative(maximumContainmentDeficitToWaterDepthRatio, "maximumContainmentDeficitToWaterDepthRatio");
         requireNonNegative(maximumDepthToBankfullWidthRatio, "maximumDepthToBankfullWidthRatio");
+        requireNonNegative(maximumIncisionToBankfullWidthRatio, "maximumIncisionToBankfullWidthRatio");
         requireNonNegative(maximumReliefToValleyWidthRatio, "maximumReliefToValleyWidthRatio");
         requireNonNegative(normalizedExcavationBurden, "normalizedExcavationBurden");
         requireNonNegative(excavationVolumeProxyWorldUnitsCubed, "excavationVolumeProxyWorldUnitsCubed");
         requireNonNegative(maximumCurvatureWidthRatio, "maximumCurvatureWidthRatio");
         requireFraction(ridgeSampleFraction, "ridgeSampleFraction");
         requireNonNegative(maximumLongitudinalGrade, "maximumLongitudinalGrade");
+        requireNonNegative(maximumRawTerrainUphillStepPotential, "maximumRawTerrainUphillStepPotential");
     }
 
     private static void requireNonNegative(double value, String name) {
