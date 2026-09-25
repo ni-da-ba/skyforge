@@ -8,7 +8,6 @@ public record SkyIslandGeomorphicProfileLimits(
         double maximumDepthToBankfullWidthRatio,
         double maximumReliefToValleyWidthRatio,
         double maximumNormalizedExcavationBurden,
-        double maximumExcavationVolumeWorldUnitsCubed,
         double maximumCurvatureWidthRatio,
         double maximumRidgeSampleFraction,
         double maximumLongitudinalGrade) {
@@ -20,7 +19,6 @@ public record SkyIslandGeomorphicProfileLimits(
         requirePositive(maximumDepthToBankfullWidthRatio, "maximumDepthToBankfullWidthRatio");
         requirePositive(maximumReliefToValleyWidthRatio, "maximumReliefToValleyWidthRatio");
         requirePositive(maximumNormalizedExcavationBurden, "maximumNormalizedExcavationBurden");
-        requirePositive(maximumExcavationVolumeWorldUnitsCubed, "maximumExcavationVolumeWorldUnitsCubed");
         requirePositive(maximumCurvatureWidthRatio, "maximumCurvatureWidthRatio");
         requireFraction(maximumRidgeSampleFraction, "maximumRidgeSampleFraction");
         requirePositive(maximumLongitudinalGrade, "maximumLongitudinalGrade");
