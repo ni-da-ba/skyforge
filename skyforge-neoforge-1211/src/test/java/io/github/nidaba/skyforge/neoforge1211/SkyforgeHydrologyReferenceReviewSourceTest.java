@@ -67,6 +67,26 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
         assertFalse(runner.contains("GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(),\n                        occurrenceIndex++"));
     }
 
+
+    @Test
+    void reviewPreparationRetainsChunkTicketsUntilWholeIslandIsReady() throws IOException {
+        String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeHydrologyReferenceReviewRuntime.java"));
+
+        int loopStart = runtime.indexOf("int advanced = 0;");
+        int loopEnd = runtime.indexOf("if (active.cursor() < active.chunkKeys().size())", loopStart);
+        assertTrue(loopStart >= 0 && loopEnd > loopStart);
+        String preparationLoop = runtime.substring(loopStart, loopEnd);
+        assertFalse(preparationLoop.contains("removeRegionTicket("));
+        assertTrue(preparationLoop.contains("retain-ticket"));
+
+        int finalizeStart = runtime.indexOf("private static synchronized void finalizePrepared(");
+        int finalizeEnd = runtime.indexOf("private static int status(", finalizeStart);
+        assertTrue(finalizeStart >= 0 && finalizeEnd > finalizeStart);
+        String finalize = runtime.substring(finalizeStart, finalizeEnd);
+        assertTrue(finalize.contains("releaseTickets(level, active.chunkKeys());"));
+    }
+
     @Test
     void reviewEcologyReusesTheFluvialFieldThatProducedMinecraftHydrology() throws IOException {
         String runtime = Files.readString(PROJECT_DIRECTORY.resolve(
