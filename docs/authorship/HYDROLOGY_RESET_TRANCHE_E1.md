@@ -17,6 +17,8 @@ For each POND/LAKE basin, E1 records:
 - maximum-depth / equivalent-diameter ratio;
 - maximum pre-hydrologic shoreline grade;
 - spill headroom between water datum and semantic spill surface;
+- exact semantic terminal-reach count at the retained sink;
+- maximum hydraulic terminal-datum mismatch against the basin water datum;
 - whether the sink-connected sublevel set escapes the padded search boundary;
 - shoreline crossing count.
 
