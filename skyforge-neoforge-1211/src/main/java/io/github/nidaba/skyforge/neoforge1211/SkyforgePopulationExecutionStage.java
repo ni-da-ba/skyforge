@@ -2,7 +2,10 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
+import java.util.ArrayList;
 import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Predicate;
@@ -150,6 +153,11 @@ final class SkyforgePopulationExecutionStage {
         CachedBlockPredicate cachedForeignSolid = new CachedBlockPredicate(foreignSolid);
         Predicate<BlockPos> attachmentOwnerSolid = cachedOwnerSolid;
         Predicate<BlockPos> attachmentBarrierSolid = cachedForeignSolid;
+        boolean stableDeferredLevel =
+                level.isPresent() && level.orElseThrow() instanceof ServerLevel;
+        boolean structuralTree = operation.generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
+                && operation.nativeDefinitionKey().getPath().toLowerCase(Locale.ROOT).contains("tree");
         if (operation.generationStep()
                 == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
             // Surface ecology may extend canopy across chunk boundaries, but another chunk's
@@ -162,6 +170,11 @@ final class SkyforgePopulationExecutionStage {
             attachmentBarrierSolid = position -> cachedForeignSolid.test(position)
                     || (cachedOwnerSolid.test(position) && !originChunkContains(operation, position));
         }
+        Predicate<BlockPos> staticAttachmentReachability =
+                stableDeferredLevel && structuralTree
+                        ? stableDeferredTreeAttachmentReachability(
+                                operation, maximumAttachmentDepth)
+                        : null;
         Execution execution = new Execution(
                 level,
                 operation,
@@ -171,9 +184,79 @@ final class SkyforgePopulationExecutionStage {
                 new SkyforgePopulationAttachmentEnvelope(
                         attachmentOwnerSolid,
                         attachmentBarrierSolid,
-                        maximumAttachmentDepth));
+                        maximumAttachmentDepth,
+                        staticAttachmentReachability));
         ACTIVE.set(execution);
         return new Scope(execution);
+    }
+
+    /**
+     * Order-independent tree attachment domain for stable deferred population.
+     *
+     * <p>The historical attachment envelope grew from writes that happened to be visited first.
+     * Vanilla tree internals use unordered working sets in some foliage/update paths, so two
+     * equivalent runs could choose different frontier cells even with the same seed and identical
+     * block pre-state. Stable deferred trees already have chunk-local direct-write authority; define
+     * their bounded exterior reach instead as the static 26-neighbor graph distance to immutable
+     * exact owner terrain in that origin chunk. Chebyshev distance is exactly the shortest distance
+     * in a 26-neighbor lattice.
+     */
+    private static Predicate<BlockPos> stableDeferredTreeAttachmentReachability(
+            SkyforgePopulationOperation operation,
+            int maximumAttachmentDepth) {
+        Objects.requireNonNull(operation, "operation");
+        if (maximumAttachmentDepth < 0) {
+            throw new IllegalArgumentException("maximumAttachmentDepth must be non-negative");
+        }
+        ChunkPos chunk = operation.originChunk();
+        List<OwnerColumn> ownerColumns = new ArrayList<>(16 * 16);
+        for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
+            for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
+                SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                                operation.volumeId(), x, z)
+                        .ifPresent(range -> ownerColumns.add(
+                                new OwnerColumn(
+                                        x,
+                                        z,
+                                        range.minimumY(),
+                                        range.maximumY())));
+            }
+        }
+        List<OwnerColumn> canonicalOwnerColumns = List.copyOf(ownerColumns);
+        return position -> {
+            if (maximumAttachmentDepth == 0
+                    || !originChunkContains(operation, position)) {
+                return false;
+            }
+            for (OwnerColumn column : canonicalOwnerColumns) {
+                int verticalDistance = position.getY() < column.minimumY()
+                        ? column.minimumY() - position.getY()
+                        : position.getY() > column.maximumY()
+                                ? position.getY() - column.maximumY()
+                                : 0;
+                int distance = Math.max(
+                        Math.max(
+                                Math.abs(position.getX() - column.x()),
+                                Math.abs(position.getZ() - column.z())),
+                        verticalDistance);
+                if (distance <= maximumAttachmentDepth) {
+                    return true;
+                }
+            }
+            return false;
+        };
+    }
+
+    private record OwnerColumn(
+            int x,
+            int z,
+            int minimumY,
+            int maximumY) {
+        private OwnerColumn {
+            if (maximumY < minimumY) {
+                throw new IllegalArgumentException("owner column maximum precedes minimum");
+            }
+        }
     }
 
     static final class Execution {
