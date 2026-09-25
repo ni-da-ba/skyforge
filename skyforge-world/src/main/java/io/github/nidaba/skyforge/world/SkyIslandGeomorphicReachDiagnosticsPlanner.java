@@ -62,7 +62,9 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
         double maximumLoweringWorld = 0.0;
         double maximumLateralGrade = 0.0;
         double maximumContainmentDeficit = 0.0;
+        double maximumContainmentDeficitToDepth = 0.0;
         double maximumDepthToWidth = 0.0;
+        double maximumIncisionToWidth = 0.0;
         double maximumReliefToValleyWidth = 0.0;
         double maximumCurvatureWidthRatio = 0.0;
         double maximumLongitudinalGrade = 0.0;
@@ -108,8 +110,13 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
 
             double fullBankfullWidth = 2.0 * sample.bankfullHalfWidth();
             double depthWorld = sample.waterDepthPotential() * reliefBudget;
+            double containmentToDepth = containmentDeficit / Math.max(depthWorld, EPSILON);
+            maximumContainmentDeficitToDepth =
+                    Math.max(maximumContainmentDeficitToDepth, containmentToDepth);
             double depthToWidth = depthWorld / Math.max(fullBankfullWidth, EPSILON);
             maximumDepthToWidth = Math.max(maximumDepthToWidth, depthToWidth);
+            double incisionToWidth = loweringWorld / Math.max(fullBankfullWidth, EPSILON);
+            maximumIncisionToWidth = Math.max(maximumIncisionToWidth, incisionToWidth);
 
             double localReliefWorld = Math.max(leftValleyRise, rightValleyRise);
             double fullValleyWidth = 2.0 * valleyHalfWidth;
@@ -172,13 +179,16 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 maximumLoweringWorld,
                 maximumLateralGrade,
                 maximumContainmentDeficit,
+                maximumContainmentDeficitToDepth,
                 maximumDepthToWidth,
+                maximumIncisionToWidth,
                 maximumReliefToValleyWidth,
                 burden,
                 excavationVolumeProxy,
                 maximumCurvatureWidthRatio,
                 reach.geomorphicRoute().route().ridgeSampleFraction(),
-                maximumLongitudinalGrade);
+                maximumLongitudinalGrade,
+                reach.geomorphicRoute().route().maxUphillStep());
     }
 
     private static SkyIslandChannelProfileKind profileKind(
