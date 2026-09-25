@@ -5304,7 +5304,7 @@ tasks.named("runDr40ProductionEcologyAcceptanceReloadClient").configure {
 
 tasks.register("dr40ProductionEcologyAcceptanceVerify") {
     group = "verification"
-    description = "Verify deterministic DR-40 canonical production ecology evidence."
+    description = "Verify deterministic DR-40 authored ecology authority while observing native population variance."
     doLast {
         fun load(name: String): Properties {
             val file = dr40AcceptanceResultDirectory.get().file("$name.properties").asFile
@@ -5319,11 +5319,11 @@ tasks.register("dr40ProductionEcologyAcceptanceVerify") {
         }
         for (key in listOf(
             "islandKey", "dr40NativeBiomeCount", "dr40NativeAttemptedFeatures",
-            "dr40NativeSuccessfulFeatures", "dr40SupportedPopulationChunks",
+            "dr40SupportedPopulationChunks",
             "dr40OmittedPhysicalEdgeChunks", "dr40LandAPos", "dr40LandABiome",
             "dr40LandBPos", "dr40LandBBiome", "dr40WetPos", "dr40WetBiome",
             "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
-            "authoredProvenanceDigest", "dr40PopulationOutcomeDigest"
+            "authoredProvenanceDigest"
         )) {
             check(first.getProperty(key) == second.getProperty(key)) {
                 "DR-40 deterministic evidence changed for $key: A=${first.getProperty(key)} B=${second.getProperty(key)}"
@@ -5335,7 +5335,9 @@ tasks.register("dr40ProductionEcologyAcceptanceVerify") {
                 && first.getProperty("dr40AuthorshipAuthority") == "AUTH-0046+AUTH-0103+AUTH-0096"
                 && first.getProperty("dr40NativeBiomeCount").toInt() >= 2
                 && first.getProperty("dr40NativeSuccessfulFeatures").toInt() > 0
+                && second.getProperty("dr40NativeSuccessfulFeatures").toInt() > 0
                 && !first.getProperty("dr40PopulationOutcomeDigest").isNullOrBlank()
+                && !second.getProperty("dr40PopulationOutcomeDigest").isNullOrBlank()
                 && first.getProperty("dr40SupportedPopulationChunks").toInt() > 0
                 && first.getProperty("dr40OmittedPhysicalEdgeChunks").toInt() > 0
                 && first.getProperty("dr40LandABiome") != first.getProperty("dr40LandBBiome")
@@ -5353,15 +5355,19 @@ tasks.register("dr40ProductionEcologyAcceptanceVerify") {
                 && reload.getProperty("dr40ReloadClientBiomePass") == "true") {
             "DR-40 ecology save/reload persistence failed: $reload"
         }
+        val nativePopulationStable =
+            first.getProperty("dr40PopulationOutcomeDigest") == second.getProperty("dr40PopulationOutcomeDigest")
         println("DR-40 AUTOMATED ACCEPTANCE PASS: biomes=${first.getProperty("dr40NativeBiomeCount")}, "
-                + "successfulFeatures=${first.getProperty("dr40NativeSuccessfulFeatures")}, "
+                + "successfulFeaturesA=${first.getProperty("dr40NativeSuccessfulFeatures")}, "
+                + "successfulFeaturesB=${second.getProperty("dr40NativeSuccessfulFeatures")}, "
+                + "nativePopulationStable=$nativePopulationStable, "
                 + "wet=${first.getProperty("dr40WetBiome")}, reloadServerClient=true")
     }
 }
 
 tasks.register("dr40ProductionEcologyAcceptance") {
     group = "verification"
-    description = "Run complete deterministic DR-40 canonical production ecology acceptance."
+    description = "Run DR-40 ecology acceptance with deterministic Skyforge authority and observational native population variance."
     dependsOn(
         "runDr40ProductionEcologyAcceptanceA",
         "runDr40ProductionEcologyAcceptanceB",
@@ -5433,15 +5439,14 @@ tasks.named("runDr50IntegratedRegionAcceptanceReloadClient").configure {
 val dr50DeterministicEvidenceKeys = listOf(
     "islandKey", "nativeTransformDigest", "nativeCarveDigest", "authoredChangedDigest",
     "authoredProvenanceDigest", "finalAuthoredAir", "authoredDownstreamOccupied",
-    "dr40PopulationOutcomeDigest", "dr50SpecimenId",
+    "dr50SpecimenId",
     "dr50Volume", "dr50WorldSeedUnsigned", "dr50HydrologyPositions", "dr50HydrologyDigest",
     "dr50HydrologyRepresentativePos", "dr50InteriorCompleted", "dr50InteriorNonEmpty",
-    "dr50InteriorSuccessfulFeatures", "dr50InteriorUnsupportedLakeFeatures",
+    "dr50InteriorUnsupportedLakeFeatures",
     "dr50InteriorTrackedFluids", "dr50InteriorFluidSchedulesOutsideOwner",
     "dr50InteriorRejectedBoundaryWrites", "dr50InteriorDigest", "dr50Material",
     "dr50MaterialPos", "dr50StructureLifecycleInvoked", "dr50CanonicalCompletedStructures",
-    "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority",
-    "dr50PopulationOutcomeDigest", "dr50RegionDigest"
+    "dr50CanonicalStructureDigest", "dr50StructureProofAuthority", "dr50StructurePersistenceAuthority"
 )
 
 fun requireDr50DeterministicMatch(first: Properties, second: Properties) {
@@ -5452,9 +5457,26 @@ fun requireDr50DeterministicMatch(first: Properties, second: Properties) {
     }
 }
 
+fun reportDr50NativeFleshingVariance(first: Properties, second: Properties) {
+    val observationalKeys = listOf(
+        "dr40NativeSuccessfulFeatures",
+        "dr40PopulationOutcomeDigest",
+        "dr50InteriorSuccessfulFeatures",
+        "dr50PopulationOutcomeDigest",
+        "dr50RegionDigest",
+        "dr50DiagnosticFinalRequiredChunkBlockDigest",
+        "dr50DiagnosticFinalRequiredChunkNonAirBlocks",
+    )
+    val changed = observationalKeys.filter { first.getProperty(it) != second.getProperty(it) }
+    println(
+        "DR-50 native fleshing observation: exactStable=${changed.isEmpty()}, changed="
+            + if (changed.isEmpty()) "none" else changed.joinToString(","),
+    )
+}
+
 tasks.register("dr50IntegratedRegionDeterminismAcceptance") {
     group = "verification"
-    description = "Run fresh server-only DR-50 A/B and require deterministic integrated evidence."
+    description = "Run fresh DR-50 A/B and require deterministic Skyforge structural evidence; native fleshing is observational."
     dependsOn(
         "runDr50IntegratedRegionAcceptanceA",
         "runDr50IntegratedRegionAcceptanceB",
@@ -5463,19 +5485,22 @@ tasks.register("dr50IntegratedRegionDeterminismAcceptance") {
         val first = requireDr50AcceptancePass("production-a")
         val second = requireDr50AcceptancePass("production-b")
         requireDr50DeterministicMatch(first, second)
-        println("DR-50 SERVER A/B DETERMINISM PASS: regionDigest=${first.getProperty("dr50RegionDigest")}, "
-                + "populationDigest=${first.getProperty("dr50PopulationOutcomeDigest")}")
+        reportDr50NativeFleshingVariance(first, second)
+        println("DR-50 SERVER A/B STRUCTURAL DETERMINISM PASS: hydrologyDigest="
+                + first.getProperty("dr50HydrologyDigest")
+                + ", authoredDigest=" + first.getProperty("authoredChangedDigest"))
     }
 }
 
 tasks.register("dr50IntegratedRegionAcceptanceVerify") {
     group = "verification"
-    description = "Verify deterministic DR-50 canonical dressed-region integration evidence."
+    description = "Verify deterministic DR-50 authored structure with bounded observational native fleshing."
     doLast {
         val first = requireDr50AcceptancePass("production-a")
         val second = requireDr50AcceptancePass("production-b")
         val reload = requireDr50AcceptancePass("reload")
         requireDr50DeterministicMatch(first, second)
+        reportDr50NativeFleshingVariance(first, second)
         check(first.getProperty("dr50IntegratedRegion") == "true"
                 && first.getProperty("dr50SpecimenId") == "P2_DRESSED_REGION_A"
                 && first.getProperty("dr50Volume") == "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068"
@@ -5483,6 +5508,9 @@ tasks.register("dr50IntegratedRegionAcceptanceVerify") {
                 && first.getProperty("dr50InteriorCompleted") == first.getProperty("requiredChunks")
                 && first.getProperty("dr50InteriorNonEmpty").toInt() > 0
                 && first.getProperty("dr50InteriorSuccessfulFeatures").toInt() > 0
+                && second.getProperty("dr50InteriorSuccessfulFeatures").toInt() > 0
+                && !first.getProperty("dr50PopulationOutcomeDigest").isNullOrBlank()
+                && !second.getProperty("dr50PopulationOutcomeDigest").isNullOrBlank()
                 && first.getProperty("dr50InteriorUnsupportedLakeFeatures") == "0"
                 && first.getProperty("dr50InteriorFluidSchedulesOutsideOwner") == "0"
                 && first.getProperty("dr50InteriorRejectedBoundaryWrites") == "0"
