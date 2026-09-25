@@ -37,10 +37,10 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 Objects.requireNonNull(
                         SkyIslandSemanticChannelReachPlanner.plan(descriptor),
                         "semantic reach planner returned null");
-        SkyIslandContinuousHydrologicTerrainField terrain =
+        SkyIslandPreHydrologicTerrainField terrain =
                 Objects.requireNonNull(
-                        SkyIslandContinuousHydrologicTerrainField.create(descriptor),
-                        "continuous hydrologic terrain field returned null");
+                        SkyIslandPreHydrologicTerrainField.create(descriptor),
+                        "pre-hydrologic terrain field returned null");
         SkyIslandSemanticField interiority =
                 Objects.requireNonNull(
                         SkyIslandSemanticFieldSet.create(descriptor).interiority(),
