@@ -6,6 +6,8 @@ import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnostics;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnosticsPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachRoute;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlanner;
@@ -49,13 +51,20 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                 "specimen,islandKey,morphology,nodes,confluences,reaches,"
                         + "maxRequiredLowering,meanRequiredLowering,maxWaterSlope,"
                         + "meanUphillFraction,maxRidgeFraction,meanValleyAdvantage,"
-                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth\n");
+                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth,"
+                        + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
+                        + "maxDepthToBankfullWidth,maxReliefToValleyWidth,"
+                        + "maxExcavationBurden,maxExcavationVolume,maxCurvatureWidthRatio,"
+                        + "maxLongitudinalGradeWorld\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandGeomorphicChannelNetworkPlan geometry =
                     SkyIslandGeomorphicChannelNetworkPlanner.plan(specimen.descriptor());
             SkyIslandHydraulicChannelNetworkPlan hydraulics =
                     SkyIslandHydraulicChannelNetworkPlanner.plan(specimen.descriptor());
+
+            List<SkyIslandGeomorphicReachDiagnostics> geomorphicDiagnostics =
+                    SkyIslandGeomorphicReachDiagnosticsPlanner.measure(specimen.descriptor());
 
             double meanUphill = geometry.routes().stream()
                     .mapToDouble(route -> route.route().uphillStepFraction())
@@ -82,6 +91,39 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .max()
                     .orElse(0.0);
 
+            double maxLateralRecoveryGrade = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumLateralRecoveryGrade)
+                    .max()
+                    .orElse(0.0);
+            double maxContainmentDeficit = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumBankContainmentDeficitWorldUnits)
+                    .max()
+                    .orElse(0.0);
+            double maxDepthToWidth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumDepthToBankfullWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxReliefToValleyWidth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumReliefToValleyWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxExcavationBurden = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::normalizedExcavationBurden)
+                    .max()
+                    .orElse(0.0);
+            double maxExcavationVolume = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::excavationVolumeProxyWorldUnitsCubed)
+                    .max()
+                    .orElse(0.0);
+            double maxCurvatureWidthRatio = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumCurvatureWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxLongitudinalGradeWorld = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumLongitudinalGrade)
+                    .max()
+                    .orElse(0.0);
+
             csv.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
                     .append(specimen.descriptor().morphologyFamily().identifier()).append(',')
@@ -96,7 +138,15 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .append(format(meanValley)).append(',')
                     .append(format(maxDeviation)).append(',')
                     .append(format(maxWidth)).append(',')
-                    .append(format(maxDepth)).append('\n');
+                    .append(format(maxDepth)).append(',')
+                    .append(format(maxLateralRecoveryGrade)).append(',')
+                    .append(format(maxContainmentDeficit)).append(',')
+                    .append(format(maxDepthToWidth)).append(',')
+                    .append(format(maxReliefToValleyWidth)).append(',')
+                    .append(format(maxExcavationBurden)).append(',')
+                    .append(format(maxExcavationVolume)).append(',')
+                    .append(format(maxCurvatureWidthRatio)).append(',')
+                    .append(format(maxLongitudinalGradeWorld)).append('\n');
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
@@ -122,8 +172,8 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                 threshold merely to preserve the current corpus.
 
                 Metrics are intended to support the next #1084 qualification tranche, particularly
-                hard envelopes for ridge occupancy, required lowering, longitudinal grade, and later
-                lateral cross-section/excavation diagnostics.
+                hard envelopes for ridge occupancy, required lowering, longitudinal grade, lateral recovery,
+                bank containment, width/depth compatibility, excavation burden/volume, and curvature.
                 """;
     }
 
