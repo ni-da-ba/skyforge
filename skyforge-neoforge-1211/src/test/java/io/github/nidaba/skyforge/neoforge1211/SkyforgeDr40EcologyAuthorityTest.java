@@ -205,5 +205,8 @@ final class SkyforgeDr40EcologyAuthorityTest {
         assertTrue(authority.contains("SkyIslandAuthoredRealizationEcologicalOpportunityProfiler"));
         assertTrue(authority.contains("SkyIslandAuthoredRealizationIsolationProfiler"));
         assertTrue(authority.contains("\"nearest_neighbor\": \"ABSENT\""));
+        assertTrue(authority.contains("\"native_detail_determinism\""));
+        assertTrue(authority.contains("diagnostic_only_native_outcomes"));
+        assertTrue(authority.contains("Do not patch vanilla/mod traversal internals solely to force bit-identical decorative vegetation."));
     }
 }
