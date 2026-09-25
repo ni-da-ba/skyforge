@@ -28,7 +28,7 @@ public final class HydrologyWaterbodyDiscoveryCorpusCli {
 
         StringBuilder csv = new StringBuilder(
                 "province,cluster,islandKey,morphology,kind,sinkCell,catchmentFraction,"
-                        + "relativeInflow,retention,saturation,persistence,basinScale\n");
+                        + "relativeInflow,retentionPotential,saturationPotential,persistence,basinScale\n");
 
         int ponds = 0;
         int lakes = 0;
@@ -59,8 +59,8 @@ public final class HydrologyWaterbodyDiscoveryCorpusCli {
                             .append(candidate.sinkCellIndex()).append(',')
                             .append(candidate.catchmentFraction()).append(',')
                             .append(candidate.relativeInflow()).append(',')
-                            .append(candidate.retention()).append(',')
-                            .append(candidate.saturation()).append(',')
+                            .append(candidate.retentionPotential()).append(',')
+                            .append(candidate.saturationPotential()).append(',')
                             .append(candidate.persistence()).append(',')
                             .append(candidate.basinScale()).append('\n');
 
