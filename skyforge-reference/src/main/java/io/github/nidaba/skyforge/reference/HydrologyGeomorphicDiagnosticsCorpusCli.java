@@ -7,7 +7,7 @@ import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicDiagnosticEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicDiagnostics;
-import io.github.nidaba.skyforge.world.SkyIslandContinuousHydrologicTerrainField;
+import io.github.nidaba.skyforge.world.SkyIslandPreHydrologicTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachRoute;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlan;
@@ -91,7 +91,7 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     SkyIslandGeomorphicDiagnosticEvaluator.evaluate(
                             specimen.descriptor(),
                             hydraulics,
-                            SkyIslandContinuousHydrologicTerrainField.create(specimen.descriptor()));
+                            SkyIslandPreHydrologicTerrainField.create(specimen.descriptor()));
 
             csv.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
