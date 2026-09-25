@@ -191,6 +191,14 @@ final class SkyforgeNativePlacedFeatureRunner {
             verticalFrame.requireActive();
             generatedFluid.requireActive();
             lakeAdmission.requireActive();
+            boolean dr40TreeTrace = Boolean.getBoolean(SkyforgeDr40ProductionEcologyEvidence.ENABLE_PROPERTY)
+                    && registryLocation.equals(ResourceLocation.fromNamespaceAndPath(
+                            "minecraft", "trees_birch_and_oak"))
+                    && operation.originChunk().x == -1
+                    && operation.originChunk().z == 0;
+            long dr40TreePreStateDigest = dr40TreeTrace
+                    ? populationVisibleChunkDigest(level, operation.originChunk())
+                    : 0L;
             RandomSource random = RandomSource.create(operation.seed());
             boolean placed = domainBiome.isPresent()
                     // Biome-owned generation must preserve Minecraft's top-feature provenance so
@@ -203,6 +211,18 @@ final class SkyforgeNativePlacedFeatureRunner {
             // as worldgen, then resolves them here before the exact-volume execution scope closes.
             // Direct worldgen never opens the bridge, so this is a no-op on the accepted path.
             SkyforgeDeferredPopulationPostProcessingBridge.flushIfActive();
+            if (dr40TreeTrace) {
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "SKYFORGE DR40 TREE TRACE: chunk="
+                                + operation.originChunk()
+                                + ", seed=" + Long.toUnsignedString(operation.seed())
+                                + ", preStateDigest=" + Long.toUnsignedString(dr40TreePreStateDigest, 16)
+                                + ", attachments="
+                                + execution.execution().attachmentPositions().stream()
+                                        .map(position -> Long.toString(position.asLong()))
+                                        .toList());
+            }
             if (registryLocation.equals(ResourceLocation.fromNamespaceAndPath(
                             "minecraft", "patch_grass_savanna"))
                     && operation.originChunk().x == 5
@@ -226,6 +246,35 @@ final class SkyforgeNativePlacedFeatureRunner {
                             : null,
                     execution.execution().attachmentPositionDigest());
         }
+    }
+
+    private static long populationVisibleChunkDigest(
+            WorldGenLevel level,
+            ChunkPos chunkPos) {
+        long digest = 0xcbf29ce484222325L;
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        int minimumY = level.getMinBuildHeight();
+        int maximumY = minimumY + level.getHeight() - 1;
+        for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
+            for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
+                for (int y = minimumY; y <= maximumY; y++) {
+                    cursor.set(x, y, z);
+                    var state = level.getBlockState(cursor);
+                    digest = diagnosticMix(digest, cursor.asLong());
+                    digest = diagnosticMix(digest, state.toString().hashCode());
+                }
+            }
+        }
+        return digest;
+    }
+
+    private static long diagnosticMix(long digest, long value) {
+        long mixed = digest;
+        for (int shift = 0; shift < Long.SIZE; shift += Byte.SIZE) {
+            mixed ^= (value >>> shift) & 0xffL;
+            mixed *= 0x100000001b3L;
+        }
+        return mixed;
     }
 
     private static SkyforgePopulationExecutionStage.Scope openExecution(
