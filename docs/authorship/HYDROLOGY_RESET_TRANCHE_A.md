@@ -99,9 +99,10 @@ civil-engineering simulator:
    does not copy D-infinity literally in this tranche, but uses the same separation between drainage
    topology and physical terrain direction.
 3. **Prefer lower-impact correction over brute-force excavation.** Least-cost depression-breaching
-   methods explicitly minimize required lowering and commonly impose maximum breach cost/length.
-   Skyforge carries that principle forward: a route that needs excessive terrain modification will
-   later fail geomorphic qualification rather than being rescued by the backend.
+   methods explicitly search for lower-impact drainage corrections and can impose maximum breach
+   cost/length/depth constraints. Skyforge carries that principle forward: a route that needs
+   excessive terrain modification will later fail geomorphic qualification rather than being
+   rescued by the backend.
 4. **Hydraulic geometry comes after routing.** Width/depth scaling will use discharge-dependent power
    relationships in the Leopold-Maddock form, calibrated dimensionlessly for Skyforge rather than
    importing real-world units.
@@ -112,8 +113,13 @@ References:
   Watershed-Labeling Algorithm for Digital Elevation Models*, Computers & Geosciences 62.
 - Tarboton, D. G. (1997), *A New Method for the Determination of Flow Directions and Contributing
   Areas in Grid Digital Elevation Models*, Water Resources Research 33(2).
-- Lindsay, J. B. & Dhun, K. (2015), least-cost depression breaching; represented in the
-  WhiteboxTools hydrological-analysis workflow.
+- Lindsay, J. B. & Dhun, K. (2015), *Modelling surface drainage patterns in altered landscapes
+  using LiDAR*, International Journal of Geographical Information Science 29(3), 397-411,
+  doi:10.1080/13658816.2014.975715. WhiteboxTools' `BreachDepressionsLeastCost` documents this
+  work as the basis for its least-cost breaching approach.
+- Lindsay, J. B. (2016), *Efficient hybrid breaching-filling sink removal methods for flow path
+  enforcement in digital elevation models*, Hydrological Processes 30, 846-857,
+  doi:10.1002/hyp.10648.
 - Leopold, L. B. & Maddock, T. (1953), USGS Professional Paper 252, *The Hydraulic Geometry of
   Stream Channels and Some Physiographic Implications*.
 
