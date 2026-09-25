@@ -65,8 +65,11 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         StructureLifecycleEvidence structures = verifyStructureLifecycle(level, volumeId, plannedChunks);
         InteriorEvidence interior = verifyInteriorPopulation(level, volumeId, plannedChunks.size());
         MaterialEvidence material = placeAndVerifyIron(level, fixture, terrain, structures, hydrology.positions());
-        String populationDigest = SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(
-                SkyforgeNativeSurfacePopulationStage.completedNativePhases(volumeId));
+        var completedSurfacePhases = SkyforgeNativeSurfacePopulationStage.completedNativePhases(volumeId);
+        String populationPlanDigest = SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(
+                completedSurfacePhases);
+        String populationOutcomeDigest = SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(
+                completedSurfacePhases);
         FinalBlockEvidence finalBlocks = finalBlockEvidence(level, plannedChunks);
 
         long regionDigest = FNV_OFFSET_BASIS;
@@ -75,7 +78,7 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         regionDigest = mixText(regionDigest, nativeCarveDigest);
         regionDigest = mixText(regionDigest, authoredChangedDigest);
         regionDigest = mixText(regionDigest, authoredProvenanceDigest);
-        regionDigest = mixText(regionDigest, populationDigest);
+        regionDigest = mixText(regionDigest, populationPlanDigest);
         regionDigest = mixText(regionDigest, hydrology.digest());
         regionDigest = mixText(regionDigest, interior.digest());
         regionDigest = mix(regionDigest, material.position().asLong());
@@ -110,7 +113,10 @@ final class SkyforgeDr50IntegratedRegionEvidence {
         evidence.put("dr50CanonicalStructureDigest", structures.digest());
         evidence.put("dr50StructureProofAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
         evidence.put("dr50StructurePersistenceAuthority", "DR-30_NATIVE_STRUCTURE_ACCEPTANCE");
-        evidence.put("dr50PopulationOutcomeDigest", populationDigest);
+        evidence.put("dr50PopulationPlanDigest", populationPlanDigest);
+        // Diagnostic only: exact native decorative blocks are deliberately not part of the
+        // authoritative integrated-region digest.
+        evidence.put("dr50PopulationOutcomeDigest", populationOutcomeDigest);
         // Diagnostic only: this scan includes unrelated BASE_WORLD and ordinary post-generation
         // simulation state. Authoritative DR-50 equality is the provenance/component region digest
         // above, not every live block that happens to share the loaded proof footprint.
