@@ -87,10 +87,10 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
 
     @Test
     void attachmentPositionDigestDependsOnFootprintNotPropagationDepth() {
-        BlockPos windingA = new BlockPos(0, 1, 0);
-        BlockPos windingB = new BlockPos(1, 2, 0);
-        BlockPos target = new BlockPos(2, 1, 0);
-        BlockPos direct = new BlockPos(1, 0, 0);
+        BlockPos windingA = new BlockPos(0, 101, 0);
+        BlockPos windingB = new BlockPos(1, 102, 0);
+        BlockPos target = new BlockPos(2, 101, 0);
+        BlockPos direct = new BlockPos(1, 100, 0);
 
         var windingFirst = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 4);
         assertTrue(windingFirst.acceptWrite(windingA));
