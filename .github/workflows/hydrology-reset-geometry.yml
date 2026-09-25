@@ -69,6 +69,14 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             --no-configuration-cache
 
+      - name: Generate geomorphic diagnostic corpus
+        run: |
+          ./gradlew :skyforge-reference:classes --no-configuration-cache
+          java -cp "skyforge-reference/build/classes/java/main:skyforge-world/build/classes/java/main:skyforge-model/build/classes/java/main:skyforge-kernel/build/classes/java/main:skyforge-recipes/build/classes/java/main" \
+            io.github.nidaba.skyforge.reference.HydrologyGeomorphicDiagnosticsCorpusCli \
+            build/evidence/hydrology-geomorphic-diagnostics-v1
+          cat build/evidence/hydrology-geomorphic-diagnostics-v1/manifest.csv
+
       - name: Dump focused failure report
         if: failure()
         run: |
