@@ -13,6 +13,7 @@ import java.util.Objects;
  */
 public final class SkyIslandContinuousChannelCenterlinePlanner {
     public static final int CHAIKIN_ITERATIONS = 2;
+    public static final int MAXIMUM_WIDTH_AWARE_CHAIKIN_ITERATIONS = 6;
     public static final double MAXIMUM_DEVIATION_SPACING_FRACTION = 0.70;
     public static final double RESAMPLE_SPACING_FRACTION = 0.125;
     public static final double MAXIMUM_SMOOTHING_TERRAIN_RISE = 0.015;
@@ -27,16 +28,69 @@ public final class SkyIslandContinuousChannelCenterlinePlanner {
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority,
             double planningSpacing) {
+        return refine(route, terrain, interiority, planningSpacing, 0.0);
+    }
+
+    /**
+     * Width-aware bounded regularization.
+     *
+     * <p>When {@code minimumBendRadius > 0}, progressively stronger Chaikin regularization is tried
+     * inside the same terrain/search constraints. The first candidate satisfying
+     * {@code maximumCurvature * minimumBendRadius <= 1} is selected. If the bounded corridor cannot
+     * support that radius, the least-curved admissible candidate is returned for D2 to reject.
+     */
+    public static SkyIslandContinuousChannelCenterline refine(
+            SkyIslandGeomorphicCandidateRoute route,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double planningSpacing,
+            double minimumBendRadius) {
         Objects.requireNonNull(route, "route");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
             throw new IllegalArgumentException("planningSpacing must be finite and positive");
         }
+        if (!Double.isFinite(minimumBendRadius) || minimumBendRadius < 0.0) {
+            throw new IllegalArgumentException("minimumBendRadius must be finite and non-negative");
+        }
 
+        int maximumIterations =
+                minimumBendRadius > EPSILON
+                        ? MAXIMUM_WIDTH_AWARE_CHAIKIN_ITERATIONS
+                        : CHAIKIN_ITERATIONS;
+        CandidateCenterline best = null;
+        for (int iterations = CHAIKIN_ITERATIONS; iterations <= maximumIterations; iterations++) {
+            CandidateCenterline candidate = buildCandidate(
+                    route, terrain, interiority, planningSpacing, iterations);
+            if (best == null || candidate.compareTo(best) < 0) {
+                best = candidate;
+            }
+            if (minimumBendRadius <= EPSILON
+                    || candidate.maximumCurvature() * minimumBendRadius <= 1.0 + EPSILON) {
+                best = candidate;
+                break;
+            }
+        }
+
+        CandidateCenterline selected = Objects.requireNonNull(best, "centerline candidate");
+        return new SkyIslandContinuousChannelCenterline(
+                route,
+                selected.points(),
+                selected.pathLength(),
+                selected.maximumDeviation(),
+                selected.maximumTurnAngle());
+    }
+
+    private static CandidateCenterline buildCandidate(
+            SkyIslandGeomorphicCandidateRoute route,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double planningSpacing,
+            int iterations) {
         List<SkyIslandLocalPosition> original = route.points();
         List<SkyIslandLocalPosition> smoothed = original;
-        for (int i = 0; i < CHAIKIN_ITERATIONS; i++) {
+        for (int i = 0; i < iterations; i++) {
             smoothed = chaikin(smoothed);
         }
 
@@ -50,7 +104,7 @@ public final class SkyIslandContinuousChannelCenterlinePlanner {
         resampled.set(0, original.getFirst());
         resampled.set(resampled.size() - 1, original.getLast());
 
-        double length = length(resampled);
+        double pathLength = length(resampled);
         double measuredMaximumDeviation = 0.0;
         for (SkyIslandLocalPosition point : resampled) {
             measuredMaximumDeviation =
@@ -60,12 +114,13 @@ public final class SkyIslandContinuousChannelCenterlinePlanner {
             throw new IllegalStateException("continuous centerline escaped bounded search corridor");
         }
 
-        return new SkyIslandContinuousChannelCenterline(
-                route,
-                resampled,
-                length,
+        return new CandidateCenterline(
+                List.copyOf(resampled),
+                pathLength,
                 measuredMaximumDeviation,
-                maximumTurnAngle(resampled));
+                maximumTurnAngle(resampled),
+                maximumCurvature(resampled),
+                iterations);
     }
 
     private static List<SkyIslandLocalPosition> constrain(
@@ -184,6 +239,29 @@ public final class SkyIslandContinuousChannelCenterlinePlanner {
         return Objects.requireNonNull(best, "polyline projection");
     }
 
+    private static double maximumCurvature(List<SkyIslandLocalPosition> points) {
+        double maximum = 0.0;
+        for (int i = 1; i < points.size() - 1; i++) {
+            SkyIslandLocalPosition a = points.get(i - 1);
+            SkyIslandLocalPosition b = points.get(i);
+            SkyIslandLocalPosition d = points.get(i + 1);
+            double ax = b.x() - a.x();
+            double az = b.z() - a.z();
+            double bx = d.x() - b.x();
+            double bz = d.z() - b.z();
+            double al = Math.hypot(ax, az);
+            double bl = Math.hypot(bx, bz);
+            if (al <= EPSILON || bl <= EPSILON) {
+                continue;
+            }
+            double cosine =
+                    Math.max(-1.0, Math.min(1.0, (ax * bx + az * bz) / (al * bl)));
+            double angle = Math.acos(cosine);
+            maximum = Math.max(maximum, angle / (0.5 * (al + bl)));
+        }
+        return maximum;
+    }
+
     private static double maximumTurnAngle(List<SkyIslandLocalPosition> points) {
         double maximum = 0.0;
         for (int i = 1; i < points.size() - 1; i++) {
@@ -224,6 +302,33 @@ public final class SkyIslandContinuousChannelCenterlinePlanner {
         return new SkyIslandLocalPosition(
                 a.x() + (b.x() - a.x()) * t,
                 a.z() + (b.z() - a.z()) * t);
+    }
+
+    private record CandidateCenterline(
+            List<SkyIslandLocalPosition> points,
+            double pathLength,
+            double maximumDeviation,
+            double maximumTurnAngle,
+            double maximumCurvature,
+            int iterations)
+            implements Comparable<CandidateCenterline> {
+
+        @Override
+        public int compareTo(CandidateCenterline other) {
+            int curvature = Double.compare(maximumCurvature, other.maximumCurvature);
+            if (curvature != 0) {
+                return curvature;
+            }
+            int deviation = Double.compare(maximumDeviation, other.maximumDeviation);
+            if (deviation != 0) {
+                return deviation;
+            }
+            int length = Double.compare(pathLength, other.pathLength);
+            if (length != 0) {
+                return length;
+            }
+            return Integer.compare(iterations, other.iterations);
+        }
     }
 
     private record Projection(SkyIslandLocalPosition position, double distance) {}
