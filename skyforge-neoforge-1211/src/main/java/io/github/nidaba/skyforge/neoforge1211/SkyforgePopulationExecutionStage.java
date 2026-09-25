@@ -113,20 +113,6 @@ final class SkyforgePopulationExecutionStage {
         return Optional.ofNullable(ACTIVE.get());
     }
 
-    /**
-     * True only while vanilla tree finalization is running inside stable deferred population.
-     *
-     * <p>Ordinary world generation already executes inside Minecraft's native generation region.
-     * This seam exists solely because deferred LevelChunk population can expose JVM-dependent
-     * iteration order inside TreeFeature's final root/trunk/foliage update sets.
-     */
-    static boolean deterministicDeferredTreeFinalizationActive() {
-        Execution execution = ACTIVE.get();
-        return execution != null
-                && execution.stableDeferredLevel
-                && structuralTreeOperation(execution.operation);
-    }
-
     private static boolean structuralTreeOperation(SkyforgePopulationOperation operation) {
         Objects.requireNonNull(operation, "operation");
         return operation.generationStep()
