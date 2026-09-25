@@ -15,9 +15,9 @@ Open-water candidates are rejected for:
 - lacking a closed numerical shoreline;
 - excessive depth relative to basin diameter;
 - excessive shoreline grade;
-- insufficient headroom below the semantic spill surface.
+- insufficient headroom below the semantic spill surface;\n- excessive mismatch between an exact semantic terminal channel datum and the basin water datum.
 
-Boundary escape and missing shoreline are structural failures. Numeric limits remain explicit policy
+Boundary escape and missing shoreline are structural failures. Channel-datum mismatch applies only when a visible channel terminates at the basin's exact retained-sink cell; physical proximity does not create a hydraulic junction. Numeric limits remain explicit policy
 values and are not yet frozen as production defaults.
 
 A rejected basin is never repaired by excavating a retaining bowl or truncating the shoreline.
