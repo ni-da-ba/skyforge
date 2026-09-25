@@ -24,7 +24,7 @@ import java.util.Locale;
  * hard envelopes are a later decision under #1084 after the metric distributions are inspected.
  */
 public final class HydrologyGeomorphicDiagnosticsCorpusCli {
-    public static final String EVIDENCE_ID = "hydrology-geomorphic-diagnostics-v1";
+    public static final String EVIDENCE_ID = "hydrology-geomorphic-diagnostics-v2";
     private static final long SEED = 0x534B59464F524745L;
 
     private HydrologyGeomorphicDiagnosticsCorpusCli() {}
