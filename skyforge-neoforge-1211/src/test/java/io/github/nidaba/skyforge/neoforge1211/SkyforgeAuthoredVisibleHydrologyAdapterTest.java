@@ -667,9 +667,6 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 double startDistance = Math.hypot(local.x() - start.x(), local.z() - start.z());
                 double endDistance = Math.hypot(local.x() - end.x(), local.z() - end.z());
                 var terminalDrop = fluvial.terminalDrop(reach);
-                var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
-                        entry.getKey().x() - physical.centerX(),
-                        contact.entry().getKey().z() - physical.centerZ());
                 double dropDistance = terminalDrop
                         .map(drop -> Math.hypot(
                                 local.x() - drop.position().x(),
@@ -679,7 +676,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         && dropDistance <= Math.max(2.0, reach.bankfullHalfWidth())
                         && entry.getValue() < datum;
                 assertTrue(
-                        Math.abs(contact.entry().getValue() - contact.datum()) <= 2
+                        Math.abs(entry.getValue() - datum) <= 2
                                 || localizedAuthoredFall,
                         "channel/lake transition may depart the basin datum only at the localized authored fall: "
                                 + "channelIndex=" + (channelIndex - 1)
@@ -689,9 +686,9 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 + ", dropDistance=" + dropDistance
                                 + ", startDistance=" + startDistance
                                 + ", endDistance=" + endDistance
-                                + ", column=" + contact.entry().getKey()
-                                + ", channelTop=" + contact.entry().getValue()
-                                + ", retainedDatum=" + contact.datum());
+                                + ", column=" + entry.getKey()
+                                + ", channelTop=" + entry.getValue()
+                                + ", retainedDatum=" + datum);
             }
             int maximumAuthoredRaise =
                     SkyforgeAuthoredVisibleHydrologyAdapter.maximumAuthoredTerrainRaisingBlocks(
