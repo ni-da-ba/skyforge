@@ -5,6 +5,9 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicDiagnosticEvaluator;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicDiagnostics;
+import io.github.nidaba.skyforge.world.SkyIslandContinuousHydrologicTerrainField;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachRoute;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlan;
@@ -49,7 +52,9 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                 "specimen,islandKey,morphology,nodes,confluences,reaches,"
                         + "maxRequiredLowering,meanRequiredLowering,maxWaterSlope,"
                         + "meanUphillFraction,maxRidgeFraction,meanValleyAdvantage,"
-                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth\n");
+                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth,"
+                        + "minNaturalBankContainment,maxSemanticBankRecoveryGrade,"
+                        + "maxCurvatureWidthRatio,normalizedLowerBoundCutVolume\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandGeomorphicChannelNetworkPlan geometry =
@@ -82,6 +87,12 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .max()
                     .orElse(0.0);
 
+            SkyIslandGeomorphicDiagnostics crossSection =
+                    SkyIslandGeomorphicDiagnosticEvaluator.evaluate(
+                            specimen.descriptor(),
+                            hydraulics,
+                            SkyIslandContinuousHydrologicTerrainField.create(specimen.descriptor()));
+
             csv.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
                     .append(specimen.descriptor().morphologyFamily().identifier()).append(',')
@@ -96,7 +107,11 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .append(format(meanValley)).append(',')
                     .append(format(maxDeviation)).append(',')
                     .append(format(maxWidth)).append(',')
-                    .append(format(maxDepth)).append('\n');
+                    .append(format(maxDepth)).append(',')
+                    .append(format(crossSection.minimumNaturalBankContainment())).append(',')
+                    .append(format(crossSection.maximumSemanticBankRecoveryGrade())).append(',')
+                    .append(format(crossSection.maximumCurvatureWidthRatio())).append(',')
+                    .append(format(crossSection.normalizedLowerBoundCutVolume())).append('\n');
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
