@@ -10,6 +10,12 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D3.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnosticsPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyDiscontinuityDiagnosticsCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyDiscontinuityDiagnosticsCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C2.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlannerTest.java"
@@ -103,6 +109,8 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
@@ -118,6 +126,11 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- discontinuity-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
