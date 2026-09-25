@@ -150,19 +150,17 @@ public final class SkyIslandHydrologicTerrainSurfacePlanner {
         if (!Double.isFinite(waterSurface)) {
             throw new IllegalArgumentException("waterSurface must be finite");
         }
-        if (base <= waterSurface + 1.0e-12) {
-            // A semantically dry margin cell below the standing-water datum is not terrain-fill
-            // authority. Preserve it; physical containment must fail closed rather than invent
-            // an embankment.
-            return unchanged(cell, base);
-        }
-
-        double desired = base
-                + (waterSurface - base) * margin.marginPotential();
+        // The accepted margin is semantically dry shoreline transition authority. A high margin
+        // grades downward toward the retained datum; a low margin must grade upward toward at least
+        // that datum or it becomes a submerged dry pit and forces backends to synthesize levees.
+        // Both directions stay inside the existing global hydrologic relief budgets.
+        double desired = base <= waterSurface + 1.0e-12
+                ? waterSurface
+                : base + (waterSurface - base) * margin.marginPotential();
         double adjustment = clamp(
                 desired - base,
                 -MAX_LOWERING,
-                0.0);
+                MAX_RAISING);
         double adjusted = clamp01(base + adjustment);
         return new SkyIslandHydrologicTerrainSurfaceCell(
                 cell.index(),

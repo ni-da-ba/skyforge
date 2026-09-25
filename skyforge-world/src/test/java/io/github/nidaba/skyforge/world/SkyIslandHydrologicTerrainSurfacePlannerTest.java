@@ -87,16 +87,25 @@ class SkyIslandHydrologicTerrainSurfacePlannerTest {
             for (SkyIslandWaterbodyMarginCell marginCell : margin.cells()) {
                 SkyIslandHydrologicTerrainSurfaceCell cell =
                         byIndex.get(marginCell.watershedCellIndex());
-                assertTrue(cell.adjustedElevationPotential()
-                        <= cell.baseElevationPotential() + EPSILON);
-                assertTrue(cell.adjustedElevationPotential() >= datum - EPSILON);
+                double base = cell.baseElevationPotential();
+                double adjusted = cell.adjustedElevationPotential();
                 assertEquals(
                         cell.netAdjustment(),
                         cell.waterbodyMarginAdjustment(),
                         EPSILON);
+                if (base < datum - EPSILON) {
+                    assertTrue(adjusted >= base - EPSILON);
+                    assertTrue(cell.waterbodyMarginAdjustment() >= -EPSILON);
+                    assertTrue(adjusted <= datum + EPSILON);
+                } else if (base > datum + EPSILON) {
+                    assertTrue(adjusted <= base + EPSILON);
+                    assertTrue(cell.waterbodyMarginAdjustment() <= EPSILON);
+                    assertTrue(adjusted >= datum - EPSILON);
+                } else {
+                    assertEquals(base, adjusted, EPSILON);
+                }
                 if (cell.changed()) {
                     sawGradedMargin = true;
-                    assertTrue(cell.waterbodyMarginAdjustment() < 0.0);
                 }
             }
         }

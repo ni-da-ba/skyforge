@@ -28,10 +28,6 @@ public record SkyIslandHydrologicTerrainSurfaceCell(
         requireSignedNormalized("floodplainAdjustment", floodplainAdjustment);
         requireNormalized("dropLowering", dropLowering);
         requireSignedNormalized("waterbodyMarginAdjustment", waterbodyMarginAdjustment);
-        if (waterbodyMarginAdjustment > EPSILON) {
-            throw new IllegalArgumentException(
-                    "waterbodyMarginAdjustment may only preserve or lower dry shoreline terrain");
-        }
     }
 
     /** Compatibility constructor for pre-margin hydrologic surface producers. */
