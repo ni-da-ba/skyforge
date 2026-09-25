@@ -73,6 +73,17 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
 
 
     @Test
+    void semanticCorridorEvidenceFreezesCurvatureWidthSafetyAtOne() {
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+
+        assertTrue(policy.alluvial().maximumCurvatureWidthRatio() == 1.0);
+        assertTrue(policy.incised().maximumCurvatureWidthRatio() == 1.0);
+        assertTrue(policy.cascade().maximumCurvatureWidthRatio() == 1.0);
+        assertTrue(policy.mixed().maximumCurvatureWidthRatio() == 1.0);
+    }
+
+    @Test
     void firstEvidenceBackedEnvelopeSeparatesLowSurgeryControlsFromPrimaryFailure() {
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
