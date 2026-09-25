@@ -545,12 +545,18 @@ exact pumpjack/source alignment and compatibility adapter, persistence, and life
 
 Aerodynamics4MC remains the single accepted atmosphere authority. Issue #495 may consume the concrete
 Bootstrap binding in `BOOTSTRAP_ATMOSPHERE_RUNTIME_AUTHORITY.json`, pinned to A4MC 0.2.1 source commit
-`62a52a584e9c65246e50226b29a1f0449e43995e` and public `AeroWindApi.sampleGameplay(...)`.
+`62a52a584e9c65246e50226b29a1f0449e43995e`. In the pinned Minecraft runtime, the concrete server
+entrypoint is `AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3)`; its default policy is
+`SamplePolicy.GAMEPLAY_SERVER_ONLY`. The backend-neutral upstream facade remains
+`AeroWindApi.sampleGameplay(...)`.
 
-The accepted minimum shared truth is the A4MC gameplay sample itself: `physicalAggregate` wind,
-`updraft`, `downdraft`, bounded `turbulenceIntensity`, `shearMagnitude`, bounded `pressureProxy`, and
-source trust/freshness/provenance. Altitude is the actual query-position Y; Skyforge adds no separate
-altitude atmosphere or altitude-to-pressure curve. A4MC's gameplay policy owns stale/untrusted fallback.
+The accepted minimum shared truth is the pinned `GameplayWindSample`: gameplay mean wind plus bounded
+gust components, signed `updraftMetersPerSecond` (negative values carry downdraft direction),
+nonnegative `turbulenceIntensity`, nonnegative `windShearMagnitudePerBlock`, A4MC `pressure`
+(an anomaly/local solver proxy, not a Skyforge-normalized physical pressure), and
+`confidence` / `sourceLevel` / `authority` / source epochs. Altitude is the actual query-position
+Y; Skyforge adds no separate altitude atmosphere or altitude-to-pressure curve. Authoritative gameplay
+must honor A4MC's `isTrustedForGameplay()` result and must not invent a competing trust/freshness model.
 
 - aircraft may retain A4MC/Create Aeronautics compatibility against the same installed provider;
 - C6 proves retained Fowl Play hawk thermal SOAR behavior;

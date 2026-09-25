@@ -17,15 +17,31 @@ final class BootstrapAtmosphereRuntimeAuthorityResourceTest {
                 "../docs/agent-state/BOOTSTRAP_ATMOSPHERE_RUNTIME_AUTHORITY.json"));
 
         assertTrue(contract.contains("\"contract_id\": \"CONTENT-BOOTSTRAP-ATMOSPHERE-001\""));
-        assertTrue(contract.contains("\"source_commit\": \"62a52a584e9c65246e50226b29a1f0449e43995e\""));
+        assertTrue(contract.contains(
+                "\"source_commit\": \"62a52a584e9c65246e50226b29a1f0449e43995e\""));
+
+        assertTrue(contract.contains(
+                "com.aerodynamics4mc.api.minecraft.AeroMinecraftWindApi#sampleGameplay(ServerLevel, Vec3)"));
         assertTrue(contract.contains("com.aerodynamics4mc.api.AeroWindApi#sampleGameplay"));
-        assertTrue(contract.contains("com.aerodynamics4mc.api.SamplePolicy.AERONAUTICS_DEFAULT"));
-        assertTrue(contract.contains("\"field\": \"physicalAggregate\""));
-        assertTrue(contract.contains("\"field\": \"updraft\""));
-        assertTrue(contract.contains("\"field\": \"downdraft\""));
+        assertTrue(contract.contains("com.aerodynamics4mc.api.SamplePolicy.GAMEPLAY_SERVER_ONLY"));
+
+        assertTrue(contract.contains("\"meanX\""));
+        assertTrue(contract.contains("\"meanY\""));
+        assertTrue(contract.contains("\"meanZ\""));
+        assertTrue(contract.contains("\"gustX\""));
+        assertTrue(contract.contains("\"field\": \"updraftMetersPerSecond\""));
+        assertTrue(contract.contains("\"source\": \"updraftMetersPerSecond < 0\""));
         assertTrue(contract.contains("\"field\": \"turbulenceIntensity\""));
-        assertTrue(contract.contains("\"field\": \"shearMagnitude\""));
-        assertTrue(contract.contains("\"field\": \"pressureProxy\""));
+        assertTrue(contract.contains("\"normalized_zero_to_one\": false"));
+        assertTrue(contract.contains("\"field\": \"windShearMagnitudePerBlock\""));
+        assertTrue(contract.contains("\"field\": \"pressure\""));
+        assertTrue(contract.contains("\"isTrustedForGameplay()\""));
+        assertTrue(contract.contains("\"sourceLevel\""));
+        assertTrue(contract.contains("\"authority\""));
+        assertTrue(contract.contains("\"l1Epoch\""));
+        assertTrue(contract.contains("\"worldDeltaEpoch\""));
+        assertTrue(contract.contains("\"l2Epoch\""));
+
         assertTrue(contract.contains("\"source\": \"sample query position Y\""));
         assertTrue(contract.contains("\"skyforge_duplicate_atmosphere_state\": false"));
         assertTrue(contract.contains("\"skyforge_persistence\": \"NONE_FOR_ATMOSPHERIC_TRUTH\""));
@@ -34,6 +50,16 @@ final class BootstrapAtmosphereRuntimeAuthorityResourceTest {
         assertTrue(contract.contains("\"player_glider\""));
         assertTrue(contract.contains("\"aircraft\""));
         assertTrue(contract.contains("\"soaring_fauna\""));
+
+        assertFalse(contract.contains("AERONAUTICS_DEFAULT"));
+        assertFalse(contract.contains("\"physicalAggregate\""));
+        assertFalse(contract.contains("\"field\": \"downdraft\""));
+        assertFalse(contract.contains("\"shearMagnitude\""));
+        assertFalse(contract.contains("\"pressureProxy\""));
+        assertFalse(contract.contains("\"sourceAgeTicks\""));
+        assertFalse(contract.contains("\"sourceTrust\""));
+        assertFalse(contract.contains("\"primarySource\""));
+        assertFalse(contract.contains("\"contributingSourceCount\""));
         assertFalse(contract.contains("altitude_pressure_curve"));
         assertFalse(contract.contains("SECOND_SKYFORGE_WEATHER_AUTHORITY"));
     }

@@ -10,37 +10,51 @@
     "modrinth_version_id": "6Z0Z1pfP",
     "source_repository": "MozillaFiredoge/Aerodynamics4MC-Core",
     "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e",
-    "public_entrypoint": "com.aerodynamics4mc.api.AeroWindApi#sampleGameplay",
-    "sample_policy": "com.aerodynamics4mc.api.SamplePolicy.AERONAUTICS_DEFAULT",
+    "public_entrypoint": "com.aerodynamics4mc.api.minecraft.AeroMinecraftWindApi#sampleGameplay(ServerLevel, Vec3)",
+    "sample_policy": "com.aerodynamics4mc.api.SamplePolicy.GAMEPLAY_SERVER_ONLY",
     "runtime_owner": "A4MC_INSTALLED_RUNTIME_PROVIDER",
-    "skyforge_duplicate_atmosphere_state": false
+    "skyforge_duplicate_atmosphere_state": false,
+    "neutral_api_entrypoint": "com.aerodynamics4mc.api.AeroWindApi#sampleGameplay"
   },
   "bootstrap_semantics": {
     "wind": {
       "classification": "SUPPLIED",
-      "field": "physicalAggregate",
-      "meaning": "Final A4MC gameplay physics wind vector at the query position."
+      "fields": [
+        "meanX",
+        "meanY",
+        "meanZ",
+        "gustX",
+        "gustY",
+        "gustZ"
+      ],
+      "derived_view": "GameplayWindSample.effectiveVelocityVector()",
+      "units": "meters_per_second",
+      "meaning": "A4MC gameplay mean wind plus bounded gust contribution at the query position; Skyforge adds no second wind model."
     },
     "updraft": {
       "classification": "SUPPLIED",
-      "field": "updraft",
-      "meaning": "Post-policy positive vertical component supplied by A4MC."
+      "field": "updraftMetersPerSecond",
+      "units": "meters_per_second",
+      "meaning": "Signed vertical usable wind signal supplied by A4MC; positive values are updraft."
     },
     "downdraft": {
-      "classification": "SUPPLIED",
-      "field": "downdraft",
-      "meaning": "Post-policy negative vertical component supplied by A4MC."
+      "classification": "DERIVABLE",
+      "source": "updraftMetersPerSecond < 0",
+      "units": "meters_per_second",
+      "meaning": "Negative values of A4MC's signed vertical usable wind signal represent downdraft; there is no separate downdraft field or Skyforge downdraft model."
     },
     "turbulence": {
       "classification": "SUPPLIED",
       "field": "turbulenceIntensity",
-      "upstream_range": [0.0, 1.0],
-      "meaning": "A4MC-bounded gameplay turbulence intensity; Skyforge adds no remapping."
+      "upstream_constraint": "nonnegative finite",
+      "normalized_zero_to_one": false,
+      "meaning": "A4MC gameplay turbulence magnitude; Skyforge adds no remapping and does not assume a [0,1] upper bound."
     },
     "shear": {
       "classification": "SUPPLIED",
-      "field": "shearMagnitude",
-      "meaning": "A4MC gameplay shear magnitude; this contract adds no new bound or scaling."
+      "field": "windShearMagnitudePerBlock",
+      "upstream_constraint": "nonnegative finite",
+      "meaning": "A4MC gameplay local shear magnitude per block; Skyforge adds no new bound or scaling."
     },
     "altitude": {
       "classification": "DERIVABLE",
@@ -49,19 +63,33 @@
     },
     "pressure": {
       "classification": "SUPPLIED",
-      "field": "pressureProxy",
-      "upstream_range": [0.0, 1.0],
-      "meaning": "A4MC normalized pressure proxy; it is not physical pressure and Skyforge defines no altitude-to-pressure curve."
+      "field": "pressure",
+      "meaning": "A4MC pressure anomaly or local solver pressure proxy. Skyforge does not reinterpret it as normalized physical pressure and defines no altitude-to-pressure curve."
     },
     "trust_and_freshness": {
       "classification": "SUPPLIED",
-      "fields": ["trustedSource", "sourceTrust", "sourceAgeTicks"],
-      "fallback": "GameplayWindSample.CALM",
-      "meaning": "Use A4MC gameplay-policy trust/freshness handling; do not add a competing Skyforge trust model."
+      "fields": [
+        "isTrustedForGameplay()",
+        "authority",
+        "sourceLevel",
+        "confidence",
+        "l1Epoch",
+        "worldDeltaEpoch",
+        "l2Epoch"
+      ],
+      "fallback": "GameplayWindSample.ZERO / inert consumer behavior when unavailable or untrusted",
+      "meaning": "Use A4MC gameplay authority and source metadata; Skyforge adds no competing trust model. GameplayWindSample exposes source epochs rather than a sourceAgeTicks field."
     },
     "provenance": {
       "classification": "SUPPLIED",
-      "fields": ["primarySource", "contributingSourceCount"]
+      "fields": [
+        "sourceLevel",
+        "authority",
+        "confidence",
+        "l1Epoch",
+        "worldDeltaEpoch",
+        "l2Epoch"
+      ]
     }
   },
   "thermal_identity": {
@@ -81,8 +109,8 @@
   },
   "consumers": {
     "aircraft": "Retained A4MC/Create Aeronautics compatibility may consume the same installed A4MC provider directly.",
-    "player_glider": "Thin Skyforge compatibility code consumes trusted AeroWindApi.sampleGameplay output without creating weather state.",
-    "soaring_fauna": "Behavior planning consumes the same trusted AeroWindApi.sampleGameplay authority without creating weather state."
+    "player_glider": "Thin Skyforge compatibility code consumes trusted AeroMinecraftWindApi.sampleGameplay output without creating weather state.",
+    "soaring_fauna": "Behavior planning consumes the same trusted AeroMinecraftWindApi.sampleGameplay authority without creating weather state."
   },
   "shared_truth_rule": "Consumers may interpret atmospheric truth differently, but must not own or fork per-consumer wind, thermal, turbulence, shear, or pressure state.",
   "not_authorized": [
@@ -99,6 +127,18 @@
       "id": "A4MC-API",
       "role": "gameplay sampling entrypoint and trust/freshness policy",
       "source": "api/src/main/java/com/aerodynamics4mc/api/AeroWindApi.java",
+      "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
+    },
+    {
+      "id": "A4MC-MINECRAFT-API",
+      "role": "server-side Minecraft gameplay sampling adapter and GAMEPLAY_SERVER_ONLY default",
+      "source": "src/main/java/com/aerodynamics4mc/api/minecraft/AeroMinecraftWindApi.java",
+      "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
+    },
+    {
+      "id": "A4MC-POLICY",
+      "role": "exact server gameplay sample policy names and trust boundary",
+      "source": "api/src/main/java/com/aerodynamics4mc/api/SamplePolicy.java",
       "source_commit": "62a52a584e9c65246e50226b29a1f0449e43995e"
     },
     {
