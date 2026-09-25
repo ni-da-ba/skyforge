@@ -30,7 +30,7 @@ public final class SkyIslandGeomorphicQualificationPlanner {
         SkyIslandHydraulicChannelNetworkPlan hydraulic =
                 SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
         SkyIslandSemanticField terrain =
-                SkyIslandContinuousHydrologicTerrainField.create(descriptor);
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField interiority =
                 SkyIslandSemanticFieldSet.create(descriptor).interiority();
         return plan(descriptor, hydraulic, terrain, interiority);
