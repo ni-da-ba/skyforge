@@ -1,0 +1,185 @@
+name: Bootstrap Atmosphere Probe Volume
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/bootstrap-atmosphere-probe-volume.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereView.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereProbeVolumeAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-atmosphere-probe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-provider-probe:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact pinned atmosphere authority
+        run: ./gradlew :skyforge-neoforge-1211:waveC3ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile shared atmosphere seam
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*SkyforgeAtmosphereViewTest'
+          --no-configuration-cache
+
+      - name: Configure unattended client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-client"
+          mkdir -p "$run_dir"
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > "$run_dir/options.txt"
+
+      - name: Acquire real dedicated-server atmosphere probe volume
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          server_log="bootstrap-atmosphere-probe-server.log"
+          client_log="bootstrap-atmosphere-probe-client.log"
+
+          cleanup() {
+            if [[ -n "${client_pid:-}" ]]; then
+              kill -TERM -- "-${client_pid}" 2>/dev/null || true
+            fi
+            if [[ -n "${server_pid:-}" ]]; then
+              kill -TERM -- "-${server_pid}" 2>/dev/null || true
+            fi
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3AtmosphereProbeServer \
+            --no-daemon --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "FAIL: dedicated atmosphere probe server never became ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3AtmosphereProbeClient \
+            --no-daemon --no-configuration-cache >"$client_log" 2>&1 &
+          client_pid=$!
+
+          outcome=""
+          for _ in $(seq 1 240); do
+            if grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq "SKYFORGE AUTOMATED ACCEPTANCE FAIL" "$server_log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null && outcome="pass"
+              break
+            fi
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            echo "FAIL: dedicated-server atmosphere probe did not pass"
+            cat "$server_log"
+            cat "$client_log"
+            exit 1
+          fi
+
+          result="skyforge-neoforge-1211/build/acceptance/atmosphere-probe/server.properties"
+          artifact="skyforge-neoforge-1211/build/acceptance/atmosphere-probe/probe-volume.json"
+          test -f "$result"
+          test -f "$artifact"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^serverWorldSampling=true$' "$result"
+          grep -q '^realA4mcGameplayProvider=true$' "$result"
+          grep -q '^sameTickReplayExact=true$' "$result"
+          grep -q '^skyforgeAtmospherePersistence=false$' "$result"
+          grep -F "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log"
+
+      - name: Verify Studio-ready evidence envelope
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("skyforge-neoforge-1211/build/acceptance/atmosphere-probe/probe-volume.json")
+          data = json.loads(path.read_text())
+          assert data["schema_version"] == 1
+          assert data["artifact_kind"] == "SKYFORGE_ATMOSPHERE_PROBE_VOLUME"
+          assert data["provider_identity"]["mod_id"] == "aerodynamics4mc"
+          assert data["provider_identity"]["version"] != "unknown"
+          assert data["specimen"]["lattice"]["sample_count"] == 100
+          assert len(data["samples"]) == 100
+          assert data["same_tick_replay"]["sample_count"] == 100
+          assert data["same_tick_replay"]["exact_equal"] is True
+          assert data["authority_summary"]["trusted_sample_count"] == 100
+          assert data["authority_summary"]["sample_count"] == 100
+          assert all(s["trusted_for_gameplay"] for s in data["samples"])
+          assert all(s["source_level"] != "NONE" for s in data["samples"])
+          assert all(s["authority"] != "NONE" for s in data["samples"])
+          assert data["cost"]["query_count"] == 200
+          assert len(data["ordered_sample_digest"]) == 64
+          assert data["ownership"]["server_world_sampling"] is True
+          assert data["ownership"]["skyforge_persists_atmosphere"] is False
+          assert data["ownership"]["rendering_backend_dependency"] is False
+          print(
+              "PASS atmosphere probe artifact",
+              data["ordered_sample_digest"],
+              data["authority_summary"]["source_levels"],
+              data["authority_summary"]["authorities"],
+          )
+          PY
+
+      - name: Upload atmosphere evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bootstrap-atmosphere-probe-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/*.properties
+            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/*.json
+            bootstrap-atmosphere-probe-server.log
+            bootstrap-atmosphere-probe-client.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-server/logs/*.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-server/crash-reports/*.txt
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-client/logs/*.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-client/crash-reports/*.txt
