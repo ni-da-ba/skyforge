@@ -10,6 +10,9 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C2.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicQualificationViolation.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicQualificationPolicy.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachQualification.java"
@@ -82,6 +85,7 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' \
             --no-configuration-cache
 
