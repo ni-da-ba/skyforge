@@ -22,24 +22,34 @@ final class SkyforgePopulationAttachmentEnvelope {
     private final Predicate<BlockPos> ownerSolid;
     private final Predicate<BlockPos> foreignSolid;
     private final int maximumAttachmentDepth;
+    private final Predicate<BlockPos> staticAttachmentReachability;
     private final Map<BlockPos, Integer> attachmentDepths = new HashMap<>();
 
     SkyforgePopulationAttachmentEnvelope(
             Predicate<BlockPos> ownerSolid,
             int maximumAttachmentDepth) {
-        this(ownerSolid, ignored -> false, maximumAttachmentDepth);
+        this(ownerSolid, ignored -> false, maximumAttachmentDepth, null);
     }
 
     SkyforgePopulationAttachmentEnvelope(
             Predicate<BlockPos> ownerSolid,
             Predicate<BlockPos> foreignSolid,
             int maximumAttachmentDepth) {
+        this(ownerSolid, foreignSolid, maximumAttachmentDepth, null);
+    }
+
+    SkyforgePopulationAttachmentEnvelope(
+            Predicate<BlockPos> ownerSolid,
+            Predicate<BlockPos> foreignSolid,
+            int maximumAttachmentDepth,
+            Predicate<BlockPos> staticAttachmentReachability) {
         this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
         this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
         if (maximumAttachmentDepth < 0) {
             throw new IllegalArgumentException("maximumAttachmentDepth must be non-negative");
         }
         this.maximumAttachmentDepth = maximumAttachmentDepth;
+        this.staticAttachmentReachability = staticAttachmentReachability;
     }
 
     /**
@@ -62,6 +72,9 @@ final class SkyforgePopulationAttachmentEnvelope {
         if (maximumAttachmentDepth == 0) {
             return false;
         }
+        if (staticAttachmentReachability != null) {
+            return staticAttachmentReachability.test(immutable);
+        }
         int parentDepth = minimumAdjacentDepth(immutable);
         return parentDepth >= 0 && parentDepth < maximumAttachmentDepth;
     }
@@ -74,6 +87,13 @@ final class SkyforgePopulationAttachmentEnvelope {
             return false;
         }
         if (ownerSolid.test(immutable) || attachmentDepths.containsKey(immutable)) {
+            return true;
+        }
+        if (staticAttachmentReachability != null) {
+            // Static reachability is deliberately independent of the order in which a native
+            // feature visits equivalent frontier cells. The map remains the exact set of writes
+            // actually admitted by this feature; its stored depth is not used in static mode.
+            attachmentDepths.put(immutable, maximumAttachmentDepth);
             return true;
         }
 
