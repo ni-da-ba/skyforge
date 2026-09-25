@@ -12,6 +12,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlannerTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandPreHydrologicTerrainField.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandPreHydrologicTerrainFieldTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReach.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlanner.java"
@@ -51,6 +53,7 @@ jobs:
       - name: Run reset geometry tests
         run: |
           ./gradlew \
+            :skyforge-world:test --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
             :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
