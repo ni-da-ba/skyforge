@@ -213,14 +213,16 @@ final class SkyforgePopulationExecutionStage {
         List<OwnerColumn> ownerColumns = new ArrayList<>(16 * 16);
         for (int x = chunk.getMinBlockX(); x <= chunk.getMaxBlockX(); x++) {
             for (int z = chunk.getMinBlockZ(); z <= chunk.getMaxBlockZ(); z++) {
-                SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
-                                operation.volumeId(), x, z)
-                        .ifPresent(range -> ownerColumns.add(
-                                new OwnerColumn(
-                                        x,
-                                        z,
-                                        range.minimumY(),
-                                        range.maximumY())));
+                var range = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                        operation.volumeId(), x, z);
+                if (range.isPresent()) {
+                    var solidRange = range.orElseThrow();
+                    ownerColumns.add(new OwnerColumn(
+                            x,
+                            z,
+                            solidRange.minimumY(),
+                            solidRange.maximumY()));
+                }
             }
         }
         List<OwnerColumn> canonicalOwnerColumns = List.copyOf(ownerColumns);
