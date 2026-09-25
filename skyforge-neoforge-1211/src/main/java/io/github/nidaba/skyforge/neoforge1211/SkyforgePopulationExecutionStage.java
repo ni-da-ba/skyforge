@@ -417,12 +417,6 @@ final class SkyforgePopulationExecutionStage {
             return attachmentEnvelope.attachmentCount();
         }
 
-        java.util.List<BlockPos> attachmentPositions() {
-            return attachmentEnvelope.attachmentPositions().stream()
-                    .sorted(java.util.Comparator.comparingLong(BlockPos::asLong))
-                    .toList();
-        }
-
         long attachmentPositionDigest() {
             return attachmentEnvelope.attachmentPositionDigest();
         }
