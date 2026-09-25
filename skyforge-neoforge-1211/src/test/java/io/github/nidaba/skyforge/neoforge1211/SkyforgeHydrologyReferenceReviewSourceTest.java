@@ -48,6 +48,11 @@ final class SkyforgeHydrologyReferenceReviewSourceTest {
 
         assertTrue(adapter.contains("private static void writeState("));
         assertTrue(adapter.contains("SkyforgeDeferredChunkMutationLifecycle.afterWrite("));
+
+        String lifecycle = Files.readString(PROJECT_DIRECTORY.resolve(
+                "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDeferredChunkMutationLifecycle.java"));
+        assertTrue(lifecycle.contains("storedState.getFluidState()"));
+        assertTrue(lifecycle.contains("state.level.scheduleTick(immutablePosition, fluid.getType(), 1)"));
     }
 
     @Test
