@@ -23,6 +23,14 @@ class HydrologyGeomorphicDiagnosticsCorpusTest {
         assertTrue(a.contains("confluence-632"));
         assertTrue(a.contains("retained-83"));
         assertTrue(a.lines().count() == 9);
+        assertTrue(a.contains("maxLateralRecoveryGrade"));
+        assertTrue(a.contains("maxContainmentDeficitWorld"));
+        assertTrue(a.contains("maxDepthToBankfullWidth"));
+        assertTrue(a.contains("maxReliefToValleyWidth"));
+        assertTrue(a.contains("maxExcavationBurden"));
+        assertTrue(a.contains("maxExcavationVolume"));
+        assertTrue(a.contains("maxCurvatureWidthRatio"));
+        assertTrue(a.contains("maxLongitudinalGradeWorld"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
