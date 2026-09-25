@@ -36,6 +36,18 @@ For those systems Skyforge still requires:
 Exact native-population block digests are therefore evidence/diagnostics, not acceptance equality
 requirements.
 
+Minecraft-native cave/carver output is treated more strictly than decoration but is not required to
+be byte-for-byte identical when the only difference is tiny backend-native microvariation. A/B runs
+must keep Skyforge-authored carve/provenance state exact, must preserve all ownership/safety
+invariants, and native carve counts may differ only within a small quantitative tolerance:
+
+```text
+allowedDelta = max(8 blocks, 0.05% of nativeChangedBlocks)
+```
+
+A larger native carve delta, or any authored-geometry/provenance difference, remains an acceptance
+failure.
+
 ## Gate interpretation
 
 A/B acceptance is split into two categories.
@@ -45,7 +57,8 @@ A/B acceptance is split into two categories.
 These values must match exactly when the same authored input is regenerated:
 
 - semantic/authorship identities;
-- transform/carve/authored-change/provenance digests;
+- transform/authored-change/provenance digests;
+- native carve geometry within the bounded microvariance tolerance above;
 - authored air/occupied accounting;
 - hydrology digest and representative authored hydrology location;
 - ownership/lifecycle completion and rejected-write accounting;
