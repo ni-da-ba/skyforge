@@ -38,18 +38,38 @@ Natural water springs require authored cave interior plus accepted aquifer suppo
 
 Implementation may consume exact channel, retained-waterbody, cascade/waterfall, and edge-discharge intents. It owns rasterization, block/fluid identity, mutation, scheduling, persistence, and lifecycle. Normalized semantic potentials are not literal world Y.
 
-### AUTH-0105 — fluvial landform projection — IN PROGRESS (#951)
+### AUTH-0105 — fluvial landform projection — ACCEPTED / HISTORICAL BASIS
 
-DR-70 review identified a cross-lane gap between accepted channel semantics and believable physical
-terrain. AUTH-0105 proposes a continuous dry channel/valley field plus contained authored
-water-surface potential over the exact accepted naturalized reach.
+AUTH-0105 / PR #951 merged as `450a557348066148b2d219e90aed6fde6fa98dfc` from accepted head
+`45c7e55b878dd56c4f01c8744564f4d33ef84311`.
 
-While #951 is active, Implementation should not deepen the competing fixed-trench mapping in #949.
-If AUTH-0105 is accepted, Implementation should project its dry terrain field before water/material
-placement and discretize the authored wet corridor rather than inventing independent local
-width/depth geometry.
+It established the accepted continuous dry channel/valley field, profile/discharge-sensitive reach
+geometry, and contained authored water-surface contract. Implementations may reuse those semantics,
+but AUTH-0105 is no longer sufficient as the current hydrology design boundary after the Sep-25 H6
+human failure.
 
-Until merge, AUTH-0086 and AUTH-0104 remain the accepted authority.
+### HYDROLOGY RESET — IN PROGRESS (#1084)
+
+The current cross-lane hydrology authority is
+`docs/authorship/HYDROLOGY_RESET_2026-09-25.md`.
+
+The old H6 implementation line is frozen at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`) and must not be extended.
+
+Authorship now owns the next continuous terrain-aware geomorphic/hydraulic solution and its objective
+plausibility contract. Coarse watershed/catchment outputs keep drainage semantics, but intermediate
+planning-grid route and retained-footprint cells are refinable geometry rather than automatically
+hard physical coordinates.
+
+Implementation must wait for that qualified continuous solution, then discretize it with only
+voxel-quantization-scale reconciliation. It must not preserve an incompatible coarse route by
+multi-block rescue excavation, manufacture a basin/levee, or invent a second routing policy.
+
+Required pre-voxel machine rejection includes ridge occupancy, lateral grade, incision/width,
+excavation volume, longitudinal grade, shoreline/basin compatibility, thalweg/hydraulic continuity,
+and excessive required backend reconciliation. Human review remains the final product gate.
+
+Issue #754 remains DR-70 product authority; #1084 is the current hydrology design dependency.
 
 ### AUTH-0087 — published authored-realization binding — ACCEPTED
 
