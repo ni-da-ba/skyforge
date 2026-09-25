@@ -13,4 +13,12 @@ final class SkyforgeNativeSurfacePopulationLifecyclePolicyTest {
         assertFalse(SkyforgeNativeSurfacePopulationStage.shouldDeferToStableChunk(false, true));
         assertFalse(SkyforgeNativeSurfacePopulationStage.shouldDeferToStableChunk(false, false));
     }
+
+    @Test
+    void admittedSurfacePopulationWaitsForWholeVolumeTerrainStability() {
+        assertFalse(SkyforgeNativeSurfacePopulationStage.surfacePopulationMayRun(true, true));
+        assertTrue(SkyforgeNativeSurfacePopulationStage.surfacePopulationMayRun(true, false));
+        assertTrue(SkyforgeNativeSurfacePopulationStage.surfacePopulationMayRun(false, true));
+        assertTrue(SkyforgeNativeSurfacePopulationStage.surfacePopulationMayRun(false, false));
+    }
 }

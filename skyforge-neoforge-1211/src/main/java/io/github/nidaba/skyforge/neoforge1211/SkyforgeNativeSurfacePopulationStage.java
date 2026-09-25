@@ -48,11 +48,31 @@ final class SkyforgeNativeSurfacePopulationStage {
             if (!SkyforgePhysicalVolumeAdmissionStage.allowsPopulation(plan.volumeId())) {
                 continue;
             }
+            if (!surfacePopulationMayRun(
+                    SkyforgePhysicalVolumeAdmissionStage.active(),
+                    !SkyforgePhysicalVolumeAdmissionStage.pendingCatchupChunks(plan.volumeId()).isEmpty())) {
+                continue;
+            }
             results.add(SkyforgeRuntimePerformanceMetrics.measure(
                     "surfacePopulation.coordinator",
                     () -> binding.coordinator().populate(level, generator, plan, chunk.getPos())));
         }
         return List.copyOf(results);
+    }
+
+    /**
+     * Whether native surface ecology has reached a stable exact-terrain phase boundary.
+     *
+     * <p>Native trees and similar placed features may attach across chunk boundaries. If any
+     * deferred terrain packet for the same admitted volume can still run later, wall-clock-dependent
+     * catch-up batching can decide whether those attachments are overwritten. Population therefore
+     * waits until the volume has no remaining deferred terrain. This does not create tickets or load
+     * chunks; it only delays downstream mutation.
+     */
+    static boolean surfacePopulationMayRun(
+            boolean physicalAdmissionActive,
+            boolean volumeHasPendingCatchup) {
+        return !physicalAdmissionActive || !volumeHasPendingCatchup;
     }
 
     /**
