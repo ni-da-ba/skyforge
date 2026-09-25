@@ -24,5 +24,10 @@ class HydrologyGeomorphicDiagnosticsCorpusTest {
         assertTrue(a.contains("retained-83"));
         assertTrue(a.lines().count() == 9);
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
+        String reachA = Files.readString(first.resolve("reach-manifest.csv"));
+        String reachB = Files.readString(second.resolve("reach-manifest.csv"));
+        assertEquals(reachA, reachB);
+        assertTrue(reachA.contains("profileKind"));
+        assertTrue(reachA.lines().count() > a.lines().count());
     }
 }
