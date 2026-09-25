@@ -85,10 +85,10 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' \
             --no-configuration-cache
 
-      - name: Print hydrology diagnostic calibration manifest
+      - name: Print inherited hydrology diagnostic manifest when present
         if: success()
         run: |
-          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
+          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv || true
 
       - name: Print hydrology qualification manifest
         if: success()
