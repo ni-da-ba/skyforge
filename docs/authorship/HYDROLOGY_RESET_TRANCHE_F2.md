@@ -303,8 +303,29 @@ Forbidden backend behavior includes:
 - deepening a channel to restore connectivity;
 - resolving a confluence through fluid spread.
 
+## Numerical acceptance discipline
+
+The solver implementation must report status explicitly: solved, infeasible, or numerical failure.
+A maximum-iteration exit is not acceptance.
+
+For a solved problem, acceptance requires scaled infinity-norm residual checks analogous to established
+QP practice:
+
+- primal feasibility residual for all equality, grade, and box constraints;
+- dual/stationarity residual for the weighted quadratic objective;
+- nonnegative inequality multipliers within tolerance;
+- complementarity residual for active/inactive inequalities.
+
+Tolerance must be expressed as an absolute-plus-relative criterion against the problem scale rather
+than one unqualified magic epsilon. The exact deterministic tolerances are implementation evidence,
+not aesthetic tuning parameters.
+
 ## Engineering references
 
+- Goldfarb & Idnani (1983), a numerically stable dual active-set method for strictly convex quadratic
+  programs: reference architecture for exact active-set treatment of positive-definite QPs.
+- OSQP solver documentation: reference acceptance discipline for explicit primal/dual residuals and
+  distinct solved/infeasible/iteration-limit statuses.
 - Leopold, L. B. & Maddock, T. (1953), USGS Professional Paper 252: hydraulic width, depth, and
   velocity exhibit discharge-dependent power-law behavior.
 - USACE HEC-RAS stream-junction documentation: junctions require explicit hydraulic compatibility;
