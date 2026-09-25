@@ -24,5 +24,7 @@ class HydrologyWaterbodyDiagnosticsCorpusTest {
         assertTrue(a.contains("maxShorelineGrade"));
         assertTrue(a.contains("reachesSearchBoundary"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
+        System.out.println("--- basin-manifest.csv ---");
+        System.out.println(a);
     }
 }
