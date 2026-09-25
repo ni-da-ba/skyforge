@@ -24,12 +24,15 @@ class SkyIslandGeomorphicReachDiagnosticsPlannerTest {
                 assertTrue(Double.isFinite(d.maximumCenterlineLoweringWorldUnits()));
                 assertTrue(Double.isFinite(d.maximumLateralRecoveryGrade()));
                 assertTrue(Double.isFinite(d.maximumBankContainmentDeficitWorldUnits()));
+                assertTrue(Double.isFinite(d.maximumContainmentDeficitToWaterDepthRatio()));
                 assertTrue(Double.isFinite(d.maximumDepthToBankfullWidthRatio()));
+                assertTrue(Double.isFinite(d.maximumIncisionToBankfullWidthRatio()));
                 assertTrue(Double.isFinite(d.maximumReliefToValleyWidthRatio()));
                 assertTrue(Double.isFinite(d.normalizedExcavationBurden()));
                 assertTrue(Double.isFinite(d.excavationVolumeProxyWorldUnitsCubed()));
                 assertTrue(Double.isFinite(d.maximumCurvatureWidthRatio()));
                 assertTrue(Double.isFinite(d.maximumLongitudinalGrade()));
+                assertTrue(Double.isFinite(d.maximumRawTerrainUphillStepPotential()));
                 assertTrue(d.maximumCenterlineLoweringWorldUnits() >= 0.0);
                 assertTrue(d.maximumLateralRecoveryGrade() >= 0.0);
                 assertTrue(d.maximumBankContainmentDeficitWorldUnits() >= 0.0);
