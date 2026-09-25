@@ -643,51 +643,32 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             if (!semanticallyConnectedToRetained) {
                 continue;
             }
-            record Contact(
-                    java.util.Map.Entry<SkyforgeAuthoredVisibleHydrologyAdapter.Column, Integer> entry,
-                    int datum,
-                    double startDistance,
-                    double endDistance) {}
-            var contacts = new java.util.ArrayList<Contact>();
+            var productionTargets =
+                    SkyforgeAuthoredVisibleHydrologyAdapter.qualifiedRetainedApproachTargets(
+                            fixture.descriptor(),
+                            fixture.volume(),
+                            terrain,
+                            channelIntent.path());
+            if (productionTargets.isEmpty()) {
+                continue;
+            }
+
             for (var entry : channelTop.entrySet()) {
-                if (retainedTop.containsKey(entry.getKey())) {
+                Integer datum = productionTargets.get(entry.getKey());
+                if (datum == null) {
                     continue;
                 }
-                var target = SkyforgeAuthoredVisibleHydrologyAdapter.retainedHydraulicTarget(
-                        entry.getKey(), retainedTop);
-                if (target.isEmpty()) {
-                    continue;
-                }
+                junctionColumns++;
                 var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
                         entry.getKey().x() - physical.centerX(),
                         entry.getKey().z() - physical.centerZ());
                 var start = channelIntent.path().points().getFirst();
                 var end = channelIntent.path().points().getLast();
-                contacts.add(new Contact(
-                        entry,
-                        target.orElseThrow(),
-                        Math.hypot(local.x() - start.x(), local.z() - start.z()),
-                        Math.hypot(local.x() - end.x(), local.z() - end.z())));
-            }
-            if (contacts.isEmpty()) {
-                continue;
-            }
-
-            for (var contact : contacts) {
-                if (!SkyforgeAuthoredVisibleHydrologyAdapter.retainedApproachAuthorizesColumn(
-                        fixture.volume(),
-                        fluvial,
-                        reach,
-                        contact.entry().getKey(),
-                        retainedTop,
-                        sourceConnectedToRetained,
-                        downstreamConnectedToRetained)) {
-                    continue;
-                }
-                junctionColumns++;
+                double startDistance = Math.hypot(local.x() - start.x(), local.z() - start.z());
+                double endDistance = Math.hypot(local.x() - end.x(), local.z() - end.z());
                 var terminalDrop = fluvial.terminalDrop(reach);
                 var local = new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
-                        contact.entry().getKey().x() - physical.centerX(),
+                        entry.getKey().x() - physical.centerX(),
                         contact.entry().getKey().z() - physical.centerZ());
                 double dropDistance = terminalDrop
                         .map(drop -> Math.hypot(
@@ -696,7 +677,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                         .orElse(Double.POSITIVE_INFINITY);
                 boolean localizedAuthoredFall = terminalDrop.isPresent()
                         && dropDistance <= Math.max(2.0, reach.bankfullHalfWidth())
-                        && contact.entry().getValue() < contact.datum();
+                        && entry.getValue() < datum;
                 assertTrue(
                         Math.abs(contact.entry().getValue() - contact.datum()) <= 2
                                 || localizedAuthoredFall,
@@ -706,8 +687,8 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                                 + ", downstreamCell=" + downstreamCell
                                 + ", terminalDrop=" + terminalDrop.map(drop -> drop.kind().name()).orElse("NONE")
                                 + ", dropDistance=" + dropDistance
-                                + ", startDistance=" + contact.startDistance()
-                                + ", endDistance=" + contact.endDistance()
+                                + ", startDistance=" + startDistance
+                                + ", endDistance=" + endDistance
                                 + ", column=" + contact.entry().getKey()
                                 + ", channelTop=" + contact.entry().getValue()
                                 + ", retainedDatum=" + contact.datum());

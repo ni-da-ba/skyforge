@@ -3109,32 +3109,80 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                 : Optional.of(new RetainedJunctionTarget(datum, bestDistance));
     }
 
-    static boolean retainedApproachAuthorizesColumn(
+    static Map<Column, Integer> qualifiedRetainedApproachTargets(
+            SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
-            SkyIslandFluvialTerrainField fluvial,
-            SkyIslandFluvialReachGeometry reach,
-            Column column,
-            Map<Column, Integer> retainedWaterTopByColumn,
-            boolean sourceConnectedToRetained,
-            boolean downstreamConnectedToRetained) {
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandNaturalizedChannelPath path) {
+        Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(volume, "volume");
-        Objects.requireNonNull(fluvial, "fluvial");
-        Objects.requireNonNull(reach, "reach");
-        Objects.requireNonNull(column, "column");
-        Objects.requireNonNull(retainedWaterTopByColumn, "retainedWaterTopByColumn");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(path, "path");
+
+        SkyIslandVisibleHydrologicRealizationPlan intent =
+                SkyIslandVisibleHydrologicRealizationPlanner.plan(descriptor);
+        SkyIslandFluvialTerrainField fluvial =
+                SkyIslandFluvialTerrainField.create(descriptor, intent.coherentHydrology());
+        SkyIslandFluvialReachGeometry reach = fluvial.reaches().stream()
+                .filter(candidate -> candidate.path().equals(path))
+                .findFirst()
+                .orElseThrow();
+
+        Map<Column, Optional<SkyforgeExactVoxelSupportBounds.ColumnRange>> solidRangeCache =
+                new HashMap<>();
+        List<RetainedHydraulicBoundary> boundaries = new ArrayList<>();
+        if (!intent.retainedWater().isEmpty()) {
+            SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+            for (var retained : intent.retainedWater()) {
+                Optional<RawDeployment> projected = atFootprint(
+                        descriptor,
+                        volume,
+                        terrain,
+                        watershed,
+                        retained.footprint(),
+                        retained.margin(),
+                        fluvial.baseTerrain(),
+                        solidRangeCache);
+                if (projected.isEmpty()) {
+                    continue;
+                }
+                RawDeployment deployment = projected.orElseThrow();
+                Set<Integer> watershedCells = retained.footprint().cells().stream()
+                        .map(SkyIslandWaterbodyFootprintCell::watershedCellIndex)
+                        .collect(java.util.stream.Collectors.toUnmodifiableSet());
+                boundaries.add(new RetainedHydraulicBoundary(
+                        watershedCells,
+                        retainedWaterTopByColumn(List.of(deployment))));
+            }
+        }
+
+        RetainedHydraulicBoundaryMatch boundary =
+                retainedHydraulicBoundaryFor(path, boundaries);
+        if (boundary.waterTopByColumn().isEmpty()) {
+            return Map.of();
+        }
 
         Map<Column, ChannelPathProjection> projections =
                 candidateColumnProjections(volume, fluvial, reach);
-        ChannelPathProjection projection = projections.get(column);
-        if (projection == null) {
-            return false;
-        }
         RetainedApproachWindow window = retainedApproachWindow(
                 projections,
-                retainedWaterTopByColumn,
-                sourceConnectedToRetained,
-                downstreamConnectedToRetained);
-        return window.authorizes(projection.fraction(), reach.path().pathLength());
+                boundary.waterTopByColumn(),
+                boundary.sourceConnected(),
+                boundary.downstreamConnected());
+
+        Map<Column, Integer> result = new LinkedHashMap<>();
+        for (var entry : projections.entrySet()) {
+            Column column = entry.getKey();
+            if (boundary.waterTopByColumn().containsKey(column)) {
+                continue;
+            }
+            if (!window.authorizes(entry.getValue().fraction(), reach.path().pathLength())) {
+                continue;
+            }
+            retainedHydraulicTarget(column, boundary.waterTopByColumn())
+                    .ifPresent(datum -> result.put(column, datum));
+        }
+        return Map.copyOf(result);
     }
 
     private static RetainedApproachWindow retainedApproachWindow(
