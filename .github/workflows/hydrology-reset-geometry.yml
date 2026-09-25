@@ -39,11 +39,8 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Java
-        uses: actions/setup-java@7fd6e69c68f4079a09331303f29e657e3a68d8fd # v5.0.0
-        with:
-          distribution: temurin
-          java-version: "25"
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
 
       - name: Run reset geometry tests
         run: |
