@@ -6,9 +6,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Builds the first qualified terrain-mutating reset field from D2-accepted river reaches only.
+ * Builds the first qualified terrain-mutating reset field from D2-accepted river reaches.
  *
- * <p>Rejected reaches are preserved as explicit evidence and contribute no terrain delta.
+ * <p>D2 rejection and unresolved transition ownership both fail closed. Only reaches that are
+ * accepted and require no confluence or cascade transition receive terrain authority.
  */
 public final class SkyIslandQualifiedFluvialRealizationPlanner {
     private SkyIslandQualifiedFluvialRealizationPlanner() {}
@@ -30,50 +31,93 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
         List<SkyIslandGeomorphicReachDiagnostics> diagnostics =
                 SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor, hydraulic, original);
 
-        List<SkyIslandGeomorphicReachQualification> accepted = new ArrayList<>();
-        List<SkyIslandGeomorphicReachQualification> rejected = new ArrayList<>();
-        List<SkyIslandHydraulicReachGeometry> acceptedReaches = new ArrayList<>();
+        List<SkyIslandGeomorphicReachQualification> realizedQualifications =
+                new ArrayList<>();
+        List<SkyIslandQualifiedFluvialDeferral> deferredQualifications =
+                new ArrayList<>();
+        List<SkyIslandGeomorphicReachQualification> rejectedQualifications =
+                new ArrayList<>();
+        List<SkyIslandHydraulicReachGeometry> realizedReaches = new ArrayList<>();
 
         for (SkyIslandGeomorphicReachDiagnostics diagnostic : diagnostics) {
             SkyIslandGeomorphicReachQualification qualification =
                     SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy);
-            if (qualification.accepted()) {
-                accepted.add(qualification);
-                acceptedReaches.add(diagnostic.hydraulicReach());
-            } else {
-                rejected.add(qualification);
+            if (!qualification.accepted()) {
+                rejectedQualifications.add(qualification);
+                continue;
             }
+
+            List<SkyIslandQualifiedFluvialDeferralReason> reasons =
+                    deferralReasons(
+                            hydraulic.geomorphicNetwork(),
+                            diagnostic.hydraulicReach());
+            if (!reasons.isEmpty()) {
+                deferredQualifications.add(
+                        new SkyIslandQualifiedFluvialDeferral(qualification, reasons));
+                continue;
+            }
+
+            realizedQualifications.add(qualification);
+            realizedReaches.add(diagnostic.hydraulicReach());
         }
 
         SkyIslandQualifiedFluvialTerrainField realized =
-                new SkyIslandQualifiedFluvialTerrainField(original, acceptedReaches);
+                new SkyIslandQualifiedFluvialTerrainField(original, realizedReaches);
 
         // Necessary-but-not-sufficient prequalification is followed by realized-field requalification.
         List<SkyIslandGeomorphicReachDiagnostics> realizedDiagnostics =
-                SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor, hydraulic, realized);
+                SkyIslandGeomorphicReachDiagnosticsPlanner.measure(
+                        descriptor, hydraulic, realized);
         for (SkyIslandGeomorphicReachDiagnostics diagnostic : realizedDiagnostics) {
-            if (!containsReach(acceptedReaches, diagnostic.hydraulicReach())) {
+            if (!containsReach(realizedReaches, diagnostic.hydraulicReach())) {
                 continue;
             }
             SkyIslandGeomorphicReachQualification realizedQualification =
                     SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy);
             if (!realizedQualification.accepted()) {
                 throw new IllegalStateException(
-                        "accepted reach violates D2 after continuous cross-section realization: "
+                        "realized reach violates D2 after continuous cross-section realization: "
                                 + realizedQualification.violations());
             }
         }
 
         return new SkyIslandQualifiedFluvialRealizationPlan(
-                descriptor, hydraulic, accepted, rejected, realized);
+                descriptor,
+                hydraulic,
+                realizedQualifications,
+                deferredQualifications,
+                rejectedQualifications,
+                realized);
+    }
+
+    private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandHydraulicReachGeometry reach) {
+        SkyIslandSemanticChannelReach semantic =
+                reach.geomorphicRoute().semanticReach();
+        List<SkyIslandQualifiedFluvialDeferralReason> reasons = new ArrayList<>();
+
+        if (network.requireNode(semantic.startCellIndex()).kind()
+                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                || network.requireNode(semantic.endCellIndex()).kind()
+                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+            reasons.add(
+                    SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED);
+        }
+        if (semantic.profiles().stream()
+                .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
+            reasons.add(
+                    SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
+        }
+        return List.copyOf(reasons);
     }
 
     private static boolean containsReach(
-            List<SkyIslandHydraulicReachGeometry> accepted,
+            List<SkyIslandHydraulicReachGeometry> reaches,
             SkyIslandHydraulicReachGeometry candidate) {
         SkyIslandSemanticChannelReach semantic =
                 candidate.geomorphicRoute().semanticReach();
-        for (SkyIslandHydraulicReachGeometry reach : accepted) {
+        for (SkyIslandHydraulicReachGeometry reach : reaches) {
             SkyIslandSemanticChannelReach other =
                     reach.geomorphicRoute().semanticReach();
             if (semantic.startCellIndex() == other.startCellIndex()
