@@ -1,7 +1,7 @@
 # Hydrology reset tranche D1 — cross-section and excavation diagnostics
 
 **Status:** dependent diagnostic tranche under issue #1084  
-**Depends on:** D0 diagnostic corpus  
+**Depends on:** post-C1 D0 diagnostic corpus  
 **Terrain mutation:** none  
 **Acceptance thresholds:** still not frozen
 
@@ -15,7 +15,7 @@ D1 remains measurement only. It deliberately does not contain pass/fail threshol
 
 ## Added metrics
 
-For every hydraulic macro reach, D1 measures:
+All curvature and cross-section measurements use the C1 continuous centerline rather than the raw search lattice.\n\nFor every hydraulic macro reach, D1 measures:
 
 - maximum lateral recovery grade from the candidate bed to unmodified valley-side terrain;
 - maximum bank-containment deficit, in authored world units, where natural bank terrain lies below
