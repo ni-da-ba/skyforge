@@ -1,0 +1,54 @@
+name: Hydrology Reset Geometry
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hydrology-reset-geometry.yml"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReach.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicRouteAnchor.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicCandidateRoute.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareRouteSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicNetworkNodeKind.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicNetworkNode.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachRoute.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicChannelNetworkPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicChannelNetworkPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlannerTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareRouteSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicChannelNetworkPlannerTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hydrology-reset-geometry-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  geometry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java
+        uses: actions/setup-java@7fd6e69c68f4079a09331303f29e657e3a68d8fd # v5.0.0
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Run reset geometry tests
+        run: |
+          ./gradlew \
+            :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
+            :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
+            --no-configuration-cache
