@@ -113,6 +113,27 @@ final class SkyforgePopulationExecutionStage {
         return Optional.ofNullable(ACTIVE.get());
     }
 
+    /**
+     * True only while vanilla tree finalization is running inside stable deferred population.
+     *
+     * <p>Ordinary world generation already executes inside Minecraft's native generation region.
+     * This seam exists solely because deferred LevelChunk population can expose JVM-dependent
+     * iteration order inside TreeFeature's final root/trunk/foliage update sets.
+     */
+    static boolean deterministicDeferredTreeFinalizationActive() {
+        Execution execution = ACTIVE.get();
+        return execution != null
+                && execution.stableDeferredLevel
+                && structuralTreeOperation(execution.operation);
+    }
+
+    private static boolean structuralTreeOperation(SkyforgePopulationOperation operation) {
+        Objects.requireNonNull(operation, "operation");
+        return operation.generationStep()
+                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
+                && operation.nativeDefinitionKey().getPath().toLowerCase(Locale.ROOT).contains("tree");
+    }
+
     private static boolean originChunkContains(
             SkyforgePopulationOperation operation,
             BlockPos position) {
@@ -156,9 +177,7 @@ final class SkyforgePopulationExecutionStage {
         Predicate<BlockPos> attachmentBarrierSolid = cachedForeignSolid;
         boolean stableDeferredLevel =
                 level.isPresent() && level.orElseThrow() instanceof ServerLevel;
-        boolean structuralTree = operation.generationStep()
-                        == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()
-                && operation.nativeDefinitionKey().getPath().toLowerCase(Locale.ROOT).contains("tree");
+        boolean structuralTree = structuralTreeOperation(operation);
         if (operation.generationStep()
                 == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
             // Surface ecology may extend canopy across chunk boundaries, but another chunk's

@@ -24,6 +24,16 @@ public final class SkyforgeWorldGenRegionDomainBridge {
     }
 
     /**
+     * True only for stable deferred native tree finalization.
+     *
+     * <p>Used by the isolated TreeFeature mixin to canonicalize vanilla working-set iteration
+     * without changing ordinary Minecraft generation or unrelated Skyforge population.
+     */
+    public static boolean deterministicDeferredTreeFinalizationActive() {
+        return SkyforgePopulationExecutionStage.deterministicDeferredTreeFinalizationActive();
+    }
+
+    /**
      * True only while the vegetal-decoration phase needs a deterministic direct-chunk height view.
      *
      * <p>The direct {@code ChunkAccess#getHeight} seam was introduced for native tree placement:
