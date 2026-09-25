@@ -62,10 +62,18 @@ final class SkyforgeDr40EcologyAuthorityTest {
                 new net.minecraft.world.level.ChunkPos(4, -2).toLong(),
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 resultB);
+        var phaseC = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                new net.minecraft.world.level.ChunkPos(-3, 7).toLong(),
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                resultA);
+        var phaseD = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                new net.minecraft.world.level.ChunkPos(-3, 7).toLong(),
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                resultB);
 
         assertEquals(
-                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseA)),
-                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseB)));
+                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseA, phaseC)),
+                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseD, phaseB)));
     }
 
     @Test
