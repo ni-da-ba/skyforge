@@ -54,7 +54,7 @@ public final class SkyIslandContinuousWaterbodyPlanner {
                     candidate,
                     watershed,
                     cells,
-                    fields.elevationTendency(),
+                    terrain,
                     fields.interiority()));
         }
 
