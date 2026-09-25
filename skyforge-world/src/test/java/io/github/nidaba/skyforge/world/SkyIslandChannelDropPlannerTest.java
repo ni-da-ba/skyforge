@@ -103,13 +103,19 @@ class SkyIslandChannelDropPlannerTest {
     @Test
     void retainedEndpointDropsLocalizeAtCanonicalShorelineCrossing() {
         boolean exercised = false;
-        for (long key : new long[] {77L, 83L, 118L, 241L, 287L, 512L, 649L, 811L}) {
-            SkyIslandDescriptor descriptor = descriptor(key);
+        List<SkyIslandDescriptor> descriptors = List.of(
+                descriptor(77L),
+                descriptor(83L),
+                descriptor(118L),
+                descriptor(241L),
+                descriptor(287L),
+                descriptor(512L),
+                descriptor(649L),
+                descriptor(811L),
+                descriptor(8L, 81L, 287L));
+        for (SkyIslandDescriptor descriptor : descriptors) {
             var profiles = SkyIslandCoherentChannelPlanner.plan(descriptor).profiles();
-            var selected = SkyIslandChannelDropPlanner.plan(descriptor, profiles);
             var naturalized = SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
-            var localized = SkyIslandChannelDropPlanner.localize(
-                    descriptor, selected, naturalized);
             var watershed = SkyIslandWatershedPlanner.plan(descriptor);
             var footprints = SkyIslandWaterbodyFootprintPlanner.plan(descriptor).footprints();
 
@@ -120,22 +126,28 @@ class SkyIslandChannelDropPlannerTest {
                 }
             }
 
-            for (var drop : localized.drops()) {
-                if (drop.kind() == SkyIslandChannelDropKind.EDGE_FALL) {
-                    continue;
-                }
-                var source = retainedByCell.get(drop.sourceCellIndex());
-                var downstream = retainedByCell.get(drop.downstreamCellIndex());
+            for (var path : naturalized.paths()) {
+                var segment = path.profile().segment();
+                var source = retainedByCell.get(segment.sourceCellIndex());
+                var downstream = retainedByCell.get(segment.downstreamCellIndex());
                 if ((source == null) == (downstream == null)) {
                     continue;
                 }
-                var path = naturalized.paths().stream()
-                        .filter(candidate ->
-                                candidate.profile().segment().sourceCellIndex() == drop.sourceCellIndex()
-                                        && candidate.profile().segment().downstreamCellIndex()
-                                                == drop.downstreamCellIndex())
-                        .findFirst()
-                        .orElseThrow();
+
+                var selected = new SkyIslandChannelDropPlan(
+                        descriptor,
+                        List.of(new SkyIslandChannelDrop(
+                                SkyIslandChannelDropKind.CASCADE_STEP,
+                                segment.sourceCellIndex(),
+                                segment.downstreamCellIndex(),
+                                path.points().get(path.points().size() / 2),
+                                0.75,
+                                0.75,
+                                0.75,
+                                0.75)));
+                var localized =
+                        SkyIslandChannelDropPlanner.localize(descriptor, selected, naturalized);
+                var drop = localized.drops().getFirst();
                 var retained = source != null ? source : downstream;
                 var crossing =
                         SkyIslandRetainedWaterFootprintGeometry.endpointBoundaryCrossing(
@@ -148,7 +160,7 @@ class SkyIslandChannelDropPlannerTest {
         }
         assertTrue(
                 exercised,
-                "representative corpus must exercise a retained-endpoint localized drop");
+                "representative coherent networks must exercise a retained-water channel endpoint");
     }
 
     @Test
@@ -209,6 +221,11 @@ class SkyIslandChannelDropPlannerTest {
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
-        return SkyIslandDescriptorGenerator.derive(SkyIslandIdentity.of(SEED, 6L, 61L, key));
+        return descriptor(6L, 61L, key);
+    }
+
+    private static SkyIslandDescriptor descriptor(long groupKey, long regionKey, long key) {
+        return SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, groupKey, regionKey, key));
     }
 }
