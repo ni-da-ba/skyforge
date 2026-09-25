@@ -13,6 +13,15 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E2.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F0.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F1.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialZone.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialProvenance.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialTerrainField.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationViolation.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationLimits.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyQualificationPolicy.java"
@@ -103,11 +112,15 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyQualificationEvaluatorTest' \
+            :skyforge-world:test --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest' \
             --no-configuration-cache
 
       - name: Print hydrology diagnostic calibration manifests
         if: success()
         run: |
+          if [ ! -f skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
