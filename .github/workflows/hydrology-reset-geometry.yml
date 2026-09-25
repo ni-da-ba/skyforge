@@ -66,6 +66,17 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandGeomorphicDiagnosticEvaluatorTest' \
             --no-configuration-cache
 
+      - name: Publish hydrology diagnostic calibration manifest
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.4.3
+        with:
+          name: hydrology-geomorphic-diagnostics-${{ github.sha }}
+          path: |
+            skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
+            skyforge-reference/build/evidence/hydrology-diagnostics-test-a/README.txt
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Dump focused failure report
         if: failure()
         run: |
