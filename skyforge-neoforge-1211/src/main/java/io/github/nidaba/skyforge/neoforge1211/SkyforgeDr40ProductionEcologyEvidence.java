@@ -171,7 +171,12 @@ final class SkyforgeDr40ProductionEcologyEvidence {
     static String populationOutcomeDigest(
             java.util.List<SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase> phases) {
         long digest = 0xcbf29ce484222325L;
-        for (var phase : phases) {
+        var canonicalPhases = phases.stream()
+                .sorted(java.util.Comparator
+                        .comparingLong(SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase::chunkKey)
+                        .thenComparingInt(phase -> phase.phase().ordinal()))
+                .toList();
+        for (var phase : canonicalPhases) {
             digest = mix(digest, phase.chunkKey());
             digest = mix(digest, phase.phase().ordinal());
             var result = phase.nativeResult();
