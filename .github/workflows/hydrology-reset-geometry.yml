@@ -6,6 +6,12 @@ on:
       - ".github/workflows/hydrology-reset-geometry.yml"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySample.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReach.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlanner.java"
@@ -48,9 +54,11 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             --no-configuration-cache
 
       - name: Dump focused failure report
         if: failure()
         run: |
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlannerTest.xml || true
