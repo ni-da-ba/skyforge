@@ -10,8 +10,9 @@ import java.util.Optional;
  * Backend-neutral continuous terrain response for accepted fluvial reaches only.
  *
  * <p>Rejected reaches are absent from this field and therefore contribute exactly zero terrain
- * delta. Overlapping accepted reaches use deterministic semantic dominance rather than independent
- * deepest-cut composition.
+ * delta. Ordinary reaches may meet only through an exact shared semantic node. If two unrelated
+ * reach envelopes overlap at a queried position, evaluation fails closed rather than inventing a
+ * local priority rule or deepest-cut composition.
  */
 public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSemanticField {
     private static final double EPSILON = 1.0e-12;
@@ -49,7 +50,18 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             if (candidate == null) {
                 continue;
             }
-            if (selected == null || candidate.precedes(selected)) {
+            if (selected == null) {
+                selected = candidate;
+                continue;
+            }
+            if (!candidate.sharesSemanticNodeWith(selected)) {
+                throw new IllegalStateException(
+                        "unowned overlap between unrelated qualified fluvial reaches: "
+                                + candidate.semanticIdentity()
+                                + " and "
+                                + selected.semanticIdentity());
+            }
+            if (candidate.precedes(selected)) {
                 selected = candidate;
             }
         }
@@ -231,6 +243,17 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             double discharge,
             int startCellIndex,
             int endCellIndex) {
+
+        boolean sharesSemanticNodeWith(Candidate other) {
+            return startCellIndex == other.startCellIndex
+                    || startCellIndex == other.endCellIndex
+                    || endCellIndex == other.startCellIndex
+                    || endCellIndex == other.endCellIndex;
+        }
+
+        String semanticIdentity() {
+            return startCellIndex + "->" + endCellIndex;
+        }
 
         boolean precedes(Candidate other) {
             if (normalizedInfluence < other.normalizedInfluence - EPSILON) {
