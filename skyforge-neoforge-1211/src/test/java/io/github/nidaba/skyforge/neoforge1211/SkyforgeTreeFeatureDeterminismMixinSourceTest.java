@@ -29,6 +29,10 @@ final class SkyforgeTreeFeatureDeterminismMixinSourceTest {
         assertTrue(source.contains("index = 3"));
         assertTrue(source.contains("index = 4"));
         assertTrue(source.contains("new LinkedHashSet<>(ordered)"));
+        assertTrue(source.contains("@Redirect("));
+        assertTrue(source.contains("Lcom/google/common/collect/Sets;newHashSet()Ljava/util/HashSet;"));
+        assertTrue(source.contains("skyforge$canonicalizeLeafDistanceFrontier"));
+        assertTrue(source.contains("new LinkedHashSet<>()"));
         assertTrue(source.contains("SkyforgeWorldGenRegionDomainBridge.deterministicDeferredTreeFinalizationActive()"));
         assertTrue(bridge.contains("public static boolean deterministicDeferredTreeFinalizationActive()"));
         assertTrue(stage.contains("execution.stableDeferredLevel"));
