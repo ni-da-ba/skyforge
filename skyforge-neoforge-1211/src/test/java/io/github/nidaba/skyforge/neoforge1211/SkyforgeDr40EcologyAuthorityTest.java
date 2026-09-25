@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.kernel.coordinate.Coordinate2;
@@ -74,6 +75,74 @@ final class SkyforgeDr40EcologyAuthorityTest {
         assertEquals(
                 SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseA, phaseC)),
                 SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseD, phaseB)));
+    }
+
+    @Test
+    void populationPlanDigestIgnoresNativeDecorativeOutcomesButPreservesPlanIdentity() {
+        var grassA = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "patch_grass_plain"),
+                true,
+                3,
+                0x1234L);
+        var treeA = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "trees_plains"),
+                true,
+                369,
+                0x5678L);
+        var grassB = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "patch_grass_plain"),
+                false,
+                9,
+                0x9999L);
+        var treeB = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "trees_plains"),
+                true,
+                371,
+                0xaaaaL);
+        var lakeEvidence = new SkyforgeNativeBiomePopulationRunner.LakeEvidence(
+                0, 0, 0, 0, 0, 0xcbf29ce484222325L, List.of(), List.of());
+
+        var resultA = new SkyforgeNativeBiomePopulationRunner.Result(
+                Biomes.PLAINS,
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                2,
+                2,
+                372,
+                List.of(grassA, treeA),
+                lakeEvidence);
+        var resultB = new SkyforgeNativeBiomePopulationRunner.Result(
+                Biomes.PLAINS,
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                2,
+                1,
+                380,
+                List.of(grassB, treeB),
+                lakeEvidence);
+        var reordered = new SkyforgeNativeBiomePopulationRunner.Result(
+                Biomes.PLAINS,
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                2,
+                2,
+                372,
+                List.of(treeA, grassA),
+                lakeEvidence);
+
+        long chunkKey = new net.minecraft.world.level.ChunkPos(4, -2).toLong();
+        var phaseA = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                chunkKey, GenerationStep.Decoration.VEGETAL_DECORATION, resultA);
+        var phaseB = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                chunkKey, GenerationStep.Decoration.VEGETAL_DECORATION, resultB);
+        var phaseReordered = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                chunkKey, GenerationStep.Decoration.VEGETAL_DECORATION, reordered);
+
+        assertEquals(
+                SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseA)),
+                SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseB)),
+                "native placed/attachment outcomes are diagnostic, not authored-plan identity");
+        assertNotEquals(
+                SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseA)),
+                SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseReordered)),
+                "ordered native feature identity remains part of the deterministic Skyforge plan");
     }
 
     @Test
