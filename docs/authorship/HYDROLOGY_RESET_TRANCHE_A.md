@@ -46,28 +46,27 @@ claim that the watershed planning lattice already knows the final river centerli
 The candidate route solver performs deterministic bounded least-cost search on a finer lattice within
 a corridor around the semantic guidance polyline.
 
-For candidate path (P = {p_i}), transition cost is presently of the form
+For candidate path `P = {p_i}`, transition cost is presently of the form:
 
-[
-J(P) = sum_i
-left[
-w_L rac{|p_i-p_{i-1}|}{Delta}
-+ w_U max(0,z_i-z_{i-1})
-+ w_R R_i
-+ w_Z z_i
-+ w_D left(rac{d_i}{W}ight)^2
-+ w_E E_i
-ight].
+```text
+J(P) = sum_i [
+    w_L * ||p_i - p_(i-1)|| / delta
+  + w_U * max(0, z_i - z_(i-1))
+  + w_R * R_i
+  + w_Z * z_i
+  + w_D * (d_i / W)^2
+  + w_E * E_i
 ]
+```
 
 Where:
 
-- (Delta) is fine search spacing;
-- (z_i) is uncarved authored terrain elevation;
-- (R_i) is local ridge/TPI penalty;
-- (d_i) is distance from coarse semantic guidance;
-- (W) is the allowed corridor half-width;
-- (E_i) penalizes very low island interiority.
+- `delta` is fine search spacing;
+- `z_i` is uncarved authored terrain elevation;
+- `R_i` is local ridge/TPI penalty;
+- `d_i` is distance from coarse semantic guidance;
+- `W` is the allowed corridor half-width;
+- `E_i` penalizes very low island interiority.
 
 All terms are non-negative so the A* heuristic remains admissible.
 
