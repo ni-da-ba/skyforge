@@ -800,6 +800,59 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     @Test
     @Tag("qualification")
+    void sameBasinChannelsRetainDeploymentIdentityWithoutIndependentPhysicalGrade() {
+        var fixture = SkyforgeHydrologyReferenceReviewFixture.create();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var intent = io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner.plan(
+                fixture.descriptor());
+        var deployments = terrain.authoredHydrologyDeployments(fixture.volume().id());
+        var channels = deployments.stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.CHANNEL)
+                .toList();
+        assertEquals(intent.channels().size(), channels.size());
+
+        var retainedWater = deployments.stream()
+                .filter(deployment ->
+                        deployment.feature() == SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER)
+                .flatMap(deployment -> deployment.positions().stream())
+                .collect(java.util.stream.Collectors.toSet());
+        var retainedOwnerByCell = new java.util.HashMap<Integer, Integer>();
+        for (int footprintIndex = 0; footprintIndex < intent.retainedWater().size(); footprintIndex++) {
+            for (var cell : intent.retainedWater().get(footprintIndex).footprint().cells()) {
+                retainedOwnerByCell.put(cell.watershedCellIndex(), footprintIndex);
+            }
+        }
+
+        int sameBasinChannels = 0;
+        for (int index = 0; index < intent.channels().size(); index++) {
+            var segment = intent.channels().get(index).path().profile().segment();
+            Integer sourceOwner = retainedOwnerByCell.get(segment.sourceCellIndex());
+            Integer downstreamOwner = retainedOwnerByCell.get(segment.downstreamCellIndex());
+            if (sourceOwner == null || !sourceOwner.equals(downstreamOwner)) {
+                continue;
+            }
+            sameBasinChannels++;
+            var deployment = channels.get(index);
+            assertFalse(deployment.positions().isEmpty());
+            assertTrue(
+                    retainedWater.containsAll(deployment.positions()),
+                    "same-basin channel water must be borrowed only from the retained basin");
+            assertTrue(
+                    deployment.carvedPositions().isEmpty(),
+                    "same-basin channel must not cut an independent submerged river trench");
+            assertTrue(
+                    deployment.surfacePositions().isEmpty(),
+                    "same-basin channel must not own an independent submerged material stripe");
+            assertTrue(deployment.forcedSurfacePositions().isEmpty());
+        }
+        assertTrue(
+                sameBasinChannels > 0,
+                "key-287 must exercise at least one channel whose endpoints share a retained basin");
+    }
+
+    @Test
+    @Tag("qualification")
     void eachChannelDeploymentKeepsWetCellsInsideItsOwnAuthoredWetCorridor() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.dr70Review();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
