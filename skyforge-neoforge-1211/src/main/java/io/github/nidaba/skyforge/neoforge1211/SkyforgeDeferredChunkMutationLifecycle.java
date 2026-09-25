@@ -62,6 +62,10 @@ final class SkyforgeDeferredChunkMutationLifecycle {
         BlockPos immutablePosition = position.immutable();
         state.level.getChunkSource().getLightEngine().checkBlock(immutablePosition);
         state.level.getChunkSource().blockChanged(immutablePosition);
+        var fluid = storedState.getFluidState();
+        if (!fluid.isEmpty()) {
+            state.level.scheduleTick(immutablePosition, fluid.getType(), 1);
+        }
         state.changedBlocks++;
     }
 
