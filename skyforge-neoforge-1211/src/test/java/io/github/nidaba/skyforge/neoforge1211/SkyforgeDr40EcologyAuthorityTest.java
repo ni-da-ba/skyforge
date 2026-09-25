@@ -16,9 +16,58 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.biome.Biomes;
+import net.minecraft.world.level.levelgen.GenerationStep;
 import org.junit.jupiter.api.Test;
 
 final class SkyforgeDr40EcologyAuthorityTest {
+    @Test
+    void populationOutcomeDigestIgnoresFeatureCompletionOrdering() {
+        var first = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "patch_grass_plain"),
+                true,
+                3,
+                0x1234L);
+        var second = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
+                ResourceLocation.fromNamespaceAndPath("minecraft", "trees_plains"),
+                false,
+                0,
+                0x5678L);
+        var lakeEvidence = new SkyforgeNativeBiomePopulationRunner.LakeEvidence(
+                0, 0, 0, 0, 0, 0xcbf29ce484222325L, List.of(), List.of());
+
+        var resultA = new SkyforgeNativeBiomePopulationRunner.Result(
+                Biomes.PLAINS,
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                2,
+                1,
+                3,
+                List.of(first, second),
+                lakeEvidence);
+        var resultB = new SkyforgeNativeBiomePopulationRunner.Result(
+                Biomes.PLAINS,
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                2,
+                1,
+                3,
+                List.of(second, first),
+                lakeEvidence);
+
+        var phaseA = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                new net.minecraft.world.level.ChunkPos(4, -2).toLong(),
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                resultA);
+        var phaseB = new SkyforgeNativeSurfacePopulationCoordinator.CompletedNativePhase(
+                new net.minecraft.world.level.ChunkPos(4, -2).toLong(),
+                GenerationStep.Decoration.VEGETAL_DECORATION,
+                resultB);
+
+        assertEquals(
+                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseA)),
+                SkyforgeDr40ProductionEcologyEvidence.populationOutcomeDigest(List.of(phaseB)));
+    }
+
     @Test
     void canonicalRuntimeVolumeHasExactNonPublishedEcologyAuthority() throws IOException {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();

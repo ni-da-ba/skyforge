@@ -105,7 +105,7 @@ class SkyIslandChannelDropPlannerTest {
         boolean exercised = false;
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 649L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
-            var profiles = SkyIslandChannelProfilePlanner.plan(descriptor).profiles();
+            var profiles = SkyIslandCoherentChannelPlanner.plan(descriptor).profiles();
             var selected = SkyIslandChannelDropPlanner.plan(descriptor, profiles);
             var naturalized = SkyIslandNaturalizedChannelPlanner.plan(descriptor, profiles);
             var localized = SkyIslandChannelDropPlanner.localize(

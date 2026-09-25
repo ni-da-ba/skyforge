@@ -179,10 +179,20 @@ final class SkyforgeDr40ProductionEcologyEvidence {
             digest = mix(digest, result.attemptedFeatures());
             digest = mix(digest, result.successfulFeatures());
             digest = mix(digest, result.attachmentWrites());
-            for (var feature : result.featureResults()) {
+            var canonicalFeatures = result.featureResults().stream()
+                    .sorted(java.util.Comparator
+                            .comparing((SkyforgeNativeBiomePopulationRunner.FeatureResult feature) ->
+                                    feature.featureKey().toString())
+                            .thenComparing(SkyforgeNativeBiomePopulationRunner.FeatureResult::placed)
+                            .thenComparingInt(SkyforgeNativeBiomePopulationRunner.FeatureResult::attachmentWrites)
+                            .thenComparingLong(
+                                    SkyforgeNativeBiomePopulationRunner.FeatureResult::attachmentPositionDigest))
+                    .toList();
+            for (var feature : canonicalFeatures) {
                 digest = mixText(digest, feature.featureKey().toString());
                 digest = mix(digest, feature.placed() ? 1L : 0L);
                 digest = mix(digest, feature.attachmentWrites());
+                digest = mix(digest, feature.attachmentPositionDigest());
             }
         }
         return Long.toUnsignedString(digest, 16);
