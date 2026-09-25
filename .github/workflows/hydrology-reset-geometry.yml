@@ -9,6 +9,9 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterline.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterlinePlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterlinePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicDiagnostics.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicDiagnosticEvaluator.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicDiagnosticEvaluatorTest.java"
@@ -19,6 +22,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlannerTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandPreHydrologicTerrainField.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandPreHydrologicTerrainFieldTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReach.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlanner.java"
@@ -58,11 +63,13 @@ jobs:
       - name: Run reset geometry tests
         run: |
           ./gradlew \
+            :skyforge-world:test --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
             :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicDiagnosticEvaluatorTest' \
             --no-configuration-cache
 
