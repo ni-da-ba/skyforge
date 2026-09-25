@@ -12,6 +12,8 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnostics.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.java"
@@ -92,6 +94,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
             --no-configuration-cache
 
       - name: Print hydrology diagnostic calibration manifest
@@ -100,6 +103,9 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
+          echo "--- basin-manifest.csv ---"
+          ./gradlew :skyforge-reference:run --args="build/evidence/hydrology-waterbody-diagnostics-v1" --no-configuration-cache >/dev/null 2>&1 || true
+          cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-v1/basin-manifest.csv || true
 
       - name: Dump focused failure report
         if: failure()
