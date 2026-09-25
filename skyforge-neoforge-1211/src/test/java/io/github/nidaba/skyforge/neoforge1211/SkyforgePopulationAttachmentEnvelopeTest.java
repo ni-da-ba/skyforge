@@ -111,6 +111,38 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
     }
 
     @Test
+    void staticReachabilityIsIndependentOfFrontierVisitOrderAndPreservesForeignVeto() {
+        BlockPos first = new BlockPos(4, 104, 4);
+        BlockPos second = new BlockPos(5, 105, 5);
+        BlockPos foreign = new BlockPos(6, 106, 6);
+        java.util.Set<BlockPos> staticallyReachable =
+                java.util.Set.of(first, second, foreign);
+
+        var firstOrder = new SkyforgePopulationAttachmentEnvelope(
+                OWNER::equals,
+                foreign::equals,
+                8,
+                staticallyReachable::contains);
+        assertTrue(firstOrder.acceptWrite(first));
+        assertTrue(firstOrder.acceptWrite(second));
+        assertFalse(firstOrder.acceptWrite(foreign));
+
+        var reverseOrder = new SkyforgePopulationAttachmentEnvelope(
+                OWNER::equals,
+                foreign::equals,
+                8,
+                staticallyReachable::contains);
+        assertTrue(reverseOrder.acceptWrite(second));
+        assertTrue(reverseOrder.acceptWrite(first));
+        assertFalse(reverseOrder.acceptWrite(foreign));
+
+        assertEquals(firstOrder.attachmentPositions(), reverseOrder.attachmentPositions());
+        assertEquals(
+                firstOrder.attachmentPositionDigest(),
+                reverseOrder.attachmentPositionDigest());
+    }
+
+    @Test
     void preflightDoesNotCreateAttachmentProvenance() {
         var envelope = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 2);
         BlockPos first = new BlockPos(0, 101, 0);
