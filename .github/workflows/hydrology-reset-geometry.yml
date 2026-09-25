@@ -11,6 +11,10 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E0.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyBasin.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyPlanner.java"
@@ -87,6 +91,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             --no-configuration-cache
 
       - name: Print hydrology diagnostic calibration manifest
