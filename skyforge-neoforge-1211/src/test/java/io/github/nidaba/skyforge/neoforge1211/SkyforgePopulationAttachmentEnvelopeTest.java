@@ -86,6 +86,31 @@ final class SkyforgePopulationAttachmentEnvelopeTest {
     }
 
     @Test
+    void attachmentPositionDigestDependsOnFootprintNotPropagationDepth() {
+        BlockPos windingA = new BlockPos(0, 1, 0);
+        BlockPos windingB = new BlockPos(1, 2, 0);
+        BlockPos target = new BlockPos(2, 1, 0);
+        BlockPos direct = new BlockPos(1, 0, 0);
+
+        var windingFirst = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 4);
+        assertTrue(windingFirst.acceptWrite(windingA));
+        assertTrue(windingFirst.acceptWrite(windingB));
+        assertTrue(windingFirst.acceptWrite(target));
+        assertTrue(windingFirst.acceptWrite(direct));
+
+        var directFirst = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 4);
+        assertTrue(directFirst.acceptWrite(direct));
+        assertTrue(directFirst.acceptWrite(target));
+        assertTrue(directFirst.acceptWrite(windingA));
+        assertTrue(directFirst.acceptWrite(windingB));
+
+        assertEquals(windingFirst.attachmentPositions(), directFirst.attachmentPositions());
+        assertEquals(
+                windingFirst.attachmentPositionDigest(),
+                directFirst.attachmentPositionDigest());
+    }
+
+    @Test
     void preflightDoesNotCreateAttachmentProvenance() {
         var envelope = new SkyforgePopulationAttachmentEnvelope(OWNER::equals, 2);
         BlockPos first = new BlockPos(0, 101, 0);
