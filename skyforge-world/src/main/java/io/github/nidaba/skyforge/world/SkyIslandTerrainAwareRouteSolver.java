@@ -56,9 +56,14 @@ public final class SkyIslandTerrainAwareRouteSolver {
 
         double step = planningSpacing / FINE_DIVISIONS_PER_PLANNING_CELL;
         double padding = corridorHalfWidth + Math.max(startAnchor.radius(), endAnchor.radius()) + step;
-        Bounds bounds = bounds(guidance, startAnchor.center(), endAnchor.center(), padding);
-        int width = Math.max(2, (int) Math.ceil((bounds.maxX() - bounds.minX()) / step) + 1);
-        int height = Math.max(2, (int) Math.ceil((bounds.maxZ() - bounds.minZ()) / step) + 1);
+        Bounds rawBounds = bounds(guidance, startAnchor.center(), endAnchor.center(), padding);
+        Bounds bounds = new Bounds(
+                Math.floor(rawBounds.minX() / step) * step,
+                Math.ceil(rawBounds.maxX() / step) * step,
+                Math.floor(rawBounds.minZ() / step) * step,
+                Math.ceil(rawBounds.maxZ() / step) * step);
+        int width = Math.max(2, (int) Math.round((bounds.maxX() - bounds.minX()) / step) + 1);
+        int height = Math.max(2, (int) Math.round((bounds.maxZ() - bounds.minZ()) / step) + 1);
         int count = Math.multiplyExact(width, height);
 
         SkyIslandLocalPosition[] positions = new SkyIslandLocalPosition[count];
