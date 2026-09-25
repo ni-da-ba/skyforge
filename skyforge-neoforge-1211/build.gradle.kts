@@ -1192,6 +1192,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-a")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
@@ -1214,6 +1215,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-b")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty("skyforge.dev.acceptanceRadius", "7")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
@@ -1233,6 +1235,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "dr-40-production-ecology-reload")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
             systemProperty(
                 "skyforge.dev.productionComposedCaveExpectedResultFile",
                 layout.buildDirectory.file("acceptance/dr-40/production-b.properties").get().asFile.absolutePath,
