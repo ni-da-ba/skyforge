@@ -44,6 +44,23 @@
     "aesthetic distribution thresholds",
     "AUTH-0058 publication provenance for the canonical SF-IMP-0068 volume"
   ],
+  "native_detail_determinism": {
+    "authoritative_skyforge_inputs": [
+      "authored biome/ecology assignment",
+      "native feature identities and deterministic seed identity",
+      "chunk and generation-phase ordering",
+      "exact-volume ownership and write-admission envelope",
+      "authored hydrology exclusion and terrain authority",
+      "replay, reload, and lifecycle invariants"
+    ],
+    "diagnostic_only_native_outcomes": [
+      "exact vegetation block count",
+      "exact leaf or foliage footprint",
+      "exact attachment-position digest",
+      "microscopic native decorative block differences"
+    ],
+    "rule": "Minecraft and modded content are terminal decorative realization inside deterministic Skyforge authority. Native decorative state must not feed back into later authoritative Skyforge generation. Do not patch vanilla/mod traversal internals solely to force bit-identical decorative vegetation."
+  },
   "published_world_rule": "AUTH-0087 remains mandatory for consumers that claim AUTH-0058 publication provenance. AUTH-0103 does not weaken or replace AUTH-0087/0088/0090/0092.",
   "dr40_worker_handoff": "Construct the exact AUTH-0046 association from DR-00 identity plus the locked production volume. Consume AUTH-0103 explicit-association surface/catalog evidence, AUTH-0089, AUTH-0091, AUTH-0011 riparian corridors, and the accepted SF-IMP-0080 carrier. Minecraft biome/carrier mapping remains adapter-owned under AUTH-0088/SF-IMP-0080; use authored ecology rather than a second biome RNG. Treat raw singleton isolation as diagnostic only. Do not fabricate a publication binding or invent population policy.",
   "acceptance": {
