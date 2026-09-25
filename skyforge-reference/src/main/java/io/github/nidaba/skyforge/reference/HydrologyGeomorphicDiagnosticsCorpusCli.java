@@ -1,0 +1,131 @@
+package io.github.nidaba.skyforge.reference;
+
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlan;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicNetworkNodeKind;
+import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachRoute;
+import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlan;
+import io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandHydraulicReachGeometry;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Generates pre-carving geomorphic/hydraulic diagnostics for reset-threshold calibration.
+ *
+ * <p>The manifest is evidence only. It intentionally does not classify specimens as accepted/rejected;
+ * hard envelopes are a later decision under #1084 after the metric distributions are inspected.
+ */
+public final class HydrologyGeomorphicDiagnosticsCorpusCli {
+    public static final String EVIDENCE_ID = "hydrology-geomorphic-diagnostics-v2";
+    private static final long SEED = 0x534B59464F524745L;
+
+    private HydrologyGeomorphicDiagnosticsCorpusCli() {}
+
+    public static void main(String[] args) throws IOException {
+        Path out = args.length == 1
+                ? Path.of(args[0])
+                : Path.of("build", "evidence", EVIDENCE_ID);
+        Files.createDirectories(out);
+
+        List<Specimen> specimens = List.of(
+                new Specimen("primary-287", descriptor(8L, 81L, 287L)),
+                new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
+                new Specimen("legacy-control-649", descriptor(8L, 81L, 649L)),
+                new Specimen("stress-811", descriptor(8L, 81L, 811L)),
+                new Specimen("retained-83", descriptor(6L, 61L, 83L)),
+                new Specimen("control-77", descriptor(6L, 61L, 77L)),
+                new Specimen("control-118", descriptor(6L, 61L, 118L)),
+                new Specimen("stress-512", descriptor(6L, 61L, 512L)));
+
+        StringBuilder csv = new StringBuilder(
+                "specimen,islandKey,morphology,nodes,confluences,reaches,"
+                        + "maxRequiredLowering,meanRequiredLowering,maxWaterSlope,"
+                        + "meanUphillFraction,maxRidgeFraction,meanValleyAdvantage,"
+                        + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth\n");
+
+        for (Specimen specimen : specimens) {
+            SkyIslandGeomorphicChannelNetworkPlan geometry =
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(specimen.descriptor());
+            SkyIslandHydraulicChannelNetworkPlan hydraulics =
+                    SkyIslandHydraulicChannelNetworkPlanner.plan(specimen.descriptor());
+
+            double meanUphill = geometry.routes().stream()
+                    .mapToDouble(route -> route.route().uphillStepFraction())
+                    .average()
+                    .orElse(0.0);
+            double maxRidge = geometry.routes().stream()
+                    .mapToDouble(route -> route.route().ridgeSampleFraction())
+                    .max()
+                    .orElse(0.0);
+            double meanValley = geometry.routes().stream()
+                    .mapToDouble(route -> route.route().meanValleyFloorAdvantage())
+                    .average()
+                    .orElse(0.0);
+            double maxDeviation = geometry.routes().stream()
+                    .mapToDouble(route -> route.route().maxGuidanceDeviation())
+                    .max()
+                    .orElse(0.0);
+            double maxWidth = hydraulics.reaches().stream()
+                    .mapToDouble(SkyIslandHydraulicReachGeometry::maximumBankfullHalfWidth)
+                    .max()
+                    .orElse(0.0);
+            double maxDepth = hydraulics.reaches().stream()
+                    .mapToDouble(SkyIslandHydraulicReachGeometry::maximumWaterDepthPotential)
+                    .max()
+                    .orElse(0.0);
+
+            csv.append(specimen.name()).append(',')
+                    .append(specimen.descriptor().identity().islandKey()).append(',')
+                    .append(specimen.descriptor().morphologyFamily().identifier()).append(',')
+                    .append(geometry.nodes().size()).append(',')
+                    .append(geometry.count(SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE)).append(',')
+                    .append(geometry.routes().size()).append(',')
+                    .append(format(hydraulics.maximumRequiredLowering())).append(',')
+                    .append(format(hydraulics.meanRequiredLowering())).append(',')
+                    .append(format(hydraulics.maximumWaterSurfaceSlope())).append(',')
+                    .append(format(meanUphill)).append(',')
+                    .append(format(maxRidge)).append(',')
+                    .append(format(meanValley)).append(',')
+                    .append(format(maxDeviation)).append(',')
+                    .append(format(maxWidth)).append(',')
+                    .append(format(maxDepth)).append('\n');
+        }
+
+        Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("README.txt"), readme(), StandardCharsets.UTF_8);
+        System.out.println(out.resolve("manifest.csv").toAbsolutePath());
+    }
+
+    private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {
+        return SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, province, cluster, island));
+    }
+
+    private static String format(double value) {
+        return String.format(Locale.ROOT, "%.9f", value);
+    }
+
+    private static String readme() {
+        return """
+                Hydrology geomorphic diagnostics v1
+
+                This corpus records pre-carving route and hydraulic metrics for threshold calibration.
+                It is not an acceptance oracle. Do not infer pass/fail from one specimen or tune a
+                threshold merely to preserve the current corpus.
+
+                Metrics are intended to support the next #1084 qualification tranche, particularly
+                hard envelopes for ridge occupancy, required lowering, longitudinal grade, and later
+                lateral cross-section/excavation diagnostics.
+                """;
+    }
+
+    private record Specimen(String name, SkyIslandDescriptor descriptor) {}
+}
