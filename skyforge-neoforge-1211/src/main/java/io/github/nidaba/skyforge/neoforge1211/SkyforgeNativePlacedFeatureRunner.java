@@ -207,6 +207,12 @@ final class SkyforgeNativePlacedFeatureRunner {
                     // remains correct for explicit non-biome feature proofs such as SF-IMP-0053.
                     ? placedFeature.value().placeWithBiomeCheck(level, generator, random, origin)
                     : placedFeature.value().place(level, generator, random, origin);
+            var dr40TreePreFlushAttachments = dr40TreeTrace
+                    ? execution.execution().attachmentPositions()
+                    : java.util.List.<BlockPos>of();
+            long dr40TreePreFlushAttachmentDigest = dr40TreeTrace
+                    ? execution.execution().attachmentPositionDigest()
+                    : 0L;
             // Deferred population on finished chunks records the same native post-processing marks
             // as worldgen, then resolves them here before the exact-volume execution scope closes.
             // Direct worldgen never opens the bridge, so this is a no-op on the accepted path.
@@ -218,7 +224,16 @@ final class SkyforgeNativePlacedFeatureRunner {
                                 + operation.originChunk()
                                 + ", seed=" + Long.toUnsignedString(operation.seed())
                                 + ", preStateDigest=" + Long.toUnsignedString(dr40TreePreStateDigest, 16)
-                                + ", attachments="
+                                + ", preFlushAttachmentDigest="
+                                + Long.toUnsignedString(dr40TreePreFlushAttachmentDigest, 16)
+                                + ", preFlushAttachments="
+                                + dr40TreePreFlushAttachments.stream()
+                                        .map(position -> Long.toString(position.asLong()))
+                                        .toList()
+                                + ", postFlushAttachmentDigest="
+                                + Long.toUnsignedString(
+                                        execution.execution().attachmentPositionDigest(), 16)
+                                + ", postFlushAttachments="
                                 + execution.execution().attachmentPositions().stream()
                                         .map(position -> Long.toString(position.asLong()))
                                         .toList());
