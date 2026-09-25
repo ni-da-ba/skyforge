@@ -157,9 +157,6 @@ public final class SkyIslandContinuousWaterbodyPlanner {
 
         List<SkyIslandLocalPosition> crossings = shorelineCrossings(
                 positions, elevations, connected, width, height, waterSurface);
-        crossings.sort(Comparator
-                .comparingDouble(SkyIslandLocalPosition::x)
-                .thenComparingDouble(SkyIslandLocalPosition::z));
 
         return new SkyIslandContinuousWaterbodyBasin(
                 candidate,
