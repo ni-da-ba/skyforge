@@ -1,5 +1,15 @@
 # AUTH-0105 — Fluvial landform realization
 
+**Status:** MERGED / ACCEPTED historical milestone — PR #951, merge
+`450a557348066148b2d219e90aed6fde6fa98dfc`.
+
+> **2026-09-25 supersession note:** AUTH-0105 remains valid evidence that hydrology needs a continuous
+> channel/valley landform. The later H6 human review proved that its conservative route/footprint
+> preservation boundary is not sufficient to govern future hydrology work. Current next-work
+> authority is issue #1084 and `HYDROLOGY_RESET_2026-09-25.md`. Future work may refine/reroute
+> geometry within preserved semantic drainage authority rather than forcing every accepted coarse
+> planning artifact into physical terrain.
+
 ## Purpose
 
 DR-70 human review exposed a boundary in the first island-local hydrology tranche. Skyforge could

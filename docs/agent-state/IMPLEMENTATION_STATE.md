@@ -1,12 +1,32 @@
 # Skyforge Implementation lane state
 
 **Canonical lane:** IMPLEMENTATION  
-**Updated:** 2026-09-10
+**Updated:** 2026-09-25 (hydrology reset override; broader lane inventory below retains its historical milestone detail)
 **Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
 **Highest merged Implementation milestone:** **SF-IMP-0082**  
 **SF-IMP-0082 merge:** PR #273, `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
+
+## Current hydrology override — 2026-09-25
+
+DR-70 / #754 is blocked on the hydrology architecture reset in #1084. Do **not** reopen or extend the
+retired H6 PR stack.
+
+The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`). Its lifecycle, ownership, determinism, and diagnostic
+work remain reusable evidence, but its route/footprint-preservation plus backend-reconciliation
+strategy is not the active solution.
+
+Implementation must wait for the next Authorship continuous-solution contract, then act as a
+discretizer/realizer. Backend correction must be limited to ordinary voxel-quantization-scale
+differences; multi-block terrain surgery may not be used to rescue an upstream-invalid river or
+basin.
+
+Current authority:
+- `docs/authorship/HYDROLOGY_RESET_2026-09-25.md`;
+- issue #1084;
+- DR-70 product issue #754.
 
 ## MERGED / ACCEPTED
 

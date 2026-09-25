@@ -136,45 +136,71 @@ Do not use DR-65 to retune morphology, caves, ecology density, beauty, pacing, o
 
 Promotion: #756 closes with accepted canonical-instance hydrology authority on `main`; only then may #754 retry.
 
-## DR-70 — Post-platform human-review repair tranche
+## DR-70 — Hydrology architecture reset — CHANGES REQUIRED
 
-The original DR-60 repair tranche and subsequent hydrology-geomorphology work have already established machine-qualified canopy/fluid fixes and an actual visibly legible channel. The project-owner key-2885 review on #754 comment `5752994015` nevertheless returned **CHANGES REQUIRED / PRODUCT WORK DEFERRED**.
+The 2026-09-25 key-287 human review is now the authoritative DR-70 hydrology finding. It hard-failed
+after the H6 line reached green machine qualification. The earlier post-platform assumption that the
+remaining work was a bounded presentation/material repair is superseded.
 
-The accepted restart boundary after the pre-Bootstrap platform gate is therefore the later key-2885 finding, not a replay of the original DR-60 repair:
+Historical H6 work is frozen at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`). The retired PR chain must not be reopened or used as
+the next implementation base.
 
-- preserve the proven real channel geomorphology;
-- preserve the accepted tall-canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements;
-- resolve the unacceptable ocean-biome/presentation context for intended island hydrology using already-accepted world semantics;
-- improve the visible water realization and surrounding bank/substrate/material dressing so the channel reads coherently in-world;
-- qualify a deterministic representative review specimen large and legible enough to demonstrate the integrated system.
+The root failure is architectural/contractual rather than merely visual:
 
-The key-2885 specimen is evidence, not a sacred lock. A different deterministic specimen may be selected only when current accepted semantics naturally exercise the system better; do not fabricate hydrology merely to make a review image.
+- coarse watershed planning outputs were progressively promoted into exact route/footprint geometry;
+- accepted route evidence still contained material ridge-crossing pressure;
+- continuous channel geometry lacked sufficiently hard coupled slope/incision/width/excavation
+  constraints;
+- retained-water planform still inherited coarse-cell geometry;
+- backend reconciliation could make an incompatible intent physically feasible through substantial
+  terrain surgery;
+- machine gates proved topology/lifecycle correctness without proving geomorphic plausibility.
 
-Automated proof remains GitHub Actions-only. Reuse accepted expensive evidence wherever the changed dependency surface permits it. If existing Authorship/Content/Presentation semantics are insufficient to resolve the biome/presentation context or provide a representative specimen, stop at that precise dependency instead of inventing product policy in Implementation.
+Current design authority is issue #1084 and
+`docs/authorship/HYDROLOGY_RESET_2026-09-25.md`.
 
-Do not broadly retune morphology, caves, ecology density, pacing, final visual identity, structure architecture, or #488/#489.
+Required pipeline:
 
-Promotion: #754 reaches machine-green evidence for the post-platform material delta and registers a new qualified artifact ready for project-owner inspection.
+```
+coarse drainage/catchment semantics
+    -> continuous terrain-aware geomorphic/hydraulic solution
+    -> hard mathematical plausibility qualification
+    -> voxel discretization
+    -> human review
+```
 
-## DR-70 human re-review gate
+The 49x49 watershed remains valid semantic planning for catchment/discharge/drainage fate, but its
+intermediate route and retained-boundary cells are not automatically immutable physical coordinates.
 
-After the post-platform repair is machine-qualified, stop again and ask the project owner to verify specifically that:
+Before another Minecraft implementation tranche, the continuous solution contract must define and
+machine-gate at least ridge occupancy, longitudinal grade, lateral slope, incision-to-width,
+excavation volume, curvature/width compatibility, retained-basin/shoreline geometry, thalweg and
+junction continuity, and maximum required backend reconciliation.
 
-- the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation;
-- the water, channel banks/substrate, and surrounding material dressing read coherently;
-- the selected specimen is representative enough to demonstrate the integrated system;
-- the previously proven real channel geomorphology remains legible;
-- the accepted canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed.
+If those constraints cannot be met, refine/reroute within semantic authority, select an explicitly
+supported hidden-transfer/drop/retained fate, or fail closed. Do not excavate harder until the coarse
+path fits.
 
-Machines must not self-pass this re-review.
+### Next human gate
+
+Human review resumes only after the new continuous solution passes its objective geomorphic gates and
+Minecraft has discretized it without material rescue geometry.
+
+The review must still judge coherent-place read, natural river/lake morphology, visible relationship
+between water and surrounding terrain, intentional drops/cascades, absence of quarry/bathtub/grid
+artifacts, and overall Skyforge product quality. Machines must not self-pass this gate.
 
 ## Dispatch priority until DR-70 re-review
-1. blockers preventing the #754 canonical repair;
-2. cross-system defects directly caused/exposed by canopy-headroom or fluid/hydrology composition repair;
-3. deterministic evidence needed to qualify the repaired canonical specimen;
-4. cheap preparation for the second human review;
-5. unrelated work only when it does not consume scarce capacity needed by the repair;
+1. #1084 mathematical/authority contract for the continuous hydrology solution;
+2. backend-neutral continuous solver and objective geomorphic qualification required by that contract;
+3. minimal Minecraft discretization of an already-qualified solution;
+4. deterministic evidence needed for the next project-owner hydrology review;
+5. unrelated work only when it does not consume capacity needed by the reset;
 6. reserve work only when the primary path is genuinely blocked.
+
+Do not dispatch another H6-style local repair, material tweak, shoreline smoothing pass, or backend
+reconciliation expansion before items 1-2 are accepted.
 
 Do not dispatch low-priority AAL/computing, optional polish, speculative infrastructure, or unrelated capability expansion merely because Codex quota exists.
 
@@ -189,7 +215,7 @@ A worker discovering a human gate, missing authority, already-complete state, or
 Allowed convergence states: `LOCKED`, `READY`, `ACTIVE`, `VERIFYING`, `BLOCKED_AUTHORITY`, `BLOCKED_HUMAN`, `NO_CHANGE`, `ACCEPTED`. Only `ACCEPTED` promotes dependent milestones.
 
 ## Critical path
-`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW (CHANGES REQUIRED) -> DR-65 AUTH-0104 -> DR-70 -> HUMAN RE-REVIEW`
+`DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW (CHANGES REQUIRED) -> DR-65 AUTH-0104 -> DR-70 -> #1084 CONTINUOUS HYDROLOGY RESET -> HUMAN RE-REVIEW`
 
 Parallel work is permitted only when it does not corrupt this dependency model or disproportionately consume worker budget.
 

@@ -12,10 +12,13 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 | Legacy writer | **inactive + disabled**; retained for rollback/upgrade recovery |
 | Production execution | gate clear; driver running and idle; **0 active concurrency claims** |
 | Platform reliability pass | **complete through OPT-2Q live proof** |
-| Product gate | **DR-70 CHANGES REQUIRED / DEFERRED** |
+| Product gate | **DR-70 CHANGES REQUIRED — hydrology architecture reset #1084** |
 
 ## What matters now
 
+- **Hydrology is in an architecture reset, not an H6 patch loop.** Issue #1084 is the current design dependency for DR-70/#754.
+- The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); the old hydrology PR stack is closed unmerged and must not be extended.
+- New hydrology work must solve continuous terrain-aware river/basin geometry and pass hard geomorphic plausibility gates before Minecraft discretization. See `docs/authorship/HYDROLOGY_RESET_2026-09-25.md`.
 - There is **no pending Platform-v2 console action** from the reliability campaign.
 - Normal Skyforge development may resume under current lane/product authority.
 - The final forcing run ended correctly:
@@ -39,7 +42,7 @@ The reliability campaign is complete; do not extend it with additional adversari
 
 ## Product boundary
 
-DR-70 remains **CHANGES REQUIRED / DEFERRED**. Its migration hold was waived only for Platform-v2 migration/upgrade continuity. That waiver does not complete DR-70, satisfy its human review, or authorize unrelated milestone transitions.
+DR-70 remains **CHANGES REQUIRED**. The Sep-25 review supersedes the bounded H6 presentation-repair assumption: #1084 must establish the new continuous geomorphic/hydraulic contract before another implementation tranche. Platform acceptance does not complete DR-70 or weaken this human/product gate.
 
 ## Operator references
 

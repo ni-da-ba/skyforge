@@ -2,9 +2,9 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-20 (America/Chicago)
-**Main snapshot carrying latest accepted Authorship implementation:** `911939a8bba0062eca6c8c29b891fe9bc1a04f8f`
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0104**
+**Updated:** 2026-09-25 (America/Chicago)
+**Main snapshot carrying latest accepted Authorship implementation:** `450a557348066148b2d219e90aed6fde6fa98dfc`
+**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0105**
 
 Read first:
 
@@ -18,21 +18,43 @@ artifacts, and merged PR history.
 
 ## IN PROGRESS
 
-### AUTH-0105 — fluvial landform realization
+### Hydrology architecture reset — issue #1084
 
-Issue #950 / PR #951. DR-70 human review showed that accepted authored channels still reach Minecraft
-as narrow trenches rather than drainage-shaped terrain. AUTH-0105 adds a backend-neutral continuous
-channel/valley landform field over exact AUTH-0019 coherent hydrology and AUTH-0017 naturalized
-centerlines, plus a contained wet-corridor water-surface contract.
+The 2026-09-25 key-287 human review hard-failed after the H6 implementation line reached green machine
+qualification. The latest H6 state is frozen at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`) and the old hydrology PR stack is closed unmerged.
 
-The key human criterion is dry readability: with visible water hidden, the authored terrain must still
-read as a drainage landform. The evidence atlas includes the previous DR-70 specimen and deterministic
-hydrology controls so a stronger specimen may replace it if appropriate. Until #951 is accepted,
-AUTH-0086/AUTH-0104 remain the accepted Implementation authority.
+Current hydrology work must follow
+`docs/authorship/HYDROLOGY_RESET_2026-09-25.md`: coarse watershed/catchment outputs retain semantic
+drainage authority, but intermediate planning-grid route and retained-footprint cells are no longer
+automatically immutable physical geometry. The next accepted contract must define a continuous
+terrain-aware geomorphic/hydraulic solution plus hard plausibility gates before Minecraft
+discretization.
 
-Reference: `docs/authorship/AUTH-0105-fluvial-landform-realization.md`.
+Do not begin another Implementation repair stack until #1084's mathematical authority and acceptance
+metrics are explicit.
 
 ## MERGED / ACCEPTED
+
+### AUTH-0105 — fluvial landform realization — ACCEPTED / HISTORICAL BASIS
+
+Issue #950 / PR #951; accepted head `45c7e55b878dd56c4f01c8744564f4d33ef84311`; merge
+`450a557348066148b2d219e90aed6fde6fa98dfc`.
+
+AUTH-0105 correctly established that accepted drainage requires a continuous dry channel/valley
+landform and a contained authored water-surface contract rather than water painted into a local
+trench. It remains accepted and reusable.
+
+The Sep-25 H6 review subsequently proved that AUTH-0105's conservative preservation boundary is
+insufficient as the next-work authority: an exact accepted route/footprint can itself be
+geomorphically incompatible, and the downstream realization can satisfy existing tests by excessive
+terrain accommodation. Issue #1084 therefore supersedes/refines the route/footprint preservation
+rules for future hydrology work without erasing AUTH-0105's accepted historical result.
+
+References:
+- `docs/authorship/AUTH-0105-fluvial-landform-realization.md`
+- `docs/authorship/HYDROLOGY_RESET_2026-09-25.md`
+- `docs/audit/HYDROLOGY_H6_ARCHIVE_2026-09-25.md`
 
 ### AUTH-0104 — canonical coherent hydrology authorization
 
