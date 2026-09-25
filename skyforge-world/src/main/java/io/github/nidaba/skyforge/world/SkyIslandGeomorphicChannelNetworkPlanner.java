@@ -33,10 +33,18 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
 
     public static SkyIslandGeomorphicChannelNetworkPlan plan(SkyIslandDescriptor descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
-        SkyIslandSemanticChannelReachPlan semantics = SkyIslandSemanticChannelReachPlanner.plan(descriptor);
+        SkyIslandSemanticChannelReachPlan semantics =
+                Objects.requireNonNull(
+                        SkyIslandSemanticChannelReachPlanner.plan(descriptor),
+                        "semantic reach planner returned null");
         SkyIslandContinuousHydrologicTerrainField terrain =
-                SkyIslandContinuousHydrologicTerrainField.create(descriptor);
-        SkyIslandSemanticField interiority = SkyIslandSemanticFieldSet.create(descriptor).interiority();
+                Objects.requireNonNull(
+                        SkyIslandContinuousHydrologicTerrainField.create(descriptor),
+                        "continuous hydrologic terrain field returned null");
+        SkyIslandSemanticField interiority =
+                Objects.requireNonNull(
+                        SkyIslandSemanticFieldSet.create(descriptor).interiority(),
+                        "interiority field returned null");
         return plan(descriptor, semantics, terrain, interiority);
     }
 
@@ -100,14 +108,20 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 case CONFLUENCE -> CONFLUENCE_SEARCH_RADIUS_SPACING_FRACTION;
                 case TERMINAL -> TERMINAL_SEARCH_RADIUS_SPACING_FRACTION;
             };
-            SkyIslandGeomorphicNetworkNode selected = selectNode(
-                    cellIndex,
-                    kind,
-                    semanticCenters.get(cellIndex),
-                    radius,
-                    semantics.planningSpacing(),
-                    terrain,
-                    interiority);
+            SkyIslandLocalPosition semanticCenter =
+                    Objects.requireNonNull(
+                            semanticCenters.get(cellIndex),
+                            "missing semantic center for network node " + cellIndex);
+            SkyIslandGeomorphicNetworkNode selected = Objects.requireNonNull(
+                    selectNode(
+                            cellIndex,
+                            kind,
+                            semanticCenter,
+                            radius,
+                            semantics.planningSpacing(),
+                            terrain,
+                            interiority),
+                    "node selection returned null for network node " + cellIndex);
             nodes.add(selected);
             byId.put(cellIndex, selected);
         }
@@ -117,14 +131,17 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
         for (SkyIslandSemanticChannelReach reach : semantics.reaches()) {
             SkyIslandGeomorphicNetworkNode start = requireNode(byId, reach.startCellIndex());
             SkyIslandGeomorphicNetworkNode end = requireNode(byId, reach.endCellIndex());
-            SkyIslandGeomorphicCandidateRoute route = SkyIslandTerrainAwareRouteSolver.solve(
-                    terrain,
-                    interiority,
-                    reach.guidancePoints(),
-                    semantics.planningSpacing(),
-                    corridorHalfWidth,
-                    new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
-                    new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0));
+            SkyIslandGeomorphicCandidateRoute route = Objects.requireNonNull(
+                    SkyIslandTerrainAwareRouteSolver.solve(
+                            terrain,
+                            interiority,
+                            reach.guidancePoints(),
+                            semantics.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0)),
+                    "route solver returned null for semantic reach "
+                            + reach.startCellIndex() + "->" + reach.endCellIndex());
             if (!route.points().getFirst().equals(start.physicalPosition())
                     || !route.points().getLast().equals(end.physicalPosition())) {
                 throw new IllegalStateException("fine route did not preserve selected shared network anchors");
