@@ -103,9 +103,7 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
-          echo "--- basin-manifest.csv ---"
-          ./gradlew :skyforge-reference:run --args="build/evidence/hydrology-waterbody-diagnostics-v1" --no-configuration-cache >/dev/null 2>&1 || true
-          cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-v1/basin-manifest.csv || true
+
 
       - name: Dump focused failure report
         if: failure()
