@@ -52,10 +52,10 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                         + "maxRequiredLowering,meanRequiredLowering,maxWaterSlope,"
                         + "meanUphillFraction,maxRidgeFraction,meanValleyAdvantage,"
                         + "maxGuidanceDeviation,maxBankfullHalfWidth,maxWaterDepth,"
-                        + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
-                        + "maxDepthToBankfullWidth,maxReliefToValleyWidth,"
+                        + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,maxContainmentDeficitToDepth,"
+                        + "maxDepthToBankfullWidth,maxIncisionToBankfullWidth,maxReliefToValleyWidth,"
                         + "maxExcavationBurden,maxExcavationVolume,maxCurvatureWidthRatio,"
-                        + "maxLongitudinalGradeWorld\n");
+                        + "maxLongitudinalGradeWorld,maxRawUphillStepPotential\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandGeomorphicChannelNetworkPlan geometry =
@@ -99,8 +99,16 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumBankContainmentDeficitWorldUnits)
                     .max()
                     .orElse(0.0);
+            double maxContainmentToDepth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumContainmentDeficitToWaterDepthRatio)
+                    .max()
+                    .orElse(0.0);
             double maxDepthToWidth = geomorphicDiagnostics.stream()
                     .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumDepthToBankfullWidthRatio)
+                    .max()
+                    .orElse(0.0);
+            double maxIncisionToWidth = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumIncisionToBankfullWidthRatio)
                     .max()
                     .orElse(0.0);
             double maxReliefToValleyWidth = geomorphicDiagnostics.stream()
@@ -123,6 +131,10 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumLongitudinalGrade)
                     .max()
                     .orElse(0.0);
+            double maxRawUphillStep = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::maximumRawTerrainUphillStepPotential)
+                    .max()
+                    .orElse(0.0);
 
             csv.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
@@ -141,12 +153,15 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .append(format(maxDepth)).append(',')
                     .append(format(maxLateralRecoveryGrade)).append(',')
                     .append(format(maxContainmentDeficit)).append(',')
+                    .append(format(maxContainmentToDepth)).append(',')
                     .append(format(maxDepthToWidth)).append(',')
+                    .append(format(maxIncisionToWidth)).append(',')
                     .append(format(maxReliefToValleyWidth)).append(',')
                     .append(format(maxExcavationBurden)).append(',')
                     .append(format(maxExcavationVolume)).append(',')
                     .append(format(maxCurvatureWidthRatio)).append(',')
-                    .append(format(maxLongitudinalGradeWorld)).append('\n');
+                    .append(format(maxLongitudinalGradeWorld)).append(',')
+                    .append(format(maxRawUphillStep)).append('\n');
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
