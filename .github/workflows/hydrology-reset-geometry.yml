@@ -7,6 +7,10 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C1.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterline.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterlinePlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterlinePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachGeometry.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicChannelNetworkPlan.java"
@@ -57,6 +61,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             --no-configuration-cache
 

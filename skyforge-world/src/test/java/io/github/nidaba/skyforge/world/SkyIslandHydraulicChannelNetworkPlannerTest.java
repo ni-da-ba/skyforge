@@ -50,6 +50,28 @@ class SkyIslandHydraulicChannelNetworkPlannerTest {
     }
 
     @Test
+    void hydraulicSamplesFollowContinuousCenterlineAndPreserveSharedEndpoints() {
+        SkyIslandHydraulicChannelNetworkPlan plan =
+                SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor(287L));
+        for (SkyIslandHydraulicReachGeometry reach : plan.reaches()) {
+            assertEquals(
+                    reach.centerline().points().size(),
+                    reach.samples().size());
+            for (int i = 0; i < reach.samples().size(); i++) {
+                assertEquals(
+                        reach.centerline().points().get(i),
+                        reach.samples().get(i).position());
+            }
+            assertEquals(
+                    reach.geomorphicRoute().route().points().getFirst(),
+                    reach.centerline().points().getFirst());
+            assertEquals(
+                    reach.geomorphicRoute().route().points().getLast(),
+                    reach.centerline().points().getLast());
+        }
+    }
+
+    @Test
     void dischargeScaledHydraulicGeometryIsMonotone() {
         double radius = 100.0;
         double previousWidth = 0.0;
