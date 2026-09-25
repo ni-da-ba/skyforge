@@ -17,6 +17,9 @@ import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 
 /** Executes one registered native placed feature inside one exact Skyforge terrain domain. */
 final class SkyforgeNativePlacedFeatureRunner {
+    private static final System.Logger LOGGER =
+            System.getLogger(SkyforgeNativePlacedFeatureRunner.class.getName());
+
     private SkyforgeNativePlacedFeatureRunner() {}
 
     static Result place(
