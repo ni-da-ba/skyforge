@@ -106,12 +106,12 @@ final class SkyforgePopulationAttachmentEnvelope {
      */
     long attachmentPositionDigest() {
         long digest = 0xcbf29ce484222325L;
-        var entries = attachmentDepths.entrySet().stream()
-                .sorted(java.util.Comparator.comparingLong(entry -> entry.getKey().asLong()))
+        var positions = attachmentDepths.keySet().stream()
+                .map(BlockPos::asLong)
+                .sorted()
                 .toList();
-        for (var entry : entries) {
-            digest = mix(digest, entry.getKey().asLong());
-            digest = mix(digest, entry.getValue());
+        for (long position : positions) {
+            digest = mix(digest, position);
         }
         return digest;
     }
