@@ -44,8 +44,8 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
         Objects.requireNonNull(descriptor, "descriptor");
         SkyIslandGeomorphicChannelNetworkPlan network =
                 SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
-        SkyIslandContinuousHydrologicTerrainField terrain =
-                SkyIslandContinuousHydrologicTerrainField.create(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
         return plan(descriptor, network, terrain);
     }
 
