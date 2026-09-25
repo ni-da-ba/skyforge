@@ -1,6 +1,6 @@
 # Hydrology reset tranche D2 — hard geomorphic qualification
 
-**Status:** policy mechanism implemented; calibrated default pending post-C1 reach corpus  
+**Status:** first post-C1 evidence-backed envelope frozen  
 **Depends on:** post-C1 D1 diagnostics  
 **Terrain mutation:** forbidden  
 **Minecraft changes:** none
@@ -40,10 +40,8 @@ looser acceptance class.
 
 ## Calibration rule
 
-The code intentionally has **no production default envelope yet**.
-
-The first default may be frozen only after the post-C1 D1 `reach-manifest.csv` is reviewed. The
-chosen bounds must satisfy:
+The first envelope was frozen only after reviewing the post-C1 D1 `reach-manifest.csv`.
+The chosen bounds satisfy:
 
 1. each limit corresponds to a named physical failure mode;
 2. the unit/normalization is explicit;
@@ -53,6 +51,22 @@ chosen bounds must satisfy:
 
 Existing specimens are allowed to fail. In particular, a candidate with extreme excavation demand
 must fail closed rather than force a rewrite of the threshold.
+
+### First envelope
+
+| class | lowering | lateral grade | containment | depth/width | relief/valley | excavation burden | curvature×width | ridge fraction | longitudinal grade |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Alluvial | 0.050 | 0.75 | 1.0 | 0.35 | 0.35 | 0.040 | 3.0 | 0.15 | 0.50 |
+| Incised* | 0.080 | 1.50 | 2.0 | 0.45 | 0.75 | 0.050 | 3.5 | 0.25 | 1.50 |
+| Cascade | 0.050 | 2.00 | 2.0 | 0.35 | 1.00 | 0.050 | 3.0 | 0.40 | 3.50 |
+| Mixed | 0.080 | 2.00 | 3.0 | 0.35 | 0.80 | 0.040 | 4.0 | 0.35 | 3.25 |
+
+`* Incised` is a conservative interpolation because the first fixed corpus contains no dedicated
+pure-incised control. A dedicated incised specimen must be added before final production freeze.
+
+Absolute excavation volume remains evidence only. It scales with reach length and island scale, so a
+single world-unit volume ceiling would be a false universal constraint; normalized excavation burden
+is the hard gate in this tranche.
 
 ## Failure behavior
 
