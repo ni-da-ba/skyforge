@@ -70,6 +70,54 @@ class SkyIslandContinuousChannelCenterlinePlannerTest {
         }
     }
 
+
+    @Test
+    void widthAwareRefinementReducesCurvatureSeverityWithoutLeavingSearchTube() {
+        SkyIslandGeomorphicCandidateRoute route = stairRoute();
+        SkyIslandSemanticField terrain = ignored -> 0.55;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+
+        SkyIslandContinuousChannelCenterline baseline =
+                SkyIslandContinuousChannelCenterlinePlanner.refine(
+                        route, terrain, interiority, 4.0);
+        double bankfullWidth = 4.0;
+        SkyIslandContinuousChannelCenterline widthAware =
+                SkyIslandContinuousChannelCenterlinePlanner.refine(
+                        route, terrain, interiority, 4.0, bankfullWidth);
+
+        assertTrue(maximumCurvature(widthAware.points())
+                <= maximumCurvature(baseline.points()) + EPSILON);
+        assertTrue(
+                widthAware.maximumSearchPathDeviation()
+                        <= 4.0
+                                * SkyIslandContinuousChannelCenterlinePlanner
+                                        .MAXIMUM_DEVIATION_SPACING_FRACTION
+                                + EPSILON);
+        assertEquals(route.points().getFirst(), widthAware.points().getFirst());
+        assertEquals(route.points().getLast(), widthAware.points().getLast());
+    }
+
+    private static double maximumCurvature(List<SkyIslandLocalPosition> points) {
+        double maximum = 0.0;
+        for (int i = 1; i < points.size() - 1; i++) {
+            SkyIslandLocalPosition a = points.get(i - 1);
+            SkyIslandLocalPosition b = points.get(i);
+            SkyIslandLocalPosition d = points.get(i + 1);
+            double ax = b.x() - a.x();
+            double az = b.z() - a.z();
+            double bx = d.x() - b.x();
+            double bz = d.z() - b.z();
+            double al = Math.hypot(ax, az);
+            double bl = Math.hypot(bx, bz);
+            if (al <= EPSILON || bl <= EPSILON) {
+                continue;
+            }
+            double cosine = Math.max(-1.0, Math.min(1.0, (ax * bx + az * bz) / (al * bl)));
+            maximum = Math.max(maximum, Math.acos(cosine) / (0.5 * (al + bl)));
+        }
+        return maximum;
+    }
+
     private static SkyIslandGeomorphicCandidateRoute stairRoute() {
         List<SkyIslandLocalPosition> points =
                 List.of(
