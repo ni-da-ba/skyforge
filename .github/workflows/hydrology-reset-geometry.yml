@@ -108,6 +108,9 @@ jobs:
       - name: Print hydrology diagnostic calibration manifests
         if: success()
         run: |
+          if [ ! -f skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
