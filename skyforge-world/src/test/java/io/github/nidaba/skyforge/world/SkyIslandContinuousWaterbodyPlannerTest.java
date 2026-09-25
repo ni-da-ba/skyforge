@@ -39,18 +39,66 @@ class SkyIslandContinuousWaterbodyPlannerTest {
     }
 
     @Test
-    void retainedControlProducesFineTerrainDerivedShorelineCrossings() {
-        SkyIslandContinuousWaterbodyPlan plan =
-                SkyIslandContinuousWaterbodyPlanner.plan(descriptor(83L));
-        assertFalse(plan.basins().isEmpty(), "retained-water control should exercise open water");
+    void syntheticOpenWaterBasinProducesFineTerrainDerivedShorelineCrossings() {
+        SkyIslandDescriptor descriptor = descriptor(83L);
+        int gridSize = 5;
+        double coarseSpacing = 4.0;
+        int sinkIndex = 12;
+        SkyIslandLocalPosition anchor = new SkyIslandLocalPosition(0.0, 0.0);
+        SkyIslandWatershedCell sink = new SkyIslandWatershedCell(
+                sinkIndex,
+                anchor,
+                0.20,
+                0.60,
+                0.40,
+                0.10,
+                1.0,
+                -1,
+                true,
+                false);
+        SkyIslandWatershedPlan watershed = new SkyIslandWatershedPlan(
+                descriptor,
+                gridSize,
+                coarseSpacing,
+                java.util.List.of(sink),
+                1.0);
+        java.util.Map<Integer, SkyIslandWatershedCell> cells =
+                java.util.Map.of(sinkIndex, sink);
+        SkyIslandWaterbodyCandidate candidate = new SkyIslandWaterbodyCandidate(
+                SkyIslandWaterbodyKind.LAKE,
+                sinkIndex,
+                anchor,
+                1,
+                0.10,
+                0.80,
+                0.90,
+                0.90,
+                1.0,
+                0.75);
+        SkyIslandSemanticField bowl = position -> {
+            double radiusSquared =
+                    position.x() * position.x() + position.z() * position.z();
+            return Math.min(1.0, 0.20 + 0.010 * radiusSquared);
+        };
+        SkyIslandSemanticField interiority = ignored -> 1.0;
 
-        SkyIslandContinuousWaterbodyBasin basin = plan.basins().getFirst();
+        SkyIslandContinuousWaterbodyBasin basin =
+                SkyIslandContinuousWaterbodyPlanner.solve(
+                        descriptor,
+                        candidate,
+                        watershed,
+                        cells,
+                        bowl,
+                        interiority);
+
         assertFalse(
                 basin.shorelineCrossings().isEmpty(),
                 "continuous open-water basin should expose interpolated contour crossings");
-
-        double coarseSpacing = SkyIslandWatershedPlanner.plan(descriptor(83L)).spacing();
         assertTrue(basin.sampleSpacing() < coarseSpacing);
+        assertFalse(
+                basin.reachesSearchBoundary(),
+                "closed synthetic bowl should be contained inside the padded semantic search region");
+        assertTrue(basin.maximumDepthPotential() > 0.0);
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
