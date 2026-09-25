@@ -53,11 +53,6 @@ public final class SkyIslandGeomorphicQualificationEvaluator {
                 SkyIslandGeomorphicQualificationViolation.EXCAVATION_BURDEN,
                 violations);
         addIfGreater(
-                diagnostics.excavationVolumeProxyWorldUnitsCubed(),
-                limits.maximumExcavationVolumeWorldUnitsCubed(),
-                SkyIslandGeomorphicQualificationViolation.EXCAVATION_VOLUME,
-                violations);
-        addIfGreater(
                 diagnostics.maximumCurvatureWidthRatio(),
                 limits.maximumCurvatureWidthRatio(),
                 SkyIslandGeomorphicQualificationViolation.CURVATURE_TO_WIDTH,
