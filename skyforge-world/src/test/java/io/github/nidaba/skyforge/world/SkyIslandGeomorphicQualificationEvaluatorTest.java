@@ -32,7 +32,7 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                         100.0);
         SkyIslandGeomorphicQualificationPolicy policy =
                 new SkyIslandGeomorphicQualificationPolicy(
-                        permissive, permissive, permissive);
+                        permissive, permissive, permissive, permissive);
 
         for (SkyIslandGeomorphicReachDiagnostics diagnostic : diagnostics) {
             SkyIslandGeomorphicReachQualification result =
@@ -64,7 +64,7 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                         100.0);
         SkyIslandGeomorphicQualificationPolicy policy =
                 new SkyIslandGeomorphicQualificationPolicy(
-                        tightLowering, tightLowering, tightLowering);
+                        tightLowering, tightLowering, tightLowering, tightLowering);
 
         SkyIslandGeomorphicReachQualification result =
                 SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy);
