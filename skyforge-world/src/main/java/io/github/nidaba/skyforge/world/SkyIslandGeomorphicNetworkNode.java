@@ -28,7 +28,10 @@ public record SkyIslandGeomorphicNetworkNode(
         if (!Double.isFinite(valleyFloorAdvantage)) {
             throw new IllegalArgumentException("valleyFloorAdvantage must be finite");
         }
-        if (displacement() > searchRadius + 1.0e-10) {
+        double constructorDisplacement = Math.hypot(
+                physicalPosition.x() - semanticCenter.x(),
+                physicalPosition.z() - semanticCenter.z());
+        if (constructorDisplacement > searchRadius + 1.0e-10) {
             throw new IllegalArgumentException("physical network node lies outside its semantic search region");
         }
     }
