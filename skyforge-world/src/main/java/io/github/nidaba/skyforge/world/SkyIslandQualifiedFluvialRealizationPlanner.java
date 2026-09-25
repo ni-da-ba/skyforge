@@ -31,8 +31,6 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
         List<SkyIslandGeomorphicReachDiagnostics> diagnostics =
                 SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor, hydraulic, original);
 
-        List<SkyIslandGeomorphicReachQualification> realizedQualifications =
-                new ArrayList<>();
         List<SkyIslandQualifiedFluvialDeferral> deferredQualifications =
                 new ArrayList<>();
         List<SkyIslandGeomorphicReachQualification> rejectedQualifications =
@@ -57,7 +55,6 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 continue;
             }
 
-            realizedQualifications.add(qualification);
             realizedReaches.add(diagnostic.hydraulicReach());
         }
 
@@ -65,6 +62,8 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 new SkyIslandQualifiedFluvialTerrainField(original, realizedReaches);
 
         // Necessary-but-not-sufficient prequalification is followed by realized-field requalification.
+        // Only the post-realization qualification is published as terrain authority.
+        List<SkyIslandGeomorphicReachQualification> realizedQualifications = new ArrayList<>();
         List<SkyIslandGeomorphicReachDiagnostics> realizedDiagnostics =
                 SkyIslandGeomorphicReachDiagnosticsPlanner.measure(
                         descriptor, hydraulic, realized);
@@ -79,6 +78,11 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                         "realized reach violates D2 after continuous cross-section realization: "
                                 + realizedQualification.violations());
             }
+            realizedQualifications.add(realizedQualification);
+        }
+        if (realizedQualifications.size() != realizedReaches.size()) {
+            throw new IllegalStateException(
+                    "every terrain-authorized reach must publish one post-realization qualification");
         }
 
         return new SkyIslandQualifiedFluvialRealizationPlan(
