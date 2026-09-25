@@ -26,7 +26,6 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                         100.0,
                         100.0,
                         1.0,
-                        1.0e12,
                         100.0,
                         1.0,
                         100.0);
@@ -58,7 +57,6 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                         100.0,
                         100.0,
                         1.0,
-                        1.0e12,
                         100.0,
                         1.0,
                         100.0);
@@ -73,8 +71,52 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                 SkyIslandGeomorphicQualificationViolation.CENTERLINE_LOWERING));
     }
 
+
+    @Test
+    void firstEvidenceBackedEnvelopeSeparatesLowSurgeryControlsFromPrimaryFailure() {
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+
+        assertAllAccepted(descriptor(6L, 61L, 118L), policy);
+        assertAllAccepted(descriptor(6L, 61L, 512L), policy);
+
+        List<SkyIslandGeomorphicReachQualification> primary =
+                SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor(8L, 81L, 287L)).stream()
+                        .map(diagnostic ->
+                                SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy))
+                        .toList();
+        assertTrue(primary.stream().anyMatch(result -> !result.accepted()));
+        assertTrue(primary.stream()
+                .flatMap(result -> result.violations().stream())
+                .anyMatch(violation ->
+                        violation == SkyIslandGeomorphicQualificationViolation.CENTERLINE_LOWERING
+                                || violation == SkyIslandGeomorphicQualificationViolation.EXCAVATION_BURDEN
+                                || violation == SkyIslandGeomorphicQualificationViolation.LATERAL_RECOVERY_GRADE));
+    }
+
+    private static void assertAllAccepted(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicQualificationPolicy policy) {
+        List<SkyIslandGeomorphicReachQualification> results =
+                SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor).stream()
+                        .map(diagnostic ->
+                                SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy))
+                        .toList();
+        assertFalse(results.isEmpty());
+        assertTrue(results.stream().allMatch(SkyIslandGeomorphicReachQualification::accepted),
+                () -> results.stream()
+                        .filter(result -> !result.accepted())
+                        .map(result -> result.violations().toString())
+                        .toList()
+                        .toString());
+    }
+
     private static SkyIslandDescriptor descriptor(long key) {
+        return descriptor(8L, 81L, key);
+    }
+
+    private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
         return SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(SEED, 8L, 81L, key));
+                SkyIslandIdentity.of(SEED, province, cluster, key));
     }
 }
