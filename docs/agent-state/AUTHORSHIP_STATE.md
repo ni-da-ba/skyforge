@@ -18,21 +18,37 @@ artifacts, and merged PR history.
 
 ## IN PROGRESS
 
-### Hydrology architecture reset — issue #1084
+### Hydrology architecture reset — issue #1084 — active reset line through F1
 
-The 2026-09-25 key-287 human review hard-failed after the H6 implementation line reached green machine
-qualification. The latest H6 state is frozen at `archive/hydrology-h6-2026-09-25`
-(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`) and the old hydrology PR stack is closed unmerged.
+The 2026-09-25 key-287 H6 human review remains the superseding product failure. Historical H6 is
+frozen at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`) and must not be extended.
 
-Current hydrology work must follow
-`docs/authorship/HYDROLOGY_RESET_2026-09-25.md`: coarse watershed/catchment outputs retain semantic
-drainage authority, but intermediate planning-grid route and retained-footprint cells are no longer
-automatically immutable physical geometry. The next accepted contract must define a continuous
-terrain-aware geomorphic/hydraulic solution plus hard plausibility gates before Minecraft
-discretization.
+The active hydrology authority is
+`docs/authorship/HYDROLOGY_RESET_2026-09-25.md` and its accepted reset tranches:
 
-Do not begin another Implementation repair stack until #1084's mathematical authority and acceptance
-metrics are explicit.
+- A/B/C/C1: semantic reaches, shared network geometry, hydraulic geometry, bounded continuous
+  centerlines;
+- D0/D1/D2: objective geomorphic diagnostics and hard pre-authoring river qualification;
+- E0/E1/E2: continuous retained-basin candidates, basin diagnostics, and a fail-closed basin
+  qualification mechanism;
+- F0: strict qualified-realization authority; unresolved transitions/overlaps cannot be repaired by
+  local priority or backend excavation;
+- F1 / PR #1128: first fail-closed terrain-mutating fluvial realization. Only D2-accepted ordinary
+  reaches receive terrain authority; D2-rejected reaches and unresolved confluence/cascade cases
+  contribute zero delta. Unrelated reach-envelope overlap fails closed rather than inventing a
+  priority rule.
+
+Retained-basin terrain authority is still blocked because the deterministic corpus does not yet
+support frozen production POND/LAKE limits. Confluences, drops/cascades, and river/basin junctions
+still require explicit coupled transition mathematics before terrain authority.
+
+F2 / PR #1131 is the active design follow-on for global constrained longitudinal profiles and
+transition boundary ownership. Any change to the profile solver must regenerate the affected
+D0/D1/E1 evidence and re-evaluate D2/E2 rather than inheriting stale thresholds.
+
+Minecraft remains downstream of the qualified continuous solution. No reset work may restore H6-style
+multi-block rescue excavation, coarse planning-cell physical authority, or backend rerouting.
 
 ## MERGED / ACCEPTED
 
