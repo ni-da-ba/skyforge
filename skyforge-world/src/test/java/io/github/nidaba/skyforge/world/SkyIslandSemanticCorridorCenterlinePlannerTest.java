@@ -55,9 +55,9 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
                         route, guidance, terrain, interiority, 4.0, 3.0, 4.0);
 
         for (SkyIslandLocalPosition point : result.points()) {
-            SkyIslandLocalPosition seedNearest = nearestPoint(point, route.points());
+            SkyIslandLocalPosition seedProjection = projectToPolyline(point, route.points());
             assertTrue(
-                    terrain.sample(point) - terrain.sample(seedNearest)
+                    terrain.sample(point) - terrain.sample(seedProjection)
                             <= SkyIslandSemanticCorridorCenterlinePlanner
                                             .MAXIMUM_TERRAIN_RISE_FROM_SEED
                                     + 0.01,
@@ -65,15 +65,31 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
         }
     }
 
-    private static SkyIslandLocalPosition nearestPoint(
+    private static SkyIslandLocalPosition projectToPolyline(
             SkyIslandLocalPosition point,
-            List<SkyIslandLocalPosition> candidates) {
-        SkyIslandLocalPosition best = candidates.getFirst();
+            List<SkyIslandLocalPosition> polyline) {
+        SkyIslandLocalPosition best = polyline.getFirst();
         double bestDistance = Double.POSITIVE_INFINITY;
-        for (SkyIslandLocalPosition candidate : candidates) {
-            double distance = Math.hypot(point.x() - candidate.x(), point.z() - candidate.z());
+        for (int i = 1; i < polyline.size(); i++) {
+            SkyIslandLocalPosition a = polyline.get(i - 1);
+            SkyIslandLocalPosition b = polyline.get(i);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            double t = lengthSquared <= EPSILON
+                    ? 0.0
+                    : Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    ((point.x() - a.x()) * dx + (point.z() - a.z()) * dz)
+                                            / lengthSquared));
+            SkyIslandLocalPosition projected =
+                    new SkyIslandLocalPosition(a.x() + t * dx, a.z() + t * dz);
+            double distance =
+                    Math.hypot(point.x() - projected.x(), point.z() - projected.z());
             if (distance < bestDistance) {
-                best = candidate;
+                best = projected;
                 bestDistance = distance;
             }
         }
