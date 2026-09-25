@@ -93,17 +93,15 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
     }
 
     private static SkyIslandContinuousWaterbodyDiagnostics closedBaseline() {
-        for (long key : new long[] {83L, 287L, 512L}) {
-            SkyIslandDescriptor descriptor = descriptor(key);
-            for (SkyIslandContinuousWaterbodyDiagnostics diagnostics :
-                    SkyIslandContinuousWaterbodyDiagnosticsPlanner.measure(descriptor)) {
-                if (!diagnostics.reachesSearchBoundary()
-                        && diagnostics.shorelineCrossingCount() > 0) {
-                    return diagnostics;
-                }
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 609L);
+        for (SkyIslandContinuousWaterbodyDiagnostics diagnostics :
+                SkyIslandContinuousWaterbodyDiagnosticsPlanner.measure(descriptor)) {
+            if (!diagnostics.reachesSearchBoundary()
+                    && diagnostics.shorelineCrossingCount() > 0) {
+                return diagnostics;
             }
         }
-        throw new AssertionError("fixed E1 corpus must contain a closed retained basin");
+        throw new AssertionError("fixed E1 lake-609 specimen must contain a closed retained basin");
     }
 
     private static SkyIslandContinuousWaterbodyDiagnostics copy(
@@ -125,8 +123,8 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
                 shorelineCrossingCount);
     }
 
-    private static SkyIslandDescriptor descriptor(long key) {
+    private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
         return SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(SEED, 6L, 61L, key));
+                SkyIslandIdentity.of(SEED, province, cluster, key));
     }
 }
