@@ -24,6 +24,12 @@ candidate corridor
 A rejected reach is not excavated. It must be rerouted/refined, assigned an explicit alternate
 hydrologic fate, or rejected upstream.
 
+## Qualification substrate
+
+Qualification is measured against `SkyIslandPreHydrologicTerrainField`. Legacy coarse hydrologic
+terrain adjustments are excluded from both route plausibility and excavation accounting. This keeps
+the reset from receiving credit for valleys or basin shaping created by the retired architecture.
+
 ## Continuous centerline
 
 The fine-lattice least-cost route from Tranches A-B is a search result, not literal river geometry.
