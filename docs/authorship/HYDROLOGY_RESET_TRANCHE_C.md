@@ -20,6 +20,13 @@ This tranche computes:
 
 It does not apply that lowering.
 
+## Terrain authority
+
+Hydraulic candidate targets are evaluated against `SkyIslandPreHydrologicTerrainField`, not the
+legacy AUTH-0016 hydrologically adjusted terrain. Thus required lowering measures what the new river
+would need to do to the underlying authored terrain rather than measuring against terrain already
+incised by the retired system.
+
 ## Hydraulic geometry
 
 Skyforge uses the standard hydraulic-geometry family
