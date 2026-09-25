@@ -91,7 +91,7 @@ final class SkyforgeDr40EcologyAuthorityTest {
                 0x5678L);
         var grassB = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
                 ResourceLocation.fromNamespaceAndPath("minecraft", "patch_grass_plain"),
-                false,
+                true,
                 9,
                 0x9999L);
         var treeB = new SkyforgeNativeBiomePopulationRunner.FeatureResult(
@@ -114,7 +114,7 @@ final class SkyforgeDr40EcologyAuthorityTest {
                 Biomes.PLAINS,
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 2,
-                1,
+                2,
                 380,
                 List.of(grassB, treeB),
                 lakeEvidence);
@@ -138,7 +138,7 @@ final class SkyforgeDr40EcologyAuthorityTest {
         assertEquals(
                 SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseA)),
                 SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseB)),
-                "native placed/attachment outcomes are diagnostic, not authored-plan identity");
+                "native attachment/block-footprint outcomes are diagnostic, not authored-plan identity");
         assertNotEquals(
                 SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseA)),
                 SkyforgeDr40ProductionEcologyEvidence.populationPlanDigest(List.of(phaseReordered)),
