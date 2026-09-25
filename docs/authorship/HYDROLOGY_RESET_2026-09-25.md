@@ -188,3 +188,25 @@ AUTH-0105 remains a merged and useful historical milestone: it established that 
 Its preservation boundary was intentionally conservative. The Sep-25 review demonstrates that this boundary is insufficient for future work because exact accepted route/footprint geometry can itself be the source of physical implausibility.
 
 Therefore #1084 may supersede/refine AUTH-0105 route/footprint preservation rules while preserving the useful landform vocabulary and evidence.
+
+
+## Determinism scope
+
+Determinism is strict for Skyforge-authored causes and materially player-relevant persistent
+consequences, including:
+
+- semantic drainage topology and fate;
+- source/confluence/terminal identity;
+- continuous route and basin geometry;
+- hydraulic datums, bed/free-surface profiles, width/depth parameters;
+- geomorphic qualification metrics and accept/reject decisions;
+- authored ownership/material boundaries where they affect structure, persistence, connectivity,
+  traversability, or gameplay.
+
+Minecraft-native or mod-native ecological/decorative fleshing may retain bounded nondeterminism when
+that variation does not materially alter those authored contracts. A byte-for-byte population digest
+mismatch in native decoration is therefore diagnostic evidence, not automatically a hydrology
+architecture failure.
+
+This distinction preserves reproducible Skyforge causes without requiring every downstream native
+decorative consequence to hash identically.
