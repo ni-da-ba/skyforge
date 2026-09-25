@@ -11,6 +11,7 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicQualificationViolation.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicQualificationClass.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicProfileLimits.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicQualificationPolicy.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachQualification.java"
