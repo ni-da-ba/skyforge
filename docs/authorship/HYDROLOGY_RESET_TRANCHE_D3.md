@@ -45,3 +45,36 @@ Otherwise the retry must target route/node geometry instead.
 ## Critical invariant
 
 D3 changes no route, profile, hydraulic datum, qualification result, terrain, or backend behavior.
+
+
+## Fixed-corpus result after C2
+
+The clean C2-based diagnostic corpus materially supports explicit drop ownership for the primary
+key-287 mixed reach:
+
+```text
+profiles                    = 33
+profile transitions         = 6
+cascade profiles            = 10
+net authored drop           = 0.800350105
+accumulated downhill drop   = 1.648662414
+cascade-owned downhill drop = 1.382973349
+cascade share               = 0.838845683
+maximum single drop         = 0.224431487
+```
+
+Thus approximately 83.88% of accumulated downhill drop is already associated with authored CASCADE
+segments. This is materially different from a mixed reach whose pressure is distributed across
+ordinary profiles.
+
+The evidence authorizes the **next mathematical experiment**, not terrain mutation: partition the
+hydraulic boundary-value problem at authored cascade/drop transitions, give those transitions
+explicit discontinuity ownership, and require every intervening ordinary subreach to independently
+satisfy the bounded longitudinal solve and D2. If those ordinary subreaches remain infeasible, the
+remaining failure belongs to route/node refinement or fail-closed rejection; the drop classification
+must not be used to excuse unrelated excavation, lateral-recovery, containment, or ridge failures.
+
+The control corpus also shows that cascade share alone is not an acceptance criterion. Some short
+control reaches carry roughly 61% of downhill drop in one cascade segment, while non-cascade controls
+carry zero. D3 therefore remains diagnostic evidence tied to semantic profile structure rather than a
+global numeric threshold.
