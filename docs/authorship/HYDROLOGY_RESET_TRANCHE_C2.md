@@ -56,3 +56,29 @@ C2 is successful only if the exact D2 corpus shows a reduction in `CURVATURE_TO_
 without introducing worse incision, containment, excavation, or route-authority failures.
 
 No terrain authoring is introduced here.
+
+
+## Acceptance evidence — clean recomposition
+
+The clean current-main recomposition regenerated the fixed D0/D1/E1 evidence rather than inheriting
+the historical C1 measurements.
+
+Observed effects relative to the accepted pre-C2 baseline include:
+
+- primary key 287 maximum curvature/width: `2.978210865 -> 0.712365800`;
+- control 118 reaches: `1.948486972 -> 0.827850854`,
+  `2.491238567 -> 0.798181144`, and `3.240775433 -> 0.898892625`;
+- stress 512 mixed/alluvial curved reaches likewise fall below approximately `0.90` where C1 had
+  values above `2.4`.
+
+The first-evidence-backed D2 acceptance controls remain accepted; primary key 287 remains rejected.
+C2 therefore does not manufacture success by weakening D2.
+
+Some already-rejected reaches change secondary diagnostics because the physical centerline and path
+length have changed. In particular, control-77 reach 1140->897 increases maximum longitudinal grade
+from approximately `2.696` to `3.527` while also remaining independently rejected by existing
+lowering/lateral/containment pressure. This is retained as evidence, not tuned away.
+
+Accordingly, C2 changes the diagnostic basis. Later longitudinal-profile work must regenerate D0/D1
+and re-evaluate D2, exactly as required by the reset authority. The F2 global constrained profile
+solve must not assume C1-era hydraulic diagnostics are current.
