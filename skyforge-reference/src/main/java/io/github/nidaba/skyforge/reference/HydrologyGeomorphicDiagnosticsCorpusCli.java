@@ -40,6 +40,7 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
 
         List<Specimen> specimens = List.of(
                 new Specimen("primary-287", descriptor(8L, 81L, 287L)),
+                new Specimen("control-241", descriptor(8L, 81L, 241L)),
                 new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
                 new Specimen("legacy-control-649", descriptor(8L, 81L, 649L)),
                 new Specimen("stress-811", descriptor(8L, 81L, 811L)),
