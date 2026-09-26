@@ -36,6 +36,31 @@ class SkyIslandHydraulicNetworkAssemblyPlannerTest {
     }
 
     @Test
+    void ordinary77ContainsTwoFullyQualifiedEdgeOutletComponents() {
+        SkyIslandHydraulicNetworkAssemblyPlan plan =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(
+                        descriptor(8L, 81L, 77L));
+
+        assertEquals(
+                java.util.List.of(559, 1842),
+                plan.terminalComponents().stream()
+                        .filter(component ->
+                                component.status()
+                                        == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
+                        .map(component ->
+                                component.terminalFate().channelTerminalCellIndex())
+                        .sorted()
+                        .toList());
+        assertTrue(plan.terminalComponents().stream()
+                .filter(component ->
+                        component.status()
+                                == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
+                .allMatch(component ->
+                        component.terminalFate().kind()
+                                == SkyIslandChannelTerminalFateKind.EDGE_OUTLET));
+    }
+
+    @Test
     void confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve() {
         SkyIslandHydraulicNetworkAssemblyPlan plan =
                 SkyIslandHydraulicNetworkAssemblyPlanner.plan(
