@@ -28,6 +28,14 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2C.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C3.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareRouteSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRouteFunctionalDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRouteFunctionalDiagnosticsPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRouteResolutionConvergenceDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRouteResolutionConvergencePlanner.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyRouteResolutionCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyRouteResolutionCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachStatus.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachOutcome.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlan.java"
@@ -153,6 +161,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
+            :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
@@ -188,6 +197,11 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/convergence-manifest.csv
           echo "--- terminal-fate-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/terminal-fate-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-route-resolution-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- route-resolution-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-route-resolution-test-a/manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
