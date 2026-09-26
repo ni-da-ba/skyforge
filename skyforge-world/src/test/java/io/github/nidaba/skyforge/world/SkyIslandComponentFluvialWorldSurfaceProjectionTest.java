@@ -121,6 +121,47 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
+    void projectionFailsClosedWhenAuthorizedCutWouldCollapseCompiledColumn() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandVolumeDescriptor physical =
+                SkyIslandVolumeDescriptor.schema2(
+                        935_077L,
+                        0.0,
+                        0.0,
+                        220.0,
+                        descriptor.nominalRadius(),
+                        1.0,
+                        1.0,
+                        Math.min(18.0, descriptor.nominalRadius() * 0.10),
+                        0.0,
+                        0.24,
+                        0.62,
+                        0.0,
+                        descriptor.morphologyFamily(),
+                        0.0,
+                        28.0,
+                        0.0);
+        CompiledSkyIslandVolume thin =
+                new SemanticSkyIslandVolumeRecipe().compile(physical);
+        SkyIslandComponentFluvialWorldSurfaceProjection projection =
+                new SkyIslandComponentFluvialWorldSurfaceProjection(
+                        descriptor, candidate, thin);
+        SkyIslandLocalPosition local =
+                candidate.terrainField()
+                        .acceptedReaches()
+                        .getFirst()
+                        .centerline()
+                        .points()
+                        .getFirst();
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> projection.sampleWorld(local.x(), local.z()));
+    }
+
+    @Test
     void projectionRejectsMismatchedPhysicalScaleOrMorphology() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
