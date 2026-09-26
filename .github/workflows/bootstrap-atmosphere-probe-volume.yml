@@ -188,6 +188,8 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/index.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/field-atlas.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/hazard-atlas.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/vertical-profiles.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/temporal-updraft.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/opportunity-atlas.svg
@@ -376,6 +378,8 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/index.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/field-atlas.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/hazard-atlas.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/vertical-profiles.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/temporal-updraft.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/opportunity-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/opportunity-max-over-time.svg
