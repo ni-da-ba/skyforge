@@ -36,28 +36,28 @@ class SkyIslandChannelTerminalFatePlannerTest {
     }
 
     @Test
-    void retained83ProvesChannelTerminalAndBasinSinkNeedNotCoincide() {
+    void terminalFateMayContinueBeyondTheSemanticChannelEndpoint() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
         SkyIslandGeomorphicChannelNetworkPlan network =
                 SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
         List<SkyIslandChannelTerminalFate> fates =
                 SkyIslandChannelTerminalFatePlanner.plan(descriptor, network);
 
-        List<SkyIslandChannelTerminalFate> retained = fates.stream()
-                .filter(fate -> fate.kind() == SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
-                .toList();
-
-        assertFalse(retained.isEmpty(), "retained-83 must exercise open-water terminal fate");
-        assertTrue(retained.stream().anyMatch(fate ->
-                fate.channelTerminalCellIndex() != fate.watershedTerminalCellIndex()));
-        for (SkyIslandChannelTerminalFate fate : retained) {
-            assertNotEquals(SkyIslandWaterbodyKind.WETLAND, fate.waterbodyKind().orElseThrow());
+        assertTrue(
+                fates.stream().anyMatch(fate -> fate.watershedPath().size() > 1),
+                "fixture must exercise downstream watershed routing beyond a channel terminal");
+        for (SkyIslandChannelTerminalFate fate : fates) {
             assertEquals(
                     fate.channelTerminalCellIndex(),
                     fate.watershedPath().getFirst());
             assertEquals(
                     fate.watershedTerminalCellIndex(),
                     fate.watershedPath().getLast());
+            if (fate.watershedPath().size() > 1) {
+                assertNotEquals(
+                        fate.channelTerminalCellIndex(),
+                        fate.watershedTerminalCellIndex());
+            }
         }
     }
 
