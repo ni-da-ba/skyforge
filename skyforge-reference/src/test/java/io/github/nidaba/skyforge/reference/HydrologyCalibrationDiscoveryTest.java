@@ -40,6 +40,7 @@ class HydrologyCalibrationDiscoveryTest {
         List<String> hits = new ArrayList<>();
         List<NearPond> nearPonds = new ArrayList<>();
         int pondHits = 0;
+        int lakeHits = 0;
         int incisedHits = 0;
         int scanned = 0;
 
@@ -78,6 +79,24 @@ class HydrologyCalibrationDiscoveryTest {
                                 wetlandScore,
                                 openWaterScore));
                         pondHits++;
+                    }
+
+                    if (candidate.kind() == SkyIslandWaterbodyKind.LAKE
+                            && lakeHits < MAX_HITS_PER_CLASS) {
+                        hits.add(String.format(
+                                Locale.ROOT,
+                                "LAKE,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f",
+                                namespace[0],
+                                namespace[1],
+                                key,
+                                candidate.sinkCellIndex(),
+                                candidate.relativeInflow(),
+                                candidate.retentionPotential(),
+                                candidate.saturationPotential(),
+                                candidate.persistence(),
+                                wetlandScore,
+                                openWaterScore));
+                        lakeHits++;
                     }
 
                     double pondDistance =
@@ -145,6 +164,7 @@ class HydrologyCalibrationDiscoveryTest {
         }
         csv.append("SUMMARY,scanned,").append(scanned)
                 .append(",pondHits,").append(pondHits)
+                .append(",lakeHits,").append(lakeHits)
                 .append(",pureIncisedHits,").append(incisedHits)
                 .append("\n");
         csv.append("NEAR_POND_HEADER,province,cluster,key,sink,kind,distance,wetlandScore,openWaterScore\n");
