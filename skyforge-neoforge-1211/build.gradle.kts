@@ -5980,11 +5980,21 @@ tasks.register("waveC3ResolvePinnedMods") {
             "SmartBrainLib" to evidenceArtifactToken(waveC5Pin("smartbrainlib", "coordinate")),
             "YACL" to evidenceArtifactToken(waveC5Pin("yacl", "coordinate")),
             "Reliable Gliders" to evidenceArtifactToken(waveC2Pin("reliablegliders", "coordinate")),
-            "Aerodynamics4MC core" to coreArtifactToken,
         )
         evidenceRequiredTokens.forEach { (label, token) ->
             check(evidenceRuntimeFiles.any { it.contains(token) }) {
                 "Wave C3 evidence runtime missing $label token '$token': $evidenceRuntimeFiles"
+            }
+        }
+        if (waveC3ProbeAeroCoreOverrideJar.isPresent) {
+            val overrideFile = file(waveC3ProbeAeroCoreOverrideJar.get())
+            check(evidenceRuntimeFiles.any { it == overrideFile.name }) {
+                "Wave C3 evidence runtime is missing #1140/#1142 A4MC override '${overrideFile.name}': $evidenceRuntimeFiles"
+            }
+            println("Wave C3 evidence runtime uses explicit A4MC override ${overrideFile.name}")
+        } else {
+            check(evidenceRuntimeFiles.any { it.contains(coreArtifactToken) }) {
+                "Wave C3 evidence runtime missing Aerodynamics4MC core token '$coreArtifactToken': $evidenceRuntimeFiles"
             }
         }
         println("Wave C3 reconstruction/provenance evidence runtime")
