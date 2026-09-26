@@ -27,9 +27,11 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
             throw new IllegalArgumentException("hydraulic descriptor must match diagnostics descriptor");
         }
 
+        double planningSpacing =
+                SkyIslandSemanticChannelReachPlanner.plan(descriptor).planningSpacing();
         List<SkyIslandGeomorphicReachDiagnostics> result = new ArrayList<>(hydraulic.reaches().size());
         for (SkyIslandHydraulicReachGeometry reach : hydraulic.reaches()) {
-            result.add(measureReach(descriptor, reach, terrain));
+            result.add(measureReach(descriptor, reach, terrain, planningSpacing));
         }
         return List.copyOf(result);
     }
@@ -46,9 +48,24 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicReachGeometry reach,
             SkyIslandSemanticField terrain) {
+        return measureReach(
+                descriptor,
+                reach,
+                terrain,
+                SkyIslandSemanticChannelReachPlanner.plan(descriptor).planningSpacing());
+    }
+
+    static SkyIslandGeomorphicReachDiagnostics measureReach(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicReachGeometry reach,
+            SkyIslandSemanticField terrain,
+            double planningSpacing) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(reach, "reach");
         Objects.requireNonNull(terrain, "terrain");
+        if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
+            throw new IllegalArgumentException("planningSpacing must be finite and positive");
+        }
 
         List<SkyIslandHydraulicGeometrySample> samples = reach.samples();
         List<SkyIslandLocalPosition> points = reach.centerline().points();
@@ -165,6 +182,9 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 weightedBurdenDenominator <= EPSILON
                         ? 0.0
                         : weightedBurdenNumerator / weightedBurdenDenominator;
+        SkyIslandRouteFunctionalDiagnostics routeDiagnostics =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                        reach.geomorphicRoute().route(), terrain, planningSpacing);
 
         return new SkyIslandGeomorphicReachDiagnostics(
                 reach,
@@ -177,7 +197,7 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 burden,
                 excavationVolumeProxy,
                 maximumCurvatureWidthRatio,
-                reach.geomorphicRoute().route().ridgeSampleFraction(),
+                routeDiagnostics.ridgeLengthFraction(),
                 maximumLongitudinalGrade);
     }
 
