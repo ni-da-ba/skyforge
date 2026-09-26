@@ -51,6 +51,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     SkyIslandHydraulicGeometrySkeletonSample a = source.samples().get(i);
                     SkyIslandHydraulicGeometrySample b = realized.samples().get(i);
                     assertEquals(a.position(), b.position());
+                    assertEquals(a.stationFraction() * source.pathLength(), a.arcLength(), EPSILON);
                     assertEquals(a.stationFraction(), b.stationFraction(), EPSILON);
                     assertEquals(a.relativeDischarge(), b.relativeDischarge(), EPSILON);
                     assertEquals(a.bankfullHalfWidth(), b.bankfullHalfWidth(), EPSILON);
@@ -82,13 +83,16 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         SkyIslandHydraulicGeometrySkeletonPlan plan =
                 SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor(287L));
         for (SkyIslandHydraulicReachSkeleton reach : plan.reaches()) {
+            double previousArcLength = -1.0;
             double previousDischarge = -1.0;
             double previousWidth = -1.0;
             double previousDepth = -1.0;
             for (SkyIslandHydraulicGeometrySkeletonSample sample : reach.samples()) {
+                assertTrue(sample.arcLength() + EPSILON >= previousArcLength);
                 assertTrue(sample.relativeDischarge() + EPSILON >= previousDischarge);
                 assertTrue(sample.bankfullHalfWidth() + EPSILON >= previousWidth);
                 assertTrue(sample.waterDepthPotential() + EPSILON >= previousDepth);
+                previousArcLength = sample.arcLength();
                 previousDischarge = sample.relativeDischarge();
                 previousWidth = sample.bankfullHalfWidth();
                 previousDepth = sample.waterDepthPotential();
