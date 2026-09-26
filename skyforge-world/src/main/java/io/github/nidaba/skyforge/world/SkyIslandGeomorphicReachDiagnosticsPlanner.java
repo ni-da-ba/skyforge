@@ -73,6 +73,12 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                         reach.samples(),
                         terrain,
                         planningSpacing);
+        double authoritativeRidgeLengthFraction =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                                reach.geomorphicRoute().route(),
+                                terrain,
+                                planningSpacing)
+                        .ridgeLengthFraction();
         return new SkyIslandGeomorphicReachDiagnostics(
                 reach,
                 measurements.maximumCenterlineLoweringPotential(),
@@ -84,7 +90,7 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 measurements.normalizedExcavationBurden(),
                 measurements.excavationVolumeProxyWorldUnitsCubed(),
                 measurements.maximumCurvatureWidthRatio(),
-                measurements.ridgeLengthFraction(),
+                authoritativeRidgeLengthFraction,
                 measurements.maximumLongitudinalGrade());
     }
 
