@@ -40,7 +40,13 @@ public final class HydrologyBoundedProfileCorpusCli {
                 new Specimen("retained-83", descriptor(6L, 61L, 83L)),
                 new Specimen("control-77", descriptor(6L, 61L, 77L)),
                 new Specimen("control-118", descriptor(6L, 61L, 118L)),
-                new Specimen("stress-512", descriptor(6L, 61L, 512L)));
+                new Specimen("stress-512", descriptor(6L, 61L, 512L)),
+                // Exact 8/81 ordinary-solve proving grounds used by the F2C world test corpus.
+                // At least one must remain a solved transition-free reach so convergence evidence
+                // cannot silently collapse to a header-only manifest.
+                new Specimen("ordinary-77-8-81", descriptor(8L, 81L, 77L)),
+                new Specimen("ordinary-118-8-81", descriptor(8L, 81L, 118L)),
+                new Specimen("ordinary-512-8-81", descriptor(8L, 81L, 512L)));
 
         StringBuilder csv = new StringBuilder(
                 "specimen,islandKey,startCell,endCell,status,deferrals,solverStatus,"
