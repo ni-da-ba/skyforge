@@ -27,6 +27,6 @@ class HydrologyBoundedProfileCorpusTest {
         assertTrue(a.contains("d2Accepted"));
         assertTrue(a.contains("TRANSITION_DEFERRED"));
         assertTrue(convergenceA.contains("nativeObjectivePerLength"));
-        assertTrue(convergenceA.contains("refinedHeadDependentD2Pass"));
+        assertTrue(convergenceA.contains("fineHeadDependentD2Pass"));
     }
 }
