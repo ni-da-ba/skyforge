@@ -114,8 +114,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 SkyIslandLocalPosition position =
                         new SkyIslandLocalPosition(globalGridX * step, globalGridZ * step);
                 double deviation = distanceToPolyline(position, guidance);
-                boolean inStart = startAnchor.contains(position, anchorTolerance);
-                boolean inGoal = endAnchor.contains(position, anchorTolerance);
+                boolean inStart = anchorContains(startAnchor, position, anchorTolerance);
+                boolean inGoal = anchorContains(endAnchor, position, anchorTolerance);
                 if (deviation > corridorHalfWidth + EPSILON && !inStart && !inGoal) {
                     continue;
                 }
@@ -289,6 +289,19 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 (double) ridgeSamples / points.size(),
                 valleySum / points.size(),
                 maxUphillStep);
+    }
+
+    private static boolean anchorContains(
+            SkyIslandGeomorphicRouteAnchor anchor,
+            SkyIslandLocalPosition position,
+            double rasterTolerance) {
+        if (anchor.radius() <= EPSILON) {
+            return Math.hypot(
+                            position.x() - anchor.center().x(),
+                            position.z() - anchor.center().z())
+                    <= EPSILON;
+        }
+        return anchor.contains(position, rasterTolerance);
     }
 
     private static double heuristic(
