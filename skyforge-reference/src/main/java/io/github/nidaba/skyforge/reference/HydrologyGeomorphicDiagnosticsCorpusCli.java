@@ -47,7 +47,9 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                 new Specimen("retained-83", descriptor(6L, 61L, 83L)),
                 new Specimen("control-77", descriptor(6L, 61L, 77L)),
                 new Specimen("control-118", descriptor(6L, 61L, 118L)),
-                new Specimen("stress-512", descriptor(6L, 61L, 512L)));
+                new Specimen("stress-512", descriptor(6L, 61L, 512L)),
+                new Specimen("pure-incised-2084", descriptor(8L, 81L, 2084L)),
+                new Specimen("pure-incised-2093", descriptor(8L, 81L, 2093L)));
 
         StringBuilder csv = new StringBuilder(
                 "specimen,islandKey,morphology,nodes,confluences,reaches,"

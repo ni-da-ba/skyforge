@@ -22,12 +22,18 @@ class HydrologyGeomorphicDiagnosticsCorpusTest {
         assertTrue(a.contains("primary-287"));
         assertTrue(a.contains("confluence-632"));
         assertTrue(a.contains("retained-83"));
-        assertTrue(a.lines().count() == 10);
+        assertTrue(a.contains("pure-incised-2084"));
+        assertTrue(a.contains("pure-incised-2093"));
+        assertTrue(a.lines().count() == 12);
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
         String reachA = Files.readString(first.resolve("reach-manifest.csv"));
         String reachB = Files.readString(second.resolve("reach-manifest.csv"));
         assertEquals(reachA, reachB);
         assertTrue(reachA.contains("profileKind"));
+        assertTrue(reachA.lines().anyMatch(line ->
+                line.startsWith("pure-incised-2084,") && line.contains(",incised,")));
+        assertTrue(reachA.lines().anyMatch(line ->
+                line.startsWith("pure-incised-2093,") && line.contains(",incised,")));
         assertTrue(reachA.lines().count() > a.lines().count());
     }
 }
