@@ -20,6 +20,7 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 - The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); never extend it.
 - The reset has merged semantic-corridor centerlines (C2), hard river/basin qualification machinery (D2/E2), strict realization authority (F0), ordinary qualified fluvial realization (F1), and C2-based discontinuity diagnostics (D3).
 - F2, F2A, and the head-independent F2B hydraulic geometry skeleton are merged. Current next work is F2C: bounded world-space ordinary profiles with D2-derived constraints, topology-backed terminal fate, post-solve requalification, and three-resolution convergence evidence before any transition realization or Minecraft discretization.
+- #1084 additionally requires a separate C3 route-search numerical-consistency tranche: physical-length quadrature, fixed-scale probes, arc-length-weighted route diagnostics, and multi-resolution route/diagnostic convergence. Current F2C evidence is pre-C3 and must be regenerated before production authority advances.
 - Retained-basin terrain remains blocked on adequate POND/LAKE calibration; pure-INCISED qualification remains provisional pending dedicated evidence.
 - There is **no pending Platform-v2 console action** from the reliability campaign.
 - Normal Skyforge development may resume under current lane/product authority.
