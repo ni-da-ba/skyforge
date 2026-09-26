@@ -63,8 +63,9 @@ public record SkyIslandOrdinaryHydraulicSpan(
                 || Math.abs(downstreamBoundary.state().arcLength() - parentEndArcLength) > EPSILON) {
             throw new IllegalArgumentException("ordinary span boundary arcs must match span interval");
         }
+        double expectedPathLength = parentEndArcLength - parentStartArcLength;
         if (Math.abs(samples.getFirst().arcLength()) > EPSILON
-                || Math.abs(samples.getLast().arcLength() - pathLength()) > EPSILON
+                || Math.abs(samples.getLast().arcLength() - expectedPathLength) > EPSILON
                 || Math.abs(samples.getFirst().stationFraction()) > EPSILON
                 || Math.abs(samples.getLast().stationFraction() - 1.0) > EPSILON) {
             throw new IllegalArgumentException("ordinary span samples must use local arc/station coordinates");
