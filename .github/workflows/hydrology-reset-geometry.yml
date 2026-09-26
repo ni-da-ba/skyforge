@@ -35,6 +35,7 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFateKind.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFate.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePolicy.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePlannerTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCollocationRefiner.java"
