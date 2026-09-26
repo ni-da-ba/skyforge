@@ -101,6 +101,40 @@ class SkyIslandHydraulicBoundedQpSolverTest {
     }
 
     @Test
+    void largeAbsoluteWorldDatumPreservesSmallHydraulicDifferences() {
+        double datum = 1.0e9;
+        SkyIslandHydraulicQpResult result = SkyIslandHydraulicBoundedQpSolver.solve(problem(
+                new double[] {datum + 10.0, datum},
+                fill(2, 1.0),
+                new double[] {datum - 100.0, datum - 100.0},
+                new double[] {datum + 100.0, datum + 100.0},
+                List.of(new SkyIslandHydraulicDifferenceConstraint(
+                        "scaled-grade", 0, 1, 2.0, 4.0))));
+
+        assertSolved(result);
+        assertArrayEquals(
+                new double[] {datum + 7.0, datum + 3.0},
+                result.solution(),
+                1.0e-5);
+        assertEquals(4.0, result.solution()[0] - result.solution()[1], 1.0e-5);
+    }
+
+    @Test
+    void exactDifferenceRelationIsSolvedAsEquality() {
+        SkyIslandHydraulicQpResult result = SkyIslandHydraulicBoundedQpSolver.solve(problem(
+                new double[] {10.0, 0.0},
+                fill(2, 1.0),
+                fill(2, -100.0),
+                fill(2, 100.0),
+                List.of(new SkyIslandHydraulicDifferenceConstraint(
+                        "exact-drop-boundary", 0, 1, 3.0, 3.0))));
+
+        assertSolved(result);
+        assertArrayEquals(new double[] {6.5, 3.5}, result.solution(), EPSILON);
+        assertEquals(3.0, result.solution()[0] - result.solution()[1], EPSILON);
+    }
+
+    @Test
     void explicitDropPartitionDoesNotInventCrossDropContinuity() {
         SkyIslandHydraulicQpResult result = SkyIslandHydraulicBoundedQpSolver.solve(problem(
                 new double[] {10.0, 8.0, 3.0, 1.0},
