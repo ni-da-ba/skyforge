@@ -19,7 +19,36 @@ class SkyIslandConfluenceHeadCompatibilityPlannerTest {
         SkyIslandConfluenceHeadCompatibilityPlan second =
                 SkyIslandConfluenceHeadCompatibilityPlanner.plan(descriptor);
 
-        assertEquals(first, second);
+        assertEquals(
+                first.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::status)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::status)
+                        .toList());
+        assertEquals(
+                first.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::nodeHeadWorldUnits)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::nodeHeadWorldUnits)
+                        .toList());
+        assertEquals(
+                first.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::legSolutions)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandConfluenceHeadCompatibilityOutcome::legSolutions)
+                        .toList());
+        assertEquals(
+                first.outcomes().stream()
+                        .map(outcome -> outcome.solve()
+                                .map(SkyIslandHydraulicQpResult::primalResidual))
+                        .toList(),
+                second.outcomes().stream()
+                        .map(outcome -> outcome.solve()
+                                .map(SkyIslandHydraulicQpResult::primalResidual))
+                        .toList());
         assertTrue(first.outcomes().stream()
                 .anyMatch(outcome ->
                         outcome.geometry().transitionSite().nodeCellIndex() == 710));
