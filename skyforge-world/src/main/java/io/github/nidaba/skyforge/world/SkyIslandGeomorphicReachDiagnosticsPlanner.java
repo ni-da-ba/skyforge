@@ -95,22 +95,41 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
             List<SkyIslandHydraulicGeometrySample> samples,
             SkyIslandSemanticField terrain,
             double planningSpacing) {
-        Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(semantic, "semantic");
+        List<SkyIslandChannelProfile> profiles = semantic.profiles();
+        List<SkyIslandChannelProfileKind> sampleKinds =
+                samples.stream()
+                        .map(sample -> profileKind(profiles, sample.stationFraction()))
+                        .toList();
+        return measureGeometry(
+                descriptor, points, samples, sampleKinds, terrain, planningSpacing);
+    }
+
+    static SkyIslandGeomorphicMeasurements measureGeometry(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandLocalPosition> points,
+            List<SkyIslandHydraulicGeometrySample> samples,
+            List<SkyIslandChannelProfileKind> sampleKinds,
+            SkyIslandSemanticField terrain,
+            double planningSpacing) {
+        Objects.requireNonNull(descriptor, "descriptor");
         points = List.copyOf(points);
         samples = List.copyOf(samples);
+        sampleKinds = List.copyOf(sampleKinds);
         Objects.requireNonNull(terrain, "terrain");
         if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
             throw new IllegalArgumentException("planningSpacing must be finite and positive");
         }
-        if (samples.size() != points.size() || samples.size() < 2) {
+        if (samples.size() != points.size()
+                || samples.size() != sampleKinds.size()
+                || samples.size() < 2) {
             throw new IllegalArgumentException(
-                    "hydraulic samples and continuous points must align with at least two samples");
+                    "hydraulic samples, profile kinds, and continuous points must align with at least two samples");
         }
         points.forEach(point -> Objects.requireNonNull(point, "point"));
         samples.forEach(sample -> Objects.requireNonNull(sample, "sample"));
+        sampleKinds.forEach(kind -> Objects.requireNonNull(kind, "profile kind"));
 
-        List<SkyIslandChannelProfile> profiles = semantic.profiles();
         double reliefBudget = descriptor.reliefBudget();
         double maximumLoweringPotential = 0.0;
         double maximumLoweringWorld = 0.0;
@@ -126,7 +145,7 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
 
         for (int i = 0; i < samples.size(); i++) {
             SkyIslandHydraulicGeometrySample sample = samples.get(i);
-            SkyIslandChannelProfileKind kind = profileKind(profiles, sample.stationFraction());
+            SkyIslandChannelProfileKind kind = sampleKinds.get(i);
             double loweringPotential = sample.requiredCenterlineLowering();
             double loweringWorld = loweringPotential * reliefBudget;
             maximumLoweringPotential = Math.max(maximumLoweringPotential, loweringPotential);
