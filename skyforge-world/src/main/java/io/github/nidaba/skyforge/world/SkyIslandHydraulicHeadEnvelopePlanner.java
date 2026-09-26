@@ -22,19 +22,55 @@ public final class SkyIslandHydraulicHeadEnvelopePlanner {
             double normalZ,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicQualificationPolicy policy) {
-        Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(semantic, "semantic");
+        Objects.requireNonNull(policy, "policy");
+        SkyIslandChannelProfileKind kind =
+                profileKind(semantic.profiles(), stationFraction);
+        return evaluateForKind(
+                descriptor,
+                kind,
+                position,
+                bankfullHalfWidth,
+                waterDepthPotential,
+                terrainElevation,
+                normalX,
+                normalZ,
+                terrain,
+                policy.limits(semantic));
+    }
+
+    /**
+     * Evaluates an ordinary-side D2 envelope when transition ownership makes the one-sided profile
+     * class explicit.
+     *
+     * <p>This method does not grant CASCADE pointwise geometry. It is used at an exact transition
+     * boundary with the adjacent ALLUVIAL or INCISED profile class while retaining the caller's
+     * accepted D2 limit set.
+     */
+    public static SkyIslandHydraulicHeadEnvelope evaluateForKind(
+            SkyIslandDescriptor descriptor,
+            SkyIslandChannelProfileKind kind,
+            SkyIslandLocalPosition position,
+            double bankfullHalfWidth,
+            double waterDepthPotential,
+            double terrainElevation,
+            double normalX,
+            double normalZ,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicProfileLimits limits) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(kind, "kind");
         Objects.requireNonNull(position, "position");
         Objects.requireNonNull(terrain, "terrain");
-        Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(limits, "limits");
         requireFinitePositive(bankfullHalfWidth, "bankfullHalfWidth");
         requireFraction(waterDepthPotential, "waterDepthPotential");
         requireFraction(terrainElevation, "terrainElevation");
-        if (!Double.isFinite(stationFraction)
-                || stationFraction < 0.0
-                || stationFraction > 1.0) {
-            throw new IllegalArgumentException("stationFraction must be finite and in [0, 1]");
+        if (kind == SkyIslandChannelProfileKind.CASCADE) {
+            throw new IllegalArgumentException(
+                    "ordinary hydraulic head envelope cannot use CASCADE profile");
         }
+
         double normalLength = Math.hypot(normalX, normalZ);
         if (!Double.isFinite(normalLength) || normalLength <= 0.0) {
             throw new IllegalArgumentException("normal must be finite and non-zero");
@@ -42,19 +78,12 @@ public final class SkyIslandHydraulicHeadEnvelopePlanner {
         normalX /= normalLength;
         normalZ /= normalLength;
 
-        SkyIslandChannelProfileKind kind =
-                profileKind(semantic.profiles(), stationFraction);
-        if (kind == SkyIslandChannelProfileKind.CASCADE) {
-            throw new IllegalArgumentException(
-                    "ordinary hydraulic head envelope cannot span CASCADE profile");
-        }
-
         double relief = descriptor.reliefBudget();
         if (!Double.isFinite(relief) || relief <= 0.0) {
             throw new IllegalArgumentException(
                     "descriptor relief budget must be finite and positive");
         }
-        SkyIslandGeomorphicProfileLimits limits = policy.limits(semantic);
+
         double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier(kind);
         double fullValleyWidth = 2.0 * valleyHalfWidth;
 
@@ -124,6 +153,11 @@ public final class SkyIslandHydraulicHeadEnvelopePlanner {
         Objects.requireNonNull(profiles, "profiles");
         if (profiles.isEmpty()) {
             throw new IllegalArgumentException("profiles must not be empty");
+        }
+        if (!Double.isFinite(stationFraction)
+                || stationFraction < 0.0
+                || stationFraction > 1.0) {
+            throw new IllegalArgumentException("stationFraction must be finite and in [0, 1]");
         }
         int index =
                 Math.min(
