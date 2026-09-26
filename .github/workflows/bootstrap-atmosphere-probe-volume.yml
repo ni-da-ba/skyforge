@@ -148,7 +148,7 @@ jobs:
           assert data["specimen"]["lattice"]["sample_count"] == 100
           assert len(data["samples"]) == 100
           assert data["same_tick_replay"]["sample_count"] == 100
-          assert data["same_tick_replay"]["exact_equal"] is True
+          assert data["same_tick_replay"]["exact_equal"] is True\n          assert data["temporal"]["frame_count"] == 31\n          assert data["temporal"]["period_ticks"] == 20\n          assert len(data["temporal"]["frames"]) == 31\n          assert all(len(frame["samples"]) == 4 for frame in data["temporal"]["frames"])\n          assert all(s["trusted_for_gameplay"] for frame in data["temporal"]["frames"] for s in frame["samples"])
           assert data["authority_summary"]["trusted_sample_count"] == 100
           assert data["authority_summary"]["sample_count"] == 100
           assert all(s["trusted_for_gameplay"] for s in data["samples"])
@@ -176,7 +176,7 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/index.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/field-atlas.svg
-          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json\n          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/temporal-updraft.svg
 
       - name: Upload atmosphere evidence
         if: always()
