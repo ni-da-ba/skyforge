@@ -162,10 +162,16 @@ F2C only assembles transition-free ordinary components.
   basin, or other transition owns that location;
 - confluence incident reaches terminate at transition boundaries and remain deferred;
 - cascade/drop boundaries remain separate upstream/downstream hydraulic states;
+- channel terminal fate is resolved by following the authoritative watershed graph from the semantic
+  channel terminal to its watershed terminal; cell-index or coordinate coincidence is not a basin
+  linkage rule;
+- only an explicit `EDGE_OUTLET` fate may use the ordinary free-terminal solve;
+- `RETAINED_OPEN_WATER`, `RETAINED_WETLAND`, and unresolved terminal fate remain deferred to
+  explicit transition ownership;
 - exact accepted basin datums become fixed equality variables only after retained-water production
   qualification is adequately calibrated.
 
-No coincident-coordinate heuristic may merge variables.
+No coincident-coordinate heuristic may merge variables or assign terminal fate.
 
 ## 6. Solve and reconstruction
 
@@ -249,9 +255,13 @@ profile assembly changes hydraulic evidence in a controlled, convergent way.
 
 ## 10. Downstream authority correction identified during F2C audit
 
-F2C explicitly defers any semantic POND/LAKE junction at either reach endpoint. The earlier F1
-terrain-authority implementation predates this explicit guard and currently names only confluence and
-cascade deferrals.
+F2C explicitly resolves semantic terminal fate through downstream watershed topology. A channel
+terminal may lie several planning cells upstream of the retained sink; therefore endpoint/sink
+cell-index equality is neither necessary nor sufficient for basin ownership. Only an explicit edge
+outlet is an ordinary free terminal. POND/LAKE, wetland, and unresolved terminal fates are deferred.
+
+The earlier F1 terrain-authority implementation predates this explicit guard and currently names only
+confluence and cascade deferrals.
 
 Before any later tranche broadens terrain authority or reconnects Authorship to Minecraft, F1 must be
 hardened so a reach touching an unresolved retained-open-water junction also contributes zero terrain
