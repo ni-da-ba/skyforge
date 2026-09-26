@@ -73,38 +73,28 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
-    void retainedOpenWaterTerminalFateIsNeverTreatedAsFreeBoundary() {
-        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
-        SkyIslandBoundedHydraulicProfilePlan plan =
-                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
-        List<SkyIslandChannelTerminalFate> fates =
-                SkyIslandChannelTerminalFatePlanner.plan(
-                        descriptor, plan.skeleton().geomorphicNetwork());
-
-        int retainedTerminalCount = 0;
-        for (SkyIslandChannelTerminalFate fate : fates) {
-            if (fate.kind() != SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER) {
-                continue;
-            }
-            retainedTerminalCount++;
-            List<SkyIslandBoundedHydraulicReachOutcome> incident = plan.outcomes().stream()
-                    .filter(outcome ->
-                            outcome.skeleton().geomorphicRoute().semanticReach().endCellIndex()
-                                    == fate.channelTerminalCellIndex())
-                    .toList();
-            assertFalse(incident.isEmpty(), "retained terminal fate must belong to a semantic reach");
-            for (SkyIslandBoundedHydraulicReachOutcome outcome : incident) {
-                assertEquals(
-                        SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
-                        outcome.status());
-                assertTrue(outcome.deferralReasons().contains(
-                        SkyIslandQualifiedFluvialDeferralReason
-                                .RETAINED_WATER_TRANSITION_REQUIRED));
-            }
-        }
-        assertTrue(
-                retainedTerminalCount > 0,
-                "retained fixture must exercise an open-water watershed terminal fate");
+    void terminalFatePolicyFailsClosedExceptAtExplicitEdgeOutlet() {
+        assertTrue(SkyIslandBoundedHydraulicProfilePlanner
+                .terminalFateDeferralReason(SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+                .isEmpty());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED,
+                SkyIslandBoundedHydraulicProfilePlanner
+                        .terminalFateDeferralReason(
+                                SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
+                        .orElseThrow());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.WETLAND_TRANSITION_REQUIRED,
+                SkyIslandBoundedHydraulicProfilePlanner
+                        .terminalFateDeferralReason(
+                                SkyIslandChannelTerminalFateKind.RETAINED_WETLAND)
+                        .orElseThrow());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.UNRESOLVED_TERMINAL_FATE,
+                SkyIslandBoundedHydraulicProfilePlanner
+                        .terminalFateDeferralReason(
+                                SkyIslandChannelTerminalFateKind.UNRESOLVED)
+                        .orElseThrow());
     }
 
     @Test
