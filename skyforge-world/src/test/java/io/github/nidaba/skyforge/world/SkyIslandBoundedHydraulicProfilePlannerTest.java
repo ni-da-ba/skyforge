@@ -79,6 +79,7 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
         SkyIslandBoundedHydraulicProfilePlan plan =
                 SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
 
+        int matchedTerminalCount = 0;
         for (SkyIslandWaterbodyCandidate candidate : waterbodies.candidates()) {
             if (candidate.kind() == SkyIslandWaterbodyKind.WETLAND) {
                 continue;
@@ -86,6 +87,7 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
             for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
                 if (outcome.skeleton().geomorphicRoute().semanticReach().endCellIndex()
                         == candidate.sinkCellIndex()) {
+                    matchedTerminalCount++;
                     assertEquals(
                             SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
                             outcome.status());
@@ -95,6 +97,7 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
                 }
             }
         }
+        assertTrue(matchedTerminalCount > 0, "retained fixture must exercise a channel/basin terminal");
     }
 
     @Test
