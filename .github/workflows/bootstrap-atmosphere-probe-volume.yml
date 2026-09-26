@@ -155,12 +155,18 @@ jobs:
           assert len(data["temporal"]["frames"]) == 31
           assert all(len(frame["samples"]) == 4 for frame in data["temporal"]["frames"])
           assert all(s["trusted_for_gameplay"] for frame in data["temporal"]["frames"] for s in frame["samples"])
+          assert data["opportunity_scan"]["frame_count"] == 31
+          assert data["opportunity_scan"]["period_ticks"] == 20
+          assert data["opportunity_scan"]["samples_per_frame"] == 162
+          assert len(data["opportunity_scan"]["frames"]) == 31
+          assert all(len(frame["samples"]) == 162 for frame in data["opportunity_scan"]["frames"])
+          assert all(s["trusted_for_gameplay"] for frame in data["opportunity_scan"]["frames"] for s in frame["samples"])
           assert data["authority_summary"]["trusted_sample_count"] == 100
           assert data["authority_summary"]["sample_count"] == 100
           assert all(s["trusted_for_gameplay"] for s in data["samples"])
           assert all(s["source_level"] != "NONE" for s in data["samples"])
           assert all(s["authority"] != "NONE" for s in data["samples"])
-          assert data["cost"]["query_count"] == 200
+          assert data["cost"]["query_count"] == 5346
           assert len(data["ordered_sample_digest"]) == 64
           assert data["ownership"]["server_world_sampling"] is True
           assert data["ownership"]["skyforge_persists_atmosphere"] is False
@@ -184,6 +190,8 @@ jobs:
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/field-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/temporal-updraft.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/opportunity-atlas.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/opportunity-max-over-time.svg
 
       - name: Upload atmosphere evidence
         if: always()
