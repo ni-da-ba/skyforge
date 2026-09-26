@@ -33,6 +33,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometryCalibration.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachSkeleton.java"
@@ -141,6 +143,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
@@ -167,6 +170,11 @@ jobs:
           fi
           echo "--- discontinuity-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- bounded-profile-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
