@@ -39,24 +39,43 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
     }
 
     @Test
-    void unresolvedTransitionsAreDeferredBeforeTerrainAuthority() {
+    void confluenceTransitionsAreDeferredBeforeTerrainAuthority() {
         SkyIslandQualifiedFluvialRealizationPlan plan =
                 SkyIslandQualifiedFluvialRealizationPlanner.plan(
-                        descriptor(6L, 61L, 512L));
+                        descriptor(8L, 81L, 632L),
+                        permissivePolicy());
 
-        assertFalse(plan.deferredQualifications().isEmpty());
         assertTrue(plan.deferredQualifications().stream()
                 .anyMatch(deferral -> deferral.reasons().contains(
                         SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED)));
+        assertDeferredReachesHaveZeroTerrainAuthority(plan);
+    }
+
+    @Test
+    void cascadeTransitionsAreDeferredBeforeTerrainAuthority() {
+        SkyIslandQualifiedFluvialRealizationPlan plan =
+                SkyIslandQualifiedFluvialRealizationPlanner.plan(
+                        descriptor(6L, 61L, 512L),
+                        permissivePolicy());
+
         assertTrue(plan.deferredQualifications().stream()
                 .anyMatch(deferral -> deferral.reasons().contains(
                         SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED)));
+        assertDeferredReachesHaveZeroTerrainAuthority(plan);
+    }
 
-        for (SkyIslandQualifiedFluvialDeferral deferral : plan.deferredQualifications()) {
-            SkyIslandHydraulicReachGeometry deferred =
-                    deferral.qualification().diagnostics().hydraulicReach();
-            assertFalse(containsReach(plan.terrainField().acceptedReaches(), deferred));
-        }
+    @Test
+    void retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority() {
+        SkyIslandQualifiedFluvialRealizationPlan plan =
+                SkyIslandQualifiedFluvialRealizationPlanner.plan(
+                        descriptor(6L, 61L, 83L),
+                        permissivePolicy());
+
+        assertTrue(plan.deferredQualifications().stream()
+                .anyMatch(deferral -> deferral.reasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason
+                                .RETAINED_WATER_TRANSITION_REQUIRED)));
+        assertDeferredReachesHaveZeroTerrainAuthority(plan);
     }
 
     @Test
@@ -117,6 +136,32 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
                     first.terrainField().sampleDetailed(probe),
                     second.terrainField().sampleDetailed(probe));
         }
+    }
+
+    private static void assertDeferredReachesHaveZeroTerrainAuthority(
+            SkyIslandQualifiedFluvialRealizationPlan plan) {
+        assertFalse(plan.deferredQualifications().isEmpty());
+        for (SkyIslandQualifiedFluvialDeferral deferral : plan.deferredQualifications()) {
+            SkyIslandHydraulicReachGeometry deferred =
+                    deferral.qualification().diagnostics().hydraulicReach();
+            assertFalse(containsReach(plan.terrainField().acceptedReaches(), deferred));
+        }
+    }
+
+    private static SkyIslandGeomorphicQualificationPolicy permissivePolicy() {
+        SkyIslandGeomorphicProfileLimits limits =
+                new SkyIslandGeomorphicProfileLimits(
+                        1.0,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0,
+                        1.0e6);
+        return new SkyIslandGeomorphicQualificationPolicy(
+                limits, limits, limits, limits);
     }
 
     private static boolean containsReach(
