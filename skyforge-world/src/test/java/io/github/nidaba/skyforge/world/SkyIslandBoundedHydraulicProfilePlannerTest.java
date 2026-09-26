@@ -98,6 +98,49 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
+    void retainedOpenWaterTerminalUsesExplicitWatershedFateAndIsDeferred() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 609L);
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
+        List<SkyIslandChannelTerminalFate> fates =
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, plan.skeleton().geomorphicNetwork());
+
+        List<SkyIslandChannelTerminalFate> openWater = fates.stream()
+                .filter(fate -> fate.kind() == SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
+                .toList();
+        assertTrue(
+                !openWater.isEmpty(),
+                "lake-609 must exercise retained-open-water terminal fate");
+
+        for (SkyIslandChannelTerminalFate fate : openWater) {
+            SkyIslandBoundedHydraulicReachOutcome terminalReach =
+                    plan.outcomes().stream()
+                            .filter(outcome ->
+                                    outcome.skeleton()
+                                                    .geomorphicRoute()
+                                                    .semanticReach()
+                                                    .endCellIndex()
+                                            == fate.channelTerminalCellIndex())
+                            .findFirst()
+                            .orElseThrow(() -> new AssertionError(
+                                    "retained-open-water fate must map to a semantic terminal reach"));
+            assertEquals(
+                    SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
+                    terminalReach.status());
+            assertTrue(terminalReach.deferralReasons().contains(
+                    SkyIslandQualifiedFluvialDeferralReason
+                            .RETAINED_WATER_TRANSITION_REQUIRED));
+            assertEquals(
+                    fate.channelTerminalCellIndex(),
+                    fate.watershedPath().getFirst());
+            assertEquals(
+                    fate.watershedTerminalCellIndex(),
+                    fate.watershedPath().getLast());
+        }
+    }
+
+    @Test
     void solvedOrdinaryProfilesAreNonClimbingAndRespectD2GradeLimit() {
         int solvedCount = 0;
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
