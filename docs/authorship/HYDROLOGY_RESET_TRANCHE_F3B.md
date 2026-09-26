@@ -100,6 +100,25 @@ The fixed confluence corpus records, for each semantic confluence:
 
 The corpus includes the established confluence/control specimens and is deterministic.
 
+## Fixed-corpus result
+
+The current fixed confluence corpus establishes three distinct outcomes without widening any bound:
+
+- control-241 / node 671: `SOLVED`;
+- confluence-632 / node 710: `SOLVED`;
+- stress-512 / node 1729: `SOLVED`;
+- retained-83 / node 895: `INFEASIBLE` because an incident ordinary-side D2 envelope is empty;
+- legacy-control-649 / node 995: `CASCADE_COUPLED`;
+- control-77 / node 897: `CASCADE_COUPLED`.
+
+The solved cases have zero printed primal/stationarity/complementarity/dual residual at nine decimal
+places. The confluence-632 solve selects a shared node head of approximately 129.972 world units
+inside an incident-envelope intersection of approximately [127.104, 131.686].
+
+This distribution is the intended evidence shape: ordinary confluences can solve, existing D2
+infeasibility remains visible, and true confluence/CASCADE overlap remains deferred rather than
+being hidden by a permissive transition rule.
+
 ## Hard invariants
 
 F3B:
