@@ -3,9 +3,9 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-25 (America/Chicago)
-**Main snapshot carrying latest accepted Authorship reset implementation:** `502109b6cde98f3bfd1619a28fe59c65374fcdc8`
+**Main snapshot carrying latest accepted Authorship reset implementation:** `75fe12f3299c241196b57fb9919d0da5a0bd8e17`
 **Highest MERGED / ACCEPTED numbered Authorship milestone:** **AUTH-0105**
-**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2/F2A; D3 diagnostic evidence merged**
+**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2/F2A/F2B; D3 diagnostic evidence merged**
 
 Read first:
 
@@ -35,11 +35,14 @@ The reset authority is now executable through the first terrain-mutating Authors
 - D3: current-geometry discontinuity evidence; key 287 concentrates about 83.88% of downhill drop in
   authored CASCADE segments, supporting explicit drop-boundary experimentation rather than stronger excavation.
 
-F2's coupled profile contract and F2A deterministic bounded-QP primitive are merged and accepted.
-Current work is F2B: extract a head-independent C2 hydraulic geometry skeleton so both the historical
-clipped planner and the new F2C bounded-profile path consume one exact discharge/width/depth/calibration
-source. F2B must preserve the legacy planner's existing geometry and head results while granting no
-new hydraulic-head or terrain authority. The pre-F2 topological clipping profile remains staging only.
+F2's coupled profile contract, F2A deterministic bounded-QP primitive, and F2B head-independent
+hydraulic geometry skeleton are merged and accepted. Current work is F2C: solve only transition-free
+ordinary reaches in world units against D2-derived bounds, regenerate D1/D2 evidence, and prove
+coarse/medium/fine collocation convergence without changing C2 geometry authority.
+
+F2C terminal fate is resolved through the watershed graph: only an explicit edge outlet is a free
+ordinary terminal. Retained open water, retained wetland, and unresolved terminal fate remain
+transition-owned and fail closed. The pre-F2 topological clipping profile remains staging only.
 
 Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
 calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional
