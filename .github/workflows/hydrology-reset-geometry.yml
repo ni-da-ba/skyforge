@@ -30,6 +30,14 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2C.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C3.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3A.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionLegGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceGeometryCandidate.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeGeometryCandidate.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBasinInterfaceGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -170,6 +178,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
