@@ -182,8 +182,10 @@ A solved QP is necessary but not sufficient geomorphic acceptance.
 
 ## 7. Discretization convergence
 
-Fixed representative ordinary fixtures must be solved at the native C2 hydraulic collocation and at
-deterministic **collocation refinements** along the same accepted C2 piecewise-continuous centerline.
+Fixed representative ordinary fixtures must be solved at **three resolutions**: the native C2
+hydraulic collocation, one deterministic midpoint refinement, and a second midpoint refinement along
+the same accepted C2 piecewise-continuous centerline. Two resolutions alone are insufficient to
+distinguish convergence from incidental pairwise agreement.
 
 Refinement is numerical sampling, not new geometry authority. Inserting an interpolation sample may
 not change the C2 route, semantic corridor, endpoints, or geometry-only diagnostics such as
@@ -196,7 +198,18 @@ discharge/width/depth semantics consistently, and resample the pre-hydrologic te
 probes at the interpolated physical position. Geometry-only D2 gates remain those of the unchanged C2
 candidate. Head-dependent gates are recomputed at the refined collocation.
 
-Refinement acceptance requires convergence of:
+Before numeric tolerances are frozen, all three levels must remain solvable and preserve the same
+head-dependent D2 pass/fail classification. The evidence corpus records coarse/medium/fine values for
+the following quantities so a scale-aware Cauchy/grid-convergence criterion can be frozen from the
+fixed corpus rather than invented in advance:
+
+- endpoint/free-terminal heads;
+- integrated objective per unit length;
+- maximum ordinary longitudinal grade;
+- integrated excavation proxy;
+- maximum lowering.
+
+Final refinement acceptance requires convergence of:
 
 - endpoint/free-terminal heads;
 - integrated objective per unit length;
