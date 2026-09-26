@@ -33,6 +33,9 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlannerTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCollocationRefiner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicConvergenceDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicConvergencePlanner.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometryCalibration.java"
@@ -175,6 +178,8 @@ jobs:
           fi
           echo "--- bounded-profile-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv
+          echo "--- bounded-profile-convergence-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/convergence-manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
