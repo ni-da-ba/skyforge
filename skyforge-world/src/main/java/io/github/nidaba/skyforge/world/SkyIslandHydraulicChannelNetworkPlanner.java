@@ -18,24 +18,21 @@ import java.util.Objects;
  *
  * <p>The result exposes required centerline lowering as a diagnostic. A later qualification layer
  * decides whether that modification is acceptable; this planner never excavates to make a route fit.
+ *
+ * <p><strong>Reset authority:</strong> the topological/clipped head solution in this class is
+ * historical staging only. New F2 consumers must obtain C2 centerline/discharge/width/depth state
+ * from {@link SkyIslandHydraulicGeometrySkeletonPlanner} and apply the accepted bounded-profile
+ * contract rather than treating this planner's water surface as physical authority.
  */
 public final class SkyIslandHydraulicChannelNetworkPlanner {
     /** Small strictly-positive grade used only to avoid perfectly flat ordinary channel profiles. */
     public static final double MINIMUM_WATER_SURFACE_GRADE = 1.0e-5;
 
     /** Downstream hydraulic-geometry width exponent; dimensionless Skyforge calibration. */
-    public static final double WIDTH_EXPONENT = 0.50;
+    public static final double WIDTH_EXPONENT = SkyIslandHydraulicGeometryCalibration.WIDTH_EXPONENT;
 
     /** Downstream hydraulic-geometry depth exponent; dimensionless Skyforge calibration. */
-    public static final double DEPTH_EXPONENT = 0.32;
-
-    private static final double MINIMUM_DISCHARGE = 0.015;
-    private static final double BASE_WIDTH_RADIUS_FRACTION = 0.0035;
-    private static final double WIDTH_RADIUS_FRACTION = 0.020;
-    private static final double BASE_DEPTH_POTENTIAL = 0.0035;
-    private static final double DEPTH_POTENTIAL_RANGE = 0.017;
-    private static final double BASE_FREEBOARD_POTENTIAL = 0.0030;
-    private static final double DEPTH_FREEBOARD_FRACTION = 0.45;
+    public static final double DEPTH_EXPONENT = SkyIslandHydraulicGeometryCalibration.DEPTH_EXPONENT;
     private static final double EPSILON = 1.0e-12;
 
     private SkyIslandHydraulicChannelNetworkPlanner() {}
@@ -75,27 +72,13 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             throw new IllegalArgumentException("geomorphic network descriptor must match hydraulic descriptor");
         }
 
-        Map<SkyIslandGeomorphicReachRoute, SkyIslandContinuousChannelCenterline> centerlines =
+        SkyIslandHydraulicGeometrySkeletonPlan skeleton =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(
+                        descriptor, network, terrain, interiority);
+        Map<SkyIslandGeomorphicReachRoute, SkyIslandHydraulicReachSkeleton> skeletons =
                 new HashMap<>();
-        double semanticCorridorHalfWidth =
-                network.planningSpacing()
-                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-        for (SkyIslandGeomorphicReachRoute route : network.routes()) {
-            double maximumBankfullWidth =
-                    2.0
-                            * bankfullHalfWidth(
-                                    descriptor.nominalRadius(),
-                                    route.semanticReach().downstreamRelativeDischarge());
-            centerlines.put(
-                    route,
-                    SkyIslandSemanticCorridorCenterlinePlanner.refine(
-                            route.route(),
-                            route.semanticReach().guidancePoints(),
-                            terrain,
-                            interiority,
-                            network.planningSpacing(),
-                            semanticCorridorHalfWidth,
-                            maximumBankfullWidth));
+        for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
+            skeletons.put(reach.geomorphicRoute(), reach);
         }
 
         Map<Integer, List<SkyIslandGeomorphicReachRoute>> incoming = new HashMap<>();
@@ -114,8 +97,11 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
         Map<Integer, Double> nodeDischarge = nodeDischarge(network, incoming, outgoing);
         Map<Integer, Double> rawNodeSurface = new HashMap<>();
         for (SkyIslandGeomorphicNetworkNode node : network.nodes()) {
-            double depth = waterDepthPotential(nodeDischarge.getOrDefault(node.cellIndex(), MINIMUM_DISCHARGE));
-            double freeboard = BASE_FREEBOARD_POTENTIAL + DEPTH_FREEBOARD_FRACTION * depth;
+            double discharge = nodeDischarge.getOrDefault(
+                    node.cellIndex(), SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE);
+            double depth = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+            double freeboard =
+                    SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(depth);
             rawNodeSurface.put(
                     node.cellIndex(),
                     clamp01(Math.max(depth + EPSILON, node.terrainElevation() - freeboard)));
@@ -135,7 +121,7 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
                         solved,
                         upstreamSurface
                                 - MINIMUM_WATER_SURFACE_GRADE
-                                        * requireCenterline(centerlines, inbound).pathLength());
+                                        * requireSkeleton(skeletons, inbound).pathLength());
             }
             if (!(solved > EPSILON)) {
                 throw new IllegalStateException("candidate hydraulic network requires non-positive water datum");
@@ -153,16 +139,16 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             SkyIslandSemanticChannelReach semantic = routed.semanticReach();
             double startSurface = nodeSurface.get(semantic.startCellIndex());
             double endSurface = nodeSurface.get(semantic.endCellIndex());
-            SkyIslandContinuousChannelCenterline centerline =
-                    requireCenterline(centerlines, routed);
+            SkyIslandHydraulicReachSkeleton reachSkeleton =
+                    requireSkeleton(skeletons, routed);
             double minimumDrop =
-                    MINIMUM_WATER_SURFACE_GRADE * centerline.pathLength();
+                    MINIMUM_WATER_SURFACE_GRADE * reachSkeleton.pathLength();
             if (endSurface > startSurface - minimumDrop + EPSILON) {
                 throw new IllegalStateException("shared node hydraulic datums violate minimum downstream grade");
             }
 
-            SkyIslandHydraulicReachGeometry reach = solveReach(
-                    descriptor, terrain, routed, centerline, startSurface, endSurface);
+            SkyIslandHydraulicReachGeometry reach =
+                    solveReach(reachSkeleton, startSurface, endSurface);
             reaches.add(reach);
             maximumLowering = Math.max(maximumLowering, reach.maximumRequiredLowering());
             maximumSlope = Math.max(maximumSlope, reach.maximumWaterSurfaceSlope());
@@ -188,72 +174,58 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
     }
 
     private static SkyIslandHydraulicReachGeometry solveReach(
-            SkyIslandDescriptor descriptor,
-            SkyIslandSemanticField terrain,
-            SkyIslandGeomorphicReachRoute routed,
-            SkyIslandContinuousChannelCenterline centerline,
+            SkyIslandHydraulicReachSkeleton skeleton,
             double startSurface,
             double endSurface) {
-        List<SkyIslandLocalPosition> points = centerline.points();
-        double[] cumulative = cumulativeDistance(points);
-        double pathLength = centerline.pathLength();
-        if (!(pathLength > 0.0)) {
-            throw new IllegalStateException("candidate geomorphic route must have positive length");
+        List<SkyIslandHydraulicGeometrySkeletonSample> sourceSamples = skeleton.samples();
+        double pathLength = skeleton.pathLength();
+
+        double[] target = new double[sourceSamples.size()];
+        double[] surface = new double[sourceSamples.size()];
+        for (int i = 0; i < sourceSamples.size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = sourceSamples.get(i);
+            double freeboard =
+                    SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(
+                            sample.waterDepthPotential());
+            target[i] = clamp01(Math.max(
+                    sample.waterDepthPotential() + EPSILON,
+                    sample.terrainElevation() - freeboard));
         }
 
-        double startDischarge = Math.max(
-                MINIMUM_DISCHARGE,
-                routed.semanticReach().profiles().getFirst().segment().relativeDischarge());
-        double endDischarge = Math.max(
-                startDischarge,
-                routed.semanticReach().profiles().getLast().segment().relativeDischarge());
-
-        double[] target = new double[points.size()];
-        double[] discharge = new double[points.size()];
-        double[] widths = new double[points.size()];
-        double[] depths = new double[points.size()];
-        double[] terrainElevation = new double[points.size()];
-
-        for (int i = 0; i < points.size(); i++) {
-            double fraction = cumulative[i] / pathLength;
-            discharge[i] = lerp(startDischarge, endDischarge, fraction);
-            widths[i] = bankfullHalfWidth(descriptor.nominalRadius(), discharge[i]);
-            depths[i] = waterDepthPotential(discharge[i]);
-            terrainElevation[i] = clamp01(terrain.sample(points.get(i)));
-            double freeboard = BASE_FREEBOARD_POTENTIAL + DEPTH_FREEBOARD_FRACTION * depths[i];
-            target[i] = clamp01(Math.max(depths[i] + EPSILON, terrainElevation[i] - freeboard));
-        }
-
-        double[] surface = new double[points.size()];
         surface[0] = startSurface;
-        surface[points.size() - 1] = endSurface;
-        for (int i = 1; i < points.size() - 1; i++) {
-            double distanceFromPrevious = cumulative[i] - cumulative[i - 1];
-            double remaining = pathLength - cumulative[i];
-            double upper = surface[i - 1] - MINIMUM_WATER_SURFACE_GRADE * distanceFromPrevious;
-            double lower = endSurface + MINIMUM_WATER_SURFACE_GRADE * remaining;
+        surface[sourceSamples.size() - 1] = endSurface;
+        for (int i = 1; i < sourceSamples.size() - 1; i++) {
+            double previousStation = sourceSamples.get(i - 1).arcLength();
+            double station = sourceSamples.get(i).arcLength();
+            double distanceFromPrevious = station - previousStation;
+            double remaining = pathLength - station;
+            double upper =
+                    surface[i - 1] - MINIMUM_WATER_SURFACE_GRADE * distanceFromPrevious;
+            double lower =
+                    endSurface + MINIMUM_WATER_SURFACE_GRADE * remaining;
             if (lower > upper + EPSILON) {
-                throw new IllegalStateException("fixed endpoint datums leave no monotone interior hydraulic profile");
+                throw new IllegalStateException(
+                        "fixed endpoint datums leave no monotone interior hydraulic profile");
             }
             surface[i] = Math.max(lower, Math.min(upper, target[i]));
         }
 
-        List<SkyIslandHydraulicGeometrySample> samples = new ArrayList<>(points.size());
+        List<SkyIslandHydraulicGeometrySample> samples =
+                new ArrayList<>(sourceSamples.size());
         double maximumLowering = 0.0;
         double totalLowering = 0.0;
         double maximumSlope = 0.0;
-        double maximumWidth = 0.0;
-        double maximumDepth = 0.0;
 
-        for (int i = 0; i < points.size(); i++) {
-            double bed = Math.max(0.0, surface[i] - depths[i]);
-            double requiredLowering = Math.max(0.0, terrainElevation[i] - bed);
+        for (int i = 0; i < sourceSamples.size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample source = sourceSamples.get(i);
+            double bed = Math.max(0.0, surface[i] - source.waterDepthPotential());
+            double requiredLowering =
+                    Math.max(0.0, source.terrainElevation() - bed);
             maximumLowering = Math.max(maximumLowering, requiredLowering);
             totalLowering += requiredLowering;
-            maximumWidth = Math.max(maximumWidth, widths[i]);
-            maximumDepth = Math.max(maximumDepth, depths[i]);
             if (i > 0) {
-                double ds = cumulative[i] - cumulative[i - 1];
+                double ds =
+                        source.arcLength() - sourceSamples.get(i - 1).arcLength();
                 if (ds > EPSILON) {
                     maximumSlope = Math.max(
                             maximumSlope,
@@ -261,27 +233,27 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
                 }
             }
             samples.add(new SkyIslandHydraulicGeometrySample(
-                    points.get(i),
-                    cumulative[i] / pathLength,
-                    discharge[i],
-                    widths[i],
-                    depths[i],
-                    terrainElevation[i],
+                    source.position(),
+                    source.stationFraction(),
+                    source.relativeDischarge(),
+                    source.bankfullHalfWidth(),
+                    source.waterDepthPotential(),
+                    source.terrainElevation(),
                     clamp01(surface[i]),
                     clamp01(bed),
                     requiredLowering));
         }
 
         return new SkyIslandHydraulicReachGeometry(
-                routed,
-                centerline,
+                skeleton.geomorphicRoute(),
+                skeleton.centerline(),
                 samples,
                 pathLength,
                 maximumLowering,
                 totalLowering / samples.size(),
                 maximumSlope,
-                maximumWidth,
-                maximumDepth);
+                skeleton.maximumBankfullHalfWidth(),
+                skeleton.maximumWaterDepthPotential());
     }
 
     private static Map<Integer, Double> nodeDischarge(
@@ -290,7 +262,7 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             Map<Integer, List<SkyIslandGeomorphicReachRoute>> outgoing) {
         Map<Integer, Double> result = new HashMap<>();
         for (SkyIslandGeomorphicNetworkNode node : network.nodes()) {
-            double discharge = MINIMUM_DISCHARGE;
+            double discharge = SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE;
             for (SkyIslandGeomorphicReachRoute route : incoming.getOrDefault(node.cellIndex(), List.of())) {
                 discharge = Math.max(
                         discharge,
@@ -338,14 +310,14 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
         return List.copyOf(result);
     }
 
-    private static SkyIslandContinuousChannelCenterline requireCenterline(
-            Map<SkyIslandGeomorphicReachRoute, SkyIslandContinuousChannelCenterline> centerlines,
+    private static SkyIslandHydraulicReachSkeleton requireSkeleton(
+            Map<SkyIslandGeomorphicReachRoute, SkyIslandHydraulicReachSkeleton> skeletons,
             SkyIslandGeomorphicReachRoute route) {
-        SkyIslandContinuousChannelCenterline centerline = centerlines.get(route);
-        if (centerline == null) {
-            throw new IllegalStateException("missing continuous centerline for geomorphic reach");
+        SkyIslandHydraulicReachSkeleton skeleton = skeletons.get(route);
+        if (skeleton == null) {
+            throw new IllegalStateException("missing hydraulic skeleton for geomorphic reach");
         }
-        return centerline;
+        return skeleton;
     }
 
     private static Comparator<SkyIslandGeomorphicReachRoute> routeComparator() {
@@ -355,35 +327,13 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
                 .thenComparingInt(route -> route.semanticReach().endCellIndex());
     }
 
-    private static double[] cumulativeDistance(List<SkyIslandLocalPosition> points) {
-        double[] cumulative = new double[points.size()];
-        for (int i = 1; i < points.size(); i++) {
-            cumulative[i] = cumulative[i - 1]
-                    + Math.hypot(
-                            points.get(i).x() - points.get(i - 1).x(),
-                            points.get(i).z() - points.get(i - 1).z());
-        }
-        return cumulative;
-    }
-
     static double bankfullHalfWidth(double nominalRadius, double relativeDischarge) {
-        if (!Double.isFinite(nominalRadius) || nominalRadius <= 0.0) {
-            throw new IllegalArgumentException("nominalRadius must be finite and positive");
-        }
-        double q = Math.max(MINIMUM_DISCHARGE, clamp01(relativeDischarge));
-        return nominalRadius
-                * (BASE_WIDTH_RADIUS_FRACTION
-                        + WIDTH_RADIUS_FRACTION * Math.pow(q, WIDTH_EXPONENT));
+        return SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                nominalRadius, relativeDischarge);
     }
 
     static double waterDepthPotential(double relativeDischarge) {
-        double q = Math.max(MINIMUM_DISCHARGE, clamp01(relativeDischarge));
-        return BASE_DEPTH_POTENTIAL
-                + DEPTH_POTENTIAL_RANGE * Math.pow(q, DEPTH_EXPONENT);
-    }
-
-    private static double lerp(double a, double b, double fraction) {
-        return a + (b - a) * fraction;
+        return SkyIslandHydraulicGeometryCalibration.waterDepthPotential(relativeDischarge);
     }
 
     private static double clamp01(double value) {
