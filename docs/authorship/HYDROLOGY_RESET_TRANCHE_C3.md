@@ -169,8 +169,14 @@ The D2 ridge-occupancy input must use the arc-length-weighted definition after C
 
 ## 7. Resolution study
 
-The route solver must expose a package-private/test-only numerical-resolution parameter while the
-production default remains the current `N=4` until evidence supports changing it.
+The numerical-resolution parameter must flow through the **whole geomorphic-network candidate
+solve**, including shared SOURCE / CONFLUENCE / TERMINAL node selection and every incident A* route.
+A route-only refinement that freezes node anchors selected on the `N=4` lattice is insufficient
+evidence for endpoint-discretization convergence.
+
+The network/route planners must therefore expose package-private/test-only numerical-resolution
+entry points while the production default remains the current `N=4` until evidence supports
+changing it.
 
 Synthetic fixtures must be solved on at least:
 
