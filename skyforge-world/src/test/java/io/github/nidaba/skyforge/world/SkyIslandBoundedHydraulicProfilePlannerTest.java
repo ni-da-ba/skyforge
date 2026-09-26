@@ -73,7 +73,7 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
-    void retainedOpenWaterTerminalIsNeverTreatedAsFreeBoundary() {
+    void retainedOpenWaterJunctionIsNeverTreatedAsFreeBoundary() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
         SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
         SkyIslandBoundedHydraulicProfilePlan plan =
@@ -85,8 +85,10 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
                 continue;
             }
             for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
-                if (outcome.skeleton().geomorphicRoute().semanticReach().endCellIndex()
-                        == candidate.sinkCellIndex()) {
+                SkyIslandSemanticChannelReach semantic =
+                        outcome.skeleton().geomorphicRoute().semanticReach();
+                if (semantic.startCellIndex() == candidate.sinkCellIndex()
+                        || semantic.endCellIndex() == candidate.sinkCellIndex()) {
                     matchedTerminalCount++;
                     assertEquals(
                             SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
@@ -97,7 +99,7 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
                 }
             }
         }
-        assertTrue(matchedTerminalCount > 0, "retained fixture must exercise a channel/basin terminal");
+        assertTrue(matchedTerminalCount > 0, "retained fixture must exercise a channel/basin junction");
     }
 
     @Test
