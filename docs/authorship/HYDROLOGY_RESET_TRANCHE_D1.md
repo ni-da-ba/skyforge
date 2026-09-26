@@ -66,6 +66,26 @@ corpus derives its maximum ridge fraction from those same D1 reach diagnostics.
 This correction changes no route, terrain, or threshold. It changes only which already-defined C3
 ridge metric is allowed to feed D2.
 
+## Post-C3 regenerated fixed-corpus result
+
+The corrected arc-length ridge authority changes several numeric ridge fractions but does not require
+a D2 threshold change.
+
+Representative fixed outcomes are:
+
+- primary-287 reach 1090→1758 remains rejected for non-ridge quarry/containment/burden failures;
+- control-241 reach 671→479 is explicitly rejected for `RIDGE_OCCUPANCY` at
+  `ridgeLengthFraction = 0.375` against the MIXED 0.35 limit;
+- all fixed control-118 reaches remain accepted;
+- all fixed stress-512 reaches remain accepted, including a CASCADE reach at ridge fraction 0.375
+  under the CASCADE 0.40 limit;
+- pure-INCISED key 2084 reach 700→600 remains accepted at zero ridge occupancy;
+- pure-INCISED key 2093 reach 708→559 remains rejected solely for `BANK_CONTAINMENT`, with zero
+  ridge occupancy.
+
+Thus the authority correction is not a calibration retune. It replaces the invalid sample-count
+metric with C3's defined physical/arc-length metric and preserves fail-closed classifications.
+
 ## Corpus rule
 
 The fixed D0 corpus is extended with D1 metrics before any first hard envelope is frozen.
