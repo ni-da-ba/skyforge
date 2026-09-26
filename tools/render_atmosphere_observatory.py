@@ -127,7 +127,7 @@ def main():
 <img src="field-atlas.svg" alt="Four altitude slices of measured atmosphere" style="max-width:100%;height:auto">
 {temporal_html}<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
 <h2>Derived diagnostics</h2><p>64-block adjacent updraft |Δ|: mean <b>{summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["mean"]:.3f} m/s</b>, max {summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["max"]:.3f}. Glider coupling improves the -0.05 blocks/tick baseline in <b>{summary["derived"]["glider_improved_cells"]}/{len(samples)}</b> sampled cells; hawk entry threshold is met in <b>{summary["derived"]["hawk_enter_cells"]}/{len(samples)}</b>.</p>
-<p>Temporal persistence is intentionally not inferred from this single-tick artifact; that requires the next bounded acquisition experiment.</p>"""
+<p>The temporal section is a bounded 31-frame observation, not a claim of long-term climatology. It supports short-horizon persistence/coherence inspection only.</p>"""
     (out/"index.html").write_text(doc)
     print(json.dumps(summary,indent=2))
 
