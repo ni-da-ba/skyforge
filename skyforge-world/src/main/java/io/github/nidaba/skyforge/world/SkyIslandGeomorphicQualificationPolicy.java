@@ -31,16 +31,17 @@ public record SkyIslandGeomorphicQualificationPolicy(
      * the looser C1-era 3-4 range. This is a fail-closed geometric safety ratio, not a claim of a
      * universal natural-river constant.
      *
-     * <p>Pure incised reaches are underrepresented in the initial fixed corpus, so the incised
-     * envelope is a conservative interpolation between alluvial and cascade behavior and must be
-     * expanded with a dedicated incised control before final production freeze.
+     * <p>The fixed pure-INCISED corpus added after C3 now exercises the incised envelope directly.
+     * Keys 2084 and 2093 leave the existing limits unchanged: the low-surgery INCISED reaches pass,
+     * while reach 708->559 on key 2093 remains rejected solely for bank containment. The envelope is
+     * therefore retained without threshold widening.
      */
     public static SkyIslandGeomorphicQualificationPolicy firstEvidenceBacked() {
         return new SkyIslandGeomorphicQualificationPolicy(
                 // alluvial
                 new SkyIslandGeomorphicProfileLimits(
                         0.050, 0.75, 1.0, 0.35, 0.35, 0.040, 1.0, 0.15, 0.50),
-                // incised (provisional until dedicated pure-incised corpus evidence is added)
+                // incised (retained unchanged after fixed pure-INCISED corpus re-evaluation)
                 new SkyIslandGeomorphicProfileLimits(
                         0.080, 1.50, 2.0, 0.45, 0.75, 0.050, 1.0, 0.25, 1.50),
                 // cascade
