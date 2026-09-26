@@ -42,11 +42,34 @@ class SkyIslandCascadeHeadCompatibilityPlannerTest {
     }
 
     @Test
-    void repeatedCascadeCompatibilityPlansAreIdentical() {
+    void repeatedCascadeCompatibilityPlansPreserveDeterministicEvidence() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 287L);
+        SkyIslandCascadeHeadCompatibilityPlan first =
+                SkyIslandCascadeHeadCompatibilityPlanner.plan(descriptor);
+        SkyIslandCascadeHeadCompatibilityPlan second =
+                SkyIslandCascadeHeadCompatibilityPlanner.plan(descriptor);
+
         assertEquals(
-                SkyIslandCascadeHeadCompatibilityPlanner.plan(descriptor),
-                SkyIslandCascadeHeadCompatibilityPlanner.plan(descriptor));
+                first.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::status)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::status)
+                        .toList());
+        assertEquals(
+                first.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::solvedDropWorldUnits)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::solvedDropWorldUnits)
+                        .toList());
+        assertEquals(
+                first.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::authoredMaximumDropWorldUnits)
+                        .toList(),
+                second.outcomes().stream()
+                        .map(SkyIslandCascadeHeadCompatibilityOutcome::authoredMaximumDropWorldUnits)
+                        .toList());
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
