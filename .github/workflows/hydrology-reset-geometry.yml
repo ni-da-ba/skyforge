@@ -69,6 +69,15 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyOrdinarySpanCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyOrdinarySpanCorpusTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3E.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicAssemblyStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachAssembly.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTerminalComponent.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyNetworkAssemblyCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyNetworkAssemblyCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -216,6 +225,8 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandOrdinarySpanPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyOrdinarySpanCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyNetworkAssemblyCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
@@ -278,6 +289,11 @@ jobs:
           fi
           echo "--- ordinary-span-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-network-assembly-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyNetworkAssemblyCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- network-assembly-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/manifest.csv
 
       - name: Dump focused failure report
         if: failure()
