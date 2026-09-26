@@ -51,5 +51,9 @@ class HydrologyBoundedProfileCorpusTest {
                 "F2C profile evidence must contain at least one actual bounded-QP solve");
         assertTrue(terminalFateA.contains("fate"));
         assertTrue(terminalFateA.contains("watershedPath"));
+        assertTrue(terminalFateA.contains("lake-609"));
+        assertTrue(
+                terminalFateA.contains("RETAINED_OPEN_WATER"),
+                "terminal-fate evidence must exercise retained-open-water ownership");
     }
 }
