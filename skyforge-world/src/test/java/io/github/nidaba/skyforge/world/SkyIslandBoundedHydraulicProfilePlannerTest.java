@@ -73,6 +73,31 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
+    void retainedOpenWaterTerminalIsNeverTreatedAsFreeBoundary() {
+        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
+        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
+
+        for (SkyIslandWaterbodyCandidate candidate : waterbodies.candidates()) {
+            if (candidate.kind() == SkyIslandWaterbodyKind.WETLAND) {
+                continue;
+            }
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+                if (outcome.skeleton().geomorphicRoute().semanticReach().endCellIndex()
+                        == candidate.sinkCellIndex()) {
+                    assertEquals(
+                            SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
+                            outcome.status());
+                    assertTrue(outcome.deferralReasons().contains(
+                            SkyIslandQualifiedFluvialDeferralReason
+                                    .RETAINED_WATER_TRANSITION_REQUIRED));
+                }
+            }
+        }
+    }
+
+    @Test
     void solvedOrdinaryProfilesAreNonClimbingAndRespectD2GradeLimit() {
         int solvedCount = 0;
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
@@ -176,7 +201,11 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
+        return descriptor(8L, 81L, key);
+    }
+
+    private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
         return SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(SEED, 8L, 81L, key));
+                SkyIslandIdentity.of(SEED, province, cluster, key));
     }
 }
