@@ -18,6 +18,11 @@ import java.util.Objects;
  *
  * <p>The result exposes required centerline lowering as a diagnostic. A later qualification layer
  * decides whether that modification is acceptable; this planner never excavates to make a route fit.
+ *
+ * <p><strong>Reset authority:</strong> the topological/clipped head solution in this class is
+ * historical staging only. New F2 consumers must obtain C2 centerline/discharge/width/depth state
+ * from {@link SkyIslandHydraulicGeometrySkeletonPlanner} and apply the accepted bounded-profile
+ * contract rather than treating this planner's water surface as physical authority.
  */
 public final class SkyIslandHydraulicChannelNetworkPlanner {
     /** Small strictly-positive grade used only to avoid perfectly flat ordinary channel profiles. */
