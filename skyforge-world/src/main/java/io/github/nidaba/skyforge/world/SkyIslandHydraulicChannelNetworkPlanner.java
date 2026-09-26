@@ -189,8 +189,8 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
         surface[0] = startSurface;
         surface[sourceSamples.size() - 1] = endSurface;
         for (int i = 1; i < sourceSamples.size() - 1; i++) {
-            double previousStation = sourceSamples.get(i - 1).stationFraction() * pathLength;
-            double station = sourceSamples.get(i).stationFraction() * pathLength;
+            double previousStation = sourceSamples.get(i - 1).arcLength();
+            double station = sourceSamples.get(i).arcLength();
             double distanceFromPrevious = station - previousStation;
             double remaining = pathLength - station;
             double upper =
@@ -219,9 +219,7 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             totalLowering += requiredLowering;
             if (i > 0) {
                 double ds =
-                        (source.stationFraction()
-                                        - sourceSamples.get(i - 1).stationFraction())
-                                * pathLength;
+                        source.arcLength() - sourceSamples.get(i - 1).arcLength();
                 if (ds > EPSILON) {
                     maximumSlope = Math.max(
                             maximumSlope,
