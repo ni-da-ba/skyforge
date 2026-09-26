@@ -306,13 +306,13 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/terminal-components.csv
           echo "--- reach-assemblies.csv ---"
           cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/reach-assemblies.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-component-terrain-candidate-test-a/summary.csv ]; then
+          if [ ! -f skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyComponentTerrainCandidateCorpusTest' --rerun-tasks --no-configuration-cache
           fi
-          echo "--- component-terrain-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-component-terrain-candidate-test-a/summary.csv
-          echo "--- component-terrain-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-component-terrain-candidate-test-a/reaches.csv
+          echo "--- component-candidates.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv
+          echo "--- realized-reaches.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/realized-reaches.csv
 
       - name: Dump focused failure report
         if: failure()
