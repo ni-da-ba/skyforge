@@ -28,7 +28,8 @@ public record SkyIslandHydraulicGeometrySkeletonSample(
         return Math.max(
                 waterDepthPotential,
                 terrainElevation
-                        - SkyIslandHydraulicGeometryCalibration.freeboardPotential(relativeDischarge));
+                        - SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(
+                                waterDepthPotential));
     }
 
     private static void requireFraction(double value, String name) {
