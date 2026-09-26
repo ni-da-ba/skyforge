@@ -99,7 +99,45 @@ class SkyIslandOrdinarySpanPlannerTest {
                         terrain,
                         planningSpacing);
 
-        assertEquals(SkyIslandGeomorphicMeasurements.from(diagnostics), direct);
+        SkyIslandGeomorphicMeasurements whole =
+                SkyIslandGeomorphicMeasurements.from(diagnostics);
+        assertEquals(
+                whole.maximumCenterlineLoweringPotential(),
+                direct.maximumCenterlineLoweringPotential());
+        assertEquals(
+                whole.maximumCenterlineLoweringWorldUnits(),
+                direct.maximumCenterlineLoweringWorldUnits());
+        assertEquals(
+                whole.maximumLateralRecoveryGrade(),
+                direct.maximumLateralRecoveryGrade());
+        assertEquals(
+                whole.maximumBankContainmentDeficitWorldUnits(),
+                direct.maximumBankContainmentDeficitWorldUnits());
+        assertEquals(
+                whole.maximumDepthToBankfullWidthRatio(),
+                direct.maximumDepthToBankfullWidthRatio());
+        assertEquals(
+                whole.maximumReliefToValleyWidthRatio(),
+                direct.maximumReliefToValleyWidthRatio());
+        assertEquals(
+                whole.normalizedExcavationBurden(),
+                direct.normalizedExcavationBurden());
+        assertEquals(
+                whole.excavationVolumeProxyWorldUnitsCubed(),
+                direct.excavationVolumeProxyWorldUnitsCubed());
+        assertEquals(
+                whole.maximumCurvatureWidthRatio(),
+                direct.maximumCurvatureWidthRatio());
+        assertEquals(
+                whole.maximumLongitudinalGrade(),
+                direct.maximumLongitudinalGrade());
+        assertEquals(
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                                reach.geomorphicRoute().route(),
+                                terrain,
+                                planningSpacing)
+                        .ridgeLengthFraction(),
+                diagnostics.ridgeSampleFraction());
         assertFalse(reach.samples().isEmpty());
     }
 
