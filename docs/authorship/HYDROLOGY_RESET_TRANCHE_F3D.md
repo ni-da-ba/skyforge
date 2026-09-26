@@ -129,6 +129,35 @@ Each span is exactly one of:
 Only `SOLVED_QUALIFIED` means the ordinary span independently passes the current evidence-backed
 D2 envelope. It still grants no terrain authority in F3D.
 
+## First fixed-corpus result
+
+The first F3D evidence run establishes that explicit CASCADE ownership is **not** sufficient to rescue
+the original primary-287 route.
+
+Its parent reach 1090→1758 partitions into four ordinary ALLUVIAL spans around the three solved
+internal CASCADE intervals. All four ordinary spans are independently `INFEASIBLE`:
+
+- 0.000000→0.212121: a D2 pointwise head interval becomes empty;
+- 0.242424→0.333333: the solved upstream CASCADE boundary head lies outside the adjacent ordinary D2
+  envelope;
+- 0.454545→0.818182: an interior D2 pointwise head interval becomes empty;
+- 0.969697→1.000000: an interior D2 pointwise head interval becomes empty.
+
+Thus primary-287 remains a valid fail-closed specimen. Transition code must not excavate harder or
+widen D2 to preserve it.
+
+Positive evidence exists independently:
+
+- confluence-632 incoming ordinary spans 759→710 and 1088→710 both solve and requalify against their
+  fixed F3B finite-boundary heads;
+- stress-512 incoming ordinary spans 1631→1729 and 1683→1729 both solve and requalify;
+- overlapping confluence/CASCADE boundaries remain explicitly deferred rather than composed
+  implicitly.
+
+The fixed retained-open-water terminal specimen is lake-609 / terminal 1397, not retained-83. F3D
+carries that terminal as `BOUNDARY_DEFERRED` with `RETAINED_OPEN_WATER` ownership; no free outlet
+or basin terrain authority is inferred.
+
 ## Hard invariants
 
 F3D must preserve all of the following:
