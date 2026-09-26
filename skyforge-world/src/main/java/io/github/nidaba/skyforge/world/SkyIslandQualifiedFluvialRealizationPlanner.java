@@ -56,10 +56,10 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
             }
 
             List<SkyIslandQualifiedFluvialDeferralReason> reasons =
-                    deferralReasons(
+                    SkyIslandFluvialTransitionOwnership.reasons(
                             hydraulic.geomorphicNetwork(),
                             terminalFates,
-                            diagnostic.hydraulicReach());
+                            diagnostic.hydraulicReach().geomorphicRoute().semanticReach());
             if (!reasons.isEmpty()) {
                 deferredQualifications.add(
                         new SkyIslandQualifiedFluvialDeferral(qualification, reasons));
@@ -103,41 +103,6 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 deferredQualifications,
                 rejectedQualifications,
                 realized);
-    }
-
-    private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
-            SkyIslandGeomorphicChannelNetworkPlan network,
-            Map<Integer, SkyIslandChannelTerminalFate> terminalFates,
-            SkyIslandHydraulicReachGeometry reach) {
-        SkyIslandSemanticChannelReach semantic =
-                reach.geomorphicRoute().semanticReach();
-        List<SkyIslandQualifiedFluvialDeferralReason> reasons = new ArrayList<>();
-        SkyIslandGeomorphicNetworkNode startNode =
-                network.requireNode(semantic.startCellIndex());
-        SkyIslandGeomorphicNetworkNode endNode =
-                network.requireNode(semantic.endCellIndex());
-
-        if (startNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
-                || endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
-            reasons.add(
-                    SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED);
-        }
-        if (semantic.profiles().stream()
-                .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
-            reasons.add(
-                    SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
-        }
-        if (endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL) {
-            SkyIslandChannelTerminalFate fate = terminalFates.get(endNode.cellIndex());
-            if (fate == null) {
-                throw new IllegalStateException(
-                        "missing explicit watershed fate for terrain-authorized channel terminal "
-                                + endNode.cellIndex());
-            }
-            SkyIslandChannelTerminalFatePolicy.deferralReason(fate.kind())
-                    .ifPresent(reasons::add);
-        }
-        return List.copyOf(reasons);
     }
 
     private static boolean containsReach(
