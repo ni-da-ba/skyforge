@@ -9,7 +9,8 @@ import java.util.Objects;
  * Measures geomorphic plausibility of candidate hydrology without authoring or mutating terrain.
  *
  * <p>This class intentionally contains no acceptance thresholds. D1 exists to characterize the
- * distributions needed to calibrate a later hard rejection policy. Curvature and cross-section\n * measurements use the current accepted continuous centerline, never the raw search lattice.
+ * distributions needed to calibrate hard rejection policy. Curvature and cross-section measurements
+ * use accepted continuous geometry, never the raw search lattice.
  */
 public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
     private static final double EPSILON = 1.0e-12;
@@ -63,17 +64,53 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(reach, "reach");
         Objects.requireNonNull(terrain, "terrain");
+
+        SkyIslandGeomorphicMeasurements measurements =
+                measureGeometry(
+                        descriptor,
+                        reach.geomorphicRoute().semanticReach(),
+                        reach.centerline().points(),
+                        reach.samples(),
+                        terrain,
+                        planningSpacing);
+        return new SkyIslandGeomorphicReachDiagnostics(
+                reach,
+                measurements.maximumCenterlineLoweringPotential(),
+                measurements.maximumCenterlineLoweringWorldUnits(),
+                measurements.maximumLateralRecoveryGrade(),
+                measurements.maximumBankContainmentDeficitWorldUnits(),
+                measurements.maximumDepthToBankfullWidthRatio(),
+                measurements.maximumReliefToValleyWidthRatio(),
+                measurements.normalizedExcavationBurden(),
+                measurements.excavationVolumeProxyWorldUnitsCubed(),
+                measurements.maximumCurvatureWidthRatio(),
+                measurements.ridgeLengthFraction(),
+                measurements.maximumLongitudinalGrade());
+    }
+
+    static SkyIslandGeomorphicMeasurements measureGeometry(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            List<SkyIslandHydraulicGeometrySample> samples,
+            SkyIslandSemanticField terrain,
+            double planningSpacing) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(semantic, "semantic");
+        points = List.copyOf(points);
+        samples = List.copyOf(samples);
+        Objects.requireNonNull(terrain, "terrain");
         if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
             throw new IllegalArgumentException("planningSpacing must be finite and positive");
         }
-
-        List<SkyIslandHydraulicGeometrySample> samples = reach.samples();
-        List<SkyIslandLocalPosition> points = reach.centerline().points();
-        List<SkyIslandChannelProfile> profiles = reach.geomorphicRoute().semanticReach().profiles();
-        if (samples.size() != points.size()) {
-            throw new IllegalArgumentException("hydraulic samples and route points must align");
+        if (samples.size() != points.size() || samples.size() < 2) {
+            throw new IllegalArgumentException(
+                    "hydraulic samples and continuous points must align with at least two samples");
         }
+        points.forEach(point -> Objects.requireNonNull(point, "point"));
+        samples.forEach(sample -> Objects.requireNonNull(sample, "sample"));
 
+        List<SkyIslandChannelProfile> profiles = semantic.profiles();
         double reliefBudget = descriptor.reliefBudget();
         double maximumLoweringPotential = 0.0;
         double maximumLoweringWorld = 0.0;
@@ -146,8 +183,7 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 excavationVolumeProxy +=
                         0.5 * (previousArea + currentArea) * ds;
 
-                double meanWidth =
-                        0.5 * (previousFullWidth + fullBankfullWidth);
+                double meanWidth = 0.5 * (previousFullWidth + fullBankfullWidth);
                 weightedBurdenNumerator +=
                         0.5
                                 * (samples.get(i - 1).requiredCenterlineLowering()
@@ -182,12 +218,11 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 weightedBurdenDenominator <= EPSILON
                         ? 0.0
                         : weightedBurdenNumerator / weightedBurdenDenominator;
-        SkyIslandRouteFunctionalDiagnostics routeDiagnostics =
-                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
-                        reach.geomorphicRoute().route(), terrain, planningSpacing);
+        double ridgeLengthFraction =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.ridgeLengthFraction(
+                        points, terrain, planningSpacing);
 
-        return new SkyIslandGeomorphicReachDiagnostics(
-                reach,
+        return new SkyIslandGeomorphicMeasurements(
                 maximumLoweringPotential,
                 maximumLoweringWorld,
                 maximumLateralGrade,
@@ -197,7 +232,7 @@ public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
                 burden,
                 excavationVolumeProxy,
                 maximumCurvatureWidthRatio,
-                routeDiagnostics.ridgeLengthFraction(),
+                ridgeLengthFraction,
                 maximumLongitudinalGrade);
     }
 
