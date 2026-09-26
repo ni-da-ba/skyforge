@@ -212,7 +212,12 @@ jobs:
             skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-client/crash-reports/*.txt
 
 
+  # Kept as a manual follow-up harness for #1142. The current pinned A4MC 0.2.1
+  # has no supported terrain-provider seam for realized Skyforge island geometry, so an
+  # automatic green result here would be misleading even if provider readiness eventually
+  # converged. Re-enable as an acceptance gate only after #1142 closes.
   skyforge-region-probe:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
