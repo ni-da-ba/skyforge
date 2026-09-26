@@ -39,18 +39,25 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
     }
 
     @Test
-    void unresolvedTransitionsAreDeferredBeforeTerrainAuthority() {
+    void allTransitionOwnedStressReachesAreDeferredBeforeTerrainAuthority() {
         SkyIslandQualifiedFluvialRealizationPlan plan =
                 SkyIslandQualifiedFluvialRealizationPlanner.plan(
-                        descriptor(6L, 61L, 512L));
+                        descriptor(6L, 61L, 512L),
+                        permissivePolicy());
 
         assertFalse(plan.deferredQualifications().isEmpty());
+        assertTrue(plan.rejectedQualifications().isEmpty());
+        assertTrue(plan.realizedQualifications().isEmpty());
+        assertTrue(plan.terrainField().acceptedReaches().isEmpty());
         assertTrue(plan.deferredQualifications().stream()
                 .anyMatch(deferral -> deferral.reasons().contains(
                         SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED)));
         assertTrue(plan.deferredQualifications().stream()
                 .anyMatch(deferral -> deferral.reasons().contains(
                         SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED)));
+        assertTrue(plan.deferredQualifications().stream()
+                .anyMatch(deferral -> deferral.reasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason.UNRESOLVED_TERMINAL_FATE)));
 
         for (SkyIslandQualifiedFluvialDeferral deferral : plan.deferredQualifications()) {
             SkyIslandHydraulicReachGeometry deferred =
@@ -117,6 +124,22 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
                     first.terrainField().sampleDetailed(probe),
                     second.terrainField().sampleDetailed(probe));
         }
+    }
+
+    private static SkyIslandGeomorphicQualificationPolicy permissivePolicy() {
+        SkyIslandGeomorphicProfileLimits limits =
+                new SkyIslandGeomorphicProfileLimits(
+                        1.0,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0e6,
+                        1.0,
+                        1.0e6);
+        return new SkyIslandGeomorphicQualificationPolicy(
+                limits, limits, limits, limits);
     }
 
     private static boolean containsReach(
