@@ -2008,6 +2008,31 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #1140 project-owner atmosphere review. Reopen the already-qualified DR-50 A world in an
+        // ordinary interactive client, substitute the #1142 patched A4MC core only when explicitly
+        // supplied, reconstruct read-only island terrain semantics for A4MC, and enable both accepted
+        // shared-lift consumers. No automated acceptance harness is installed, so the client remains
+        // open for glider/hawk observation and flight-feel review.
+        create("waveC3AtmosphereHumanReviewClient") {
+            client()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-a.properties").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+            systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // #495 final shared-truth + reconstruction evidence. Both server boots use the same
         // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
         // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.
@@ -5955,11 +5980,21 @@ tasks.register("waveC3ResolvePinnedMods") {
             "SmartBrainLib" to evidenceArtifactToken(waveC5Pin("smartbrainlib", "coordinate")),
             "YACL" to evidenceArtifactToken(waveC5Pin("yacl", "coordinate")),
             "Reliable Gliders" to evidenceArtifactToken(waveC2Pin("reliablegliders", "coordinate")),
-            "Aerodynamics4MC core" to coreArtifactToken,
         )
         evidenceRequiredTokens.forEach { (label, token) ->
             check(evidenceRuntimeFiles.any { it.contains(token) }) {
                 "Wave C3 evidence runtime missing $label token '$token': $evidenceRuntimeFiles"
+            }
+        }
+        if (waveC3ProbeAeroCoreOverrideJar.isPresent) {
+            val overrideFile = file(waveC3ProbeAeroCoreOverrideJar.get())
+            check(evidenceRuntimeFiles.any { it == overrideFile.name }) {
+                "Wave C3 evidence runtime is missing #1140/#1142 A4MC override '${overrideFile.name}': $evidenceRuntimeFiles"
+            }
+            println("Wave C3 evidence runtime uses explicit A4MC override ${overrideFile.name}")
+        } else {
+            check(evidenceRuntimeFiles.any { it.contains(coreArtifactToken) }) {
+                "Wave C3 evidence runtime missing Aerodynamics4MC core token '$coreArtifactToken': $evidenceRuntimeFiles"
             }
         }
         println("Wave C3 reconstruction/provenance evidence runtime")
@@ -6351,7 +6386,7 @@ dependencies {
     )
     add(
         waveC3EvidenceRuntime.runtimeOnlyConfigurationName,
-        files(waveC3AeroCoreArtifact),
+        waveC3ProbeAeroCoreFiles,
     )
 
     // Aircraft profiles reuse the current C1-pinned flight substrate; the compat addon is kept
