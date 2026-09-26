@@ -349,6 +349,15 @@ val waveC3AeroCompatArtifact = configurations.create("waveC3AeroCompatArtifact")
     isCanBeResolved = true
 }
 
+// #1142 R&D only: CI may substitute a source-built A4MC core containing the proposed public
+// terrain-provider seam. Ordinary runs omit this property and retain the immutable released pin.
+val waveC3ProbeAeroCoreOverrideJar = providers.gradleProperty("skyforgeA4mcProbeCoreOverrideJar")
+val waveC3ProbeAeroCoreFiles = if (waveC3ProbeAeroCoreOverrideJar.isPresent) {
+    files(waveC3ProbeAeroCoreOverrideJar.get())
+} else {
+    files(waveC3AeroCoreArtifact)
+}
+
 val waveC3FlightStackMods = listOf(
     "create",
     "sable",
@@ -1966,6 +1975,14 @@ neoForge {
             programArgument("acceptance")
             systemProperty("skyforge.dev.atmosphereProbeVolume", "true")
             systemProperty("skyforge.dev.atmosphereProbeSurfaceRelative", "true")
+            // Keep control/treatment observatories on the exact same DR-50 lattice even when the
+            // unattended client spawns on opposite sides of a 64-block anchor boundary.
+            systemProperty("skyforge.dev.atmosphereProbeCenterX", "-32")
+            systemProperty("skyforge.dev.atmosphereProbeCenterZ", "32")
+            if (providers.gradleProperty("skyforgeA4mcTerrainProvider").orNull == "true") {
+                systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+                systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            }
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-probe-skyforge")
@@ -5914,10 +5931,18 @@ tasks.register("waveC3ResolvePinnedMods") {
             "Wave C3 core coordinate must be group:module:version"
         }
         val coreArtifactToken = "${coreCoordinateParts[1]}-${coreCoordinateParts[2]}"
-        check(probeRuntimeFiles.any { it.contains(coreArtifactToken) }) {
-            "Wave C3 probe runtime is missing FML-discoverable A4MC core token '$coreArtifactToken'"
+        if (waveC3ProbeAeroCoreOverrideJar.isPresent) {
+            val overrideFile = file(waveC3ProbeAeroCoreOverrideJar.get())
+            check(probeRuntimeFiles.any { it == overrideFile.name }) {
+                "Wave C3 probe runtime is missing #1142 A4MC override '${overrideFile.name}': $probeRuntimeFiles"
+            }
+            println("Wave C3 real-provider probe runtime uses #1142 override ${overrideFile.name}")
+        } else {
+            check(probeRuntimeFiles.any { it.contains(coreArtifactToken) }) {
+                "Wave C3 probe runtime is missing FML-discoverable A4MC core token '$coreArtifactToken'"
+            }
+            println("Wave C3 real-provider probe runtime includes $coreArtifactToken")
         }
-        println("Wave C3 real-provider probe runtime includes $coreArtifactToken")
 
         val evidenceRuntimeFiles = waveC3EvidenceRuntime.runtimeClasspath.files.map { it.name }.sorted()
         fun evidenceArtifactToken(coordinate: String): String {
@@ -6309,7 +6334,7 @@ dependencies {
     // AdditionalRuntimeClasspath used by the historical C3 loader-only preflight.
     add(
         waveC3ProbeRuntime.runtimeOnlyConfigurationName,
-        files(waveC3AeroCoreArtifact),
+        waveC3ProbeAeroCoreFiles,
     )
 
     // Final #495 evidence runtime combines the already accepted atmosphere authority with the

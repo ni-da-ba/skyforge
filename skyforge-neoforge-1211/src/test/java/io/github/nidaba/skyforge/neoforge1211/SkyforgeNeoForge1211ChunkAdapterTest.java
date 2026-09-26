@@ -214,6 +214,97 @@ final class SkyforgeNeoForge1211ChunkAdapterTest {
                 "deferred exact-volume rematerialization must be deterministic");
     }
 
+    @Test
+    void atmosphereTopSurfaceChoosesUpperStackedOwnerWithoutMaterializingChunk() {
+        long lowerSeed = ROOT_SEED ^ 0x41544d4c4f57L;
+        long upperSeed = ROOT_SEED ^ 0x41544d555050L;
+        SkyIslandWorldVolumeId lowerId =
+                new SkyIslandWorldVolumeId(ROOT_SEED, "atmosphere-stacked", 0, 0, lowerSeed);
+        SkyIslandWorldVolumeId upperId =
+                new SkyIslandWorldVolumeId(ROOT_SEED, "atmosphere-stacked", 0, 1, upperSeed);
+        SkyIslandWorldCatalog stacked = new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        new SkyIslandWorldVolume(
+                                lowerId,
+                                new WorldBounds(-72.0, 72.0, 196.0, 288.0, -72.0, 72.0),
+                                compiledTableland(lowerSeed, 236.0)),
+                        new SkyIslandWorldVolume(
+                                upperId,
+                                new WorldBounds(-72.0, 72.0, 316.0, 408.0, -72.0, 72.0),
+                                compiledTableland(upperSeed, 356.0))));
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                stacked,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        var top = adapter.atmosphereTopSurface(0, 0, id -> true);
+        assertTrue(top.isPresent());
+        assertEquals(upperId, top.orElseThrow().volumeId());
+        assertEquals(
+                adapter.firstFreeHeight(upperId, 0, 0, -64, 640).orElseThrow(),
+                top.orElseThrow().firstFreeY());
+        assertTrue(adapter.atmosphereTopSurface(500, 500, id -> true).isEmpty());
+    }
+
+    @Test
+    void atmosphereTopSurfaceFallsThroughRejectedUpperOwner() {
+        long lowerSeed = ROOT_SEED ^ 0x41444d4c4f57L;
+        long upperSeed = ROOT_SEED ^ 0x41444d555050L;
+        SkyIslandWorldVolumeId lowerId =
+                new SkyIslandWorldVolumeId(ROOT_SEED, "admission-stacked", 0, 0, lowerSeed);
+        SkyIslandWorldVolumeId upperId =
+                new SkyIslandWorldVolumeId(ROOT_SEED, "admission-stacked", 0, 1, upperSeed);
+        SkyIslandWorldCatalog stacked = new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        new SkyIslandWorldVolume(
+                                lowerId,
+                                new WorldBounds(-72.0, 72.0, 196.0, 288.0, -72.0, 72.0),
+                                compiledTableland(lowerSeed, 236.0)),
+                        new SkyIslandWorldVolume(
+                                upperId,
+                                new WorldBounds(-72.0, 72.0, 316.0, 408.0, -72.0, 72.0),
+                                compiledTableland(upperSeed, 356.0))));
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                stacked,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        var lowerOnly = adapter.atmosphereTopSurface(0, 0, lowerId::equals);
+        assertTrue(lowerOnly.isPresent());
+        assertEquals(lowerId, lowerOnly.orElseThrow().volumeId());
+
+        assertTrue(
+                adapter.atmosphereTopSurface(0, 0, id -> false).isEmpty(),
+                "a column with no admitted exact owner must decline atmosphere ownership");
+    }
+
+    @Test
+    void atmosphereTopSurfaceFailsClosedOnExactTopHeightTie() {
+        long firstSeed = ROOT_SEED ^ 0x544945303031L;
+        long secondSeed = ROOT_SEED ^ 0x544945303032L;
+        SkyIslandWorldCatalog tied = new SkyIslandWorldCatalog(
+                ROOT_SEED,
+                List.of(
+                        new SkyIslandWorldVolume(
+                                new SkyIslandWorldVolumeId(ROOT_SEED, "tie", 0, 0, firstSeed),
+                                new WorldBounds(-72.0, 72.0, 316.0, 408.0, -72.0, 72.0),
+                                compiledTableland(firstSeed, 356.0)),
+                        new SkyIslandWorldVolume(
+                                new SkyIslandWorldVolumeId(ROOT_SEED, "tie", 0, 1, secondSeed),
+                                new WorldBounds(-72.0, 72.0, 316.0, 408.0, -72.0, 72.0),
+                                compiledTableland(secondSeed, 356.0))));
+        SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                tied,
+                SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+
+        assertTrue(
+                adapter.atmosphereTopSurface(0, 0, id -> true).isEmpty(),
+                "equal top heights from distinct exact owners must not be resolved by catalog order");
+    }
+
     private static OptionalInt manualFirstFreeHeight(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyIslandWorldVolumeId volumeId,

@@ -34,6 +34,8 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.atmosphereProbeVolume";
     static final String OUTPUT_PROPERTY = "skyforge.dev.atmosphereProbeOutput";
     static final String SURFACE_RELATIVE_PROPERTY = "skyforge.dev.atmosphereProbeSurfaceRelative";
+    static final String CENTER_X_PROPERTY = "skyforge.dev.atmosphereProbeCenterX";
+    static final String CENTER_Z_PROPERTY = "skyforge.dev.atmosphereProbeCenterZ";
 
     private static final int[] XZ_OFFSETS = {-128, -64, 0, 64, 128};
     private static final int[] Y_LEVELS = {80, 120, 160, 220};
@@ -116,8 +118,12 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         }
 
         ServerPlayer anchor = players.get(0);
-        double centerX = Math.floor(anchor.getX() / 64.0) * 64.0 + 32.0;
-        double centerZ = Math.floor(anchor.getZ() / 64.0) * 64.0 + 32.0;
+        double centerX = configuredCenter(
+                CENTER_X_PROPERTY,
+                Math.floor(anchor.getX() / 64.0) * 64.0 + 32.0);
+        double centerZ = configuredCenter(
+                CENTER_Z_PROPERTY,
+                Math.floor(anchor.getZ() / 64.0) * 64.0 + 32.0);
         if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY) && !Double.isFinite(surfaceReferenceY)) {
             surfaceReferenceY = level.getHeight(
                     Heightmap.Types.WORLD_SURFACE,
@@ -167,6 +173,18 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         } catch (RuntimeException | IOException failure) {
             fail(event.getServer(), "atmosphere probe acquisition failed: " + failure);
         }
+    }
+
+    private static double configuredCenter(String property, double fallback) {
+        String configured = System.getProperty(property);
+        if (configured == null || configured.isBlank()) {
+            return fallback;
+        }
+        double value = Double.parseDouble(configured);
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(property + " must be finite");
+        }
+        return value;
     }
 
     private static void acquireSpatial(
@@ -298,6 +316,23 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
             }
         }
 
+        SkyforgeA4mcTerrainBridge.Diagnostics terrainDiagnostics =
+                SkyforgeA4mcTerrainBridge.diagnostics();
+        TerrainSeamEvidence terrainSeamEvidence = null;
+        if (Boolean.getBoolean(SkyforgeA4mcTerrainBridge.ENABLE_PROPERTY)) {
+            terrainSeamEvidence = terrainSeamEvidence(level, temporalCenterX, temporalCenterZ);
+            if (!terrainDiagnostics.registered() || terrainDiagnostics.claims() <= 0L) {
+                throw new IllegalStateException(
+                        "A4MC terrain-provider seam enabled without semantic claims: "
+                                + terrainDiagnostics);
+            }
+            if (terrainSeamEvidence.maxHeightDeltaBlocks() < 64) {
+                throw new IllegalStateException(
+                        "Skyforge terrain seam did not differ materially from base world: "
+                                + terrainSeamEvidence);
+            }
+        }
+
         int temporalQueries = TEMPORAL_FRAME_COUNT * TEMPORAL_RELATIVE_POINTS.length;
         int opportunityQueries = TEMPORAL_FRAME_COUNT * OPPORTUNITY_SAMPLE_COUNT;
         int totalQueries = EXPECTED_SAMPLE_COUNT * 2 + temporalQueries + opportunityQueries;
@@ -317,7 +352,8 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                         level, anchor, temporalCenterX, temporalCenterZ, temporalStartTick,
                         spatialProbes, spatialDigest, spatialTrustedCount, spatialSourceLevels,
                         spatialAuthorities, totalQueries,
-                        totalAggregateNanos, totalMaxNanos, temporalFrames, opportunityFrames),
+                        totalAggregateNanos, totalMaxNanos, temporalFrames, opportunityFrames,
+                        terrainDiagnostics, terrainSeamEvidence),
                 StandardCharsets.UTF_8);
 
         proofComplete = true;
@@ -334,6 +370,13 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         evidence.put("opportunityFrameCount", TEMPORAL_FRAME_COUNT);
         evidence.put("opportunitySamplesPerFrame", OPPORTUNITY_SAMPLE_COUNT);
         evidence.put("orderedSampleDigest", spatialDigest);
+        evidence.put("a4mcTerrainProviderRegistered", terrainDiagnostics.registered());
+        evidence.put("a4mcTerrainProviderQueries", terrainDiagnostics.queries());
+        evidence.put("a4mcTerrainProviderClaims", terrainDiagnostics.claims());
+        evidence.put("a4mcTerrainProviderDeclines", terrainDiagnostics.declines());
+        if (terrainSeamEvidence != null) {
+            evidence.put("terrainSemanticBaseMaxDeltaBlocks", terrainSeamEvidence.maxHeightDeltaBlocks());
+        }
         evidence.put("skyforgeAtmospherePersistence", false);
         evidence.put("artifactPath", output);
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(level.getServer(), evidence);
@@ -346,6 +389,60 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                                 + " digest=" + spatialDigest
                                 + " sources=" + spatialSourceLevels
                                 + " authorities=" + spatialAuthorities);
+    }
+
+    private static TerrainSeamEvidence terrainSeamEvidence(
+            ServerLevel level, double centerX, double centerZ) {
+        int comparedColumns = 0;
+        TerrainSeamEvidence best = null;
+        var generator = level.getChunkSource().getGenerator();
+        var randomState = level.getChunkSource().randomState();
+        for (int zOffset : XZ_OFFSETS) {
+            for (int xOffset : XZ_OFFSETS) {
+                int x = (int) Math.floor(centerX + xOffset);
+                int z = (int) Math.floor(centerZ + zOffset);
+                var semantic = SkyforgeAtmosphereTerrainAuthority.sample(
+                        x,
+                        z,
+                        level.getMinBuildHeight(),
+                        level.getHeight());
+                if (semantic.isEmpty()) {
+                    continue;
+                }
+                var sample = semantic.orElseThrow();
+                int baseWorldHeight = generator.getBaseHeight(
+                        x,
+                        z,
+                        Heightmap.Types.WORLD_SURFACE_WG,
+                        level,
+                        randomState);
+                int delta = sample.firstFreeHeight() - baseWorldHeight;
+                comparedColumns++;
+                TerrainSeamEvidence candidate = new TerrainSeamEvidence(
+                        comparedColumns,
+                        x,
+                        z,
+                        sample.firstFreeHeight(),
+                        baseWorldHeight,
+                        delta,
+                        sample.volumeId().path());
+                if (best == null || delta > best.maxHeightDeltaBlocks()) {
+                    best = candidate;
+                }
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException(
+                    "no uniquely owned Skyforge semantic surface found in terrain-seam comparison lattice");
+        }
+        return new TerrainSeamEvidence(
+                comparedColumns,
+                best.x(),
+                best.z(),
+                best.semanticHeight(),
+                best.baseWorldHeight(),
+                best.maxHeightDeltaBlocks(),
+                best.volumePath());
     }
 
     private static long aggregateFrameNanos(List<TemporalFrame> frames) {
@@ -460,7 +557,9 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
             long aggregateNanos,
             long maxNanos,
             List<TemporalFrame> temporalFrames,
-            List<TemporalFrame> opportunityFrames) {
+            List<TemporalFrame> opportunityFrames,
+            SkyforgeA4mcTerrainBridge.Diagnostics terrainDiagnostics,
+            TerrainSeamEvidence terrainSeamEvidence) {
         StringBuilder json = new StringBuilder(64_000);
         json.append("{\n");
         json.append("  \"schema_version\": 1,\n");
@@ -560,6 +659,31 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                     .append("\n");
         }
         json.append("    ]\n");
+        json.append("  },\n");
+        json.append("  \"terrain_provider_bridge\": {\n");
+        json.append("    \"enabled\": ")
+                .append(Boolean.getBoolean(SkyforgeA4mcTerrainBridge.ENABLE_PROPERTY))
+                .append(",\n");
+        json.append("    \"registered\": ").append(terrainDiagnostics.registered()).append(",\n");
+        json.append("    \"queries\": ").append(terrainDiagnostics.queries()).append(",\n");
+        json.append("    \"claims\": ").append(terrainDiagnostics.claims()).append(",\n");
+        json.append("    \"declines\": ").append(terrainDiagnostics.declines()).append(",\n");
+        json.append("    \"aggregate_nanos\": ").append(terrainDiagnostics.aggregateNanos()).append(",\n");
+        json.append("    \"mean_nanos\": ").append(number(terrainDiagnostics.meanNanos())).append(",\n");
+        json.append("    \"max_nanos\": ").append(terrainDiagnostics.maxNanos()).append(",\n");
+        if (terrainSeamEvidence == null) {
+            json.append("    \"semantic_vs_base_world\": null\n");
+        } else {
+            json.append("    \"semantic_vs_base_world\": {\n");
+            json.append("      \"compared_columns\": ").append(terrainSeamEvidence.comparedColumns()).append(",\n");
+            json.append("      \"representative_x\": ").append(terrainSeamEvidence.x()).append(",\n");
+            json.append("      \"representative_z\": ").append(terrainSeamEvidence.z()).append(",\n");
+            json.append("      \"semantic_height\": ").append(terrainSeamEvidence.semanticHeight()).append(",\n");
+            json.append("      \"base_world_height\": ").append(terrainSeamEvidence.baseWorldHeight()).append(",\n");
+            json.append("      \"max_height_delta_blocks\": ").append(terrainSeamEvidence.maxHeightDeltaBlocks()).append(",\n");
+            json.append("      \"volume_path\": ").append(quote(terrainSeamEvidence.volumePath())).append("\n");
+            json.append("    }\n");
+        }
         json.append("  },\n");
         json.append("  \"authority_summary\": {\n");
         json.append("    \"sample_count\": ").append(EXPECTED_SAMPLE_COUNT).append(",\n");
@@ -722,4 +846,14 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private record Pass(List<ProbeRecord> probes, long aggregateNanos, long maxNanos) {}
 
     private record TemporalFrame(long gameTick, List<ProbeRecord> probes) {}
+
+    private record TerrainSeamEvidence(
+            int comparedColumns,
+            int x,
+            int z,
+            int semanticHeight,
+            int baseWorldHeight,
+            int maxHeightDeltaBlocks,
+            String volumePath) {}
+
 }

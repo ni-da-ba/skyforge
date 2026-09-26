@@ -1,0 +1,369 @@
+name: A4MC Terrain Provider Seam
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/a4mc-terrain-provider-seam.yml"
+      - "third_party/patches/aerodynamics4mc/**"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcTerrainBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcTerrainBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereTerrainAuthority.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeDr50AtmosphereTerrainDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereProbeVolumeAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkAdapter.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereTerrainAuthorityTest.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211ChunkAdapterTest.java"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: a4mc-terrain-seam-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  upstream-patch-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out Skyforge
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out exact pinned A4MC source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 62a52a584e9c65246e50226b29a1f0449e43995e
+          path: a4mc-source
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Apply public terrain-provider seam
+        shell: bash
+        run: |
+          set -euo pipefail
+          git -C a4mc-source apply --check ../third_party/patches/aerodynamics4mc/0001-public-terrain-provider-api.patch
+          git -C a4mc-source apply ../third_party/patches/aerodynamics4mc/0001-public-terrain-provider-api.patch
+          git -C a4mc-source diff --check
+
+      - name: Build patched A4MC with upstream build
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd a4mc-source
+          ./gradlew buildAndCollect --no-daemon
+          find build/libs -maxdepth 4 -type f -name '*.jar' -print | sort | tee ../a4mc-patched-jars.txt
+          test -s ../a4mc-patched-jars.txt
+          grep -F 'aerodynamics4mc' ../a4mc-patched-jars.txt
+
+          patched_core=""
+          while IFS= read -r candidate; do
+            [[ "$(basename "$candidate")" == *'-neoforge+1.21.1-SNAPSHOT.jar' ]] || continue
+            jar tf "$candidate" | grep -Fqx 'com/aerodynamics4mc/runtime/AeroServerRuntime.class' || continue
+
+            api_present=0
+            if jar tf "$candidate" | grep -Fqx 'com/aerodynamics4mc/api/AeroTerrainApi.class'; then
+              api_present=1
+            else
+              nested_api="$(jar tf "$candidate" | grep -E '^META-INF/jarjar/.*aerodynamics4mc-api.*[.]jar$' | head -n1 || true)"
+              if [[ -n "$nested_api" ]]; then
+                tmp_api="$(mktemp --suffix=.jar)"
+                unzip -p "$candidate" "$nested_api" > "$tmp_api"
+                if jar tf "$tmp_api" | grep -Fqx 'com/aerodynamics4mc/api/AeroTerrainApi.class'; then
+                  api_present=1
+                fi
+                rm -f "$tmp_api"
+              fi
+            fi
+            [[ "$api_present" -eq 1 ]] || continue
+
+            if [[ -n "$patched_core" ]]; then
+              echo "FAIL: multiple patched A4MC core jars found: $patched_core and $candidate"
+              exit 1
+            fi
+            patched_core="$(realpath "$candidate")"
+          done < ../a4mc-patched-jars.txt
+          test -n "$patched_core"
+          echo "A4MC_PATCHED_CORE=$patched_core" >> "$GITHUB_ENV"
+          echo "Selected patched core: $patched_core"
+
+      - name: Compile Skyforge against patched probe runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:test \
+            --tests '*SkyforgeAtmosphereTerrainAuthorityTest' \
+            --tests '*SkyforgeNeoForge1211ChunkAdapterTest' \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:waveC3ResolvePinnedMods \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-configuration-cache
+
+      - name: Prepare pristine accepted DR-50 world
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:runDr50IntegratedRegionAcceptanceA \
+            --no-configuration-cache
+          test -f skyforge-neoforge-1211/run-dr50-auto-a/saves/acceptance/level.dat
+          rm -rf /tmp/skyforge-dr50-pristine
+          cp -a skyforge-neoforge-1211/run-dr50-auto-a /tmp/skyforge-dr50-pristine
+          rm -rf skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam
+          mkdir -p skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam
+
+      - name: Configure unattended terrain-seam probe client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wave-c3-skyforge-atmosphere-probe-client"
+          mkdir -p "$run_dir"
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > "$run_dir/options.txt"
+
+      - name: Acquire patched-provider DR-50 control
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          server_log="a4mc-terrain-control-server.log"
+          client_log="a4mc-terrain-control-client.log"
+          result_dir="skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge"
+          rm -rf "$result_dir"
+
+          cleanup() {
+            if [[ -n "${client_pid:-}" ]]; then kill -TERM -- "-${client_pid}" 2>/dev/null || true; fi
+            if [[ -n "${server_pid:-}" ]]; then kill -TERM -- "-${server_pid}" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3SkyforgeAtmosphereProbeServer \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-daemon --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 240); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "FAIL: control server never became ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3SkyforgeAtmosphereProbeClient \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-daemon --no-configuration-cache >"$client_log" 2>&1 &
+          client_pid=$!
+
+          outcome=""
+          for _ in $(seq 1 360); do
+            if grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null; then outcome="pass"; break; fi
+            if grep -Fq "SKYFORGE AUTOMATED ACCEPTANCE FAIL" "$server_log" 2>/dev/null; then outcome="fail"; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null && outcome="pass"
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$outcome" != "pass" ]]; then
+            echo "FAIL: patched-provider control did not pass"
+            cat "$server_log"
+            cat "$client_log"
+            exit 1
+          fi
+
+          test -f "$result_dir/probe-volume.json"
+          mkdir -p skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/control
+          cp -a "$result_dir/." skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/control/
+
+      - name: Restore pristine DR-50 world for treatment
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf skyforge-neoforge-1211/run-dr50-auto-a
+          cp -a /tmp/skyforge-dr50-pristine skyforge-neoforge-1211/run-dr50-auto-a
+          rm -rf skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge
+
+      - name: Acquire patched-provider DR-50 treatment
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          server_log="a4mc-terrain-treatment-server.log"
+          client_log="a4mc-terrain-treatment-client.log"
+          result_dir="skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge"
+
+          cleanup() {
+            if [[ -n "${client_pid:-}" ]]; then kill -TERM -- "-${client_pid}" 2>/dev/null || true; fi
+            if [[ -n "${server_pid:-}" ]]; then kill -TERM -- "-${server_pid}" 2>/dev/null || true; fi
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3SkyforgeAtmosphereProbeServer \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            -PskyforgeA4mcTerrainProvider=true \
+            --no-daemon --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 240); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "FAIL: treatment server never became ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runWaveC3SkyforgeAtmosphereProbeClient \
+            -PskyforgeA4mcProbeCoreOverrideJar="$A4MC_PATCHED_CORE" \
+            --no-daemon --no-configuration-cache >"$client_log" 2>&1 &
+          client_pid=$!
+
+          outcome=""
+          for _ in $(seq 1 360); do
+            if grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null; then outcome="pass"; break; fi
+            if grep -Fq "SKYFORGE AUTOMATED ACCEPTANCE FAIL" "$server_log" 2>/dev/null; then outcome="fail"; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              grep -Fq "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS" "$server_log" 2>/dev/null && outcome="pass"
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$outcome" != "pass" ]]; then
+            echo "FAIL: patched-provider treatment did not pass"
+            cat "$server_log"
+            cat "$client_log"
+            exit 1
+          fi
+
+          test -f "$result_dir/probe-volume.json"
+          mkdir -p skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/treatment
+          cp -a "$result_dir/." skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/treatment/
+
+      - name: Verify terrain-provider A/B evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import math
+          from pathlib import Path
+
+          root = Path("skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam")
+          control = json.loads((root / "control/probe-volume.json").read_text())
+          treatment = json.loads((root / "treatment/probe-volume.json").read_text())
+
+          cb = control["terrain_provider_bridge"]
+          tb = treatment["terrain_provider_bridge"]
+          assert cb["enabled"] is False
+          assert cb["registered"] is False
+          assert tb["enabled"] is True
+          assert tb["registered"] is True
+          assert tb["queries"] > 0
+          assert tb["claims"] > 0
+          assert tb["claims"] + tb["declines"] == tb["queries"]
+          semantic = tb["semantic_vs_base_world"]
+          assert semantic is not None
+          assert semantic["compared_columns"] > 0
+          assert semantic["max_height_delta_blocks"] >= 64
+
+          assert len(control["samples"]) == len(treatment["samples"]) == 100
+          assert control["specimen"]["lattice"]["vertical_mode"] == "surface_relative"
+          assert treatment["specimen"]["lattice"]["vertical_mode"] == "surface_relative"
+
+          def hmag(sample):
+              return math.hypot(sample["effective"][0], sample["effective"][2])
+
+          paired = []
+          for a, b in zip(control["samples"], treatment["samples"]):
+              assert a["position"] == b["position"]
+              paired.append({
+                  "position": a["position"],
+                  "updraft_abs_delta_mps": abs(a["signed_vertical_air"] - b["signed_vertical_air"]),
+                  "horizontal_wind_abs_delta_mps": abs(hmag(a) - hmag(b)),
+                  "turbulence_abs_delta": abs(a["turbulence"] - b["turbulence"]),
+                  "shear_abs_delta_per_block": abs(a["shear"] - b["shear"]),
+              })
+
+          def summarize(key):
+              values = [row[key] for row in paired]
+              return {
+                  "mean": sum(values) / len(values),
+                  "max": max(values),
+              }
+
+          comparison = {
+              "artifact_kind": "SKYFORGE_A4MC_TERRAIN_PROVIDER_AB",
+              "pinned_a4mc_source": "62a52a584e9c65246e50226b29a1f0449e43995e",
+              "same_pristine_dr50_source": True,
+              "control_terrain_provider_enabled": cb["enabled"],
+              "treatment_terrain_provider_enabled": tb["enabled"],
+              "treatment_provider_queries": tb["queries"],
+              "treatment_provider_claims": tb["claims"],
+              "treatment_provider_declines": tb["declines"],
+              "semantic_vs_base_world": semantic,
+              "ordered_digest_equal": control["ordered_sample_digest"] == treatment["ordered_sample_digest"],
+              "paired_spatial_deltas": {
+                  "updraft_abs_delta_mps": summarize("updraft_abs_delta_mps"),
+                  "horizontal_wind_abs_delta_mps": summarize("horizontal_wind_abs_delta_mps"),
+                  "turbulence_abs_delta": summarize("turbulence_abs_delta"),
+                  "shear_abs_delta_per_block": summarize("shear_abs_delta_per_block"),
+              },
+          }
+          changed = (
+              comparison["paired_spatial_deltas"]["updraft_abs_delta_mps"]["max"] > 1e-6
+              or comparison["paired_spatial_deltas"]["horizontal_wind_abs_delta_mps"]["max"] > 1e-6
+              or comparison["paired_spatial_deltas"]["turbulence_abs_delta"]["max"] > 1e-6
+              or comparison["paired_spatial_deltas"]["shear_abs_delta_per_block"]["max"] > 1e-9
+          )
+          assert changed, "terrain treatment produced no measurable atmosphere delta"
+          (root / "comparison.json").write_text(json.dumps(comparison, indent=2) + "\n")
+          print(json.dumps(comparison, indent=2))
+          PY
+
+      - name: Render control and treatment observatories
+        shell: bash
+        run: |
+          set -euo pipefail
+          for arm in control treatment; do
+            python3 tools/render_atmosphere_observatory.py \
+              "skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/$arm/probe-volume.json" \
+              "skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/$arm/observatory"
+          done
+
+      - name: Upload patched-build diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a4mc-terrain-seam-build-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            a4mc-patched-jars.txt
+            a4mc-source/build/libs/**/*.jar
+            skyforge-neoforge-1211/build/acceptance/a4mc-terrain-seam/**
+            a4mc-terrain-control-server.log
+            a4mc-terrain-control-client.log
+            a4mc-terrain-treatment-server.log
+            a4mc-terrain-treatment-client.log

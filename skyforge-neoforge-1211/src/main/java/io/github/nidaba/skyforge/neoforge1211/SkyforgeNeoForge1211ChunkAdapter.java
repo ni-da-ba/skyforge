@@ -26,6 +26,7 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
@@ -389,6 +390,56 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 height,
                 blockKeys,
                 candidateVolumeReferences);
+    }
+
+    /**
+     * Returns the highest exact Skyforge-owned solid surface at one world X/Z column.
+     *
+     * <p>This is a read-only runtime query over the already-compiled catalog. It does not
+     * materialize a chunk, inspect live chunk state, or acquire generation tickets. Vertically
+     * stacked volumes remain independent while the atmosphere receives only the uppermost exposed
+     * boundary. An exact top-height tie between different volumes fails closed as ambiguous.
+     */
+    Optional<AtmosphereTopSurface> atmosphereTopSurface(
+            int worldX,
+            int worldZ,
+            Predicate<SkyIslandWorldVolumeId> allowedOwner) {
+        Objects.requireNonNull(allowedOwner, "allowedOwner");
+        AtmosphereTopSurface best = null;
+        for (SkyIslandWorldVolume volume : catalog.volumes()) {
+            if (!allowedOwner.test(volume.id())) {
+                continue;
+            }
+            WorldBounds bounds = boundsByVolumeId.get(volume.id());
+            if (bounds == null
+                    || worldX < bounds.minimumX()
+                    || worldX > bounds.maximumX()
+                    || worldZ < bounds.minimumZ()
+                    || worldZ > bounds.maximumZ()) {
+                continue;
+            }
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                    SkyforgeExactVoxelSupportBounds.integerSolidRange(
+                            requireInterpreter(volume.id()), worldX, worldZ);
+            if (range.isEmpty()) {
+                continue;
+            }
+            int firstFreeY = Math.addExact(range.orElseThrow().maximumY(), 1);
+            if (best == null || firstFreeY > best.firstFreeY()) {
+                best = new AtmosphereTopSurface(firstFreeY, volume.id());
+                continue;
+            }
+            if (firstFreeY == best.firstFreeY() && !volume.id().equals(best.volumeId())) {
+                return Optional.empty();
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    record AtmosphereTopSurface(int firstFreeY, SkyIslandWorldVolumeId volumeId) {
+        AtmosphereTopSurface {
+            Objects.requireNonNull(volumeId, "volumeId");
+        }
     }
 
     /** Returns the backend-neutral bounds of one exact compiled world volume. */
