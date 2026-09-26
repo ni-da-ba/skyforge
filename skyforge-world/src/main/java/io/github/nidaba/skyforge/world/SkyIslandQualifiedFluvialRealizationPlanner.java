@@ -2,14 +2,17 @@ package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  * Builds the first qualified terrain-mutating reset field from D2-accepted river reaches.
  *
  * <p>D2 rejection and unresolved transition ownership both fail closed. Only reaches that are
- * accepted and require no confluence or cascade transition receive terrain authority.
+ * accepted and require no confluence, cascade, retained-basin, wetland, or unresolved terminal
+ * transition receive terrain authority.
  */
 public final class SkyIslandQualifiedFluvialRealizationPlanner {
     private SkyIslandQualifiedFluvialRealizationPlanner() {}
@@ -31,6 +34,13 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
         List<SkyIslandGeomorphicReachDiagnostics> diagnostics =
                 SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor, hydraulic, original);
 
+        Map<Integer, SkyIslandChannelTerminalFate> terminalFates = new HashMap<>();
+        for (SkyIslandChannelTerminalFate fate :
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, hydraulic.geomorphicNetwork())) {
+            terminalFates.put(fate.channelTerminalCellIndex(), fate);
+        }
+
         List<SkyIslandQualifiedFluvialDeferral> deferredQualifications =
                 new ArrayList<>();
         List<SkyIslandGeomorphicReachQualification> rejectedQualifications =
@@ -48,6 +58,7 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
             List<SkyIslandQualifiedFluvialDeferralReason> reasons =
                     deferralReasons(
                             hydraulic.geomorphicNetwork(),
+                            terminalFates,
                             diagnostic.hydraulicReach());
             if (!reasons.isEmpty()) {
                 deferredQualifications.add(
@@ -96,15 +107,18 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
 
     private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
             SkyIslandGeomorphicChannelNetworkPlan network,
+            Map<Integer, SkyIslandChannelTerminalFate> terminalFates,
             SkyIslandHydraulicReachGeometry reach) {
         SkyIslandSemanticChannelReach semantic =
                 reach.geomorphicRoute().semanticReach();
         List<SkyIslandQualifiedFluvialDeferralReason> reasons = new ArrayList<>();
+        SkyIslandGeomorphicNetworkNode startNode =
+                network.requireNode(semantic.startCellIndex());
+        SkyIslandGeomorphicNetworkNode endNode =
+                network.requireNode(semantic.endCellIndex());
 
-        if (network.requireNode(semantic.startCellIndex()).kind()
-                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
-                || network.requireNode(semantic.endCellIndex()).kind()
-                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+        if (startNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                || endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED);
         }
@@ -112,6 +126,15 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
+        }
+        if (endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL) {
+            SkyIslandChannelTerminalFate fate = terminalFates.get(endNode.cellIndex());
+            if (fate == null) {
+                throw new IllegalStateException(
+                        "missing explicit watershed fate for channel terminal " + endNode.cellIndex());
+            }
+            SkyIslandChannelTerminalFatePolicy.deferralReason(fate.kind())
+                    .ifPresent(reasons::add);
         }
         return List.copyOf(reasons);
     }
