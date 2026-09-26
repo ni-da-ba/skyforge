@@ -47,6 +47,13 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         new Vec3(0.0, 120.0, 64.0),
         new Vec3(0.0, 160.0, 0.0)
     };
+    private static final int[] OPPORTUNITY_XZ_OFFSETS =
+            {-256, -192, -128, -64, 0, 64, 128, 192, 256};
+    private static final int[] OPPORTUNITY_Y_LEVELS = {120, 160};
+    private static final int OPPORTUNITY_SAMPLE_COUNT =
+            OPPORTUNITY_XZ_OFFSETS.length
+                    * OPPORTUNITY_XZ_OFFSETS.length
+                    * OPPORTUNITY_Y_LEVELS.length;
 
     private static long firstPlayerTick = Long.MIN_VALUE;
     private static SkyforgeAtmosphereView atmosphere;
@@ -64,6 +71,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static long spatialAggregateNanos;
     private static long spatialMaxNanos;
     private static final ArrayList<TemporalFrame> temporalFrames = new ArrayList<>();
+    private static final ArrayList<TemporalFrame> opportunityFrames = new ArrayList<>();
 
     private SkyforgeAtmosphereProbeVolumeAcceptance() {}
 
@@ -126,6 +134,8 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
             }
             if (gameTick >= nextTemporalTick && temporalFrames.size() < TEMPORAL_FRAME_COUNT) {
                 temporalFrames.add(captureTemporalFrame(level, temporalCenterX, temporalCenterZ, gameTick));
+                opportunityFrames.add(
+                        captureOpportunityFrame(level, temporalCenterX, temporalCenterZ, gameTick));
                 nextTemporalTick += TEMPORAL_PERIOD_TICKS;
             }
             if (temporalFrames.size() == TEMPORAL_FRAME_COUNT) {
@@ -208,6 +218,23 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         return new TemporalFrame(gameTick, List.copyOf(probes));
     }
 
+    private static TemporalFrame captureOpportunityFrame(
+            ServerLevel level, double centerX, double centerZ, long gameTick) {
+        ArrayList<ProbeRecord> probes = new ArrayList<>(OPPORTUNITY_SAMPLE_COUNT);
+        for (int y : OPPORTUNITY_Y_LEVELS) {
+            for (int zOffset : OPPORTUNITY_XZ_OFFSETS) {
+                for (int xOffset : OPPORTUNITY_XZ_OFFSETS) {
+                    Vec3 position = new Vec3(centerX + xOffset, y, centerZ + zOffset);
+                    long started = System.nanoTime();
+                    SkyforgeAtmosphereView.Sample sample = atmosphere.sample(level, position);
+                    probes.add(new ProbeRecord(
+                            position, sample, Math.max(0L, System.nanoTime() - started)));
+                }
+            }
+        }
+        return new TemporalFrame(gameTick, List.copyOf(probes));
+    }
+
     private static void finish(ServerLevel level, ServerPlayer anchor) throws IOException {
         for (TemporalFrame frame : temporalFrames) {
             for (ProbeRecord probe : frame.probes()) {
@@ -217,7 +244,40 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                 }
             }
         }
+        if (opportunityFrames.size() != TEMPORAL_FRAME_COUNT) {
+            throw new IllegalStateException(
+                    "opportunity frame count mismatch " + opportunityFrames.size());
+        }
+        for (TemporalFrame frame : opportunityFrames) {
+            if (frame.probes().size() != OPPORTUNITY_SAMPLE_COUNT) {
+                throw new IllegalStateException(
+                        "opportunity sample count mismatch tick="
+                                + frame.gameTick()
+                                + " count="
+                                + frame.probes().size());
+            }
+            for (ProbeRecord probe : frame.probes()) {
+                if (!probe.sample().trustedForGameplay()) {
+                    throw new IllegalStateException(
+                            "opportunity probe lost gameplay trust at tick "
+                                    + frame.gameTick()
+                                    + " position="
+                                    + probe.position());
+                }
+            }
+        }
+
         int temporalQueries = TEMPORAL_FRAME_COUNT * TEMPORAL_RELATIVE_POINTS.length;
+        int opportunityQueries = TEMPORAL_FRAME_COUNT * OPPORTUNITY_SAMPLE_COUNT;
+        int totalQueries = EXPECTED_SAMPLE_COUNT * 2 + temporalQueries + opportunityQueries;
+        long totalAggregateNanos =
+                spatialAggregateNanos
+                        + aggregateFrameNanos(temporalFrames)
+                        + aggregateFrameNanos(opportunityFrames);
+        long totalMaxNanos =
+                Math.max(
+                        spatialMaxNanos,
+                        Math.max(maxFrameNanos(temporalFrames), maxFrameNanos(opportunityFrames)));
         Path output = outputPath();
         Files.createDirectories(output.getParent());
         Files.writeString(
@@ -225,8 +285,8 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                 encodeArtifact(
                         level, anchor, temporalCenterX, temporalCenterZ, temporalStartTick,
                         spatialProbes, spatialDigest, spatialTrustedCount, spatialSourceLevels,
-                        spatialAuthorities, EXPECTED_SAMPLE_COUNT * 2,
-                        spatialAggregateNanos, spatialMaxNanos, temporalFrames),
+                        spatialAuthorities, totalQueries,
+                        totalAggregateNanos, totalMaxNanos, temporalFrames, opportunityFrames),
                 StandardCharsets.UTF_8);
 
         proofComplete = true;
@@ -237,8 +297,10 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         evidence.put("sampleCount", EXPECTED_SAMPLE_COUNT);
         evidence.put("trustedSampleCount", spatialTrustedCount);
         evidence.put("sameTickReplayExact", true);
-        evidence.put("queryCount", EXPECTED_SAMPLE_COUNT * 2 + temporalQueries);
+        evidence.put("queryCount", totalQueries);
         evidence.put("temporalFrameCount", TEMPORAL_FRAME_COUNT);
+        evidence.put("opportunityFrameCount", TEMPORAL_FRAME_COUNT);
+        evidence.put("opportunitySamplesPerFrame", OPPORTUNITY_SAMPLE_COUNT);
         evidence.put("orderedSampleDigest", spatialDigest);
         evidence.put("skyforgeAtmospherePersistence", false);
         evidence.put("artifactPath", output);
@@ -246,11 +308,32 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         System.getLogger(SkyforgeAtmosphereProbeVolumeAcceptance.class.getName())
                 .log(System.Logger.Level.INFO,
                         "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS samples=" + EXPECTED_SAMPLE_COUNT
-                                + " queries=" + (EXPECTED_SAMPLE_COUNT * 2 + temporalQueries)
+                                + " queries=" + totalQueries
                                 + " temporalFrames=" + TEMPORAL_FRAME_COUNT
+                                + " opportunitySamplesPerFrame=" + OPPORTUNITY_SAMPLE_COUNT
                                 + " digest=" + spatialDigest
                                 + " sources=" + spatialSourceLevels
                                 + " authorities=" + spatialAuthorities);
+    }
+
+    private static long aggregateFrameNanos(List<TemporalFrame> frames) {
+        long total = 0L;
+        for (TemporalFrame frame : frames) {
+            for (ProbeRecord probe : frame.probes()) {
+                total += probe.queryNanos();
+            }
+        }
+        return total;
+    }
+
+    private static long maxFrameNanos(List<TemporalFrame> frames) {
+        long max = 0L;
+        for (TemporalFrame frame : frames) {
+            for (ProbeRecord probe : frame.probes()) {
+                max = Math.max(max, probe.queryNanos());
+            }
+        }
+        return max;
     }
 
     private static Pass capturePass(ServerLevel level, double centerX, double centerZ) {
@@ -340,7 +423,8 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
             int totalQueries,
             long aggregateNanos,
             long maxNanos,
-            List<TemporalFrame> temporalFrames) {
+            List<TemporalFrame> temporalFrames,
+            List<TemporalFrame> opportunityFrames) {
         StringBuilder json = new StringBuilder(64_000);
         json.append("{\n");
         json.append("  \"schema_version\": 1,\n");
@@ -390,6 +474,28 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
                 appendProbe(json, frame.probes().get(probeIndex), probeIndex + 1 < frame.probes().size());
             }
             json.append("      ]}").append(frameIndex + 1 < temporalFrames.size() ? "," : "").append("\n");
+        }
+        json.append("    ]\n");
+        json.append("  },\n");
+        json.append("  \"opportunity_scan\": {\n");
+        json.append("    \"x_offsets\": [-256, -192, -128, -64, 0, 64, 128, 192, 256],\n");
+        json.append("    \"y_levels\": [120, 160],\n");
+        json.append("    \"period_ticks\": ").append(TEMPORAL_PERIOD_TICKS).append(",\n");
+        json.append("    \"frame_count\": ").append(opportunityFrames.size()).append(",\n");
+        json.append("    \"samples_per_frame\": ").append(OPPORTUNITY_SAMPLE_COUNT).append(",\n");
+        json.append("    \"frames\": [\n");
+        for (int frameIndex = 0; frameIndex < opportunityFrames.size(); frameIndex++) {
+            TemporalFrame frame = opportunityFrames.get(frameIndex);
+            json.append("      {\"game_tick\": ").append(frame.gameTick()).append(", \"samples\": [\n");
+            for (int probeIndex = 0; probeIndex < frame.probes().size(); probeIndex++) {
+                appendProbe(
+                        json,
+                        frame.probes().get(probeIndex),
+                        probeIndex + 1 < frame.probes().size());
+            }
+            json.append("      ]}")
+                    .append(frameIndex + 1 < opportunityFrames.size() ? "," : "")
+                    .append("\n");
         }
         json.append("    ]\n");
         json.append("  },\n");
