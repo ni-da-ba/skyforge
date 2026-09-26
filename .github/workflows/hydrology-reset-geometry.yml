@@ -10,6 +10,12 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D2.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_D3.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnosticsPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyDiscontinuityDiagnosticsCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyDiscontinuityDiagnosticsCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C2.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlannerTest.java"
@@ -19,6 +25,13 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2A.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicQpStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDifferenceConstraint.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBoundedQpProblem.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicQpResult.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBoundedQpSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBoundedQpSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialZone.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialProvenance.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
@@ -112,9 +125,12 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
@@ -131,6 +147,11 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- discontinuity-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
@@ -142,3 +163,4 @@ jobs:
         run: |
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicBoundedQpSolverTest.xml || true
