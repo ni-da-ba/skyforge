@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.world;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -103,6 +104,60 @@ class SkyIslandGeomorphicQualificationEvaluatorTest {
                         violation == SkyIslandGeomorphicQualificationViolation.CENTERLINE_LOWERING
                                 || violation == SkyIslandGeomorphicQualificationViolation.EXCAVATION_BURDEN
                                 || violation == SkyIslandGeomorphicQualificationViolation.LATERAL_RECOVERY_GRADE));
+    }
+
+    @Test
+    void fixedPureIncisedCorpusRetainsEnvelopeAndRejectsOnlyContainmentOutlier() {
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+
+        List<SkyIslandGeomorphicReachQualification> incised2084 =
+                pureIncisedQualifications(descriptor(8L, 81L, 2084L), policy);
+        assertEquals(4, incised2084.size());
+        assertTrue(incised2084.stream().allMatch(SkyIslandGeomorphicReachQualification::accepted));
+
+        List<SkyIslandGeomorphicReachQualification> incised2093 =
+                pureIncisedQualifications(descriptor(8L, 81L, 2093L), policy);
+        assertEquals(4, incised2093.size());
+
+        SkyIslandGeomorphicReachQualification containmentOutlier =
+                incised2093.stream()
+                        .filter(result -> {
+                            SkyIslandSemanticChannelReach reach =
+                                    result.diagnostics()
+                                            .hydraulicReach()
+                                            .geomorphicRoute()
+                                            .semanticReach();
+                            return reach.startCellIndex() == 708
+                                    && reach.endCellIndex() == 559;
+                        })
+                        .findFirst()
+                        .orElseThrow();
+
+        assertFalse(containmentOutlier.accepted());
+        assertEquals(
+                List.of(SkyIslandGeomorphicQualificationViolation.BANK_CONTAINMENT),
+                containmentOutlier.violations());
+        assertTrue(incised2093.stream()
+                .filter(result -> result != containmentOutlier)
+                .allMatch(SkyIslandGeomorphicReachQualification::accepted));
+    }
+
+    private static List<SkyIslandGeomorphicReachQualification> pureIncisedQualifications(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicQualificationPolicy policy) {
+        return SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor).stream()
+                .filter(diagnostic ->
+                        diagnostic.hydraulicReach()
+                                .geomorphicRoute()
+                                .semanticReach()
+                                .profiles()
+                                .stream()
+                                .allMatch(profile ->
+                                        profile.kind() == SkyIslandChannelProfileKind.INCISED))
+                .map(diagnostic ->
+                        SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy))
+                .toList();
     }
 
     private static void assertAllAccepted(
