@@ -87,6 +87,47 @@ F4A must prove those exact components can produce deterministic continuous terra
 - confluence-632 remains zero-delta until its transition-owned downstream geometry is solved;
 - every realized reach re-passes D2.
 
+## First fixed-corpus result
+
+The first F4A evidence run realizes exactly the two F3E-qualified 8/81/77 components and excludes all
+fixed negative/deferred controls.
+
+### Reach 709→559 / terminal 559
+
+- F3E disposition: `QUALIFIED`;
+- F4A disposition: `REALIZED`;
+- centerline samples: 35;
+- affected centerline samples: 35;
+- minimum terrain delta potential: `-0.032263256`;
+- mean terrain delta potential: `-0.031626352`;
+- maximum terrain delta potential: `-0.026177953`;
+- post-realization D2: accepted.
+
+### Reach 1742→1842 / terminal 1842
+
+- F3E disposition: `QUALIFIED`;
+- F4A disposition: `REALIZED`;
+- centerline samples: 24;
+- affected centerline samples: 24;
+- minimum terrain delta potential: `-0.032065716`;
+- mean terrain delta potential: `-0.029976568`;
+- maximum terrain delta potential: `-0.016076075`;
+- post-realization D2: accepted.
+
+### Fail-closed controls
+
+The fixed corpus grants no F4A terrain candidate to:
+
+- primary-287: `PHYSICAL_REJECTION`;
+- confluence-632: `TRANSITION_DEFERRED`;
+- lake-609: `PHYSICAL_REJECTION` with retained-open-water terminal authority still absent;
+- control-118: `TRANSITION_DEFERRED`;
+- stress-512: `TRANSITION_DEFERRED`.
+
+The realized deltas are continuous potential-space evidence. They are **not** voxel excavation
+allowances. A later discretization tranche must measure its error against this field rather than
+treating these potential differences as permission for backend reconciliation.
+
 ## Hard invariants
 
 1. only F3E `QUALIFIED` components can enter the F4A candidate;
