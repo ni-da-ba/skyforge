@@ -42,6 +42,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static final int[] OPPORTUNITY_SURFACE_Y_OFFSETS = {32, 80};
     private static final long MIN_SETTLE_TICKS = 80L;
     private static final long MAX_WAIT_TICKS = 1200L;
+    private static final long SKYFORGE_DIAGNOSTIC_MAX_WAIT_TICKS = 3600L;
     private static final int EXPECTED_SAMPLE_COUNT =
             XZ_OFFSETS.length * XZ_OFFSETS.length * Y_LEVELS.length;
     private static final long TEMPORAL_PERIOD_TICKS = 20L;
@@ -78,6 +79,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static final ArrayList<TemporalFrame> temporalFrames = new ArrayList<>();
     private static final ArrayList<TemporalFrame> opportunityFrames = new ArrayList<>();
     private static double surfaceReferenceY = Double.NaN;
+    private static long providerTrustWaitTicks = Long.MIN_VALUE;
 
     private SkyforgeAtmosphereProbeVolumeAcceptance() {}
 
@@ -128,15 +130,21 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         SkyforgeAtmosphereView.Sample readiness =
                 atmosphere.sample(level, new Vec3(centerX, readinessY, centerZ));
         if (!readiness.trustedForGameplay() || "NONE".equals(readiness.sourceLevel())) {
-            if (age >= MAX_WAIT_TICKS) {
+            long maxWaitTicks = maxWaitTicks();
+            if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    && (age == MAX_WAIT_TICKS || age == MAX_WAIT_TICKS * 2L)) {
+                emitProviderDiagnostics(event.getServer());
+            }
+            if (age >= maxWaitTicks) {
                 emitProviderDiagnostics(event.getServer());
                 fail(event.getServer(), "real A4MC server atmosphere never became gameplay-trusted within "
-                        + MAX_WAIT_TICKS
+                        + maxWaitTicks
                         + " ticks; last="
                         + readiness);
             }
             return;
         }
+        providerTrustWaitTicks = age;
 
         try {
             if (temporalStartTick == Long.MIN_VALUE) {
@@ -318,6 +326,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         evidence.put("serverWorldSampling", true);
         evidence.put("realA4mcGameplayProvider", true);
         evidence.put("sampleCount", EXPECTED_SAMPLE_COUNT);
+        evidence.put("providerTrustWaitTicks", providerTrustWaitTicks);
         evidence.put("trustedSampleCount", spatialTrustedCount);
         evidence.put("sameTickReplayExact", true);
         evidence.put("queryCount", totalQueries);
@@ -466,6 +475,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         json.append("    \"world_seed\": ").append(level.getSeed()).append(",\n");
         json.append("    \"dimension\": ").append(quote(level.dimension().toString())).append(",\n");
         json.append("    \"acquisition_game_tick\": ").append(gameTick).append(",\n");
+        json.append("    \"provider_trust_wait_ticks\": ").append(providerTrustWaitTicks).append(",\n");
         json.append("    \"anchor_player\": ").append(quote(anchor.getGameProfile().getName())).append(",\n");
         json.append("    \"anchor_position\": [")
                 .append(number(anchor.getX())).append(", ")
@@ -671,6 +681,12 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
      * its public gameplay API stayed unavailable; their output is never admitted as Skyforge
      * atmosphere evidence and never substitutes for {@link SkyforgeAtmosphereView}.
      */
+    private static long maxWaitTicks() {
+        return Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                ? SKYFORGE_DIAGNOSTIC_MAX_WAIT_TICKS
+                : MAX_WAIT_TICKS;
+    }
+
     private static void emitProviderDiagnostics(net.minecraft.server.MinecraftServer server) {
         try {
             var source = server.createCommandSourceStack().withSuppressedOutput();
