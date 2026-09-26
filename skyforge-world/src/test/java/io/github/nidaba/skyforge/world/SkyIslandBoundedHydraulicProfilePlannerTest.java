@@ -138,6 +138,27 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
+    void midpointRefinementPreservesHeadDependentD2Classification() {
+        int diagnosticCount = 0;
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            List<SkyIslandBoundedHydraulicConvergenceDiagnostics> diagnostics =
+                    SkyIslandBoundedHydraulicConvergencePlanner.measure(descriptor(key));
+            diagnosticCount += diagnostics.size();
+            assertEquals(
+                    diagnostics,
+                    SkyIslandBoundedHydraulicConvergencePlanner.measure(descriptor(key)));
+            for (SkyIslandBoundedHydraulicConvergenceDiagnostics d : diagnostics) {
+                assertEquals(2 * d.nativeSampleCount() - 1, d.refinedSampleCount());
+                assertEquals(
+                        d.nativeHeadDependentD2Pass(),
+                        d.refinedHeadDependentD2Pass(),
+                        "collocation refinement must not change head-dependent D2 classification");
+            }
+        }
+        assertTrue(diagnosticCount > 0, "fixed corpus must exercise F2C convergence diagnostics");
+    }
+
+    @Test
     void f2cDoesNotMutateThePreHydrologicTerrainField() {
         SkyIslandDescriptor descriptor = descriptor(118L);
         SkyIslandPreHydrologicTerrainField original =
