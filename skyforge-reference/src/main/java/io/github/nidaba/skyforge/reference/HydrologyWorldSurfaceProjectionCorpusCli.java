@@ -45,7 +45,34 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                         + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld\n");
 
         for (Specimen specimen : specimens) {
-            SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+            try {
+                appendSpecimen(specimen, summary, reaches);
+            } catch (RuntimeException exception) {
+                throw new IllegalStateException(
+                        "F4B projection corpus failed for specimen " + specimen.name(),
+                        exception);
+            }
+        }
+
+        Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("reaches.csv"), reaches, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("README.txt"), """
+                Hydrology world-surface projection v1
+
+                F4B applies only the F4A semantic terrain delta to the compiled upper surface:
+                deltaWorld = deltaPotential * descriptor.reliefBudget.
+
+                Absolute compiled placement/morphology and the compiled underside remain unchanged.
+                No voxel rounding or Minecraft write authority is present in this evidence.
+                """, StandardCharsets.UTF_8);
+        System.out.println(out.resolve("summary.csv").toAbsolutePath());
+    }
+
+    private static void appendSpecimen(
+            Specimen specimen,
+            StringBuilder summary,
+            StringBuilder reaches) {
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                     SkyIslandComponentFluvialTerrainCandidatePlanner.plan(specimen.descriptor());
             CompiledSkyIslandVolume volume =
                     compiled(specimen.descriptor(), 910_000L + specimen.descriptor().identity().islandKey());
@@ -120,20 +147,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     .append(format(maxThickness))
                     .append('\n');
         }
-
-        Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
-        Files.writeString(out.resolve("reaches.csv"), reaches, StandardCharsets.UTF_8);
-        Files.writeString(out.resolve("README.txt"), """
-                Hydrology world-surface projection v1
-
-                F4B applies only the F4A semantic terrain delta to the compiled upper surface:
-                deltaWorld = deltaPotential * descriptor.reliefBudget.
-
-                Absolute compiled placement/morphology and the compiled underside remain unchanged.
-                No voxel rounding or Minecraft write authority is present in this evidence.
-                """, StandardCharsets.UTF_8);
-        System.out.println(out.resolve("summary.csv").toAbsolutePath());
-    }
 
     private static CompiledSkyIslandVolume compiled(
             SkyIslandDescriptor descriptor,
