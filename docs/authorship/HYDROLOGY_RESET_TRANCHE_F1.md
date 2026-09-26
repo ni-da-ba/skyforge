@@ -10,8 +10,10 @@
 F1 is the first layer in the reset allowed to change the authored continuous terrain surface.
 
 D2 acceptance is necessary but not sufficient for terrain authority. F1 realizes only reaches whose
-remaining geometry is an ordinary reach problem. Accepted reaches that touch an unresolved confluence
-or contain an unresolved CASCADE segment are explicitly deferred and contribute zero terrain delta.
+remaining geometry is an ordinary reach problem with an explicitly ordinary downstream fate. Accepted
+reaches that touch an unresolved confluence, contain an unresolved CASCADE segment, terminate into
+retained water/wetland, or have unresolved watershed terminal fate are explicitly deferred and
+contribute zero terrain delta.
 
 The executable authority split is therefore:
 
@@ -20,7 +22,7 @@ D2 rejected reach
     -> rejected evidence
     -> zero terrain delta
 
-D2 accepted + unresolved junction/drop transition
+D2 accepted + unresolved junction/drop/basin/terminal transition
     -> deferred evidence
     -> zero terrain delta
 
@@ -60,15 +62,24 @@ unchanged rather than converted into a synthetic levee.
 
 A D2-accepted reach is withheld from terrain authority when:
 
-- either endpoint is a semantic CONFLUENCE node; or
-- any constituent profile is CASCADE.
+- either endpoint is a semantic CONFLUENCE node;
+- any constituent profile is CASCADE;
+- a semantic terminal resolves through the authoritative watershed graph to retained open water;
+- a semantic terminal resolves to retained wetland; or
+- watershed terminal fate remains unresolved.
+
+Only an explicit `EDGE_OUTLET` terminal is transition-free at the downstream boundary. F1 uses
+the same terminal-fate policy as F2C so hydraulic-profile eligibility and terrain authority cannot
+silently disagree.
 
 Confluences require one node-owned transition surface that reconciles the incident widths, depths,
 bed elevations, approach directions, and shared water-surface datum over a bounded transition region.
 Exact endpoint coincidence alone is not sufficient.
 
-Cascades/drops likewise require transition-owned longitudinal geometry. An ordinary cross-section
-shape must not be used to disguise an unresolved hydraulic discontinuity.
+Cascades/drops likewise require transition-owned longitudinal geometry. Retained-water and wetland
+termini require basin-owned junction geometry and a shared water datum. Unresolved watershed fate is
+never promoted to ordinary outlet authority. An ordinary cross-section shape must not be used to
+disguise any of these unresolved boundaries.
 
 Deferral is not geomorphic rejection. The plan records the accepted qualification and explicit
 deferral reason separately so later transition tranches can consume it without weakening D2.
