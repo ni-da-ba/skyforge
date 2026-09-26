@@ -7,6 +7,8 @@ import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicConvergencePlann
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlan;
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicReachOutcome;
+import io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFate;
+import io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFatePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnostics;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicQpResult;
@@ -46,6 +48,9 @@ public final class HydrologyBoundedProfileCorpusCli {
                         + "complementarityResidual,d2Accepted,violations,maxLoweringPotential,"
                         + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
                         + "normalizedExcavationBurden,maxLongitudinalGradeWorld\n");
+
+        StringBuilder terminalFateCsv = new StringBuilder(
+                "specimen,islandKey,channelTerminalCell,watershedTerminalCell,fate,waterbodyKind,watershedPath\n");
 
         StringBuilder convergenceCsv = new StringBuilder(
                 "specimen,islandKey,startCell,endCell,coarseSamples,mediumSamples,fineSamples,"
@@ -98,6 +103,21 @@ public final class HydrologyBoundedProfileCorpusCli {
                 csv.append('\n');
             }
 
+            for (SkyIslandChannelTerminalFate fate :
+                    SkyIslandChannelTerminalFatePlanner.plan(
+                            specimen.descriptor(), plan.skeleton().geomorphicNetwork())) {
+                terminalFateCsv.append(specimen.name()).append(',')
+                        .append(specimen.descriptor().identity().islandKey()).append(',')
+                        .append(fate.channelTerminalCellIndex()).append(',')
+                        .append(fate.watershedTerminalCellIndex()).append(',')
+                        .append(fate.kind()).append(',')
+                        .append(fate.waterbodyKind().map(Enum::name).orElse("")).append(',')
+                        .append(fate.watershedPath().stream()
+                                .map(String::valueOf)
+                                .collect(Collectors.joining(">")))
+                        .append('\n');
+            }
+
             for (SkyIslandBoundedHydraulicConvergenceDiagnostics d :
                     SkyIslandBoundedHydraulicConvergencePlanner.measure(specimen.descriptor())) {
                 convergenceCsv.append(specimen.name()).append(',')
@@ -137,6 +157,10 @@ public final class HydrologyBoundedProfileCorpusCli {
                 convergenceCsv,
                 StandardCharsets.UTF_8);
         Files.writeString(
+                out.resolve("terminal-fate-manifest.csv"),
+                terminalFateCsv,
+                StandardCharsets.UTF_8);
+        Files.writeString(
                 out.resolve("README.txt"),
                 """
                 F2C bounded hydraulic profile evidence.
@@ -144,6 +168,8 @@ public final class HydrologyBoundedProfileCorpusCli {
                 This is diagnostic/qualification evidence, not terrain authority.
                 SOLVED means the convex head problem was solved; only SOLVED_QUALIFIED also passed
                 the unchanged post-solve D2 evaluator. TRANSITION_DEFERRED is intentionally unsolved.
+                terminal-fate-manifest.csv records topology-backed channel-terminal fate through the
+                watershed graph; channel-terminal and retained-sink cell identity are not assumed.
                 Do not tune D2 thresholds to preserve a particular specimen classification.
                 """,
                 StandardCharsets.UTF_8);
