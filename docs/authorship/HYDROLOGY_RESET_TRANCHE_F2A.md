@@ -57,9 +57,11 @@ Before solve:
 - heads/difference bounds are uniformly scaled to an O(1) problem envelope;
 - objective weights are normalized by a common positive factor without changing the optimum;
 - constraint rows retain the sparse +/-1 difference form;
-- near-dependent active rows are detected in the inverse-Hessian metric with re-orthogonalization.
+- near-dependent active rows are detected in the inverse-Hessian metric with re-orthogonalization;
+- active search directions are computed by weighted QR projection, avoiding the condition-number
+  squaring inherent in normal-equation solves.
 
-An ill-conditioned active system is **NUMERICAL_FAILURE**, never acceptance.
+An ill-conditioned or rank-ambiguous active system is **NUMERICAL_FAILURE**, never acceptance.
 
 ## Evidence
 
