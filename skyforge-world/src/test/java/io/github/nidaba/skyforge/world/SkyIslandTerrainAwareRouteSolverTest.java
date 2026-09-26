@@ -43,6 +43,125 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void linearDownhillCorridorHasResolutionInvariantObjective() {
+        double planningSpacing = 4.0;
+        SkyIslandSemanticField terrain =
+                position -> clamp01(0.70 - 0.01 * position.x());
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(16.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(16.0, 0.0), 0.0);
+
+        SkyIslandGeomorphicCandidateRoute coarse =
+                SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                        terrain,
+                        interiority,
+                        guidance,
+                        planningSpacing,
+                        2.0,
+                        start,
+                        end,
+                        4);
+        SkyIslandGeomorphicCandidateRoute medium =
+                SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                        terrain,
+                        interiority,
+                        guidance,
+                        planningSpacing,
+                        2.0,
+                        start,
+                        end,
+                        8);
+        SkyIslandGeomorphicCandidateRoute fine =
+                SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                        terrain,
+                        interiority,
+                        guidance,
+                        planningSpacing,
+                        2.0,
+                        start,
+                        end,
+                        16);
+
+        assertEquals(16.0, coarse.pathLength(), EPSILON);
+        assertEquals(16.0, medium.pathLength(), EPSILON);
+        assertEquals(16.0, fine.pathLength(), EPSILON);
+        assertEquals(0.0, coarse.maxGuidanceDeviation(), EPSILON);
+        assertEquals(0.0, medium.maxGuidanceDeviation(), EPSILON);
+        assertEquals(0.0, fine.maxGuidanceDeviation(), EPSILON);
+        assertEquals(coarse.totalCost(), medium.totalCost(), 1.0e-9);
+        assertEquals(medium.totalCost(), fine.totalCost(), 1.0e-9);
+
+        SkyIslandRouteFunctionalDiagnostics coarseDiagnostics =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                        coarse, terrain, planningSpacing);
+        SkyIslandRouteFunctionalDiagnostics mediumDiagnostics =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                        medium, terrain, planningSpacing);
+        SkyIslandRouteFunctionalDiagnostics fineDiagnostics =
+                SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                        fine, terrain, planningSpacing);
+
+        assertEquals(0.0, coarseDiagnostics.positiveElevationVariation(), EPSILON);
+        assertEquals(0.0, mediumDiagnostics.positiveElevationVariation(), EPSILON);
+        assertEquals(0.0, fineDiagnostics.positiveElevationVariation(), EPSILON);
+        assertEquals(0.0, coarseDiagnostics.maximumUphillGrade(), EPSILON);
+        assertEquals(0.0, mediumDiagnostics.maximumUphillGrade(), EPSILON);
+        assertEquals(0.0, fineDiagnostics.maximumUphillGrade(), EPSILON);
+        assertEquals(
+                coarseDiagnostics.meanValleyFloorAdvantage(),
+                mediumDiagnostics.meanValleyFloorAdvantage(),
+                1.0e-10);
+        assertEquals(
+                mediumDiagnostics.meanValleyFloorAdvantage(),
+                fineDiagnostics.meanValleyFloorAdvantage(),
+                1.0e-10);
+    }
+
+    @Test
+    void ridgeGapChoiceRemainsPhysicalAcrossSearchResolutions() {
+        SkyIslandSemanticField terrain =
+                position -> syntheticRidgeTerrain(position.x(), position.z());
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(20.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(20.0, 0.0), 0.0);
+
+        for (int divisions : new int[] {4, 8, 16}) {
+            SkyIslandGeomorphicCandidateRoute route =
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                            terrain,
+                            interiority,
+                            guidance,
+                            4.0,
+                            6.0,
+                            start,
+                            end,
+                            divisions);
+            SkyIslandLocalPosition nearRidge = route.points().stream()
+                    .min(Comparator.comparingDouble(
+                            point -> Math.abs(point.x() - 10.0)))
+                    .orElseThrow();
+            assertTrue(
+                    nearRidge.z() > 2.0,
+                    "all resolutions should use the positive-z physical ridge gap");
+            assertTrue(route.maxGuidanceDeviation() <= 6.0 + EPSILON);
+        }
+    }
+
+    @Test
     void zeroRadiusGlobalLatticeAnchorsArePreservedExactly() {
         double planningSpacing = 4.0;
         double step = planningSpacing / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
