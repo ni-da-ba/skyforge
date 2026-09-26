@@ -37,6 +37,7 @@ def main():
         s["hawk_enter"]=s["trusted_for_gameplay"] and s["signed_vertical_air"]>=ENTER
     ups=[s["signed_vertical_air"] for s in samples]; hm=[s["hmag"] for s in samples]
     turb=[s["turbulence"] for s in samples]; shear=[s["shear"] for s in samples]
+    pressure=[s["pressure_proxy"] for s in samples]; confidence=[s["confidence"] for s in samples]
     levels=sorted({s["y"] for s in samples}); xs=sorted({s["x"] for s in samples}); zs=sorted({s["z"] for s in samples})
     # Adjacent spatial deltas at each level: useful first-order coherence diagnostic.
     lookup={(s["x"],s["y"],s["z"]):s for s in samples}; deltas=[]
@@ -51,7 +52,8 @@ def main():
       "schema_version":1,"artifact_kind":"SKYFORGE_ATMOSPHERE_OBSERVATORY_DERIVED",
       "source_artifact_kind":data["artifact_kind"],"source_digest":data["ordered_sample_digest"],
       "measured":{"updraft_mps":stats(ups),"horizontal_effective_wind_mps":stats(hm),
-                  "turbulence":stats(turb),"shear_per_block":stats(shear)},
+                  "turbulence":stats(turb),"shear_per_block":stats(shear),
+                  "pressure_proxy":stats(pressure),"confidence":stats(confidence)},
       "derived":{"adjacent_64_block_updraft_abs_delta_mps":stats(deltas),
                  "hawk_enter_cells":sum(s["hawk_enter"] for s in samples),
                  "glider_improved_cells":sum(s["glider_y"]>BASELINE for s in samples)},
@@ -192,6 +194,73 @@ def main():
         sv.append(f'<text x="{px+4}" y="{py+14}" class="small">{s["signed_vertical_air"]:+.2f} m/s</text>')
         if s["hawk_enter"]: sv.append(f'<text x="{px+4}" y="{py+29}" class="small">HAWK ENTER</text>')
     sv.append('</svg>'); (out/"field-atlas.svg").write_text("\n".join(sv))
+
+    # Hazard atlas: measured turbulence and shear, separated from lift/wind presentation.
+    HCELL=58; HPANEL=HCELL*len(xs); HW=2*HPANEL+230
+    HH=len(levels)*(HPANEL+65)+55
+    hz=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{HW}" height="{HH}" viewBox="0 0 {HW} {HH}">',
+        '<style>text{font-family:system-ui,sans-serif;fill:#222}.small{font-size:9px}.label{font-size:14px;font-weight:600}</style>',
+        '<text x="20" y="26" class="label">Measured turbulence and shear — same real-provider spatial snapshot</text>']
+    tlo,thi=min(turb),max(turb); slo,shi=min(shear),max(shear)
+    for li,y in enumerate(levels):
+        top=48+li*(HPANEL+65)
+        hz.append(f'<text x="15" y="{top+18}" class="label">Y={y:g}</text>')
+        for metric,label,lo,hi,xbase in (
+            ("turbulence","turbulence",tlo,thi,75),
+            ("shear","shear / block",slo,shi,125+HPANEL)):
+            hz.append(f'<text x="{xbase}" y="{top+18}" class="label">{label}</text>')
+            for zi,z in enumerate(zs):
+                for xi,x in enumerate(xs):
+                    p=lookup[(x,y,z)]; v=p[metric]
+                    px=xbase+xi*HCELL; py=top+28+zi*HCELL
+                    hz.append(f'<rect x="{px}" y="{py}" width="{HCELL-2}" height="{HCELL-2}" fill="{color(v,lo,hi)}" opacity=".78"/>')
+                    hz.append(f'<text x="{px+3}" y="{py+12}" class="small">{v:.3f}</text>')
+    hz.append('</svg>')
+    (out/"hazard-atlas.svg").write_text("\n".join(hz))
+
+    # Vertical profiles at three deterministic X/Z columns. These are measured points only.
+    profile_columns=[(xs[len(xs)//2],zs[len(zs)//2]),(xs[0],zs[0]),(xs[-1],zs[-1])]
+    profile_names=["center","corner A","corner B"]
+    metrics=[
+        ("signed_vertical_air","updraft m/s"),
+        ("hmag","horizontal wind m/s"),
+        ("turbulence","turbulence"),
+        ("shear","shear / block"),
+        ("pressure_proxy","pressure proxy"),
+    ]
+    PW,PH=1180,430; left=52; top=48; panelw=215; plotw=165; ploth=315
+    vp=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{PW}" height="{PH}" viewBox="0 0 {PW} {PH}">',
+        '<style>text{font-family:system-ui,sans-serif;fill:#222}.small{font-size:10px}.label{font-size:13px;font-weight:600}.axis{stroke:#999;stroke-width:1}.trace{fill:none;stroke-width:2}</style>',
+        '<text x="20" y="25" class="label">Measured vertical profiles — center and deterministic corner columns</text>']
+    palettes=["#111","#666","#aaa"]
+    ymin,ymax=min(levels),max(levels)
+    def py_for(y):
+        return top+ploth-(y-ymin)/max(1e-9,ymax-ymin)*ploth
+    for mi,(key,label) in enumerate(metrics):
+        x0=left+mi*panelw
+        values=[lookup[(x,y,z)][key] for x,z in profile_columns for y in levels]
+        vlo,vhi=min(values),max(values)
+        if vhi<=vlo: vhi=vlo+1.0
+        vp.append(f'<text x="{x0}" y="{top-8}" class="label">{label}</text>')
+        vp.append(f'<line x1="{x0}" y1="{top}" x2="{x0}" y2="{top+ploth}" class="axis"/>')
+        vp.append(f'<line x1="{x0}" y1="{top+ploth}" x2="{x0+plotw}" y2="{top+ploth}" class="axis"/>')
+        vp.append(f'<text x="{x0}" y="{top+ploth+16}" class="small">{vlo:.3g}</text>')
+        vp.append(f'<text x="{x0+plotw-30}" y="{top+ploth+16}" class="small">{vhi:.3g}</text>')
+        for pi,(x,z) in enumerate(profile_columns):
+            pts=[]
+            for y in levels:
+                v=lookup[(x,y,z)][key]
+                px=x0+(v-vlo)/(vhi-vlo)*plotw
+                pts.append(f'{px:.1f},{py_for(y):.1f}')
+            vp.append(f'<polyline points="{" ".join(pts)}" class="trace" stroke="{palettes[pi]}"/>')
+    for pi,name in enumerate(profile_names):
+        vp.append(f'<line x1="{left+pi*130}" y1="{PH-24}" x2="{left+pi*130+28}" y2="{PH-24}" stroke="{palettes[pi]}" stroke-width="2"/>')
+        vp.append(f'<text x="{left+pi*130+34}" y="{PH-20}" class="small">{name}</text>')
+    for y in levels:
+        vp.append(f'<text x="10" y="{py_for(y)+4:.1f}" class="small">Y={y:g}</text>')
+    vp.append('</svg>')
+    (out/"vertical-profiles.svg").write_text("\n".join(vp))
+
     temporal_html=""
     if frames:
         CW,CH=900,360; pad=55
@@ -223,6 +292,11 @@ def main():
 <p>Source digest: <code>{esc(data["ordered_sample_digest"])}</code>. Samples: {len(samples)}. Provider: {esc(data["provider_identity"]["mod_id"])} {esc(data["provider_identity"]["version"])}.</p>
 <h2>Spatial field atlas</h2><p>Cell color encodes signed vertical air; arrows show effective horizontal wind (mean + gust). “HAWK ENTER” marks cells meeting the current 1.5 m/s soaring-entry threshold.</p>
 <img src="field-atlas.svg" alt="Four altitude slices of measured atmosphere" style="max-width:100%;height:auto">
+<h2>Turbulence and shear</h2><p>These heatmaps use the same measured snapshot. They are kept separate from lift so local hazard structure is not visually conflated with thermal opportunity.</p>
+<img src="hazard-atlas.svg" alt="Measured turbulence and shear by altitude" style="max-width:100%;height:auto">
+<h2>Vertical profiles</h2><p>Center and deterministic corner columns show how wind, vertical air, turbulence, shear, and the upstream pressure proxy change with altitude.</p>
+<img src="vertical-profiles.svg" alt="Measured vertical atmosphere profiles" style="max-width:100%;height:auto">
+<p>Gameplay confidence spans <b>{min(confidence):.3f}–{max(confidence):.3f}</b>; source levels present: <b>{esc(", ".join(sorted({p["source_level"] for p in samples})))}</b>.</p>
 {temporal_html}{opportunity_html}<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
 <h2>Derived diagnostics</h2><p>64-block adjacent updraft |Δ|: mean <b>{summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["mean"]:.3f} m/s</b>, max {summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["max"]:.3f}. Glider coupling improves the -0.05 blocks/tick baseline in <b>{summary["derived"]["glider_improved_cells"]}/{len(samples)}</b> sampled cells; hawk entry threshold is met in <b>{summary["derived"]["hawk_enter_cells"]}/{len(samples)}</b>.</p>
 <p>The temporal section is a bounded 31-frame observation, not a claim of long-term climatology. It supports short-horizon persistence/coherence inspection only.</p>"""
