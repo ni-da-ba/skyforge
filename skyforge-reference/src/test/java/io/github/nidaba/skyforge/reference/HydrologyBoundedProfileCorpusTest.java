@@ -33,6 +33,12 @@ class HydrologyBoundedProfileCorpusTest {
         assertTrue(convergenceA.contains("mediumObjectivePerLength"));
         assertTrue(convergenceA.contains("fineObjectivePerLength"));
         assertTrue(convergenceA.contains("fineHeadDependentD2Pass"));
+        assertTrue(
+                convergenceA.lines().count() > 1,
+                "F2C evidence must contain at least one solved reach at three resolutions");
+        assertTrue(
+                a.contains("SOLVED_QUALIFIED") || a.contains("SOLVED_REJECTED"),
+                "F2C profile evidence must contain at least one actual bounded-QP solve");
         assertTrue(terminalFateA.contains("fate"));
         assertTrue(terminalFateA.contains("watershedPath"));
     }
