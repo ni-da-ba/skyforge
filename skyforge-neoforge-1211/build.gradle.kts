@@ -64,6 +64,18 @@ val waveC3ProbeRuntime = sourceSets.create("waveC3ProbeRuntime") {
 }
 
 
+// #495 final reconstruction/provenance fixture: combine only the already accepted atmosphere
+// authority and the two accepted Bootstrap consumer mod stacks. This source set is evidence-only;
+// production Skyforge keeps those optional integrations isolated.
+val waveC3EvidenceRuntime = sourceSets.create("waveC3EvidenceRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
 // External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
 // AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
 // Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
@@ -1939,6 +1951,64 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #495 final shared-truth + reconstruction evidence. Both server boots use the same
+        // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
+        // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.
+        create("waveC3AtmosphereEvidenceServerA") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-evidence-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.atmosphereReconstructionProvenance", "true")
+            systemProperty("skyforge.dev.atmosphereEvidenceBoot", "A")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-reconstruction-a")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-a.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.atmosphereEvidenceOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-a.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AtmosphereEvidenceServerB") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-evidence-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.atmosphereReconstructionProvenance", "true")
+            systemProperty("skyforge.dev.atmosphereEvidenceBoot", "B")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-reconstruction-b")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-b.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.atmosphereEvidenceOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-b.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AtmosphereEvidenceClient") {
+            client()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-evidence-client").asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25578")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // A4MC core + its dedicated Create Aeronautics compatibility jar over Skyforge's already
         // pinned minimum flight substrate. This is the actual relative-airflow candidate.
         create("waveC3AircraftWindClient") {
@@ -3329,6 +3399,39 @@ tasks.named("runWaveC3AtmosphereProbeServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC3AtmosphereProbeServerProperties)
+    }
+}
+
+
+val waveC3AtmosphereEvidenceServerProperties = """
+    level-name=wave-c3-atmosphere-evidence
+    level-seed=495004
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=6
+    simulation-distance=6
+    max-tick-time=0
+    server-port=25578
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC3AtmosphereEvidenceServerA").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c3-atmosphere-evidence-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC3AtmosphereEvidenceServerProperties)
+    }
+}
+
+tasks.named("runWaveC3AtmosphereEvidenceServerB").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c3-atmosphere-evidence-server").asFile
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC3AtmosphereEvidenceServerProperties)
     }
 }
 
@@ -5750,6 +5853,27 @@ tasks.register("waveC3ResolvePinnedMods") {
         }
         println("Wave C3 real-provider probe runtime includes $coreArtifactToken")
 
+        val evidenceRuntimeFiles = waveC3EvidenceRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        fun evidenceArtifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+        val evidenceRequiredTokens = mapOf(
+            "Fowl Play" to evidenceArtifactToken(waveC5Pin("fowlplay", "coordinate")),
+            "SmartBrainLib" to evidenceArtifactToken(waveC5Pin("smartbrainlib", "coordinate")),
+            "YACL" to evidenceArtifactToken(waveC5Pin("yacl", "coordinate")),
+            "Reliable Gliders" to evidenceArtifactToken(waveC2Pin("reliablegliders", "coordinate")),
+            "Aerodynamics4MC core" to coreArtifactToken,
+        )
+        evidenceRequiredTokens.forEach { (label, token) ->
+            check(evidenceRuntimeFiles.any { it.contains(token) }) {
+                "Wave C3 evidence runtime missing $label token '$token': $evidenceRuntimeFiles"
+            }
+        }
+        println("Wave C3 reconstruction/provenance evidence runtime")
+        evidenceRuntimeFiles.forEach { println("  evidence=$it") }
+
         waveC3AtmosphereRuns.forEach { runName ->
             val files = configurations.getByName("${runName}LegacyClasspath")
                 .files
@@ -6119,6 +6243,23 @@ dependencies {
     // AdditionalRuntimeClasspath used by the historical C3 loader-only preflight.
     add(
         waveC3ProbeRuntime.runtimeOnlyConfigurationName,
+        files(waveC3AeroCoreArtifact),
+    )
+
+    // Final #495 evidence runtime combines the already accepted atmosphere authority with the
+    // already accepted hawk and glider consumer stacks only for cross-consumer/restart proof.
+    waveC5BirdStackMods.forEach { mod ->
+        add(
+            waveC3EvidenceRuntime.runtimeOnlyConfigurationName,
+            waveC5Pin(mod, "coordinate"),
+        )
+    }
+    add(
+        waveC3EvidenceRuntime.runtimeOnlyConfigurationName,
+        waveC2Pin("reliablegliders", "coordinate"),
+    )
+    add(
+        waveC3EvidenceRuntime.runtimeOnlyConfigurationName,
         files(waveC3AeroCoreArtifact),
     )
 
