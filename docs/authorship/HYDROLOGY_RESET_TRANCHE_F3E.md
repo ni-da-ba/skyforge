@@ -61,6 +61,35 @@ The following remain `TERMINAL_DEFERRED`:
 Therefore lake-609 remains intentionally incomplete until retained-basin production authority is
 earned.
 
+## First fixed-corpus result
+
+The first complete-component corpus contains a narrow positive admission set.
+
+In namespace 8/81, island key 77 has two complete one-reach EDGE_OUTLET components that are fully
+`QUALIFIED`:
+
+- reach 709→559 / terminal 559;
+- reach 1742→1842 / terminal 1842.
+
+These components contain no unresolved transition ownership and their ordinary spans independently
+solve and re-pass D2. They are the first fixed specimens eligible to feed a later terrain-delta
+candidate.
+
+The fixed negative/deferred anchors remain important:
+
+- primary-287 / terminal 1758 is `PHYSICAL_REJECTION`; all four ordinary spans around its three
+  solved internal CASCADE intervals are infeasible;
+- confluence-632 has qualified incoming reaches 759→710 and 1088→710, but its EDGE_OUTLET component
+  ending at 225 remains `TRANSITION_DEFERRED` because the downstream CASCADE touches the
+  confluence-owned transition boundary;
+- lake-609 / terminal 1397 is not admissible: the terminal fate is `RETAINED_OPEN_WATER`, the
+  component contains transition deferrals, and reach 1140→897 retains a physical rejection;
+- unresolved terminal fates and boundary-coupled CASCADE-only reaches remain transition-deferred.
+
+Therefore F3E authorizes **component selection only**. It does not authorize terrain mutation. A
+terrain tranche must emit exactly zero delta for every component whose F3E status is not
+`QUALIFIED`.
+
 ## Hard invariants
 
 1. every reach feeding a terminal appears exactly once in that terminal component;
