@@ -40,6 +40,7 @@ tests and downstream callers retain compatibility.
 Each C2 sample contains only:
 
 - world-local horizontal position;
+- exact cumulative world-space arc length;
 - downstream station fraction;
 - accumulated relative discharge;
 - bankfull half-width;
@@ -80,7 +81,7 @@ Machine evidence compares skeleton versus legacy output for:
 - route identity;
 - centerline identity;
 - path length;
-- station positions;
+- station positions and exact cumulative arc length;
 - discharge;
 - bankfull width;
 - depth;
