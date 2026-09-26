@@ -26,6 +26,13 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F1.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2A.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2B.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometryCalibration.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonSample.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachSkeleton.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicQpStatus.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicDifferenceConstraint.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBoundedQpProblem.java"
@@ -126,6 +133,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
+            :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
@@ -164,3 +172,4 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicBoundedQpSolverTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true

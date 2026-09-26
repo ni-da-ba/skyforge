@@ -5,7 +5,7 @@
 **Updated:** 2026-09-25 (America/Chicago)
 **Main snapshot carrying latest accepted Authorship reset implementation:** `502109b6cde98f3bfd1619a28fe59c65374fcdc8`
 **Highest MERGED / ACCEPTED numbered Authorship milestone:** **AUTH-0105**
-**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2; D3 diagnostic evidence merged**
+**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2/F2A; D3 diagnostic evidence merged**
 
 Read first:
 
@@ -35,12 +35,11 @@ The reset authority is now executable through the first terrain-mutating Authors
 - D3: current-geometry discontinuity evidence; key 287 concentrates about 83.88% of downhill drop in
   authored CASCADE segments, supporting explicit drop-boundary experimentation rather than stronger excavation.
 
-F2's unit-consistent, network-global bounded convex longitudinal/transition contract is merged and
-accepted as the current mathematical authority. Current work is F2A: prove the deterministic numerical
-primitive for finite box + pair-difference constraints before any production hydraulic planner consumes
-it. F2A must expose independent infeasibility detection, deterministic active-set/KKT residuals,
-conditioning/degeneracy behavior, and permutation-invariant analytical fixtures. The pre-F2
-topological clipping profile remains staging code only.
+F2's coupled profile contract and F2A deterministic bounded-QP primitive are merged and accepted.
+Current work is F2B: extract a head-independent C2 hydraulic geometry skeleton so both the historical
+clipped planner and the new F2C bounded-profile path consume one exact discharge/width/depth/calibration
+source. F2B must preserve the legacy planner's existing geometry and head results while granting no
+new hydraulic-head or terrain authority. The pre-F2 topological clipping profile remains staging only.
 
 Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
 calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional
