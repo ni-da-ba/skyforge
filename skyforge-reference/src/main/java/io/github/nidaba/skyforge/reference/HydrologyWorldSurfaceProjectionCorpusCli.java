@@ -48,7 +48,7 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
             SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                     SkyIslandComponentFluvialTerrainCandidatePlanner.plan(specimen.descriptor());
             CompiledSkyIslandVolume volume =
-                    compiled(specimen.descriptor(), 940_000L + specimen.descriptor().identity().islandKey());
+                    compiled(specimen.descriptor(), 910_000L + specimen.descriptor().identity().islandKey());
             SkyIslandComponentFluvialWorldSurfaceProjection projection =
                     new SkyIslandComponentFluvialWorldSurfaceProjection(
                             specimen.descriptor(), candidate, volume);
