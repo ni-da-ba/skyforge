@@ -56,11 +56,12 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         }
 
         for (int iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-            List<Row> active = independentActiveRows(
+            ActiveBasis basis = activeBasis(
                     constraints.equalities(),
                     constraints.inequalities(),
                     working,
                     scaled.weight());
+            List<Row> active = basis.rows();
             Set<String> retainedWorking = new HashSet<>();
             for (Row row : active) {
                 if (!row.equality()) {
@@ -70,7 +71,7 @@ public final class SkyIslandHydraulicBoundedQpSolver {
             working = retainedWorking;
 
             double[] gradient = gradient(x, scaled.target(), scaled.weight());
-            KktStep step = kktStep(gradient, scaled.weight(), active);
+            KktStep step = kktStep(gradient, scaled.weight(), basis);
             if (step == null) {
                 return terminalFailure(
                         SkyIslandHydraulicQpStatus.NUMERICAL_FAILURE,
@@ -318,7 +319,7 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         return Optional.of(feasible);
     }
 
-    private static List<Row> independentActiveRows(
+    private static ActiveBasis activeBasis(
             List<Row> equalities,
             List<Row> inequalities,
             Set<String> working,
@@ -333,39 +334,56 @@ public final class SkyIslandHydraulicBoundedQpSolver {
                 .comparing((Row row) -> !row.equality())
                 .thenComparing(Row::id));
 
-        List<double[]> orthonormal = new ArrayList<>();
+        List<double[]> orthonormalRows = new ArrayList<>();
+        List<double[]> lowerRows = new ArrayList<>();
         List<Row> independent = new ArrayList<>();
         for (Row row : candidates) {
             double[] vector = row.metricVector(weight);
-            for (double[] basis : orthonormal) {
-                double projection = dot(vector, basis);
-                for (int i = 0; i < vector.length; i++) {
-                    vector[i] -= projection * basis[i];
-                }
+            double[] expansion = new double[orthonormalRows.size() + 1];
+
+            for (int j = 0; j < orthonormalRows.size(); j++) {
+                double projection = dot(vector, orthonormalRows.get(j));
+                expansion[j] += projection;
+                axpy(vector, orthonormalRows.get(j), -projection);
             }
-            // Re-orthogonalize once to reduce deterministic rank loss near dependence.
-            for (double[] basis : orthonormal) {
-                double projection = dot(vector, basis);
-                for (int i = 0; i < vector.length; i++) {
-                    vector[i] -= projection * basis[i];
-                }
+            // One deterministic re-orthogonalization pass materially improves rank separation.
+            for (int j = 0; j < orthonormalRows.size(); j++) {
+                double correction = dot(vector, orthonormalRows.get(j));
+                expansion[j] += correction;
+                axpy(vector, orthonormalRows.get(j), -correction);
             }
+
             double norm = euclideanNorm(vector);
             if (norm <= RANK_TOLERANCE) {
                 continue;
             }
+            expansion[orthonormalRows.size()] = norm;
             for (int i = 0; i < vector.length; i++) {
                 vector[i] /= norm;
             }
-            orthonormal.add(vector);
+            orthonormalRows.add(vector);
+            lowerRows.add(expansion);
             independent.add(row);
         }
-        return List.copyOf(independent);
+
+        int rank = independent.size();
+        double[][] lower = new double[rank][rank];
+        for (int i = 0; i < rank; i++) {
+            System.arraycopy(lowerRows.get(i), 0, lower[i], 0, lowerRows.get(i).length);
+        }
+        return new ActiveBasis(
+                List.copyOf(independent),
+                List.copyOf(orthonormalRows),
+                lower);
     }
 
-    private static KktStep kktStep(double[] gradient, double[] weight, List<Row> active) {
+    private static KktStep kktStep(
+            double[] gradient,
+            double[] weight,
+            ActiveBasis basis) {
         int n = gradient.length;
-        if (active.isEmpty()) {
+        int m = basis.rows().size();
+        if (m == 0) {
             double[] direction = new double[n];
             for (int i = 0; i < n; i++) {
                 direction[i] = -gradient[i] / weight[i];
@@ -373,84 +391,42 @@ public final class SkyIslandHydraulicBoundedQpSolver {
             return new KktStep(direction, new double[0]);
         }
 
-        int m = active.size();
-        double[][] gram = new double[m][m];
-        double[] rhs = new double[m];
-        for (int r = 0; r < m; r++) {
-            Row rowR = active.get(r);
-            for (int i = 0; i < n; i++) {
-                rhs[r] -= rowR.coefficient(i) * gradient[i] / weight[i];
-            }
-            for (int c = 0; c <= r; c++) {
-                Row rowC = active.get(c);
-                double value = 0.0;
-                for (int i = 0; i < n; i++) {
-                    value += rowR.coefficient(i) * rowC.coefficient(i) / weight[i];
-                }
-                gram[r][c] = value;
-                gram[c][r] = value;
-            }
+        double[] transformedGradient = new double[n];
+        for (int i = 0; i < n; i++) {
+            transformedGradient[i] = gradient[i] / Math.sqrt(weight[i]);
         }
 
-        double[] multipliers = choleskySolve(gram, rhs);
-        if (multipliers == null) {
-            return null;
+        double[] transformedDirection = new double[n];
+        for (int i = 0; i < n; i++) {
+            transformedDirection[i] = -transformedGradient[i];
         }
+
+        double[] rowspaceCoordinates = new double[m];
+        for (int r = 0; r < m; r++) {
+            double coordinate = dot(transformedGradient, basis.orthonormalRows().get(r));
+            rowspaceCoordinates[r] = coordinate;
+            axpy(transformedDirection, basis.orthonormalRows().get(r), coordinate);
+        }
+
         double[] direction = new double[n];
         for (int i = 0; i < n; i++) {
-            double stationarity = gradient[i];
-            for (int r = 0; r < m; r++) {
-                stationarity += active.get(r).coefficient(i) * multipliers[r];
+            direction[i] = transformedDirection[i] / Math.sqrt(weight[i]);
+        }
+
+        // C = L Q for C = A W^-1/2. Stationarity gives L^T lambda = -Q c.
+        double[] multipliers = new double[m];
+        for (int i = m - 1; i >= 0; i--) {
+            double rhs = -rowspaceCoordinates[i];
+            for (int j = i + 1; j < m; j++) {
+                rhs -= basis.lower()[j][i] * multipliers[j];
             }
-            direction[i] = -stationarity / weight[i];
+            double diagonal = basis.lower()[i][i];
+            if (!(Math.abs(diagonal) > RANK_TOLERANCE) || !Double.isFinite(diagonal)) {
+                return null;
+            }
+            multipliers[i] = rhs / diagonal;
         }
         return new KktStep(direction, multipliers);
-    }
-
-    private static double[] choleskySolve(double[][] matrix, double[] rhs) {
-        int n = rhs.length;
-        double[][] lower = new double[n][n];
-        double scale = 0.0;
-        for (int i = 0; i < n; i++) {
-            scale = Math.max(scale, Math.abs(matrix[i][i]));
-        }
-        double pivotFloor = Math.max(1.0, scale) * RANK_TOLERANCE * RANK_TOLERANCE;
-
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j <= i; j++) {
-                double sum = matrix[i][j];
-                for (int k = 0; k < j; k++) {
-                    sum -= lower[i][k] * lower[j][k];
-                }
-                if (i == j) {
-                    if (!(sum > pivotFloor) || !Double.isFinite(sum)) {
-                        return null;
-                    }
-                    lower[i][j] = Math.sqrt(sum);
-                } else {
-                    lower[i][j] = sum / lower[j][j];
-                }
-            }
-        }
-
-        double[] y = new double[n];
-        for (int i = 0; i < n; i++) {
-            double sum = rhs[i];
-            for (int j = 0; j < i; j++) {
-                sum -= lower[i][j] * y[j];
-            }
-            y[i] = sum / lower[i][i];
-        }
-
-        double[] x = new double[n];
-        for (int i = n - 1; i >= 0; i--) {
-            double sum = y[i];
-            for (int j = i + 1; j < n; j++) {
-                sum -= lower[j][i] * x[j];
-            }
-            x[i] = sum / lower[i][i];
-        }
-        return x;
     }
 
     private static Evidence evidence(
@@ -570,6 +546,12 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         return Math.sqrt(dot(values, values));
     }
 
+    private static void axpy(double[] target, double[] source, double factor) {
+        for (int i = 0; i < target.length; i++) {
+            target[i] += factor * source[i];
+        }
+    }
+
     private static double dot(double[] a, double[] b) {
         double result = 0.0;
         for (int i = 0; i < a.length; i++) {
@@ -588,6 +570,11 @@ public final class SkyIslandHydraulicBoundedQpSolver {
             double headScale) {}
 
     private record ConstraintSet(List<Row> equalities, List<Row> inequalities) {}
+
+    private record ActiveBasis(
+            List<Row> rows,
+            List<double[]> orthonormalRows,
+            double[][] lower) {}
 
     private record KktStep(double[] direction, double[] multipliers) {}
 
