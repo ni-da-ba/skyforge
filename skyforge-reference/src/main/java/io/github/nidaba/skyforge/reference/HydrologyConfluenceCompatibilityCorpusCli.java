@@ -90,7 +90,7 @@ public final class HydrologyConfluenceCompatibilityCorpusCli {
     }
 
     private static String escape(String value) {
-        return '"' + value.replace(""", """") + '"';
+        return value.replace(',', ';');
     }
 
     private record Specimen(String name, SkyIslandDescriptor descriptor) {}
