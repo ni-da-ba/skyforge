@@ -33,6 +33,7 @@ public final class HydrologyOrdinarySpanCorpusCli {
                 new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
                 new Specimen("legacy-control-649", descriptor(8L, 81L, 649L)),
                 new Specimen("retained-83", descriptor(6L, 61L, 83L)),
+                new Specimen("lake-609", descriptor(8L, 81L, 609L)),
                 new Specimen("control-77", descriptor(6L, 61L, 77L)),
                 new Specimen("control-118", descriptor(6L, 61L, 118L)),
                 new Specimen("stress-512", descriptor(6L, 61L, 512L)));
