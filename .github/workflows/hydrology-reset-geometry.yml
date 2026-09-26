@@ -38,6 +38,14 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlannerTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicHeadEnvelope.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicHeadEnvelopePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceLegHeadSolution.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityOutcome.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -179,6 +187,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
