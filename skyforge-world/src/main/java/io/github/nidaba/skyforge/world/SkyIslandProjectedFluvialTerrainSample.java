@@ -34,7 +34,16 @@ public record SkyIslandProjectedFluvialTerrainSample(
         }
         if (targetUpperSurfaceWorldY <= undersideSurfaceWorldY + EPSILON) {
             throw new IllegalArgumentException(
-                    "projected hydrology surface must remain above the compiled underside");
+                    "projected hydrology surface must remain above the compiled underside"
+                            + " at local "
+                            + localPosition
+                            + " (originalThickness="
+                            + (originalUpperSurfaceWorldY - undersideSurfaceWorldY)
+                            + ", deltaWorld="
+                            + terrainDeltaWorldUnits
+                            + ", targetThickness="
+                            + (targetUpperSurfaceWorldY - undersideSurfaceWorldY)
+                            + ")");
         }
         if (semanticSample.zone() == SkyIslandQualifiedFluvialZone.UNAFFECTED
                 && Math.abs(terrainDeltaWorldUnits) > EPSILON) {
