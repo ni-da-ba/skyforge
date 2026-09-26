@@ -49,7 +49,7 @@ public final class HydrologyBoundedProfileCorpusCli {
                 new Specimen("ordinary-512-8-81", descriptor(8L, 81L, 512L)));
 
         StringBuilder csv = new StringBuilder(
-                "specimen,islandKey,startCell,endCell,status,deferrals,solverStatus,"
+                "specimen,islandKey,startCell,endCell,status,deferrals,diagnostic,solverStatus,"
                         + "objective,primalResidual,stationarityResidual,dualResidual,"
                         + "complementarityResidual,d2Accepted,violations,maxLoweringPotential,"
                         + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
@@ -79,7 +79,8 @@ public final class HydrologyBoundedProfileCorpusCli {
                         .append(semantic.startCellIndex()).append(',')
                         .append(semantic.endCellIndex()).append(',')
                         .append(outcome.status()).append(',')
-                        .append(join(outcome.deferralReasons())).append(',');
+                        .append(join(outcome.deferralReasons())).append(',')
+                        .append(csvField(outcome.diagnostic().orElse(""))).append(',');
 
                 if (outcome.solverResult().isPresent()) {
                     SkyIslandHydraulicQpResult solve = outcome.solverResult().orElseThrow();
@@ -180,6 +181,12 @@ public final class HydrologyBoundedProfileCorpusCli {
                 """,
                 StandardCharsets.UTF_8);
         System.out.println(out.resolve("manifest.csv").toAbsolutePath());
+    }
+
+    private static String csvField(String value) {
+        return "\"" + value.replace("\"", "\"\"")
+                .replace("\r", " ")
+                .replace("\n", " ") + "\"";
     }
 
     private static String join(List<?> values) {
