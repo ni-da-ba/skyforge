@@ -51,55 +51,60 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
-    void transitionOwnedReachesRemainExplicitlyDeferred() {
+    void confluenceOwnedReachesRemainExplicitlyDeferred() {
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(632L));
+
+        assertTrue(plan.outcomes().stream()
+                .anyMatch(outcome -> outcome.deferralReasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED)));
+        assertDeferredOutcomesAreUnsolved(plan);
+    }
+
+    @Test
+    void cascadeOwnedReachesRemainExplicitlyDeferred() {
         SkyIslandBoundedHydraulicProfilePlan plan =
                 SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(512L));
 
         assertTrue(plan.outcomes().stream()
                 .anyMatch(outcome -> outcome.deferralReasons().contains(
-                        SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED)));
-        assertTrue(plan.outcomes().stream()
-                .anyMatch(outcome -> outcome.deferralReasons().contains(
                         SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED)));
-
-        for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
-            if (outcome.status() == SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED) {
-                assertTrue(outcome.solverResult().isEmpty());
-                assertTrue(outcome.hydraulicReach().isEmpty());
-                assertTrue(outcome.qualification().isEmpty());
-                assertFalse(outcome.deferralReasons().isEmpty());
-            }
-        }
+        assertDeferredOutcomesAreUnsolved(plan);
     }
 
     @Test
-    void retainedOpenWaterJunctionIsNeverTreatedAsFreeBoundary() {
+    void retainedOpenWaterTerminalFateIsNeverTreatedAsFreeBoundary() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
-        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
         SkyIslandBoundedHydraulicProfilePlan plan =
                 SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
+        List<SkyIslandChannelTerminalFate> fates =
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, plan.skeleton().geomorphicNetwork());
 
-        int matchedTerminalCount = 0;
-        for (SkyIslandWaterbodyCandidate candidate : waterbodies.candidates()) {
-            if (candidate.kind() == SkyIslandWaterbodyKind.WETLAND) {
+        int retainedTerminalCount = 0;
+        for (SkyIslandChannelTerminalFate fate : fates) {
+            if (fate.kind() != SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER) {
                 continue;
             }
-            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
-                SkyIslandSemanticChannelReach semantic =
-                        outcome.skeleton().geomorphicRoute().semanticReach();
-                if (semantic.startCellIndex() == candidate.sinkCellIndex()
-                        || semantic.endCellIndex() == candidate.sinkCellIndex()) {
-                    matchedTerminalCount++;
-                    assertEquals(
-                            SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
-                            outcome.status());
-                    assertTrue(outcome.deferralReasons().contains(
-                            SkyIslandQualifiedFluvialDeferralReason
-                                    .RETAINED_WATER_TRANSITION_REQUIRED));
-                }
+            retainedTerminalCount++;
+            List<SkyIslandBoundedHydraulicReachOutcome> incident = plan.outcomes().stream()
+                    .filter(outcome ->
+                            outcome.skeleton().geomorphicRoute().semanticReach().endCellIndex()
+                                    == fate.channelTerminalCellIndex())
+                    .toList();
+            assertFalse(incident.isEmpty(), "retained terminal fate must belong to a semantic reach");
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : incident) {
+                assertEquals(
+                        SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
+                        outcome.status());
+                assertTrue(outcome.deferralReasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason
+                                .RETAINED_WATER_TRANSITION_REQUIRED));
             }
         }
-        assertTrue(matchedTerminalCount > 0, "retained fixture must exercise a channel/basin junction");
+        assertTrue(
+                retainedTerminalCount > 0,
+                "retained fixture must exercise an open-water watershed terminal fate");
     }
 
     @Test
@@ -228,6 +233,18 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
 
         double[] after = probes.stream().mapToDouble(original::sample).toArray();
         assertArrayEquals(before, after, 0.0);
+    }
+
+    private static void assertDeferredOutcomesAreUnsolved(
+            SkyIslandBoundedHydraulicProfilePlan plan) {
+        for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+            if (outcome.status() == SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED) {
+                assertTrue(outcome.solverResult().isEmpty());
+                assertTrue(outcome.hydraulicReach().isEmpty());
+                assertTrue(outcome.qualification().isEmpty());
+                assertFalse(outcome.deferralReasons().isEmpty());
+            }
+        }
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
