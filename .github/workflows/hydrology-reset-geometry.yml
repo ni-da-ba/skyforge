@@ -321,6 +321,7 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv
           echo "--- realized-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/realized-reaches.csv
+          ./gradlew :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest' --rerun-tasks --no-configuration-cache
           if [ ! -f skyforge-reference/build/evidence/hydrology-world-projection-test-a/summary.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' --rerun-tasks --no-configuration-cache
           fi
