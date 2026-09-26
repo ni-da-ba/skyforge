@@ -28,6 +28,9 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2C.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2D.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTransitionOwnership.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTransitionOwnershipTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachStatus.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachOutcome.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlan.java"
@@ -152,6 +155,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandFluvialTransitionOwnershipTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
@@ -203,3 +207,4 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFatePlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandFluvialTransitionOwnershipTest.xml || true
