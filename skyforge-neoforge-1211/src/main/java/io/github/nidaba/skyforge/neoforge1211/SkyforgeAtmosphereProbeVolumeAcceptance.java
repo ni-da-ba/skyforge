@@ -14,6 +14,7 @@ import java.util.Locale;
 import java.util.TreeSet;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
@@ -32,9 +33,13 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeAtmosphereProbeVolumeAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.atmosphereProbeVolume";
     static final String OUTPUT_PROPERTY = "skyforge.dev.atmosphereProbeOutput";
+    static final String SURFACE_RELATIVE_PROPERTY = "skyforge.dev.atmosphereProbeSurfaceRelative";
 
     private static final int[] XZ_OFFSETS = {-128, -64, 0, 64, 128};
     private static final int[] Y_LEVELS = {80, 120, 160, 220};
+    private static final int[] SURFACE_Y_OFFSETS = {16, 48, 96, 160};
+    private static final int[] TEMPORAL_SURFACE_Y_OFFSETS = {32, 32, 32, 80};
+    private static final int[] OPPORTUNITY_SURFACE_Y_OFFSETS = {32, 80};
     private static final long MIN_SETTLE_TICKS = 80L;
     private static final long MAX_WAIT_TICKS = 1200L;
     private static final int EXPECTED_SAMPLE_COUNT =
@@ -72,6 +77,7 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static long spatialMaxNanos;
     private static final ArrayList<TemporalFrame> temporalFrames = new ArrayList<>();
     private static final ArrayList<TemporalFrame> opportunityFrames = new ArrayList<>();
+    private static double surfaceReferenceY = Double.NaN;
 
     private SkyforgeAtmosphereProbeVolumeAcceptance() {}
 
@@ -110,8 +116,17 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         ServerPlayer anchor = players.get(0);
         double centerX = Math.floor(anchor.getX() / 64.0) * 64.0 + 32.0;
         double centerZ = Math.floor(anchor.getZ() / 64.0) * 64.0 + 32.0;
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY) && !Double.isFinite(surfaceReferenceY)) {
+            surfaceReferenceY = level.getHeight(
+                    Heightmap.Types.WORLD_SURFACE,
+                    (int) Math.floor(centerX),
+                    (int) Math.floor(centerZ));
+        }
+        double readinessY = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                ? surfaceReferenceY + OPPORTUNITY_SURFACE_Y_OFFSETS[0]
+                : 120.0;
         SkyforgeAtmosphereView.Sample readiness =
-                atmosphere.sample(level, new Vec3(centerX, 120.0, centerZ));
+                atmosphere.sample(level, new Vec3(centerX, readinessY, centerZ));
         if (!readiness.trustedForGameplay() || "NONE".equals(readiness.sourceLevel())) {
             if (age >= MAX_WAIT_TICKS) {
                 emitProviderDiagnostics(event.getServer());
@@ -209,8 +224,12 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static TemporalFrame captureTemporalFrame(
             ServerLevel level, double centerX, double centerZ, long gameTick) {
         ArrayList<ProbeRecord> probes = new ArrayList<>(TEMPORAL_RELATIVE_POINTS.length);
-        for (Vec3 relative : TEMPORAL_RELATIVE_POINTS) {
-            Vec3 position = new Vec3(centerX + relative.x, relative.y, centerZ + relative.z);
+        for (int index = 0; index < TEMPORAL_RELATIVE_POINTS.length; index++) {
+            Vec3 relative = TEMPORAL_RELATIVE_POINTS[index];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + TEMPORAL_SURFACE_Y_OFFSETS[index]
+                    : relative.y;
+            Vec3 position = new Vec3(centerX + relative.x, y, centerZ + relative.z);
             long started = System.nanoTime();
             SkyforgeAtmosphereView.Sample sample = atmosphere.sample(level, position);
             probes.add(new ProbeRecord(position, sample, Math.max(0L, System.nanoTime() - started)));
@@ -221,7 +240,11 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
     private static TemporalFrame captureOpportunityFrame(
             ServerLevel level, double centerX, double centerZ, long gameTick) {
         ArrayList<ProbeRecord> probes = new ArrayList<>(OPPORTUNITY_SAMPLE_COUNT);
-        for (int y : OPPORTUNITY_Y_LEVELS) {
+        for (int levelIndex = 0; levelIndex < OPPORTUNITY_Y_LEVELS.length; levelIndex++) {
+            int nominalY = OPPORTUNITY_Y_LEVELS[levelIndex];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + OPPORTUNITY_SURFACE_Y_OFFSETS[levelIndex]
+                    : nominalY;
             for (int zOffset : OPPORTUNITY_XZ_OFFSETS) {
                 for (int xOffset : OPPORTUNITY_XZ_OFFSETS) {
                     Vec3 position = new Vec3(centerX + xOffset, y, centerZ + zOffset);
@@ -340,7 +363,11 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         ArrayList<ProbeRecord> probes = new ArrayList<>(EXPECTED_SAMPLE_COUNT);
         long aggregateNanos = 0L;
         long maxNanos = 0L;
-        for (int y : Y_LEVELS) {
+        for (int levelIndex = 0; levelIndex < Y_LEVELS.length; levelIndex++) {
+            int nominalY = Y_LEVELS[levelIndex];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + SURFACE_Y_OFFSETS[levelIndex]
+                    : nominalY;
             for (int zOffset : XZ_OFFSETS) {
                 for (int xOffset : XZ_OFFSETS) {
                     Vec3 position = new Vec3(centerX + xOffset, y, centerZ + zOffset);
@@ -449,7 +476,22 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         json.append("      \"center_z\": ").append(number(centerZ)).append(",\n");
         json.append("      \"x_offsets\": [-128, -64, 0, 64, 128],\n");
         json.append("      \"z_offsets\": [-128, -64, 0, 64, 128],\n");
-        json.append("      \"y_levels\": [80, 120, 160, 220],\n");
+        json.append("      \"vertical_mode\": ")
+                .append(quote(Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                        ? "surface_relative"
+                        : "absolute"))
+                .append(",\n");
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)) {
+            json.append("      \"surface_reference_y\": ").append(number(surfaceReferenceY)).append(",\n");
+            json.append("      \"surface_offsets\": [16, 48, 96, 160],\n");
+            json.append("      \"y_levels\": [")
+                    .append(number(surfaceReferenceY + 16.0)).append(", ")
+                    .append(number(surfaceReferenceY + 48.0)).append(", ")
+                    .append(number(surfaceReferenceY + 96.0)).append(", ")
+                    .append(number(surfaceReferenceY + 160.0)).append("],\n");
+        } else {
+            json.append("      \"y_levels\": [80, 120, 160, 220],\n");
+        }
         json.append("      \"sample_count\": ").append(EXPECTED_SAMPLE_COUNT).append("\n");
         json.append("    }\n");
         json.append("  },\n");
@@ -479,7 +521,17 @@ final class SkyforgeAtmosphereProbeVolumeAcceptance {
         json.append("  },\n");
         json.append("  \"opportunity_scan\": {\n");
         json.append("    \"x_offsets\": [-256, -192, -128, -64, 0, 64, 128, 192, 256],\n");
-        json.append("    \"y_levels\": [120, 160],\n");
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)) {
+            json.append("    \"vertical_mode\": \"surface_relative\",\n");
+            json.append("    \"surface_reference_y\": ").append(number(surfaceReferenceY)).append(",\n");
+            json.append("    \"surface_offsets\": [32, 80],\n");
+            json.append("    \"y_levels\": [")
+                    .append(number(surfaceReferenceY + 32.0)).append(", ")
+                    .append(number(surfaceReferenceY + 80.0)).append("],\n");
+        } else {
+            json.append("    \"vertical_mode\": \"absolute\",\n");
+            json.append("    \"y_levels\": [120, 160],\n");
+        }
         json.append("    \"period_ticks\": ").append(TEMPORAL_PERIOD_TICKS).append(",\n");
         json.append("    \"frame_count\": ").append(opportunityFrames.size()).append(",\n");
         json.append("    \"samples_per_frame\": ").append(OPPORTUNITY_SAMPLE_COUNT).append(",\n");
