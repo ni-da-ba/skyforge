@@ -33,7 +33,7 @@ class HydrologyBoundedProfileCorpusTest {
         assertTrue(convergenceA.contains("mediumObjectivePerLength"));
         assertTrue(convergenceA.contains("fineObjectivePerLength"));
         assertTrue(convergenceA.contains("fineHeadDependentD2Pass"));
-        assertTrue(terminalFateA.contains("RETAINED_OPEN_WATER"));
+        assertTrue(terminalFateA.contains("fate"));
         assertTrue(terminalFateA.contains("watershedPath"));
     }
 }
