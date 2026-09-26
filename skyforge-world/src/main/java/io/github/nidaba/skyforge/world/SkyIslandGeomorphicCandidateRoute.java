@@ -3,7 +3,14 @@ package io.github.nidaba.skyforge.world;
 import java.util.List;
 import java.util.Objects;
 
-/** One deterministic fine candidate route and its pre-carving geomorphic diagnostics. */
+/**
+ * One deterministic fine candidate route and its pre-carving geomorphic diagnostics.
+ *
+ * <p>`uphillStepFraction` and `ridgeSampleFraction` retain their historical component names for
+ * source compatibility, but C3 defines them as arc-length occupancy fractions rather than raw sample
+ * counts. `positiveAscentPotential` is directed positive terrain variation; `maximumUphillGrade`
+ * is rise per world-space run. `maxUphillStep` remains discretization-sensitive evidence only.
+ */
 public record SkyIslandGeomorphicCandidateRoute(
         List<SkyIslandLocalPosition> points,
         double totalCost,
@@ -12,6 +19,8 @@ public record SkyIslandGeomorphicCandidateRoute(
         double uphillStepFraction,
         double ridgeSampleFraction,
         double meanValleyFloorAdvantage,
+        double positiveAscentPotential,
+        double maximumUphillGrade,
         double maxUphillStep) {
 
     public SkyIslandGeomorphicCandidateRoute {
@@ -28,6 +37,8 @@ public record SkyIslandGeomorphicCandidateRoute(
         if (!Double.isFinite(meanValleyFloorAdvantage)) {
             throw new IllegalArgumentException("meanValleyFloorAdvantage must be finite");
         }
+        requireFiniteNonNegative(positiveAscentPotential, "positiveAscentPotential");
+        requireFiniteNonNegative(maximumUphillGrade, "maximumUphillGrade");
         requireFiniteNonNegative(maxUphillStep, "maxUphillStep");
     }
 
