@@ -60,6 +60,34 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
     }
 
     @Test
+    void retainedOpenWaterJunctionIsClassifiedBeforeTerrainAuthority() {
+        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
+        SkyIslandHydraulicChannelNetworkPlan hydraulic =
+                SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
+
+        int matched = 0;
+        for (SkyIslandHydraulicReachGeometry reach : hydraulic.reaches()) {
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            boolean touchesOpenWater = waterbodies.candidates().stream()
+                    .anyMatch(candidate ->
+                            candidate.kind() != SkyIslandWaterbodyKind.WETLAND
+                                    && (candidate.sinkCellIndex() == semantic.startCellIndex()
+                                            || candidate.sinkCellIndex() == semantic.endCellIndex()));
+            if (!touchesOpenWater) {
+                continue;
+            }
+            matched++;
+            assertTrue(
+                    SkyIslandQualifiedFluvialRealizationPlanner.deferralReasons(
+                                    hydraulic.geomorphicNetwork(), waterbodies, reach)
+                            .contains(SkyIslandQualifiedFluvialDeferralReason
+                                    .RETAINED_WATER_TRANSITION_REQUIRED));
+        }
+        assertTrue(matched > 0, "retained fixture must exercise a channel/open-water junction");
+    }
+
+    @Test
     void terrainFieldPrimitiveProducesBoundedDownwardCrossSectionWithProvenance() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 512L);
         SkyIslandPreHydrologicTerrainField original =
