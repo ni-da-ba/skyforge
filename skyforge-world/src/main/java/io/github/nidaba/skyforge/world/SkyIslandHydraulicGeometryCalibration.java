@@ -32,8 +32,16 @@ final class SkyIslandHydraulicGeometryCalibration {
     }
 
     static double freeboardPotential(double relativeDischarge) {
+        return freeboardFromDepthPotential(waterDepthPotential(relativeDischarge));
+    }
+
+    static double freeboardFromDepthPotential(double waterDepthPotential) {
+        if (!Double.isFinite(waterDepthPotential) || waterDepthPotential <= 0.0) {
+            throw new IllegalArgumentException(
+                    "waterDepthPotential must be finite and positive");
+        }
         return BASE_FREEBOARD_POTENTIAL
-                + DEPTH_FREEBOARD_FRACTION * waterDepthPotential(relativeDischarge);
+                + DEPTH_FREEBOARD_FRACTION * waterDepthPotential;
     }
 
     private static double clamp01(double value) {
