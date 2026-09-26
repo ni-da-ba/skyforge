@@ -1,0 +1,310 @@
+name: Bootstrap Atmosphere Reconstruction Provenance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/bootstrap-atmosphere-reconstruction-provenance.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wave-c5-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereView.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeThermalSoaringDecision.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGliderLiftCoupling.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeFowlPlayHawkBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeReliableGlidersBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereReconstructionProvenanceAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-atmosphere-reconstruction-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  reconstruction-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact authority and consumer stacks
+        run: ./gradlew :skyforge-neoforge-1211:waveC3ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile atmosphere and consumer contracts
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*SkyforgeAtmosphereViewTest'
+          --tests '*SkyforgeThermalSoaringDecisionTest'
+          --tests '*SkyforgeGliderLiftCouplingTest'
+          --no-configuration-cache
+
+      - name: Configure unattended evidence client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-client"
+          mkdir -p "$run_dir"
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > "$run_dir/options.txt"
+
+      - name: Acquire Boot A and Boot B evidence on one persistent world
+        shell: bash
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+
+          run_boot() {
+            local boot="$1"
+            local task="$2"
+            local result="$3"
+            local server_log="$4"
+            local client_log="$5"
+
+            setsid ./gradlew \
+              ":skyforge-neoforge-1211:${task}" \
+              --no-daemon --no-configuration-cache >"$server_log" 2>&1 &
+            local server_pid=$!
+
+            local ready=0
+            for _ in $(seq 1 180); do
+              if grep -Fq "Done (" "$server_log" 2>/dev/null; then
+                ready=1
+                break
+              fi
+              if ! kill -0 "$server_pid" 2>/dev/null; then
+                break
+              fi
+              sleep 1
+            done
+            if [[ "$ready" -ne 1 ]]; then
+              echo "FAIL: atmosphere evidence server Boot $boot never became ready"
+              cat "$server_log"
+              kill -TERM -- "-$server_pid" 2>/dev/null || true
+              exit 1
+            fi
+
+            setsid xvfb-run -a ./gradlew \
+              :skyforge-neoforge-1211:runWaveC3AtmosphereEvidenceClient \
+              --no-daemon --no-configuration-cache >"$client_log" 2>&1 &
+            local client_pid=$!
+
+            local outcome=""
+            for _ in $(seq 1 240); do
+              if [[ -f "$result" ]] && grep -q '^status=PASS$' "$result"; then
+                outcome="pass"
+                break
+              fi
+              if [[ -f "$result" ]] && grep -q '^status=FAIL$' "$result"; then
+                outcome="fail"
+                break
+              fi
+              if ! kill -0 "$server_pid" 2>/dev/null; then
+                [[ -f "$result" ]] && grep -q '^status=PASS$' "$result" && outcome="pass"
+                break
+              fi
+              sleep 1
+            done
+
+            kill -TERM -- "-$client_pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$client_pid" 2>/dev/null || true
+            wait "$client_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+
+            if [[ "$outcome" != "pass" ]]; then
+              echo "FAIL: atmosphere evidence Boot $boot did not pass"
+              cat "$server_log"
+              cat "$client_log"
+              exit 1
+            fi
+
+            grep -q "^boot=$boot$" "$result"
+            grep -q '^serverWorldSampling=true$' "$result"
+            grep -q '^realA4mcGameplayProvider=true$' "$result"
+            grep -q '^fowlPlayConsumerBinding=true$' "$result"
+            grep -q '^reliableGlidersConsumerBinding=true$' "$result"
+            grep -q '^consumerCount=2$' "$result"
+            grep -q '^sameTickReplayExact=true$' "$result"
+            grep -q '^skyforgeAtmospherePersistence=false$' "$result"
+          }
+
+          result_a="skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/boot-a.properties"
+          result_b="skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/boot-b.properties"
+
+          run_boot \
+            A \
+            runWaveC3AtmosphereEvidenceServerA \
+            "$result_a" \
+            bootstrap-atmosphere-evidence-server-a.log \
+            bootstrap-atmosphere-evidence-client-a.log
+
+          test -f "skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-server/wave-c3-atmosphere-evidence/level.dat"
+
+          run_boot \
+            B \
+            runWaveC3AtmosphereEvidenceServerB \
+            "$result_b" \
+            bootstrap-atmosphere-evidence-server-b.log \
+            bootstrap-atmosphere-evidence-client-b.log
+
+      - name: Verify shared truth and reconstruction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("skyforge-neoforge-1211/build/acceptance/atmosphere-evidence")
+          a = json.loads((root / "boot-a.json").read_text())
+          b = json.loads((root / "boot-b.json").read_text())
+
+          for expected, data in (("A", a), ("B", b)):
+              assert data["schema_version"] == 1
+              assert data["artifact_kind"] == "SKYFORGE_ATMOSPHERE_RECONSTRUCTION_BOOT"
+              assert data["boot"] == expected
+              assert data["provider_identity"]["mod_id"] == "aerodynamics4mc"
+              assert data["provider_identity"]["version"] != "unknown"
+              assert data["authoritative_sample"]["trusted_for_gameplay"] is True
+              assert data["authoritative_sample"]["source_level"] != "NONE"
+              assert data["authoritative_sample"]["authority"] == "SERVER_AUTHORITATIVE"
+              assert data["same_tick_replay"]["exact_equal"] is True
+              assert data["same_tick_replay"]["sample_digest"] == data["authoritative_sample_digest"]
+
+              consumers = data["consumer_observations"]
+              assert len(consumers) == 2
+              assert {c["consumer"] for c in consumers} == {
+                  "HAWK_THERMAL_DECISION",
+                  "RELIABLE_GLIDER_LIFT",
+              }
+              assert all(c["sample_digest"] == data["authoritative_sample_digest"] for c in consumers)
+              assert all(c["trusted_input"] is True for c in consumers)
+              assert all(
+                  c["updraft_input_mps"] == data["authoritative_sample"]["signed_vertical_air"]
+                  for c in consumers
+              )
+              assert data["shared_truth"]["consumer_count"] == 2
+              assert data["shared_truth"]["single_sample_digest"] == data["authoritative_sample_digest"]
+              assert data["shared_truth"]["contradictory_weather_authority"] is False
+              assert data["ownership"]["server_world_sampling"] is True
+              assert data["ownership"]["skyforge_persists_atmosphere"] is False
+              assert data["ownership"]["provider_persistence_owner"] == "aerodynamics4mc"
+              assert data["ownership"]["rendering_backend_dependency"] is False
+
+          assert a["specimen"]["world_seed"] == b["specimen"]["world_seed"] == 495004
+          assert a["specimen"]["dimension"] == b["specimen"]["dimension"]
+          assert b["specimen"]["acquisition_game_tick"] > a["specimen"]["acquisition_game_tick"]
+          assert a["provider_identity"] == b["provider_identity"]
+
+          save_root = Path(
+              "skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-server/"
+              "wave-c3-atmosphere-evidence"
+          )
+          relative_save_paths = [
+              str(path.relative_to(save_root))
+              for path in save_root.rglob("*")
+          ]
+          suspicious = [
+              relative
+              for relative in relative_save_paths
+              if "skyforge" in relative.lower() and "atmosph" in relative.lower()
+          ]
+          provider_persistence_paths = [
+              relative
+              for relative in relative_save_paths
+              if relative.lower().startswith("aerodynamics4mc/")
+          ]
+          assert not suspicious, suspicious
+          assert provider_persistence_paths, "expected pinned A4MC provider-owned save state"
+
+          combined = {
+              "schema_version": 1,
+              "artifact_kind": "SKYFORGE_ATMOSPHERE_RECONSTRUCTION_PROVENANCE",
+              "provider_identity": a["provider_identity"],
+              "world": {
+                  "seed": a["specimen"]["world_seed"],
+                  "dimension": a["specimen"]["dimension"],
+                  "boot_a_game_tick": a["specimen"]["acquisition_game_tick"],
+                  "boot_b_game_tick": b["specimen"]["acquisition_game_tick"],
+                  "same_save_reopened": True,
+              },
+              "boots": [a, b],
+              "reconstruction": {
+                  "trusted_after_restart": True,
+                  "provider_identity_equal": True,
+                  "exact_weather_equality_required": False,
+                  "sample_digest_changed": (
+                      a["authoritative_sample_digest"] != b["authoritative_sample_digest"]
+                  ),
+              },
+              "shared_truth": {
+                  "distinct_consumers_per_boot": 2,
+                  "same_authoritative_sample_per_consumer": True,
+                  "contradictory_weather_authority": False,
+              },
+              "ownership": {
+                  "skyforge_persists_atmosphere": False,
+                  "skyforge_atmosphere_save_paths": suspicious,
+                  "provider_persistence_owner": "aerodynamics4mc",
+                  "provider_persistence_paths_observed": provider_persistence_paths,
+                  "rendering_backend_dependency": False,
+              },
+          }
+          out = root / "reconstruction-provenance.json"
+          out.write_text(json.dumps(combined, indent=2, sort_keys=True) + "\n")
+          print(
+              "PASS atmosphere reconstruction/provenance",
+              "bootA=", a["authoritative_sample_digest"],
+              "bootB=", b["authoritative_sample_digest"],
+              "ticks=", (
+                  a["specimen"]["acquisition_game_tick"],
+                  b["specimen"]["acquisition_game_tick"],
+              ),
+          )
+          PY
+
+      - name: Verify no Skyforge atmosphere serialization API was introduced
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereView.java
+            skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java
+            skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereReconstructionProvenanceAcceptance.java
+          )
+          if grep -En 'SavedData|CompoundTag|NbtIo|DataStorage|getDataStorage|Files\.write.*atmosphere' "${files[@]}"; then
+            echo "FAIL: Skyforge atmosphere seam acquired a persistence API"
+            exit 1
+          fi
+          echo "PASS: Skyforge atmosphere seam has no persistence API"
+
+      - name: Upload atmosphere reconstruction evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: bootstrap-atmosphere-reconstruction-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/*.properties
+            skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/*.json
+            bootstrap-atmosphere-evidence-server-a.log
+            bootstrap-atmosphere-evidence-server-b.log
+            bootstrap-atmosphere-evidence-client-a.log
+            bootstrap-atmosphere-evidence-client-b.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-server/logs/*.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-server/crash-reports/*.txt
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-client/logs/*.log
+            skyforge-neoforge-1211/run-wave-c3-atmosphere-evidence-client/crash-reports/*.txt
