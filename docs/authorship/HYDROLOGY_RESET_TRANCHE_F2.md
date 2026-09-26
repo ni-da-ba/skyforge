@@ -109,6 +109,25 @@ independently proven KKT/primal-feasibility checks.
 
 Do not emulate the global solve with sequential clipping.
 
+### Conditioning and deterministic algebra
+
+The implementation must scale the quadratic program before numerical solution. At minimum:
+
+- translate elevations by a deterministic local datum so large absolute world coordinates do not
+  dominate small hydraulic differences;
+- scale head variables and constraint rows so grade, box, and equality residuals are comparable;
+- preserve one canonical variable/constraint ordering derived from semantic identity, never hash-map
+  iteration order;
+- detect duplicate or linearly dependent active constraints and handle degeneracy explicitly rather
+  than relying on unstable matrix inversion;
+- use a symmetric positive-definite factorization for the reduced Hessian/KKT subproblem where the
+  chosen method permits it;
+- report numerical failure when conditioning defeats the documented tolerance budget.
+
+Connected components may be solved independently only when the constraint graph proves that they
+share no node, transition, basin datum, or other coupling variable. Component decomposition is an
+optimization, not a change in mathematics.
+
 ## 3. Bed and free-surface coupling
 
 The free surface is not solved independently of channel geometry.
@@ -168,6 +187,14 @@ individually continuous bounded-profile solves.
 
 Skyforge discharge remains the normalized **accumulated watershed discharge already authored by the
 semantic drainage system**.
+
+F2 is a **quasi-steady geomorphic synthesis** problem, not an unsteady-flow forecast. Skyforge does
+not have field-calibrated hydrographs, roughness coefficients, physical flow units, or a time-varying
+momentum state, so it must not imply Saint-Venant fidelity that its inputs cannot support. Industry
+hydraulic models use continuity and momentum equations when those physical quantities exist; here we
+adopt the corresponding structural discipline—network coupling, explicit boundary conditions,
+conservation-compatible discharge semantics, and transition ownership—without fabricating missing
+physics.
 
 At a transition:
 
@@ -287,6 +314,22 @@ Any accepted F2 implementation must therefore:
 
 Historical thresholds survive only if regenerated evidence independently supports them.
 
+### Discretization-convergence requirement
+
+Acceptance must not depend materially on one arbitrary centerline sampling density. For selected
+fixed ordinary, confluence, and drop fixtures, repeat the solve at successively refined arc-length
+sampling and require convergence of at least:
+
+- node and terminal heads;
+- integrated excavation proxy;
+- maximum ordinary grade;
+- width/depth envelope extrema;
+- qualification classification.
+
+The numerical tolerance may scale with sample spacing where mathematically justified, but a pass may
+not disappear solely because a centerline was sampled more finely. If refinement exposes a real
+constraint violation, the coarser pass was under-resolved and must be retired.
+
 ## 12. Backend boundary
 
 Minecraft receives one already-qualified continuous target field.
@@ -320,6 +363,12 @@ Tolerance must be expressed as an absolute-plus-relative criterion against the p
 than one unqualified magic epsilon. The exact deterministic tolerances are implementation evidence,
 not aesthetic tuning parameters.
 
+Required solver fixtures include: a single unconstrained chain with an analytic weighted projection;
+a box-active chain; simultaneous upper/lower grade actives; a symmetric confluence permutation test;
+an exact basin-datum boundary; an explicit-drop partition; an infeasible contradictory-boundary case;
+a redundant-constraint/degeneracy case; and a variable-order permutation test producing the same
+solution and qualification within the documented tolerance.
+
 ## Engineering references
 
 - Goldfarb & Idnani (1983), a numerically stable dual active-set method for strictly convex quadratic
@@ -330,6 +379,9 @@ not aesthetic tuning parameters.
   velocity exhibit discharge-dependent power-law behavior.
 - USACE HEC-RAS stream-junction documentation: junctions require explicit hydraulic compatibility;
   energy and momentum approaches are distinct and approach angle can matter.
+- EPA SWMM hydraulic reference material: full dynamic-wave routing couples continuity and momentum at
+  network links/nodes; used here to delimit what Skyforge deliberately does **not** claim without
+  physical flow/time-state inputs.
 - GRASS GIS `r.watershed`: least-cost/MFD drainage discovery is a useful reference for keeping raster
   drainage inference separate from final continuous physical geometry.
 - Tarboton (1997) D-infinity drainage: continuous directional drainage over raster facets is useful
