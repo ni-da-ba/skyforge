@@ -1951,6 +1951,46 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #1140 Skyforge-specific observatory: reopen the already machine-accepted DR-50 A world
+        // with the same A4MC authority runtime, then probe air relative to the canonical island
+        // surface. The DR-50 world is prepared separately before this run; this profile does not
+        // author or mutate atmosphere policy.
+        create("waveC3SkyforgeAtmosphereProbeServer") {
+            server()
+            sourceSet.set(waveC3ProbeRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.atmosphereProbeVolume", "true")
+            systemProperty("skyforge.dev.atmosphereProbeSurfaceRelative", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-probe-skyforge")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/atmosphere-probe-skyforge/server.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.atmosphereProbeOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-probe-skyforge/probe-volume.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3SkyforgeAtmosphereProbeClient") {
+            client()
+            sourceSet.set(waveC3ProbeRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-skyforge-atmosphere-probe-client").asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25579")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // #495 final shared-truth + reconstruction evidence. Both server boots use the same
         // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
         // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.
@@ -3399,6 +3439,32 @@ tasks.named("runWaveC3AtmosphereProbeServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC3AtmosphereProbeServerProperties)
+    }
+}
+
+val waveC3SkyforgeAtmosphereProbeServerProperties = """
+    level-name=acceptance
+    level-seed=493030
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=12
+    simulation-distance=8
+    max-tick-time=0
+    server-port=25579
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC3SkyforgeAtmosphereProbeServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+        val world = directory.resolve("saves/acceptance/level.dat")
+        check(world.isFile) {
+            "Skyforge atmosphere observatory requires prepared DR-50 A world: $world"
+        }
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC3SkyforgeAtmosphereProbeServerProperties)
     }
 }
 
