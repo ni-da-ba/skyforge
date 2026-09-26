@@ -70,6 +70,8 @@ The focused test corpus includes:
 - simultaneous upper/lower difference-bound activation with analytic optimum;
 - symmetric/constraint-order permutation invariance;
 - exact retained-basin datum equality;
+- exact pair-difference equality;
+- large absolute world datum with small hydraulic head differences;
 - explicit drop partition without invented cross-drop continuity;
 - contradictory exact boundaries -> INFEASIBLE;
 - redundant active constraint handling;
