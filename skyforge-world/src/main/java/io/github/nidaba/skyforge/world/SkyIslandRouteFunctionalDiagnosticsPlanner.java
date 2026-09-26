@@ -84,6 +84,58 @@ public final class SkyIslandRouteFunctionalDiagnosticsPlanner {
                 valleyIntegral / length);
     }
 
+    public static double ridgeLengthFraction(
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain,
+            double planningSpacing) {
+        Objects.requireNonNull(points, "points");
+        Objects.requireNonNull(terrain, "terrain");
+        if (points.size() < 2) {
+            throw new IllegalArgumentException("route diagnostics require at least two points");
+        }
+        if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
+            throw new IllegalArgumentException("planningSpacing must be finite and positive");
+        }
+
+        double probeRadius =
+                planningSpacing
+                        * SkyIslandTerrainAwareRouteSolver
+                                .RIDGE_PROBE_RADIUS_PLANNING_FRACTION;
+        double[] ridge = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition point = Objects.requireNonNull(points.get(i), "point");
+            double elevation = terrain.sample(point);
+            double surrounding = surroundingMean(terrain, point, probeRadius);
+            ridge[i] = Math.max(0.0, elevation - surrounding);
+        }
+
+        double length = 0.0;
+        double ridgeIntegral = 0.0;
+        for (int i = 0; i + 1 < points.size(); i++) {
+            double ds = Math.hypot(
+                    points.get(i + 1).x() - points.get(i).x(),
+                    points.get(i + 1).z() - points.get(i).z());
+            if (!(ds > EPSILON)) {
+                throw new IllegalStateException(
+                        "route diagnostics require strictly positive segment length");
+            }
+            length += ds;
+            double ridgeA =
+                    ridge[i] > SkyIslandTerrainAwareRouteSolver.RIDGE_DIAGNOSTIC_THRESHOLD
+                            ? 1.0
+                            : 0.0;
+            double ridgeB =
+                    ridge[i + 1] > SkyIslandTerrainAwareRouteSolver.RIDGE_DIAGNOSTIC_THRESHOLD
+                            ? 1.0
+                            : 0.0;
+            ridgeIntegral += 0.5 * (ridgeA + ridgeB) * ds;
+        }
+        if (!(length > EPSILON)) {
+            throw new IllegalStateException("route diagnostics require positive path length");
+        }
+        return clamp01(ridgeIntegral / length);
+    }
+
     private static double surroundingMean(
             SkyIslandSemanticField terrain,
             SkyIslandLocalPosition center,
