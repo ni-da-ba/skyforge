@@ -41,6 +41,12 @@ phi(x) =
 
 where all sampled field terms are dimensionless authored potentials.
 
+C3 is a numerical-consistency correction, not a routing-preference retune. Let the historical/default
+search density be `N_ref = 4` samples per planning-cell spacing. Density coefficients are normalized
+so a cardinal edge at the existing default resolution reproduces the existing baseline length/local
+penalty scale. Equivalently, the continuous line-density weights absorb the factor `N_ref`; refinement
+changes quadrature accuracy, not the relative authored routing preferences.
+
 The dimensionless route objective is
 
 ```text
@@ -154,13 +160,20 @@ already has the correct world-space interpretation.
 
 ### Uphill measure
 
-The historical fraction of uphill edges is grid-count dependent. C3 records at minimum:
+The historical fraction of uphill edges and maximum raw uphill **step** are grid-spacing dependent.
+C3 records at minimum:
 
 ```text
 positiveElevationVariation = sum(max(0, z_(i+1) - z_i))
 ```
 
-and may additionally expose an arc-length-weighted uphill fraction
+and the maximum uphill **grade**
+
+```text
+maximumUphillGrade = max(max(0, z_(i+1) - z_i) / ds_i).
+```
+
+It may additionally expose an arc-length-weighted uphill fraction
 
 ```text
 sum(ds_i * I[dz_i > 0]) / sum(ds_i).
@@ -209,7 +222,7 @@ Evidence records:
 - maximum guidance deviation;
 - arc-length-weighted ridge fraction;
 - line-mean valley advantage;
-- maximum local uphill increment;
+- positive elevation variation and maximum uphill grade;
 - Hausdorff or bidirectional maximum distance between route polylines after arc-length interpolation;
 - downstream C2 centerline diagnostics derived from each search route.
 
