@@ -289,11 +289,13 @@ jobs:
           fi
           echo "--- ordinary-span-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-network-assembly-test-a/manifest.csv ]; then
+          if [ ! -f skyforge-reference/build/evidence/hydrology-network-assembly-test-a/terminal-components.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyNetworkAssemblyCorpusTest' --rerun-tasks --no-configuration-cache
           fi
-          echo "--- network-assembly-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/manifest.csv
+          echo "--- terminal-components.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/terminal-components.csv
+          echo "--- reach-assemblies.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/reach-assemblies.csv
 
       - name: Dump focused failure report
         if: failure()
