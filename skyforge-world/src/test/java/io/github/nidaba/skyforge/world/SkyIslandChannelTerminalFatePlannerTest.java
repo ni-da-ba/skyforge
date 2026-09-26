@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandChannelTerminalFatePlannerTest {
@@ -37,28 +38,41 @@ class SkyIslandChannelTerminalFatePlannerTest {
 
     @Test
     void terminalFateMayContinueBeyondTheSemanticChannelEndpoint() {
-        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 83L);
-        SkyIslandGeomorphicChannelNetworkPlan network =
-                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
-        List<SkyIslandChannelTerminalFate> fates =
-                SkyIslandChannelTerminalFatePlanner.plan(descriptor, network);
+        Map<Integer, SkyIslandWatershedCell> cells = Map.of(
+                10,
+                cell(10, 11, false, false),
+                11,
+                cell(11, 12, false, false),
+                12,
+                cell(12, -1, false, true));
 
-        assertTrue(
-                fates.stream().anyMatch(fate -> fate.watershedPath().size() > 1),
-                "fixture must exercise downstream watershed routing beyond a channel terminal");
-        for (SkyIslandChannelTerminalFate fate : fates) {
-            assertEquals(
-                    fate.channelTerminalCellIndex(),
-                    fate.watershedPath().getFirst());
-            assertEquals(
-                    fate.watershedTerminalCellIndex(),
-                    fate.watershedPath().getLast());
-            if (fate.watershedPath().size() > 1) {
-                assertNotEquals(
-                        fate.channelTerminalCellIndex(),
-                        fate.watershedTerminalCellIndex());
-            }
-        }
+        SkyIslandChannelTerminalFate fate =
+                SkyIslandChannelTerminalFatePlanner.resolve(10, cells, Map.of());
+
+        assertEquals(10, fate.channelTerminalCellIndex());
+        assertEquals(12, fate.watershedTerminalCellIndex());
+        assertEquals(SkyIslandChannelTerminalFateKind.EDGE_OUTLET, fate.kind());
+        assertEquals(List.of(10, 11, 12), fate.watershedPath());
+        assertTrue(fate.waterbodyKind().isEmpty());
+    }
+
+    private static SkyIslandWatershedCell cell(
+            int index,
+            int downstream,
+            boolean retainedSink,
+            boolean edgeOutlet) {
+        double surface = 0.5;
+        return new SkyIslandWatershedCell(
+                index,
+                new SkyIslandLocalPosition(index, 0.0),
+                surface,
+                surface,
+                0.0,
+                0.1,
+                0.1,
+                downstream,
+                retainedSink,
+                edgeOutlet);
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {
