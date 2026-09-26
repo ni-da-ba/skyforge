@@ -96,7 +96,7 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 realized);
     }
 
-    private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
+    static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
             SkyIslandGeomorphicChannelNetworkPlan network,
             SkyIslandWaterbodyPlan waterbodies,
             SkyIslandHydraulicReachGeometry reach) {
