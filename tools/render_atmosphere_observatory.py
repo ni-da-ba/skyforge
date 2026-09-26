@@ -59,6 +59,22 @@ def main():
                           "glider_baseline_y_blocks_per_tick":BASELINE,"glider_smoothing":SMOOTHING},
       "interpretation":"Raw provider measurements remain authoritative; all coherence and consumer fields are derived diagnostics."
     }
+    temporal=data.get("temporal",{})
+    frames=temporal.get("frames",[])
+    if frames:
+        tracks=list(zip(*[frame["samples"] for frame in frames]))
+        temporal_summary=[]
+        for idx,track in enumerate(tracks):
+            uv=[p["signed_vertical_air"] for p in track]
+            hv=[math.hypot(p["effective"][0],p["effective"][2]) for p in track]
+            temporal_summary.append({"point_index":idx,"position":track[0]["position"],
+                "updraft_mps":stats(uv),"horizontal_effective_wind_mps":stats(hv),
+                "max_step_updraft_delta_mps":max(abs(b-a) for a,b in zip(uv,uv[1:])),
+                "hawk_enter_frame_count":sum(p["trusted_for_gameplay"] and p["signed_vertical_air"]>=ENTER for p in track),
+                "glider_improved_frame_count":sum(glider(p["signed_vertical_air"])>BASELINE for p in track)})
+        summary["temporal"]={"period_ticks":temporal["period_ticks"],"frame_count":len(frames),
+                             "duration_ticks":frames[-1]["game_tick"]-frames[0]["game_tick"],
+                             "points":temporal_summary}
     (out/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
     W=780; cell=92; margin=80; panel=cell*5
     sv=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{len(levels)*(panel+75)+60}" viewBox="0 0 {W} {len(levels)*(panel+75)+60}">',
@@ -78,6 +94,25 @@ def main():
         sv.append(f'<text x="{px+4}" y="{py+14}" class="small">{s["signed_vertical_air"]:+.2f} m/s</text>')
         if s["hawk_enter"]: sv.append(f'<text x="{px+4}" y="{py+29}" class="small">HAWK ENTER</text>')
     sv.append('</svg>'); (out/"field-atlas.svg").write_text("\n".join(sv))
+    temporal_html=""
+    if frames:
+        CW,CH=900,360; pad=55
+        allu=[p["signed_vertical_air"] for frame in frames for p in frame["samples"]]
+        lo,hi=min(allu+[EXIT]),max(allu+[ENTER]); span=max(.01,hi-lo)
+        tv=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{CW}" height="{CH}" viewBox="0 0 {CW} {CH}">',
+            '<style>text{font-family:system-ui,sans-serif;fill:#222}.trace{fill:none;stroke-width:2}</style>']
+        def yy(v): return pad+(hi-v)/span*(CH-2*pad)
+        for val,label in ((ENTER,"hawk enter 1.5"),(EXIT,"hawk exit 0.75")):
+            y=yy(val); tv.append(f'<line x1="{pad}" y1="{y:.1f}" x2="{CW-pad}" y2="{y:.1f}" stroke="#777" stroke-dasharray="5 5"/><text x="{pad+5}" y="{y-5:.1f}">{label}</text>')
+        palette=["#111","#555","#888","#bbb"]
+        for idx,track in enumerate(zip(*[frame["samples"] for frame in frames])):
+            pts=[]
+            for fi,p in enumerate(track):
+                x=pad+fi/(len(frames)-1)*(CW-2*pad); pts.append(f'{x:.1f},{yy(p["signed_vertical_air"]):.1f}')
+            tv.append(f'<polyline points="{" ".join(pts)}" class="trace" stroke="{palette[idx]}"/>')
+            tv.append(f'<text x="{CW-pad-180}" y="{20+idx*16}">P{idx}: {track[0]["position"]}</text>')
+        tv.append('</svg>'); (out/"temporal-updraft.svg").write_text("\n".join(tv))
+        temporal_html='<h2>Temporal updraft traces</h2><p>31 frames at 20-tick cadence (about 30 seconds at nominal 20 TPS). Horizontal guides are the current hawk hysteresis thresholds.</p><img src="temporal-updraft.svg" alt="Measured fixed-point updraft time series" style="max-width:100%;height:auto">'
     rows=[]
     for y in levels:
       ss=[s for s in samples if s["y"]==y]
@@ -90,7 +125,7 @@ def main():
 <p>Source digest: <code>{esc(data["ordered_sample_digest"])}</code>. Samples: {len(samples)}. Provider: {esc(data["provider_identity"]["mod_id"])} {esc(data["provider_identity"]["version"])}.</p>
 <h2>Spatial field atlas</h2><p>Cell color encodes signed vertical air; arrows show effective horizontal wind (mean + gust). “HAWK ENTER” marks cells meeting the current 1.5 m/s soaring-entry threshold.</p>
 <img src="field-atlas.svg" alt="Four altitude slices of measured atmosphere" style="max-width:100%;height:auto">
-<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
+{temporal_html}<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
 <h2>Derived diagnostics</h2><p>64-block adjacent updraft |Δ|: mean <b>{summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["mean"]:.3f} m/s</b>, max {summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["max"]:.3f}. Glider coupling improves the -0.05 blocks/tick baseline in <b>{summary["derived"]["glider_improved_cells"]}/{len(samples)}</b> sampled cells; hawk entry threshold is met in <b>{summary["derived"]["hawk_enter_cells"]}/{len(samples)}</b>.</p>
 <p>Temporal persistence is intentionally not inferred from this single-tick artifact; that requires the next bounded acquisition experiment.</p>"""
     (out/"index.html").write_text(doc)
