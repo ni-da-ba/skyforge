@@ -145,6 +145,31 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
     }
 
     @Test
+    void qpEncodedD2MetricsCannotFailAfterSolvedProfile() {
+        List<SkyIslandGeomorphicQualificationViolation> encoded = List.of(
+                SkyIslandGeomorphicQualificationViolation.CENTERLINE_LOWERING,
+                SkyIslandGeomorphicQualificationViolation.LATERAL_RECOVERY_GRADE,
+                SkyIslandGeomorphicQualificationViolation.BANK_CONTAINMENT,
+                SkyIslandGeomorphicQualificationViolation.RELIEF_TO_VALLEY_WIDTH,
+                SkyIslandGeomorphicQualificationViolation.LONGITUDINAL_GRADE);
+
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandBoundedHydraulicProfilePlan plan =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+                if (outcome.qualification().isEmpty()) {
+                    continue;
+                }
+                for (SkyIslandGeomorphicQualificationViolation violation : encoded) {
+                    assertFalse(
+                            outcome.qualification().orElseThrow().violations().contains(violation),
+                            "QP-encoded D2 constraint failed after solved profile: " + violation);
+                }
+            }
+        }
+    }
+
+    @Test
     void solvedOutcomeNeverBypassesPostSolveD2Qualification() {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
             SkyIslandBoundedHydraulicProfilePlan plan =
