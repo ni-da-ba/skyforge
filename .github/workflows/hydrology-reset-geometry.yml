@@ -32,6 +32,13 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3B.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionLegGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceGeometryCandidate.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeGeometryCandidate.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBasinInterfaceGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlannerTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicHeadEnvelope.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicHeadEnvelopePlanner.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityStatus.java"
@@ -42,13 +49,14 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyConfluenceCompatibilityCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyConfluenceCompatibilityCorpusTest.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionLegGeometry.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceGeometryCandidate.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeGeometryCandidate.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicBasinInterfaceGeometry.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlan.java"
-      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlanner.java"
-      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionGeometryEvidencePlannerTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3C.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityOutcome.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyCascadeCompatibilityCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyCascadeCompatibilityCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -127,8 +135,6 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicReachDiagnosticsPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicDiagnosticsCorpusTest.java"
-      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicQualificationCorpusCli.java"
-      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyGeomorphicQualificationCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C1.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterline.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousChannelCenterlinePlanner.java"
@@ -194,10 +200,11 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
-            :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
@@ -218,11 +225,6 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
           echo "--- reach-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-qualification-test-a/qualification-manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- qualification-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-qualification-test-a/qualification-manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
@@ -252,6 +254,11 @@ jobs:
           fi
           echo "--- confluence-compatibility-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-confluence-compatibility-test-a/manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-cascade-compatibility-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- cascade-compatibility-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-cascade-compatibility-test-a/manifest.csv
 
       - name: Dump focused failure report
         if: failure()
