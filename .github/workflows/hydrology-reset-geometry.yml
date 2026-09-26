@@ -57,6 +57,18 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandCascadeHeadCompatibilityPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyCascadeCompatibilityCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyCascadeCompatibilityCorpusTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3D.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicMeasurements.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanBoundaryStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanBoundary.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinaryHydraulicSpan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanOutcome.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandOrdinarySpanPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyOrdinarySpanCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyOrdinarySpanCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -202,6 +214,8 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandOrdinarySpanPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyOrdinarySpanCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
@@ -259,6 +273,11 @@ jobs:
           fi
           echo "--- cascade-compatibility-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-cascade-compatibility-test-a/manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyOrdinarySpanCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- ordinary-span-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv
 
       - name: Dump focused failure report
         if: failure()
