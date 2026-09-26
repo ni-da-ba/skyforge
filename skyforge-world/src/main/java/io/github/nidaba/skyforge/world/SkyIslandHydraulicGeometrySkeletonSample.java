@@ -5,6 +5,7 @@ import java.util.Objects;
 /** One head-independent hydraulic-geometry sample along a C2 centerline. */
 public record SkyIslandHydraulicGeometrySkeletonSample(
         SkyIslandLocalPosition position,
+        double arcLength,
         double stationFraction,
         double relativeDischarge,
         double bankfullHalfWidth,
@@ -13,6 +14,9 @@ public record SkyIslandHydraulicGeometrySkeletonSample(
 
     public SkyIslandHydraulicGeometrySkeletonSample {
         position = Objects.requireNonNull(position, "position");
+        if (!Double.isFinite(arcLength) || arcLength < 0.0) {
+            throw new IllegalArgumentException("arcLength must be finite and non-negative");
+        }
         requireFraction(stationFraction, "stationFraction");
         requireFraction(relativeDischarge, "relativeDischarge");
         requireFinitePositive(bankfullHalfWidth, "bankfullHalfWidth");
