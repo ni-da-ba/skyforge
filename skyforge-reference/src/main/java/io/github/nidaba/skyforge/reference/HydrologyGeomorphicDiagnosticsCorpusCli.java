@@ -81,8 +81,8 @@ public final class HydrologyGeomorphicDiagnosticsCorpusCli {
                     .mapToDouble(route -> route.route().uphillStepFraction())
                     .average()
                     .orElse(0.0);
-            double maxRidge = geometry.routes().stream()
-                    .mapToDouble(route -> route.route().ridgeSampleFraction())
+            double maxRidge = geomorphicDiagnostics.stream()
+                    .mapToDouble(SkyIslandGeomorphicReachDiagnostics::ridgeSampleFraction)
                     .max()
                     .orElse(0.0);
             double meanValley = geometry.routes().stream()

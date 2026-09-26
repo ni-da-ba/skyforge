@@ -38,6 +38,32 @@ class SkyIslandGeomorphicReachDiagnosticsPlannerTest {
     }
 
     @Test
+    void ridgeOccupancyUsesC3ArcLengthWeightedFunctionalDiagnostic() {
+        SkyIslandDescriptor descriptor = descriptor(632L);
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandHydraulicChannelNetworkPlan hydraulic =
+                SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
+        double planningSpacing =
+                SkyIslandSemanticChannelReachPlanner.plan(descriptor).planningSpacing();
+
+        List<SkyIslandGeomorphicReachDiagnostics> diagnostics =
+                SkyIslandGeomorphicReachDiagnosticsPlanner.measure(
+                        descriptor, hydraulic, terrain);
+        assertEquals(hydraulic.reaches().size(), diagnostics.size());
+
+        for (int i = 0; i < hydraulic.reaches().size(); i++) {
+            SkyIslandHydraulicReachGeometry reach = hydraulic.reaches().get(i);
+            double expected =
+                    SkyIslandRouteFunctionalDiagnosticsPlanner.measure(
+                                    reach.geomorphicRoute().route(),
+                                    terrain,
+                                    planningSpacing)
+                            .ridgeLengthFraction();
+            assertEquals(expected, diagnostics.get(i).ridgeSampleFraction(), 1.0e-12);
+        }
+    }
+
+    @Test
     void flatUnmodifiedTerrainReportsContainmentDeficitWhenWaterSurfaceExceedsBankTerrain() {
         SkyIslandDescriptor descriptor = descriptor(287L);
         SkyIslandHydraulicChannelNetworkPlan hydraulic =
