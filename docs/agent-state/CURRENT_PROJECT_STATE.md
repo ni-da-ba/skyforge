@@ -16,9 +16,11 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 
 ## What matters now
 
-- **Hydrology is in an architecture reset, not an H6 patch loop.** Issue #1084 is the current design dependency for DR-70/#754.
-- The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); the old hydrology PR stack is closed unmerged and must not be extended.
-- New hydrology work must solve continuous terrain-aware river/basin geometry and pass hard geomorphic plausibility gates before Minecraft discretization. See `docs/authorship/HYDROLOGY_RESET_2026-09-25.md`.
+- **Hydrology is in the Sep-25 continuous-solution reset, not an H6 patch loop.** Issue #1084 remains the design dependency for DR-70/#754.
+- The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); never extend it.
+- The reset has merged semantic-corridor centerlines (C2), hard river/basin qualification machinery (D2/E2), strict realization authority (F0), ordinary qualified fluvial realization (F1), and C2-based discontinuity diagnostics (D3).
+- Current next work is the F2 coupled bounded-profile/transition mathematics: network-global world-space head solve, explicit confluence/drop/basin boundaries, deterministic numerical acceptance, and requalification before any Minecraft discretization.
+- Retained-basin terrain remains blocked on adequate POND/LAKE calibration; pure-INCISED qualification remains provisional pending dedicated evidence.
 - There is **no pending Platform-v2 console action** from the reliability campaign.
 - Normal Skyforge development may resume under current lane/product authority.
 - The final forcing run ended correctly:
@@ -42,7 +44,7 @@ The reliability campaign is complete; do not extend it with additional adversari
 
 ## Product boundary
 
-DR-70 remains **CHANGES REQUIRED**. The Sep-25 review supersedes the bounded H6 presentation-repair assumption: #1084 must establish the new continuous geomorphic/hydraulic contract before another implementation tranche. Platform acceptance does not complete DR-70 or weaken this human/product gate.
+DR-70 remains **CHANGES REQUIRED**. The reset has progressed beyond the initial contract into qualified continuous Authorship terrain, but it has **not** yet earned a Minecraft/backend restart. #1084 must complete the coupled longitudinal/transition solution, basin calibration, and regenerated qualification evidence first. Platform acceptance does not complete DR-70 or weaken this human/product gate.
 
 ## Operator references
 
