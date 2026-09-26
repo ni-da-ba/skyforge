@@ -48,12 +48,15 @@ public final class HydrologyBoundedProfileCorpusCli {
                         + "normalizedExcavationBurden,maxLongitudinalGradeWorld\n");
 
         StringBuilder convergenceCsv = new StringBuilder(
-                "specimen,islandKey,startCell,endCell,nativeSamples,refinedSamples,"
-                        + "nativeStartHeadWorld,refinedStartHeadWorld,nativeEndHeadWorld,"
-                        + "refinedEndHeadWorld,nativeObjectivePerLength,refinedObjectivePerLength,"
-                        + "nativeMaxGrade,refinedMaxGrade,nativeExcavation,refinedExcavation,"
-                        + "nativeMaxLoweringWorld,refinedMaxLoweringWorld,"
-                        + "nativeHeadDependentD2Pass,refinedHeadDependentD2Pass\n");
+                "specimen,islandKey,startCell,endCell,coarseSamples,mediumSamples,fineSamples,"
+                        + "coarseStartHeadWorld,mediumStartHeadWorld,fineStartHeadWorld,"
+                        + "coarseEndHeadWorld,mediumEndHeadWorld,fineEndHeadWorld,"
+                        + "coarseObjectivePerLength,mediumObjectivePerLength,fineObjectivePerLength,"
+                        + "coarseMaxGrade,mediumMaxGrade,fineMaxGrade,"
+                        + "coarseExcavation,mediumExcavation,fineExcavation,"
+                        + "coarseMaxLoweringWorld,mediumMaxLoweringWorld,fineMaxLoweringWorld,"
+                        + "coarseHeadDependentD2Pass,mediumHeadDependentD2Pass,"
+                        + "fineHeadDependentD2Pass\n");
 
         for (Specimen specimen : specimens) {
             SkyIslandBoundedHydraulicProfilePlan plan =
@@ -101,22 +104,30 @@ public final class HydrologyBoundedProfileCorpusCli {
                         .append(specimen.descriptor().identity().islandKey()).append(',')
                         .append(d.startCellIndex()).append(',')
                         .append(d.endCellIndex()).append(',')
-                        .append(d.nativeSampleCount()).append(',')
-                        .append(d.refinedSampleCount()).append(',')
-                        .append(format(d.nativeStartHeadWorld())).append(',')
-                        .append(format(d.refinedStartHeadWorld())).append(',')
-                        .append(format(d.nativeEndHeadWorld())).append(',')
-                        .append(format(d.refinedEndHeadWorld())).append(',')
-                        .append(format(d.nativeObjectivePerLength())).append(',')
-                        .append(format(d.refinedObjectivePerLength())).append(',')
-                        .append(format(d.nativeMaximumLongitudinalGrade())).append(',')
-                        .append(format(d.refinedMaximumLongitudinalGrade())).append(',')
-                        .append(format(d.nativeExcavationVolumeProxy())).append(',')
-                        .append(format(d.refinedExcavationVolumeProxy())).append(',')
-                        .append(format(d.nativeMaximumLoweringWorld())).append(',')
-                        .append(format(d.refinedMaximumLoweringWorld())).append(',')
-                        .append(d.nativeHeadDependentD2Pass()).append(',')
-                        .append(d.refinedHeadDependentD2Pass()).append('\n');
+                        .append(d.coarseSampleCount()).append(',')
+                        .append(d.mediumSampleCount()).append(',')
+                        .append(d.fineSampleCount()).append(',')
+                        .append(format(d.coarseStartHeadWorld())).append(',')
+                        .append(format(d.mediumStartHeadWorld())).append(',')
+                        .append(format(d.fineStartHeadWorld())).append(',')
+                        .append(format(d.coarseEndHeadWorld())).append(',')
+                        .append(format(d.mediumEndHeadWorld())).append(',')
+                        .append(format(d.fineEndHeadWorld())).append(',')
+                        .append(format(d.coarseObjectivePerLength())).append(',')
+                        .append(format(d.mediumObjectivePerLength())).append(',')
+                        .append(format(d.fineObjectivePerLength())).append(',')
+                        .append(format(d.coarseMaximumLongitudinalGrade())).append(',')
+                        .append(format(d.mediumMaximumLongitudinalGrade())).append(',')
+                        .append(format(d.fineMaximumLongitudinalGrade())).append(',')
+                        .append(format(d.coarseExcavationVolumeProxy())).append(',')
+                        .append(format(d.mediumExcavationVolumeProxy())).append(',')
+                        .append(format(d.fineExcavationVolumeProxy())).append(',')
+                        .append(format(d.coarseMaximumLoweringWorld())).append(',')
+                        .append(format(d.mediumMaximumLoweringWorld())).append(',')
+                        .append(format(d.fineMaximumLoweringWorld())).append(',')
+                        .append(d.coarseHeadDependentD2Pass()).append(',')
+                        .append(d.mediumHeadDependentD2Pass()).append(',')
+                        .append(d.fineHeadDependentD2Pass()).append('\n');
             }
         }
 
