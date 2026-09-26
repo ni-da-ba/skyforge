@@ -99,5 +99,11 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWaveC19TurtleMiningAcceptance.installFromSystemProperty();
         SkyforgeWaveC21CreateResourceAuthorityAcceptance.installFromSystemProperty();
         SkyforgeWaveC25PetroleumAuthorityAcceptance.installFromSystemProperty();
+        // #1142 acceptance may reconstruct immutable DR-50 semantics without reinstalling any
+        // mutation/admission/population stages, then expose those semantics through A4MC's public seam.
+        SkyforgeDr50AtmosphereTerrainDevRuntime.installFromSystemProperty();
+        // Optional public A4MC terrain seam. Stock 0.2.1 has no such API and remains unchanged;
+        // patched/future provider builds receive only uniquely owned Skyforge semantic columns.
+        SkyforgeA4mcTerrainBridge.installIfAvailable();
     }
 }
