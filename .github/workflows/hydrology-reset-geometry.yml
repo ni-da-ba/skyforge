@@ -27,6 +27,22 @@ on:
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2B.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F2C.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicReachOutcome.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFateKind.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFate.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePolicy.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandChannelTerminalFatePlannerTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicProfilePlannerTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCollocationRefiner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicConvergenceDiagnostics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandBoundedHydraulicConvergencePlanner.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyBoundedProfileCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometryCalibration.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicGeometrySkeletonSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicReachSkeleton.java"
@@ -134,6 +150,9 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
@@ -160,6 +179,15 @@ jobs:
           fi
           echo "--- discontinuity-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- bounded-profile-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv
+          echo "--- bounded-profile-convergence-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/convergence-manifest.csv
+          echo "--- terminal-fate-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/terminal-fate-manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
@@ -173,3 +201,5 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicBoundedQpSolverTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFatePlannerTest.xml || true
