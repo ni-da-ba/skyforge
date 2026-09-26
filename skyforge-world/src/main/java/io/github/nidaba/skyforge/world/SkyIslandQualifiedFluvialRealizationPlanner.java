@@ -30,6 +30,7 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 SkyIslandHydraulicChannelNetworkPlanner.plan(descriptor);
         List<SkyIslandGeomorphicReachDiagnostics> diagnostics =
                 SkyIslandGeomorphicReachDiagnosticsPlanner.measure(descriptor, hydraulic, original);
+        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
 
         List<SkyIslandQualifiedFluvialDeferral> deferredQualifications =
                 new ArrayList<>();
@@ -48,6 +49,7 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
             List<SkyIslandQualifiedFluvialDeferralReason> reasons =
                     deferralReasons(
                             hydraulic.geomorphicNetwork(),
+                            waterbodies,
                             diagnostic.hydraulicReach());
             if (!reasons.isEmpty()) {
                 deferredQualifications.add(
@@ -96,6 +98,7 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
 
     private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
             SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandWaterbodyPlan waterbodies,
             SkyIslandHydraulicReachGeometry reach) {
         SkyIslandSemanticChannelReach semantic =
                 reach.geomorphicRoute().semanticReach();
@@ -112,6 +115,15 @@ public final class SkyIslandQualifiedFluvialRealizationPlanner {
                 .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
+        }
+        boolean retainedWaterJunction = waterbodies.candidates().stream()
+                .anyMatch(candidate ->
+                        candidate.kind() != SkyIslandWaterbodyKind.WETLAND
+                                && (candidate.sinkCellIndex() == semantic.startCellIndex()
+                                        || candidate.sinkCellIndex() == semantic.endCellIndex()));
+        if (retainedWaterJunction) {
+            reasons.add(
+                    SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED);
         }
         return List.copyOf(reasons);
     }
