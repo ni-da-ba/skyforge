@@ -203,10 +203,10 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
                     diagnostics,
                     SkyIslandBoundedHydraulicConvergencePlanner.measure(descriptor(key)));
             for (SkyIslandBoundedHydraulicConvergenceDiagnostics d : diagnostics) {
-                assertEquals(2 * d.nativeSampleCount() - 1, d.refinedSampleCount());
-                assertEquals(
-                        d.nativeHeadDependentD2Pass(),
-                        d.refinedHeadDependentD2Pass(),
+                assertEquals(2 * d.coarseSampleCount() - 1, d.mediumSampleCount());
+                assertEquals(2 * d.mediumSampleCount() - 1, d.fineSampleCount());
+                assertTrue(
+                        d.headDependentClassificationStable(),
                         "collocation refinement must not change head-dependent D2 classification");
             }
         }
