@@ -55,8 +55,8 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
 
             int projectedSamples = 0;
             int affectedSamples = 0;
-            double minDelta = 0.0;
-            double maxDelta = 0.0;
+            double minDelta = Double.POSITIVE_INFINITY;
+            double maxDelta = Double.NEGATIVE_INFINITY;
             double minThickness = Double.POSITIVE_INFINITY;
             double maxThickness = 0.0;
 
@@ -64,8 +64,8 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     candidate.terrainField().acceptedReaches()) {
                 int reachSamples = 0;
                 int reachAffected = 0;
-                double reachMinDelta = 0.0;
-                double reachMaxDelta = 0.0;
+                double reachMinDelta = Double.POSITIVE_INFINITY;
+                double reachMaxDelta = Double.NEGATIVE_INFINITY;
                 double reachMinThickness = Double.POSITIVE_INFINITY;
 
                 for (var local : reach.centerline().points()) {
@@ -104,6 +104,8 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
             }
 
             if (projectedSamples == 0) {
+                minDelta = 0.0;
+                maxDelta = 0.0;
                 minThickness = 0.0;
                 maxThickness = 0.0;
             }
