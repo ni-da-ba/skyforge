@@ -18,10 +18,15 @@ class HydrologyBoundedProfileCorpusTest {
 
         String a = Files.readString(first.resolve("manifest.csv"));
         String b = Files.readString(second.resolve("manifest.csv"));
+        String convergenceA = Files.readString(first.resolve("convergence-manifest.csv"));
+        String convergenceB = Files.readString(second.resolve("convergence-manifest.csv"));
         assertEquals(a, b);
+        assertEquals(convergenceA, convergenceB);
         assertTrue(a.contains("primary-287"));
         assertTrue(a.contains("solverStatus"));
         assertTrue(a.contains("d2Accepted"));
         assertTrue(a.contains("TRANSITION_DEFERRED"));
+        assertTrue(convergenceA.contains("nativeObjectivePerLength"));
+        assertTrue(convergenceA.contains("refinedHeadDependentD2Pass"));
     }
 }
