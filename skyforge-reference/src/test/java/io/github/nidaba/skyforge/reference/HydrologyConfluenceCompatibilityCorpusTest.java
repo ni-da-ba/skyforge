@@ -19,12 +19,12 @@ class HydrologyConfluenceCompatibilityCorpusTest {
         String a = Files.readString(first.resolve("manifest.csv"));
         String b = Files.readString(second.resolve("manifest.csv"));
         assertEquals(a, b);
-        assertTrue(a.contains("confluence-632"));
-        assertTrue(a.contains("status"));
-        assertTrue(
-                a.contains("SOLVED")
-                        || a.contains("INFEASIBLE")
-                        || a.contains("CASCADE_COUPLED"));
+        assertTrue(a.contains("control-241,241,671,SOLVED"));
+        assertTrue(a.contains("confluence-632,632,710,SOLVED"));
+        assertTrue(a.contains("stress-512,512,1729,SOLVED"));
+        assertTrue(a.contains("retained-83,83,895,INFEASIBLE"));
+        assertTrue(a.contains("legacy-control-649,649,995,CASCADE_COUPLED"));
+        assertTrue(a.contains("control-77,77,897,CASCADE_COUPLED"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
