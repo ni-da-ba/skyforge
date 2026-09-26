@@ -60,7 +60,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void translatingTheCompiledVolumeDoesNotChangeProjectedHydrologyDelta() {
+    void translatingTheCompiledVolumeDoesNotChangeSemanticHydrologyDelta() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -90,8 +90,36 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
 
         assertEquals(a.semanticSample(), b.semanticSample());
         assertEquals(a.terrainDeltaWorldUnits(), b.terrainDeltaWorldUnits(), EPSILON);
-        assertEquals(a.originalColumnThicknessWorldUnits(), b.originalColumnThicknessWorldUnits(), EPSILON);
-        assertEquals(a.targetColumnThicknessWorldUnits(), b.targetColumnThicknessWorldUnits(), EPSILON);
+    }
+
+    @Test
+    void physicalPlacementWithInsufficientLocalThicknessFailsClosed() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        CompiledSkyIslandVolume volume =
+                compiled(descriptor, 910_077L, 96.0, -64.0, descriptor.nominalRadius());
+        SkyIslandComponentFluvialWorldSurfaceProjection projection =
+                new SkyIslandComponentFluvialWorldSurfaceProjection(
+                        descriptor, candidate, volume);
+
+        boolean rejected = false;
+        outer:
+        for (SkyIslandHydraulicReachGeometry reach :
+                candidate.terrainField().acceptedReaches()) {
+            for (SkyIslandLocalPosition local : reach.centerline().points()) {
+                try {
+                    projection.sampleWorld(
+                            volume.descriptor().centerX() + local.x(),
+                            volume.descriptor().centerZ() + local.z());
+                } catch (IllegalArgumentException expected) {
+                    rejected = true;
+                    break outer;
+                }
+            }
+        }
+
+        assertTrue(rejected);
     }
 
     @Test
