@@ -155,8 +155,8 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
         SkyIslandVolumeDescriptor physical =
                 SkyIslandVolumeDescriptor.schema2(
                         geometrySeed,
-                        96.0,
-                        -64.0,
+                        140.0,
+                        -96.0,
                         220.0,
                         radius,
                         58.0,
