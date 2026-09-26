@@ -75,6 +75,104 @@ def main():
         summary["temporal"]={"period_ticks":temporal["period_ticks"],"frame_count":len(frames),
                              "duration_ticks":frames[-1]["game_tick"]-frames[0]["game_tick"],
                              "points":temporal_summary}
+    opportunity=data.get("opportunity_scan",{})
+    opportunity_frames=opportunity.get("frames",[])
+    opportunity_html=""
+    if opportunity_frames:
+        by_pos={}
+        global_best=None
+        threshold_samples=0
+        for fi,frame in enumerate(opportunity_frames):
+            for p in frame["samples"]:
+                key=tuple(p["position"])
+                by_pos.setdefault(key,[]).append((fi,frame["game_tick"],p))
+                if p["signed_vertical_air"] >= ENTER:
+                    threshold_samples += 1
+                if global_best is None or p["signed_vertical_air"] > global_best[2]["signed_vertical_air"]:
+                    global_best=(fi,frame["game_tick"],p)
+        cell_rows=[]
+        threshold_cells=0
+        longest_run=0
+        for key,track in sorted(by_pos.items()):
+            vals=[p["signed_vertical_air"] for _,_,p in track]
+            run=best=0
+            for v in vals:
+                if v >= ENTER:
+                    run += 1; best=max(best,run)
+                else:
+                    run=0
+            if max(vals) >= ENTER:
+                threshold_cells += 1
+            longest_run=max(longest_run,best)
+            cell_rows.append({"position":list(key),"updraft_mps":stats(vals),
+                              "hawk_enter_frame_count":sum(v>=ENTER for v in vals),
+                              "longest_hawk_enter_run_frames":best})
+        frame_maxima=[]
+        for frame in opportunity_frames:
+            best=max(frame["samples"],key=lambda p:p["signed_vertical_air"])
+            frame_maxima.append({"game_tick":frame["game_tick"],
+                                 "max_updraft_mps":best["signed_vertical_air"],
+                                 "position":best["position"]})
+        summary["opportunity_scan"]={
+            "period_ticks":opportunity["period_ticks"],
+            "frame_count":len(opportunity_frames),
+            "samples_per_frame":opportunity["samples_per_frame"],
+            "total_samples":sum(len(frame["samples"]) for frame in opportunity_frames),
+            "global_max_updraft_mps":global_best[2]["signed_vertical_air"],
+            "global_max_game_tick":global_best[1],
+            "global_max_position":global_best[2]["position"],
+            "hawk_threshold_samples":threshold_samples,
+            "hawk_threshold_cells":threshold_cells,
+            "longest_hawk_threshold_run_frames":longest_run,
+            "cells":cell_rows,
+            "frame_maxima":frame_maxima,
+        }
+
+        ox=sorted({p["position"][0] for p in opportunity_frames[0]["samples"]})
+        oz=sorted({p["position"][2] for p in opportunity_frames[0]["samples"]})
+        oy=sorted({p["position"][1] for p in opportunity_frames[0]["samples"]})
+        cell=62; panel=cell*len(ox); W2=760; H2=len(oy)*(panel+65)+45
+        allmax=[row["updraft_mps"]["max"] for row in cell_rows]
+        olo,ohi=min(allmax),max(allmax)
+        ov=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W2}" height="{H2}" viewBox="0 0 {W2} {H2}">',
+            '<style>text{font-family:system-ui,sans-serif;fill:#222}.small{font-size:10px}.label{font-size:14px;font-weight:600}</style>',
+            '<text x="20" y="25" class="label">30-second thermal opportunity scan — maximum observed updraft per cell</text>']
+        cellmap={tuple(row["position"]):row for row in cell_rows}
+        for yi,y in enumerate(oy):
+            top=45+yi*(panel+65)
+            ov.append(f'<text x="15" y="{top+20}" class="label">Y={y:g}</text>')
+            for zi,z in enumerate(oz):
+                for xi,x in enumerate(ox):
+                    row=cellmap[(x,y,z)]; v=row["updraft_mps"]["max"]
+                    px=90+xi*cell; py=top+28+zi*cell
+                    ov.append(f'<rect x="{px}" y="{py}" width="{cell-2}" height="{cell-2}" fill="{color(v,olo,ohi)}" opacity=".78"/>')
+                    ov.append(f'<text x="{px+3}" y="{py+13}" class="small">{v:+.2f}</text>')
+                    if v >= ENTER:
+                        ov.append(f'<text x="{px+3}" y="{py+27}" class="small">HAWK</text>')
+        ov.append('</svg>')
+        (out/"opportunity-atlas.svg").write_text("\n".join(ov))
+
+        CW2,CH2=900,300; pad2=55
+        maxima=[r["max_updraft_mps"] for r in frame_maxima]
+        mlo=min(maxima+[ENTER]); mhi=max(maxima+[ENTER]); mspan=max(.01,mhi-mlo)
+        def my(v): return pad2+(mhi-v)/mspan*(CH2-2*pad2)
+        pts=[]
+        for i,v in enumerate(maxima):
+            x=pad2+i/(len(maxima)-1)*(CW2-2*pad2); pts.append(f'{x:.1f},{my(v):.1f}')
+        ty=my(ENTER)
+        mv=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{CW2}" height="{CH2}" viewBox="0 0 {CW2} {CH2}">',
+            '<style>text{font-family:system-ui,sans-serif;fill:#222}</style>',
+            f'<line x1="{pad2}" y1="{ty:.1f}" x2="{CW2-pad2}" y2="{ty:.1f}" stroke="#777" stroke-dasharray="5 5"/>',
+            f'<text x="{pad2+5}" y="{ty-5:.1f}">hawk enter 1.5 m/s</text>',
+            f'<polyline points="{" ".join(pts)}" fill="none" stroke="#222" stroke-width="2"/>',
+            '</svg>']
+        (out/"opportunity-max-over-time.svg").write_text("\n".join(mv))
+        opportunity_html=(f'<h2>Thermal opportunity scan</h2><p>A 9×9 grid at Y=120 and Y=160 was sampled once per second for 31 frames. '
+                          f'Global maximum: <b>{global_best[2]["signed_vertical_air"]:.3f} m/s</b> at {global_best[2]["position"]}. '
+                          f'Hawk-entry threshold samples: <b>{threshold_samples}</b> across <b>{threshold_cells}</b> cells; '
+                          f'longest continuous threshold run: <b>{longest_run}</b> frames.</p>'
+                          '<img src="opportunity-atlas.svg" alt="Maximum observed updraft by opportunity-scan cell" style="max-width:100%;height:auto">'
+                          '<img src="opportunity-max-over-time.svg" alt="Maximum opportunity-scan updraft over time" style="max-width:100%;height:auto">')
     (out/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
     W=780; cell=92; margin=80; panel=cell*5
     sv=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{len(levels)*(panel+75)+60}" viewBox="0 0 {W} {len(levels)*(panel+75)+60}">',
@@ -125,7 +223,7 @@ def main():
 <p>Source digest: <code>{esc(data["ordered_sample_digest"])}</code>. Samples: {len(samples)}. Provider: {esc(data["provider_identity"]["mod_id"])} {esc(data["provider_identity"]["version"])}.</p>
 <h2>Spatial field atlas</h2><p>Cell color encodes signed vertical air; arrows show effective horizontal wind (mean + gust). “HAWK ENTER” marks cells meeting the current 1.5 m/s soaring-entry threshold.</p>
 <img src="field-atlas.svg" alt="Four altitude slices of measured atmosphere" style="max-width:100%;height:auto">
-{temporal_html}<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
+{temporal_html}{opportunity_html}<h2>Altitude slice summary</h2><table><thead><tr><th>Y</th><th>Updraft min / mean / max (m/s)</th><th>Horizontal wind min / mean / max (m/s)</th><th>Turbulence min / mean / max</th><th>Hawk-enter cells</th></tr></thead><tbody>{trs}</tbody></table>
 <h2>Derived diagnostics</h2><p>64-block adjacent updraft |Δ|: mean <b>{summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["mean"]:.3f} m/s</b>, max {summary["derived"]["adjacent_64_block_updraft_abs_delta_mps"]["max"]:.3f}. Glider coupling improves the -0.05 blocks/tick baseline in <b>{summary["derived"]["glider_improved_cells"]}/{len(samples)}</b> sampled cells; hawk entry threshold is met in <b>{summary["derived"]["hawk_enter_cells"]}/{len(samples)}</b>.</p>
 <p>The temporal section is a bounded 31-frame observation, not a claim of long-term climatology. It supports short-horizon persistence/coherence inspection only.</p>"""
     (out/"index.html").write_text(doc)
