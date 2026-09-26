@@ -99,60 +99,25 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
         List<SkyIslandLocalPosition> points = reach.centerline().points();
         for (int i = 0; i < samples.size(); i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = samples.get(i);
-            SkyIslandChannelProfileKind profileKind =
-                    profileKind(semantic.profiles(), sample.stationFraction());
-            double valleyHalfWidth =
-                    sample.bankfullHalfWidth() * valleyMultiplier(profileKind);
-            double fullValleyWidth = 2.0 * valleyHalfWidth;
             Vector tangent = tangent(points, i);
             Vector normal = new Vector(-tangent.z(), tangent.x());
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluate(
+                            descriptor,
+                            semantic,
+                            sample.stationFraction(),
+                            sample.position(),
+                            sample.bankfullHalfWidth(),
+                            sample.waterDepthPotential(),
+                            sample.terrainElevation(),
+                            normal.x(),
+                            normal.z(),
+                            terrain,
+                            policy);
 
-            double centerTerrain = sample.terrainElevation() * relief;
-            double depth = sample.waterDepthPotential() * relief;
-            double leftValleyTerrain =
-                    terrain.sample(offset(sample.position(), normal, valleyHalfWidth)) * relief;
-            double rightValleyTerrain =
-                    terrain.sample(offset(sample.position(), normal, -valleyHalfWidth)) * relief;
-            double leftBankTerrain =
-                    terrain.sample(offset(sample.position(), normal, sample.bankfullHalfWidth()))
-                            * relief;
-            double rightBankTerrain =
-                    terrain.sample(offset(sample.position(), normal, -sample.bankfullHalfWidth()))
-                            * relief;
-
-            double maximumLowering =
-                    limits.maximumCenterlineLoweringPotential() * relief;
-            double lowerHead = depth;
-            lowerHead = Math.max(
-                    lowerHead,
-                    centerTerrain - maximumLowering + depth);
-            lowerHead = Math.max(
-                    lowerHead,
-                    leftValleyTerrain
-                            - limits.maximumLateralRecoveryGrade() * valleyHalfWidth
-                            + depth);
-            lowerHead = Math.max(
-                    lowerHead,
-                    rightValleyTerrain
-                            - limits.maximumLateralRecoveryGrade() * valleyHalfWidth
-                            + depth);
-            lowerHead = Math.max(
-                    lowerHead,
-                    leftValleyTerrain
-                            - limits.maximumReliefToValleyWidthRatio() * fullValleyWidth
-                            + depth);
-            lowerHead = Math.max(
-                    lowerHead,
-                    rightValleyTerrain
-                            - limits.maximumReliefToValleyWidthRatio() * fullValleyWidth
-                            + depth);
-
-            double upperHead = Math.min(
-                    relief,
-                    Math.min(leftBankTerrain, rightBankTerrain)
-                            + limits.maximumBankContainmentDeficitWorldUnits());
-
-            target[i] = sample.preferredWaterSurfacePotential() * relief;
+            double lowerHead = envelope.lowerHead();
+            double upperHead = envelope.upperHead();
+            target[i] = envelope.targetHead();
             lower[i] = lowerHead;
             upper[i] = upperHead;
 
@@ -385,28 +350,6 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
         return List.copyOf(reasons);
     }
 
-    private static SkyIslandChannelProfileKind profileKind(
-            List<SkyIslandChannelProfile> profiles,
-            double stationFraction) {
-        int index =
-                Math.min(
-                        profiles.size() - 1,
-                        (int)
-                                Math.floor(
-                                        Math.max(0.0, Math.min(0.999999999, stationFraction))
-                                                * profiles.size()));
-        return profiles.get(index).kind();
-    }
-
-    private static double valleyMultiplier(SkyIslandChannelProfileKind kind) {
-        return switch (kind) {
-            case ALLUVIAL -> 3.5;
-            case INCISED -> 2.5;
-            case CASCADE -> throw new IllegalArgumentException(
-                    "ordinary F2C profile cannot use CASCADE valley geometry");
-        };
-    }
-
     private static Vector tangent(
             List<SkyIslandLocalPosition> points,
             int index) {
@@ -421,15 +364,6 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
             return new Vector(1.0, 0.0);
         }
         return new Vector(dx / length, dz / length);
-    }
-
-    private static SkyIslandLocalPosition offset(
-            SkyIslandLocalPosition position,
-            Vector normal,
-            double distance) {
-        return new SkyIslandLocalPosition(
-                position.x() + normal.x() * distance,
-                position.z() + normal.z() * distance);
     }
 
     private static double clamp01(double value) {
