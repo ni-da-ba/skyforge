@@ -2,7 +2,9 @@ package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -38,12 +40,17 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
             throw new IllegalArgumentException("skeleton descriptor must match F2C descriptor");
         }
 
-        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
+        Map<Integer, SkyIslandChannelTerminalFate> terminalFates = new HashMap<>();
+        for (SkyIslandChannelTerminalFate fate :
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, skeleton.geomorphicNetwork())) {
+            terminalFates.put(fate.channelTerminalCellIndex(), fate);
+        }
         List<SkyIslandBoundedHydraulicReachOutcome> outcomes =
                 new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
             List<SkyIslandQualifiedFluvialDeferralReason> reasons =
-                    deferralReasons(skeleton.geomorphicNetwork(), waterbodies, reach);
+                    deferralReasons(skeleton.geomorphicNetwork(), terminalFates, reach);
             if (!reasons.isEmpty()) {
                 outcomes.add(new SkyIslandBoundedHydraulicReachOutcome(
                         reach,
@@ -346,15 +353,18 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
 
     private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
             SkyIslandGeomorphicChannelNetworkPlan network,
-            SkyIslandWaterbodyPlan waterbodies,
+            Map<Integer, SkyIslandChannelTerminalFate> terminalFates,
             SkyIslandHydraulicReachSkeleton reach) {
         SkyIslandSemanticChannelReach semantic =
                 reach.geomorphicRoute().semanticReach();
         List<SkyIslandQualifiedFluvialDeferralReason> reasons = new ArrayList<>();
-        if (network.requireNode(semantic.startCellIndex()).kind()
-                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
-                || network.requireNode(semantic.endCellIndex()).kind()
-                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+        SkyIslandGeomorphicNetworkNode startNode =
+                network.requireNode(semantic.startCellIndex());
+        SkyIslandGeomorphicNetworkNode endNode =
+                network.requireNode(semantic.endCellIndex());
+
+        if (startNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                || endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED);
         }
@@ -363,14 +373,27 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
         }
-        boolean retainedWaterJunction = waterbodies.candidates().stream()
-                .anyMatch(candidate ->
-                        candidate.kind() != SkyIslandWaterbodyKind.WETLAND
-                                && (candidate.sinkCellIndex() == semantic.startCellIndex()
-                                        || candidate.sinkCellIndex() == semantic.endCellIndex()));
-        if (retainedWaterJunction) {
-            reasons.add(
-                    SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED);
+
+        if (endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL) {
+            SkyIslandChannelTerminalFate fate = terminalFates.get(endNode.cellIndex());
+            if (fate == null) {
+                throw new IllegalStateException(
+                        "missing explicit watershed fate for channel terminal " + endNode.cellIndex());
+            }
+            switch (fate.kind()) {
+                case EDGE_OUTLET -> {
+                    // Edge discharge is the only ordinary free-terminal fate in F2C.
+                }
+                case RETAINED_OPEN_WATER -> reasons.add(
+                        SkyIslandQualifiedFluvialDeferralReason
+                                .RETAINED_WATER_TRANSITION_REQUIRED);
+                case RETAINED_WETLAND -> reasons.add(
+                        SkyIslandQualifiedFluvialDeferralReason
+                                .WETLAND_TRANSITION_REQUIRED);
+                case UNRESOLVED -> reasons.add(
+                        SkyIslandQualifiedFluvialDeferralReason
+                                .UNRESOLVED_TERMINAL_FATE);
+            }
         }
         return List.copyOf(reasons);
     }
