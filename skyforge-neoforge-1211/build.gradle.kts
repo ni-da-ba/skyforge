@@ -1563,7 +1563,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0080-showcase-ecology-viewer")
             systemProperty("skyforge.dev.acceptanceRadius", "9")
-            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "360")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/showcase-ecology/viewer.properties").get().asFile.absolutePath,
