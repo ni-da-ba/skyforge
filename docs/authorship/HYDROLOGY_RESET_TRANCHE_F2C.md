@@ -182,8 +182,19 @@ A solved QP is necessary but not sufficient geomorphic acceptance.
 
 ## 7. Discretization convergence
 
-Fixed representative ordinary fixtures must be solved at the native C2 sampling and at deterministic
-refinements obtained by interpolating centerline geometry and hydraulic semantics in arc length.
+Fixed representative ordinary fixtures must be solved at the native C2 hydraulic collocation and at
+deterministic **collocation refinements** along the same accepted C2 piecewise-continuous centerline.
+
+Refinement is numerical sampling, not new geometry authority. Inserting an interpolation sample may
+not change the C2 route, semantic corridor, endpoints, or geometry-only diagnostics such as
+ridge occupancy and curvature/width. In particular, the existing discrete curvature estimator is
+defined on the accepted C2 centerline nodes; blindly inserting collinear nodes and recomputing that
+estimator would change its numerical value without changing the physical polyline and is forbidden.
+
+Refined collocation samples interpolate the accepted centerline by arc length, interpolate
+discharge/width/depth semantics consistently, and resample the pre-hydrologic terrain/cross-section
+probes at the interpolated physical position. Geometry-only D2 gates remain those of the unchanged C2
+candidate. Head-dependent gates are recomputed at the refined collocation.
 
 Refinement acceptance requires convergence of:
 
@@ -192,10 +203,13 @@ Refinement acceptance requires convergence of:
 - maximum ordinary longitudinal grade;
 - integrated excavation proxy;
 - maximum lowering;
-- D2 acceptance classification.
+- every head-dependent D2 pass/fail result, while geometry-only D2 results remain invariant by
+  construction.
 
-If a finer discretization reveals a hard violation, the coarse result was under-resolved and is
-retired.
+If a finer collocation reveals a hard hydraulic/cross-section violation, the coarse result was
+under-resolved and is retired. If convergence cannot be established without changing C2 geometry,
+the required work belongs to a later centerline-representation tranche rather than being hidden in
+the hydraulic solver.
 
 ## 8. Determinism and provenance
 
