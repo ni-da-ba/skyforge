@@ -86,6 +86,35 @@ Every F3C interval returns one of:
 
 No status is converted directly into terrain mutation.
 
+## Fixed-corpus result
+
+The fixed evidence supports explicit internal discontinuity ownership without widening D2:
+
+Primary key 287 has three internal maximal CASCADE runs and all three solve:
+
+```text
+profiles 7..8    authored max drop =  11.6863 world   solved drop =   7.4710
+profiles 11..15  authored max drop =  79.5437 world   solved drop =  33.5600
+profiles 27..32  authored max drop = 122.4525 world   solved drop = 112.5487
+```
+
+All three QPs print zero primal residual at nine decimal places. The third run uses most, but not all,
+of its authored discontinuity authority, demonstrating why the coarse drop is correctly an upper
+bound rather than an equality.
+
+The control distribution remains fail-closed:
+
+- legacy-control-649 reach 710->995 / profiles 4..5 is `INFEASIBLE` because an ordinary-side D2
+  envelope is empty;
+- legacy-control-649 reach 995->2095 / profiles 16..20 is `SOLVED`;
+- retained-83 reach 660->895 / profiles 3..4 is `INFEASIBLE`;
+- retained-83 reach 895->595 / profiles 1..5 is `SOLVED`;
+- CASCADE runs that touch semantic reach boundaries remain `BOUNDARY_COUPLED`, including the fixed
+  stress-512 cascade-only reaches.
+
+Thus F3C removes exactly one inappropriate requirement—ordinary longitudinal continuity across an
+authored drop—while leaving unrelated D2 failures and transition coupling visible.
+
 ## Hard invariants
 
 F3C must preserve:
