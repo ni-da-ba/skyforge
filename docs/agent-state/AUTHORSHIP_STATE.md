@@ -44,6 +44,11 @@ F2C terminal fate is resolved through the watershed graph: only an explicit edge
 ordinary terminal. Retained open water, retained wetland, and unresolved terminal fate remain
 transition-owned and fail closed. The pre-F2 topological clipping profile remains staging only.
 
+Issue #1084 also records a separate **C3 upstream numerical-consistency dependency**: the terrain-aware
+A* route functional/probes/route diagnostics are deterministic but not yet proven resolution-invariant.
+F2C may establish reusable hydraulic solver/evidence architecture, but its fixed-corpus values are
+pre-C3 and must be regenerated after C3 before production hydraulic/terrain authority advances.
+
 Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
 calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional
 until dedicated corpus evidence exists.
