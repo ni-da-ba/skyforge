@@ -27,8 +27,8 @@ class SkyIslandOrdinarySpanPlannerTest {
                 .flatMap(outcome -> outcome.span().sampleProfileKinds().stream())
                 .noneMatch(kind -> kind == SkyIslandChannelProfileKind.CASCADE));
         assertTrue(primary.stream()
-                .noneMatch(outcome ->
-                        outcome.status() == SkyIslandOrdinarySpanStatus.NUMERICAL_FAILURE));
+                .allMatch(outcome ->
+                        outcome.status() == SkyIslandOrdinarySpanStatus.INFEASIBLE));
         for (int i = 0; i + 1 < primary.size(); i++) {
             assertTrue(
                     primary.get(i).span().parentEndStationFraction()
@@ -61,19 +61,19 @@ class SkyIslandOrdinarySpanPlannerTest {
     }
 
     @Test
-    void retained83KeepsAtLeastOneTerminalOwnedOrdinarySpanDeferred() {
+    void lake609KeepsRetainedOpenWaterTerminalOwnedSpanDeferred() {
         SkyIslandOrdinarySpanPlan plan =
-                SkyIslandOrdinarySpanPlanner.plan(descriptor(6L, 61L, 83L));
+                SkyIslandOrdinarySpanPlanner.plan(descriptor(8L, 81L, 609L));
 
         assertTrue(plan.outcomes().stream()
                 .anyMatch(outcome ->
                         outcome.status() == SkyIslandOrdinarySpanStatus.BOUNDARY_DEFERRED
                                 && (outcome.span().downstreamBoundary().diagnostic()
                                                 .orElse("")
-                                                .contains("RETAINED_")
+                                                .contains("RETAINED_OPEN_WATER")
                                         || outcome.span().upstreamBoundary().diagnostic()
                                                 .orElse("")
-                                                .contains("RETAINED_"))));
+                                                .contains("RETAINED_OPEN_WATER"))));
     }
 
     @Test
