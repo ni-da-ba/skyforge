@@ -60,6 +60,44 @@ class SkyIslandQualifiedFluvialRealizationPlannerTest {
     }
 
     @Test
+    void retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority() {
+        SkyIslandQualifiedFluvialRealizationPlan plan =
+                SkyIslandQualifiedFluvialRealizationPlanner.plan(
+                        descriptor(8L, 81L, 609L));
+
+        SkyIslandQualifiedFluvialDeferral retained =
+                plan.deferredQualifications().stream()
+                        .filter(deferral -> deferral.reasons().contains(
+                                SkyIslandQualifiedFluvialDeferralReason
+                                        .RETAINED_WATER_TRANSITION_REQUIRED))
+                        .findFirst()
+                        .orElseThrow();
+
+        SkyIslandHydraulicReachGeometry deferred =
+                retained.qualification().diagnostics().hydraulicReach();
+        assertFalse(containsReach(plan.terrainField().acceptedReaches(), deferred));
+    }
+
+    @Test
+    void unresolvedTerminalFateIsDeferredBeforeTerrainAuthority() {
+        SkyIslandQualifiedFluvialRealizationPlan plan =
+                SkyIslandQualifiedFluvialRealizationPlanner.plan(
+                        descriptor(6L, 61L, 512L));
+
+        SkyIslandQualifiedFluvialDeferral unresolved =
+                plan.deferredQualifications().stream()
+                        .filter(deferral -> deferral.reasons().contains(
+                                SkyIslandQualifiedFluvialDeferralReason
+                                        .UNRESOLVED_TERMINAL_FATE))
+                        .findFirst()
+                        .orElseThrow();
+
+        SkyIslandHydraulicReachGeometry deferred =
+                unresolved.qualification().diagnostics().hydraulicReach();
+        assertFalse(containsReach(plan.terrainField().acceptedReaches(), deferred));
+    }
+
+    @Test
     void terrainFieldPrimitiveProducesBoundedDownwardCrossSectionWithProvenance() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 512L);
         SkyIslandPreHydrologicTerrainField original =
