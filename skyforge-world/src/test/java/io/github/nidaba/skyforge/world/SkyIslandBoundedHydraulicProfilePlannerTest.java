@@ -74,25 +74,25 @@ class SkyIslandBoundedHydraulicProfilePlannerTest {
 
     @Test
     void terminalFatePolicyFailsClosedExceptAtExplicitEdgeOutlet() {
-        assertTrue(SkyIslandBoundedHydraulicProfilePlanner
-                .terminalFateDeferralReason(SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+        assertTrue(SkyIslandChannelTerminalFatePolicy
+                .deferralReason(SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
                 .isEmpty());
         assertEquals(
                 SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED,
-                SkyIslandBoundedHydraulicProfilePlanner
-                        .terminalFateDeferralReason(
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
                                 SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
                         .orElseThrow());
         assertEquals(
                 SkyIslandQualifiedFluvialDeferralReason.WETLAND_TRANSITION_REQUIRED,
-                SkyIslandBoundedHydraulicProfilePlanner
-                        .terminalFateDeferralReason(
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
                                 SkyIslandChannelTerminalFateKind.RETAINED_WETLAND)
                         .orElseThrow());
         assertEquals(
                 SkyIslandQualifiedFluvialDeferralReason.UNRESOLVED_TERMINAL_FATE,
-                SkyIslandBoundedHydraulicProfilePlanner
-                        .terminalFateDeferralReason(
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
                                 SkyIslandChannelTerminalFateKind.UNRESOLVED)
                         .orElseThrow());
     }
