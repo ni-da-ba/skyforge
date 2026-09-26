@@ -27,7 +27,17 @@ class HydrologyBoundedProfileCorpusTest {
         assertEquals(terminalFateA, terminalFateB);
         assertTrue(a.contains("primary-287"));
         assertTrue(a.contains("solverStatus"));
+        assertTrue(a.contains("diagnostic"));
         assertTrue(a.contains("d2Accepted"));
+        assertTrue(
+                a.lines()
+                        .filter(line -> line.contains(",INFEASIBLE,"))
+                        .allMatch(line -> {
+                            String[] columns = line.split(",", -1);
+                            return columns.length > 6
+                                    && !columns[6].equals("\"\"");
+                        }),
+                "every INFEASIBLE evidence row must preserve a nonblank diagnostic");
         assertTrue(a.contains("TRANSITION_DEFERRED"));
         assertTrue(convergenceA.contains("coarseObjectivePerLength"));
         assertTrue(convergenceA.contains("mediumObjectivePerLength"));
