@@ -11,7 +11,8 @@ import java.util.Objects;
  * Builds the first qualified terrain-mutating reset field from D2-accepted river reaches.
  *
  * <p>D2 rejection and unresolved transition ownership both fail closed. Only reaches that are
- * accepted and require no confluence or cascade transition receive terrain authority.
+ * accepted and require no confluence, cascade, retained-basin, wetland, or unresolved terminal
+ * transition receive terrain authority.
  */
 public final class SkyIslandQualifiedFluvialRealizationPlanner {
     private SkyIslandQualifiedFluvialRealizationPlanner() {}
