@@ -1,7 +1,7 @@
 # Hydrology reset tranche F2C — ordinary bounded-profile assembly
 
 **Status:** design/assembly tranche under issue #1084  
-**Depends on:** accepted F2 contract, proven F2A bounded-QP primitive, and accepted F2C head-independent geometry skeleton  
+**Depends on:** accepted F2 contract, proven F2A bounded-QP primitive, and accepted F2B head-independent geometry skeleton  
 **Terrain mutation:** none  
 **Minecraft changes:** none
 
