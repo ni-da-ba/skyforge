@@ -108,6 +108,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double terrainElevation = clamp01(terrain.sample(points.get(i)));
             samples.add(new SkyIslandHydraulicGeometrySkeletonSample(
                     points.get(i),
+                    cumulative[i],
                     station,
                     discharge,
                     width,
