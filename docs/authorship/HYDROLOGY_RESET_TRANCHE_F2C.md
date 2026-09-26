@@ -110,13 +110,19 @@ and the bank-containment upper constraint
 H_i <= min(zBankL_i, zBankR_i) + c_bank.
 ```
 
-The authored vertical domain contributes its own finite bounds.
+The authored vertical domain contributes the explicit physical bounds
+
+```text
+d_i <= H_i <= reliefBudget
+```
+
+so the solved bed `B_i = H_i - d_i` cannot fall below the authored vertical datum.
 
 Therefore
 
 ```text
-L_i = max(all lower bounds)
-U_i = min(all upper bounds)
+L_i = max(d_i, all D2-derived lower bounds)
+U_i = min(reliefBudget, all D2-derived upper bounds)
 ```
 
 and `L_i > U_i` is immediate hydraulic infeasibility.
@@ -136,14 +142,14 @@ g_min = 0.
 
 This enforces non-climbing ordinary free surface without fabricating a Manning-equation calibration.
 
-The upper grade is inherited from the applicable D2 profile-class limit:
+The upper grade is inherited from the exact D2 qualification class of the semantic reach:
 
 ```text
-0 <= H_i - H_(i+1) <= g_max(profile_i) * ds_i.
+0 <= H_i - H_(i+1) <= g_max(D2_class(reach)) * ds_i.
 ```
 
-At a profile-class boundary, the stricter adjacent ordinary limit is used unless a later explicit
-transition owns the change.
+F2C does not create a new finer-grained longitudinal-grade policy merely because local profile labels
+are available. Any future profile-local grade authority must be independently calibrated and accepted.
 
 CASCADE segments are never forced through this ordinary constraint.
 
