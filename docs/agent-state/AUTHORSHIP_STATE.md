@@ -3,8 +3,9 @@
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
 **Updated:** 2026-09-25 (America/Chicago)
-**Main snapshot carrying latest accepted Authorship implementation:** `450a557348066148b2d219e90aed6fde6fa98dfc`
-**Highest MERGED / ACCEPTED Authorship milestone:** **AUTH-0105**
+**Main snapshot carrying latest accepted Authorship reset implementation:** `502109b6cde98f3bfd1619a28fe59c65374fcdc8`
+**Highest MERGED / ACCEPTED numbered Authorship milestone:** **AUTH-0105**
+**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0 + F1; D3 diagnostic evidence merged**
 
 Read first:
 
@@ -21,18 +22,30 @@ artifacts, and merged PR history.
 ### Hydrology architecture reset — issue #1084
 
 The 2026-09-25 key-287 human review hard-failed after the H6 implementation line reached green machine
-qualification. The latest H6 state is frozen at `archive/hydrology-h6-2026-09-25`
-(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`) and the old hydrology PR stack is closed unmerged.
+qualification. The latest H6 state remains frozen at `archive/hydrology-h6-2026-09-25`
+(`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`). Do not extend that line.
 
-Current hydrology work must follow
-`docs/authorship/HYDROLOGY_RESET_2026-09-25.md`: coarse watershed/catchment outputs retain semantic
-drainage authority, but intermediate planning-grid route and retained-footprint cells are no longer
-automatically immutable physical geometry. The next accepted contract must define a continuous
-terrain-aware geomorphic/hydraulic solution plus hard plausibility gates before Minecraft
-discretization.
+The reset authority is now executable through the first terrain-mutating Authorship layer:
 
-Do not begin another Implementation repair stack until #1084's mathematical authority and acceptance
-metrics are explicit.
+- C2: semantic-corridor continuous centerlines; coarse route cells are guidance, not physical cages;
+- D2: hard geomorphic qualification;
+- E0/E1/E2: continuous retained-basin candidates, diagnostics, and hard qualification mechanism;
+- F0: strict qualified-realization authority;
+- F1: ordinary D2-qualified fluvial terrain realization; rejected/unowned-transition reaches are zero-delta;
+- D3: current-geometry discontinuity evidence; key 287 concentrates about 83.88% of downhill drop in
+  authored CASCADE segments, supporting explicit drop-boundary experimentation rather than stronger excavation.
+
+Current work is F2: a unit-consistent, network-global bounded convex longitudinal solve plus explicit
+confluence/drop/basin transition boundary conditions. The accepted implementation must expose
+feasibility/KKT residuals, deterministic conditioning/order, discretization-convergence evidence, and
+fail closed on infeasibility. The pre-F2 topological clipping profile remains staging code only.
+
+Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
+calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional
+until dedicated corpus evidence exists.
+
+Do not begin a Minecraft hydrology repair stack until the coupled continuous solution and transition
+geometry are implemented, requalified, and accepted.
 
 ## MERGED / ACCEPTED
 
