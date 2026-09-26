@@ -51,7 +51,8 @@ Every projected sample must satisfy:
 - unaffected F4A samples project exactly zero world-space delta;
 - `targetUpperWorld > compiledUndersideWorld`;
 - a compiled column too thin for the already-qualified cut fails closed rather than reducing the cut, moving the underside, or selecting a different datum;
-- moving the same compiled shape in X/Z must not change the hydrologic delta or column thickness;
+- moving the physical volume in X/Z must not change the semantic hydrologic delta;
+- compiled support/thickness is admitted per placed physical volume, because seeded detail is sampled in the horizontal world X/Z plane; F4B does not assume thickness is translation-invariant;
 - rejected/deferred F3E/F4A components continue to project zero hydrologic delta.
 
 A projection that would collapse the compiled column fails closed. It does not deepen excavation or
@@ -70,9 +71,14 @@ quantifies the continuous world-space cut and preserved column thickness.
 ## First fixed evidence target
 
 The accepted F4A 8/81/77 components remain the only positive controls. The fixed projection corpus
-uses the same deterministic schema-2 projection-fixture family as the positive unit evidence; this
-fixture is evidence for the projection contract, not a claim that an arbitrary compatible physical
-seed must admit the cut. Runtime projection remains volume-specific and must retain the column
+uses the exact deterministic schema-2 placement/seed fixture that passes all 59 positive centerline
+samples. This is evidence for the projection contract, not a claim that an arbitrary compatible
+physical seed or placement must admit the cut.
+
+A second fixed placement of the same semantic island and physical seed at (96, -64) is intentionally
+rejected at projection time because at least one local compiled column lacks enough remaining
+thickness. This demonstrates that F4B preserves a translation-neutral hydrologic delta while keeping
+physical-support admission placement-specific and fail-closed. Runtime projection remains volume-specific and must retain the column
 thickness check.
 
 The positive controls are:
