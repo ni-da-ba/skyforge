@@ -195,6 +195,7 @@ public final class SkyIslandHydraulicBoundedQpSolver {
             }
         }
 
+        double finalHeadScale = headScale;
         List<SkyIslandHydraulicDifferenceConstraint> differences =
                 problem.differenceConstraints().stream()
                         .sorted(Comparator
@@ -205,8 +206,8 @@ public final class SkyIslandHydraulicBoundedQpSolver {
                                 constraint.id(),
                                 constraint.leftIndex(),
                                 constraint.rightIndex(),
-                                constraint.lower() / headScale,
-                                constraint.upper() / headScale))
+                                constraint.lower() / finalHeadScale,
+                                constraint.upper() / finalHeadScale))
                         .toList();
 
         return new ScaledProblem(
