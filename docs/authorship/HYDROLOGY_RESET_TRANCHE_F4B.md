@@ -50,6 +50,7 @@ Every projected sample must satisfy:
 - `targetUpperWorld = originalUpperWorld + deltaWorld`;
 - unaffected F4A samples project exactly zero world-space delta;
 - `targetUpperWorld > compiledUndersideWorld`;
+- a compiled column too thin for the already-qualified cut fails closed rather than reducing the cut, moving the underside, or selecting a different datum;
 - moving the same compiled shape in X/Z must not change the hydrologic delta or column thickness;
 - rejected/deferred F3E/F4A components continue to project zero hydrologic delta.
 
@@ -68,7 +69,13 @@ quantifies the continuous world-space cut and preserved column thickness.
 
 ## First fixed evidence target
 
-The accepted F4A 8/81/77 components remain the only positive controls:
+The accepted F4A 8/81/77 components remain the only positive controls. The fixed projection corpus
+uses the same deterministic schema-2 projection-fixture family as the positive unit evidence; this
+fixture is evidence for the projection contract, not a claim that an arbitrary compatible physical
+seed must admit the cut. Runtime projection remains volume-specific and must retain the column
+thickness check.
+
+The positive controls are:
 
 - reach 709→559;
 - reach 1742→1842.
