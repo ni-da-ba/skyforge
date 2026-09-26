@@ -83,6 +83,7 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWaterbodyDiagnosticsCorpusTest.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyCalibrationDiscoveryTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyBasin.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyPlanner.java"
@@ -145,6 +146,16 @@ jobs:
 
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
+
+      - name: Discover missing hydrology calibration classes
+        env:
+          SKYFORGE_HYDROLOGY_DISCOVERY: "1"
+        run: |
+          ./gradlew :skyforge-reference:test \
+            --tests '*HydrologyCalibrationDiscoveryTest' \
+            --no-configuration-cache
+          echo "--- calibration-discovery.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-calibration-discovery-v2/discovery.csv
 
       - name: Run reset geometry tests
         run: |
