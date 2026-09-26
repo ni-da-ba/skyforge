@@ -95,7 +95,8 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
             double discharge = nodeDischarge.getOrDefault(
                     node.cellIndex(), SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE);
             double depth = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
-            double freeboard = SkyIslandHydraulicGeometryCalibration.freeboardPotential(discharge);
+            double freeboard =
+                    SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(depth);
             rawNodeSurface.put(
                     node.cellIndex(),
                     clamp01(Math.max(depth + EPSILON, node.terrainElevation() - freeboard)));
@@ -179,8 +180,8 @@ public final class SkyIslandHydraulicChannelNetworkPlanner {
         for (int i = 0; i < sourceSamples.size(); i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = sourceSamples.get(i);
             double freeboard =
-                    SkyIslandHydraulicGeometryCalibration.freeboardPotential(
-                            sample.relativeDischarge());
+                    SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(
+                            sample.waterDepthPotential());
             target[i] = clamp01(Math.max(
                     sample.waterDepthPotential() + EPSILON,
                     sample.terrainElevation() - freeboard));
