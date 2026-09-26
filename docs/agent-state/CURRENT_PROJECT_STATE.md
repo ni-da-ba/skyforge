@@ -19,7 +19,7 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 - **Hydrology is in the Sep-25 continuous-solution reset, not an H6 patch loop.** Issue #1084 remains the design dependency for DR-70/#754.
 - The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); never extend it.
 - The reset has merged semantic-corridor centerlines (C2), hard river/basin qualification machinery (D2/E2), strict realization authority (F0), ordinary qualified fluvial realization (F1), and C2-based discontinuity diagnostics (D3).
-- Current next work is the F2 coupled bounded-profile/transition mathematics: network-global world-space head solve, explicit confluence/drop/basin boundaries, deterministic numerical acceptance, and requalification before any Minecraft discretization.
+- F2's coupled bounded-profile/transition contract is now merged. Current next work is F2A: prove the deterministic bounded-QP numerical primitive, then wire it into the world-space hydraulic network solve and regenerate qualification evidence before any Minecraft discretization.
 - Retained-basin terrain remains blocked on adequate POND/LAKE calibration; pure-INCISED qualification remains provisional pending dedicated evidence.
 - There is **no pending Platform-v2 console action** from the reliability campaign.
 - Normal Skyforge development may resume under current lane/product authority.
