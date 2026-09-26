@@ -267,3 +267,28 @@ Before any later tranche broadens terrain authority or reconnects Authorship to 
 hardened so a reach touching an unresolved retained-open-water junction also contributes zero terrain
 delta. That correction is intentionally not folded into F2C because F2C itself changes no terrain
 authority.
+
+## 11. C3 upstream numerical-consistency dependency
+
+Issue #1084 records a separate C3 numerical-cleanliness requirement for the terrain-aware route search:
+the current discrete A* edge cost and several route diagnostics are deterministic but are not yet
+proven to be resolution-invariant quadratures of the intended continuous route functional.
+
+F2C deliberately does **not** absorb that geometry work. Its bounded-QP formulation, explicit
+terminal-fate semantics, and convergence/evidence machinery are reusable, but all fixed-corpus
+hydraulic/qualification numbers produced here are **pre-C3 evidence**.
+
+Before F2C results may be promoted into final production hydraulic/terrain authority, C3 must:
+
+- put route arc-length and local cost densities on fixed physical/planning-length units;
+- make ridge/terrain/guidance/interiority integration resolution-consistent;
+- keep ascent/total-variation semantics explicit and dimensionally documented;
+- use fixed physical/planning-scale probe radii rather than numerical-grid-step radii;
+- make spatial fractions/means arc-length weighted where appropriate;
+- prove route objective and continuous-geometry/diagnostic convergence across multiple search-grid
+  resolutions;
+- regenerate D0/D1/E1 and re-evaluate D2/E2, then rerun F2C evidence.
+
+Therefore F2C acceptance is acceptance of the **hydraulic solver/evidence architecture**, not a freeze
+of the current pre-C3 specimen values or permission to begin transition realization/Minecraft work.
+
