@@ -380,25 +380,9 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
                 throw new IllegalStateException(
                         "missing explicit watershed fate for channel terminal " + endNode.cellIndex());
             }
-            terminalFateDeferralReason(fate.kind()).ifPresent(reasons::add);
+            SkyIslandChannelTerminalFatePolicy.deferralReason(fate.kind()).ifPresent(reasons::add);
         }
         return List.copyOf(reasons);
-    }
-
-    static Optional<SkyIslandQualifiedFluvialDeferralReason> terminalFateDeferralReason(
-            SkyIslandChannelTerminalFateKind kind) {
-        return switch (Objects.requireNonNull(kind, "kind")) {
-            case EDGE_OUTLET -> Optional.empty();
-            case RETAINED_OPEN_WATER -> Optional.of(
-                    SkyIslandQualifiedFluvialDeferralReason
-                            .RETAINED_WATER_TRANSITION_REQUIRED);
-            case RETAINED_WETLAND -> Optional.of(
-                    SkyIslandQualifiedFluvialDeferralReason
-                            .WETLAND_TRANSITION_REQUIRED);
-            case UNRESOLVED -> Optional.of(
-                    SkyIslandQualifiedFluvialDeferralReason
-                            .UNRESOLVED_TERMINAL_FATE);
-        };
     }
 
     private static SkyIslandChannelProfileKind profileKind(
