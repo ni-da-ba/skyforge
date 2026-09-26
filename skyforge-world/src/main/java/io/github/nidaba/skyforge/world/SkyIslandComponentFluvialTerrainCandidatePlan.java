@@ -81,15 +81,47 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
                     "every F3E-qualified terminal component must be realized or explicitly deferred");
         }
 
-        long realizedReachCount =
-                realizedComponents.stream()
-                        .flatMap(component -> component.reaches().stream())
-                        .map(SkyIslandHydraulicReachAssembly::identity)
-                        .distinct()
-                        .count();
-        if (realizedReachCount != terrainField.acceptedReaches().size()) {
-            throw new IllegalArgumentException(
-                    "terrain field must contain every realized component reach exactly once");
+        Set<Long> realizedReachIdentities = new HashSet<>();
+        for (SkyIslandHydraulicTerminalComponent component : realizedComponents) {
+            for (SkyIslandHydraulicReachAssembly reach : component.reaches()) {
+                if (!realizedReachIdentities.add(reach.identity())) {
+                    throw new IllegalArgumentException(
+                            "realized F3E reach appears in more than one component");
+                }
+            }
         }
+
+        Set<Long> terrainReachIdentities = new HashSet<>();
+        for (SkyIslandHydraulicReachGeometry reach : terrainField.acceptedReaches()) {
+            if (!terrainReachIdentities.add(reachIdentity(reach))) {
+                throw new IllegalArgumentException(
+                        "terrain field contains duplicate realized reach identity");
+            }
+        }
+        if (!terrainReachIdentities.equals(realizedReachIdentities)) {
+            throw new IllegalArgumentException(
+                    "terrain field reach identities must equal realized F3E reach identities");
+        }
+
+        Set<Long> qualificationIdentities = new HashSet<>();
+        for (SkyIslandGeomorphicReachQualification qualification :
+                postRealizationQualifications) {
+            if (!qualificationIdentities.add(
+                    reachIdentity(qualification.diagnostics().hydraulicReach()))) {
+                throw new IllegalArgumentException(
+                        "post-realization qualification repeated a reach identity");
+            }
+        }
+        if (!qualificationIdentities.equals(realizedReachIdentities)) {
+            throw new IllegalArgumentException(
+                    "post-realization qualifications must equal realized F3E reach identities");
+        }
+    }
+
+    private static long reachIdentity(SkyIslandHydraulicReachGeometry reach) {
+        SkyIslandSemanticChannelReach semantic =
+                reach.geomorphicRoute().semanticReach();
+        return ((long) semantic.startCellIndex() << 32)
+                ^ Integer.toUnsignedLong(semantic.endCellIndex());
     }
 }
