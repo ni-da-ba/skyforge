@@ -35,6 +35,7 @@ public final class HydrologyBoundedProfileCorpusCli {
                 new Specimen("control-241", descriptor(8L, 81L, 241L)),
                 new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
                 new Specimen("stress-811", descriptor(8L, 81L, 811L)),
+                new Specimen("retained-83", descriptor(6L, 61L, 83L)),
                 new Specimen("control-77", descriptor(6L, 61L, 77L)),
                 new Specimen("control-118", descriptor(6L, 61L, 118L)),
                 new Specimen("stress-512", descriptor(6L, 61L, 512L)));
