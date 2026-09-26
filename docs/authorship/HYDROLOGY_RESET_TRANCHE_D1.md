@@ -1,7 +1,7 @@
 # Hydrology reset tranche D1 — cross-section and excavation diagnostics
 
-**Status:** dependent diagnostic tranche under issue #1084  
-**Depends on:** post-C1 D0 diagnostic corpus  
+**Status:** C3-regenerated diagnostic authority under issue #1084  
+**Depends on:** D0 diagnostics and C3 resolution-consistent route functional  
 **Terrain mutation:** none  
 **Acceptance thresholds:** still not frozen
 
@@ -15,7 +15,14 @@ D1 remains measurement only. It deliberately does not contain pass/fail threshol
 
 ## Added metrics
 
-All curvature and cross-section measurements use the C1 continuous centerline rather than the raw search lattice.\n\nFor every hydraulic macro reach, D1 measures:
+All curvature and cross-section measurements use the accepted continuous centerline rather than the raw search lattice.
+
+After C3, ridge occupancy is the fixed-physical-scale, arc-length-weighted
+`ridgeLengthFraction` from `SkyIslandRouteFunctionalDiagnosticsPlanner`. The
+`SkyIslandGeomorphicReachDiagnostics.ridgeSampleFraction` accessor is retained for compatibility,
+but its value is no longer the legacy vertex-count fraction.
+
+For every hydraulic macro reach, D1 measures:
 
 - maximum lateral recovery grade from the candidate bed to unmodified valley-side terrain;
 - maximum bank-containment deficit, in authored world units, where natural bank terrain lies below
@@ -25,7 +32,7 @@ All curvature and cross-section measurements use the C1 continuous centerline ra
 - normalized excavation burden;
 - approximate excavation-volume proxy in authored world units cubed;
 - maximum local curvature multiplied by bankfull width;
-- existing ridge-occupancy and longitudinal-grade diagnostics in the same reach record.
+- C3 arc-length-weighted ridge occupancy and longitudinal-grade diagnostics in the same reach record.
 
 Vertical normalized potentials are converted into authored world units with the island
 `reliefBudget`. Horizontal quantities remain island-local world units.
@@ -46,6 +53,18 @@ These quantities answer different failure questions:
 
 None is individually a universal natural-river law. Together they define an objective calibration
 space for Skyforge hydromorphology.
+
+## C3 ridge-authority correction
+
+C3 explicitly demotes legacy sampled-vertex ridge fraction to compatibility-only evidence. D1/D2
+therefore must not use `SkyIslandGeomorphicCandidateRoute.ridgeSampleFraction()` as hard authority.
+
+The post-C3 D1 implementation recomputes route functional diagnostics at the fixed physical ridge
+probe scale and stores `ridgeLengthFraction` in the D1 reach record. The specimen-level geomorphic
+corpus derives its maximum ridge fraction from those same D1 reach diagnostics.
+
+This correction changes no route, terrain, or threshold. It changes only which already-defined C3
+ridge metric is allowed to feed D2.
 
 ## Corpus rule
 
