@@ -50,7 +50,7 @@ public final class SkyIslandChannelTerminalFatePlanner {
         return List.copyOf(result);
     }
 
-    private static SkyIslandChannelTerminalFate resolve(
+    static SkyIslandChannelTerminalFate resolve(
             int channelTerminal,
             Map<Integer, SkyIslandWatershedCell> cells,
             Map<Integer, SkyIslandWaterbodyCandidate> candidateBySink) {
