@@ -233,3 +233,14 @@ F2C does **not**:
 
 The next transition tranche may proceed only after F2A is accepted and F2C proves that the bounded
 profile assembly changes hydraulic evidence in a controlled, convergent way.
+
+## 10. Downstream authority correction identified during F2C audit
+
+F2C explicitly defers any semantic POND/LAKE junction at either reach endpoint. The earlier F1
+terrain-authority implementation predates this explicit guard and currently names only confluence and
+cascade deferrals.
+
+Before any later tranche broadens terrain authority or reconnects Authorship to Minecraft, F1 must be
+hardened so a reach touching an unresolved retained-open-water junction also contributes zero terrain
+delta. That correction is intentionally not folded into F2C because F2C itself changes no terrain
+authority.
