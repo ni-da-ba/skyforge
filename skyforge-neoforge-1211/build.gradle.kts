@@ -52,6 +52,18 @@ tasks.withType<Test>().configureEach {
 val development = sourceSets.create("development")
 
 
+// #495 real-provider probe must load Aerodynamics4MC as a discovered NeoForge mod. The older C3
+// AdditionalRuntimeClasspath profiles are sufficient for loader/dependency preflight but are a
+// legacy-library path; public gameplay API classes must live in the run source set runtime.
+val waveC3ProbeRuntime = sourceSets.create("waveC3ProbeRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
 // External NeoForge mods must live on a run source set's runtime classpath to be discovered as mods.
 // AdditionalRuntimeClasspath is the legacy *library* classpath and is therefore insufficient for
 // Fowl Play/A4MC runtime acceptance on Minecraft 1.21.1.
@@ -1892,6 +1904,41 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #495 canonical real-provider probe: a dedicated server owns A4MC and the evidence.
+        // A separate unattended real client connects only to provide the genuine ServerPlayer
+        // anchor required by pinned A4MC 0.2.1. All samples remain server-side through
+        // SkyforgeAtmosphereView.
+        create("waveC3AtmosphereProbeServer") {
+            server()
+            sourceSet.set(waveC3ProbeRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-probe-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.atmosphereProbeVolume", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-probe-volume")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/atmosphere-probe/server.properties").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.atmosphereProbeOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-probe/probe-volume.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("waveC3AtmosphereProbeClient") {
+            client()
+            sourceSet.set(waveC3ProbeRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wave-c3-atmosphere-probe-client").asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25577")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // A4MC core + its dedicated Create Aeronautics compatibility jar over Skyforge's already
         // pinned minimum flight substrate. This is the actual relative-airflow candidate.
         create("waveC3AircraftWindClient") {
@@ -3258,6 +3305,30 @@ tasks.named("runAircraftPowertrainPersistenceVerifyServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(aircraftPowertrainPersistenceServerProperties)
+    }
+}
+
+
+val waveC3AtmosphereProbeServerProperties = """
+    level-name=wave-c3-atmosphere-probe
+    level-seed=495003
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=6
+    simulation-distance=6
+    max-tick-time=0
+    server-port=25577
+""".trimIndent() + "\n"
+
+tasks.named("runWaveC3AtmosphereProbeServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wave-c3-atmosphere-probe-server").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(waveC3AtmosphereProbeServerProperties)
     }
 }
 
@@ -5668,6 +5739,17 @@ tasks.register("waveC3ResolvePinnedMods") {
         coreFiles.forEach { println("  core=$it") }
         compatFiles.forEach { println("  compat=$it") }
 
+        val probeRuntimeFiles = waveC3ProbeRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val coreCoordinateParts = waveC3Pin("aerodynamics4mcCore", "coordinate").split(":")
+        check(coreCoordinateParts.size == 3) {
+            "Wave C3 core coordinate must be group:module:version"
+        }
+        val coreArtifactToken = "${coreCoordinateParts[1]}-${coreCoordinateParts[2]}"
+        check(probeRuntimeFiles.any { it.contains(coreArtifactToken) }) {
+            "Wave C3 probe runtime is missing FML-discoverable A4MC core token '$coreArtifactToken'"
+        }
+        println("Wave C3 real-provider probe runtime includes $coreArtifactToken")
+
         waveC3AtmosphereRuns.forEach { runName ->
             val files = configurations.getByName("${runName}LegacyClasspath")
                 .files
@@ -6031,6 +6113,14 @@ dependencies {
             files(waveC3AeroCoreArtifact),
         )
     }
+
+    // The #495 real-provider probe needs A4MC to be FML-discovered so its public gameplay API
+    // classes share the NeoForge mod classloader. Do not route this profile through the legacy
+    // AdditionalRuntimeClasspath used by the historical C3 loader-only preflight.
+    add(
+        waveC3ProbeRuntime.runtimeOnlyConfigurationName,
+        files(waveC3AeroCoreArtifact),
+    )
 
     // Aircraft profiles reuse the current C1-pinned flight substrate; the compat addon is kept
     // separate from A4MC core so both jars reach FML.
