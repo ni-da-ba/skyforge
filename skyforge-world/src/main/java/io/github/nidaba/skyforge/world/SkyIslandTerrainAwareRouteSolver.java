@@ -18,6 +18,9 @@ import java.util.PriorityQueue;
 public final class SkyIslandTerrainAwareRouteSolver {
     public static final int FINE_DIVISIONS_PER_PLANNING_CELL = 4;
     public static final double RIDGE_DIAGNOSTIC_THRESHOLD = 0.002;
+    public static final double RIDGE_PROBE_RADIUS_PLANNING_FRACTION = 0.375;
+
+    private static final double REFERENCE_DIVISIONS_PER_PLANNING_CELL = 4.0;
 
     private static final double BASE_LENGTH_WEIGHT = 1.0;
     private static final double ASCENT_WEIGHT = 40.0;
@@ -38,6 +41,26 @@ public final class SkyIslandTerrainAwareRouteSolver {
             double corridorHalfWidth,
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor) {
+        return solveAtResolution(
+                terrain,
+                interiority,
+                guidance,
+                planningSpacing,
+                corridorHalfWidth,
+                startAnchor,
+                endAnchor,
+                FINE_DIVISIONS_PER_PLANNING_CELL);
+    }
+
+    public static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -53,8 +76,11 @@ public final class SkyIslandTerrainAwareRouteSolver {
         if (!Double.isFinite(corridorHalfWidth) || corridorHalfWidth <= 0.0) {
             throw new IllegalArgumentException("corridorHalfWidth must be finite and positive");
         }
+        if (divisionsPerPlanningCell < 2) {
+            throw new IllegalArgumentException("divisionsPerPlanningCell must be at least 2");
+        }
 
-        double step = planningSpacing / FINE_DIVISIONS_PER_PLANNING_CELL;
+        double step = planningSpacing / divisionsPerPlanningCell;
         double padding = corridorHalfWidth + Math.max(startAnchor.radius(), endAnchor.radius()) + step;
         Bounds rawBounds = bounds(guidance, startAnchor.center(), endAnchor.center(), padding);
         int minimumGridX = (int) Math.floor(rawBounds.minX() / step);
@@ -76,7 +102,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
         boolean[] goal = new boolean[count];
 
         double anchorTolerance = 0.75 * step;
-        double probeRadius = 1.5 * step;
+        double probeRadius = planningSpacing * RIDGE_PROBE_RADIUS_PLANNING_FRACTION;
         int startCount = 0;
         int goalCount = 0;
 
@@ -143,7 +169,10 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 continue;
             }
             best[i] = 0.0;
-            open.add(new OpenNode(i, 0.0, heuristic(positions[i], endAnchor, step)));
+            open.add(new OpenNode(
+                    i,
+                    0.0,
+                    heuristic(positions[i], endAnchor, planningSpacing)));
         }
 
         int selectedGoal = -1;
@@ -175,11 +204,17 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     }
 
                     double stepLength = Math.hypot(dx * step, dz * step);
+                    double normalizedLength =
+                            REFERENCE_DIVISIONS_PER_PLANNING_CELL
+                                    * stepLength
+                                    / planningSpacing;
                     double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
                     double transitionCost =
-                            BASE_LENGTH_WEIGHT * (stepLength / step)
-                                    + ASCENT_WEIGHT * ascent
-                                    + localCost[next];
+                            BASE_LENGTH_WEIGHT * normalizedLength
+                                    + 0.5
+                                            * (localCost[current.index()] + localCost[next])
+                                            * normalizedLength
+                                    + ASCENT_WEIGHT * ascent;
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
@@ -189,7 +224,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
                         open.add(new OpenNode(
                                 next,
                                 candidate,
-                                candidate + heuristic(positions[next], endAnchor, step)));
+                                candidate + heuristic(
+                                        positions[next], endAnchor, planningSpacing)));
                     }
                 }
             }
@@ -258,11 +294,14 @@ public final class SkyIslandTerrainAwareRouteSolver {
     private static double heuristic(
             SkyIslandLocalPosition position,
             SkyIslandGeomorphicRouteAnchor goal,
-            double step) {
+            double planningSpacing) {
         double distance = Math.hypot(
                 position.x() - goal.center().x(),
                 position.z() - goal.center().z());
-        return BASE_LENGTH_WEIGHT * Math.max(0.0, distance - goal.radius()) / step;
+        return BASE_LENGTH_WEIGHT
+                * REFERENCE_DIVISIONS_PER_PLANNING_CELL
+                * Math.max(0.0, distance - goal.radius())
+                / planningSpacing;
     }
 
     private static double surroundingMean(
