@@ -2,6 +2,8 @@ package io.github.nidaba.skyforge.reference;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicConvergenceDiagnostics;
+import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicConvergencePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlan;
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicReachOutcome;
@@ -44,6 +46,14 @@ public final class HydrologyBoundedProfileCorpusCli {
                         + "maxLateralRecoveryGrade,maxContainmentDeficitWorld,"
                         + "normalizedExcavationBurden,maxLongitudinalGradeWorld\n");
 
+        StringBuilder convergenceCsv = new StringBuilder(
+                "specimen,islandKey,startCell,endCell,nativeSamples,refinedSamples,"
+                        + "nativeStartHeadWorld,refinedStartHeadWorld,nativeEndHeadWorld,"
+                        + "refinedEndHeadWorld,nativeObjectivePerLength,refinedObjectivePerLength,"
+                        + "nativeMaxGrade,refinedMaxGrade,nativeExcavation,refinedExcavation,"
+                        + "nativeMaxLoweringWorld,refinedMaxLoweringWorld,"
+                        + "nativeHeadDependentD2Pass,refinedHeadDependentD2Pass\n");
+
         for (Specimen specimen : specimens) {
             SkyIslandBoundedHydraulicProfilePlan plan =
                     SkyIslandBoundedHydraulicProfilePlanner.plan(specimen.descriptor());
@@ -83,9 +93,37 @@ public final class HydrologyBoundedProfileCorpusCli {
                 }
                 csv.append('\n');
             }
+
+            for (SkyIslandBoundedHydraulicConvergenceDiagnostics d :
+                    SkyIslandBoundedHydraulicConvergencePlanner.measure(specimen.descriptor())) {
+                convergenceCsv.append(specimen.name()).append(',')
+                        .append(specimen.descriptor().identity().islandKey()).append(',')
+                        .append(d.startCellIndex()).append(',')
+                        .append(d.endCellIndex()).append(',')
+                        .append(d.nativeSampleCount()).append(',')
+                        .append(d.refinedSampleCount()).append(',')
+                        .append(format(d.nativeStartHeadWorld())).append(',')
+                        .append(format(d.refinedStartHeadWorld())).append(',')
+                        .append(format(d.nativeEndHeadWorld())).append(',')
+                        .append(format(d.refinedEndHeadWorld())).append(',')
+                        .append(format(d.nativeObjectivePerLength())).append(',')
+                        .append(format(d.refinedObjectivePerLength())).append(',')
+                        .append(format(d.nativeMaximumLongitudinalGrade())).append(',')
+                        .append(format(d.refinedMaximumLongitudinalGrade())).append(',')
+                        .append(format(d.nativeExcavationVolumeProxy())).append(',')
+                        .append(format(d.refinedExcavationVolumeProxy())).append(',')
+                        .append(format(d.nativeMaximumLoweringWorld())).append(',')
+                        .append(format(d.refinedMaximumLoweringWorld())).append(',')
+                        .append(d.nativeHeadDependentD2Pass()).append(',')
+                        .append(d.refinedHeadDependentD2Pass()).append('\n');
+            }
         }
 
         Files.writeString(out.resolve("manifest.csv"), csv, StandardCharsets.UTF_8);
+        Files.writeString(
+                out.resolve("convergence-manifest.csv"),
+                convergenceCsv,
+                StandardCharsets.UTF_8);
         Files.writeString(
                 out.resolve("README.txt"),
                 """
