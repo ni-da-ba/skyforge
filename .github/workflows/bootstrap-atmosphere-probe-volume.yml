@@ -219,7 +219,9 @@ jobs:
   # automatic green result here would be misleading even if provider readiness eventually
   # converged. Re-enable as an acceptance gate only after #1142 closes.
   skyforge-region-probe:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
+    # Diagnostic branch only: execute the otherwise-manual DR-50 probe to retest persisted-world
+    # readiness after the relative first-player timeout fix. Do not merge this trigger broadening.
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
