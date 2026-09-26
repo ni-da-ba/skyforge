@@ -46,6 +46,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceHeadCompatibilityPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyConfluenceCompatibilityCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyConfluenceCompatibilityCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -188,6 +190,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
@@ -235,6 +238,11 @@ jobs:
           fi
           echo "--- basin-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-confluence-compatibility-test-a/manifest.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- confluence-compatibility-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-confluence-compatibility-test-a/manifest.csv
 
       - name: Dump focused failure report
         if: failure()
