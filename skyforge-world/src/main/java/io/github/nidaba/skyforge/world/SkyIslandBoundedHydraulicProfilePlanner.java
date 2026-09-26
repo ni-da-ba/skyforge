@@ -38,11 +38,12 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
             throw new IllegalArgumentException("skeleton descriptor must match F2C descriptor");
         }
 
+        SkyIslandWaterbodyPlan waterbodies = SkyIslandWaterbodyPlanner.plan(descriptor);
         List<SkyIslandBoundedHydraulicReachOutcome> outcomes =
                 new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
             List<SkyIslandQualifiedFluvialDeferralReason> reasons =
-                    deferralReasons(skeleton.geomorphicNetwork(), reach);
+                    deferralReasons(skeleton.geomorphicNetwork(), waterbodies, reach);
             if (!reasons.isEmpty()) {
                 outcomes.add(new SkyIslandBoundedHydraulicReachOutcome(
                         reach,
@@ -345,6 +346,7 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
 
     private static List<SkyIslandQualifiedFluvialDeferralReason> deferralReasons(
             SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandWaterbodyPlan waterbodies,
             SkyIslandHydraulicReachSkeleton reach) {
         SkyIslandSemanticChannelReach semantic =
                 reach.geomorphicRoute().semanticReach();
@@ -360,6 +362,14 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
                 .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
+        }
+        boolean retainedWaterTerminal = waterbodies.candidates().stream()
+                .anyMatch(candidate ->
+                        candidate.sinkCellIndex() == semantic.endCellIndex()
+                                && candidate.kind() != SkyIslandWaterbodyKind.WETLAND);
+        if (retainedWaterTerminal) {
+            reasons.add(
+                    SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED);
         }
         return List.copyOf(reasons);
     }
