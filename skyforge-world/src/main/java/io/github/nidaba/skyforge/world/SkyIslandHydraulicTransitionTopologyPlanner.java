@@ -55,7 +55,7 @@ public final class SkyIslandHydraulicTransitionTopologyPlanner {
                                     fate.channelTerminalCellIndex());
                     basins.add(new SkyIslandHydraulicBasinTransitionSite(
                             fate,
-                            endpointState(
+                            boundaryStateAtEndpoint(
                                     reach,
                                     SkyIslandHydraulicTransitionBoundaryRole.INCOMING,
                                     true)));
@@ -92,13 +92,13 @@ public final class SkyIslandHydraulicTransitionTopologyPlanner {
                 SkyIslandSemanticChannelReach semantic =
                         reach.geomorphicRoute().semanticReach();
                 if (semantic.endCellIndex() == node.cellIndex()) {
-                    boundaries.add(endpointState(
+                    boundaries.add(boundaryStateAtEndpoint(
                             reach,
                             SkyIslandHydraulicTransitionBoundaryRole.INCOMING,
                             true));
                 }
                 if (semantic.startCellIndex() == node.cellIndex()) {
-                    boundaries.add(endpointState(
+                    boundaries.add(boundaryStateAtEndpoint(
                             reach,
                             SkyIslandHydraulicTransitionBoundaryRole.OUTGOING,
                             false));
@@ -147,13 +147,13 @@ public final class SkyIslandHydraulicTransitionTopologyPlanner {
                         lastExclusive,
                         firstSegment.sourceCellIndex(),
                         lastSegment.downstreamCellIndex(),
-                        stateAtFraction(
+                        sampleBoundaryState(
                                 descriptor,
                                 terrain,
                                 reach,
                                 startFraction,
                                 SkyIslandHydraulicTransitionBoundaryRole.INCOMING),
-                        stateAtFraction(
+                        sampleBoundaryState(
                                 descriptor,
                                 terrain,
                                 reach,
@@ -180,7 +180,7 @@ public final class SkyIslandHydraulicTransitionTopologyPlanner {
         return matches.getFirst();
     }
 
-    private static SkyIslandHydraulicTransitionBoundaryState endpointState(
+    static SkyIslandHydraulicTransitionBoundaryState boundaryStateAtEndpoint(
             SkyIslandHydraulicReachSkeleton reach,
             SkyIslandHydraulicTransitionBoundaryRole role,
             boolean downstream) {
@@ -201,17 +201,17 @@ public final class SkyIslandHydraulicTransitionTopologyPlanner {
                 sample.terrainElevation());
     }
 
-    private static SkyIslandHydraulicTransitionBoundaryState stateAtFraction(
+    static SkyIslandHydraulicTransitionBoundaryState sampleBoundaryState(
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticField terrain,
             SkyIslandHydraulicReachSkeleton reach,
             double stationFraction,
             SkyIslandHydraulicTransitionBoundaryRole role) {
         if (stationFraction <= EPSILON) {
-            return endpointState(reach, role, false);
+            return boundaryStateAtEndpoint(reach, role, false);
         }
         if (stationFraction >= 1.0 - EPSILON) {
-            return endpointState(reach, role, true);
+            return boundaryStateAtEndpoint(reach, role, true);
         }
 
         double targetArc = stationFraction * reach.pathLength();
