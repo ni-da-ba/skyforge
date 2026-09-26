@@ -185,6 +185,8 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv
           echo "--- bounded-profile-convergence-manifest.csv ---"
           cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/convergence-manifest.csv
+          echo "--- terminal-fate-manifest.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/terminal-fate-manifest.csv
           if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
           fi
