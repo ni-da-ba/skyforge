@@ -9,7 +9,7 @@ import java.util.Objects;
  * Measures geomorphic plausibility of candidate hydrology without authoring or mutating terrain.
  *
  * <p>This class intentionally contains no acceptance thresholds. D1 exists to characterize the
- * distributions needed to calibrate a later hard rejection policy. Curvature and cross-section\n * measurements use the C1 continuous centerline, never the raw search lattice.
+ * distributions needed to calibrate a later hard rejection policy. Curvature and cross-section\n * measurements use the current accepted continuous centerline, never the raw search lattice.
  */
 public final class SkyIslandGeomorphicReachDiagnosticsPlanner {
     private static final double EPSILON = 1.0e-12;
