@@ -363,11 +363,12 @@ public final class SkyIslandBoundedHydraulicProfilePlanner {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED);
         }
-        boolean retainedWaterTerminal = waterbodies.candidates().stream()
+        boolean retainedWaterJunction = waterbodies.candidates().stream()
                 .anyMatch(candidate ->
-                        candidate.sinkCellIndex() == semantic.endCellIndex()
-                                && candidate.kind() != SkyIslandWaterbodyKind.WETLAND);
-        if (retainedWaterTerminal) {
+                        candidate.kind() != SkyIslandWaterbodyKind.WETLAND
+                                && (candidate.sinkCellIndex() == semantic.startCellIndex()
+                                        || candidate.sinkCellIndex() == semantic.endCellIndex()));
+        if (retainedWaterJunction) {
             reasons.add(
                     SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED);
         }
