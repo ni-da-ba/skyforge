@@ -8,7 +8,8 @@ on:
       - "skyforge-neoforge-1211/wave-c3-mods.properties"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereView.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereProbeVolumeAcceptance.java"\n      - "tools/render_atmosphere_observatory.py"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereProbeVolumeAcceptance.java"
+      - "tools/render_atmosphere_observatory.py"
   workflow_dispatch:
 
 permissions:
@@ -148,7 +149,12 @@ jobs:
           assert data["specimen"]["lattice"]["sample_count"] == 100
           assert len(data["samples"]) == 100
           assert data["same_tick_replay"]["sample_count"] == 100
-          assert data["same_tick_replay"]["exact_equal"] is True\n          assert data["temporal"]["frame_count"] == 31\n          assert data["temporal"]["period_ticks"] == 20\n          assert len(data["temporal"]["frames"]) == 31\n          assert all(len(frame["samples"]) == 4 for frame in data["temporal"]["frames"])\n          assert all(s["trusted_for_gameplay"] for frame in data["temporal"]["frames"] for s in frame["samples"])
+          assert data["same_tick_replay"]["exact_equal"] is True
+          assert data["temporal"]["frame_count"] == 31
+          assert data["temporal"]["period_ticks"] == 20
+          assert len(data["temporal"]["frames"]) == 31
+          assert all(len(frame["samples"]) == 4 for frame in data["temporal"]["frames"])
+          assert all(s["trusted_for_gameplay"] for frame in data["temporal"]["frames"] for s in frame["samples"])
           assert data["authority_summary"]["trusted_sample_count"] == 100
           assert data["authority_summary"]["sample_count"] == 100
           assert all(s["trusted_for_gameplay"] for s in data["samples"])
@@ -176,7 +182,8 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/index.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/field-atlas.svg
-          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json\n          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/temporal-updraft.svg
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/summary.json
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/temporal-updraft.svg
 
       - name: Upload atmosphere evidence
         if: always()
@@ -187,7 +194,8 @@ jobs:
           retention-days: 14
           path: |
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/*.properties
-            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/*.json\n            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/**
+            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/*.json
+            skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/**
             bootstrap-atmosphere-probe-server.log
             bootstrap-atmosphere-probe-client.log
             skyforge-neoforge-1211/run-wave-c3-atmosphere-probe-server/logs/*.log
