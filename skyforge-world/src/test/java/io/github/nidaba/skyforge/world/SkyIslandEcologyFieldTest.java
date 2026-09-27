@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -25,6 +26,79 @@ final class SkyIslandEcologyFieldTest {
         assertNormalized(first.vegetationPotential());
         assertNormalized(first.saturationPotential());
         assertNormalized(first.thermalSuitability());
+    }
+
+    @Test
+    void explicitCurrentInputsPreserveAcceptedEcologyExactly() {
+        for (long islandKey = 0; islandKey < 16; islandKey++) {
+            SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                    SkyIslandIdentity.of(0x534B59464F524745L, 7L, 43L, islandKey));
+            SkyIslandEcologyField compatibility = SkyIslandEcologyField.create(descriptor);
+            SkyIslandEcologyField explicit = SkyIslandEcologyField.create(
+                    SkyIslandEcologyInputFieldSet.fromCurrentSemantics(descriptor));
+            double radius = descriptor.nominalRadius();
+
+            for (int z = -3; z <= 3; z++) {
+                for (int x = -3; x <= 3; x++) {
+                    SkyIslandLocalPosition position = new SkyIslandLocalPosition(
+                            radius * x / 4.0,
+                            radius * z / 4.0);
+                    assertEquals(compatibility.sample(position), explicit.sample(position));
+                }
+            }
+        }
+    }
+
+    @Test
+    void explicitEnvironmentalFieldsDriveEcologicalResponse() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(0x534B59464F524745L, 5L, 31L, 8L));
+
+        SkyIslandEcologyInputFieldSet dryInputs = new SkyIslandEcologyInputFieldSet(
+                descriptor,
+                constant(1.0),
+                constant(0.58),
+                constant(0.15),
+                constant(0.25),
+                constant(0.20),
+                0.10,
+                0.80);
+        SkyIslandEcologyInputFieldSet wetInputs = new SkyIslandEcologyInputFieldSet(
+                descriptor,
+                constant(1.0),
+                constant(0.58),
+                constant(0.85),
+                constant(0.25),
+                constant(0.20),
+                0.90,
+                0.80);
+
+        SkyIslandLocalPosition origin = new SkyIslandLocalPosition(0.0, 0.0);
+        SkyIslandEcologySample dry = SkyIslandEcologyField.create(dryInputs).sample(origin);
+        SkyIslandEcologySample wet = SkyIslandEcologyField.create(wetInputs).sample(origin);
+
+        assertTrue(wet.saturationPotential() > dry.saturationPotential());
+        assertTrue(wet.vegetationPotential() > dry.vegetationPotential());
+    }
+
+    @Test
+    void invalidExplicitEnvironmentalFieldFailsClosed() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(11L, 12L, 13L, 14L));
+        SkyIslandEcologyInputFieldSet invalid = new SkyIslandEcologyInputFieldSet(
+                descriptor,
+                constant(1.0),
+                ignored -> Double.NaN,
+                constant(0.5),
+                constant(0.5),
+                constant(0.5),
+                0.5,
+                0.5);
+
+        SkyIslandEcologyField ecology = SkyIslandEcologyField.create(invalid);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> ecology.sample(new SkyIslandLocalPosition(0.0, 0.0)));
     }
 
     @Test
@@ -56,6 +130,10 @@ final class SkyIslandEcologyFieldTest {
                 ecology.sample(new SkyIslandLocalPosition(
                         descriptor.nominalRadius() * 1.2,
                         0.0)).regime());
+    }
+
+    private static SkyIslandSemanticField constant(double value) {
+        return ignored -> value;
     }
 
     private static void assertNormalized(double value) {
