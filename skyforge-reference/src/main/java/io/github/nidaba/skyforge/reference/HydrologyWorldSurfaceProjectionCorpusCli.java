@@ -8,6 +8,10 @@ import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe
 import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlan;
 import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlanner;
 import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProjection;
+import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.WorldBounds;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicReachGeometry;
 import io.github.nidaba.skyforge.world.SkyIslandProjectedFluvialTerrainSample;
@@ -22,6 +26,7 @@ import java.util.Locale;
 public final class HydrologyWorldSurfaceProjectionCorpusCli {
     public static final String EVIDENCE_ID = "hydrology-world-surface-projection-v1";
     private static final long SEED = 0x534B59464F524745L;
+    private static final long REALIZATION_ROOT = 0x5245414C495A4552L;
 
     private HydrologyWorldSurfaceProjectionCorpusCli() {}
 
@@ -79,11 +84,15 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
             StringBuilder reaches) {
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                     SkyIslandComponentFluvialTerrainCandidatePlanner.plan(specimen.descriptor());
+            SkyIslandAuthoredRealizationAssociation association =
+                    productionAssociation(
+                            specimen.descriptor(),
+                            910_000L + specimen.descriptor().identity().islandKey());
             CompiledSkyIslandVolume volume =
-                    compiled(specimen.descriptor(), 910_000L + specimen.descriptor().identity().islandKey());
+                    association.realizedVolume().compiledVolume();
             SkyIslandComponentFluvialWorldSurfaceProjection projection =
                     new SkyIslandComponentFluvialWorldSurfaceProjection(
-                            specimen.descriptor(), candidate, volume);
+                            association, candidate);
 
             int projectedSamples = 0;
             int affectedSamples = 0;
@@ -153,29 +162,51 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     .append('\n');
         }
 
-    private static CompiledSkyIslandVolume compiled(
+    private static SkyIslandAuthoredRealizationAssociation productionAssociation(
             SkyIslandDescriptor descriptor,
             long geometrySeed) {
         double radius = descriptor.nominalRadius();
+        double centerX = 1200.0;
+        double centerZ = -900.0;
         SkyIslandVolumeDescriptor physical =
                 SkyIslandVolumeDescriptor.schema2(
                         geometrySeed,
-                        140.0,
-                        -96.0,
-                        220.0,
+                        centerX,
+                        centerZ,
+                        256.0,
                         radius,
-                        58.0,
-                        82.0,
-                        Math.min(54.0, radius * 0.18),
-                        0.0,
-                        0.24,
+                        72.0,
+                        104.0,
+                        Math.min(32.0, radius),
+                        0.43,
                         0.62,
-                        0.0,
+                        0.57,
+                        0.18,
                         descriptor.morphologyFamily(),
-                        0.10,
-                        28.0,
-                        0.18);
-        return new SemanticSkyIslandVolumeRecipe().compile(physical);
+                        0.22,
+                        38.0,
+                        0.31);
+        CompiledSkyIslandVolume compiled =
+                new SemanticSkyIslandVolumeRecipe().compile(physical);
+        SkyIslandWorldVolumeId id =
+                new SkyIslandWorldVolumeId(
+                        REALIZATION_ROOT,
+                        "f4b-corpus",
+                        0,
+                        0,
+                        geometrySeed);
+        WorldBounds bounds =
+                new WorldBounds(
+                        centerX - radius,
+                        centerX + radius,
+                        64.0,
+                        448.0,
+                        centerZ - radius,
+                        centerZ + radius);
+        SkyIslandWorldVolume realized =
+                new SkyIslandWorldVolume(id, bounds, compiled);
+        return SkyIslandAuthoredRealizationAssociation.of(
+                descriptor, realized);
     }
 
     private static String format(double value) {
