@@ -5,33 +5,33 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandEcologyRegime;
 import java.util.Objects;
 
 /**
- * Backend-neutral ecological interpretation of island-local semantic geography.
+ * Backend-neutral categorical compatibility interpretation of island-local ecology.
  *
  * <p>This layer deliberately authors broad ecological regimes rather than Minecraft biome IDs.
  * Downstream adapters may later translate these semantics into backend-native biome registrations.
  *
- * <p>AUTH-0003 compatibility is preserved by {@link #create(SkyIslandDescriptor)}. Explicit
- * {@link SkyIslandEcologyInputFieldSet} construction provides the integration seam for later
- * graph-backed environmental producers without coupling ecology to their subsystem APIs.
+ * <p>AUTH-0003 compatibility is preserved by {@link #create(SkyIslandDescriptor)}. Continuous
+ * ecological responses are owned by {@link SkyIslandEcologyResponseFieldSet} and are independently
+ * consumable without requiring this categorical projection.
  */
 public final class SkyIslandEcologyField {
     private final SkyIslandDescriptor descriptor;
     private final SkyIslandEcologyInputFieldSet inputFields;
+    private final SkyIslandEcologyResponseFieldSet responseFields;
 
     private SkyIslandEcologyField(SkyIslandEcologyInputFieldSet inputFields) {
         this.inputFields = Objects.requireNonNull(inputFields, "inputFields");
         this.descriptor = inputFields.descriptor();
+        this.responseFields = SkyIslandEcologyResponseFieldSet.create(inputFields);
     }
 
-    /**
-     * Creates the exact accepted AUTH-0003 ecology interpretation from current semantic fields.
-     */
+    /** Creates the exact accepted AUTH-0003 ecology interpretation from current semantic fields. */
     public static SkyIslandEcologyField create(SkyIslandDescriptor descriptor) {
         return create(SkyIslandEcologyInputFieldSet.fromCurrentSemantics(descriptor));
     }
 
     /**
-     * Creates ecology from explicit backend-neutral environmental input fields.
+     * Creates categorical compatibility ecology from explicit backend-neutral environmental inputs.
      *
      * <p>Callers remain responsible for supplying fields with the normalized semantic meanings
      * documented by {@link SkyIslandEcologyInputFieldSet}. Sampled values fail closed when they are
@@ -50,6 +50,11 @@ public final class SkyIslandEcologyField {
         return inputFields;
     }
 
+    /** Returns the reusable continuous response layer shared by this categorical projection. */
+    public SkyIslandEcologyResponseFieldSet responseFields() {
+        return responseFields;
+    }
+
     public SkyIslandEcologySample sample(SkyIslandLocalPosition position) {
         Objects.requireNonNull(position, "position");
         double interiority = sampleNormalized("interiority", inputFields.interiority(), position);
@@ -58,17 +63,8 @@ public final class SkyIslandEcologyField {
         double elevation = sampleNormalized("elevationTendency", inputFields.elevationTendency(), position);
         double exposure = sampleNormalized("exposure", inputFields.exposure(), position);
 
-        double thermalSuitability = clamp01(1.0 - Math.abs(temperature - 0.58) / 0.58);
-        double saturationPotential = clamp01(
-                moisture * 0.58
-                        + inputFields.hydrologicalPotentialPrior() * 0.24
-                        + (1.0 - elevation) * interiority * 0.18);
-        double vegetationPotential = clamp01(
-                inputFields.ecologicalPotentialPrior() * 0.28
-                        + thermalSuitability * 0.24
-                        + moisture * 0.28
-                        + interiority * 0.12
-                        + (1.0 - exposure) * 0.08);
+        SkyIslandEcologyResponseSample responses =
+                responseFields.evaluateNormalized(interiority, temperature, moisture, elevation, exposure);
 
         SkyIslandEcologyRegime regime = classify(
                 interiority,
@@ -76,9 +72,13 @@ public final class SkyIslandEcologyField {
                 moisture,
                 elevation,
                 exposure,
-                vegetationPotential,
-                saturationPotential);
-        return new SkyIslandEcologySample(regime, vegetationPotential, saturationPotential, thermalSuitability);
+                responses.vegetationPotential(),
+                responses.saturationPotential());
+        return new SkyIslandEcologySample(
+                regime,
+                responses.vegetationPotential(),
+                responses.saturationPotential(),
+                responses.thermalSuitability());
     }
 
     private static double sampleNormalized(
@@ -124,9 +124,5 @@ public final class SkyIslandEcologyField {
             return SkyIslandEcologyRegime.HUMID_WOODLAND;
         }
         return SkyIslandEcologyRegime.TEMPERATE_WOODLAND;
-    }
-
-    private static double clamp01(double value) {
-        return Math.max(0.0, Math.min(1.0, value));
     }
 }

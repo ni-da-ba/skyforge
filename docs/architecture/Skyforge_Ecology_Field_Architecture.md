@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issue:** #1192  
+**Governing issues:** #1192, #1194  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -122,6 +122,11 @@ Ecological responses answer:
 > Given environmental state, how favorable or stressful is this location along one ecological axis?
 
 Responses should generally be continuous and independently inspectable.
+
+Issue #1194 implements this separation for the accepted AUTH-0003 continuous responses through
+`SkyIslandEcologyResponseFieldSet` and `SkyIslandEcologyResponseSample`. Downstream consumers may now
+sample the response bundle or the individual normalized response fields without consuming a categorical
+`SkyIslandEcologyRegime`.
 
 The accepted AUTH-0003 responses remain:
 
@@ -362,24 +367,26 @@ Therefore:
 
 1. the current AUTH-0003 formula/classification remains available through the compatibility factory;
 2. issue #1192 changes dependency injection, not ecological output;
-3. later replacement response/community models must be versioned or explicitly migrated;
-4. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+3. issue #1194 moves the accepted continuous response formulas into a reusable field layer without changing their values;
+4. later replacement response/community models must be versioned or explicitly migrated;
+5. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-5. new ecology authority should be earned through deterministic reference evidence before a backend
+6. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1192
+## Immediate next work after #1194
 
-Once this seam is accepted, the next ecology tranche should be selected from actual available upstream
-semantics rather than invented in advance.
+The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
+next ecology tranche should still be selected from actual available upstream semantics rather than
+invented in advance.
 
 A prudent sequence is:
 
-1. inventory accepted atmosphere/hydrology/geology/morphology fields that have stable semantics;
-2. define the first explicit ecological response set using those real producers;
-3. retain AUTH-0003 as the compatibility projection while comparing the richer response field against
-   deterministic reference islands;
-4. introduce overlapping community suitability only after the response inputs are stable;
+1. keep the AUTH-0003 response set as the stable compatibility baseline;
+2. inventory accepted atmosphere/hydrology/geology/morphology fields that have stable semantics;
+3. introduce richer or more physical ecological responses only from those real neutral producers and
+   version/migrate them explicitly rather than silently changing AUTH-0003;
+4. introduce overlapping community suitability after the relevant response inputs are stable;
 5. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
    filtering changes the ecological answer;
 6. add realization/functional-group fields before any concrete species/population policy.
