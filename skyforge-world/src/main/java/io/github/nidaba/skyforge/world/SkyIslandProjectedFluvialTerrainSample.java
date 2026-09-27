@@ -60,6 +60,14 @@ public record SkyIslandProjectedFluvialTerrainSample(
         return targetUpperSurfaceWorldY - undersideSurfaceWorldY;
     }
 
+    /**
+     * Diagnostic only. F4B does not grant realization authority; F4C must reject an entire
+     * discrete component if any mutated column lacks positive support after quantization.
+     */
+    public boolean hasPositiveTargetColumnThickness() {
+        return targetColumnThicknessWorldUnits() > EPSILON;
+    }
+
     private static void requireFinite(double value, String name) {
         if (!Double.isFinite(value)) {
             throw new IllegalArgumentException(name + " must be finite");
