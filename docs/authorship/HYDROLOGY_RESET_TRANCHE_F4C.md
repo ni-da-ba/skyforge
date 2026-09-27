@@ -37,7 +37,12 @@ A quantized target is admissible only when:
 - the original compiled column contains exact solid support;
 - the target maximum solid Y remains at or above the exact minimum solid Y;
 - the target maximum never exceeds the original maximum;
-- every Y in the measured support interval remains continuously solid.
+- the retained target top is exact compiled solid;
+- every voxel in the surface removal band from the target top through the original top is exact
+  compiled solid.
+
+Internal AIR below the retained target surface is permitted. F4C does not treat an unrelated cave as
+a discontinuous surface column and does not fill or otherwise modify that cave.
 
 Failure rejects the quantization plan. F4C does not add blocks, lower the underside, move the water
 datum, or search for a nearby carrier.
