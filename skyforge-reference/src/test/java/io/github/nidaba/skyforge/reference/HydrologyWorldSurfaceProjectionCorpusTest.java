@@ -28,10 +28,8 @@ class HydrologyWorldSurfaceProjectionCorpusTest {
                 "primary-287,287,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
                 "lake-609,609,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,709,559,35,35,));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,1742,1842,24,24,));
+        assertTrue(reachesA.contains("ordinary-77,77,709,559,35,35,"));
+        assertTrue(reachesA.contains("ordinary-77,77,1742,1842,24,24,"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
