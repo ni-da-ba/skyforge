@@ -25,7 +25,25 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
     private final CompiledSkyIslandVolume compiledVolume;
     private final SkyIslandTerrainInterpreter terrainInterpreter;
 
+    /**
+     * Production-facing F4B boundary over one exact AUTH-0046 association.
+     *
+     * <p>No realized volume is inferred from scale, morphology, proximity, or seed similarity.
+     */
     public SkyIslandComponentFluvialWorldSurfaceProjection(
+            SkyIslandAuthoredRealizationAssociation association,
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan) {
+        this(
+                Objects.requireNonNull(association, "association").authoredDescriptor(),
+                candidatePlan,
+                association.realizedVolume().compiledVolume());
+    }
+
+    /**
+     * Package-local projection primitive retained for direct compatibility/failure tests.
+     * Production callers should supply an explicit AUTH-0046 association.
+     */
+    SkyIslandComponentFluvialWorldSurfaceProjection(
             SkyIslandDescriptor descriptor,
             SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
             CompiledSkyIslandVolume compiledVolume) {
