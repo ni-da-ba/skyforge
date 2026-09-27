@@ -23,13 +23,17 @@ class HydrologyWorldSurfaceProjectionCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
-        assertTrue(summaryA.contains("ordinary-77,77,2,59,59,"));
         assertTrue(summaryA.contains(
-                "primary-287,287,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
+                "ordinary-77,77,2,59,59,-4.480910369,-2.232739641,36.994664581,76.826056586,"
+                        + "8969,5858,-6.941952488,0.000000000,14.064577406"));
         assertTrue(summaryA.contains(
-                "lake-609,609,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
-        assertTrue(reachesA.contains("ordinary-77,77,709,559,35,35,"));
-        assertTrue(reachesA.contains("ordinary-77,77,1742,1842,24,24,"));
+                "primary-287,287,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
+        assertTrue(summaryA.contains(
+                "lake-609,609,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
+        assertTrue(reachesA.contains(
+                "ordinary-77,77,709,559,35,35,-4.480910369,-3.635747789,36.994664581"));
+        assertTrue(reachesA.contains(
+                "ordinary-77,77,1742,1842,24,24,-4.453474879,-2.232739641,45.833595170"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
