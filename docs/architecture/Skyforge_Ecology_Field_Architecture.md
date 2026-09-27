@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196  
+**Governing issues:** #1192, #1194, #1196, #1198  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -177,6 +177,12 @@ Issue #1196 implements the first overlapping habitat-opportunity layer through
 `SkyIslandHabitatOpportunityFieldSet`. The initial opportunities are woodland, open vegetation,
 saturated lowland, alpine/exposed, and xeric/exposed. They are continuous environmental opportunity
 envelopes, not biome IDs, occupancy claims, or mutually exclusive communities.
+
+Issue #1198 adds the first structural community-suitability layer through
+`SkyIslandCommunitySuitabilityFieldSet`. The initial archetypes are closed woodland, open herbaceous,
+saturated wetland, alpine tundra, and xeric scrub. These are overlapping suitability envelopes derived
+from accepted habitat opportunity and ecological response; they remain explicitly separate from
+occupancy and assembly history.
 
 The current `SkyIslandEcologyRegime` enum remains an accepted compact summary/compatibility vocabulary.
 It is **not** promoted to the final community taxonomy, and issue #1192 does not change its thresholds.
@@ -374,13 +380,14 @@ Therefore:
 2. issue #1192 changes dependency injection, not ecological output;
 3. issue #1194 moves the accepted continuous response formulas into a reusable field layer without changing their values;
 4. issue #1196 adds overlapping habitat-opportunity fields without replacing the AUTH-0003 categorical compatibility projection;
-5. later replacement response/community models must be versioned or explicitly migrated;
-6. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+5. issue #1198 adds overlapping structural community suitability without asserting occupancy;
+6. later replacement response/community models must be versioned or explicitly migrated;
+7. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-7. new ecology authority should be earned through deterministic reference evidence before a backend
+8. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1196
+## Immediate next work after #1198
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -393,7 +400,7 @@ A prudent sequence is:
 3. inventory accepted atmosphere/hydrology/geology/morphology fields that have stable semantics;
 4. introduce richer or more physical ecological responses only from those real neutral producers and
    version/migrate them explicitly rather than silently changing AUTH-0003;
-5. introduce named community suitability only after the relevant environmental response inputs are stable;
+5. keep #1198 community suitability as a potential-establishment layer rather than an occupancy result;
 6. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
    filtering changes the ecological answer;
 7. add realization/functional-group fields before any concrete species/population policy.
