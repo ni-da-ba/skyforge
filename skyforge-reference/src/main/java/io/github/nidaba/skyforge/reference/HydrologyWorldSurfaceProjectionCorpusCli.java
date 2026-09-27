@@ -44,12 +44,12 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                 new Specimen("lake-609", descriptor(8L, 81L, 609L)));
 
         StringBuilder summary = new StringBuilder(
-                "specimen,islandKey,realizedReaches,projectedSamples,affectedSamples,unsupportedSamples,"
+                "specimen,islandKey,realizedReaches,projectedSamples,affectedSamples,"
                         + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld,maxTargetThicknessWorld,"
                         + "authorizedIntegerColumns,affectedIntegerColumns,minIntegerDeltaWorld,"
                         + "maxIntegerDeltaWorld,minIntegerTargetThicknessWorld\n");
         StringBuilder reaches = new StringBuilder(
-                "specimen,islandKey,startCell,endCell,samples,affectedSamples,unsupportedSamples,"
+                "specimen,islandKey,startCell,endCell,samples,affectedSamples,"
                         + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld\n");
 
         for (Specimen specimen : specimens) {
@@ -99,7 +99,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
 
             int projectedSamples = 0;
             int affectedSamples = 0;
-            int unsupportedSamples = 0;
             double minDelta = Double.POSITIVE_INFINITY;
             double maxDelta = Double.NEGATIVE_INFINITY;
             double minThickness = Double.POSITIVE_INFINITY;
@@ -109,7 +108,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     candidate.terrainField().acceptedReaches()) {
                 int reachSamples = 0;
                 int reachAffected = 0;
-                int reachUnsupported = 0;
                 double reachMinDelta = Double.POSITIVE_INFINITY;
                 double reachMaxDelta = Double.NEGATIVE_INFINITY;
                 double reachMinThickness = Double.POSITIVE_INFINITY;
@@ -134,10 +132,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                         affectedSamples++;
                         reachAffected++;
                     }
-                    if (!sample.hasPositiveTargetColumnThickness()) {
-                        unsupportedSamples++;
-                        reachUnsupported++;
-                    }
                 }
 
                 var semantic = reach.geomorphicRoute().semanticReach();
@@ -147,7 +141,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                         .append(semantic.endCellIndex()).append(',')
                         .append(reachSamples).append(',')
                         .append(reachAffected).append(',')
-                        .append(reachUnsupported).append(',')
                         .append(format(reachMinDelta)).append(',')
                         .append(format(reachMaxDelta)).append(',')
                         .append(format(reachMinThickness))
@@ -168,7 +161,6 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     .append(candidate.terrainField().acceptedReaches().size()).append(',')
                     .append(projectedSamples).append(',')
                     .append(affectedSamples).append(',')
-                    .append(unsupportedSamples).append(',')
                     .append(format(minDelta)).append(',')
                     .append(format(maxDelta)).append(',')
                     .append(format(minThickness)).append(',')
