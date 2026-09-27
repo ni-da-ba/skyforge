@@ -4,6 +4,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -146,11 +147,25 @@ public final class SkyIslandWorldWaterHeadRefinementPlanner {
             double admissibleUpper = Math.min(containmentUpper, noTerrainRaiseUpper);
 
             if (directHead > admissibleUpper + EPSILON) {
+                String binding =
+                        containmentUpper <= noTerrainRaiseUpper
+                                ? "BANK_CONTAINMENT"
+                                : "PREHYDROLOGIC_SURFACE";
                 return failure(
                         reach,
                         SkyIslandWorldWaterHeadRefinementStatus.INFEASIBLE,
-                        "direct F4E head already exceeds F4F upward-only physical bound at sample "
-                                + i);
+                        String.format(
+                                Locale.ROOT,
+                                "direct F4E head %.9f exceeds F4F upward-only physical bound %.9f"
+                                        + " at sample %d [binding=%s, bankUpper=%.9f,"
+                                        + " noRaiseUpper=%.9f, availableRaise=%.9f]",
+                                directHead,
+                                admissibleUpper,
+                                i,
+                                binding,
+                                containmentUpper,
+                                noTerrainRaiseUpper,
+                                availableRaise));
             }
             if (admissibleUpper < directHead) {
                 admissibleUpper = directHead;
