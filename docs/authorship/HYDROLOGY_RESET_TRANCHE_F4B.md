@@ -139,13 +139,14 @@ local support rejects rather than reducing the cut or invoking backend reconcili
 
 ## Next boundary
 
-If F4B passes with positive remaining compiled thickness, the next tranche may define a deterministic
-integer-surface quantizer and measure:
+Once F4B has quantified the projected cut and signed support margin, the next tranche may define a
+deterministic integer-surface quantizer plus whole-component admission and measure:
 
 - absolute quantization error against `targetUpperWorld`;
 - extra backend excavation beyond the continuous target;
 - continuity along accepted channel centerlines;
 - exact zero mutation outside F4A/F4B authority.
 
-Any correction larger than ordinary voxel quantization is a reset failure, not a backend repair
-budget.
+F4C must reject an entire component if any column it would mutate cannot preserve physical support.
+It may not partially realize the component. Any correction larger than ordinary voxel quantization is
+a reset failure, not a backend repair budget.
