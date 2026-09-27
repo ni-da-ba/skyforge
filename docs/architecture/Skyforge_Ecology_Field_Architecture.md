@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -216,6 +216,16 @@ must not be converted into occupancy through an implicit threshold. Likewise, di
 another climate scalar: discrete or historical disturbance can change realized community state even
 where the underlying abiotic environment remains suitable.
 
+Issue #1200 establishes the first assembly integration seam through
+`SkyIslandCommunityAssemblyEvidence` and `SkyIslandCommunityAssemblyEvidenceBinder`. The seam binds an
+exact #1198 community-suitability field set to an exact AUTH-0046 authored-realization association and
+its raw AUTH-0092/AUTH-0103 nearest-neighbor isolation evidence. It deliberately performs no distance
+normalization, dispersal transform, colonization inference, or occupancy decision.
+
+Singleton catalogs preserve `no neighbor evidence` as an empty optional value rather than fabricating
+infinite isolation. Likewise, nominal radial gap remains geometric evidence based on nominal radii; it
+is not promoted to physical terrain-edge distance.
+
 This layer should remain parsimonious. Add an assembly filter only when it explains a concrete
 ecological distinction or downstream consumer. It must not become a hidden simulation of every
 population interaction.
@@ -381,13 +391,14 @@ Therefore:
 3. issue #1194 moves the accepted continuous response formulas into a reusable field layer without changing their values;
 4. issue #1196 adds overlapping habitat-opportunity fields without replacing the AUTH-0003 categorical compatibility projection;
 5. issue #1198 adds overlapping structural community suitability without asserting occupancy;
-6. later replacement response/community models must be versioned or explicitly migrated;
-7. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+6. issue #1200 binds suitability to raw regional assembly evidence without applying a universal isolation penalty;
+7. later replacement response/community models must be versioned or explicitly migrated;
+8. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-8. new ecology authority should be earned through deterministic reference evidence before a backend
+9. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1198
+## Immediate next work after #1200
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -401,9 +412,11 @@ A prudent sequence is:
 4. introduce richer or more physical ecological responses only from those real neutral producers and
    version/migrate them explicitly rather than silently changing AUTH-0003;
 5. keep #1198 community suitability as a potential-establishment layer rather than an occupancy result;
-6. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
-   filtering changes the ecological answer;
-7. add realization/functional-group fields before any concrete species/population policy.
+6. keep #1200 isolation evidence raw until an explicit dispersal profile defines how one functional
+   group experiences distance/connectivity;
+7. add assembly transforms only where dispersal, disturbance, succession, or other biotic filtering
+   changes the ecological answer;
+8. add realization/functional-group fields before any concrete species/population policy.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
