@@ -339,4 +339,6 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFatePlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProjectionTest.xml || true
+          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
