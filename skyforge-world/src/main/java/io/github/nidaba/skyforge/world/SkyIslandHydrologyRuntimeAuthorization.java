@@ -34,6 +34,19 @@ public record SkyIslandHydrologyRuntimeAuthorization(
         return association.realizedVolumeId().equals(Objects.requireNonNull(volumeId, "volumeId"));
     }
 
+    /**
+     * Allows a visible-water position only when it remains inside an exact authorized F4H
+     * column and the compiled support interval. This is a migration seam; it does not authorize
+     * positions discovered from the legacy planner outside the accepted field.
+     */
+    public boolean allowsHydrologyPosition(int worldX, int y, int worldZ) {
+        return quantization.authorizedColumns().stream()
+                .anyMatch(column -> column.worldX() == worldX
+                        && column.worldZ() == worldZ
+                        && y >= column.originalSupport().minimumSolidY()
+                        && y <= column.originalSupport().maximumSolidY());
+    }
+
     public boolean allowsRemoval(int worldX, int y, int worldZ) {
         return quantization.authorizedColumns().stream()
                 .anyMatch(column -> column.worldX() == worldX
