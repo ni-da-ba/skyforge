@@ -21,17 +21,10 @@ class HydrologyVoxelQuantizationCorpusTest {
         String b = Files.readString(second.resolve("summary.csv"));
         assertEquals(a, b);
 
-        String[] ordinary = row(a, "ordinary-77");
-        assertEquals("77", ordinary[1]);
-        assertEquals("2", ordinary[2]);
-        assertEquals("0", ordinary[3]);
-        assertEquals("8969", ordinary[4]);
-        assertEquals("0.000000000", ordinary[10]);
-
-        String[] weak = row(a, "ordinary-77-weak");
-        assertEquals("77", weak[1]);
-        assertTrue(Integer.parseInt(weak[3]) > 0);
-        assertEquals("0.000000000", weak[10]);
+        assertTrue(a.contains(
+                "ordinary-77,77,2,0,8969,4911,15849,7,0.999999918,0.000407162,0.000000000"));
+        assertTrue(a.contains(
+                "ordinary-77-weak,77,0,2,0,0,0,0,0.000000000,0.000000000,0.000000000"));
 
         for (String name : new String[] {"primary-287", "confluence-632", "lake-609"}) {
             String[] control = row(a, name);
