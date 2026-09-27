@@ -15,9 +15,11 @@ public final class SkyIslandRefinedFluvialVoxelQuantizationPlanner {
 
     public static SkyIslandFluvialVoxelQuantizationPlan plan(
             SkyIslandAuthoredRealizationAssociation association,
-            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,\n            SkyIslandQualifiedFluvialTerrainField refinedField) {
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
+            SkyIslandQualifiedFluvialTerrainField refinedField) {
         Objects.requireNonNull(association, "association");
-        Objects.requireNonNull(candidatePlan, "candidatePlan");\n        Objects.requireNonNull(refinedField, "refinedField");
+        Objects.requireNonNull(candidatePlan, "candidatePlan");
+        Objects.requireNonNull(refinedField, "refinedField");
         if (!association.authoredDescriptor().equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(
                     "F4C association and candidate descriptor must match");
@@ -32,7 +34,7 @@ public final class SkyIslandRefinedFluvialVoxelQuantizationPlanner {
 
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                        association, candidatePlan);
+                        association, candidatePlan, refinedField);
         CompiledSkyIslandVolume volume =
                 association.realizedVolume().compiledVolume();
         SkyIslandTerrainInterpreter terrain =
