@@ -50,8 +50,6 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                                 + sample.terrainDeltaWorldUnits(),
                         sample.targetUpperSurfaceWorldY(),
                         EPSILON);
-                assertTrue(
-                        sample.targetColumnThicknessWorldUnits() > 0.0);
                 assertTrue(sample.terrainDeltaWorldUnits() <= EPSILON);
                 if (sample.terrainDeltaWorldUnits() < -EPSILON) {
                     affected++;
@@ -102,7 +100,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void physicalPlacementWithInsufficientLocalThicknessFailsClosed() {
+    void physicalPlacementWithInsufficientLocalThicknessRemainsVisibleToDownstreamAdmission() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -113,23 +111,23 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
                         association, candidate);
 
-        boolean rejected = false;
+        boolean foundUnsupported = false;
         outer:
         for (SkyIslandHydraulicReachGeometry reach :
                 candidate.terrainField().acceptedReaches()) {
             for (SkyIslandLocalPosition local : reach.centerline().points()) {
-                try {
-                    projection.sampleWorld(
-                            volume.descriptor().centerX() + local.x(),
-                            volume.descriptor().centerZ() + local.z());
-                } catch (IllegalArgumentException expected) {
-                    rejected = true;
+                SkyIslandProjectedFluvialTerrainSample sample =
+                        projection.sampleWorld(
+                                volume.descriptor().centerX() + local.x(),
+                                volume.descriptor().centerZ() + local.z());
+                if (!sample.hasPositiveTargetColumnThickness()) {
+                    foundUnsupported = true;
                     break outer;
                 }
             }
         }
 
-        assertTrue(rejected);
+        assertTrue(foundUnsupported);
     }
 
     @Test
@@ -162,7 +160,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void projectionFailsClosedWhenAuthorizedCutWouldCollapseCompiledColumn() {
+    void projectionReportsCollapsedTargetColumnWithoutGrantingRealizationAuthority() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -193,17 +191,23 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
                         thinAssociation, candidate);
-        SkyIslandLocalPosition local =
-                candidate.terrainField()
-                        .acceptedReaches()
-                        .getFirst()
-                        .centerline()
-                        .points()
-                        .getFirst();
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> projection.sampleWorld(local.x(), local.z()));
+        boolean foundCollapsed = false;
+        for (SkyIslandHydraulicReachGeometry reach :
+                candidate.terrainField().acceptedReaches()) {
+            for (SkyIslandLocalPosition local : reach.centerline().points()) {
+                SkyIslandProjectedFluvialTerrainSample sample =
+                        projection.sampleWorld(local.x(), local.z());
+                if (!sample.hasPositiveTargetColumnThickness()) {
+                    foundCollapsed = true;
+                    break;
+                }
+            }
+            if (foundCollapsed) {
+                break;
+            }
+        }
+        assertTrue(foundCollapsed);
     }
 
     @Test
