@@ -739,6 +739,17 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
     }
 
+    private static void applyDevelopmentHydrologyIfEnabled(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter adapter) {
+        // The DR-50 specimen is an explicit development acceptance fixture for the legacy
+        // visible-hydrology adapter. Normal runtime remains fenced until an exact F4H authorization
+        // is bound; this branch is intentionally unreachable outside that dev fixture.
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, adapter);
+        }
+    }
+
     private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {
         return binding.adapter().materialize(
                 chunk.getPos(),
