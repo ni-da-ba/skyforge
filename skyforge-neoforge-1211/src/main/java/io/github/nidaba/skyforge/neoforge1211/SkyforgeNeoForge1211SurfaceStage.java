@@ -85,7 +85,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     : adapter.adapt(chunk, materialization);
         }
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
-        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+        applyHydrology(chunk, binding);
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
         return Optional.of(result);
@@ -279,7 +279,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
             progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
             SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            applyHydrology(chunk, binding);
             long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
             SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
@@ -315,7 +315,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         if (terminal) {
             long completeStart = SkyforgeRuntimePerformanceMetrics.start();
             SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            applyHydrology(chunk, binding);
             progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
             progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
             SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
@@ -430,7 +430,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         long completeStart = SkyforgeRuntimePerformanceMetrics.start();
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+        applyHydrology(chunk, binding);
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.completeCatchup",
                 completeStart);
@@ -751,6 +751,23 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         int height() {
             return maximumYExclusive - minimumY;
         }
+    }
+
+    /**
+     * Routes hydrology through the explicit F4H authorization when this binding has one.
+     * Legacy bindings remain reachable for compatibility fixtures and rollback.
+     */
+    private static void applyHydrology(ChunkAccess chunk, RuntimeBinding binding) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(binding, "binding");
+        if (binding.hydrologyAuthorization().isPresent()) {
+            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                    chunk,
+                    binding.adapter(),
+                    binding.hydrologyAuthorization().orElseThrow());
+            return;
+        }
+        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
     }
 
     private static MinecraftChunkMaterialization materialize(RuntimeBinding binding, ChunkAccess chunk) {
