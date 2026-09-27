@@ -323,7 +323,8 @@ final class SkyforgeSfImp1180ConsumerDiagnosticRuntime {
                 }
             }
 
-            if (level.hasChunkAt(hawk.blockPosition()) && (!overIsland || tracked.cohort.equals("ground"))) {
+            if (diagnosticRegionGuaranteedLoaded(hawk.getBlockX(), hawk.getBlockZ())
+                    && (!overIsland || tracked.cohort.equals("ground"))) {
                 int worldSurface = level.getHeight(
                         Heightmap.Types.MOTION_BLOCKING_NO_LEAVES,
                         hawk.getBlockX(),
@@ -349,6 +350,14 @@ final class SkyforgeSfImp1180ConsumerDiagnosticRuntime {
                         tracked.c6SteeringCommands, snapshot.steeringCommands());
             }
         }
+    }
+
+    private static boolean diagnosticRegionGuaranteedLoaded(int blockX, int blockZ) {
+        boolean islandRegion =
+                blockX >= -128 && blockX <= 64 && blockZ >= -64 && blockZ <= 128;
+        boolean groundRegion =
+                blockX >= 720 && blockX <= 816 && blockZ >= -48 && blockZ <= 48;
+        return islandRegion || groundRegion;
     }
 
     private static void recordGliderFrame(ServerLevel level, long elapsed) {
