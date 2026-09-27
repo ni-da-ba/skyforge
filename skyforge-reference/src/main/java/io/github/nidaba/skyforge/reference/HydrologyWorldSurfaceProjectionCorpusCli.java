@@ -44,7 +44,7 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                 new Specimen("lake-609", descriptor(8L, 81L, 609L)));
 
         StringBuilder summary = new StringBuilder(
-                "specimen,islandKey,realizedReaches,projectedSamples,affectedSamples,"
+                "specimen,islandKey,realizedReaches,projectedSamples,affectedSamples,unsupportedSamples,"
                         + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld,maxTargetThicknessWorld,"
                         + "authorizedIntegerColumns,affectedIntegerColumns,minIntegerDeltaWorld,"
                         + "maxIntegerDeltaWorld,minIntegerTargetThicknessWorld\n");
