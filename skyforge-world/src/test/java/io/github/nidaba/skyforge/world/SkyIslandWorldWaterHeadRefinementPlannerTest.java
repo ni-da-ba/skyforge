@@ -34,6 +34,17 @@ class SkyIslandWorldWaterHeadRefinementPlannerTest {
 
         assertEquals(2, direct.refinementRequiredComponents().size());
         assertEquals(2, refinement.components().size());
+        assertEquals(1, refinement.solvedComponents().size());
+        assertEquals(559, refinement.solvedComponents().getFirst().terminalCellIndex());
+        SkyIslandWorldWaterHeadRefinementComponent blocked =
+                refinement.components().stream()
+                        .filter(component -> component.terminalCellIndex() == 1842)
+                        .findFirst()
+                        .orElseThrow();
+        assertEquals(SkyIslandWorldWaterHeadRefinementStatus.INFEASIBLE, blocked.status());
+        assertFalse(blocked.blockers().isEmpty());
+        assertTrue(blocked.blockers().getFirst().contains("BANK_CONTAINMENT"));
+
         for (SkyIslandWorldWaterHeadRefinementComponent component :
                 refinement.components()) {
             assertNotEquals(
