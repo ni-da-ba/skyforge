@@ -745,7 +745,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         // The DR-50 specimen is an explicit development acceptance fixture for the legacy
         // visible-hydrology adapter. Normal runtime remains fenced until an exact F4H authorization
         // is bound; this branch is intentionally unreachable outside that dev fixture.
-        if (SkyforgeDr50IntegratedRegionEvidence.enabled()) {
+        if (SkyforgeDr50IntegratedRegionEvidence.enabled()\n                || !SkyforgePhysicalVolumeAdmissionStage.active()) {
             SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, adapter);
         }
     }
