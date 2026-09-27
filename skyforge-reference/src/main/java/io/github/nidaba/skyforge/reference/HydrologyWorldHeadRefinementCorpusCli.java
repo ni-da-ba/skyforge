@@ -194,7 +194,7 @@ public final class HydrologyWorldHeadRefinementCorpusCli {
     }
 
     private static String quote(String value) {
-        return '"' + value.replace(""", """") + '"';
+        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
