@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -300,6 +300,20 @@ potential is not physical mass, and the result does not identify species or back
 This first realization layer is also per-community: it does not choose a winner or combine multiple
 community realizations into one final landscape.
 
+Issue #1212 adds the first explicit multi-community coexistence/composition seam.
+`SkyIslandMultiCommunityRealizationSet` preserves multiple per-community #1208 realizations at one exact
+position and assembly/disturbance provenance without selecting a winner. A separate compositor may
+optionally aggregate that set for consumers that need one neutral structural envelope.
+
+The initial `SkyIslandWeightedAdditiveRealizationCompositor` uses caller-supplied non-negative
+coexistence weights whose total may not exceed 1. Weights are not renormalized and are explicitly
+composition policy rather than abundance, occupancy probability, percent cover, or population share.
+Only positively weighted communities are required to resolve; omitted or zero-weight communities do not
+block composition, while unresolved positively weighted communities keep the aggregate unresolved.
+The full per-community set remains inspectable even when an aggregate structure resolves.
+
+Weighted addition is one named composition policy, not universal ecological law.
+
 A realization layer may later use deterministic signals for controlled variation, but random variation
 may not create ecological identity independently of environmental causes.
 
@@ -447,13 +461,14 @@ Therefore:
 8. issue #1204 permits explicit profile-specific disturbance/recovery state while preserving missing-history uncertainty;
 9. issue #1206 composes suitability and explicit assembly factors into transparent profile-specific support without asserting occupancy;
 10. issue #1208 maps resolved community assembly support into explicit per-community neutral structural-realization envelopes without backend content or winner selection;
-11. later replacement response/community models must be versioned or explicitly migrated;
-12. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+11. issue #1212 preserves overlapping community realizations and permits explicit weighted composition without hidden winner selection;
+12. later replacement response/community models must be versioned or explicitly migrated;
+13. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-13. new ecology authority should be earned through deterministic reference evidence before a backend
+14. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1208
+## Immediate next work after #1212
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -472,11 +487,13 @@ A prudent sequence is:
 8. use #1206 community assembly profiles as transparent support evaluators, not occupancy decisions;
 9. keep #1208 structural realization explicitly per-community and policy-driven rather than inferred
    automatically from community names;
-10. introduce a multi-community composition layer only when coexistence/blending semantics can be made
-    explicit without turning overlap into hidden winner selection;
+10. keep #1212 multi-community composition explicitly policy-driven and retain every constituent
+    realization rather than collapsing provenance;
 11. introduce broader functional-group/niche profiles only when their suitability, dispersal, and
     disturbance semantics are explicit and testable rather than inferred from species/backend identity;
-12. keep concrete species/population lifecycle policy downstream of neutral realization.
+12. add spatial realization/patch structure only after composition semantics remain deterministic and
+    backend-neutral;
+13. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
