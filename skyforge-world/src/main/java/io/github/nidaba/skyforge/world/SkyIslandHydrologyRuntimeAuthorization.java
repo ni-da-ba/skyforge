@@ -30,6 +30,25 @@ public record SkyIslandHydrologyRuntimeAuthorization(
         }
     }
 
+    /**
+     * Constructs the runtime token from the exact validated F4H inputs.
+     *
+     * <p>The association, candidate, and refined field are checked by the quantizer before the
+     * token becomes available to a backend runtime binding.
+     */
+    public static SkyIslandHydrologyRuntimeAuthorization fromF4H(
+            SkyIslandAuthoredRealizationAssociation association,
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
+            SkyIslandQualifiedFluvialTerrainField refinedField) {
+        Objects.requireNonNull(association, "association");
+        Objects.requireNonNull(candidatePlan, "candidatePlan");
+        Objects.requireNonNull(refinedField, "refinedField");
+        SkyIslandFluvialVoxelQuantizationPlan quantization =
+                SkyIslandRefinedFluvialVoxelQuantizationPlanner.plan(
+                        association, candidatePlan, refinedField);
+        return new SkyIslandHydrologyRuntimeAuthorization(association, quantization);
+    }
+
     public boolean allowsVolume(SkyIslandWorldVolumeId volumeId) {
         return association.realizedVolumeId().equals(Objects.requireNonNull(volumeId, "volumeId"));
     }
