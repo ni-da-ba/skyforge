@@ -23,7 +23,7 @@ class HydrologyLateralRefinementCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
-        assertTrue(summaryA.contains("ordinary-77,77,1,2,0,8969,"));
+        assertTrue(summaryA.contains("ordinary-77,77,1,2,0,8969,"), summaryA);
         assertTrue(summaryA.contains(",0,0.168878403,"));
         assertTrue(reachesA.contains("709,559,true,0.168878403,"));
         assertTrue(reachesA.contains("1742,1842,false,0.000000000,"));
