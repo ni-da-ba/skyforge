@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -246,6 +246,23 @@ No disturbance mechanism is inferred, and missing disturbance evidence remains u
 being treated as pristine habitat. Recovery progress is likewise not equivalent to late-successional
 occupancy; individual communities may later interpret the same assembly state differently.
 
+Issue #1206 composes these independent assembly dimensions into explicit community assembly profiles.
+`SkyIslandCommunityArchetype` formalizes the five accepted #1198 structural communities, while
+`SkyIslandCommunityAssemblyProfile` declares the community, dispersal response, succession response,
+succession-affinity policy, and factor combiner used for one evaluation. The evaluation retains local
+suitability, dispersal accessibility, succession state, succession affinity, and optional composite
+assembly support separately so provenance is inspectable.
+
+The initial generic succession-affinity policy is a normalized weighted mixture of residual disturbance
+and recovery progress, allowing disturbance-favoring and recovery-favoring policies without changing the
+underlying event. The initial `SkyIslandMultiplicativeAssemblyCombiner` treats suitability,
+accessibility, and succession affinity as explicit limiting factors. It is one named composition policy,
+not universal ecological law. Missing required assembly evidence propagates to unresolved composite
+support rather than being silently replaced with neutral/full support.
+
+Composite assembly support remains **support**, not occupancy probability, colonization state, abundance,
+or a community winner.
+
 This layer should remain parsimonious. Add an assembly filter only when it explains a concrete
 ecological distinction or downstream consumer. It must not become a hidden simulation of every
 population interaction.
@@ -414,13 +431,14 @@ Therefore:
 6. issue #1200 binds suitability to raw regional assembly evidence without applying a universal isolation penalty;
 7. issue #1202 permits explicit profile-specific dispersal accessibility while preserving missing-neighbor uncertainty;
 8. issue #1204 permits explicit profile-specific disturbance/recovery state while preserving missing-history uncertainty;
-9. later replacement response/community models must be versioned or explicitly migrated;
-10. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+9. issue #1206 composes suitability and explicit assembly factors into transparent profile-specific support without asserting occupancy;
+10. later replacement response/community models must be versioned or explicitly migrated;
+11. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-11. new ecology authority should be earned through deterministic reference evidence before a backend
+12. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1204
+## Immediate next work after #1206
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -436,9 +454,12 @@ A prudent sequence is:
 5. keep #1198 community suitability as a potential-establishment layer rather than an occupancy result;
 6. keep #1200 isolation evidence raw and #1202 dispersal accessibility explicitly profile-specific;
 7. keep #1204 disturbance history explicit and its recovery interpretation profile-specific;
-8. introduce functional-group assembly profiles only when dispersal and disturbance responses are
-   explicit and testable rather than assigning one universal filter;
-9. add realization/functional-group fields before any concrete species/population policy.
+8. use #1206 community assembly profiles as transparent support evaluators, not occupancy decisions;
+9. introduce broader functional-group/niche profiles only when their suitability, dispersal, and
+   disturbance semantics are explicit and testable rather than inferred from species/backend identity;
+10. add ecological realization fields only after assembly support can be mapped to visible structure
+    without erasing unresolved evidence;
+11. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
