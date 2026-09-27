@@ -15,6 +15,7 @@ import io.github.nidaba.skyforge.world.WorldBounds;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicReachGeometry;
 import io.github.nidaba.skyforge.world.SkyIslandProjectedFluvialTerrainSample;
+import io.github.nidaba.skyforge.world.SkyIslandQualifiedFluvialZone;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -44,7 +45,9 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
 
         StringBuilder summary = new StringBuilder(
                 "specimen,islandKey,realizedReaches,projectedSamples,affectedSamples,"
-                        + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld,maxTargetThicknessWorld\n");
+                        + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld,maxTargetThicknessWorld,"
+                        + "authorizedIntegerColumns,affectedIntegerColumns,minIntegerDeltaWorld,"
+                        + "maxIntegerDeltaWorld,minIntegerTargetThicknessWorld\n");
         StringBuilder reaches = new StringBuilder(
                 "specimen,islandKey,startCell,endCell,samples,affectedSamples,"
                         + "minDeltaWorld,maxDeltaWorld,minTargetThicknessWorld\n");
@@ -144,6 +147,9 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                         .append('\n');
             }
 
+            IntegerEnvelopeEvidence integerEvidence =
+                    scanAuthorizedIntegerColumns(candidate, volume, projection);
+
             if (projectedSamples == 0) {
                 minDelta = 0.0;
                 maxDelta = 0.0;
@@ -158,9 +164,92 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                     .append(format(minDelta)).append(',')
                     .append(format(maxDelta)).append(',')
                     .append(format(minThickness)).append(',')
-                    .append(format(maxThickness))
+                    .append(format(maxThickness)).append(',')
+                    .append(integerEvidence.authorizedColumns()).append(',')
+                    .append(integerEvidence.affectedColumns()).append(',')
+                    .append(format(integerEvidence.minimumDeltaWorld())).append(',')
+                    .append(format(integerEvidence.maximumDeltaWorld())).append(',')
+                    .append(format(integerEvidence.minimumTargetThicknessWorld()))
                     .append('\n');
         }
+
+    private static IntegerEnvelopeEvidence scanAuthorizedIntegerColumns(
+            SkyIslandComponentFluvialTerrainCandidatePlan candidate,
+            CompiledSkyIslandVolume volume,
+            SkyIslandComponentFluvialWorldSurfaceProjection projection) {
+        if (candidate.terrainField().acceptedReaches().isEmpty()) {
+            return new IntegerEnvelopeEvidence(0, 0, 0.0, 0.0, 0.0);
+        }
+
+        double minimumLocalX = Double.POSITIVE_INFINITY;
+        double maximumLocalX = Double.NEGATIVE_INFINITY;
+        double minimumLocalZ = Double.POSITIVE_INFINITY;
+        double maximumLocalZ = Double.NEGATIVE_INFINITY;
+        for (SkyIslandHydraulicReachGeometry reach :
+                candidate.terrainField().acceptedReaches()) {
+            double margin = reach.maximumBankfullHalfWidth() * 3.5 + 1.0;
+            for (var point : reach.centerline().points()) {
+                minimumLocalX = Math.min(minimumLocalX, point.x() - margin);
+                maximumLocalX = Math.max(maximumLocalX, point.x() + margin);
+                minimumLocalZ = Math.min(minimumLocalZ, point.z() - margin);
+                maximumLocalZ = Math.max(maximumLocalZ, point.z() + margin);
+            }
+        }
+
+        int minimumWorldX =
+                (int) Math.floor(volume.descriptor().centerX() + minimumLocalX);
+        int maximumWorldX =
+                (int) Math.ceil(volume.descriptor().centerX() + maximumLocalX);
+        int minimumWorldZ =
+                (int) Math.floor(volume.descriptor().centerZ() + minimumLocalZ);
+        int maximumWorldZ =
+                (int) Math.ceil(volume.descriptor().centerZ() + maximumLocalZ);
+
+        int authorized = 0;
+        int affected = 0;
+        double minimumDelta = Double.POSITIVE_INFINITY;
+        double maximumDelta = Double.NEGATIVE_INFINITY;
+        double minimumThickness = Double.POSITIVE_INFINITY;
+
+        for (int worldX = minimumWorldX; worldX <= maximumWorldX; worldX++) {
+            for (int worldZ = minimumWorldZ; worldZ <= maximumWorldZ; worldZ++) {
+                double localX = worldX - volume.descriptor().centerX();
+                double localZ = worldZ - volume.descriptor().centerZ();
+                var semantic = candidate.terrainField().sampleDetailed(
+                        new io.github.nidaba.skyforge.world.SkyIslandLocalPosition(
+                                localX, localZ));
+                if (semantic.zone() == SkyIslandQualifiedFluvialZone.UNAFFECTED) {
+                    continue;
+                }
+
+                SkyIslandProjectedFluvialTerrainSample sample =
+                        projection.sampleWorld(worldX, worldZ);
+                authorized++;
+                minimumDelta = Math.min(minimumDelta, sample.terrainDeltaWorldUnits());
+                maximumDelta = Math.max(maximumDelta, sample.terrainDeltaWorldUnits());
+                minimumThickness =
+                        Math.min(
+                                minimumThickness,
+                                sample.targetColumnThicknessWorldUnits());
+                if (sample.terrainDeltaWorldUnits() < -1.0e-12) {
+                    affected++;
+                }
+            }
+        }
+
+        if (authorized == 0) {
+            return new IntegerEnvelopeEvidence(0, 0, 0.0, 0.0, 0.0);
+        }
+        return new IntegerEnvelopeEvidence(
+                authorized, affected, minimumDelta, maximumDelta, minimumThickness);
+    }
+
+    private record IntegerEnvelopeEvidence(
+            int authorizedColumns,
+            int affectedColumns,
+            double minimumDeltaWorld,
+            double maximumDeltaWorld,
+            double minimumTargetThicknessWorld) {}
 
     private static SkyIslandAuthoredRealizationAssociation productionAssociation(
             SkyIslandDescriptor descriptor,
