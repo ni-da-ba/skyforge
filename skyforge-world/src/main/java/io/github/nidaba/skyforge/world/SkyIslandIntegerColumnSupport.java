@@ -6,8 +6,9 @@ import java.util.Optional;
 /**
  * Backend-neutral exact integer support of one compiled island column.
  *
- * <p>The integer convention matches the established compiled-terrain materialization boundary:
- * solid Y samples lie strictly between compiled underside and upper surfaces.
+ * <p>The integer convention matches the established compiled-terrain materialization boundary.
+ * The record captures the first and last exact solid sample; internal AIR (for example a cave)
+ * remains valid and is not collapsed into a false continuity claim.
  */
 public record SkyIslandIntegerColumnSupport(int minimumSolidY, int maximumSolidY) {
     public SkyIslandIntegerColumnSupport {
@@ -43,12 +44,6 @@ public record SkyIslandIntegerColumnSupport(int minimumSolidY, int maximumSolidY
         while (last >= first
                 && !terrain.classify(worldX, last, worldZ).isSolid()) {
             last--;
-        }
-        for (int y = first; y <= last; y++) {
-            if (!terrain.classify(worldX, y, worldZ).isSolid()) {
-                throw new IllegalStateException(
-                        "compiled integer column support is discontinuous");
-            }
         }
         return Optional.of(new SkyIslandIntegerColumnSupport(first, last));
     }
