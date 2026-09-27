@@ -78,6 +78,36 @@ The accepted 8/81/77 F4B envelope contains 8,969 authorized integer columns. F4C
 - prove extra excavation below the qualified continuous target is exactly zero;
 - keep primary-287, confluence-632, and lake-609 at zero voxel authority.
 
+## First fixed-corpus result
+
+The production 8/81/77 association admits both F4A/F4B terminal components:
+
+- qualified components: `2`;
+- rejected components: `0`;
+- authorized integer columns: `8,969`;
+- columns that actually cross an integer boundary: `4,911`;
+- total exact solid voxels removed by the quantized plan: `15,849`;
+- maximum removed voxels in one column: `7`;
+- maximum ceiling residual above the qualified continuous target: `0.999999918` block;
+- minimum nonnegative residual: `0.000407162` block;
+- extra excavation below the qualified continuous target: `0.000000000`.
+
+The deliberately weak 8/81/77 physical association rejects both terminal components atomically:
+
+- qualified components: `0`;
+- rejected components: `2`;
+- authorized columns: `0`;
+- mutated columns: `0`.
+
+Primary-287, confluence-632, and lake-609 likewise retain zero F4C authority because upstream F4A
+grants them no terrain candidate.
+
+The fact that maximum per-column removal is seven voxels does **not** represent a seven-block backend
+repair allowance. That removal is the discretized form of the already-qualified F4B continuous cut
+(which reaches roughly 6.94 world units in the full envelope). The backend-specific error is only the
+ceiling residual above the continuous target, and it remains strictly below one block. F4C permits
+zero excavation below that target.
+
 ## Failure semantics
 
 Admission is atomic per complete F3E/F4A terminal component.
