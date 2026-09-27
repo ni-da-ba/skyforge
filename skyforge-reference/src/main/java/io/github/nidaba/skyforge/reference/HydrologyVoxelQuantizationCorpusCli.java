@@ -37,23 +37,28 @@ public final class HydrologyVoxelQuantizationCorpusCli {
         Files.createDirectories(out);
 
         StringBuilder summary = new StringBuilder(
-                "specimen,islandKey,authorizedColumns,mutatedColumns,totalRemovedBlocks,"
+                "specimen,islandKey,qualifiedComponents,rejectedComponents,authorizedColumns,mutatedColumns,totalRemovedBlocks,"
                         + "maxRemovedPerColumn,maxUndercutResidualWorld,minUndercutResidualWorld,"
                         + "extraExcavationBelowQualifiedTarget\n");
 
         for (Specimen specimen : List.of(
-                new Specimen("ordinary-77", descriptor(8L, 81L, 77L)),
-                new Specimen("primary-287", descriptor(8L, 81L, 287L)),
-                new Specimen("confluence-632", descriptor(8L, 81L, 632L)),
-                new Specimen("lake-609", descriptor(8L, 81L, 609L)))) {
+                new Specimen("ordinary-77", descriptor(8L, 81L, 77L), false),
+                new Specimen("ordinary-77-weak", descriptor(8L, 81L, 77L), true),
+                new Specimen("primary-287", descriptor(8L, 81L, 287L), false),
+                new Specimen("confluence-632", descriptor(8L, 81L, 632L), false),
+                new Specimen("lake-609", descriptor(8L, 81L, 609L), false))) {
             SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                     SkyIslandComponentFluvialTerrainCandidatePlanner.plan(
                             specimen.descriptor());
             SkyIslandFluvialVoxelQuantizationPlan plan =
                     SkyIslandFluvialVoxelQuantizationPlanner.plan(
-                            productionAssociation(
-                                    specimen.descriptor(),
-                                    910_000L + specimen.descriptor().identity().islandKey()),
+                            specimen.weak()
+                                    ? weakAssociation(
+                                            specimen.descriptor(),
+                                            920_000L + specimen.descriptor().identity().islandKey())
+                                    : productionAssociation(
+                                            specimen.descriptor(),
+                                            910_000L + specimen.descriptor().identity().islandKey()),
                             candidate);
 
             int maxRemoved = plan.authorizedColumns().stream()
@@ -65,8 +70,15 @@ public final class HydrologyVoxelQuantizationCorpusCli {
                     .min()
                     .orElse(0.0);
 
+            long qualifiedComponents = plan.components().stream()
+                    .filter(component -> component.status()
+                            == io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelComponentStatus.QUALIFIED)
+                    .count();
+
             summary.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
+                    .append(qualifiedComponents).append(',')
+                    .append(plan.rejectedComponents().size()).append(',')
                     .append(plan.authorizedColumns().size()).append(',')
                     .append(plan.mutatedColumns().size()).append(',')
                     .append(plan.totalRemovedSolidBlocks()).append(',')
@@ -135,6 +147,49 @@ public final class HydrologyVoxelQuantizationCorpusCli {
         return SkyIslandAuthoredRealizationAssociation.of(descriptor, volume);
     }
 
+    private static SkyIslandAuthoredRealizationAssociation weakAssociation(
+            SkyIslandDescriptor descriptor,
+            long geometrySeed) {
+        double radius = descriptor.nominalRadius();
+        SkyIslandVolumeDescriptor physical =
+                SkyIslandVolumeDescriptor.schema2(
+                        geometrySeed,
+                        96.0,
+                        -64.0,
+                        220.0,
+                        radius,
+                        1.0,
+                        1.0,
+                        Math.min(18.0, radius * 0.10),
+                        0.0,
+                        0.24,
+                        0.62,
+                        0.0,
+                        descriptor.morphologyFamily(),
+                        0.0,
+                        28.0,
+                        0.0);
+        CompiledSkyIslandVolume compiled =
+                new SemanticSkyIslandVolumeRecipe().compile(physical);
+        SkyIslandWorldVolume volume =
+                new SkyIslandWorldVolume(
+                        new SkyIslandWorldVolumeId(
+                                REALIZATION_ROOT,
+                                "f4c-corpus-weak",
+                                0,
+                                0,
+                                geometrySeed),
+                        new WorldBounds(
+                                96.0 - radius,
+                                96.0 + radius,
+                                28.0,
+                                412.0,
+                                -64.0 - radius,
+                                -64.0 + radius),
+                        compiled);
+        return SkyIslandAuthoredRealizationAssociation.of(descriptor, volume);
+    }
+
     private static String format(double value) {
         return String.format(Locale.ROOT, "%.9f", value);
     }
@@ -144,5 +199,5 @@ public final class HydrologyVoxelQuantizationCorpusCli {
                 SkyIslandIdentity.of(SEED, province, cluster, key));
     }
 
-    private record Specimen(String name, SkyIslandDescriptor descriptor) {}
+    private record Specimen(String name, SkyIslandDescriptor descriptor, boolean weak) {}
 }
