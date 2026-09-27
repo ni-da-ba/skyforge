@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -226,6 +226,15 @@ Singleton catalogs preserve `no neighbor evidence` as an empty optional value ra
 infinite isolation. Likewise, nominal radial gap remains geometric evidence based on nominal radii; it
 is not promoted to physical terrain-edge distance.
 
+Issue #1202 adds a parameterized dispersal-response seam. `SkyIslandCommunityDispersalProfile` interprets
+raw #1200 isolation evidence for one explicit dispersal strategy, and
+`SkyIslandCommunityAssemblyAccessibility` binds that exact profile/evidence pair to an optional normalized
+accessibility result. The first generic implementation, `SkyIslandExponentialDispersalProfile`, applies
+`exp(-gap / characteristicGap)` to nearest nominal radial gap using a caller-supplied positive distance
+scale. This deliberately avoids a universal isolation score or hard-coded organism category.
+
+Missing neighbor evidence remains unresolved accessibility rather than being converted to 0 or 1.
+
 This layer should remain parsimonious. Add an assembly filter only when it explains a concrete
 ecological distinction or downstream consumer. It must not become a hidden simulation of every
 population interaction.
@@ -392,13 +401,14 @@ Therefore:
 4. issue #1196 adds overlapping habitat-opportunity fields without replacing the AUTH-0003 categorical compatibility projection;
 5. issue #1198 adds overlapping structural community suitability without asserting occupancy;
 6. issue #1200 binds suitability to raw regional assembly evidence without applying a universal isolation penalty;
-7. later replacement response/community models must be versioned or explicitly migrated;
-8. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+7. issue #1202 permits explicit profile-specific dispersal accessibility while preserving missing-neighbor uncertainty;
+8. later replacement response/community models must be versioned or explicitly migrated;
+9. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-9. new ecology authority should be earned through deterministic reference evidence before a backend
+10. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1200
+## Immediate next work after #1202
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -412,11 +422,11 @@ A prudent sequence is:
 4. introduce richer or more physical ecological responses only from those real neutral producers and
    version/migrate them explicitly rather than silently changing AUTH-0003;
 5. keep #1198 community suitability as a potential-establishment layer rather than an occupancy result;
-6. keep #1200 isolation evidence raw until an explicit dispersal profile defines how one functional
-   group experiences distance/connectivity;
-7. add assembly transforms only where dispersal, disturbance, succession, or other biotic filtering
-   changes the ecological answer;
-8. add realization/functional-group fields before any concrete species/population policy.
+6. keep #1200 isolation evidence raw and #1202 dispersal accessibility explicitly profile-specific;
+7. introduce functional-group assembly profiles only when their dispersal semantics are explicit and
+   testable, rather than assigning one global connectivity response;
+8. add disturbance/succession filters only where they materially change realized structure;
+9. add realization/functional-group fields before any concrete species/population policy.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
