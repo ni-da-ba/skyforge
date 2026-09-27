@@ -43,7 +43,12 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         var voxel = SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
         var direct = SkyIslandWorldWaterProjectionQualificationPlanner.plan(voxel);
         var head = SkyIslandWorldWaterHeadRefinementPlanner.plan(direct);
-        var refined = SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);\n        var requantized = SkyIslandRefinedFluvialVoxelQuantizationPlanner.plan(\n                association, candidate, refined.terrainField());\n        if (requantized.authorizedColumns().stream().anyMatch(column -> column.removedSolidBlocks() < 0)) {\n            throw new IllegalStateException("F4H produced a negative removal count");\n        }
+        var refined = SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
+        var requantized = SkyIslandRefinedFluvialVoxelQuantizationPlanner.plan(
+                association, candidate, refined.terrainField());
+        if (requantized.authorizedColumns().stream().anyMatch(column -> column.removedSolidBlocks() < 0)) {
+            throw new IllegalStateException("F4H produced a negative removal count");
+        }
 
         double centerX =
                 association.realizedVolume().compiledVolume().descriptor().centerX();
@@ -82,7 +87,8 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         String summary =
                 "specimen,islandKey,refinedReaches,totalReaches,postD2Rejected,"
                         + "authorizedColumns,requantizedColumns,requantizedRemovedBlocks,shallowerColumns,unchangedColumns,deeperColumns,"
-                        + "maxRecoveryWorld,meanRecoveryWorld\n"
+                        + "maxRecoveryWorld,meanRecoveryWorld
+"
                         + String.format(
                                 Locale.ROOT,
                                 "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
@@ -99,7 +105,8 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                                 meanRecoveryWorld);
 
         StringBuilder reaches = new StringBuilder(
-                "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential\n");
+                "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential
+");
         for (var reach : refined.reaches()) {
             var semantic = reach.geomorphicRoute().semanticReach();
             long identity = ((long) semantic.startCellIndex() << 32)
@@ -126,7 +133,8 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                     .append(format(maxRaise)).append(',')
                     .append(format(reach.maximumRequiredLowering())).append(',')
                     .append(format(reach.meanRequiredLowering()))
-                    .append('\n');
+                    .append('
+');
         }
 
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
