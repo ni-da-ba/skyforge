@@ -102,6 +102,9 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialVoxelQuantizationPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusTest.java"
+      - "docs/implementation/HYDROLOGY_RESET_TRANCHE_F4D.md"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeQualifiedFluvialVoxelRemovalProjection.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeQualifiedFluvialVoxelRemovalProjectionTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -257,6 +260,7 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandFluvialVoxelQuantizationPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyVoxelQuantizationCorpusTest' \
+            :skyforge-neoforge-1211:test --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
