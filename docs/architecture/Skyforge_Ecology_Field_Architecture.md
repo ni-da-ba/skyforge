@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194  
+**Governing issues:** #1192, #1194, #1196  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -172,6 +172,11 @@ wetland              0.07
 
 This overlap is intentional. It provides ecotones and lets downstream clients choose how much
 categorical simplification they need.
+
+Issue #1196 implements the first overlapping habitat-opportunity layer through
+`SkyIslandHabitatOpportunityFieldSet`. The initial opportunities are woodland, open vegetation,
+saturated lowland, alpine/exposed, and xeric/exposed. They are continuous environmental opportunity
+envelopes, not biome IDs, occupancy claims, or mutually exclusive communities.
 
 The current `SkyIslandEcologyRegime` enum remains an accepted compact summary/compatibility vocabulary.
 It is **not** promoted to the final community taxonomy, and issue #1192 does not change its thresholds.
@@ -368,13 +373,14 @@ Therefore:
 1. the current AUTH-0003 formula/classification remains available through the compatibility factory;
 2. issue #1192 changes dependency injection, not ecological output;
 3. issue #1194 moves the accepted continuous response formulas into a reusable field layer without changing their values;
-4. later replacement response/community models must be versioned or explicitly migrated;
-5. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+4. issue #1196 adds overlapping habitat-opportunity fields without replacing the AUTH-0003 categorical compatibility projection;
+5. later replacement response/community models must be versioned or explicitly migrated;
+6. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-6. new ecology authority should be earned through deterministic reference evidence before a backend
+7. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1194
+## Immediate next work after #1196
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -383,13 +389,14 @@ invented in advance.
 A prudent sequence is:
 
 1. keep the AUTH-0003 response set as the stable compatibility baseline;
-2. inventory accepted atmosphere/hydrology/geology/morphology fields that have stable semantics;
-3. introduce richer or more physical ecological responses only from those real neutral producers and
+2. keep #1196 habitat opportunity as an overlapping environmental envelope rather than a final biome taxonomy;
+3. inventory accepted atmosphere/hydrology/geology/morphology fields that have stable semantics;
+4. introduce richer or more physical ecological responses only from those real neutral producers and
    version/migrate them explicitly rather than silently changing AUTH-0003;
-4. introduce overlapping community suitability after the relevant response inputs are stable;
-5. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
+5. introduce named community suitability only after the relevant environmental response inputs are stable;
+6. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
    filtering changes the ecological answer;
-6. add realization/functional-group fields before any concrete species/population policy.
+7. add realization/functional-group fields before any concrete species/population policy.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
