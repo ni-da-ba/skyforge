@@ -84,7 +84,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     : adapter.adapt(chunk, materialization);
         }
         MinecraftChunkWriteResult result = binding.writer().writeSolidOverlay(chunk, materialization);
-        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+        // Hydrology is deliberately not implicit here. F4J requires an exact F4H-backed\n        // runtime authorization before any water deployment may occur.
         SkyforgeNeoForge1211IsolationDevRuntime.verifyAfterSkyforge(chunk, isolationProof);
         SkyforgeRuntimePerformanceMetrics.recordSince("terrain.realize", performanceStart);
         return Optional.of(result);
@@ -278,7 +278,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
             progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
             SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            // Hydrology is deliberately not implicit here. F4J requires an exact F4H-backed\n        // runtime authorization before any water deployment may occur.
             long quantumElapsedNanos = SkyforgeRuntimePerformanceMetrics.elapsedSince(performanceStart);
             SkyforgeRuntimePerformanceMetrics.recordElapsed("terrain.realizeDeferredPacket", quantumElapsedNanos);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
@@ -314,7 +314,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         if (terminal) {
             long completeStart = SkyforgeRuntimePerformanceMetrics.start();
             SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-            SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+            // Hydrology is deliberately not implicit here. F4J requires an exact F4H-backed\n        // runtime authorization before any water deployment may occur.
             progressData.discardCachedPreparation(pending.volumeId(), pending.chunkKey());
             progressData.discardCachedMaterialization(pending.volumeId(), pending.chunkKey());
             SkyforgeRuntimePerformanceMetrics.recordSince("terrain.deferred.completeCatchup", completeStart);
@@ -429,7 +429,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         }
         long completeStart = SkyforgeRuntimePerformanceMetrics.start();
         SkyforgePhysicalVolumeAdmissionStage.completeCatchup(pending);
-        SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
+        // Hydrology is deliberately not implicit here. F4J requires an exact F4H-backed\n        // runtime authorization before any water deployment may occur.
         SkyforgeRuntimePerformanceMetrics.recordSince(
                 "terrain.deferred.completeCatchup",
                 completeStart);
