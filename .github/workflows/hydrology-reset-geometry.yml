@@ -102,6 +102,12 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialVoxelQuantizationPlannerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4E.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandProjectedFluvialWaterSample.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandComponentFluvialWorldWaterProjection.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandComponentFluvialWorldWaterProjectionTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWorldWaterProjectionCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWorldWaterProjectionCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryRole.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicTransitionBoundaryState.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceTransitionSite.java"
@@ -257,6 +263,8 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandFluvialVoxelQuantizationPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyVoxelQuantizationCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest' \
+            :skyforge-reference:test --tests '*HydrologyWorldWaterProjectionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
@@ -346,6 +354,13 @@ jobs:
           fi
           echo "--- voxel-quantization-summary.csv ---"
           cat skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyWorldWaterProjectionCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- world-water-projection-summary.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv
+          echo "--- world-water-projection-reaches.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv
 
       - name: Dump focused failure report
         if: failure()
