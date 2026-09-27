@@ -49,7 +49,12 @@ public final class HydrologyWorldSurfaceProjectionCorpusCli {
                 appendSpecimen(specimen, summary, reaches);
             } catch (RuntimeException exception) {
                 throw new IllegalStateException(
-                        "F4B projection corpus failed for specimen " + specimen.name(),
+                        "F4B projection corpus failed for specimen "
+                                + specimen.name()
+                                + ": "
+                                + exception.getClass().getSimpleName()
+                                + ": "
+                                + exception.getMessage(),
                         exception);
             }
         }
