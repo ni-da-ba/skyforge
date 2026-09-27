@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 
 class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     private static final long SEED = 0x534B59464F524745L;
+    private static final long REALIZATION_ROOT = 0x5245414C495A4552L;
     private static final double EPSILON = 1.0e-9;
 
     @Test
@@ -21,11 +22,12 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
-        CompiledSkyIslandVolume volume =
-                compiled(descriptor, 910_077L, 140.0, -96.0, descriptor.nominalRadius());
+        SkyIslandAuthoredRealizationAssociation association =
+                productionAssociation(descriptor, 910_077L, 0, 0);
+        CompiledSkyIslandVolume volume = association.realizedVolume().compiledVolume();
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                        descriptor, candidate, volume);
+                        association, candidate);
 
         int affected = 0;
         for (SkyIslandHydraulicReachGeometry reach :
@@ -65,10 +67,14 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandAuthoredRealizationAssociation originAssociation =
+                productionAssociation(descriptor, 920_077L, 0, 0);
+        SkyIslandAuthoredRealizationAssociation translatedAssociation =
+                productionAssociation(descriptor, 920_077L, 0, 1);
         CompiledSkyIslandVolume origin =
-                compiled(descriptor, 920_077L, 0.0, 0.0, descriptor.nominalRadius());
+                originAssociation.realizedVolume().compiledVolume();
         CompiledSkyIslandVolume translated =
-                compiled(descriptor, 920_077L, 320.0, -176.0, descriptor.nominalRadius());
+                translatedAssociation.realizedVolume().compiledVolume();
 
         SkyIslandLocalPosition local =
                 candidate.terrainField()
@@ -80,11 +86,13 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
 
         SkyIslandProjectedFluvialTerrainSample a =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                                descriptor, candidate, origin)
-                        .sampleWorld(local.x(), local.z());
+                                originAssociation, candidate)
+                        .sampleWorld(
+                                origin.descriptor().centerX() + local.x(),
+                                origin.descriptor().centerZ() + local.z());
         SkyIslandProjectedFluvialTerrainSample b =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                                descriptor, candidate, translated)
+                                translatedAssociation, candidate)
                         .sampleWorld(
                                 translated.descriptor().centerX() + local.x(),
                                 translated.descriptor().centerZ() + local.z());
@@ -98,11 +106,12 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
-        CompiledSkyIslandVolume volume =
-                compiled(descriptor, 910_077L, 96.0, -64.0, descriptor.nominalRadius());
+        SkyIslandAuthoredRealizationAssociation association =
+                weakAssociation(descriptor, 910_077L, 96.0, -64.0);
+        CompiledSkyIslandVolume volume = association.realizedVolume().compiledVolume();
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                        descriptor, candidate, volume);
+                        association, candidate);
 
         boolean rejected = false;
         outer:
@@ -128,8 +137,9 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 287L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
-        CompiledSkyIslandVolume volume =
-                compiled(descriptor, 910_287L, 0.0, 0.0, descriptor.nominalRadius());
+        SkyIslandAuthoredRealizationAssociation association =
+                productionAssociation(descriptor, 910_287L, 0, 0);
+        CompiledSkyIslandVolume volume = association.realizedVolume().compiledVolume();
         SkyIslandHydraulicReachSkeleton reach =
                 SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor)
                         .reaches()
@@ -139,8 +149,10 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
 
         SkyIslandProjectedFluvialTerrainSample sample =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                                descriptor, candidate, volume)
-                        .sampleWorld(local.x(), local.z());
+                                association, candidate)
+                        .sampleWorld(
+                                volume.descriptor().centerX() + local.x(),
+                                volume.descriptor().centerZ() + local.z());
 
         assertEquals(0.0, sample.terrainDeltaWorldUnits(), EPSILON);
         assertEquals(
@@ -174,9 +186,13 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                         0.0);
         CompiledSkyIslandVolume thin =
                 new SemanticSkyIslandVolumeRecipe().compile(physical);
+        SkyIslandWorldVolume thinVolume =
+                worldVolume(descriptor, thin, 9, 9);
+        SkyIslandAuthoredRealizationAssociation thinAssociation =
+                SkyIslandAuthoredRealizationAssociation.of(descriptor, thinVolume);
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
-                        descriptor, candidate, thin);
+                        thinAssociation, candidate);
         SkyIslandLocalPosition local =
                 candidate.terrainField()
                         .acceptedReaches()
@@ -236,6 +252,93 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         assertEquals(a.waterSurfacePotential(), b.waterSurfacePotential(), EPSILON);
         assertEquals(a.zone(), b.zone());
         assertEquals(a.provenance(), b.provenance());
+    }
+
+    private static SkyIslandAuthoredRealizationAssociation productionAssociation(
+            SkyIslandDescriptor descriptor,
+            long geometrySeed,
+            int groupOrdinal,
+            int memberOrdinal) {
+        double centerX = 1200.0 + 800.0 * groupOrdinal + 240.0 * memberOrdinal;
+        double centerZ = -900.0 + 520.0 * groupOrdinal - 180.0 * memberOrdinal;
+        SkyIslandVolumeDescriptor physical =
+                SkyIslandVolumeDescriptor.schema2(
+                        geometrySeed,
+                        centerX,
+                        centerZ,
+                        256.0,
+                        descriptor.nominalRadius(),
+                        72.0,
+                        104.0,
+                        Math.min(32.0, descriptor.nominalRadius()),
+                        0.43,
+                        0.62,
+                        0.57,
+                        0.18,
+                        descriptor.morphologyFamily(),
+                        0.22,
+                        38.0,
+                        0.31);
+        CompiledSkyIslandVolume compiled =
+                new SemanticSkyIslandVolumeRecipe().compile(physical);
+        return SkyIslandAuthoredRealizationAssociation.of(
+                descriptor,
+                worldVolume(descriptor, compiled, groupOrdinal, memberOrdinal));
+    }
+
+    private static SkyIslandAuthoredRealizationAssociation weakAssociation(
+            SkyIslandDescriptor descriptor,
+            long geometrySeed,
+            double centerX,
+            double centerZ) {
+        SkyIslandVolumeDescriptor physical =
+                SkyIslandVolumeDescriptor.schema2(
+                        geometrySeed,
+                        centerX,
+                        centerZ,
+                        220.0,
+                        descriptor.nominalRadius(),
+                        58.0,
+                        82.0,
+                        Math.min(54.0, descriptor.nominalRadius() * 0.18),
+                        0.0,
+                        0.24,
+                        0.62,
+                        0.0,
+                        descriptor.morphologyFamily(),
+                        0.10,
+                        28.0,
+                        0.18);
+        CompiledSkyIslandVolume compiled =
+                new SemanticSkyIslandVolumeRecipe().compile(physical);
+        return SkyIslandAuthoredRealizationAssociation.of(
+                descriptor,
+                worldVolume(descriptor, compiled, 8, 8));
+    }
+
+    private static SkyIslandWorldVolume worldVolume(
+            SkyIslandDescriptor descriptor,
+            CompiledSkyIslandVolume compiled,
+            int groupOrdinal,
+            int memberOrdinal) {
+        var physical = compiled.descriptor();
+        double radius = physical.nominalRadius();
+        SkyIslandWorldVolumeId id =
+                new SkyIslandWorldVolumeId(
+                        REALIZATION_ROOT,
+                        "f4b-" + groupOrdinal,
+                        groupOrdinal,
+                        memberOrdinal,
+                        physical.seed());
+        WorldBounds bounds =
+                new WorldBounds(
+                        physical.centerX() - radius,
+                        physical.centerX() + radius,
+                        physical.suspensionElevation() - 192.0,
+                        physical.suspensionElevation() + 192.0,
+                        physical.centerZ() - radius,
+                        physical.centerZ() + radius);
+        return new SkyIslandWorldVolume(id, bounds, compiled);
     }
 
     private static CompiledSkyIslandVolume compiled(
