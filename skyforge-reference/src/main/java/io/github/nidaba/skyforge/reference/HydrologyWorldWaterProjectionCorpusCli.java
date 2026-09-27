@@ -16,6 +16,9 @@ import io.github.nidaba.skyforge.world.SkyIslandHydraulicReachGeometry;
 import io.github.nidaba.skyforge.world.SkyIslandProjectedFluvialWaterSample;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificationPlan;
+import io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificationPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandWorldWaterReachQualification;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -39,13 +42,15 @@ public final class HydrologyWorldWaterProjectionCorpusCli {
         Files.createDirectories(out);
 
         StringBuilder summary = new StringBuilder(
-                "specimen,islandKey,qualifiedTerrainComponents,authorizedTerrainColumns,"
+                "specimen,islandKey,qualifiedTerrainComponents,qualifiedWaterComponents,"
+                        + "headRefinementRequiredComponents,authorizedTerrainColumns,"
                         + "wetIntegerColumns,minWaterDepthWorld,maxWaterDepthWorld,"
                         + "minWaterOffsetFromOriginalUpper,maxWaterOffsetFromOriginalUpper\n");
         StringBuilder reaches = new StringBuilder(
-                "specimen,islandKey,startCell,endCell,centerlineSamples,wetCenterlineSamples,"
-                        + "minimumWaterHeadWorld,maximumWaterHeadWorld,uphillSegments,"
-                        + "maximumUpclimbWorld,maximumUpclimbGrade,maximumAbsoluteGrade\n");
+                "specimen,islandKey,startCell,endCell,accepted,violations,"
+                        + "centerlineSamples,wetCenterlineSamples,minimumWaterHeadWorld,"
+                        + "maximumWaterHeadWorld,uphillSegments,maximumUpclimbWorld,"
+                        + "maximumUpclimbGrade,maximumAbsoluteGrade\n");
 
         for (Specimen specimen : List.of(
                 new Specimen("ordinary-77", descriptor(8L, 81L, 77L)),
@@ -63,6 +68,9 @@ public final class HydrologyWorldWaterProjectionCorpusCli {
             SkyIslandComponentFluvialWorldWaterProjection water =
                     new SkyIslandComponentFluvialWorldWaterProjection(
                             association, candidate);
+            SkyIslandWorldWaterProjectionQualificationPlan waterQualification =
+                    SkyIslandWorldWaterProjectionQualificationPlanner.plan(
+                            terrainVoxelPlan);
 
             int wetColumns = 0;
             double minDepth = Double.POSITIVE_INFINITY;
@@ -98,6 +106,8 @@ public final class HydrologyWorldWaterProjectionCorpusCli {
             summary.append(specimen.name()).append(',')
                     .append(specimen.descriptor().identity().islandKey()).append(',')
                     .append(qualifiedComponents).append(',')
+                    .append(waterQualification.qualifiedComponents().size()).append(',')
+                    .append(waterQualification.refinementRequiredComponents().size()).append(',')
                     .append(terrainVoxelPlan.authorizedColumns().size()).append(',')
                     .append(wetColumns).append(',')
                     .append(format(minDepth)).append(',')
@@ -106,71 +116,28 @@ public final class HydrologyWorldWaterProjectionCorpusCli {
                     .append(format(maxOffset))
                     .append('\n');
 
-            for (SkyIslandHydraulicReachGeometry reach :
-                    candidate.terrainField().acceptedReaches()) {
-                int wetCenterline = 0;
-                int uphillSegments = 0;
-                double minHead = Double.POSITIVE_INFINITY;
-                double maxHead = Double.NEGATIVE_INFINITY;
-                double maxUpclimb = 0.0;
-                double maxUpclimbGrade = 0.0;
-                double maxAbsoluteGrade = 0.0;
-                Double previousHead = null;
-                io.github.nidaba.skyforge.world.SkyIslandLocalPosition previous = null;
-
-                for (var local : reach.centerline().points()) {
-                    double worldX =
-                            association.realizedVolume().compiledVolume().descriptor().centerX()
-                                    + local.x();
-                    double worldZ =
-                            association.realizedVolume().compiledVolume().descriptor().centerZ()
-                                    + local.z();
-                    SkyIslandProjectedFluvialWaterSample sample =
-                            water.sampleWorld(worldX, worldZ);
-                    if (!sample.wet()) {
-                        throw new IllegalStateException(
-                                "F4A realized centerline unexpectedly lost F4E water authority");
-                    }
-                    wetCenterline++;
-                    double head = sample.waterSurfaceWorldY().orElseThrow();
-                    minHead = Math.min(minHead, head);
-                    maxHead = Math.max(maxHead, head);
-                    if (previousHead != null) {
-                        double ds = Math.hypot(
-                                local.x() - previous.x(),
-                                local.z() - previous.z());
-                        if (!(ds > 0.0)) {
-                            throw new IllegalStateException(
-                                    "F4E centerline must advance by positive distance");
-                        }
-                        double rise = head - previousHead;
-                        if (rise > 1.0e-9) {
-                            uphillSegments++;
-                            maxUpclimb = Math.max(maxUpclimb, rise);
-                            maxUpclimbGrade =
-                                    Math.max(maxUpclimbGrade, rise / ds);
-                        }
-                        maxAbsoluteGrade =
-                                Math.max(maxAbsoluteGrade, Math.abs(rise) / ds);
-                    }
-                    previousHead = head;
-                    previous = local;
+            for (var component : waterQualification.components()) {
+                for (SkyIslandWorldWaterReachQualification qualification :
+                        component.reaches()) {
+                    var diagnostics = qualification.diagnostics();
+                    var semantic =
+                            diagnostics.reach().geomorphicRoute().semanticReach();
+                    reaches.append(specimen.name()).append(',')
+                            .append(specimen.descriptor().identity().islandKey()).append(',')
+                            .append(semantic.startCellIndex()).append(',')
+                            .append(semantic.endCellIndex()).append(',')
+                            .append(qualification.accepted()).append(',')
+                            .append('"').append(qualification.violations()).append('"').append(',')
+                            .append(diagnostics.centerlineSamples()).append(',')
+                            .append(diagnostics.wetCenterlineSamples()).append(',')
+                            .append(format(diagnostics.minimumWaterHeadWorld())).append(',')
+                            .append(format(diagnostics.maximumWaterHeadWorld())).append(',')
+                            .append(diagnostics.uphillSegments()).append(',')
+                            .append(format(diagnostics.maximumUpclimbWorld())).append(',')
+                            .append(format(diagnostics.maximumUpclimbGrade())).append(',')
+                            .append(format(diagnostics.maximumAbsoluteGrade()))
+                            .append('\n');
                 }
-
-                var semantic = reach.geomorphicRoute().semanticReach();
-                reaches.append(specimen.name()).append(',')
-                        .append(specimen.descriptor().identity().islandKey()).append(',')
-                        .append(semantic.startCellIndex()).append(',')
-                        .append(semantic.endCellIndex()).append(',')
-                        .append(reach.centerline().points().size()).append(',')
-                        .append(wetCenterline).append(',')
-                        .append(format(minHead)).append(',')
-                        .append(format(maxHead)).append(',')
-                        .append(uphillSegments).append(',')
-                        .append(format(maxUpclimb)).append(',')
-                        .append(format(maxUpclimbGrade)).append(',')
-                        .append(format(maxAbsoluteGrade))
-                        .append('\n');
             }
         }
 
