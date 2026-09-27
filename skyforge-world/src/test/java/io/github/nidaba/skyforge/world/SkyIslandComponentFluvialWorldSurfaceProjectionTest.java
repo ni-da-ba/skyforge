@@ -91,14 +91,6 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
 
         assertEquivalentSemanticSample(a.semanticSample(), b.semanticSample());
         assertEquals(a.terrainDeltaWorldUnits(), b.terrainDeltaWorldUnits(), EPSILON);
-        assertEquals(
-                a.originalColumnThicknessWorldUnits(),
-                b.originalColumnThicknessWorldUnits(),
-                EPSILON);
-        assertEquals(
-                a.targetColumnThicknessWorldUnits(),
-                b.targetColumnThicknessWorldUnits(),
-                EPSILON);
     }
 
     @Test
@@ -158,7 +150,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void projectionReportsSupportExhaustionWithoutBackendReconciliation() {
+    void projectionFailsClosedWhenAuthorizedCutWouldCollapseCompiledColumn() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -193,14 +185,9 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                         .points()
                         .getFirst();
 
-        SkyIslandProjectedFluvialTerrainSample sample =
-                projection.sampleWorld(local.x(), local.z());
-        assertTrue(sample.supportExhausted());
-        assertTrue(sample.supportMarginWorldUnits() <= EPSILON);
-        assertEquals(
-                sample.semanticSample().terrainDeltaPotential() * descriptor.reliefBudget(),
-                sample.terrainDeltaWorldUnits(),
-                EPSILON);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> projection.sampleWorld(local.x(), local.z()));
     }
 
     @Test
