@@ -40,7 +40,11 @@ physical and environmental source fields
 ecological response fields
           |
           v
-community suitability fields
+community / habitat suitability fields
+          |
+          v
+community assembly state
+(dispersal/connectivity, disturbance/succession, biotic filters)
           |
           v
 ecological realization fields
@@ -167,10 +171,43 @@ categorical simplification they need.
 The current `SkyIslandEcologyRegime` enum remains an accepted compact summary/compatibility vocabulary.
 It is **not** promoted to the final community taxonomy, and issue #1192 does not change its thresholds.
 
-## 5. Ecological realization layer
+## 5. Community assembly layer
 
-Suitability says what the environment can support. Realization describes the authored ecological
-structure that actually exists.
+Environmental suitability is not occupancy.
+
+A location can be physically suitable for a community or functional group without that community
+being present. Later ecology may therefore apply explicit assembly filters such as:
+
+- regional availability / biogeographic pool;
+- island isolation and inter-island connectivity;
+- dispersal opportunity;
+- disturbance history and recurrence;
+- successional state;
+- competition, predation, grazing, or other accepted biotic interactions;
+- civilization/land-use influence where explicitly authored.
+
+The separation is deliberate:
+
+~~~text
+environmental response
+    -> potential habitat / fundamental suitability
+    -> assembly filters and history
+    -> realized community state
+~~~
+
+AUTH-0092-style isolation evidence is therefore potentially relevant to assembly, but raw isolation
+must not be converted into occupancy through an implicit threshold. Likewise, disturbance is not merely
+another climate scalar: discrete or historical disturbance can change realized community state even
+where the underlying abiotic environment remains suitable.
+
+This layer should remain parsimonious. Add an assembly filter only when it explains a concrete
+ecological distinction or downstream consumer. It must not become a hidden simulation of every
+population interaction.
+
+## 6. Ecological realization layer
+
+Suitability says what the environment can support; assembly constrains what establishes and persists.
+Realization describes the resulting authored ecological structure.
 
 Candidate backend-neutral realization fields include:
 
@@ -189,7 +226,7 @@ These fields are semantic outputs. A realization layer may use deterministic sig
 variation, but random variation may not create ecological identity independently of environmental
 causes.
 
-## 6. Functional groups before concrete species
+## 7. Functional groups before concrete species
 
 Core ecological mechanics should prefer reusable functional groups or niches over backend entity IDs.
 
@@ -213,7 +250,7 @@ Concrete vanilla/modded species are downstream content/backend choices constrain
 A rich installed mod catalogue is therefore compatible with a sparse authored island: the ecological
 model constrains which roles are actually realized.
 
-## 7. Backend boundary
+## 8. Backend boundary
 
 The ecology kernel/world layer may expose:
 
@@ -237,7 +274,7 @@ policy, or backend lifecycle into neutral ecology.
 The same ecology result should be consumable by a Minecraft adapter, a mod integration, a reference
 visualizer, or another game/backend without changing its authored meaning.
 
-## 8. Graph integration and provenance
+## 9. Graph integration and provenance
 
 Ecological dependencies must remain visible as field dependencies.
 
@@ -265,7 +302,7 @@ This preserves:
 An ecology result must retain enough authored identity/provenance that later consumers do not
 rediscover an island from seed, coordinate proximity, encounter order, or backend state.
 
-## 9. Resolution and dimensionality
+## 10. Resolution and dimensionality
 
 Not every ecological quantity needs the same spatial dimensionality or sampling scale.
 
@@ -279,7 +316,7 @@ Do not force every ecological concept into one global raster resolution. Reuse S
 principle: evaluate at the spatial scale required by the consumer while preserving deterministic
 semantics and explicit aggregation rules.
 
-## 10. Hierarchy and descriptors
+## 11. Hierarchy and descriptors
 
 World/province/cluster/island descriptors may bias ecological priors and composition, but they do not
 paint backend biomes directly.
@@ -287,7 +324,7 @@ paint backend biomes directly.
 The hierarchy is:
 
 ~~~text
-descriptor/context -> environmental causes -> response -> suitability -> realization
+descriptor/context -> environmental causes -> response -> suitability -> assembly -> realization
 ~~~
 
 not:
@@ -300,7 +337,7 @@ A semantic descriptor such as lush, dry, exposed, ancient, or disturbed may alte
 response parameters only through an explicit contract. Environmental feasibility still constrains the
 result.
 
-## 11. Initial acyclic rule
+## 12. Initial acyclic rule
 
 Real ecosystems feed back into hydrology and atmosphere through interception, evapotranspiration,
 roughness, infiltration, erosion, and albedo.
@@ -317,7 +354,7 @@ morphology/geology/atmosphere/hydrology
 Any future coupled iteration requires a separately specified convergence/authority model. No ecology
 implementation may quietly mutate an upstream field.
 
-## 12. Compatibility and migration policy
+## 13. Compatibility and migration policy
 
 AUTH-0003 and its downstream projections/profiles are already accepted project contracts.
 
@@ -343,7 +380,22 @@ A prudent sequence is:
 3. retain AUTH-0003 as the compatibility projection while comparing the richer response field against
    deterministic reference islands;
 4. introduce overlapping community suitability only after the response inputs are stable;
-5. add realization/functional-group fields before any concrete species/population policy.
+5. add explicit assembly state only where dispersal, isolation, disturbance, succession, or biotic
+   filtering changes the ecological answer;
+6. add realization/functional-group fields before any concrete species/population policy.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
+
+## Ecological modelling rationale
+
+This layering intentionally mirrors established ecosystem/community modelling distinctions rather than
+treating biome labels as causes. Abiotic resources and ambient environment constrain feasibility;
+disturbance, dispersal, and biotic interactions additionally filter community assembly; ecosystem
+structure and function are resulting properties rather than interchangeable labels. Functional groups
+are useful abstractions, but continuous trait/response variation should remain possible instead of
+forcing all vegetation into a small fixed type list.
+
+For Skyforge this is an architectural discipline, not a claim to reproduce Earth ecology in full.
+Complexity should be added only when it creates visible, gameplay-relevant, or analytically useful
+world differences while preserving deterministic provenance and backend neutrality.
