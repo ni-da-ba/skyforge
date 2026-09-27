@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -285,9 +285,23 @@ Candidate backend-neutral realization fields include:
 - deadwood/disturbance structure;
 - functional-group mixture.
 
-These fields are semantic outputs. A realization layer may use deterministic signals for controlled
-variation, but random variation may not create ecological identity independently of environmental
-causes.
+Issue #1208 establishes the first realization seam through explicit per-community structural-capacity
+profiles and optional structural-realization envelopes. The initial normalized dimensions are vegetation
+density, canopy cover, canopy-height potential, understory density, ground cover, biomass potential,
+patchiness potential, organic-surface accumulation potential, and deadwood potential.
+
+`SkyIslandCommunityRealizationProfile` deliberately does not infer one structural signature from a
+community archetype. A caller supplies the exact structural capacity and transform. The initial
+`SkyIslandLinearSupportRealizationTransform` scales each capacity by resolved #1206 assembly support.
+Missing assembly support remains unresolved realization rather than becoming zero or full structure.
+
+These outputs remain normalized semantic structure. Canopy-height potential is not meters, biomass
+potential is not physical mass, and the result does not identify species or backend blocks/features.
+This first realization layer is also per-community: it does not choose a winner or combine multiple
+community realizations into one final landscape.
+
+A realization layer may later use deterministic signals for controlled variation, but random variation
+may not create ecological identity independently of environmental causes.
 
 ## 7. Functional groups before concrete species
 
@@ -432,13 +446,14 @@ Therefore:
 7. issue #1202 permits explicit profile-specific dispersal accessibility while preserving missing-neighbor uncertainty;
 8. issue #1204 permits explicit profile-specific disturbance/recovery state while preserving missing-history uncertainty;
 9. issue #1206 composes suitability and explicit assembly factors into transparent profile-specific support without asserting occupancy;
-10. later replacement response/community models must be versioned or explicitly migrated;
-11. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+10. issue #1208 maps resolved community assembly support into explicit per-community neutral structural-realization envelopes without backend content or winner selection;
+11. later replacement response/community models must be versioned or explicitly migrated;
+12. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-12. new ecology authority should be earned through deterministic reference evidence before a backend
+13. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1206
+## Immediate next work after #1208
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -455,11 +470,13 @@ A prudent sequence is:
 6. keep #1200 isolation evidence raw and #1202 dispersal accessibility explicitly profile-specific;
 7. keep #1204 disturbance history explicit and its recovery interpretation profile-specific;
 8. use #1206 community assembly profiles as transparent support evaluators, not occupancy decisions;
-9. introduce broader functional-group/niche profiles only when their suitability, dispersal, and
-   disturbance semantics are explicit and testable rather than inferred from species/backend identity;
-10. add ecological realization fields only after assembly support can be mapped to visible structure
-    without erasing unresolved evidence;
-11. keep concrete species/population lifecycle policy downstream of neutral realization.
+9. keep #1208 structural realization explicitly per-community and policy-driven rather than inferred
+   automatically from community names;
+10. introduce a multi-community composition layer only when coexistence/blending semantics can be made
+    explicit without turning overlap into hidden winner selection;
+11. introduce broader functional-group/niche profiles only when their suitability, dispersal, and
+    disturbance semantics are explicit and testable rather than inferred from species/backend identity;
+12. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
