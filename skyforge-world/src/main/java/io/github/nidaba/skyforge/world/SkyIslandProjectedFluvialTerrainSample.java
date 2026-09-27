@@ -60,6 +60,21 @@ public record SkyIslandProjectedFluvialTerrainSample(
         return targetUpperSurfaceWorldY - undersideSurfaceWorldY;
     }
 
+    /**
+     * Signed remaining support after applying the exact F4A-authorized cut.
+     *
+     * <p>A non-positive value is evidence that the continuous cut would consume the compiled column.
+     * F4B reports that condition; it does not clamp the cut, move the underside, or grant backend
+     * authority to reconcile it.
+     */
+    public double supportMarginWorldUnits() {
+        return targetColumnThicknessWorldUnits();
+    }
+
+    public boolean supportExhausted() {
+        return supportMarginWorldUnits() <= EPSILON;
+    }
+
     private static void requireFinite(double value, String name) {
         if (!Double.isFinite(value)) {
             throw new IllegalArgumentException(name + " must be finite");
