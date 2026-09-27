@@ -50,6 +50,8 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                                 + sample.terrainDeltaWorldUnits(),
                         sample.targetUpperSurfaceWorldY(),
                         EPSILON);
+                assertTrue(
+                        sample.targetColumnThicknessWorldUnits() > 0.0);
                 assertTrue(sample.terrainDeltaWorldUnits() <= EPSILON);
                 if (sample.terrainDeltaWorldUnits() < -EPSILON) {
                     affected++;
@@ -100,7 +102,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void physicalPlacementWithInsufficientLocalThicknessRemainsVisibleToDownstreamAdmission() {
+    void physicalPlacementWithInsufficientLocalThicknessFailsClosed() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -111,23 +113,23 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
                         association, candidate);
 
-        boolean foundUnsupported = false;
+        boolean rejected = false;
         outer:
         for (SkyIslandHydraulicReachGeometry reach :
                 candidate.terrainField().acceptedReaches()) {
             for (SkyIslandLocalPosition local : reach.centerline().points()) {
-                SkyIslandProjectedFluvialTerrainSample sample =
-                        projection.sampleWorld(
-                                volume.descriptor().centerX() + local.x(),
-                                volume.descriptor().centerZ() + local.z());
-                if (!sample.hasPositiveTargetColumnThickness()) {
-                    foundUnsupported = true;
+                try {
+                    projection.sampleWorld(
+                            volume.descriptor().centerX() + local.x(),
+                            volume.descriptor().centerZ() + local.z());
+                } catch (IllegalArgumentException expected) {
+                    rejected = true;
                     break outer;
                 }
             }
         }
 
-        assertTrue(foundUnsupported);
+        assertTrue(rejected);
     }
 
     @Test
@@ -160,7 +162,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void projectionReportsCollapsedTargetColumnWithoutGrantingRealizationAuthority() {
+    void projectionFailsClosedWhenAuthorizedCutWouldCollapseCompiledColumn() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -191,23 +193,17 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
         SkyIslandComponentFluvialWorldSurfaceProjection projection =
                 new SkyIslandComponentFluvialWorldSurfaceProjection(
                         thinAssociation, candidate);
+        SkyIslandLocalPosition local =
+                candidate.terrainField()
+                        .acceptedReaches()
+                        .getFirst()
+                        .centerline()
+                        .points()
+                        .getFirst();
 
-        boolean foundCollapsed = false;
-        for (SkyIslandHydraulicReachGeometry reach :
-                candidate.terrainField().acceptedReaches()) {
-            for (SkyIslandLocalPosition local : reach.centerline().points()) {
-                SkyIslandProjectedFluvialTerrainSample sample =
-                        projection.sampleWorld(local.x(), local.z());
-                if (!sample.hasPositiveTargetColumnThickness()) {
-                    foundCollapsed = true;
-                    break;
-                }
-            }
-            if (foundCollapsed) {
-                break;
-            }
-        }
-        assertTrue(foundCollapsed);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> projection.sampleWorld(local.x(), local.z()));
     }
 
     @Test
