@@ -30,21 +30,21 @@ public record SkyIslandProjectedFluvialWaterSample(
                         "dry F4A samples cannot carry world-space water depth");
             }
             waterDepthWorldUnits = 0.0;
-            return;
-        }
-
-        double water = waterSurfaceWorldY.orElseThrow();
-        if (!Double.isFinite(water)) {
-            throw new IllegalArgumentException("water surface must be finite");
-        }
-        double expectedDepth = water - terrainProjection.targetUpperSurfaceWorldY();
-        if (!(expectedDepth > EPSILON)) {
-            throw new IllegalArgumentException(
-                    "F4A-wet sample must project positive world-space water depth");
-        }
-        if (Math.abs(expectedDepth - waterDepthWorldUnits) > EPSILON) {
-            throw new IllegalArgumentException(
-                    "world-space water depth must equal water surface minus F4B terrain target");
+        } else {
+            double water = waterSurfaceWorldY.orElseThrow();
+            if (!Double.isFinite(water)) {
+                throw new IllegalArgumentException("water surface must be finite");
+            }
+            double expectedDepth =
+                    water - terrainProjection.targetUpperSurfaceWorldY();
+            if (!(expectedDepth > EPSILON)) {
+                throw new IllegalArgumentException(
+                        "F4A-wet sample must project positive world-space water depth");
+            }
+            if (Math.abs(expectedDepth - waterDepthWorldUnits) > EPSILON) {
+                throw new IllegalArgumentException(
+                        "world-space water depth must equal water surface minus F4B terrain target");
+            }
         }
     }
 
