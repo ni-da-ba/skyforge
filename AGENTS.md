@@ -18,6 +18,7 @@ This file is a map, not the full manual. Read deeper documents only when the cur
 - Validation/evidence economy: `docs/agent-state/VALIDATION_POLICY.md`
 - **Execution authority / infrastructure boundaries: `docs/agent-state/EXECUTION_BOUNDARIES.md`**
 - Current supervisory snapshot: `docs/agent-state/AUDIT_STATE.md`
+- Dated director audit / proposed future paths: `docs/audit/2026-09-27/START_HERE.md` (reference only; not dispatch authority)
 - Cross-lane invariants: `docs/agent-state/CROSS_LANE_CONTRACTS.md`
 - Human product decisions/triggers: `docs/agent-state/HUMAN_STRATEGY_ROADMAP.md`
 - Lane state:
@@ -40,20 +41,20 @@ If summaries disagree with `main`, source/tests, or merged history, the reposito
 Read `docs/agent-state/EXECUTION_BOUNDARIES.md` before choosing where any command or validation runs. The short form is:
 
 ```text
-DigitalOcean Droplet = orchestration/control plane ONLY
-GitHub / Actions      = project development + automated machine validation
-Nicholas local PC     = manual/interactive/human verification ONLY
+DigitalOcean Droplet = orchestration + bounded edit-only workers
+GitHub / Actions      = durable project state + automated machine validation
+Nicholas local PC     = manual/interactive/human verification
 ```
 
 There is **no fallback between these planes**. In particular:
 
-- never perform project implementation, producer edits, Gradle/Java/NeoForge builds, tests, benchmarks, or automated milestone verification on the DigitalOcean Droplet;
-- never treat the Droplet as a remote Codex development workspace or launch a hosted implementation worker there;
+- bounded hosted workers may inspect and edit only within the canonical execution contract and current controller ownership;
+- never run Gradle/Java/NeoForge builds, tests, benchmarks, generators, or automated milestone verification on the DigitalOcean Droplet;
 - if GitHub Actions is unavailable, wait/block rather than shifting automated work to the Droplet or local workstation;
 - if a human/manual gate is unavailable, leave the gate pending rather than substituting hosted automation;
-- Droplet maintenance may recover/export pre-existing legacy worker bytes, but recovery must not continue development or project validation there.
+- recovery of legacy worker bytes does not authorize project validation or unclaimed development on the Droplet.
 
-Older prompts/docs/manifests that describe a hosted worker or hosted JDK for project verification are superseded by `EXECUTION_BOUNDARIES.md` and must be repaired rather than followed.
+Older prompts/docs/manifests that describe hosted project verification or a hosted project JDK are superseded by `EXECUTION_BOUNDARIES.md` and must be repaired rather than followed.
 
 ## Lane ownership
 
