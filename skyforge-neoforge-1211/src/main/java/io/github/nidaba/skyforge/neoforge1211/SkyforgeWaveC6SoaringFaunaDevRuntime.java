@@ -377,6 +377,38 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         return HAWK_ID.equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
     }
 
+    static boolean diagnosticsReady() {
+        return birds != null && atmosphere != null;
+    }
+
+    static HawkDiagnostics diagnosticsFor(Mob hawk) {
+        synchronized (HAWKS) {
+            HawkState state = HAWKS.get(hawk);
+            if (state == null) {
+                return HawkDiagnostics.absent();
+            }
+            return new HawkDiagnostics(
+                    true,
+                    !state.disabled,
+                    state.disabled,
+                    state.decision.soaring(),
+                    state.transitionCount,
+                    state.steeringCommands);
+        }
+    }
+
+    record HawkDiagnostics(
+            boolean present,
+            boolean adapted,
+            boolean disabled,
+            boolean soaring,
+            int transitions,
+            int steeringCommands) {
+        static HawkDiagnostics absent() {
+            return new HawkDiagnostics(false, false, false, false, 0, 0);
+        }
+    }
+
     static int adaptedHawkCountForAcceptance() {
         synchronized (HAWKS) {
             return (int) HAWKS.values().stream().filter(state -> !state.disabled).count();

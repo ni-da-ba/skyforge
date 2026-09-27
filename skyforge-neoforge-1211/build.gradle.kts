@@ -2033,6 +2033,66 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #1180 machine A/B. These runs consume cloned copies of the already accepted DR-50 A
+        // world. They do not install any Skyforge terrain mutation runtime; only Fowl Play and,
+        // for the treatment arm, the accepted C6 adapter are allowed to affect live hawk behavior.
+        create("sfImp1180HawkControlServer") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1180-hawk-control").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.atmosphereConsumerAbDiagnostic", "true")
+            systemProperty("skyforge.dev.atmosphereConsumerAbArm", "control")
+            systemProperty(
+                "skyforge.dev.atmosphereConsumerAbOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/hawk-control.json").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-1180-hawk-control")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/hawk-control.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("sfImp1180HawkTreatmentServer") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1180-hawk-treatment").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.atmosphereConsumerAbDiagnostic", "true")
+            systemProperty("skyforge.dev.atmosphereConsumerAbArm", "treatment")
+            systemProperty(
+                "skyforge.dev.atmosphereConsumerAbOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/hawk-treatment.json").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-1180-hawk-treatment")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty("skyforge.dev.acceptanceFreezeRandomTicks", "true")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/hawk-treatment.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // #495 final shared-truth + reconstruction evidence. Both server boots use the same
         // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
         // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.
