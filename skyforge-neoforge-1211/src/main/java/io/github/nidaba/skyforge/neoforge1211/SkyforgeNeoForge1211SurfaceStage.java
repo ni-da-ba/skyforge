@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization;
 import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
 import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
 import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
@@ -613,20 +614,33 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
-        return install(adapter, writer, Optional.empty());
+        return install(adapter, writer, Optional.empty(), Optional.empty());
+    }
+
+    /** Installs the preferred F4H-authorized hydrology runtime path. */
+    static AutoCloseable installAuthorizedHydrology(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyforgeNeoForge1211ChunkWriter writer,
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        return install(
+                adapter,
+                writer,
+                Optional.empty(),
+                Optional.of(Objects.requireNonNull(authorization, "authorization")));
     }
 
     static AutoCloseable installNativeSurfaceAdapted(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
-        return install(adapter, writer, Optional.of(new MinecraftNativeSurfaceTopAdapter()));
+        return install(adapter, writer, Optional.of(new MinecraftNativeSurfaceTopAdapter()), Optional.empty());
     }
 
     private static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer,
-            Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter) {
-        RuntimeBinding binding = new RuntimeBinding(adapter, writer, nativeSurfaceTopAdapter);
+            Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
+            Optional<SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorization) {
+        RuntimeBinding binding = new RuntimeBinding(adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorization);
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a Skyforge post-surface runtime binding is already installed");
         }
@@ -749,11 +763,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     private record RuntimeBinding(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer,
-            Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter) {
+            Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
+            Optional<SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorization) {
         private RuntimeBinding {
             Objects.requireNonNull(adapter, "adapter");
             Objects.requireNonNull(writer, "writer");
             Objects.requireNonNull(nativeSurfaceTopAdapter, "nativeSurfaceTopAdapter");
+            Objects.requireNonNull(hydrologyAuthorization, "hydrologyAuthorization");
         }
     }
 }
