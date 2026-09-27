@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 class HydrologyVoxelQuantizationCorpusTest {
@@ -19,10 +20,36 @@ class HydrologyVoxelQuantizationCorpusTest {
         String a = Files.readString(first.resolve("summary.csv"));
         String b = Files.readString(second.resolve("summary.csv"));
         assertEquals(a, b);
-        assertTrue(a.contains("ordinary-77,77,8969,"));
-        assertTrue(a.contains("primary-287,287,0,0,0,0,0.000000000,0.000000000,0.000000000"));
-        assertTrue(a.contains("confluence-632,632,0,0,0,0,0.000000000,0.000000000,0.000000000"));
-        assertTrue(a.contains("lake-609,609,0,0,0,0,0.000000000,0.000000000,0.000000000"));
+
+        String[] ordinary = row(a, "ordinary-77");
+        assertEquals("77", ordinary[1]);
+        assertEquals("2", ordinary[2]);
+        assertEquals("0", ordinary[3]);
+        assertEquals("8969", ordinary[4]);
+        assertEquals("0.000000000", ordinary[10]);
+
+        String[] weak = row(a, "ordinary-77-weak");
+        assertEquals("77", weak[1]);
+        assertTrue(Integer.parseInt(weak[3]) > 0);
+        assertEquals("0.000000000", weak[10]);
+
+        for (String name : new String[] {"primary-287", "confluence-632", "lake-609"}) {
+            String[] control = row(a, name);
+            assertEquals("0", control[2]);
+            assertEquals("0", control[3]);
+            assertEquals("0", control[4]);
+            assertEquals("0", control[5]);
+            assertEquals("0", control[6]);
+            assertEquals("0.000000000", control[10]);
+        }
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
+    }
+
+    private static String[] row(String csv, String specimen) {
+        return Arrays.stream(csv.split("\\R"))
+                .filter(line -> line.startsWith(specimen + ","))
+                .findFirst()
+                .orElseThrow()
+                .split(",");
     }
 }
