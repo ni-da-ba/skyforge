@@ -7,6 +7,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -14,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.phys.AABB;
 import net.neoforged.fml.ModList;
@@ -67,6 +69,7 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
             throw new IllegalArgumentException(
                     "#1180 diagnostic arm must be control or treatment, found " + arm);
         }
+        SkyforgeAutomatedAcceptanceHarness.installWarmupChunkKeys(diagnosticTickingChunks());
         NeoForge.EVENT_BUS.addListener(SkyforgeAtmosphereConsumerAbDiagnostic::onServerTickPost);
         installed = true;
         LOGGER.log(System.Logger.Level.INFO, "SF-IMP-1180 hawk A/B diagnostic armed arm=" + arm);
@@ -101,11 +104,6 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
         level.getServer().getCommands().performPrefixedCommand(source, "gamerule doMobSpawning false");
         level.getServer().getCommands().performPrefixedCommand(source, "time set 2000");
 
-        // Finite diagnostic-only loading. The persisted island occupies the origin footprint; the
-        // ordinary comparison batch lives far beyond the accepted island X/Z bounds.
-        warmRegion(level, 0, 0, 7);
-        warmRegion(level, ORDINARY_CENTER_X, ORDINARY_CENTER_Z, 4);
-
         spawnBatch(level, "island", 0, 0, bounds);
         spawnBatch(level, "ordinary", ORDINARY_CENTER_X, ORDINARY_CENTER_Z, bounds);
         if (observations.size() != BATCH_SIZE * 2) {
@@ -125,12 +123,23 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
                         + startTick);
     }
 
-    private static void warmRegion(ServerLevel level, int centerX, int centerZ, int chunkRadius) {
+    private static java.util.Set<Long> diagnosticTickingChunks() {
+        LinkedHashSet<Long> chunks = new LinkedHashSet<>();
+        addTickingSquare(chunks, 0, 0, 7);
+        addTickingSquare(chunks, ORDINARY_CENTER_X, ORDINARY_CENTER_Z, 7);
+        return java.util.Set.copyOf(chunks);
+    }
+
+    private static void addTickingSquare(
+            LinkedHashSet<Long> chunks,
+            int centerX,
+            int centerZ,
+            int chunkRadius) {
         int centerChunkX = Math.floorDiv(centerX, 16);
         int centerChunkZ = Math.floorDiv(centerZ, 16);
         for (int dx = -chunkRadius; dx <= chunkRadius; dx++) {
             for (int dz = -chunkRadius; dz <= chunkRadius; dz++) {
-                level.getChunk(centerChunkX + dx, centerChunkZ + dz);
+                chunks.add(ChunkPos.asLong(centerChunkX + dx, centerChunkZ + dz));
             }
         }
     }
@@ -225,10 +234,31 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
             return;
         }
 
+        long islandMoving = observations.stream()
+                .filter(observation -> observation.region.equals("island"))
+                .filter(HawkObservation::moved)
+                .count();
+        long ordinaryMoving = observations.stream()
+                .filter(observation -> observation.region.equals("ordinary"))
+                .filter(HawkObservation::moved)
+                .count();
+        if (islandMoving == 0L || ordinaryMoving == 0L) {
+            fail(
+                    level,
+                    "invalid hawk A/B fixture: stock AI did not demonstrably move in both regions"
+                            + " islandMoving="
+                            + islandMoving
+                            + " ordinaryMoving="
+                            + ordinaryMoving);
+            return;
+        }
+
         completed = true;
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("arm", arm());
         evidence.put("hawkCount", observations.size());
+        evidence.put("islandMovingHawks", islandMoving);
+        evidence.put("ordinaryMovingHawks", ordinaryMoving);
         evidence.put("c6Adapted", adapted);
         evidence.put("c6Transitions", transitions);
         evidence.put("c6SteeringCommands", steering);
@@ -283,6 +313,8 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
             json.append("      \"final_y\": ").append(number(o.finalY)).append(",\n");
             json.append("      \"max_horizontal_distance\": ")
                     .append(number(o.maxHorizontalDistance)).append(",\n");
+            json.append("      \"max_displacement_from_spawn\": ")
+                    .append(number(o.maxDisplacementFromSpawn)).append(",\n");
             json.append("      \"edge_departed\": ").append(o.edgeDeparted).append(",\n");
             json.append("      \"below_island_envelope\": ").append(o.belowIslandEnvelope).append(",\n");
             json.append("      \"near_terrain_after_departure\": ")
@@ -355,6 +387,7 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
         double sumY;
         double finalY;
         double maxHorizontalDistance;
+        double maxDisplacementFromSpawn;
         int samples;
         boolean edgeDeparted;
         boolean belowIslandEnvelope;
@@ -404,6 +437,12 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
             maxHorizontalDistance = Math.max(
                     maxHorizontalDistance,
                     Math.hypot(x - centerX, z - centerZ));
+            maxDisplacementFromSpawn = Math.max(
+                    maxDisplacementFromSpawn,
+                    Math.sqrt(
+                            Math.pow(x - spawnX, 2.0)
+                                    + Math.pow(y - spawnY, 2.0)
+                                    + Math.pow(z - spawnZ, 2.0)));
             if (region.equals("island")) {
                 if (x < islandBounds.minimumX()
                         || x > islandBounds.maximumX()
@@ -426,6 +465,10 @@ final class SkyforgeAtmosphereConsumerAbDiagnostic {
             } else if (maxHorizontalDistance > islandBounds.maximumX()) {
                 edgeDeparted = true;
             }
+        }
+
+        boolean moved() {
+            return maxDisplacementFromSpawn > 1.0;
         }
 
         double meanY() {
