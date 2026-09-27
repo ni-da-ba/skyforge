@@ -87,17 +87,18 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         String summary =
                 "specimen,islandKey,refinedReaches,totalReaches,postD2Rejected,"
                         + "authorizedColumns,requantizedColumns,requantizedRemovedBlocks,shallowerColumns,unchangedColumns,deeperColumns,"
-                        + "maxRecoveryWorld,meanRecoveryWorld
-"
+                        + "maxRecoveryWorld,meanRecoveryWorld\n"
                         + String.format(
                                 Locale.ROOT,
-                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
+                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
                                 refined.refinedReachCount(),
                                 refined.reaches().size(),
                                 refined.postRefinementQualifications().stream()
                                         .filter(q -> !q.accepted())
                                         .count(),
                                 voxel.authorizedColumns().size(),
+                                requantized.authorizedColumns().size(),
+                                requantized.totalRemovedSolidBlocks(),
                                 shallower,
                                 unchanged,
                                 deeper,
@@ -105,8 +106,7 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                                 meanRecoveryWorld);
 
         StringBuilder reaches = new StringBuilder(
-                "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential
-");
+                "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential\n");
         for (var reach : refined.reaches()) {
             var semantic = reach.geomorphicRoute().semanticReach();
             long identity = ((long) semantic.startCellIndex() << 32)
