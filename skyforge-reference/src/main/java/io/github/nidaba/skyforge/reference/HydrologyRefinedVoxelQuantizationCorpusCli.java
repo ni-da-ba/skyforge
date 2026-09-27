@@ -133,8 +133,7 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                     .append(format(maxRaise)).append(',')
                     .append(format(reach.maximumRequiredLowering())).append(',')
                     .append(format(reach.meanRequiredLowering()))
-                    .append('
-');
+                    .append('\n');
         }
 
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
