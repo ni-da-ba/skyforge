@@ -79,11 +79,15 @@ public final class SkyIslandCommunitySuitabilityFieldSet {
      */
     public SkyIslandCommunitySuitabilitySample sample(SkyIslandLocalPosition position) {
         Objects.requireNonNull(position, "position");
-        SkyIslandHabitatOpportunitySample habitat = habitatFields.sample(position);
-        if (isOutside(habitat)) {
+        double interiority = habitatFields.inputFields().interiority().sample(position);
+        if (!Double.isFinite(interiority) || interiority < 0.0 || interiority > 1.0) {
+            throw new IllegalArgumentException("interiority field must produce finite values in [0, 1]");
+        }
+        if (interiority <= 0.0) {
             return SkyIslandCommunitySuitabilitySample.outside();
         }
 
+        SkyIslandHabitatOpportunitySample habitat = habitatFields.sample(position);
         double vegetation =
                 habitatFields.responseFields().vegetationPotential().sample(position);
 
@@ -119,14 +123,6 @@ public final class SkyIslandCommunitySuitabilityFieldSet {
                 saturatedWetland,
                 alpineTundra,
                 xericScrub);
-    }
-
-    private static boolean isOutside(SkyIslandHabitatOpportunitySample habitat) {
-        return habitat.woodland() == 0.0
-                && habitat.openVegetation() == 0.0
-                && habitat.saturatedLowland() == 0.0
-                && habitat.alpineExposed() == 0.0
-                && habitat.xericExposed() == 0.0;
     }
 
     private static double clamp01(double value) {
