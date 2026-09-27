@@ -96,6 +96,36 @@ class SkyIslandComponentFluvialWorldWaterProjectionTest {
     }
 
     @Test
+    void ordinary77DirectWorldProjectionRequiresHeadRefinement() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandAuthoredRealizationAssociation association =
+                productionAssociation(descriptor, 910_077L);
+        SkyIslandFluvialVoxelQuantizationPlan terrain =
+                SkyIslandFluvialVoxelQuantizationPlanner.plan(
+                        association, candidate);
+        SkyIslandWorldWaterProjectionQualificationPlan qualification =
+                SkyIslandWorldWaterProjectionQualificationPlanner.plan(terrain);
+
+        assertEquals(2, qualification.components().size());
+        assertTrue(qualification.qualifiedComponents().isEmpty());
+        assertEquals(2, qualification.refinementRequiredComponents().size());
+        for (SkyIslandWorldWaterComponentQualification component :
+                qualification.refinementRequiredComponents()) {
+            assertEquals(
+                    SkyIslandWorldWaterComponentStatus.HEAD_REFINEMENT_REQUIRED,
+                    component.status());
+            assertFalse(component.blockers().isEmpty());
+            assertEquals(1, component.reaches().size());
+            assertTrue(component.reaches().getFirst().violations().contains(
+                    SkyIslandWorldWaterQualificationViolation.UPHILL_HEAD));
+            assertFalse(component.reaches().getFirst().violations().contains(
+                    SkyIslandWorldWaterQualificationViolation.LONGITUDINAL_GRADE));
+        }
+    }
+
+    @Test
     void rejectedOrDeferredControlsPublishNoWaterAuthority() {
         for (long key : List.of(287L, 632L, 609L)) {
             SkyIslandDescriptor descriptor = descriptor(8L, 81L, key);
