@@ -117,7 +117,10 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
                         association, candidate, refined.terrainField());
 
         assertTrue(authorization.allowsVolume(association.realizedVolumeId()));
-        SkyIslandFluvialVoxelColumn column = voxel.authorizedColumns().getFirst();
+        SkyIslandFluvialVoxelColumn column = voxel.authorizedColumns().stream()
+                .filter(candidateColumn -> candidateColumn.removedSolidBlocks() > 0)
+                .findFirst()
+                .orElseThrow();
         assertTrue(authorization.allowsHydrologyPosition(
                 column.worldX(),
                 column.targetMaximumSolidY(),
