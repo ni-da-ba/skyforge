@@ -117,6 +117,16 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandComponentFluvialWorldWaterProjectionTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWorldWaterProjectionCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWorldWaterProjectionCorpusTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4F.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementSample.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementReach.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementComponent.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterHeadRefinementPlannerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWorldHeadRefinementCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWorldHeadRefinementCorpusTest.java"
       - "docs/implementation/HYDROLOGY_RESET_TRANCHE_F4D.md"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeQualifiedFluvialVoxelRemovalProjection.java"
       - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeQualifiedFluvialVoxelRemovalProjectionTest.java"
@@ -277,6 +287,8 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyVoxelQuantizationCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest' \
             :skyforge-reference:test --tests '*HydrologyWorldWaterProjectionCorpusTest' \
+            :skyforge-world:test --tests '*SkyIslandWorldWaterHeadRefinementPlannerTest' \
+            :skyforge-reference:test --tests '*HydrologyWorldHeadRefinementCorpusTest' \
             :skyforge-neoforge-1211:test --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
@@ -374,6 +386,13 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv
           echo "--- world-water-projection-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyWorldHeadRefinementCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- world-head-refinement-summary.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv
+          echo "--- world-head-refinement-components.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/components.csv
 
       - name: Dump focused failure report
         if: failure()
