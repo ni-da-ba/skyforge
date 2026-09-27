@@ -2033,6 +2033,54 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+
+        // #1180 deterministic consumer-behavior A/B. Both arms reopen byte-identical DR-50 A
+        // clones with the patched terrain-provider seam. The control observes stock Fowl Play;
+        // treatment additionally enables C6. C7 is projected from the accepted pure coupling
+        // against live trusted A4MC samples so no gameplay tuning is introduced.
+        create("sfImp1180ConsumerControlServer") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1180-control").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            programArgument("--port")
+            programArgument("25578")
+            systemProperty("skyforge.dev.consumerBehaviorDiagnostic", "control")
+            systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+            systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            systemProperty(
+                "skyforge.dev.consumerBehaviorDiagnosticOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/control.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("sfImp1180ConsumerTreatmentServer") {
+            server()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1180-treatment").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            programArgument("--port")
+            programArgument("25578")
+            systemProperty("skyforge.dev.consumerBehaviorDiagnostic", "treatment")
+            systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+            systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty(
+                "skyforge.dev.consumerBehaviorDiagnosticOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/treatment.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // #495 final shared-truth + reconstruction evidence. Both server boots use the same
         // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
         // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.

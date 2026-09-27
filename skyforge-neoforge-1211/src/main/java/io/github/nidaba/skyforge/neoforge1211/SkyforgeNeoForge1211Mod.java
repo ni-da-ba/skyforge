@@ -64,6 +64,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeNeoForge1211ProductionMorphologyAtlasViewer.installFromSystemProperty();
         SkyforgeWaveC6SoaringFaunaDevRuntime.installFromSystemProperty();
         SkyforgeWaveC7GliderLiftDevRuntime.installFromSystemProperty();
+        SkyforgeConsumerBehaviorDiagnostic.installFromSystemProperty();
         SkyforgeWaveC10NetherScaleAcceptance.installFromSystemProperty();
         SkyforgeWaveC11FirstFlightRecipeAcceptance.installFromSystemProperty();
         SkyforgePortableEngineCutoffAcceptance.installFromSystemProperty();
