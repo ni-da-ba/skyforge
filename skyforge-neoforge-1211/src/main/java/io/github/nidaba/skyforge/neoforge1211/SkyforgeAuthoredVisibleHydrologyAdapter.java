@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelColumn;
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
 import io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
@@ -109,27 +110,97 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(authorization, "authorization");
-        int written = 0;
-        for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
-            if (!authorization.allowsVolume(volume.id())) {
-                continue;
-            }
-            var descriptor = terrain.authoredDescriptor(volume.id());
-            if (descriptor.isEmpty()) {
-                continue;
-            }
-            for (Deployment deployment : plan(descriptor.orElseThrow(), volume, terrain)) {
-                List<BlockPos> positions = deployment.positions().stream()
-                        .filter(position -> authorization.allowsHydrologyPosition(
-                                position.getX(), position.getY(), position.getZ()))
-                        .toList();
-                if (!positions.isEmpty()) {
-                    written += apply(chunk, new Deployment(
-                            deployment.volumeId(), deployment.feature(), positions));
+
+        // F4D is the only source of terrain-removal positions. The projection is exact and
+        // re-validates the authorization token before any ChunkAccess mutation occurs.
+        int changed = 0;
+        for (var component : SkyforgeQualifiedFluvialVoxelRemovalProjection.plan(
+                authorization.quantization(), authorization)) {
+            for (BlockPos position : component.positions()) {
+                if (!chunk.getPos().equals(new ChunkPos(position))) {
+                    continue;
+                }
+                requireAuthorizedOwner(terrain, authorization, position);
+                if (!chunk.getBlockState(position).isAir()) {
+                    var previous = chunk.getBlockState(position);
+                    chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                            chunk, position, previous, chunk.getBlockState(position));
+                    changed++;
                 }
             }
         }
-        return written;
+
+        // F4H water heads are reconstructed from the refined world-space projection, not from
+        // legacy AUTH-0086 intent geometry. Only columns with a discrete removal band can carry
+        // water: omitting a sub-voxel column is the permitted one-sided quantization residual.
+        for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {
+            if (!column.projection().semanticSample().wet()
+                    || !column.mutatesTerrain()) {
+                continue;
+            }
+            int waterMaximumY = waterMaximumY(column, authorization);
+            int firstWaterY = column.targetMaximumSolidY() + 1;
+            if (waterMaximumY < firstWaterY) {
+                continue;
+            }
+            if (waterMaximumY > column.originalSupport().maximumSolidY()) {
+                throw new IllegalStateException(
+                        "F4H water head would require unsupported voxel addition");
+            }
+            for (int y = firstWaterY; y <= waterMaximumY; y++) {
+                BlockPos position = new BlockPos(column.worldX(), y, column.worldZ());
+                if (!chunk.getPos().equals(new ChunkPos(position))) {
+                    continue;
+                }
+                requireAuthorizedOwner(terrain, authorization, position);
+                if (!chunk.getBlockState(position).is(Blocks.WATER)) {
+                    var previous = chunk.getBlockState(position);
+                    chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                            chunk, position, previous, chunk.getBlockState(position));
+                    changed++;
+                }
+            }
+        }
+        return changed;
+    }
+
+    private static void requireAuthorizedOwner(
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandHydrologyRuntimeAuthorization authorization,
+            BlockPos position) {
+        if (!authorization.allowsHydrologyPosition(
+                        position.getX(), position.getY(), position.getZ())
+                || !terrain.isSolidOwnedBy(
+                        authorization.association().realizedVolumeId(),
+                        position.getX(),
+                        position.getY(),
+                        position.getZ())
+                || terrain.isSolidOwnedByOtherVolume(
+                        authorization.association().realizedVolumeId(),
+                        position.getX(),
+                        position.getY(),
+                        position.getZ())) {
+            throw new IllegalStateException(
+                    "F4H hydrology position is outside the exact realized volume owner");
+        }
+    }
+
+    private static int waterMaximumY(
+            SkyIslandFluvialVoxelColumn column,
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        var projection = column.projection();
+        var semantic = projection.semanticSample();
+        double waterHeadWorld = projection.originalUpperSurfaceWorldY()
+                + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
+                        * authorization.association().authoredDescriptor().reliefBudget();
+        if (!Double.isFinite(waterHeadWorld)
+                || waterHeadWorld < Integer.MIN_VALUE
+                || waterHeadWorld > (double) Integer.MAX_VALUE + 1.0) {
+            throw new IllegalStateException("F4H water head is outside Minecraft integer coordinates");
+        }
+        return (int) Math.ceil(waterHeadWorld) - 1;
     }
 
     private static Deployment atPath(
