@@ -119,6 +119,20 @@ Per reach:
 Primary-287, confluence-632, and lake-609 remain exact zero-projection controls because F4A grants
 them no terrain candidate.
 
+The conservative integer X/Z envelope around both realized reach cross-sections also passes physical
+support admission:
+
+- F4A/F4B-authorized integer columns: `8,969`;
+- columns with non-zero continuous terrain cut: `5,858`;
+- minimum integer-column sampled delta: `-6.941952488`;
+- maximum integer-column sampled delta: `0.000000000`;
+- minimum remaining compiled thickness over the full authorized integer envelope:
+  `14.064577406` world units.
+
+This envelope check is still F4B projection evidence rather than voxelization. It exists to prove
+that the later voxelizer is not being handed physically unsupported bank or valley columns hidden
+outside the centerline samples.
+
 The minimum accepted support margin is therefore tens of world units, not a near-zero tolerance
 artifact. The deliberately weaker associated fixture still proves the opposite case: insufficient
 local support rejects rather than reducing the cut or invoking backend reconciliation.
