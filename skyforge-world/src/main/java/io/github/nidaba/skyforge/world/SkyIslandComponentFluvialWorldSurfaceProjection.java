@@ -24,6 +24,7 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
     private final SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan;
     private final CompiledSkyIslandVolume compiledVolume;
     private final SkyIslandTerrainInterpreter terrainInterpreter;
+    private final SkyIslandQualifiedFluvialTerrainField terrainField;
 
     /**
      * Production-facing F4B boundary over one exact AUTH-0046 association.
@@ -39,6 +40,18 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
                 association.realizedVolume().compiledVolume());
     }
 
+    /** F4H projection boundary using an accepted continuous refined field. */
+    public SkyIslandComponentFluvialWorldSurfaceProjection(
+            SkyIslandAuthoredRealizationAssociation association,
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
+            SkyIslandQualifiedFluvialTerrainField refinedField) {
+        this(
+                Objects.requireNonNull(association, "association").authoredDescriptor(),
+                candidatePlan,
+                association.realizedVolume().compiledVolume(),
+                refinedField);
+    }
+
     /**
      * Package-local projection primitive retained for direct compatibility/failure tests.
      * Production callers should supply an explicit AUTH-0046 association.
@@ -47,9 +60,18 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
             SkyIslandDescriptor descriptor,
             SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
             CompiledSkyIslandVolume compiledVolume) {
+        this(descriptor, candidatePlan, compiledVolume, candidatePlan.terrainField());
+    }
+
+    private SkyIslandComponentFluvialWorldSurfaceProjection(
+            SkyIslandDescriptor descriptor,
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
+            CompiledSkyIslandVolume compiledVolume,
+            SkyIslandQualifiedFluvialTerrainField terrainField) {
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
         this.candidatePlan = Objects.requireNonNull(candidatePlan, "candidatePlan");
         this.compiledVolume = Objects.requireNonNull(compiledVolume, "compiledVolume");
+        this.terrainField = Objects.requireNonNull(terrainField, "terrainField");
         if (!descriptor.equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(
                     "F4A candidate descriptor must match F4B projection descriptor");
@@ -92,7 +114,7 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
                         worldX - volumeDescriptor.centerX(),
                         worldZ - volumeDescriptor.centerZ());
         SkyIslandQualifiedFluvialSample semantic =
-                candidatePlan.terrainField().sampleDetailed(local);
+                terrainField.sampleDetailed(local);
 
         double upper = terrainInterpreter.upperSurfaceHeight(worldX, worldZ);
         double underside = terrainInterpreter.undersideSurfaceHeight(worldX, worldZ);
