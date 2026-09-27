@@ -95,6 +95,34 @@ The positive controls are:
 Primary-287 and lake-609 remain zero-delta controls. Confluence-632 remains excluded until its
 transition-owned downstream geometry is solved.
 
+## First fixed-corpus result
+
+The exact AUTH-0046 association fixture admits both F4A-positive 8/81/77 reaches without modifying
+the authorized semantic cut or compiled underside.
+
+Across both realized reaches:
+
+- projected centerline samples: `59`;
+- affected samples: `59`;
+- minimum world-space terrain delta: `-4.480910369`;
+- maximum world-space terrain delta: `-2.232739641`;
+- minimum remaining compiled column thickness: `36.994664581`;
+- maximum remaining compiled column thickness: `76.826056586`.
+
+Per reach:
+
+- 709→559: 35/35 affected; delta `-4.480910369 .. -3.635747789`; minimum remaining
+  thickness `36.994664581`;
+- 1742→1842: 24/24 affected; delta `-4.453474879 .. -2.232739641`; minimum remaining
+  thickness `45.833595170`.
+
+Primary-287, confluence-632, and lake-609 remain exact zero-projection controls because F4A grants
+them no terrain candidate.
+
+The minimum accepted support margin is therefore tens of world units, not a near-zero tolerance
+artifact. The deliberately weaker associated fixture still proves the opposite case: insufficient
+local support rejects rather than reducing the cut or invoking backend reconciliation.
+
 ## Next boundary
 
 If F4B passes with positive remaining compiled thickness, the next tranche may define a deterministic
