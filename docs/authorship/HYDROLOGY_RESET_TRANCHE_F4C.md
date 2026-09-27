@@ -75,11 +75,12 @@ The accepted 8/81/77 F4B envelope contains 8,969 authorized integer columns. F4C
 
 ## Failure semantics
 
-A physically unsupported authorized column rejects the plan. It is not omitted locally.
+Admission is atomic per complete F3E/F4A terminal component.
 
-The next refinement may represent admission explicitly per complete F3E/F4A terminal component so one
-unsupported component need not suppress an unrelated qualified component. That refinement must
-preserve the same no-partial-realization rule within each component.
+A physically unsupported authorized column rejects its entire terminal component. Every column from
+that rejected component is discarded from voxel authority; no local omission is permitted. An
+independent qualified terminal component may remain admitted. This preserves F3E component-level
+admission without turning one unrelated physical mismatch into a global hydrology veto.
 
 ## Next boundary
 
