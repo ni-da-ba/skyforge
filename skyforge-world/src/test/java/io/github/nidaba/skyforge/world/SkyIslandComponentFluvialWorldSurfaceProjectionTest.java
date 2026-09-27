@@ -36,7 +36,8 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                 SkyIslandProjectedFluvialTerrainSample sample =
                         projection.sampleWorld(worldX, worldZ);
 
-                assertEquals(local, sample.localPosition());
+                assertEquals(local.x(), sample.localPosition().x(), EPSILON);
+                assertEquals(local.z(), sample.localPosition().z(), EPSILON);
                 assertEquals(
                         sample.semanticSample().terrainDeltaPotential()
                                 * descriptor.reliefBudget(),
@@ -88,8 +89,16 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                                 translated.descriptor().centerX() + local.x(),
                                 translated.descriptor().centerZ() + local.z());
 
-        assertEquals(a.semanticSample(), b.semanticSample());
+        assertEquivalentSemanticSample(a.semanticSample(), b.semanticSample());
         assertEquals(a.terrainDeltaWorldUnits(), b.terrainDeltaWorldUnits(), EPSILON);
+        assertEquals(
+                a.originalColumnThicknessWorldUnits(),
+                b.originalColumnThicknessWorldUnits(),
+                EPSILON);
+        assertEquals(
+                a.targetColumnThicknessWorldUnits(),
+                b.targetColumnThicknessWorldUnits(),
+                EPSILON);
     }
 
     @Test
@@ -149,7 +158,7 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
     }
 
     @Test
-    void projectionFailsClosedWhenAuthorizedCutWouldCollapseCompiledColumn() {
+    void projectionReportsSupportExhaustionWithoutBackendReconciliation() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
@@ -184,9 +193,14 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                         .points()
                         .getFirst();
 
-        assertThrows(
-                IllegalArgumentException.class,
-                () -> projection.sampleWorld(local.x(), local.z()));
+        SkyIslandProjectedFluvialTerrainSample sample =
+                projection.sampleWorld(local.x(), local.z());
+        assertTrue(sample.supportExhausted());
+        assertTrue(sample.supportMarginWorldUnits() <= EPSILON);
+        assertEquals(
+                sample.semanticSample().terrainDeltaPotential() * descriptor.reliefBudget(),
+                sample.terrainDeltaWorldUnits(),
+                EPSILON);
     }
 
     @Test
@@ -223,6 +237,18 @@ class SkyIslandComponentFluvialWorldSurfaceProjectionTest {
                                 0.0,
                                 descriptor.nominalRadius(),
                                 alternate)));
+    }
+
+    private static void assertEquivalentSemanticSample(
+            SkyIslandQualifiedFluvialSample a,
+            SkyIslandQualifiedFluvialSample b) {
+        assertEquals(a.originalTerrainPotential(), b.originalTerrainPotential(), EPSILON);
+        assertEquals(a.targetTerrainPotential(), b.targetTerrainPotential(), EPSILON);
+        assertEquals(a.terrainDeltaPotential(), b.terrainDeltaPotential(), EPSILON);
+        assertEquals(a.wet(), b.wet());
+        assertEquals(a.waterSurfacePotential(), b.waterSurfacePotential(), EPSILON);
+        assertEquals(a.zone(), b.zone());
+        assertEquals(a.provenance(), b.provenance());
     }
 
     private static CompiledSkyIslandVolume compiled(
