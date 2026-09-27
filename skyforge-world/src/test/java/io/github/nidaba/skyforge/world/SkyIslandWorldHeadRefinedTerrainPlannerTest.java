@@ -96,6 +96,44 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
         assertTrue(maximumRecoveryWorld <= 0.168878403 + EPSILON);
     }
 
+    @Test
+    void f4hAuthorizationIsConstructedFromExactValidatedInputs() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandAuthoredRealizationAssociation association =
+                productionAssociation(descriptor, 910_077L);
+        SkyIslandFluvialVoxelQuantizationPlan voxel =
+                SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
+        SkyIslandWorldWaterProjectionQualificationPlan direct =
+                SkyIslandWorldWaterProjectionQualificationPlanner.plan(voxel);
+        SkyIslandWorldWaterHeadRefinementPlan head =
+                SkyIslandWorldWaterHeadRefinementPlanner.plan(direct);
+        SkyIslandWorldHeadRefinedTerrainPlan refined =
+                SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
+
+        SkyIslandHydrologyRuntimeAuthorization authorization =
+                SkyIslandHydrologyRuntimeAuthorization.fromF4H(
+                        association, candidate, refined.terrainField());
+
+        assertTrue(authorization.allowsVolume(association.realizedVolumeId()));
+        SkyIslandFluvialVoxelColumn column = voxel.authorizedColumns().stream()
+                .filter(candidateColumn -> candidateColumn.removedSolidBlocks() > 0)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(authorization.allowsHydrologyPosition(
+                column.worldX(),
+                column.targetMaximumSolidY(),
+                column.worldZ()));
+        assertTrue(authorization.allowsRemoval(
+                column.worldX(),
+                column.targetMaximumSolidY() + 1,
+                column.worldZ()));
+        assertTrue(!authorization.allowsVolume(
+                new SkyIslandWorldVolumeId(
+                        REALIZATION_ROOT, "other", 0, 0, 1L)));
+    }
+
     private static SkyIslandHydraulicReachGeometry reach(
             SkyIslandComponentFluvialTerrainCandidatePlan plan,
             int start,
