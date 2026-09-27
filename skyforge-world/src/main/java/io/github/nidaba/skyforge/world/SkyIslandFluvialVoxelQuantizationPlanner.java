@@ -95,6 +95,18 @@ public final class SkyIslandFluvialVoxelQuantizationPlanner {
                     }
                     targetMaximumSolidY =
                             Math.min(targetMaximumSolidY, original.maximumSolidY());
+                    if (!terrain.classify(worldX, targetMaximumSolidY, worldZ).isSolid()) {
+                        throw new IllegalStateException(
+                                "F4C quantized retained surface is not exact compiled solid");
+                    }
+                    for (int y = targetMaximumSolidY + 1;
+                            y <= original.maximumSolidY();
+                            y++) {
+                        if (!terrain.classify(worldX, y, worldZ).isSolid()) {
+                            throw new IllegalStateException(
+                                    "F4C surface removal band contains non-owned AIR");
+                        }
+                    }
                     double quantizedUpper = targetMaximumSolidY + 1.0;
                     double residual =
                             quantizedUpper - sample.targetUpperSurfaceWorldY();
