@@ -23,7 +23,8 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
     private final SkyIslandDescriptor descriptor;
     private final SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan;
     private final CompiledSkyIslandVolume compiledVolume;
-    private final SkyIslandTerrainInterpreter terrainInterpreter;\n    private final SkyIslandQualifiedFluvialTerrainField terrainField;
+    private final SkyIslandTerrainInterpreter terrainInterpreter;
+    private final SkyIslandQualifiedFluvialTerrainField terrainField;
 
     /**
      * Production-facing F4B boundary over one exact AUTH-0046 association.
@@ -58,10 +59,19 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
     SkyIslandComponentFluvialWorldSurfaceProjection(
             SkyIslandDescriptor descriptor,
             SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
-            CompiledSkyIslandVolume compiledVolume) {\n        this(descriptor, candidatePlan, compiledVolume, candidatePlan.terrainField());\n    }\n\n    private SkyIslandComponentFluvialWorldSurfaceProjection(\n            SkyIslandDescriptor descriptor,\n            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,\n            CompiledSkyIslandVolume compiledVolume,\n            SkyIslandQualifiedFluvialTerrainField terrainField) {
+            CompiledSkyIslandVolume compiledVolume) {
+        this(descriptor, candidatePlan, compiledVolume, candidatePlan.terrainField());
+    }
+
+    private SkyIslandComponentFluvialWorldSurfaceProjection(
+            SkyIslandDescriptor descriptor,
+            SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan,
+            CompiledSkyIslandVolume compiledVolume,
+            SkyIslandQualifiedFluvialTerrainField terrainField) {
         this.descriptor = Objects.requireNonNull(descriptor, "descriptor");
         this.candidatePlan = Objects.requireNonNull(candidatePlan, "candidatePlan");
-        this.compiledVolume = Objects.requireNonNull(compiledVolume, "compiledVolume");\n        this.terrainField = Objects.requireNonNull(terrainField, "terrainField");
+        this.compiledVolume = Objects.requireNonNull(compiledVolume, "compiledVolume");
+        this.terrainField = Objects.requireNonNull(terrainField, "terrainField");
         if (!descriptor.equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(
                     "F4A candidate descriptor must match F4B projection descriptor");
