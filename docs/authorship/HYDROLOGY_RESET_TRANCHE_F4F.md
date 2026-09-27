@@ -85,9 +85,30 @@ The fixed corpus reports, per component:
 
 Numerical failure is never accepted as a physical rejection.
 
+## First fixed-corpus result
+
+The two 8/81/77 F4E refinement-required terminal components separate cleanly:
+
+- terminal 559 / reach 709→559: **SOLVED**;
+  - 35 samples;
+  - maximum terrain/head raise: `0.168878403` world units;
+  - mean raise: `0.007804229`;
+  - refined uphill segments: `0`;
+  - maximum absolute longitudinal grade: `0.210190740`;
+  - QP primal residual: `0.000000000`.
+- terminal 1842 / reach 1742→1842: **INFEASIBLE** under the upward-only contract;
+  - the direct F4E head at sample 19 already exceeds the physical bank-containment upper bound;
+  - F4F therefore does not lower head, deepen terrain, reduce authored depth, or widen the accepted
+    containment deficit to rescue the component.
+
+This is an intended fail-closed distinction. One physically compatible terminal component may advance
+without granting partial authority inside the incompatible component.
+
 ## Next boundary
 
-If the 8/81/77 components solve cleanly with small upward corrections, extend those corrections
-laterally with the same cross-section ownership/taper rules used by the accepted F4A terrain field.
-That extension must reduce or preserve excavation everywhere; it may never create a deeper cut than
-F4B.
+Extend only solved F4F corrections laterally with the same cross-section ownership/taper rules used
+by the accepted F4A terrain field. The extension must reduce or preserve excavation everywhere; it
+may never create a deeper cut than F4B.
+
+The terminal-1842 component remains on the water-deferred path until an upstream physical-realization
+or hydraulic-authoring change provides genuine containment. It is not a backend repair target.
