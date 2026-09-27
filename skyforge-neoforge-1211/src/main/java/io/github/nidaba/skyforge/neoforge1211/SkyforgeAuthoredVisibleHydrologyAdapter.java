@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandNaturalizedChannelPath;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationKind;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlan;
 import io.github.nidaba.skyforge.world.SkyIslandVisibleHydrologicRealizationPlanner;
@@ -92,6 +93,40 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
             for (Deployment deployment : plan(descriptor.orElseThrow(), volume, terrain)) {
                 written += apply(chunk, deployment);
+            }
+        }
+        return written;
+    }
+
+    /**
+     * F4J migration path: retain legacy intent generation but fence every deployment to the
+     * approved exact F4H association and authorized integer support columns.
+     */
+    static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(authorization, "authorization");
+        int written = 0;
+        for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
+            if (!authorization.allowsVolume(volume.id())) {
+                continue;
+            }
+            var descriptor = terrain.authoredDescriptor(volume.id());
+            if (descriptor.isEmpty()) {
+                continue;
+            }
+            for (Deployment deployment : plan(descriptor.orElseThrow(), volume, terrain)) {
+                List<BlockPos> positions = deployment.positions().stream()
+                        .filter(position -> authorization.allowsHydrologyPosition(
+                                position.getX(), position.getY(), position.getZ()))
+                        .toList();
+                if (!positions.isEmpty()) {
+                    written += apply(chunk, new Deployment(
+                            deployment.volumeId(), deployment.feature(), positions));
+                }
             }
         }
         return written;
