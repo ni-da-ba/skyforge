@@ -94,15 +94,10 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
 
     private static String formatAnchor(SkyIslandFluvialVoxelColumn column) {
         var projection = column.projection();
-        double head = projection.originalUpperSurfaceWorldY()
-                + (projection.semanticSample().waterSurfacePotential()
-                        - projection.semanticSample().originalTerrainPotential())
-                        * DESCRIPTOR_SEED; // replaced below by the caller's association relief in fixture()
-        return "(" + column.worldX() + ", water-head-derived, " + column.worldZ()
+        return "(" + column.worldX() + ", authorized-water-band, " + column.worldZ()
                 + ", targetMaxSolidY=" + column.targetMaximumSolidY()
                 + ", wet=" + projection.semanticSample().wet() + ")";
     }
-
     private static Fixture fixture() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(DESCRIPTOR_SEED, PROVINCE, CLUSTER, KEY));
