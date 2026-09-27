@@ -2,7 +2,6 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -27,6 +26,8 @@ class SkyIslandFluvialVoxelQuantizationPlannerTest {
                 SkyIslandFluvialVoxelQuantizationPlanner.plan(
                         productionAssociation(descriptor, 910_077L), candidate);
 
+        assertEquals(candidate.realizedComponents().size(), plan.components().size());
+        assertTrue(plan.rejectedComponents().isEmpty());
         assertEquals(8969, plan.authorizedColumns().size());
         assertFalse(plan.mutatedColumns().isEmpty());
         assertTrue(plan.mutatedColumns().size() <= 5858);
@@ -68,10 +69,16 @@ class SkyIslandFluvialVoxelQuantizationPlannerTest {
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
 
-        assertThrows(
-                RuntimeException.class,
-                () -> SkyIslandFluvialVoxelQuantizationPlanner.plan(
-                        weakAssociation(descriptor, 920_077L), candidate));
+        SkyIslandFluvialVoxelQuantizationPlan plan =
+                SkyIslandFluvialVoxelQuantizationPlanner.plan(
+                        weakAssociation(descriptor, 920_077L), candidate);
+
+        assertFalse(plan.rejectedComponents().isEmpty());
+        for (SkyIslandFluvialVoxelComponentPlan rejected : plan.rejectedComponents()) {
+            assertEquals(SkyIslandFluvialVoxelComponentStatus.PHYSICAL_REJECTION, rejected.status());
+            assertTrue(rejected.columns().isEmpty());
+            assertFalse(rejected.blockers().isEmpty());
+        }
     }
 
     @Test
