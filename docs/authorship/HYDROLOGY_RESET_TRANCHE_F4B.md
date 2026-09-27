@@ -22,12 +22,16 @@ and placement. F4B contributes only the already-qualified hydrologic delta.
 
 ## Compatibility requirements
 
-A semantic descriptor and compiled physical volume may be projected together only when:
+Production F4B projection consumes one exact AUTH-0046 authored-realization association.
 
-- nominal radius matches;
-- a schema-2 physical morphology family, when present, matches the authored morphology family;
-- the F4A candidate belongs to the same authored semantic descriptor.
+The association already proves that:
 
+- the authored descriptor and realized volume are explicitly paired rather than inferred;
+- nominal radius matches exactly;
+- a schema-2 realized morphology family, when present, matches the authored morphology family.
+
+F4B additionally requires the F4A candidate to belong to that same authored descriptor. No realized
+volume may be selected from scale, morphology, spatial proximity, list position, or seed similarity.
 No implicit rescaling or morphology remapping is permitted.
 
 ## World-space sampling
@@ -70,16 +74,18 @@ quantifies the continuous world-space cut and preserved column thickness.
 
 ## First fixed evidence target
 
-The accepted F4A 8/81/77 components remain the only positive controls. The fixed projection corpus
-uses the exact deterministic schema-2 placement/seed fixture that passes all 59 positive centerline
-samples. This is evidence for the projection contract, not a claim that an arbitrary compatible
-physical seed or placement must admit the cut.
+The accepted F4A 8/81/77 components remain the only positive semantic controls. F4B now binds
+them to the established AUTH-0046 schema-2 association fixture family rather than projecting onto an
+unassociated standalone volume.
 
-A second fixed placement of the same semantic island and physical seed at (96, -64) is intentionally
-rejected at projection time because at least one local compiled column lacks enough remaining
-thickness. This demonstrates that F4B preserves a translation-neutral hydrologic delta while keeping
-physical-support admission placement-specific and fail-closed. Runtime projection remains volume-specific and must retain the column
-thickness check.
+The association fixture is a **candidate**, not a presumed success. The focused evidence run must
+prove that every sampled positive control retains sufficient compiled column support. If any required
+sample exhausts support, that exact association is inadmissible and F4B fails closed.
+
+A deliberately weaker associated physical fixture remains a negative control and must reject when
+the authorized cut exceeds local compiled thickness. This demonstrates that F4B preserves a
+translation-neutral hydrologic delta while keeping physical-support admission realization-specific
+and fail-closed. Runtime projection must retain the exact association and column-thickness checks.
 
 The positive controls are:
 
