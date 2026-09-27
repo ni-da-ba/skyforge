@@ -27,7 +27,9 @@ class HydrologyLateralRefinementCorpusTest {
         if (!summaryA.contains("ordinary-77,77,1,2,0,8969,")) {
             throw new AssertionError("F4G_SUMMARY=" + summaryA);
         }
-        if (!summaryA.contains(",0,0.168878403,")) {\n            throw new AssertionError("F4G_RECOVERY=" + summaryA);\n        }
+        if (!summaryA.contains(",0,0.168878403,")) {
+            throw new AssertionError("F4G_RECOVERY=" + summaryA);
+        }
         assertTrue(reachesA.contains("709,559,true,0.168878403,"));
         assertTrue(reachesA.contains("1742,1842,false,0.000000000,"));
         assertTrue(Files.isRegularFile(a.resolve("README.txt")));
