@@ -10,6 +10,7 @@ import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidate
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelColumn;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandRefinedFluvialVoxelQuantizationPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandWorldHeadRefinedTerrainPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
