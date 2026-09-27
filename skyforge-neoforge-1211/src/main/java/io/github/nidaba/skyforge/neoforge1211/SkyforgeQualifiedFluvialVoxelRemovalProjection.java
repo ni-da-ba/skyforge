@@ -5,6 +5,7 @@ import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelComponentPlan;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelComponentStatus;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlan;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,6 +36,28 @@ final class SkyforgeQualifiedFluvialVoxelRemovalProjection {
     }
 
     private SkyforgeQualifiedFluvialVoxelRemovalProjection() {}
+
+    static List<ComponentRemoval> plan(
+            SkyIslandFluvialVoxelQuantizationPlan quantization,
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Objects.requireNonNull(quantization, "quantization");
+        Objects.requireNonNull(authorization, "authorization");
+        if (!authorization.quantization().equals(quantization)) {
+            throw new IllegalArgumentException(
+                    "F4I authorization must match the exact F4H quantization plan");
+        }
+        List<ComponentRemoval> result = plan(quantization);
+        for (ComponentRemoval component : result) {
+            if (!authorization.allowsVolume(component.volumeId())
+                    || component.positions().stream().anyMatch(position ->
+                            !authorization.allowsRemoval(
+                                    position.getX(), position.getY(), position.getZ()))) {
+                throw new IllegalStateException(
+                        "F4I authorization rejected an exact projected removal position");
+            }
+        }
+        return result;
+    }
 
     static List<ComponentRemoval> plan(SkyIslandFluvialVoxelQuantizationPlan quantization) {
         Objects.requireNonNull(quantization, "quantization");
