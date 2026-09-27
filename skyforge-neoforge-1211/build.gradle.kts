@@ -2033,6 +2033,60 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // #1180 deterministic consumer A/B. Both arms reopen the same accepted DR-50 A world
+        // with the patched realized-terrain A4MC provider. The control leaves C6/C7 inert; the
+        // treatment enables both accepted consumers. A diagnostic runtime records matched hawk
+        // cohorts and same-sample glider response replay without tuning any gameplay threshold.
+        create("sfImp1180ConsumerControlClient") {
+            client()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-a.properties").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+            systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            systemProperty("skyforge.dev.sfImp1180ConsumerDiagnostic", "true")
+            systemProperty("skyforge.dev.sfImp1180ConsumerDiagnosticArm", "control")
+            systemProperty(
+                "skyforge.dev.sfImp1180ConsumerDiagnosticOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/control.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("sfImp1180ConsumerTreatmentClient") {
+            client()
+            sourceSet.set(waveC3EvidenceRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-dr50-auto-a").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.productionComposedCaveReload", "true")
+            systemProperty("skyforge.dev.dr40ProductionEcologyReload", "true")
+            systemProperty("skyforge.dev.dr50IntegratedRegionReload", "true")
+            systemProperty(
+                "skyforge.dev.productionComposedCaveExpectedResultFile",
+                layout.buildDirectory.file("acceptance/dr-50/production-a.properties").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.dr50AtmosphereTerrainAuthority", "true")
+            systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
+            systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
+            systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            systemProperty("skyforge.dev.sfImp1180ConsumerDiagnostic", "true")
+            systemProperty("skyforge.dev.sfImp1180ConsumerDiagnosticArm", "treatment")
+            systemProperty(
+                "skyforge.dev.sfImp1180ConsumerDiagnosticOutput",
+                layout.buildDirectory.file("acceptance/sf-imp-1180/treatment.json").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // #495 final shared-truth + reconstruction evidence. Both server boots use the same
         // world directory. Boot A creates the specimen; Boot B reopens it without deleting provider
         // state. A real unattended client supplies the ServerPlayer anchor required by pinned A4MC.
