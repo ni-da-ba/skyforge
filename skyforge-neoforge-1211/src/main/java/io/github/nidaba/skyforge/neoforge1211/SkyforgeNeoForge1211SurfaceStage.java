@@ -828,6 +828,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     throw new IllegalArgumentException(
                             "runtime hydrology authorization key must match its exact realized volume id");
                 }
+                var catalogVolume = adapter.worldVolume(entry.getKey())
+                        .orElseThrow(() -> new IllegalArgumentException(
+                                "F4H authorization references a volume outside the exact runtime catalog"));
+                if (!entry.getValue().association().realizedVolume().equals(catalogVolume)) {
+                    throw new IllegalArgumentException(
+                            "F4H authorization must match the exact catalog volume");
+                }
             }
             if (hydrologyMode == HydrologyMode.LEGACY_COMPATIBILITY
                     && !hydrologyAuthorizations.isEmpty()) {
