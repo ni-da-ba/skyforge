@@ -168,6 +168,38 @@ final class SkyIslandCommunityAssemblyEvidenceTest {
     }
 
     @Test
+    void hydrologicBinderRejectsSameDescriptorWithDifferentRealizedVolume() {
+        Fixture fixture = fixture(120009L, 2);
+        SkyIslandAuthoredRealizationIsolationProfile isolation =
+                new SkyIslandAuthoredRealizationIsolationProfiler().profile(fixture.catalog());
+        SkyIslandRegionalIsolationEntry first = isolation.islands().get(0);
+        SkyIslandRegionalIsolationEntry second = isolation.islands().get(1);
+        SkyIslandCommunityAssemblyEvidence assembly =
+                new SkyIslandCommunityAssemblyEvidenceBinder().bind(
+                        SkyIslandCommunitySuitabilityFieldSet.create(
+                                first.association().authoredDescriptor()),
+                        isolation);
+        SkyIslandAuthoredRealizationAssociation substituted =
+                SkyIslandAuthoredRealizationAssociation.of(
+                        first.association().authoredDescriptor(),
+                        second.association().realizedVolume());
+        SkyIslandSurfaceSiteCapabilityProfile wrongVolume =
+                new SkyIslandSurfaceSiteCapabilityProfiler().profile(substituted);
+
+        assertEquals(
+                first.association().authoredDescriptor(),
+                wrongVolume.association().authoredDescriptor());
+        assertFalse(
+                first.association().realizedVolumeId()
+                        .equals(wrongVolume.association().realizedVolumeId()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandCommunityHydrologicEvidenceBinder().bind(
+                        assembly,
+                        wrongVolume));
+    }
+
+    @Test
     void hydrologicEvidenceExactLookupDoesNotInterpolateOrUseNearestCell() {
         Fixture fixture = fixture(120008L, 1);
         SkyIslandAuthoredRealizationIsolationProfile isolation =
