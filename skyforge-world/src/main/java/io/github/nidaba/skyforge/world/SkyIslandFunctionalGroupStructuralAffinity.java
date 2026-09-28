@@ -31,7 +31,16 @@ public record SkyIslandFunctionalGroupStructuralAffinity(
                 organicSurfaceAccumulationPotentialWeight);
         requireWeight("deadwoodPotentialWeight", deadwoodPotentialWeight);
 
-        double total = totalWeight();
+        double total =
+                vegetationDensityWeight
+                        + canopyCoverWeight
+                        + canopyHeightPotentialWeight
+                        + understoryDensityWeight
+                        + groundCoverWeight
+                        + biomassPotentialWeight
+                        + patchinessPotentialWeight
+                        + organicSurfaceAccumulationPotentialWeight
+                        + deadwoodPotentialWeight;
         if (!Double.isFinite(total) || total <= 0.0) {
             throw new IllegalArgumentException(
                     "structural-affinity total weight must be finite and positive");
