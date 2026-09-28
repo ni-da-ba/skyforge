@@ -180,7 +180,7 @@ jobs:
             assert data["audio_emissions"] > 0, data
             assert data["source_level"] != "NONE", data
             assert data["authority"] == "SERVER_AUTHORITATIVE", data
-            PY
+          PY
           done
 
       - name: Verify shared truth and reconstruction
