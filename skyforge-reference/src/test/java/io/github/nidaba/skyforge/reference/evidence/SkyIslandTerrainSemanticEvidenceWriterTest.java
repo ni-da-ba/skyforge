@@ -10,17 +10,10 @@ import io.github.nidaba.skyforge.world.WorldSampleGrid;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 class SkyIslandTerrainSemanticEvidenceWriterTest {
-    private static final Pattern SEMANTIC_SHA =
-            Pattern.compile("\\"semantic_sha256\\": \\"([0-9a-f]{64})\\"");
-    private static final Pattern SEMANTIC_PAYLOAD =
-            Pattern.compile("\\"semantics_base64\\": \\"([^\\"]+)\\"");
-
     @TempDir Path temp;
 
     @Test
@@ -74,13 +67,10 @@ class SkyIslandTerrainSemanticEvidenceWriterTest {
         assertTrue(json.contains("\"backend_neutral_semantics\": true"));
         assertTrue(json.contains("\"minecraft_dependency\": false"));
 
-        Matcher sha = SEMANTIC_SHA.matcher(json);
-        assertTrue(sha.find());
-        assertEquals(terrain.sha256(), sha.group(1));
-
-        Matcher payload = SEMANTIC_PAYLOAD.matcher(json);
-        assertTrue(payload.find());
-        assertArrayEquals(semantics, Base64.getDecoder().decode(payload.group(1)));
+        assertEquals(terrain.sha256(), jsonStringValue(json, "semantic_sha256"));
+        assertArrayEquals(
+                semantics,
+                Base64.getDecoder().decode(jsonStringValue(json, "semantics_base64")));
 
         int previous = -1;
         for (SkyIslandTerrainSemantic semantic : SkyIslandTerrainSemantic.values()) {
@@ -88,6 +78,20 @@ class SkyIslandTerrainSemanticEvidenceWriterTest {
             assertTrue(current > previous, "semantic legend must preserve enum ordinal order");
             previous = current;
         }
+    }
+
+    private static String jsonStringValue(String json, String key) {
+        String marker = "\\\"" + key + "\\": \\"";
+        int start = json.indexOf(marker);
+        if (start < 0) {
+            throw new AssertionError("missing JSON string property " + key);
+        }
+        int valueStart = start + marker.length();
+        int end = json.indexOf('"', valueStart);
+        if (end < 0) {
+            throw new AssertionError("unterminated JSON string property " + key);
+        }
+        return json.substring(valueStart, end);
     }
 
     private static byte ordinal(SkyIslandTerrainSemantic semantic) {
