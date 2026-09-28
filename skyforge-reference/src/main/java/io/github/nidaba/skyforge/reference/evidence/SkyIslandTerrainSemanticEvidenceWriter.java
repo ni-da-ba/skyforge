@@ -12,6 +12,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Locale;
 import javax.imageio.ImageIO;
 
@@ -25,6 +26,11 @@ public final class SkyIslandTerrainSemanticEvidenceWriter {
             throws IOException {
         Files.createDirectories(output);
         writeSummary(terrain, output, label, version);
+        writeStudioSemanticVolume(
+                terrain,
+                output.resolve("terrain-semantic-volume.json"),
+                label,
+                version);
         writeLegend(output.resolve("legend.png"));
         writeTopSurface(terrain, output.resolve("top-surface-semantics.png"));
         writeEastWestSection(terrain, output.resolve("east-west-section.png"));
@@ -66,6 +72,72 @@ public final class SkyIslandTerrainSemanticEvidenceWriter {
                         grid.minimumZ(), grid.maximumZ()))
                 .append("}\n");
         Files.writeString(output.resolve("summary.json"), json, StandardCharsets.UTF_8);
+    }
+
+    private static void writeStudioSemanticVolume(
+            WorldRegionTerrain terrain,
+            Path output,
+            String label,
+            String version) throws IOException {
+        WorldSampleGrid grid = terrain.grid();
+        byte[] semantics = terrain.semantics();
+        StringBuilder json = new StringBuilder(Math.max(4096, semantics.length * 2));
+        json.append("{\n")
+                .append("  \"schema_version\": 1,\n")
+                .append("  \"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\",\n")
+                .append("  \"skyforge_version\": \"").append(escape(version)).append("\",\n")
+                .append("  \"label\": \"").append(escape(label)).append("\",\n")
+                .append("  \"semantic_sha256\": \"").append(terrain.sha256()).append("\",\n")
+                .append("  \"grid\": {\n")
+                .append(String.format(
+                        Locale.ROOT,
+                        "    \"minimum_x\": %.17g, \"minimum_y\": %.17g, \"minimum_z\": %.17g,\n"
+                                + "    \"spacing_x\": %.17g, \"spacing_y\": %.17g, \"spacing_z\": %.17g,\n"
+                                + "    \"x_samples\": %d, \"y_samples\": %d, \"z_samples\": %d,\n"
+                                + "    \"sample_count\": %d\n",
+                        grid.minimumX(),
+                        grid.minimumY(),
+                        grid.minimumZ(),
+                        grid.spacingX(),
+                        grid.spacingY(),
+                        grid.spacingZ(),
+                        grid.xSamples(),
+                        grid.ySamples(),
+                        grid.zSamples(),
+                        grid.sampleCount()))
+                .append("  },\n")
+                .append("  \"semantic_legend\": [\n");
+
+        SkyIslandTerrainSemantic[] legend = SkyIslandTerrainSemantic.values();
+        for (int index = 0; index < legend.length; index++) {
+            SkyIslandTerrainSemantic semantic = legend[index];
+            json.append("    {\"ordinal\": ")
+                    .append(index)
+                    .append(", \"name\": \"")
+                    .append(semantic.name())
+                    .append("\", \"solid\": ")
+                    .append(semantic.isSolid())
+                    .append("}")
+                    .append(index + 1 == legend.length ? "\n" : ",\n");
+        }
+
+        json.append("  ],\n")
+                .append("  \"encoding\": {\n")
+                .append("    \"kind\": \"BASE64_UINT8_ORDINAL\",\n")
+                .append("    \"linear_index\": \"x + x_samples * (z + z_samples * y)\",\n")
+                .append("    \"sample_count\": ").append(semantics.length).append("\n")
+                .append("  },\n")
+                .append("  \"semantics_base64\": \"")
+                .append(Base64.getEncoder().encodeToString(semantics))
+                .append("\",\n")
+                .append("  \"ownership\": {\n")
+                .append("    \"backend_neutral_semantics\": true,\n")
+                .append("    \"minecraft_dependency\": false,\n")
+                .append("    \"renderer_recomputes_semantics\": false\n")
+                .append("  }\n")
+                .append("}\n");
+
+        Files.writeString(output, json, StandardCharsets.UTF_8);
     }
 
     private static void writeTopSurface(WorldRegionTerrain terrain, Path output) throws IOException {
