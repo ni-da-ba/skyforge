@@ -517,19 +517,49 @@ public final class StudioBoundHydrologySemanticCorpusCli {
             SkyIslandAuthoredRealizationAssociation association,
             WorldRegionTerrain terrain) {
         return """
-                <!doctype html><meta charset="utf-8">
+                <!doctype html>
+                <html lang="en">
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width,initial-scale=1">
                 <title>Skyforge Studio S2 bound hydrology</title>
-                <style>body{font-family:system-ui,sans-serif;max-width:1000px;margin:2rem auto;background:#f6f4ee;color:#282c34}code{background:#e9e6dd;padding:2px 5px}</style>
-                <h1>Studio S2 bound hydrology semantic specimen</h1>
-                <p>One exact AUTH-0046 authored-realization association rendered through F4B terrain and F4E water projection. No Minecraft dependency or Studio-side hydrology solve exists.</p>
-                <p>Association: <code>%s</code></p>
-                <p>Terrain semantic SHA-256: <code>%s</code></p>
-                <p><a href="terrain/terrain-semantic-volume.json">terrain semantic volume</a> · <a href="hydrology-semantic-layer.json">bound hydrology semantic layer</a></p>
-                """.formatted(
-                        escape(association.canonicalToken()),
-                        terrain.sha256());
+                <style>
+                  :root{color-scheme:light;--ink:#202833;--muted:#536273;--paper:#f3f5f7;--card:#fff;--line:#d7dee6}
+                  *{box-sizing:border-box}body{font-family:system-ui,sans-serif;max-width:1240px;margin:0 auto;padding:28px;background:var(--paper);color:var(--ink)}
+                  h1,h2{line-height:1.15}p{line-height:1.55;color:var(--muted)}code{overflow-wrap:anywhere;background:#e7edf2;padding:3px 6px;border-radius:4px}
+                  .binding{padding:16px 20px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  .links{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}.links a{color:#155f8a;font-weight:650}
+                  .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+                  figure{margin:0;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  figure img{display:block;width:100%;height:auto;background:#e9edf0;border-radius:5px}
+                  figcaption{padding:10px 2px 2px;color:var(--muted);font-size:.94rem}.note{font-size:.93rem}
+                </style>
+                <body>
+                <main>
+                  <h1>Studio S2 · exact bound hydrology specimen</h1>
+                  <p>These views come from one exact AUTH-0046 authored-realization association. Hydrology causes and F4B/F4E projections are bound to the same backend-neutral terrain lattice; Studio renders these semantics without solving routing.</p>
+                  <section class="binding" aria-label="Specimen identity">
+                    <p><strong>Association token</strong><br><code>%s</code></p>
+                    <p><strong>Terrain semantic SHA-256</strong><br><code>%s</code></p>
+                    <p class="note">The PNGs show terrain semantic bands. Open the linked JSON artifacts in Skyforge Studio to inspect the terrain volume with its bound hydrology controls.</p>
+                  </section>
+                  <nav class="links" aria-label="Machine-readable artifacts">
+                    <a href="terrain/terrain-semantic-volume.json">Terrain semantic volume JSON</a>
+                    <a href="hydrology-semantic-layer.json">Bound hydrology semantic layer JSON</a>
+                    <a href="terrain/summary.json">Terrain summary JSON</a>
+                  </nav>
+                  <h2>Terrain semantic views</h2>
+                  <div class="views">
+                    <figure><a href="terrain/top-surface-semantics.png"><img src="terrain/top-surface-semantics.png" alt="Top surface terrain semantic bands"></a><figcaption>Top surface · semantic bands across the exact sampled lattice</figcaption></figure>
+                    <figure><a href="terrain/isometric-top-semantics.png"><img src="terrain/isometric-top-semantics.png" alt="Isometric top surface terrain semantics"></a><figcaption>Isometric view · top surface and surrounding semantic mass</figcaption></figure>
+                    <figure><a href="terrain/east-west-section.png"><img src="terrain/east-west-section.png" alt="East to west terrain semantic section"></a><figcaption>East–west section · vertical semantic structure</figcaption></figure>
+                    <figure><a href="terrain/north-south-section.png"><img src="terrain/north-south-section.png" alt="North to south terrain semantic section"></a><figcaption>North–south section · vertical semantic structure</figcaption></figure>
+                    <figure><a href="terrain/legend.png"><img src="terrain/legend.png" alt="Terrain semantic color legend"></a><figcaption>Legend · semantic band colors</figcaption></figure>
+                  </div>
+                </main>
+                </body>
+                </html>
+                """.formatted(escape(association.canonicalToken()), terrain.sha256());
     }
-
     private static String hex(long value) {
         return String.format(Locale.ROOT, "%016x", value);
     }
