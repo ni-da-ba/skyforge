@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
@@ -72,6 +74,68 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(
                 expectedChunks,
                 SkyforgeF4KHydrologyReviewDevRuntime.requiredWaterHeadChunkKeys(fixture));
+    }
+
+    @Test
+    void qualifiedOnlyBindingDoesNotFallBackWhenAuthorizationIsAbsent() throws Exception {
+        CorpusFixture fixture = corpus(77L);
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var legacyDeployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
+                fixture.descriptor(), fixture.volume(), terrain);
+        assertFalse(legacyDeployments.isEmpty());
+        BlockPos sample = legacyDeployments.getFirst().positions().getFirst();
+        var chunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(sample));
+
+        try (AutoCloseable installed = SkyforgeNeoForge1211SurfaceStage.installQualifiedHydrology(
+                terrain,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
+                Map.of())) {
+            assertNotNull(installed);
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        }
+
+        for (var deployment : legacyDeployments) {
+            for (BlockPos position : deployment.positions()) {
+                if (chunk.getPos().equals(new net.minecraft.world.level.ChunkPos(position))) {
+                    assertFalse(chunk.getBlockState(position).is(Blocks.WATER));
+                }
+            }
+        }
+    }
+
+    @Test
+    void qualifiedBindingAppliesMultipleExactVolumeAuthorizations() {
+        StackedCorpusFixture fixture = stackedCorpus(77L);
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var candidate = io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlanner
+                .plan(fixture.descriptor());
+        Map<io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId,
+                io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization> authorizations =
+                        new LinkedHashMap<>();
+        for (var volume : List.of(fixture.lower(), fixture.upper())) {
+            var association = io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation
+                    .of(fixture.descriptor(), volume);
+            var voxel = io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlanner
+                    .plan(association, candidate);
+            var direct = io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificationPlanner
+                    .plan(voxel);
+            var head = io.github.nidaba.skyforge.world.SkyIslandWorldWaterHeadRefinementPlanner
+                    .plan(direct);
+            var refined = io.github.nidaba.skyforge.world.SkyIslandWorldHeadRefinedTerrainPlanner
+                    .plan(head);
+            authorizations.put(
+                    volume.id(),
+                    io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization.fromF4H(
+                            association, candidate, refined.terrainField()));
+        }
+
+        var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
+        int changed = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                chunk, terrain, authorizations);
+        assertTrue(changed > 0);
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                chunk, terrain, authorizations));
     }
 
     @Test
