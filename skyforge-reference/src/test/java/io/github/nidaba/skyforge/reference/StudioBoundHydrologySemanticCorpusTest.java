@@ -44,6 +44,8 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(indexHtml.contains("terrain/north-south-section.png"));
         assertTrue(indexHtml.contains("hydrology-semantic-layer.json"));
         assertTrue(indexHtml.contains("Bound hydrology · top-down view"));
+        assertTrue(indexHtml.contains("not voxelized or Minecraft-realized water"));
+        assertTrue(indexHtml.contains("sample.wet"));
         assertTrue(indexHtml.contains("hydrology-view"));
         assertTrue(indexHtml.contains("data.hydrology_causes"));
         assertTrue(indexHtml.contains("data.field_samples"));
@@ -74,8 +76,10 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(hydrologyJson.contains("\"group_identifier\": \"studio-s2\""));
 
         int reaches = integerValue(hydrologyJson, "accepted_reaches");
+        int wet = integerValue(hydrologyJson, "wet_grid_samples");
         int affected = integerValue(hydrologyJson, "affected_grid_samples");
         assertTrue(reaches > 0, "bound specimen should expose at least one accepted F4B reach");
+        assertTrue(wet > 0, "bound specimen should visibly expose sampled F4E water intent");
         assertTrue(affected > 0, "bound specimen should expose affected semantic grid samples");
         assertTrue(hydrologyJson.contains("\"reaches\": ["));
         assertTrue(hydrologyJson.contains("\"field_samples\": ["));

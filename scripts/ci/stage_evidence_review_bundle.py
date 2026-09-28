@@ -17,6 +17,7 @@ SPECIAL_EXTENSIONS: dict[str, tuple[str, ...]] = {
     'signal-free-suspended-volume-v1': ('.png', '.html', '.json', '.csv', '.sha256'),
     'authorship-semantic-fields-v1': ('.png', '.html', '.json', '.csv'),
     'studio-bound-hydrology-semantic-v1': ('.png', '.html', '.json'),
+    'studio-bound-hydrology-semantic-v1/terrain': ('.png', '.json'),
 }
 PUBLISH_STEP = '      - name: Publish compact evidence review bundle\n'
 
@@ -92,6 +93,7 @@ def stage_bundle(manifest_path: Path, root: Path, destination: Path) -> tuple[in
 
     total_files = 0
     total_bytes = 0
+    staged_paths: set[str] = set()
     for directory in directories:
         source_directory = source_root / directory
         if not source_directory.is_dir():
@@ -106,6 +108,10 @@ def stage_bundle(manifest_path: Path, root: Path, destination: Path) -> tuple[in
             raise BundleError(f'no review files selected from canonical evidence directory: {directory}')
         for source in selected:
             relative = source.relative_to(source_root)
+            relative_key = relative.as_posix()
+            if relative_key in staged_paths:
+                continue
+            staged_paths.add(relative_key)
             target = target_root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source, target)
