@@ -261,6 +261,7 @@ function draw(){
   ctx.clearRect(0,0,tr.w,tr.h);
   drawAxes(tr);
   var vals=frame.samples.map(colorValue),lo=Math.min.apply(null,vals),hi=Math.max.apply(null,vals);
+  if(colorEl.value==="u"){var abs=Math.max(Math.abs(lo),Math.abs(hi),0.001);lo=-abs;hi=abs;}
   var speeds=frame.samples.map(function(s){return vecMag(sampleVector(s));});
   projected=[];
   var items=frame.samples.map(function(s,i){
@@ -311,7 +312,7 @@ canvas.addEventListener("pointerdown",function(e){drag=true;lastX=e.clientX;last
 canvas.addEventListener("pointermove",function(e){if(!drag)return;var dx=e.clientX-lastX,dy=e.clientY-lastY;lastX=e.clientX;lastY=e.clientY;yaw+=dx*.008;pitch=Math.max(-1.35,Math.min(1.35,pitch+dy*.008));draw();});
 canvas.addEventListener("pointerup",function(e){drag=false;try{canvas.releasePointerCapture(e.pointerId);}catch(_){}});
 canvas.addEventListener("pointercancel",function(){drag=false;});
-canvas.addEventListener("wheel",function(e){e.preventDefault();zoom=Math.max(.45,Math.min(3.5,zoom*(e.deltaY>0?.90:1.10)));draw();},{passive:false});
+canvas.addEventListener("wheel",function(e){e.preventDefault();zoom=Math.max(.45,Math.min(3.5,zoom*(e.deltaY>0 ? .90 : 1.10)));draw();},{passive:false});
 canvas.addEventListener("click",function(e){
   if(!projected.length)return;
   var r=canvas.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top,best=null,dist=14;
