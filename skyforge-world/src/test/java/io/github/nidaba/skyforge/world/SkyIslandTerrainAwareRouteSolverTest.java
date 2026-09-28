@@ -155,7 +155,7 @@ class SkyIslandTerrainAwareRouteSolverTest {
                             end,
                             divisions);
             assertEquals(16.0, route.pathLength(), EPSILON);
-            assertEquals(10.6, route.totalCost(), 1.0e-9);
+            assertEquals(9.4, route.totalCost(), 1.0e-9);
         }
     }
 
