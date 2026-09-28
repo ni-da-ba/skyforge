@@ -196,7 +196,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 .append(format(candidate.retentionPotential())).append(',')
                 .append(format(candidate.saturationPotential())).append(',')
                 .append(format(candidate.persistence())).append(',')
-                .append(format(candidate.basinScale())).append('\\n');
+                .append(format(candidate.basinScale())).append('\n');
     }
 
     private static void appendCandidate(
