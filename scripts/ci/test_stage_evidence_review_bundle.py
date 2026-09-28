@@ -74,5 +74,40 @@ class EvidenceReviewBundleTests(unittest.TestCase):
             self.assertTrue((destination / 'fixed-seed-island-v1/meta.json').is_file())
 
 
+    def test_studio_s2_stages_nested_visuals_and_semantic_json(self):
+        directory = 'studio-bound-hydrology-semantic-v1'
+        self.assertEqual(
+            [
+                f'{verifier.EVIDENCE_ROOT}{directory}/**/*.png',
+                f'{verifier.EVIDENCE_ROOT}{directory}/**/*.html',
+                f'{verifier.EVIDENCE_ROOT}{directory}/**/*.json',
+            ],
+            bundle.upload_patterns([directory]),
+        )
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest = self.write_manifest(root, [
+                f'{verifier.EVIDENCE_ROOT}{directory}/index.html',
+                f'{verifier.EVIDENCE_ROOT}{directory}/hydrology-semantic-layer.json',
+            ])
+            source = root / verifier.EVIDENCE_ROOT / directory
+            terrain = source / 'terrain'
+            terrain.mkdir(parents=True)
+            (source / 'index.html').write_text('review index', encoding='utf-8')
+            (source / 'hydrology-semantic-layer.json').write_text('{}', encoding='utf-8')
+            (source / 'unneeded.csv').write_text('excluded', encoding='utf-8')
+            (terrain / 'terrain-semantic-volume.json').write_text('{}', encoding='utf-8')
+            (terrain / 'top-surface-semantics.png').write_bytes(b'png')
+            destination = root / 'bundle'
+
+            files, _ = bundle.stage_bundle(manifest, root, destination)
+
+            self.assertEqual(4, files)
+            self.assertTrue((destination / directory / 'index.html').is_file())
+            self.assertTrue((destination / directory / 'hydrology-semantic-layer.json').is_file())
+            self.assertTrue((destination / directory / 'terrain/terrain-semantic-volume.json').is_file())
+            self.assertTrue((destination / directory / 'terrain/top-surface-semantics.png').is_file())
+            self.assertFalse((destination / directory / 'unneeded.csv').exists())
+
 if __name__ == '__main__':
     unittest.main()
