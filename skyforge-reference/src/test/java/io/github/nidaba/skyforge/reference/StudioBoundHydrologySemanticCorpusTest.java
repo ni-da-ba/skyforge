@@ -47,7 +47,7 @@ class StudioBoundHydrologySemanticCorpusTest {
 
         String association = stringValue(hydrologyJson, "association_token");
         assertTrue(association.startsWith("sfassoc:v1:"));
-        assertTrue(hydrologyJson.contains("\"island_key_hex\": \"0000000000000278\""));
+        assertTrue(hydrologyJson.contains("\"island_key_hex\": \"00000000000005bf\""));
         assertTrue(hydrologyJson.contains("\"group_identifier\": \"studio-s2\""));
 
         int reaches = integerValue(hydrologyJson, "accepted_reaches");
