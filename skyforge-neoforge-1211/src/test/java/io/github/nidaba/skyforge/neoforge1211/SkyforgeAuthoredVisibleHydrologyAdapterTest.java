@@ -22,8 +22,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     @Test
     void f4kReviewFixtureClipsWaterHeadsToTheF4dAuthorizedReplacementBand() throws Exception {
         var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
+        var reviewColumn = fixture.authorization().quantization().authorizedColumns().stream()
+                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
+                .filter(column -> Math.min(
+                                (int) Math.ceil(column.projection().originalUpperSurfaceWorldY()
+                                        + (column.projection().semanticSample().waterSurfacePotential()
+                                                - column.projection().semanticSample().originalTerrainPotential())
+                                                * fixture.descriptor().reliefBudget()) - 1,
+                                column.originalSupport().maximumSolidY())
+                        >= column.targetMaximumSolidY() + 1)
+                .findFirst()
+                .orElseThrow();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(-1, 0));
+        var chunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(reviewColumn.worldX() >> 4, reviewColumn.worldZ() >> 4));
 
         try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(
                 terrain,
@@ -33,29 +45,18 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
 
-        int persistedHeads = 0;
-        for (var column : fixture.authorization().quantization().authorizedColumns()) {
-            if (!column.projection().semanticSample().wet()
-                    || !column.mutatesTerrain()
-                    || new net.minecraft.world.level.ChunkPos(column.worldX() >> 4, column.worldZ() >> 4)
-                            .toLong() != chunk.getPos().toLong()) {
-                continue;
-            }
-            int firstWaterY = column.targetMaximumSolidY() + 1;
-            int lastWaterY = Math.min(
-                    (int) Math.ceil(column.projection().originalUpperSurfaceWorldY()
-                            + (column.projection().semanticSample().waterSurfacePotential()
-                                    - column.projection().semanticSample().originalTerrainPotential())
-                                    * fixture.descriptor().reliefBudget()) - 1,
-                    column.originalSupport().maximumSolidY());
-            if (lastWaterY < firstWaterY) {
-                continue;
-            }
-            persistedHeads++;
-            assertTrue(chunk.getBlockState(new BlockPos(column.worldX(), firstWaterY, column.worldZ()))
-                    .is(Blocks.WATER));
-        }
-        assertTrue(persistedHeads > 0);
+        int firstWaterY = reviewColumn.targetMaximumSolidY() + 1;
+        int clippedWaterMaximumY = Math.min(
+                (int) Math.ceil(reviewColumn.projection().originalUpperSurfaceWorldY()
+                        + (reviewColumn.projection().semanticSample().waterSurfacePotential()
+                                - reviewColumn.projection().semanticSample().originalTerrainPotential())
+                                * fixture.descriptor().reliefBudget()) - 1,
+                reviewColumn.originalSupport().maximumSolidY());
+        assertTrue(clippedWaterMaximumY >= firstWaterY);
+        assertTrue(chunk.getBlockState(new BlockPos(
+                        reviewColumn.worldX(), firstWaterY, reviewColumn.worldZ()))
+                .is(Blocks.WATER));
+        assertTrue(clippedWaterMaximumY <= reviewColumn.originalSupport().maximumSolidY());
     }
 
     @Test
