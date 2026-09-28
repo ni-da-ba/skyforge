@@ -26,7 +26,8 @@ public record SkyIslandCommunityHydrologicEvidence(
                 .authoredDescriptor()
                 .equals(surfaceSiteProfile.association().authoredDescriptor())) {
             throw new IllegalArgumentException(
-                    "ecology assembly and hydrologic evidence must use the exact authored descriptor");
+                    "ecology assembly and hydrologic evidence must use the exact "
+                            + "authored descriptor");
         }
         if (!assemblyEvidence.realizedVolumeId()
                 .equals(surfaceSiteProfile.association().realizedVolumeId())) {
