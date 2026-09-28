@@ -169,14 +169,15 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     || !column.mutatesTerrain()) {
                 continue;
             }
-            int waterMaximumY = waterMaximumY(column, authorization);
+            // F4C/F4D authorizes only the removed solid band. A continuous F4H head may
+            // mathematically rise above the original voxel support; retain its intersection with
+            // that band rather than adding a new water voxel into unowned air.
+            int waterMaximumY = Math.min(
+                    waterMaximumY(column, authorization),
+                    column.originalSupport().maximumSolidY());
             int firstWaterY = column.targetMaximumSolidY() + 1;
             if (waterMaximumY < firstWaterY) {
                 continue;
-            }
-            if (waterMaximumY > column.originalSupport().maximumSolidY()) {
-                throw new IllegalStateException(
-                        "F4H water head would require unsupported voxel addition");
             }
             for (int y = firstWaterY; y <= waterMaximumY; y++) {
                 BlockPos position = new BlockPos(column.worldX(), y, column.worldZ());
