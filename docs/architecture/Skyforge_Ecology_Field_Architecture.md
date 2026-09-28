@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221, #1223, #1225, #1227  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221, #1223, #1225, #1227, #1229  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -262,6 +262,19 @@ support rather than being silently replaced with neutral/full support.
 
 Composite assembly support remains **support**, not occupancy probability, colonization state, abundance,
 or a community winner.
+
+Issue #1229 adds an evidence-only bridge from exact ecology assembly provenance to accepted AUTH-0096
+local surface/hydrologic evidence. `SkyIslandCommunityHydrologicEvidence` binds one exact
+`SkyIslandCommunityAssemblyEvidence` to one exact `SkyIslandSurfaceSiteCapabilityProfile` for the
+same AUTH-0046 association. It retains the original AUTH-0096 watershed-cell order and values and
+offers only exact watershed-index or exact-position lookup.
+
+No interpolation, nearest-cell fallback, combined wetness score, water-distance threshold, riparian
+suitability transform, or replacement moisture field is introduced. AUTH-0096 meanings such as
+retained-waterbody membership, shoreline, water-depth potential, margin potential, riparian potential,
+channel relative discharge, normalized flow accumulation, and hydrologic adjustment remain raw evidence.
+A later ecological response or community policy must name and version any transform it applies to that
+evidence rather than silently changing AUTH-0003 or #1198 compatibility semantics.
 
 This layer should remain parsimonious. Add an assembly filter only when it explains a concrete
 ecological distinction or downstream consumer. It must not become a hidden simulation of every
@@ -549,13 +562,14 @@ Therefore:
 14. issue #1223 discretizes spatial support into deterministic functional-group candidate proposals through explicit lattice and admission policy, without asserting species, occupancy, or backend placement;
 15. issue #1225 exposes deterministic half-open spatial candidate queries so downstream consumers can tile space without reimplementing lattice inversion or boundary policy;
 16. issue #1227 composes exact candidate-window query, spatial sampling, provenance validation, and #1223 admission without changing any of those semantics;
-17. later replacement response/community models must be versioned or explicitly migrated;
-18. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+17. issue #1229 binds accepted AUTH-0096 local hydrologic evidence into exact ecology assembly provenance without defining a new response/suitability transform;
+18. later replacement response/community models must be versioned or explicitly migrated;
+19. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-19. new ecology authority should be earned through deterministic reference evidence before a backend
+20. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1227
+## Immediate next work after #1229
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -587,11 +601,14 @@ A prudent sequence is:
     do not let query-window size or tiling become ecological density policy;
 15. keep #1227 window composition as exact orchestration over accepted query/spatial/admission
     contracts; do not let aggregate-window convenience become new ecological semantics;
-16. introduce richer spacing/footprint samplers only when a concrete consumer demonstrates that the
+16. use #1229 as the provenance seam for accepted local hydrologic evidence; introduce a wetland,
+    riparian, aquatic, or other hydrology-sensitive ecological transform only as an explicit versioned
+    policy with a demonstrated consumer;
+17. introduce richer spacing/footprint samplers only when a concrete consumer demonstrates that the
     simple versioned jittered lattice is insufficient;
-17. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
+18. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
     explicit rather than inferred from species/backend identity;
-18. keep concrete species/population lifecycle policy downstream of neutral realization.
+19. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.

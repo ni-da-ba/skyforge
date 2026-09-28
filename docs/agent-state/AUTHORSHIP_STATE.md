@@ -578,15 +578,17 @@ and terrain accommodation remain Implementation-owned.
 
 ### Ecology / fauna / civilization
 
-The backend-neutral ecology extension is now defined through #1227 and
+The backend-neutral ecology extension is now defined through #1229 and
 `docs/architecture/Skyforge_Ecology_Field_Architecture.md`: explicit environmental inputs and response
 fields feed habitat/community suitability, assembly, structural realization, vegetation functional-group
 niches, #1221 deterministic spatial patch support, #1223 deterministic discrete candidate admission,
 and #1225 deterministic half-open candidate-window querying. #1227 composes each queried candidate
 with exact-position spatial ecology and the existing #1223 admission contract while retaining the full
 ordered admitted/rejected/unresolved result. Candidate spacing/admission policy, query tiling, and
-window composition remain neutral mechanics rather than ecological density meaning; even an admitted
-functional-group candidate is not species identity, occupancy, population/carrying-capacity state, or
+window composition remain neutral mechanics rather than ecological density meaning. #1229 additionally
+binds exact AUTH-0096 local water/riparian/channel evidence to the same ecology assembly association
+without interpolation or a new hydrologic response formula. Even an admitted functional-group candidate
+is not species identity, occupancy, population/carrying-capacity state, or
 Minecraft feature authority. Concrete species/population policy remains downstream Content/backend work.
 
 AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
