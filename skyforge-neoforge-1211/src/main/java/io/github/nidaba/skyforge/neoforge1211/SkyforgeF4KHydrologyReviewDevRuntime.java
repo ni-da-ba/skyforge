@@ -201,7 +201,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                 + ", targetMaxSolidY=" + column.targetMaximumSolidY()
                 + ", wet=" + projection.semanticSample().wet() + ")";
     }
-    private static Fixture fixture() {
+    static Fixture fixture() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(DESCRIPTOR_SEED, PROVINCE, CLUSTER, KEY));
         SkyIslandVolumeDescriptor physical = SkyIslandVolumeDescriptor.schema2(
@@ -263,7 +263,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                 authorization);
     }
 
-    private record Fixture(
+    static record Fixture(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             SkyIslandWorldCatalog catalog,
