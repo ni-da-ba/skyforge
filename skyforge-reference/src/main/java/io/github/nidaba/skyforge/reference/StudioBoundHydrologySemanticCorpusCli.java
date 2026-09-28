@@ -48,7 +48,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
     private static final long REALIZATION_ROOT = 0x5245414C495A4552L;
     private static final long PROVINCE_KEY = 8L;
     private static final long CLUSTER_KEY = 81L;
-    private static final long ISLAND_KEY = 1471L;
+    private static final long ISLAND_KEY = 77L;
     private static final long GEOMETRY_SEED = 910_632L;
     private static final double GRID_SPACING = 4.0;
     private static final double GRID_MARGIN = 8.0;
