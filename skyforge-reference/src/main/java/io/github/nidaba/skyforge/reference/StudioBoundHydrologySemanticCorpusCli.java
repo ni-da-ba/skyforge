@@ -111,22 +111,20 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                         candidate);
 
         Path hydrology = output.resolve("hydrology-semantic-layer.json");
-        Files.writeString(
-                hydrology,
-                encodeHydrologyArtifact(
-                        association,
-                        candidate,
-                        authoredHydrology,
-                        terrain,
-                        grid,
-                        surface,
-                        water,
-                        version),
-                StandardCharsets.UTF_8);
+        String hydrologyArtifact = encodeHydrologyArtifact(
+                association,
+                candidate,
+                authoredHydrology,
+                terrain,
+                grid,
+                surface,
+                water,
+                version);
+        Files.writeString(hydrology, hydrologyArtifact, StandardCharsets.UTF_8);
 
         Files.writeString(
                 output.resolve("index.html"),
-                indexHtml(association, terrain),
+                indexHtml(association, terrain, hydrologyArtifact),
                 StandardCharsets.UTF_8);
 
         System.out.println(output.resolve("index.html").toAbsolutePath());
@@ -515,42 +513,191 @@ public final class StudioBoundHydrologySemanticCorpusCli {
 
     private static String indexHtml(
             SkyIslandAuthoredRealizationAssociation association,
-            WorldRegionTerrain terrain) {
-        return """
-                <!doctype html><meta charset="utf-8">
+            WorldRegionTerrain terrain,
+            String hydrologyArtifact) {
+        String html = """
+                <!doctype html>
+                <html lang="en">
+                <meta charset="utf-8">
+                <meta name="viewport" content="width=device-width,initial-scale=1">
                 <title>Skyforge Studio S2 bound hydrology</title>
                 <style>
-                  body{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;background:#f6f4ee;color:#282c34}
-                  code{background:#e9e6dd;padding:2px 5px}
-                  .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
-                  figure{margin:0;padding:0.75rem;background:#fff;border:1px solid #d5d0c4}
-                  figure img{display:block;width:100%%;height:auto}
-                  figcaption{padding-top:.5rem}
-                  .gate{padding:1rem;background:#fff2cc;border-left:4px solid #bf8b00}
+                  :root{color-scheme:light;--ink:#202833;--muted:#536273;--paper:#f3f5f7;--card:#fff;--line:#d7dee6}
+                  *{box-sizing:border-box}body{font-family:system-ui,sans-serif;max-width:1240px;margin:0 auto;padding:28px;background:var(--paper);color:var(--ink)}
+                  h1,h2{line-height:1.15}p{line-height:1.55;color:var(--muted)}code{overflow-wrap:anywhere;background:#e7edf2;padding:3px 6px;border-radius:4px}
+                  .binding{padding:16px 20px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  .links{display:flex;gap:14px;flex-wrap:wrap;margin:18px 0}.links a{color:#155f8a;font-weight:650}
+                  .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+                  figure{margin:0;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  figure img{display:block;width:100%%;height:auto;background:#e9edf0;border-radius:5px}
+                  figcaption{padding:10px 2px 2px;color:var(--muted);font-size:.94rem}.note{font-size:.93rem}
+                  .hydrology{margin:22px 0;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  .hydrology-controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:10px 0}
+                  .hydrology-controls label{color:var(--ink);font-size:.92rem}
+                  canvas{display:block;width:100%%;height:560px;background:#e8edf0;border:1px solid var(--line);border-radius:8px}
+                  .legend{font-size:.9rem}
                 </style>
-                <h1>Studio S2 bound hydrology semantic specimen</h1>
-                <p>One exact AUTH-0046 authored-realization association rendered through F4B terrain and F4E water projection. No Minecraft dependency or Studio-side hydrology solve exists.</p>
-                <p>Association: <code>%s</code></p>
-                <p>Terrain semantic SHA-256: <code>%s</code></p>
-                <h2>Review in Studio</h2>
-                <ol>
-                  <li>Load the <a href="terrain/terrain-semantic-volume.json">exact terrain semantic volume</a>.</li>
-                  <li>Inspect the <a href="hydrology-semantic-layer.json">bound hydrology semantic overlay JSON</a> against it; the overlay carries the terrain semantic SHA-256 and AUTH-0046 association.</li>
-                </ol>
-                <p class="gate"><strong>Human gate:</strong> these views and machine checks do not approve aesthetics, product quality, or the separate DR-70/key-287 review. Record a human visual finding before advancing that boundary.</p>
-                <h2>Terrain semantic views</h2>
-                <div class="views">
-                  <figure><a href="terrain/top-surface-semantics.png"><img src="terrain/top-surface-semantics.png" alt="Terrain top-surface semantic map"></a><figcaption>Top-surface semantics</figcaption></figure>
-                  <figure><a href="terrain/east-west-section.png"><img src="terrain/east-west-section.png" alt="East-west terrain semantic section"></a><figcaption>East-west section</figcaption></figure>
-                  <figure><a href="terrain/north-south-section.png"><img src="terrain/north-south-section.png" alt="North-south terrain semantic section"></a><figcaption>North-south section</figcaption></figure>
-                  <figure><a href="terrain/isometric-top-semantics.png"><img src="terrain/isometric-top-semantics.png" alt="Isometric terrain semantic overview"></a><figcaption>Isometric overview</figcaption></figure>
-                  <figure><a href="terrain/legend.png"><img src="terrain/legend.png" alt="Terrain semantic legend"></a><figcaption>Semantic legend</figcaption></figure>
-                </div>
-                """.formatted(
-                        escape(association.canonicalToken()),
-                        terrain.sha256());
+                <body>
+                <main>
+                  <h1>Studio S2 · exact bound hydrology specimen</h1>
+                  <p>These views come from one exact AUTH-0046 authored-realization association. Hydrology causes and F4B/F4E projections are bound to the same backend-neutral terrain lattice; Studio renders these semantics without solving routing.</p>
+                  <section class="binding" aria-label="Specimen identity">
+                    <p><strong>Association token</strong><br><code>%s</code></p>
+                    <p><strong>Terrain semantic SHA-256</strong><br><code>%s</code></p>
+                    <p class="note">This page includes a direct visual of the bound cause field, accepted channels, terrain response, and water intent. The plotted values are read from the authored artifact; the page does not recompute hydrology.</p>
+                  </section>
+                  <nav class="links" aria-label="Machine-readable artifacts">
+                    <a href="terrain/terrain-semantic-volume.json">Terrain semantic volume JSON</a>
+                    <a href="hydrology-semantic-layer.json">Bound hydrology semantic layer JSON</a>
+                    <a href="terrain/summary.json">Terrain summary JSON</a>
+                  </nav>
+                  <section class="hydrology" aria-labelledby="hydrology-title">
+                    <h2 id="hydrology-title">Bound hydrology · top-down view</h2>
+                    <p>Cause colors show authored potentials. Blue ribbons show accepted F4B bankfull envelopes, orange marks terrain response, and cyan marks F4E water intent.</p>
+                    <div class="hydrology-controls">
+                      <label for="cause-field">Cause field</label>
+                      <select id="cause-field">
+                        <option value="outflow_potential">Outflow</option>
+                        <option value="runoff_potential">Runoff</option>
+                        <option value="retention_potential">Retention</option>
+                        <option value="drainage_potential">Drainage</option>
+                      </select>
+                      <label><input id="show-flow" type="checkbox" checked> Flow vectors</label>
+                      <label><input id="show-reaches" type="checkbox" checked> Channel envelopes</label>
+                      <label><input id="show-response" type="checkbox" checked> Terrain response</label>
+                      <label><input id="show-water" type="checkbox" checked> Water intent</label>
+                    </div>
+                    <canvas id="hydrology-view" aria-label="Bound hydrology over the island terrain"></canvas>
+                    <p class="legend">Cause potential · arrows show authored flow · blue ribbon is bankfull width · orange is projected terrain change · cyan is projected water.</p>
+                    <p class="note"><strong>Realization boundary:</strong> this interactive page shows the backend-neutral F4B/F4E semantic projection. It is <strong>not voxelized or Minecraft-realized water</strong>; it does not replace F4K prepared-world review or the final DR-70/key-287 product gate.</p>
+                  </section>
+                  <script id="bound-hydrology-data" type="application/json">@@BOUND_HYDROLOGY_JSON@@</script>
+                  <script>
+                    (() => {
+                      const data = JSON.parse(document.getElementById("bound-hydrology-data").textContent);
+                      const canvas = document.getElementById("hydrology-view");
+                      const ctx = canvas.getContext("2d");
+                      const grid = data.grid_binding;
+                      const xSpan = (grid.x_samples - 1) * grid.spacing_x;
+                      const zSpan = (grid.z_samples - 1) * grid.spacing_z;
+                      function paint() {
+                        const ratio = Math.min(window.devicePixelRatio || 1, 2);
+                        const width = canvas.clientWidth;
+                        const height = canvas.clientHeight;
+                        canvas.width = Math.max(1, Math.floor(width * ratio));
+                        canvas.height = Math.max(1, Math.floor(height * ratio));
+                        ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+                        ctx.fillStyle = "#e8edf0";
+                        ctx.fillRect(0, 0, width, height);
+                        const pad = 38;
+                        const scale = Math.min((width - pad * 2) / xSpan, (height - pad * 2) / zSpan);
+                        const left = (width - xSpan * scale) / 2;
+                        const top = (height - zSpan * scale) / 2;
+                        const point = (x, z) => [
+                          left + (x - grid.minimum_x) * scale,
+                          top + (z - grid.minimum_z) * scale
+                        ];
+                        const field = document.getElementById("cause-field").value;
+                        const causes = data.hydrology_causes;
+                        const values = causes.map(sample => sample[field]);
+                        const low = Math.min(...values);
+                        const high = Math.max(...values);
+                        const radius = Math.max(2, scale * grid.spacing_x * 0.48);
+                        for (const sample of causes) {
+                          const [x, y] = point(sample.world_x, sample.world_z);
+                          const amount = high > low ? (sample[field] - low) / (high - low) : 0.5;
+                          const red = Math.round(207 - amount * 145);
+                          const green = Math.round(220 - amount * 91);
+                          const blue = Math.round(205 - amount * 20);
+                          ctx.fillStyle = "rgb(" + red + "," + green + "," + blue + ")";
+                          ctx.beginPath();
+                          ctx.arc(x, y, radius, 0, Math.PI * 2);
+                          ctx.fill();
+                        }
+                        if (document.getElementById("show-response").checked) {
+                          for (const sample of data.field_samples) {
+                            const [x, y] = point(sample.world_x, sample.world_z);
+                            if (Math.abs(sample.terrain_delta_world) < 0.01) continue;
+                            ctx.fillStyle = "rgba(220,116,54,0.88)";
+                            ctx.beginPath();
+                            ctx.arc(x, y, Math.max(2.5, radius * 0.7), 0, Math.PI * 2);
+                            ctx.fill();
+                          }
+                        }
+                        if (document.getElementById("show-water").checked) {
+                          for (const sample of data.field_samples) {
+                            if (!sample.wet) continue;
+                            const [x, y] = point(sample.world_x, sample.world_z);
+                            ctx.fillStyle = "rgba(28,150,205,0.92)";
+                            ctx.beginPath();
+                            ctx.arc(x, y, Math.max(2.5, radius * 0.72), 0, Math.PI * 2);
+                            ctx.fill();
+                          }
+                        }
+                        if (document.getElementById("show-reaches").checked) {
+                          for (const reach of data.reaches) {
+                            if (reach.points.length < 2) continue;
+                            ctx.beginPath();
+                            reach.points.forEach((sample, index) => {
+                              const [x, y] = point(sample.world_x, sample.world_z);
+                              if (index === 0) ctx.moveTo(x, y);
+                              else ctx.lineTo(x, y);
+                            });
+                            ctx.lineCap = "round";
+                            ctx.lineJoin = "round";
+                            ctx.strokeStyle = "rgba(30,105,184,0.28)";
+                            ctx.lineWidth = Math.max(3, reach.maximum_bankfull_half_width * scale * 2);
+                            ctx.stroke();
+                            ctx.strokeStyle = "rgba(23,78,137,0.98)";
+                            ctx.lineWidth = Math.max(1.5, scale * 1.4);
+                            ctx.stroke();
+                          }
+                        }
+                        if (document.getElementById("show-flow").checked) {
+                          const step = Math.max(1, Math.floor(causes.length / 220));
+                          ctx.strokeStyle = "rgba(28,48,65,0.8)";
+                          ctx.fillStyle = "rgba(28,48,65,0.8)";
+                          ctx.lineWidth = 1.2;
+                          for (let index = 0; index < causes.length; index += step) {
+                            const sample = causes[index];
+                            const magnitude = Math.hypot(sample.flow_x, sample.flow_z);
+                            if (magnitude < 0.0001) continue;
+                            const [x, y] = point(sample.world_x, sample.world_z);
+                            const length = Math.max(4, Math.min(14, magnitude * scale * 1.5));
+                            const endX = x + sample.flow_x / magnitude * length;
+                            const endY = y + sample.flow_z / magnitude * length;
+                            ctx.beginPath();
+                            ctx.moveTo(x, y);
+                            ctx.lineTo(endX, endY);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.arc(endX, endY, 1.6, 0, Math.PI * 2);
+                            ctx.fill();
+                          }
+                        }
+                      }
+                      document.querySelectorAll("#cause-field, .hydrology-controls input")
+                        .forEach(control => control.addEventListener("change", paint));
+                      window.addEventListener("resize", paint);
+                      paint();
+                    })();
+                  </script>
+                  <h2>Terrain semantic views</h2>
+                  <div class="views">
+                    <figure><a href="terrain/top-surface-semantics.png"><img src="terrain/top-surface-semantics.png" alt="Top surface terrain semantic bands"></a><figcaption>Top surface · semantic bands across the exact sampled lattice</figcaption></figure>
+                    <figure><a href="terrain/isometric-top-semantics.png"><img src="terrain/isometric-top-semantics.png" alt="Isometric top surface terrain semantics"></a><figcaption>Isometric view · top surface and surrounding semantic mass</figcaption></figure>
+                    <figure><a href="terrain/east-west-section.png"><img src="terrain/east-west-section.png" alt="East to west terrain semantic section"></a><figcaption>East–west section · vertical semantic structure</figcaption></figure>
+                    <figure><a href="terrain/north-south-section.png"><img src="terrain/north-south-section.png" alt="North to south terrain semantic section"></a><figcaption>North–south section · vertical semantic structure</figcaption></figure>
+                    <figure><a href="terrain/legend.png"><img src="terrain/legend.png" alt="Terrain semantic color legend"></a><figcaption>Legend · semantic band colors</figcaption></figure>
+                  </div>
+                </main>
+                </body>
+                </html>
+                """.formatted(escape(association.canonicalToken()), terrain.sha256());
+        return html.replace(
+                "@@BOUND_HYDROLOGY_JSON@@",
+                hydrologyArtifact.replace("</script", "<\\/script"));
     }
-
     private static String hex(long value) {
         return String.format(Locale.ROOT, "%016x", value);
     }

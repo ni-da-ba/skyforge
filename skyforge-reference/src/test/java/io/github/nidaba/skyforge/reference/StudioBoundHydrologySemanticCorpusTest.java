@@ -24,22 +24,33 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(Files.isRegularFile(hydrology));
         assertTrue(Files.isRegularFile(index));
 
+        Path terrainViews = temp.resolve("terrain");
+        for (String image : new String[] {
+            "legend.png",
+            "top-surface-semantics.png",
+            "east-west-section.png",
+            "north-south-section.png",
+            "isometric-top-semantics.png"
+        }) {
+            assertTrue(Files.isRegularFile(terrainViews.resolve(image)), image);
+        }
+
         String terrainJson = Files.readString(terrain);
         String hydrologyJson = Files.readString(hydrology);
         String indexHtml = Files.readString(index);
-        for (String view : new String[] {
-                "legend.png",
-                "top-surface-semantics.png",
-                "east-west-section.png",
-                "north-south-section.png",
-                "isometric-top-semantics.png"
-        }) {
-            assertTrue(Files.isRegularFile(temp.resolve("terrain").resolve(view)), "missing terrain view " + view);
-            assertTrue(indexHtml.contains("terrain/" + view), "review index must expose " + view);
-        }
-        assertTrue(indexHtml.contains("Review in Studio"));
-        assertTrue(indexHtml.contains("bound hydrology semantic overlay JSON"));
-        assertTrue(indexHtml.contains("Human gate"));
+        assertTrue(indexHtml.contains("terrain/top-surface-semantics.png"));
+        assertTrue(indexHtml.contains("terrain/isometric-top-semantics.png"));
+        assertTrue(indexHtml.contains("terrain/east-west-section.png"));
+        assertTrue(indexHtml.contains("terrain/north-south-section.png"));
+        assertTrue(indexHtml.contains("hydrology-semantic-layer.json"));
+        assertTrue(indexHtml.contains("Bound hydrology · top-down view"));
+        assertTrue(indexHtml.contains("not voxelized or Minecraft-realized water"));
+        assertTrue(indexHtml.contains("sample.wet"));
+        assertTrue(indexHtml.contains("hydrology-view"));
+        assertTrue(indexHtml.contains("data.hydrology_causes"));
+        assertTrue(indexHtml.contains("data.field_samples"));
+        assertTrue(indexHtml.contains("data.reaches"));
+        assertTrue(indexHtml.contains(hydrologyJson));
 
         assertTrue(terrainJson.contains(
                 "\"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\""));
@@ -65,8 +76,10 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(hydrologyJson.contains("\"group_identifier\": \"studio-s2\""));
 
         int reaches = integerValue(hydrologyJson, "accepted_reaches");
+        int wet = integerValue(hydrologyJson, "wet_grid_samples");
         int affected = integerValue(hydrologyJson, "affected_grid_samples");
         assertTrue(reaches > 0, "bound specimen should expose at least one accepted F4B reach");
+        assertTrue(wet > 0, "bound specimen should visibly expose sampled F4E water intent");
         assertTrue(affected > 0, "bound specimen should expose affected semantic grid samples");
         assertTrue(hydrologyJson.contains("\"reaches\": ["));
         assertTrue(hydrologyJson.contains("\"field_samples\": ["));
