@@ -197,6 +197,38 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return changed;
     }
 
+    /** Applies qualified hydrology only for exact catalog volumes present in this chunk. */
+    static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> authorizations) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(terrain, "terrain");
+        Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> bindings =
+                Map.copyOf(Objects.requireNonNull(authorizations, "authorizations"));
+        for (var entry : bindings.entrySet()) {
+            SkyIslandHydrologyRuntimeAuthorization authorization = entry.getValue();
+            if (!entry.getKey().equals(authorization.association().realizedVolumeId())) {
+                throw new IllegalArgumentException(
+                        "F4H authorization map key must match its exact realized volume id");
+            }
+        }
+
+        int changed = 0;
+        for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
+            SkyIslandHydrologyRuntimeAuthorization authorization = bindings.get(volume.id());
+            if (authorization == null) {
+                continue;
+            }
+            if (!authorization.association().realizedVolume().equals(volume)) {
+                throw new IllegalArgumentException(
+                        "F4H authorization must match the exact catalog volume");
+            }
+            changed += applyAvailable(chunk, terrain, authorization);
+        }
+        return changed;
+    }
+
     private static void requireAuthorizedOwner(
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandHydrologyRuntimeAuthorization authorization,
