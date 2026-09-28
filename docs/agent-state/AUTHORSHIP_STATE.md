@@ -578,6 +578,14 @@ and terrain accommodation remain Implementation-owned.
 
 ### Ecology / fauna / civilization
 
+The backend-neutral ecology extension is now defined through #1223 and
+`docs/architecture/Skyforge_Ecology_Field_Architecture.md`: explicit environmental inputs and response
+fields feed habitat/community suitability, assembly, structural realization, vegetation functional-group
+niches, #1221 deterministic spatial patch support, and #1223 deterministic discrete candidate admission.
+Candidate spacing/admission policy remains caller-authored and backend-neutral; even an admitted
+functional-group candidate is not species identity, occupancy, population/carrying-capacity state, or
+Minecraft feature authority. Concrete species/population policy remains downstream Content/backend work.
+
 AUTH-0089/0090/0091/0092 remain evidence inputs, not spawn/carrying-capacity/faction/province policy.
 AUTH-0096/AUTH-0097 are local site/environment/access evidence inputs for structure/civilization work,
 not settlement, faction, route-network, or progression policy. AUTH-0098 now supplies petroleum-system geological opportunity, not petroleum availability/deposits. Add cave/cliff, disturbance, predator-pressure, trophic,

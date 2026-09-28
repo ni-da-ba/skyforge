@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221, #1223  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -374,6 +374,30 @@ coherent groves/clearings/patches and transition texture without becoming a subs
 cause. The raw signal, retention, spatial support, signal profile, transform, and full upstream ecology
 remain inspectable in the resulting evaluation.
 
+Issue #1223 adds the first discrete realization-candidate seam above #1221 spatial support.
+`SkyIslandEcologicalCandidateLatticeProfile` defines an explicit versioned island-local jittered lattice
+with caller-supplied seed, semantic namespace, cell pitch, and bounded per-axis jitter. Each integer
+lattice cell owns exactly one deterministic candidate position plus an independent deterministic
+admission scalar `a in [0,1)`. Its geometry exposes the conservative spacing bound
+
+~~~text
+guaranteedMinimumSpacing = cellPitch - 2 * maxAxisJitter
+~~~
+
+`SkyIslandSupportThresholdVegetationPlacementAdmissionTransform` consumes one exact candidate and
+ecology evaluated at that exact candidate position. For resolved spatial niche support `s`:
+
+~~~text
+admitted = a < s
+~~~
+
+Candidate hashing therefore performs deterministic thinning only. Zero spatial support admits nothing,
+unit support admits every candidate, increasing support is monotone for a fixed candidate, and unresolved
+spatial ecology remains unresolved rather than becoming a rejection. Candidate geometry, lattice
+identity, admission scalar, transform, and the full upstream #1221 ecology remain inspectable. An
+admitted candidate is still not a species, occupancy state, population, physical plant, or backend
+placed-feature authorization.
+
 ## 8. Backend boundary
 
 The ecology kernel/world layer may expose:
@@ -381,6 +405,7 @@ The ecology kernel/world layer may expose:
 - environmental-response fields;
 - community-suitability fields;
 - realization/structure fields;
+- deterministic functional-group realization candidates;
 - ecology provenance and authored identity;
 - aggregate opportunity summaries.
 
@@ -497,13 +522,14 @@ Therefore:
 11. issue #1212 preserves overlapping community realizations and permits explicit weighted composition without hidden winner selection;
 12. issue #1216 maps resolved aggregate structure into explicit vegetation functional-group structural niche support without species/backend identity;
 13. issue #1221 spatially organizes resolved functional-group support with deterministic kernel signal modulated by ecological patchiness, without creating ecological identity from noise;
-14. later replacement response/community models must be versioned or explicitly migrated;
-15. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+14. issue #1223 discretizes spatial support into deterministic functional-group candidate proposals through explicit lattice and admission policy, without asserting species, occupancy, or backend placement;
+15. later replacement response/community models must be versioned or explicitly migrated;
+16. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-16. new ecology authority should be earned through deterministic reference evidence before a backend
+17. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1221
+## Immediate next work after #1223
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -528,11 +554,14 @@ A prudent sequence is:
     hidden structural behavior to group names;
 12. keep #1221 spatial patch realization deterministic, versioned, and subordinate to ecological
     support rather than treating procedural signal as ecological cause;
-13. add discrete candidate/object placement only when a backend-neutral spacing/admission contract can
-    consume spatial support without becoming species or backend feature policy;
-14. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
+13. keep #1223 discrete candidate geometry and admission explicit, deterministic, versioned, and
+    subordinate to #1221 spatial support; admitted candidates remain proposals rather than occupancy,
+    species, population, or backend feature authority;
+14. introduce richer spacing/footprint samplers only when a concrete consumer demonstrates that the
+    simple versioned jittered lattice is insufficient;
+15. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
     explicit rather than inferred from species/backend identity;
-15. keep concrete species/population lifecycle policy downstream of neutral realization.
+16. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
