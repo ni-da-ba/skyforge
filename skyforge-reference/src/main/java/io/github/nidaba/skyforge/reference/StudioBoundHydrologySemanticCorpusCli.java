@@ -519,12 +519,33 @@ public final class StudioBoundHydrologySemanticCorpusCli {
         return """
                 <!doctype html><meta charset="utf-8">
                 <title>Skyforge Studio S2 bound hydrology</title>
-                <style>body{font-family:system-ui,sans-serif;max-width:1000px;margin:2rem auto;background:#f6f4ee;color:#282c34}code{background:#e9e6dd;padding:2px 5px}</style>
+                <style>
+                  body{font-family:system-ui,sans-serif;max-width:1100px;margin:2rem auto;padding:0 1rem;background:#f6f4ee;color:#282c34}
+                  code{background:#e9e6dd;padding:2px 5px}
+                  .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
+                  figure{margin:0;padding:0.75rem;background:#fff;border:1px solid #d5d0c4}
+                  figure img{display:block;width:100%%;height:auto}
+                  figcaption{padding-top:.5rem}
+                  .gate{padding:1rem;background:#fff2cc;border-left:4px solid #bf8b00}
+                </style>
                 <h1>Studio S2 bound hydrology semantic specimen</h1>
                 <p>One exact AUTH-0046 authored-realization association rendered through F4B terrain and F4E water projection. No Minecraft dependency or Studio-side hydrology solve exists.</p>
                 <p>Association: <code>%s</code></p>
                 <p>Terrain semantic SHA-256: <code>%s</code></p>
-                <p><a href="terrain/terrain-semantic-volume.json">terrain semantic volume</a> · <a href="hydrology-semantic-layer.json">bound hydrology semantic layer</a></p>
+                <h2>Review in Studio</h2>
+                <ol>
+                  <li>Load the <a href="terrain/terrain-semantic-volume.json">exact terrain semantic volume</a>.</li>
+                  <li>Inspect the <a href="hydrology-semantic-layer.json">bound hydrology semantic overlay JSON</a> against it; the overlay carries the terrain semantic SHA-256 and AUTH-0046 association.</li>
+                </ol>
+                <p class="gate"><strong>Human gate:</strong> these views and machine checks do not approve aesthetics, product quality, or the separate DR-70/key-287 review. Record a human visual finding before advancing that boundary.</p>
+                <h2>Terrain semantic views</h2>
+                <div class="views">
+                  <figure><a href="terrain/top-surface-semantics.png"><img src="terrain/top-surface-semantics.png" alt="Terrain top-surface semantic map"></a><figcaption>Top-surface semantics</figcaption></figure>
+                  <figure><a href="terrain/east-west-section.png"><img src="terrain/east-west-section.png" alt="East-west terrain semantic section"></a><figcaption>East-west section</figcaption></figure>
+                  <figure><a href="terrain/north-south-section.png"><img src="terrain/north-south-section.png" alt="North-south terrain semantic section"></a><figcaption>North-south section</figcaption></figure>
+                  <figure><a href="terrain/isometric-top-semantics.png"><img src="terrain/isometric-top-semantics.png" alt="Isometric terrain semantic overview"></a><figcaption>Isometric overview</figcaption></figure>
+                  <figure><a href="terrain/legend.png"><img src="terrain/legend.png" alt="Terrain semantic legend"></a><figcaption>Semantic legend</figcaption></figure>
+                </div>
                 """.formatted(
                         escape(association.canonicalToken()),
                         terrain.sha256());

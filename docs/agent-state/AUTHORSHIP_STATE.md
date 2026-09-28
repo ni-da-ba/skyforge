@@ -47,11 +47,13 @@ F2C terminal fate is resolved through the watershed graph: only an explicit edge
 ordinary terminal. Retained open water, retained wetland, and unresolved terminal fate remain
 transition-owned and fail closed. The pre-F2 topological clipping profile remains staging only.
 
-The current review boundary is the scoped F4K prepared-world check on the ordinary (8, 81, 77)
-fixture. It verifies the water adapter stays within F4D-authorized carved columns; it is not the final
-DR-70/product gate. The meaningful DR-70 human review remains downstream of Minecraft discretization
-and must use the key-287 product-review specimen. See the F4K runbook for the scoped check and
-launch command.
+The scoped F4K prepared-world check on the ordinary (8, 81, 77) fixture received a limited owner
+containment pass: the two expected reaches stayed in the authorized carved columns with no obvious
+runaway water. This is not aesthetic/product approval or the final DR-70 gate. Merged Studio S2 now
+binds its hydrology overlay to the exact terrain semantic SHA and AUTH-0046 association; issue #1252
+stages that specimen for pending human visual review. The meaningful DR-70 human review remains
+downstream of Minecraft discretization and must use the key-287 product-review specimen. See the F4K
+runbook for its scoped check and launch command.
 
 Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
 calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional
