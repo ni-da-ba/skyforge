@@ -21,7 +21,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
     public static final double RIDGE_PROBE_RADIUS_PLANNING_FRACTION = 0.375;
 
     private static final double BASE_LENGTH_WEIGHT = 1.0;
-    // Normalize the historical 4x line-density scale uniformly: the old ascent weight 40 / 4 = 10.\n    private static final double ASCENT_WEIGHT = 10.0;
+    // Normalize the historical 4x line-density scale uniformly: the old ascent weight 40 / 4 = 10.
+    private static final double ASCENT_WEIGHT = 10.0;
     private static final double RIDGE_WEIGHT = 24.0;
     private static final double TERRAIN_LEVEL_WEIGHT = 2.5;
     private static final double GUIDANCE_DEVIATION_WEIGHT = 1.75;
