@@ -109,6 +109,27 @@ final class SkyIslandEcologicalCandidateLatticeProfileTest {
     }
 
     @Test
+    void changedSignalIdentityChangesCandidatesWithoutChangingWindowContract() {
+        SkyIslandEcologicalCandidateLatticeProfile first =
+                profile(0x1225D45L, "ecology.query.identity-first", 11.0, 2.0);
+        SkyIslandEcologicalCandidateLatticeProfile second =
+                profile(0x1225D45L, "ecology.query.identity-second", 11.0, 2.0);
+        SkyIslandEcologicalCandidateQueryWindow window =
+                new SkyIslandEcologicalCandidateQueryWindow(-40.0, 40.0, -40.0, 40.0);
+
+        var firstResult = first.query(window);
+        var secondResult = second.query(window);
+
+        assertEquals(window, firstResult.window());
+        assertEquals(window, secondResult.window());
+        assertTrue(firstResult.candidates().stream()
+                .allMatch(candidate -> window.contains(candidate.position())));
+        assertTrue(secondResult.candidates().stream()
+                .allMatch(candidate -> window.contains(candidate.position())));
+        assertTrue(!firstResult.candidates().equals(secondResult.candidates()));
+    }
+
+    @Test
     void invalidOrUnsafeWindowsFailClosed() {
         assertThrows(
                 IllegalArgumentException.class,
