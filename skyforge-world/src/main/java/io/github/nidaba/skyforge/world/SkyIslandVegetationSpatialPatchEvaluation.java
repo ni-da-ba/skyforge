@@ -21,11 +21,16 @@ public record SkyIslandVegetationSpatialPatchEvaluation(
         }
         state = Objects.requireNonNull(state, "state");
 
-        if (state.isPresent()
-                && state.orElseThrow().spatialNicheSupport()
-                        > functionalGroupEvaluation.structuralNicheSupport().orElseThrow() + 1.0e-12) {
-            throw new IllegalArgumentException(
-                    "spatial niche support must not exceed upstream functional-group support");
+        if (state.isPresent()) {
+            if (functionalGroupEvaluation.structuralNicheSupport().isEmpty()) {
+                throw new IllegalArgumentException(
+                        "resolved spatial state requires resolved upstream functional-group support");
+            }
+            if (state.orElseThrow().spatialNicheSupport()
+                    > functionalGroupEvaluation.structuralNicheSupport().orElseThrow() + 1.0e-12) {
+                throw new IllegalArgumentException(
+                        "spatial niche support must not exceed upstream functional-group support");
+            }
         }
     }
 
