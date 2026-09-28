@@ -1,9 +1,9 @@
 # SF-IMP-0043 F4K hydrology visual review
 
-Run from `skyforge-neoforge-1211`:
+Run from the repository root (the Gradle wrapper is at the root):
 
 ```powershell
-.\gradlew.bat launchF4KHydrologyReview
+.\gradlew.bat :skyforge-neoforge-1211:launchF4KHydrologyReview
 ```
 
 This does not enter the normal Create New World flow. A dedicated server first builds a fresh, bounded `f4k-hydrology-review` save using the exact ordinary `(8, 81, 77)` F4H fixture and stops only after it finds persisted water heads in F4D-authorized carved columns. The client then quick-plays that save and places the player in spectator at the overview.
@@ -18,7 +18,7 @@ Review expectations:
 For a preparation-only check, use:
 
 ```powershell
-.\gradlew.bat f4kHydrologyReviewPrepareVerify
+.\gradlew.bat :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify
 ```
 
 A failed preparation leaves no reviewable saved-world claim. Attach the resulting console log and `build/acceptance/f4k-hydrology-review/prepare.properties` to any defect report.
