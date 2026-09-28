@@ -1,6 +1,6 @@
 # Hydrology reset tranche C3 — resolution-consistent terrain-aware route functional
 
-**Status:** design contract under issue #1084  
+**Status:** MERGED / ACCEPTED via PR #1240 on 2026-09-28  
 **Depends on:** C2 semantic-corridor authority; F2C hydraulic evidence remains pre-C3 until regenerated  
 **Terrain mutation:** none  
 **Minecraft changes:** none
@@ -292,3 +292,15 @@ C3 does **not**:
 - solve confluence/cascade/basin transitions;
 - mutate terrain;
 - touch Minecraft.
+
+
+## Acceptance evidence — 2026-09-28
+
+PR #1240 merged at `daf568ee0cc6554da56548fc3eafe5e26375e159`. Exact-head GitHub Actions passed:
+
+- CI run 36467366958;
+- Hydrology Reset Geometry run 36467366854;
+- DR-40 run 36467366780;
+- DR-50 run 36467366799.
+
+The route objective has analytic downhill and uphill checks at 4/8/16 divisions per planning cell, plus the fixed-scale ridge-gap and exact-anchor regressions. Hydrology geometry validation regenerated the qualification and confluence manifests with strict corpus expectations; the key-287 qualification remains rejected and no qualification threshold was widened. The post-C3 F2C-related evidence was rerun as part of the same focused geometry gate; this records requalification, not acceptance of deferred transition or retained-basin authority.
