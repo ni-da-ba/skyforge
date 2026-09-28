@@ -295,6 +295,283 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
         assertEquals(group, secondEvaluation.functionalGroupEvaluation());
     }
 
+    @Test
+    void candidateLatticeIsDeterministicAndRetainsExactProvenance() {
+        SkyIslandEcologicalCandidateLatticeProfile profile =
+                candidateProfile(
+                        0x1223A11L,
+                        "ecology.candidate.shrub",
+                        24.0,
+                        4.0);
+
+        SkyIslandEcologicalPlacementCandidate first = profile.candidate(7L, -5L);
+        SkyIslandEcologicalPlacementCandidate second = profile.candidate(7L, -5L);
+
+        assertEquals(first, second);
+        assertEquals(profile, first.latticeProfile());
+        assertEquals(7L, first.cellX());
+        assertEquals(-5L, first.cellZ());
+        assertTrue(Double.isFinite(first.position().x()));
+        assertTrue(Double.isFinite(first.position().z()));
+        assertTrue(first.admissionValue() >= 0.0 && first.admissionValue() < 1.0);
+        assertEquals(16.0, profile.guaranteedMinimumSpacing(), 0.0);
+    }
+
+    @Test
+    void fabricatedCandidateGeometryOrAdmissionFailsClosed() {
+        SkyIslandEcologicalCandidateLatticeProfile profile =
+                candidateProfile(
+                        0x1223A12L,
+                        "ecology.candidate.provenance",
+                        24.0,
+                        4.0);
+        SkyIslandEcologicalPlacementCandidate canonical = profile.candidate(3L, -4L);
+        SkyIslandLocalPosition shifted =
+                new SkyIslandLocalPosition(
+                        canonical.position().x() + 0.25,
+                        canonical.position().z());
+        double alteredAdmission = canonical.admissionValue() == 0.0
+                ? Math.nextUp(canonical.admissionValue())
+                : Math.nextDown(canonical.admissionValue());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalPlacementCandidate(
+                        profile,
+                        canonical.cellX(),
+                        canonical.cellZ(),
+                        shifted,
+                        canonical.admissionValue()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalPlacementCandidate(
+                        profile,
+                        canonical.cellX(),
+                        canonical.cellZ(),
+                        canonical.position(),
+                        alteredAdmission));
+    }
+
+    @Test
+    void candidateIdentityChangesRealizationWithoutChangingSpacingPolicy() {
+        SkyIslandEcologicalCandidateLatticeProfile first =
+                candidateProfile(
+                        0x1223B22L,
+                        "ecology.candidate.first",
+                        20.0,
+                        3.0);
+        SkyIslandEcologicalCandidateLatticeProfile second =
+                candidateProfile(
+                        0x1223B22L,
+                        "ecology.candidate.second",
+                        20.0,
+                        3.0);
+
+        SkyIslandEcologicalPlacementCandidate firstCandidate = first.candidate(2L, 3L);
+        SkyIslandEcologicalPlacementCandidate secondCandidate = second.candidate(2L, 3L);
+
+        assertEquals(first.cellPitch(), second.cellPitch(), 0.0);
+        assertEquals(first.maxAxisJitter(), second.maxAxisJitter(), 0.0);
+        assertTrue(
+                !firstCandidate.position().equals(secondCandidate.position())
+                        || Double.doubleToLongBits(firstCandidate.admissionValue())
+                                != Double.doubleToLongBits(secondCandidate.admissionValue()));
+    }
+
+    @Test
+    void jitteredLatticePreservesGuaranteedMinimumSpacing() {
+        SkyIslandEcologicalCandidateLatticeProfile profile =
+                candidateProfile(
+                        0x1223C33L,
+                        "ecology.candidate.spacing",
+                        20.0,
+                        3.0);
+        ArrayList<SkyIslandEcologicalPlacementCandidate> candidates = new ArrayList<>();
+        for (long x = -3L; x <= 3L; x++) {
+            for (long z = -3L; z <= 3L; z++) {
+                candidates.add(profile.candidate(x, z));
+            }
+        }
+
+        double minimum = profile.guaranteedMinimumSpacing();
+        for (int first = 0; first < candidates.size(); first++) {
+            for (int second = first + 1; second < candidates.size(); second++) {
+                SkyIslandLocalPosition a = candidates.get(first).position();
+                SkyIslandLocalPosition b = candidates.get(second).position();
+                double distance = Math.hypot(a.x() - b.x(), a.z() - b.z());
+                assertTrue(distance + 1.0e-12 >= minimum);
+            }
+        }
+    }
+
+    @Test
+    void supportThresholdAdmissionIsExactAndMonotone() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1223D44L,
+                        "ecology.candidate.threshold",
+                        18.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile placement =
+                placementProfile(candidateProfile);
+        SkyIslandEcologicalPlacementCandidate candidate = placement.candidate(4L, -2L);
+        double threshold = candidate.admissionValue();
+        double aboveThreshold = Math.nextUp(threshold);
+
+        SkyIslandVegetationPlacementCandidateEvaluation zero =
+                placement.evaluate(spatialEvaluationAt(candidate.position(), 0.0), candidate);
+        SkyIslandVegetationPlacementCandidateEvaluation equal =
+                placement.evaluate(spatialEvaluationAt(candidate.position(), threshold), candidate);
+        SkyIslandVegetationPlacementCandidateEvaluation above =
+                placement.evaluate(
+                        spatialEvaluationAt(candidate.position(), aboveThreshold),
+                        candidate);
+        SkyIslandVegetationPlacementCandidateEvaluation unit =
+                placement.evaluate(spatialEvaluationAt(candidate.position(), 1.0), candidate);
+
+        assertFalse(zero.admissionState().orElseThrow().admitted());
+        assertFalse(equal.admissionState().orElseThrow().admitted());
+        assertTrue(above.admissionState().orElseThrow().admitted());
+        assertTrue(unit.admissionState().orElseThrow().admitted());
+        assertEquals(candidate, unit.candidate());
+        assertEquals(placement, unit.placementProfile());
+        assertEquals(candidate.position(), unit.position());
+    }
+
+    @Test
+    void unresolvedSpatialSupportPropagatesToUnresolvedCandidateAdmission() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1223E55L,
+                        "ecology.candidate.unresolved",
+                        22.0,
+                        4.0);
+        SkyIslandVegetationPlacementProfile placement =
+                placementProfile(candidateProfile);
+        SkyIslandEcologicalPlacementCandidate candidate = placement.candidate(-2L, 6L);
+
+        SkyIslandVegetationPlacementCandidateEvaluation evaluation =
+                placement.evaluate(
+                        unresolvedSpatialEvaluationAt(candidate.position()),
+                        candidate);
+
+        assertFalse(evaluation.spatialPatchEvaluation().resolved());
+        assertFalse(evaluation.resolved());
+        assertTrue(evaluation.admissionState().isEmpty());
+    }
+
+    @Test
+    void mismatchedCandidatePositionFailsClosed() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1223F66L,
+                        "ecology.candidate.position",
+                        16.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile placement =
+                placementProfile(candidateProfile);
+        SkyIslandEcologicalPlacementCandidate candidate = placement.candidate(1L, 1L);
+        SkyIslandLocalPosition mismatch =
+                new SkyIslandLocalPosition(
+                        candidate.position().x() + 1.0,
+                        candidate.position().z());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> placement.evaluate(spatialEvaluationAt(mismatch, 1.0), candidate));
+    }
+
+    @Test
+    void candidateFromDifferentPlacementProfileFailsClosed() {
+        SkyIslandEcologicalCandidateLatticeProfile first =
+                candidateProfile(
+                        0x1223077L,
+                        "ecology.candidate.owner-first",
+                        16.0,
+                        2.0);
+        SkyIslandEcologicalCandidateLatticeProfile second =
+                candidateProfile(
+                        0x1223077L,
+                        "ecology.candidate.owner-second",
+                        16.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile placement = placementProfile(first);
+        SkyIslandEcologicalPlacementCandidate foreign = second.candidate(0L, 0L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> placement.evaluate(
+                        spatialEvaluationAt(foreign.position(), 1.0),
+                        foreign));
+    }
+
+    @Test
+    void customAdmissionCannotCreatePresenceFromZeroSpatialSupport() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1223078L,
+                        "ecology.candidate.invalid-admission",
+                        16.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile invalid =
+                new SkyIslandVegetationPlacementProfile(
+                        candidateProfile,
+                        (spatial, candidate) -> Optional.of(
+                                new SkyIslandVegetationPlacementAdmissionState(true)));
+        SkyIslandEcologicalPlacementCandidate candidate = invalid.candidate(0L, 0L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> invalid.evaluate(
+                        spatialEvaluationAt(candidate.position(), 0.0),
+                        candidate));
+    }
+
+    @Test
+    void invalidCandidateLatticeParametersFailClosed() {
+        SkyIslandEcologicalCandidateLatticeProfile valid =
+                candidateProfile(
+                        0x1223088L,
+                        "ecology.candidate.valid",
+                        16.0,
+                        2.0);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandEcologicalCandidateLatticeProfile.current(
+                        1L, "ecology.candidate.zero-pitch", 0.0, 0.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandEcologicalCandidateLatticeProfile.current(
+                        1L, "ecology.candidate.nan-pitch", Double.NaN, 0.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandEcologicalCandidateLatticeProfile.current(
+                        1L, "ecology.candidate.negative-jitter", 16.0, -1.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandEcologicalCandidateLatticeProfile.current(
+                        1L, "ecology.candidate.half-pitch", 16.0, 8.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalCandidateLatticeProfile(
+                        valid.samplerVersion() + 1,
+                        valid.seedVersion(),
+                        valid.rootSeed(),
+                        valid.namespace(),
+                        valid.cellPitch(),
+                        valid.maxAxisJitter()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalCandidateLatticeProfile(
+                        valid.samplerVersion(),
+                        valid.seedVersion() + 1,
+                        valid.rootSeed(),
+                        valid.namespace(),
+                        valid.cellPitch(),
+                        valid.maxAxisJitter()));
+    }
+
     private static SkyIslandVegetationFunctionalGroupProfile functionalGroupProfile() {
         return new SkyIslandVegetationFunctionalGroupProfile(
                 SkyIslandVegetationFunctionalGroup.SHRUB,
@@ -309,6 +586,55 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
         return new SkyIslandVegetationSpatialPatchProfile(
                 SkyIslandEcologicalPatchSignalProfile.current(rootSeed, namespace, scale),
                 SkyIslandPatchinessRetentionSpatialTransform.INSTANCE);
+    }
+
+    private static SkyIslandEcologicalCandidateLatticeProfile candidateProfile(
+            long rootSeed,
+            String namespace,
+            double cellPitch,
+            double maxAxisJitter) {
+        return SkyIslandEcologicalCandidateLatticeProfile.current(
+                rootSeed,
+                namespace,
+                cellPitch,
+                maxAxisJitter);
+    }
+
+    private static SkyIslandVegetationPlacementProfile placementProfile(
+            SkyIslandEcologicalCandidateLatticeProfile candidateProfile) {
+        return new SkyIslandVegetationPlacementProfile(
+                candidateProfile,
+                SkyIslandSupportThresholdVegetationPlacementAdmissionTransform.INSTANCE);
+    }
+
+    private static SkyIslandVegetationSpatialPatchEvaluation spatialEvaluationAt(
+            SkyIslandLocalPosition localPosition,
+            double support) {
+        SkyIslandMultiCommunityRealizationComposition composition =
+                withPatchiness(resolvedComposition(localPosition), 0.0);
+        SkyIslandVegetationFunctionalGroupEvaluation base =
+                functionalGroupProfile().evaluate(composition);
+        SkyIslandVegetationFunctionalGroupEvaluation forced =
+                new SkyIslandVegetationFunctionalGroupEvaluation(
+                        base.profile(),
+                        base.composition(),
+                        OptionalDouble.of(support));
+        return spatialProfile(
+                        0x1223099L,
+                        "ecology.patch.placement-fixture",
+                        64.0)
+                .evaluate(forced);
+    }
+
+    private static SkyIslandVegetationSpatialPatchEvaluation unresolvedSpatialEvaluationAt(
+            SkyIslandLocalPosition localPosition) {
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(unresolvedComposition(localPosition));
+        return spatialProfile(
+                        0x1223099L,
+                        "ecology.patch.placement-fixture",
+                        64.0)
+                .evaluate(group);
     }
 
     private static SkyIslandMultiCommunityRealizationComposition withPatchiness(
@@ -340,10 +666,15 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     }
 
     private static SkyIslandMultiCommunityRealizationComposition resolvedComposition() {
+        return resolvedComposition(position);
+    }
+
+    private static SkyIslandMultiCommunityRealizationComposition resolvedComposition(
+            SkyIslandLocalPosition localPosition) {
         SkyIslandCommunityRealizationEvaluation woodland =
-                realization(SkyIslandCommunityArchetype.CLOSED_WOODLAND, 0.8);
+                realization(SkyIslandCommunityArchetype.CLOSED_WOODLAND, 0.8, localPosition);
         SkyIslandCommunityRealizationEvaluation grass =
-                realization(SkyIslandCommunityArchetype.OPEN_HERBACEOUS, 0.5);
+                realization(SkyIslandCommunityArchetype.OPEN_HERBACEOUS, 0.5, localPosition);
         SkyIslandMultiCommunityRealizationSet set =
                 new SkyIslandMultiCommunityRealizationSet(List.of(woodland, grass));
         return SkyIslandMultiCommunityRealizationComposition.evaluate(
@@ -355,10 +686,15 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     }
 
     private static SkyIslandMultiCommunityRealizationComposition unresolvedComposition() {
+        return unresolvedComposition(position);
+    }
+
+    private static SkyIslandMultiCommunityRealizationComposition unresolvedComposition(
+            SkyIslandLocalPosition localPosition) {
         SkyIslandCommunityRealizationEvaluation woodland =
-                realization(SkyIslandCommunityArchetype.CLOSED_WOODLAND, 0.8);
+                realization(SkyIslandCommunityArchetype.CLOSED_WOODLAND, 0.8, localPosition);
         SkyIslandCommunityRealizationEvaluation grass =
-                unresolvedRealization(SkyIslandCommunityArchetype.OPEN_HERBACEOUS);
+                unresolvedRealization(SkyIslandCommunityArchetype.OPEN_HERBACEOUS, localPosition);
         SkyIslandMultiCommunityRealizationSet set =
                 new SkyIslandMultiCommunityRealizationSet(List.of(woodland, grass));
         return SkyIslandMultiCommunityRealizationComposition.evaluate(
@@ -372,26 +708,45 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     private static SkyIslandCommunityRealizationEvaluation realization(
             SkyIslandCommunityArchetype community,
             double forcedSupport) {
-        SkyIslandCommunityAssemblyEvaluation base = assembly(community);
+        return realization(community, forcedSupport, position);
+    }
+
+    private static SkyIslandCommunityRealizationEvaluation realization(
+            SkyIslandCommunityArchetype community,
+            double forcedSupport,
+            SkyIslandLocalPosition localPosition) {
+        SkyIslandCommunityAssemblyEvaluation base = assembly(community, localPosition);
         return realizationProfile().evaluate(
                 withSupport(base, OptionalDouble.of(forcedSupport)));
     }
 
     private static SkyIslandCommunityRealizationEvaluation unresolvedRealization(
             SkyIslandCommunityArchetype community) {
+        return unresolvedRealization(community, position);
+    }
+
+    private static SkyIslandCommunityRealizationEvaluation unresolvedRealization(
+            SkyIslandCommunityArchetype community,
+            SkyIslandLocalPosition localPosition) {
         return realizationProfile().evaluate(
-                withSupport(assembly(community), OptionalDouble.empty()));
+                withSupport(assembly(community, localPosition), OptionalDouble.empty()));
     }
 
     private static SkyIslandCommunityAssemblyEvaluation assembly(
             SkyIslandCommunityArchetype community) {
+        return assembly(community, position);
+    }
+
+    private static SkyIslandCommunityAssemblyEvaluation assembly(
+            SkyIslandCommunityArchetype community,
+            SkyIslandLocalPosition localPosition) {
         return new SkyIslandCommunityAssemblyProfile(
                         community,
                         new SkyIslandExponentialDispersalProfile(1_000.0),
                         new SkyIslandExponentialSuccessionProfile(100.0),
                         new SkyIslandWeightedSuccessionAffinityProfile(0.25, 0.75),
                         SkyIslandMultiplicativeAssemblyCombiner.INSTANCE)
-                .evaluate(disturbanceEvidence, position);
+                .evaluate(disturbanceEvidence, localPosition);
     }
 
     private static SkyIslandCommunityAssemblyEvaluation withSupport(
