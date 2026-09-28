@@ -95,6 +95,9 @@ class SkyIslandTerrainAwareRouteSolverTest {
         assertEquals(0.0, coarse.maxGuidanceDeviation(), EPSILON);
         assertEquals(0.0, medium.maxGuidanceDeviation(), EPSILON);
         assertEquals(0.0, fine.maxGuidanceDeviation(), EPSILON);
+        assertEquals(10.2, coarse.totalCost(), 1.0e-9);
+        assertEquals(10.2, medium.totalCost(), 1.0e-9);
+        assertEquals(10.2, fine.totalCost(), 1.0e-9);
         assertEquals(coarse.totalCost(), medium.totalCost(), 1.0e-9);
         assertEquals(medium.totalCost(), fine.totalCost(), 1.0e-9);
 

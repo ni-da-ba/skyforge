@@ -20,8 +20,6 @@ public final class SkyIslandTerrainAwareRouteSolver {
     public static final double RIDGE_DIAGNOSTIC_THRESHOLD = 0.002;
     public static final double RIDGE_PROBE_RADIUS_PLANNING_FRACTION = 0.375;
 
-    private static final double REFERENCE_DIVISIONS_PER_PLANNING_CELL = 4.0;
-
     private static final double BASE_LENGTH_WEIGHT = 1.0;
     private static final double ASCENT_WEIGHT = 40.0;
     private static final double RIDGE_WEIGHT = 24.0;
@@ -204,10 +202,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     }
 
                     double stepLength = Math.hypot(dx * step, dz * step);
-                    double normalizedLength =
-                            REFERENCE_DIVISIONS_PER_PLANNING_CELL
-                                    * stepLength
-                                    / planningSpacing;
+                    double normalizedLength = stepLength / planningSpacing;
                     double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
                     double transitionCost =
                             BASE_LENGTH_WEIGHT * normalizedLength
@@ -312,7 +307,6 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 position.x() - goal.center().x(),
                 position.z() - goal.center().z());
         return BASE_LENGTH_WEIGHT
-                * REFERENCE_DIVISIONS_PER_PLANNING_CELL
                 * Math.max(0.0, distance - goal.radius())
                 / planningSpacing;
     }
