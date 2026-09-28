@@ -20,7 +20,9 @@ public record SkyIslandVegetationCandidateWindowEvaluation(
         Objects.requireNonNull(evaluations, "evaluations");
         evaluations = List.copyOf(evaluations);
 
-        if (!profile.placementProfile()\n                .candidateProfile()\n                .equals(candidateQuery.latticeProfile())) {
+        if (!profile.placementProfile()
+                .candidateProfile()
+                .equals(candidateQuery.latticeProfile())) {
             throw new IllegalArgumentException(
                     "candidate query lattice must match window placement profile");
         }
