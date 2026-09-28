@@ -19,8 +19,9 @@ This file is a compact operator/agent bootstrap cache. It does **not** override 
 - **Hydrology is in the Sep-25 continuous-solution reset, not an H6 patch loop.** Issue #1084 remains the design dependency for DR-70/#754.
 - The latest H6 implementation is preserved at `archive/hydrology-h6-2026-09-25` (`aa2ac58f15f67c6b64040bea71dfbc4d6a0c43cf`); never extend it.
 - The reset has merged semantic-corridor centerlines (C2), hard river/basin qualification machinery (D2/E2), strict realization authority (F0), ordinary qualified fluvial realization (F1), and C2-based discontinuity diagnostics (D3).
-- F2, F2A, and the head-independent F2B hydraulic geometry skeleton are merged. Current next work is F2C: bounded world-space ordinary profiles with D2-derived constraints, topology-backed terminal fate, post-solve requalification, and three-resolution convergence evidence before any transition realization or Minecraft discretization.
-- #1084 additionally requires a separate C3 route-search numerical-consistency tranche: physical-length quadrature, fixed-scale probes, arc-length-weighted route diagnostics, and multi-resolution route/diagnostic convergence. Current F2C evidence is pre-C3 and must be regenerated before production authority advances.
+- C3 is accepted in PR #1240 (`daf568ee0cc6554da56548fc3eafe5e26375e159`): route cost uses physical-length quadrature, fixed physical probes, and 4/8/16 analytic regressions. Exact-head CI, Hydrology Reset Geometry, DR-40, and DR-50 passed; post-C3 qualification/confluence evidence was regenerated without widening thresholds. Key 287 remains rejected.
+- Hydrology has since advanced through F2C/F3/F4 to the F4K prepared-world adapter review. PR #1238 bounds water placement to F4D-authorized carved support. The scoped ordinary-fixture review is distinct from the final DR-70 gate.
+- The remaining DR-70 human/product review belongs after Minecraft discretization and must use the key-287 product-review specimen; do not treat the F4K quick-play fixture as that acceptance.
 - Retained-basin terrain remains blocked on adequate POND/LAKE calibration; pure-INCISED qualification remains provisional pending dedicated evidence.
 - There is **no pending Platform-v2 console action** from the reliability campaign.
 - Normal Skyforge development may resume under current lane/product authority.
