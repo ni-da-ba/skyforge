@@ -10,6 +10,7 @@ import io.github.nidaba.skyforge.world.TerrainBoxObservation;
 import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.OptionalInt;
@@ -611,36 +612,65 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                         worldZ));
     }
 
+    /** Compatibility binding for legacy hydrology fixtures and explicit rollback runs. */
     static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
-        return install(adapter, writer, Optional.empty(), Optional.empty());
-    }
-
-    /** Installs the preferred F4H-authorized hydrology runtime path. */
-    static AutoCloseable installAuthorizedHydrology(
-            SkyforgeNeoForge1211ChunkAdapter adapter,
-            SkyforgeNeoForge1211ChunkWriter writer,
-            SkyIslandHydrologyRuntimeAuthorization authorization) {
         return install(
                 adapter,
                 writer,
                 Optional.empty(),
-                Optional.of(Objects.requireNonNull(authorization, "authorization")));
+                Map.of(),
+                HydrologyMode.LEGACY_COMPATIBILITY);
+    }
+
+    /** Convenience binding for one exact F4H-authorized volume. */
+    static AutoCloseable installAuthorizedHydrology(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyforgeNeoForge1211ChunkWriter writer,
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Objects.requireNonNull(authorization, "authorization");
+        return installQualifiedHydrology(
+                adapter,
+                writer,
+                Map.of(authorization.association().realizedVolumeId(), authorization));
+    }
+
+    /**
+     * Installs a qualified-only binding. Missing authorizations remain inert; they never fall back
+     * to the legacy coarse planner.
+     */
+    static AutoCloseable installQualifiedHydrology(
+            SkyforgeNeoForge1211ChunkAdapter adapter,
+            SkyforgeNeoForge1211ChunkWriter writer,
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> authorizations) {
+        return install(
+                adapter,
+                writer,
+                Optional.empty(),
+                Objects.requireNonNull(authorizations, "authorizations"),
+                HydrologyMode.QUALIFIED_ONLY);
     }
 
     static AutoCloseable installNativeSurfaceAdapted(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer) {
-        return install(adapter, writer, Optional.of(new MinecraftNativeSurfaceTopAdapter()), Optional.empty());
+        return install(
+                adapter,
+                writer,
+                Optional.of(new MinecraftNativeSurfaceTopAdapter()),
+                Map.of(),
+                HydrologyMode.LEGACY_COMPATIBILITY);
     }
 
     private static AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
-            Optional<SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorization) {
-        RuntimeBinding binding = new RuntimeBinding(adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorization);
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
+            HydrologyMode hydrologyMode) {
+        RuntimeBinding binding = new RuntimeBinding(
+                adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorizations, hydrologyMode);
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a Skyforge post-surface runtime binding is already installed");
         }
@@ -760,11 +790,9 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     private static void applyHydrology(ChunkAccess chunk, RuntimeBinding binding) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(binding, "binding");
-        if (binding.hydrologyAuthorization().isPresent()) {
+        if (binding.hydrologyMode() == HydrologyMode.QUALIFIED_ONLY) {
             SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
-                    chunk,
-                    binding.adapter(),
-                    binding.hydrologyAuthorization().orElseThrow());
+                    chunk, binding.adapter(), binding.hydrologyAuthorizations());
             return;
         }
         SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
@@ -777,16 +805,35 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 chunk.getHeight());
     }
 
+    private enum HydrologyMode {
+        LEGACY_COMPATIBILITY,
+        QUALIFIED_ONLY
+    }
+
     private record RuntimeBinding(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
-            Optional<SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorization) {
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
+            HydrologyMode hydrologyMode) {
         private RuntimeBinding {
             Objects.requireNonNull(adapter, "adapter");
             Objects.requireNonNull(writer, "writer");
             Objects.requireNonNull(nativeSurfaceTopAdapter, "nativeSurfaceTopAdapter");
-            Objects.requireNonNull(hydrologyAuthorization, "hydrologyAuthorization");
+            hydrologyAuthorizations = Map.copyOf(
+                    Objects.requireNonNull(hydrologyAuthorizations, "hydrologyAuthorizations"));
+            Objects.requireNonNull(hydrologyMode, "hydrologyMode");
+            for (var entry : hydrologyAuthorizations.entrySet()) {
+                if (!entry.getKey().equals(entry.getValue().association().realizedVolumeId())) {
+                    throw new IllegalArgumentException(
+                            "runtime hydrology authorization key must match its exact realized volume id");
+                }
+            }
+            if (hydrologyMode == HydrologyMode.LEGACY_COMPATIBILITY
+                    && !hydrologyAuthorizations.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "legacy compatibility binding cannot carry qualified hydrology authorizations");
+            }
         }
     }
 }
