@@ -1,0 +1,55 @@
+name: Hydrology Retained Basin Discovery
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hydrology-retained-basin-discovery.yml"
+      - "docs/authorship/HYDROLOGY_RESET_RETAINED_OPEN_WATER_SEED_STRATA.md"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyRetainedBasinSeedStrataCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyRetainedBasinSeedStrataCorpusTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWaterbodyPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyDiagnosticsPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandContinuousWaterbodyPlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandDescriptorGenerator.java"
+      - "skyforge-model/src/main/java/io/github/nidaba/skyforge/model/skyisland/SkyIslandIdentity.java"
+
+jobs:
+  seed-strata:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Run fixed retained-basin discovery corpus
+        env:
+          SKYFORGE_RUN_BASIN_DISCOVERY: "true"
+        run: |
+          ./gradlew :skyforge-reference:test \
+            --tests '*HydrologyRetainedBasinSeedStrataCorpusTest' \
+            --rerun-tasks --no-configuration-cache
+
+      - name: Print compact discovery results
+        if: success()
+        run: |
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/summary.csv
+          echo "--- open-water candidate rows ---"
+          head -n 31 skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/candidates.csv
+          echo "--- all retained-sink semantic classifications ---"
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/semantics.csv
+          echo "--- geometry failures ---"
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/geometry-failures.csv
+
+      - name: Upload retained-basin discovery evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: skyforge-hydrology-retained-basin-seed-strata-${{ github.sha }}
+          path: skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/
+          if-no-files-found: error
+          retention-days: 14
