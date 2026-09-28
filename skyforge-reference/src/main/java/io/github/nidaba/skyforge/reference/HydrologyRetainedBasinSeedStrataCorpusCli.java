@@ -48,6 +48,10 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                         + "area_world2,equivalent_diameter,max_depth_world,depth_to_diameter,"
                         + "max_shoreline_grade,spill_headroom_world,matched_terminal_reaches,"
                         + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings\n");
+        StringBuilder semantics = new StringBuilder(
+                "seed_id,world_seed_hex,namespace,province,cluster,island_key,sink_cell,kind,"
+                        + "catchment_cell_count,catchment_fraction,relative_inflow,retention,saturation,"
+                        + "persistence,basin_scale\\n");
         StringBuilder failures = new StringBuilder(
                 "seed_id,world_seed_hex,namespace,province,cluster,island_key,error\n");
 
@@ -90,6 +94,9 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                             .append(lakes).append(',')
                             .append(wetlands).append('\n');
 
+                    for (SkyIslandWaterbodyCandidate candidate : waterbodies) {
+                        appendSemantic(semantics, seed, namespace, key, candidate);
+                    }
                     if (ponds + lakes == 0) {
                         continue;
                     }
@@ -138,6 +145,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
 
         Files.writeString(out.resolve("specimens.csv"), specimens, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("candidates.csv"), candidates, StandardCharsets.UTF_8);
+        Files.writeString(out.resolve("semantics.csv"), semantics, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("geometry-failures.csv"), failures, StandardCharsets.UTF_8);
         StringBuilder summary = new StringBuilder(
                 "metric,value\n"
@@ -166,6 +174,29 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 are measured only for identities that yield an existing open-water candidate.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
+    }
+
+    private static void appendSemantic(
+            StringBuilder out,
+            SeedStratum seed,
+            Namespace namespace,
+            int key,
+            SkyIslandWaterbodyCandidate candidate) {
+        out.append(seed.id()).append(',')
+                .append(hex(seed.value())).append(',')
+                .append(namespace.id()).append(',')
+                .append(namespace.province()).append(',')
+                .append(namespace.cluster()).append(',')
+                .append(key).append(',')
+                .append(candidate.sinkCellIndex()).append(',')
+                .append(candidate.kind().name().toLowerCase(Locale.ROOT)).append(',')
+                .append(candidate.catchmentCellCount()).append(',')
+                .append(format(candidate.catchmentFraction())).append(',')
+                .append(format(candidate.relativeInflow())).append(',')
+                .append(format(candidate.retentionPotential())).append(',')
+                .append(format(candidate.saturationPotential())).append(',')
+                .append(format(candidate.persistence())).append(',')
+                .append(format(candidate.basinScale())).append('\\n');
     }
 
     private static void appendCandidate(

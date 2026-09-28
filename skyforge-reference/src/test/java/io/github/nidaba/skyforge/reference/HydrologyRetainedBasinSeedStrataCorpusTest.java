@@ -24,6 +24,7 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
 
         var specimenLines = Files.readAllLines(out.resolve("specimens.csv"));
         var candidateLines = Files.readAllLines(out.resolve("candidates.csv"));
+        var semanticLines = Files.readAllLines(out.resolve("semantics.csv"));
         String summary = Files.readString(out.resolve("summary.csv"));
         String readme = Files.readString(out.resolve("README.txt"));
 
@@ -37,6 +38,8 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
         }
         assertEquals(768, identities.size());
         assertEquals(24, candidateLines.get(0).split(",", -1).length);
+        assertEquals(15, semanticLines.get(0).split(",", -1).length);
+        assertTrue(semanticLines.size() > 1, "retained-sink semantic classifications are recorded");
         assertTrue(summary.contains("stratum_seed-min/reference-8-81,128"));
         assertTrue(summary.contains("stratum_seed-zero/reference-6-61,128"));
         assertTrue(summary.contains("stratum_seed-skyforge/reference-8-81,128"));

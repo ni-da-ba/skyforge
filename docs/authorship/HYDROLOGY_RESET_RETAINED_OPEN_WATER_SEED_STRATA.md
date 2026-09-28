@@ -21,7 +21,7 @@ The new evidence corpus keeps the two already-used identity namespaces (province
 
 Within every seed/namespace stratum it scans island keys 1 through 128, for 768 deterministic
 identities total. It records the exact identity, morphology, descriptor budgets, and counts of
-existing POND, LAKE, and WETLAND classifications. For any POND/LAKE candidate it also records the
+existing POND, LAKE, and WETLAND classifications plus the exact retained-sink semantic predictors. For any POND/LAKE candidate it also records the
 existing continuous E1 geometry diagnostics; a geometry failure is explicit and does not grant
 authority.
 
@@ -33,6 +33,6 @@ Minecraft realization. A candidate can support a later fixed E1/E2 calibration c
 leaves the existing retained-open-water path fail-closed and makes a classifier/product decision
 explicit rather than silently weakening policy.
 
-The machine-readable output is hydrology-retained-basin-seed-strata-v1. The
+The machine-readable output is hydrology-retained-basin-seed-strata-v1; semantics.csv records all retained-sink classifier inputs and outcomes. The
 Hydrology Retained Basin Discovery workflow prints a compact summary and uploads the complete
 manifests.
