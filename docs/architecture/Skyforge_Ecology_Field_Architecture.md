@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221, #1223  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216, #1221, #1223, #1225  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -398,6 +398,18 @@ identity, admission scalar, transform, and the full upstream #1221 ecology remai
 admitted candidate is still not a species, occupancy state, population, physical plant, or backend
 placed-feature authorization.
 
+Issue #1225 adds the backend-neutral spatial query seam needed to consume #1223 without duplicating
+lattice inversion in every backend. `SkyIslandEcologicalCandidateQueryWindow` is an island-local,
+finite, half-open X/Z window, and the lattice profile now enumerates every canonical candidate whose
+exact generated position lies inside that window. Search-cell derivation is conservative with respect
+to lattice phase and jitter reach; canonical candidates are then exact-filtered by the half-open window.
+
+Results retain the exact lattice profile and query window and are strictly ordered by lattice
+`(cellX, cellZ)`. Adjacent half-open windows therefore partition candidate space without duplicate
+boundary candidates. Unsafe floating-point-to-lattice ranges fail closed instead of saturating integer
+conversion. A large materialization guard is explicitly a technical API/resource bound: callers may
+tile larger regions without changing ecological meaning.
+
 ## 8. Backend boundary
 
 The ecology kernel/world layer may expose:
@@ -523,13 +535,14 @@ Therefore:
 12. issue #1216 maps resolved aggregate structure into explicit vegetation functional-group structural niche support without species/backend identity;
 13. issue #1221 spatially organizes resolved functional-group support with deterministic kernel signal modulated by ecological patchiness, without creating ecological identity from noise;
 14. issue #1223 discretizes spatial support into deterministic functional-group candidate proposals through explicit lattice and admission policy, without asserting species, occupancy, or backend placement;
-15. later replacement response/community models must be versioned or explicitly migrated;
-16. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+15. issue #1225 exposes deterministic half-open spatial candidate queries so downstream consumers can tile space without reimplementing lattice inversion or boundary policy;
+16. later replacement response/community models must be versioned or explicitly migrated;
+17. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-17. new ecology authority should be earned through deterministic reference evidence before a backend
+18. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1223
+## Immediate next work after #1225
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -557,11 +570,13 @@ A prudent sequence is:
 13. keep #1223 discrete candidate geometry and admission explicit, deterministic, versioned, and
     subordinate to #1221 spatial support; admitted candidates remain proposals rather than occupancy,
     species, population, or backend feature authority;
-14. introduce richer spacing/footprint samplers only when a concrete consumer demonstrates that the
+14. keep #1225 query tiling half-open, deterministic, provenance-preserving, and purely mechanical;
+    do not let query-window size or tiling become ecological density policy;
+15. introduce richer spacing/footprint samplers only when a concrete consumer demonstrates that the
     simple versioned jittered lattice is insufficient;
-15. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
+16. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
     explicit rather than inferred from species/backend identity;
-16. keep concrete species/population lifecycle policy downstream of neutral realization.
+17. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.

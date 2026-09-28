@@ -578,11 +578,12 @@ and terrain accommodation remain Implementation-owned.
 
 ### Ecology / fauna / civilization
 
-The backend-neutral ecology extension is now defined through #1223 and
+The backend-neutral ecology extension is now defined through #1225 and
 `docs/architecture/Skyforge_Ecology_Field_Architecture.md`: explicit environmental inputs and response
 fields feed habitat/community suitability, assembly, structural realization, vegetation functional-group
-niches, #1221 deterministic spatial patch support, and #1223 deterministic discrete candidate admission.
-Candidate spacing/admission policy remains caller-authored and backend-neutral; even an admitted
+niches, #1221 deterministic spatial patch support, #1223 deterministic discrete candidate admission,
+and #1225 deterministic half-open candidate-window querying. Candidate spacing/admission policy and
+query tiling remain caller/backend mechanics rather than ecological density meaning; even an admitted
 functional-group candidate is not species identity, occupancy, population/carrying-capacity state, or
 Minecraft feature authority. Concrete species/population policy remains downstream Content/backend work.
 
