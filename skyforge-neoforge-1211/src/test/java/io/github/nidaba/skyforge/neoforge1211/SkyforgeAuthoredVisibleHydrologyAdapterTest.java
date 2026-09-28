@@ -19,6 +19,47 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     private static final long WORLD_SEED = 0x534B59464F524745L;
     private static final long[] ACCEPTED_CORPUS_KEYS = {77L, 118L, 241L, 512L, 811L, 83L};
 
+
+    @Test
+    void f4kReviewFixtureClipsWaterHeadsToTheF4dAuthorizedReplacementBand() throws Exception {
+        var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
+        var reviewColumn = fixture.authorization().quantization().authorizedColumns().stream()
+                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
+                .filter(column -> Math.min(
+                                (int) Math.ceil(column.projection().originalUpperSurfaceWorldY()
+                                        + (column.projection().semanticSample().waterSurfacePotential()
+                                                - column.projection().semanticSample().originalTerrainPotential())
+                                                * fixture.descriptor().reliefBudget()) - 1,
+                                column.originalSupport().maximumSolidY())
+                        >= column.targetMaximumSolidY() + 1)
+                .findFirst()
+                .orElseThrow();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var chunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(reviewColumn.worldX() >> 4, reviewColumn.worldZ() >> 4));
+
+        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(
+                terrain,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
+                fixture.authorization())) {
+            assertNotNull(installedSurfaceStage);
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        }
+
+        int firstWaterY = reviewColumn.targetMaximumSolidY() + 1;
+        int clippedWaterMaximumY = Math.min(
+                (int) Math.ceil(reviewColumn.projection().originalUpperSurfaceWorldY()
+                        + (reviewColumn.projection().semanticSample().waterSurfacePotential()
+                                - reviewColumn.projection().semanticSample().originalTerrainPotential())
+                                * fixture.descriptor().reliefBudget()) - 1,
+                reviewColumn.originalSupport().maximumSolidY());
+        assertTrue(clippedWaterMaximumY >= firstWaterY);
+        assertTrue(chunk.getBlockState(new BlockPos(
+                        reviewColumn.worldX(), firstWaterY, reviewColumn.worldZ()))
+                .is(Blocks.WATER));
+        assertTrue(clippedWaterMaximumY <= reviewColumn.originalSupport().maximumSolidY());
+    }
+
     @Test
     void canonicalSpecimenRealizesOnlyAuthoredKindsWithoutSynthesisOrForeignOwnership() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
