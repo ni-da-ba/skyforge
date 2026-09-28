@@ -29,6 +29,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 terrain,
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
                 fixture.authorization())) {
+            assertNotNull(installedSurfaceStage);
             SkyforgeNeoForge1211SurfaceStage.realize(chunk);
         }
 
