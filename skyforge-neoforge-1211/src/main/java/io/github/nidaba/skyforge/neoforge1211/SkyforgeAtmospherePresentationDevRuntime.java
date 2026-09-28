@@ -110,27 +110,52 @@ final class SkyforgeAtmospherePresentationDevRuntime {
                 continue;
             }
             SkyforgeAtmosphereView.Sample sample = sampler.sample(level, presentationPosition(player));
-            if (sample.trustedForGameplay()) {
-                trustedSamples++;
-                lastSourceLevel = sample.sourceLevel();
-                lastAuthority = sample.authority();
-            }
-            SkyforgeAtmospherePresentationCue.Cue cue =
-                    SkyforgeAtmospherePresentationCue.from(sample);
-            if (!cue.active()) {
-                writeEvidenceIfReady();
-                continue;
-            }
-            activeCues++;
-            maximumIntensity = Math.max(maximumIntensity, cue.intensity());
-            if (emitVisualCue(level, player, cue)) {
-                visualEmissions++;
-            }
-            if (emitAudioCue(player, gameTime, cue)) {
-                audioEmissions++;
-            }
-            writeEvidenceIfReady();
+            present(level, player, gameTime, sample);
         }
+    }
+
+    /**
+     * Records the presentation of the exact trusted sample selected by the bounded reconstruction
+     * fixture. This is proof-only wiring: normal runtime presentation still samples the player's
+     * own horizontal wind column above.
+     */
+    static void presentAcceptedEvidenceSample(
+            ServerLevel level, ServerPlayer player, long gameTime, SkyforgeAtmosphereView.Sample sample) {
+        if (System.getProperty(OUTPUT_PROPERTY) == null || System.getProperty(OUTPUT_PROPERTY).isBlank()) {
+            return;
+        }
+        // Exercise the same rate-limited dispatch path repeatedly with an identical authoritative
+        // sample. This is deliberate same-tick replay evidence, not an assertion that weather
+        // evolved six times.
+        for (int replay = 0; replay < MIN_PROOF_SAMPLES; replay++) {
+            present(level, player, gameTime + replay * SAMPLE_PERIOD_TICKS, sample);
+        }
+    }
+
+    private static void present(
+            ServerLevel level,
+            ServerPlayer player,
+            long gameTime,
+            SkyforgeAtmosphereView.Sample sample) {
+        if (sample.trustedForGameplay()) {
+            trustedSamples++;
+            lastSourceLevel = sample.sourceLevel();
+            lastAuthority = sample.authority();
+        }
+        SkyforgeAtmospherePresentationCue.Cue cue = SkyforgeAtmospherePresentationCue.from(sample);
+        if (!cue.active()) {
+            writeEvidenceIfReady();
+            return;
+        }
+        activeCues++;
+        maximumIntensity = Math.max(maximumIntensity, cue.intensity());
+        if (emitVisualCue(level, player, cue)) {
+            visualEmissions++;
+        }
+        if (emitAudioCue(player, gameTime, cue)) {
+            audioEmissions++;
+        }
+        writeEvidenceIfReady();
     }
 
     private static Vec3 presentationPosition(ServerPlayer player) {
