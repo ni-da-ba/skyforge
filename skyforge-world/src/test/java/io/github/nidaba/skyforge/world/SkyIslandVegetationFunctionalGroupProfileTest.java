@@ -162,6 +162,178 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
                 () -> invalid.evaluate(resolvedComposition()));
     }
 
+    @Test
+    void spatialPatchEvaluationIsDeterministicAndRetainsExactEcology() {
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(resolvedComposition());
+        SkyIslandVegetationSpatialPatchProfile spatial =
+                new SkyIslandVegetationSpatialPatchProfile(
+                        SkyIslandEcologicalPatchSignalProfile.current(
+                                0x1221A11L,
+                                "ecology.patch.shrub",
+                                96.0),
+                        SkyIslandPatchinessRetentionSpatialTransform.INSTANCE);
+
+        SkyIslandVegetationSpatialPatchEvaluation first = spatial.evaluate(group);
+        SkyIslandVegetationSpatialPatchEvaluation second = spatial.evaluate(group);
+
+        assertEquals(
+                Double.doubleToLongBits(first.rawSignal()),
+                Double.doubleToLongBits(second.rawSignal()));
+        assertEquals(first.state(), second.state());
+        assertEquals(group, first.functionalGroupEvaluation());
+        assertEquals(group.position(), first.position());
+        assertEquals(spatial, first.spatialProfile());
+    }
+
+    @Test
+    void zeroPatchinessExactlyPreservesUpstreamNicheSupport() {
+        SkyIslandMultiCommunityRealizationComposition composition =
+                withPatchiness(resolvedComposition(), 0.0);
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(composition);
+        SkyIslandVegetationSpatialPatchEvaluation evaluation =
+                spatialProfile(0x1221B22L, "ecology.patch.zero", 80.0).evaluate(group);
+
+        SkyIslandFunctionalGroupSpatialPatchState state =
+                evaluation.state().orElseThrow();
+        assertEquals(1.0, state.retention(), 0.0);
+        assertEquals(
+                Double.doubleToLongBits(group.structuralNicheSupport().orElseThrow()),
+                Double.doubleToLongBits(state.spatialNicheSupport()));
+    }
+
+    @Test
+    void zeroUpstreamSupportCannotBeCreatedBySpatialSignal() {
+        SkyIslandVegetationFunctionalGroupEvaluation base =
+                functionalGroupProfile().evaluate(resolvedComposition());
+        SkyIslandVegetationFunctionalGroupEvaluation zero =
+                new SkyIslandVegetationFunctionalGroupEvaluation(
+                        base.profile(),
+                        base.composition(),
+                        OptionalDouble.of(0.0));
+
+        SkyIslandVegetationSpatialPatchEvaluation evaluation =
+                spatialProfile(0x1221C33L, "ecology.patch.zero-support", 72.0)
+                        .evaluate(zero);
+
+        assertEquals(0.0, evaluation.state().orElseThrow().spatialNicheSupport(), 0.0);
+    }
+
+    @Test
+    void unresolvedUpstreamEcologyPropagatesToUnresolvedSpatialState() {
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(unresolvedComposition());
+
+        SkyIslandVegetationSpatialPatchEvaluation evaluation =
+                spatialProfile(0x1221D44L, "ecology.patch.unresolved", 64.0)
+                        .evaluate(group);
+
+        assertFalse(group.resolved());
+        assertFalse(evaluation.resolved());
+        assertTrue(evaluation.state().isEmpty());
+        assertTrue(Double.isFinite(evaluation.rawSignal()));
+    }
+
+    @Test
+    void retentionTransformIsExactAndNeverAmplifiesSupport() {
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(resolvedComposition());
+        double support = group.structuralNicheSupport().orElseThrow();
+        double patchiness =
+                group.composition().aggregateRealization().orElseThrow().patchinessPotential();
+
+        SkyIslandFunctionalGroupSpatialPatchState low =
+                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE
+                        .spatialize(group, -1.0)
+                        .orElseThrow();
+        SkyIslandFunctionalGroupSpatialPatchState high =
+                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE
+                        .spatialize(group, 1.0)
+                        .orElseThrow();
+
+        assertEquals(0.0, low.normalizedSignal(), 0.0);
+        assertEquals(1.0 - patchiness, low.retention(), 1.0e-15);
+        assertEquals(support * (1.0 - patchiness), low.spatialNicheSupport(), 1.0e-15);
+        assertEquals(1.0, high.normalizedSignal(), 0.0);
+        assertEquals(1.0, high.retention(), 0.0);
+        assertEquals(support, high.spatialNicheSupport(), 1.0e-15);
+        assertTrue(low.spatialNicheSupport() <= support);
+        assertTrue(high.spatialNicheSupport() <= support);
+    }
+
+    @Test
+    void explicitSignalIdentityChangesPatternWithoutChangingEcology() {
+        SkyIslandVegetationFunctionalGroupEvaluation group =
+                functionalGroupProfile().evaluate(resolvedComposition());
+        SkyIslandEcologicalPatchSignalProfile first =
+                SkyIslandEcologicalPatchSignalProfile.current(
+                        0x1221E55L,
+                        "ecology.patch.first",
+                        80.0);
+        SkyIslandEcologicalPatchSignalProfile second =
+                SkyIslandEcologicalPatchSignalProfile.current(
+                        0x1221E55L,
+                        "ecology.patch.second",
+                        80.0);
+
+        SkyIslandVegetationSpatialPatchEvaluation firstEvaluation =
+                new SkyIslandVegetationSpatialPatchProfile(
+                                first,
+                                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE)
+                        .evaluate(group);
+        SkyIslandVegetationSpatialPatchEvaluation secondEvaluation =
+                new SkyIslandVegetationSpatialPatchProfile(
+                                second,
+                                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE)
+                        .evaluate(group);
+
+        assertTrue(
+                Double.doubleToLongBits(firstEvaluation.rawSignal())
+                        != Double.doubleToLongBits(secondEvaluation.rawSignal()));
+        assertEquals(group, firstEvaluation.functionalGroupEvaluation());
+        assertEquals(group, secondEvaluation.functionalGroupEvaluation());
+    }
+
+    private static SkyIslandVegetationFunctionalGroupProfile functionalGroupProfile() {
+        return new SkyIslandVegetationFunctionalGroupProfile(
+                SkyIslandVegetationFunctionalGroup.SHRUB,
+                uniformAffinity(),
+                SkyIslandWeightedMeanFunctionalGroupNicheTransform.INSTANCE);
+    }
+
+    private static SkyIslandVegetationSpatialPatchProfile spatialProfile(
+            long rootSeed,
+            String namespace,
+            double scale) {
+        return new SkyIslandVegetationSpatialPatchProfile(
+                SkyIslandEcologicalPatchSignalProfile.current(rootSeed, namespace, scale),
+                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE);
+    }
+
+    private static SkyIslandMultiCommunityRealizationComposition withPatchiness(
+            SkyIslandMultiCommunityRealizationComposition composition,
+            double patchiness) {
+        SkyIslandCommunityStructureRealization source =
+                composition.aggregateRealization().orElseThrow();
+        SkyIslandCommunityStructureRealization patched =
+                new SkyIslandCommunityStructureRealization(
+                        source.vegetationDensity(),
+                        source.canopyCover(),
+                        source.canopyHeightPotential(),
+                        source.understoryDensity(),
+                        source.groundCover(),
+                        source.biomassPotential(),
+                        patchiness,
+                        source.organicSurfaceAccumulationPotential(),
+                        source.deadwoodPotential());
+        return new SkyIslandMultiCommunityRealizationComposition(
+                composition.realizationSet(),
+                composition.coexistenceWeights(),
+                composition.compositor(),
+                Optional.of(patched));
+    }
+
     private static SkyIslandFunctionalGroupStructuralAffinity uniformAffinity() {
         return new SkyIslandFunctionalGroupStructuralAffinity(
                 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0);
