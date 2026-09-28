@@ -34,4 +34,5 @@ leaves the existing retained-open-water path fail-closed and makes a classifier/
 explicit rather than silently weakening policy.
 
 The machine-readable output is hydrology-retained-basin-seed-strata-v1. The
-Hydrology Reset Geometry workflow prints its compact summary and uploads the complete manifests.
+Hydrology Retained Basin Discovery workflow prints a compact summary and uploads the complete
+manifests.
