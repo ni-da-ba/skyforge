@@ -95,6 +95,9 @@ class SkyIslandTerrainAwareRouteSolverTest {
         assertEquals(0.0, coarse.maxGuidanceDeviation(), EPSILON);
         assertEquals(0.0, medium.maxGuidanceDeviation(), EPSILON);
         assertEquals(0.0, fine.maxGuidanceDeviation(), EPSILON);
+        assertEquals(10.2, coarse.totalCost(), 1.0e-9);
+        assertEquals(10.2, medium.totalCost(), 1.0e-9);
+        assertEquals(10.2, fine.totalCost(), 1.0e-9);
         assertEquals(coarse.totalCost(), medium.totalCost(), 1.0e-9);
         assertEquals(medium.totalCost(), fine.totalCost(), 1.0e-9);
 
@@ -122,6 +125,38 @@ class SkyIslandTerrainAwareRouteSolverTest {
                 mediumDiagnostics.meanValleyFloorAdvantage(),
                 fineDiagnostics.meanValleyFloorAdvantage(),
                 1.0e-10);
+    }
+
+    @Test
+    void uphillObjectiveUsesNormalizedPositiveVariationAtEveryResolution() {
+        double planningSpacing = 4.0;
+        SkyIslandSemanticField terrain =
+                position -> 0.30 + 0.01 * position.x();
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(16.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(16.0, 0.0), 0.0);
+
+        for (int divisions : new int[] {4, 8, 16}) {
+            SkyIslandGeomorphicCandidateRoute route =
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                            terrain,
+                            interiority,
+                            guidance,
+                            planningSpacing,
+                            2.0,
+                            start,
+                            end,
+                            divisions);
+            assertEquals(16.0, route.pathLength(), EPSILON);
+            assertEquals(9.4, route.totalCost(), 1.0e-9);
+        }
     }
 
     @Test
