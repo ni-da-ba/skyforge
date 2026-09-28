@@ -24,7 +24,7 @@ Do not ask the project owner to run the interactive gate yet. The prior C6/C7 ru
 - C6 changes hawk navigation/state internally; by itself it does not provide a player-readable wind direction or strength cue.
 - The plots and machine diagnostics are useful engineering evidence, but they cannot answer whether a player can see, hear, or learn the wind in play.
 
-The current presentation tranche adds a bounded player-facing read-through driven by the existing A4MC authority, without creating a second wind/weather authority. It emits directional vanilla gust particles and a rate-limited ambient wind cue from the player's actual server-side sample. Only after that layer has machine evidence should this runbook be reopened for visual and listening review.
+The current presentation tranche adds a bounded player-facing read-through driven by the existing A4MC authority, without creating a second wind/weather authority. It emits directional vanilla gust particles and a rate-limited ambient wind cue from the player's server-side horizontal wind column, using A4MC's trusted wind layer when the player is below it. Only after that layer has machine evidence should this runbook be reopened for visual and listening review.
 
 When the gate is eventually opened, the player should be able to observe three concrete differences from the previous build: gust particles travel consistently with the sampled horizontal wind direction, the cue rises or falls with the sampled signed updraft, and stronger trusted flow produces a more frequent/louder wind impression. Weak or untrusted samples should remain visually and audibly quiet.
 

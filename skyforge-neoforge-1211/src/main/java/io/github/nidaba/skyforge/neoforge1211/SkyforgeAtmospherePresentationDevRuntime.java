@@ -21,15 +21,20 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 /**
  * Development-only player-facing atmosphere read-through.
  *
- * <p>The server samples the installed A4MC gameplay authority at the player's actual position,
- * then emits vanilla client-visible gust particles and a rate-limited ambient wind cue. No client
- * atmosphere state or second weather authority is created.
+ * <p>The server samples the installed A4MC gameplay authority in the player's horizontal column,
+ * using its trusted wind layer when the player is below it, then emits vanilla client-visible gust
+ * particles and a rate-limited ambient wind cue. No client atmosphere state or second weather
+ * authority is created.
  */
 final class SkyforgeAtmospherePresentationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.atmospherePresentation";
     static final String OUTPUT_PROPERTY = "skyforge.dev.atmospherePresentationOutput";
     private static final String A4MC_MOD_ID = "aerodynamics4mc";
     private static final long SAMPLE_PERIOD_TICKS = 10L;
+    // A4MC's gameplay field becomes authoritative above its low-altitude transition. Keep the
+    // player's horizontal column, while taking the visible cue from that trusted wind layer so a
+    // grounded player can still perceive the air moving overhead.
+    private static final double MINIMUM_TRUSTED_WIND_Y = 120.0;
     private static final int MIN_PROOF_SAMPLES = 6;
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeAtmospherePresentationDevRuntime.class.getName());
@@ -104,7 +109,7 @@ final class SkyforgeAtmospherePresentationDevRuntime {
             if (!(player.level() instanceof ServerLevel level)) {
                 continue;
             }
-            SkyforgeAtmosphereView.Sample sample = sampler.sample(level, player.position());
+            SkyforgeAtmosphereView.Sample sample = sampler.sample(level, presentationPosition(player));
             if (sample.trustedForGameplay()) {
                 trustedSamples++;
                 lastSourceLevel = sample.sourceLevel();
@@ -126,6 +131,11 @@ final class SkyforgeAtmospherePresentationDevRuntime {
             }
             writeEvidenceIfReady();
         }
+    }
+
+    private static Vec3 presentationPosition(ServerPlayer player) {
+        return new Vec3(
+                player.getX(), Math.max(player.getY(), MINIMUM_TRUSTED_WIND_Y), player.getZ());
     }
 
     private static boolean emitVisualCue(
