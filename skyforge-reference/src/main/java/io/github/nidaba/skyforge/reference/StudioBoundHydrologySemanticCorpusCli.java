@@ -524,7 +524,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                   code{background:#e9e6dd;padding:2px 5px}
                   .views{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem}
                   figure{margin:0;padding:0.75rem;background:#fff;border:1px solid #d5d0c4}
-                  figure img{display:block;width:100%;height:auto}
+                  figure img{display:block;width:100%%;height:auto}
                   figcaption{padding-top:.5rem}
                   .gate{padding:1rem;background:#fff2cc;border-left:4px solid #bf8b00}
                 </style>
