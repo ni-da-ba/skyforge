@@ -2,6 +2,15 @@
   "use strict";
 
   const TOKEN_KEY = "skyforge-development-api-token";
+  const TERRAIN_COLORS = Object.freeze({
+    AIR: "#f6f4ee",
+    EDGE_SHELL: "#b18554",
+    SURFACE_MANTLE: "#68975c",
+    UNDERSIDE_SHELL: "#555b69",
+    SHALLOW_INTERIOR: "#a79c84",
+    DEEP_MASS: "#594c44",
+  });
+
   let token = sessionStorage.getItem(TOKEN_KEY) || "";
   let scene = null;
   let selected = null;
@@ -22,8 +31,21 @@
     return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
   }
 
+  function shortDigest(value) {
+    const text = String(value || "");
+    return text.length > 18 ? text.slice(0, 18) + "…" : (text || "—");
+  }
+
   function vectorMagnitude(vector) {
     return Math.hypot(vector[0], vector[1], vector[2]);
+  }
+
+  function isAtmosphere() {
+    return scene?.sceneKind === "ATMOSPHERE_VECTOR_FIELD";
+  }
+
+  function isTerrain() {
+    return scene?.sceneKind === "TERRAIN_SEMANTIC_VOLUME";
   }
 
   function setConnection(text, severity = "muted") {
@@ -42,8 +64,8 @@
     return sample[$("vector-mode").value];
   }
 
-  function activeFrame() {
-    if (!scene) return null;
+  function currentAtmosphereFrame() {
+    if (!isAtmosphere()) return null;
     if ($("dataset").value !== "opportunity" || scene.opportunity.frames.length === 0) {
       return scene.snapshot;
     }
@@ -54,8 +76,8 @@
     return scene.opportunity.frames[index];
   }
 
-  function filteredFrame() {
-    const frame = activeFrame();
+  function filteredAtmosphereFrame() {
+    const frame = currentAtmosphereFrame();
     if (!frame) return null;
     if ($("altitude").value === "all") return frame;
     const altitude = Number($("altitude").value);
@@ -67,7 +89,7 @@
     };
   }
 
-  function colorValue(sample) {
+  function atmosphereColorValue(sample) {
     const mode = $("color-mode").value;
     if (mode === "verticalAir") return sample.verticalAir;
     if (mode === "turbulence") return sample.turbulence;
@@ -98,10 +120,10 @@
     return [x1, cp * vector[1] - sp * z1, sp * vector[1] + cp * z1];
   }
 
-  function fitTransform(samples) {
-    const xs = samples.map((sample) => sample.position[0]);
-    const ys = samples.map((sample) => sample.position[1]);
-    const zs = samples.map((sample) => sample.position[2]);
+  function fitTransform(points) {
+    const xs = points.map((point) => point.position[0]);
+    const ys = points.map((point) => point.position[1]);
+    const zs = points.map((point) => point.position[2]);
     const minimum = [Math.min(...xs), Math.min(...ys), Math.min(...zs)];
     const maximum = [Math.max(...xs), Math.max(...ys), Math.max(...zs)];
     const center = [
@@ -176,8 +198,8 @@
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   }
 
-  function rebuildAltitudeOptions() {
-    const frame = activeFrame();
+  function rebuildAtmosphereAltitudeOptions() {
+    const frame = currentAtmosphereFrame();
     const select = $("altitude");
     const previous = select.value;
     while (select.firstChild) select.removeChild(select.firstChild);
@@ -201,6 +223,17 @@
     }
   }
 
+  function clearInspectorValues() {
+    $("inspect-position").textContent = "click a sample";
+    $("inspect-semantic").textContent = "—";
+    $("inspect-vector").textContent = "—";
+    $("inspect-updraft").textContent = "—";
+    $("inspect-turbulence").textContent = "—";
+    $("inspect-shear").textContent = "—";
+    $("inspect-confidence").textContent = "—";
+    $("inspect-authority").textContent = "—";
+  }
+
   function renderInspector(sample) {
     if (!scene) return;
     $("inspect-binding").textContent = scene.source.binding;
@@ -208,31 +241,31 @@
       scene.source.artifactId || scene.source.artifactTitle || scene.source.artifactKind;
     $("inspect-sha").textContent = scene.source.sourceSha || "unbound";
     $("inspect-provider").textContent =
-      [scene.provider.modId, scene.provider.version].filter(Boolean).join(" ") || "—";
+      [
+        scene.provider?.label,
+        scene.provider?.version,
+      ].filter(Boolean).join(" · ") || "—";
     $("review-warning").hidden = scene.source.reviewAuthority;
+    $("owner-semantic").textContent = scene.ownership.semanticOwner || "—";
+    $("owner-persistence").textContent = scene.ownership.persistenceOwner || "—";
+    $("owner-backend-neutral").textContent =
+      scene.ownership.backendNeutral ? "yes" : "no";
 
-    $("owner-sampling").textContent =
-      scene.ownership.serverWorldSampling ? "server world" : "unknown";
-    $("owner-persistence").textContent = scene.ownership.skyforgePersistsAtmosphere
-      ? "Skyforge"
-      : (scene.ownership.providerPersistenceOwner || "provider");
-    $("owner-render").textContent =
-      scene.ownership.renderingBackendDependency ? "yes" : "no";
+    clearInspectorValues();
+    if (!sample) return;
 
-    if (!sample) {
-      $("inspect-position").textContent = "click a sample";
-      $("inspect-vector").textContent = "—";
-      $("inspect-updraft").textContent = "—";
-      $("inspect-turbulence").textContent = "—";
-      $("inspect-shear").textContent = "—";
-      $("inspect-confidence").textContent = "—";
-      $("inspect-authority").textContent = "—";
+    $("inspect-position").textContent =
+      "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
+
+    if (isTerrain()) {
+      $("inspect-semantic").textContent =
+        sample.semanticName + " · ordinal " + sample.semanticOrdinal;
+      $("inspect-authority").textContent =
+        "WorldRegionTerrain · " + scene.source.artifactDigest;
       return;
     }
 
     const vector = currentVector(sample);
-    $("inspect-position").textContent =
-      "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
     $("inspect-vector").textContent =
       "[" + vector.map((value) => fmt(value)).join(", ") + "] m/s";
     $("inspect-updraft").textContent = fmt(sample.verticalAir) + " m/s";
@@ -243,14 +276,12 @@
       [sample.sourceLevel, sample.authority].filter(Boolean).join(" · ") || "—";
   }
 
-  function draw() {
-    resizeCanvas();
-    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
-
-    const frame = filteredFrame();
+  function drawAtmosphere() {
+    const frame = filteredAtmosphereFrame();
     if (!frame || frame.samples.length === 0) return;
+
     const transform = fitTransform(frame.samples);
-    const values = frame.samples.map(colorValue);
+    const values = frame.samples.map(atmosphereColorValue);
     let minimum = Math.min(...values);
     let maximum = Math.max(...values);
     if ($("color-mode").value === "verticalAir") {
@@ -271,7 +302,7 @@
         sample,
         start: project(sample.position, transform),
         end: project(endpoint, transform),
-        value: colorValue(sample),
+        value: atmosphereColorValue(sample),
       };
     }).sort((left, right) => left.start[2] - right.start[2]);
 
@@ -294,6 +325,66 @@
       $("frame-value").textContent =
         $("frame").value + " / " + (frame.tick === null ? "—" : frame.tick);
     }
+  }
+
+  function terrainDisplayPoints() {
+    const view = $("terrain-view").value;
+    if (view === "top") return scene.terrain.topSurface;
+    if (view === "underside") return scene.terrain.underside;
+    if (view === "both") {
+      return [...scene.terrain.topSurface, ...scene.terrain.underside];
+    }
+    return scene.terrain.sliceAtYIndex(Number($("terrain-slice").value));
+  }
+
+  function drawTerrain() {
+    const points = terrainDisplayPoints();
+    if (!points.length) {
+      projected = [];
+      $("frame-summary").textContent = "No solid semantic samples in this view";
+      return;
+    }
+
+    const transform = fitTransform(points);
+    const radius = points.length > 15000 ? 1.2 : points.length > 5000 ? 1.8 : 2.8;
+    projected = points.map((sample) => ({
+      sample,
+      start: project(sample.position, transform),
+    })).sort((left, right) => left.start[2] - right.start[2]);
+
+    for (const item of projected) {
+      const active = selected === item.sample;
+      const semanticColor = TERRAIN_COLORS[item.sample.semanticName] || "#d0d4da";
+      ctx.fillStyle = active ? "#ffffff" : semanticColor;
+      ctx.globalAlpha = active ? 1.0 : 0.90;
+      ctx.beginPath();
+      ctx.arc(
+        item.start[0],
+        item.start[1],
+        active ? Math.max(4, radius + 1.5) : radius,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1.0;
+
+    const view = $("terrain-view").value;
+    const sliceSuffix = view === "slice"
+      ? " · Y=" + $("terrain-slice-value").textContent
+      : "";
+    $("frame-summary").textContent =
+      points.length + " semantic samples · " + view + sliceSuffix +
+      " · " + shortDigest(scene.source.artifactDigest);
+  }
+
+  function draw() {
+    resizeCanvas();
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+    projected = [];
+    if (!scene) return;
+    if (isTerrain()) drawTerrain();
+    else drawAtmosphere();
     renderInspector(selected);
   }
 
@@ -311,6 +402,7 @@
   }
 
   function togglePlayback() {
+    if (!isAtmosphere()) return;
     if (playback !== null) {
       stopPlayback();
       return;
@@ -325,13 +417,54 @@
     }, 500);
   }
 
+  function renderTerrainLegend() {
+    const container = $("terrain-legend");
+    while (container.firstChild) container.removeChild(container.firstChild);
+    if (!isTerrain()) return;
+    for (const semantic of scene.terrain.legend) {
+      if (!semantic.solid) continue;
+      const row = document.createElement("div");
+      row.className = "terrain-legend-row";
+      const swatch = document.createElement("span");
+      swatch.className = "terrain-swatch";
+      swatch.style.backgroundColor = TERRAIN_COLORS[semantic.name] || "#d0d4da";
+      const label = document.createElement("span");
+      label.textContent = semantic.name.replaceAll("_", " ").toLowerCase();
+      row.append(swatch, label);
+      container.append(row);
+    }
+  }
+
+  function configureTerrainControls() {
+    const grid = scene.terrain.grid;
+    $("terrain-slice").min = "0";
+    $("terrain-slice").max = String(grid.ySamples - 1);
+    $("terrain-slice").value = String(Math.floor((grid.ySamples - 1) / 2));
+    updateTerrainSliceLabel();
+    $("terrain-view").value = "top";
+    $("terrain-slice-control").hidden = true;
+    renderTerrainLegend();
+  }
+
+  function updateTerrainSliceLabel() {
+    if (!isTerrain()) {
+      $("terrain-slice-value").textContent = "—";
+      return;
+    }
+    const grid = scene.terrain.grid;
+    const index = Number($("terrain-slice").value);
+    const y = grid.minimumY + grid.spacingY * index;
+    $("terrain-slice-value").textContent = fmt(y, 1);
+  }
+
   function setScene(nextScene) {
     stopPlayback();
     scene = nextScene;
     selected = null;
     $("scene-kind").textContent = scene.sceneKind;
     $("viewport-title").textContent =
-      scene.source.artifactTitle || "Atmosphere semantic field";
+      scene.source.artifactTitle ||
+      (isTerrain() ? "Terrain semantic volume" : "Atmosphere semantic field");
     $("viewport-subtitle").textContent =
       scene.coordinateSystem.id + " · " + scene.source.artifactKind;
     $("binding-pill").textContent = scene.source.reviewAuthority
@@ -340,14 +473,21 @@
     $("binding-pill").className =
       "pill " + (scene.source.reviewAuthority ? "good" : "warn");
 
-    const hasOpportunity = scene.opportunity.frames.length > 0;
-    $("dataset").disabled = !hasOpportunity;
-    $("frame").max = String(Math.max(0, scene.opportunity.frames.length - 1));
-    $("frame").value = "0";
-    $("dataset").value = "snapshot";
-    $("time-controls").hidden = true;
-    $("static-controls").hidden = false;
-    rebuildAltitudeOptions();
+    $("atmosphere-controls").hidden = !isAtmosphere();
+    $("terrain-controls").hidden = !isTerrain();
+
+    if (isAtmosphere()) {
+      const hasOpportunity = scene.opportunity.frames.length > 0;
+      $("dataset").disabled = !hasOpportunity;
+      $("frame").max = String(Math.max(0, scene.opportunity.frames.length - 1));
+      $("frame").value = "0";
+      $("dataset").value = "snapshot";
+      $("time-controls").hidden = true;
+      rebuildAtmosphereAltitudeOptions();
+    } else {
+      configureTerrainControls();
+    }
+
     renderInspector(null);
     draw();
   }
@@ -467,10 +607,8 @@
   $("dataset").addEventListener("change", () => {
     stopPlayback();
     selected = null;
-    const temporal = $("dataset").value === "opportunity";
-    $("time-controls").hidden = !temporal;
-    $("static-controls").hidden = temporal;
-    rebuildAltitudeOptions();
+    $("time-controls").hidden = $("dataset").value !== "opportunity";
+    rebuildAtmosphereAltitudeOptions();
     draw();
   });
   $("vector-mode").addEventListener("change", () => {
@@ -485,8 +623,19 @@
     draw();
   });
   $("play").addEventListener("click", togglePlayback);
+
+  $("terrain-view").addEventListener("change", () => {
+    selected = null;
+    $("terrain-slice-control").hidden = $("terrain-view").value !== "slice";
+    draw();
+  });
+  $("terrain-slice").addEventListener("input", () => {
+    selected = null;
+    updateTerrainSliceLabel();
+    draw();
+  });
+
   $("reset-view").addEventListener("click", resetView);
-  $("reset-view-static").addEventListener("click", resetView);
 
   canvas.addEventListener("pointerdown", (event) => {
     dragging = true;
