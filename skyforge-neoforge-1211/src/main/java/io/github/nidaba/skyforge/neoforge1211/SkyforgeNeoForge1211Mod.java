@@ -21,6 +21,7 @@ public final class SkyforgeNeoForge1211Mod {
         // Normal packaged Skyforge remains inert until a runtime binding is configured. Isolated
         // ModDevGradle runs opt into exactly one finite development specimen through JVM properties.
         SkyforgeNeoForge1211DevRuntime.installFromSystemProperty();
+        SkyforgeF4KHydrologyReviewDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211AccommodationDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211UndersideContradictionDevRuntime.installFromSystemProperty();
         SkyforgeNeoForge1211IsolationDevRuntime.installFromSystemProperty();

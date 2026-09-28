@@ -443,6 +443,15 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // F4K visual gate: bind the exact F4H-authorized ordinary (8,81,77) fixture.
+        // This is a disposable local review run and remains absent from the packaged mod.
+        create("f4kHydrologyReviewClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-f4k-hydrology-review").asFile
+            systemProperty("skyforge.dev.f4kHydrologyReview", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0046 uses its own game directory and a self-checking bowl specimen so manual
         // foundation evidence cannot be confused with the earlier naturally supported Massif.
         create("accommodationClient") {
