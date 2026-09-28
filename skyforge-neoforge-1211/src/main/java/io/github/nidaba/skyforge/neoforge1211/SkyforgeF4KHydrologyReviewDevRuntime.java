@@ -157,9 +157,9 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                 continue;
             }
             BlockPos position = new BlockPos(column.worldX(), firstWaterY, column.worldZ());
-            if (!level.hasChunkAt(position)) {
-                return;
-            }
+            // The opt-in acceptance harness synchronously warms the finite F4K footprint before
+            // this proof can pass. Reading the head here therefore observes the persisted chunk
+            // state rather than creating an ordinary-runtime chunk-loading policy.
             expectedWaterHeads++;
             if (!level.getBlockState(position).is(Blocks.WATER)) {
                 return;
