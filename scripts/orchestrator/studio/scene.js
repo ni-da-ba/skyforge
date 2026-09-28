@@ -3,6 +3,7 @@
 
   const ATMOSPHERE_KIND = "SKYFORGE_ATMOSPHERE_PROBE_VOLUME";
   const TERRAIN_KIND = "SKYFORGE_TERRAIN_SEMANTIC_VOLUME";
+  const HYDROLOGY_KIND = "SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER";
 
   function finite(value, label) {
     const number = Number(value);
@@ -398,6 +399,202 @@
     });
   }
 
+  function nullableFinite(value, label) {
+    if (value === null || value === undefined) return null;
+    return finite(value, label);
+  }
+
+  function hydrologyFieldSample(record, index) {
+    if (!record || typeof record !== "object") {
+      throw new Error("hydrology field sample " + index + " is not an object");
+    }
+    const worldX = finite(record.world_x, "hydrology field sample world_x");
+    const worldZ = finite(record.world_z, "hydrology field sample world_z");
+    const targetY = finite(
+      record.target_upper_y,
+      "hydrology field sample target_upper_y"
+    );
+    const waterY = nullableFinite(
+      record.water_surface_y,
+      "hydrology field sample water_surface_y"
+    );
+    const provenance = record.provenance;
+    return Object.freeze({
+      overlayKind: "HYDROLOGY_FIELD_SAMPLE",
+      position: Object.freeze([worldX, targetY, worldZ]),
+      waterPosition: waterY === null
+        ? null
+        : Object.freeze([worldX, waterY, worldZ]),
+      originalUpperY: finite(
+        record.original_upper_y,
+        "hydrology field sample original_upper_y"
+      ),
+      targetUpperY: targetY,
+      terrainDeltaWorld: finite(
+        record.terrain_delta_world,
+        "hydrology field sample terrain_delta_world"
+      ),
+      zone: String(record.zone || ""),
+      wet: record.wet === true,
+      waterSurfaceY: waterY,
+      waterDepthWorld: finite(
+        record.water_depth_world,
+        "hydrology field sample water_depth_world"
+      ),
+      provenance: provenance
+        ? Object.freeze({
+            startCell: Number(provenance.start_cell),
+            endCell: Number(provenance.end_cell),
+            profileKind: String(provenance.profile_kind || ""),
+          })
+        : null,
+    });
+  }
+
+  function hydrologyReach(record, index) {
+    if (!record || !Array.isArray(record.points) || record.points.length < 2) {
+      throw new Error("hydrology reach " + index + " must contain at least two points");
+    }
+    const startCell = Number(record.start_cell);
+    const endCell = Number(record.end_cell);
+    if (
+      !Number.isSafeInteger(startCell) ||
+      !Number.isSafeInteger(endCell) ||
+      startCell < 0 ||
+      endCell < 0 ||
+      startCell === endCell
+    ) {
+      throw new Error("hydrology reach endpoints are invalid");
+    }
+    const points = record.points.map((point, pointIndex) => {
+      const worldX = finite(point.world_x, "hydrology reach point world_x");
+      const worldZ = finite(point.world_z, "hydrology reach point world_z");
+      const targetY = finite(
+        point.target_upper_y,
+        "hydrology reach point target_upper_y"
+      );
+      const waterY = nullableFinite(
+        point.water_surface_y,
+        "hydrology reach point water_surface_y"
+      );
+      return Object.freeze({
+        overlayKind: "HYDROLOGY_REACH_POINT",
+        position: Object.freeze([worldX, targetY, worldZ]),
+        waterPosition: waterY === null
+          ? null
+          : Object.freeze([worldX, waterY, worldZ]),
+        startCell,
+        endCell,
+        stationFraction: finite(
+          point.station_fraction,
+          "hydrology reach point station_fraction"
+        ),
+        relativeDischarge: finite(
+          point.relative_discharge,
+          "hydrology reach point relative_discharge"
+        ),
+        bankfullHalfWidth: finite(
+          point.bankfull_half_width,
+          "hydrology reach point bankfull_half_width"
+        ),
+      });
+    });
+    return Object.freeze({
+      startCell,
+      endCell,
+      downstreamStreamOrder: Number(record.downstream_stream_order),
+      downstreamRelativeDischarge: finite(
+        record.downstream_relative_discharge,
+        "hydrology downstream relative discharge"
+      ),
+      maximumBankfullHalfWidth: finite(
+        record.maximum_bankfull_half_width,
+        "hydrology maximum bankfull half width"
+      ),
+      points: Object.freeze(points),
+    });
+  }
+
+  function adaptOverlayArtifact(artifact, baseScene, context = {}) {
+    if (!artifact || typeof artifact !== "object") {
+      throw new Error("overlay artifact must be an object");
+    }
+    if (!baseScene || baseScene.sceneKind !== "TERRAIN_SEMANTIC_VOLUME") {
+      throw new Error("hydrology overlay requires a terrain semantic base scene");
+    }
+    if (artifact.schema_version !== 1) {
+      throw new Error(
+        "unsupported hydrology schema_version " + String(artifact.schema_version)
+      );
+    }
+    if (artifact.artifact_kind !== HYDROLOGY_KIND) {
+      throw new Error(
+        "unsupported overlay artifact_kind " + String(artifact.artifact_kind || "")
+      );
+    }
+    const terrainDigest = String(artifact.terrain_semantic_sha256 || "");
+    if (!terrainDigest || terrainDigest !== baseScene.source.artifactDigest) {
+      throw new Error(
+        "hydrology terrain semantic SHA does not match loaded terrain specimen"
+      );
+    }
+    const binding = artifact.specimen_binding || {};
+    const associationToken = String(binding.association_token || "");
+    if (!associationToken.startsWith("sfassoc:v1:")) {
+      throw new Error("hydrology overlay lacks an exact AUTH-0046 association token");
+    }
+    if (!Array.isArray(artifact.field_samples)) {
+      throw new Error("hydrology field_samples must be an array");
+    }
+    if (!Array.isArray(artifact.reaches)) {
+      throw new Error("hydrology reaches must be an array");
+    }
+
+    const fieldSamples = Object.freeze(
+      artifact.field_samples.map(hydrologyFieldSample)
+    );
+    const reaches = Object.freeze(artifact.reaches.map(hydrologyReach));
+    return Object.freeze({
+      schemaVersion: 1,
+      sceneKind: "HYDROLOGY_SEMANTIC_LAYER",
+      source: authoritySource(
+        HYDROLOGY_KIND,
+        terrainDigest + "|" + associationToken,
+        {
+          ...context,
+          reviewAuthority:
+            context.reviewAuthority === true && baseScene.source.reviewAuthority,
+        }
+      ),
+      terrainSemanticSha256: terrainDigest,
+      binding: Object.freeze({
+        associationToken,
+        authoredIdentity: Object.freeze({ ...(binding.authored_identity || {}) }),
+        realizedVolume: Object.freeze({ ...(binding.realized_volume || {}) }),
+        worldFrame: Object.freeze({ ...(binding.world_frame || {}) }),
+      }),
+      fieldSamples,
+      reaches,
+      ownership: Object.freeze({
+        semanticOwner: "Skyforge F4B/F4E world-space hydrology projection",
+        associationAuthority: String(
+          artifact.ownership?.association_authority || ""
+        ),
+        terrainProjectionAuthority: String(
+          artifact.ownership?.terrain_projection_authority || ""
+        ),
+        waterProjectionAuthority: String(
+          artifact.ownership?.water_projection_authority || ""
+        ),
+        backendNeutral:
+          artifact.ownership?.backend_neutral_semantics === true &&
+          artifact.ownership?.minecraft_dependency !== true,
+        studioRecomputesHydrology:
+          artifact.ownership?.studio_recomputes_hydrology === true,
+      }),
+    });
+  }
+
   function adaptArtifact(artifact, context = {}) {
     if (!artifact || typeof artifact !== "object") {
       throw new Error("artifact must be an object");
@@ -416,6 +613,8 @@
   window.SkyforgeStudioScene = Object.freeze({
     ATMOSPHERE_KIND,
     TERRAIN_KIND,
+    HYDROLOGY_KIND,
     adaptArtifact,
+    adaptOverlayArtifact,
   });
 })();
