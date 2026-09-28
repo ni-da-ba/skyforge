@@ -1,0 +1,545 @@
+(() => {
+  "use strict";
+
+  const TOKEN_KEY = "skyforge-development-api-token";
+  let token = sessionStorage.getItem(TOKEN_KEY) || "";
+  let scene = null;
+  let selected = null;
+  let projected = [];
+  let yaw = -0.72;
+  let pitch = 0.50;
+  let zoom = 1.0;
+  let dragging = false;
+  let lastX = 0;
+  let lastY = 0;
+  let playback = null;
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $("viewport");
+  const ctx = canvas.getContext("2d");
+
+  function fmt(value, digits = 3) {
+    return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
+  }
+
+  function vectorMagnitude(vector) {
+    return Math.hypot(vector[0], vector[1], vector[2]);
+  }
+
+  function setConnection(text, severity = "muted") {
+    const node = $("connection");
+    node.textContent = text;
+    node.className = "pill " + severity;
+  }
+
+  async function api(path) {
+    const headers = new Headers();
+    headers.set("Authorization", "Bearer " + token);
+    return fetch(path, { headers, cache: "no-store" });
+  }
+
+  function currentVector(sample) {
+    return sample[$("vector-mode").value];
+  }
+
+  function activeFrame() {
+    if (!scene) return null;
+    if ($("dataset").value !== "opportunity" || scene.opportunity.frames.length === 0) {
+      return scene.snapshot;
+    }
+    const index = Math.max(
+      0,
+      Math.min(scene.opportunity.frames.length - 1, Number($("frame").value) || 0)
+    );
+    return scene.opportunity.frames[index];
+  }
+
+  function filteredFrame() {
+    const frame = activeFrame();
+    if (!frame) return null;
+    if ($("altitude").value === "all") return frame;
+    const altitude = Number($("altitude").value);
+    return {
+      tick: frame.tick,
+      samples: frame.samples.filter(
+        (sample) => Math.abs(sample.position[1] - altitude) < 1e-9
+      ),
+    };
+  }
+
+  function colorValue(sample) {
+    const mode = $("color-mode").value;
+    if (mode === "verticalAir") return sample.verticalAir;
+    if (mode === "turbulence") return sample.turbulence;
+    if (mode === "shear") return sample.shear;
+    return vectorMagnitude(currentVector(sample));
+  }
+
+  function diagnosticColor(value, minimum, maximum) {
+    const t = maximum > minimum
+      ? Math.max(0, Math.min(1, (value - minimum) / (maximum - minimum)))
+      : 0.5;
+    const first = t < 0.5 ? [62, 133, 200] : [140, 145, 151];
+    const second = t < 0.5 ? [140, 145, 151] : [218, 126, 67];
+    const k = t < 0.5 ? t * 2 : (t - 0.5) * 2;
+    return "rgb(" +
+      Math.round(first[0] + (second[0] - first[0]) * k) + "," +
+      Math.round(first[1] + (second[1] - first[1]) * k) + "," +
+      Math.round(first[2] + (second[2] - first[2]) * k) + ")";
+  }
+
+  function rotate(vector) {
+    const cy = Math.cos(yaw);
+    const sy = Math.sin(yaw);
+    const cp = Math.cos(pitch);
+    const sp = Math.sin(pitch);
+    const x1 = cy * vector[0] - sy * vector[2];
+    const z1 = sy * vector[0] + cy * vector[2];
+    return [x1, cp * vector[1] - sp * z1, sp * vector[1] + cp * z1];
+  }
+
+  function fitTransform(samples) {
+    const xs = samples.map((sample) => sample.position[0]);
+    const ys = samples.map((sample) => sample.position[1]);
+    const zs = samples.map((sample) => sample.position[2]);
+    const minimum = [Math.min(...xs), Math.min(...ys), Math.min(...zs)];
+    const maximum = [Math.max(...xs), Math.max(...ys), Math.max(...zs)];
+    const center = [
+      (minimum[0] + maximum[0]) / 2,
+      (minimum[1] + maximum[1]) / 2,
+      (minimum[2] + maximum[2]) / 2,
+    ];
+    const span = Math.max(
+      64,
+      maximum[0] - minimum[0],
+      maximum[1] - minimum[1],
+      maximum[2] - minimum[2]
+    );
+    return {
+      center,
+      scale: Math.min(canvas.clientWidth, canvas.clientHeight) * 0.72 / span * zoom,
+      width: canvas.clientWidth,
+      height: canvas.clientHeight,
+    };
+  }
+
+  function project(position, transform) {
+    const rotated = rotate([
+      position[0] - transform.center[0],
+      position[1] - transform.center[1],
+      position[2] - transform.center[2],
+    ]);
+    const perspective = 900 / (900 + rotated[2] * 0.35);
+    return [
+      transform.width / 2 + rotated[0] * transform.scale * perspective,
+      transform.height / 2 - rotated[1] * transform.scale * perspective,
+      rotated[2],
+    ];
+  }
+
+  function drawArrow(start, end, color, width) {
+    const dx = end[0] - start[0];
+    const dy = end[1] - start[1];
+    const length = Math.hypot(dx, dy);
+    if (length < 0.5) return;
+    const ux = dx / length;
+    const uy = dy / length;
+    const head = Math.min(9, Math.max(4, length * 0.25));
+
+    ctx.strokeStyle = color;
+    ctx.fillStyle = color;
+    ctx.lineWidth = width;
+    ctx.beginPath();
+    ctx.moveTo(start[0], start[1]);
+    ctx.lineTo(end[0], end[1]);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(end[0], end[1]);
+    ctx.lineTo(
+      end[0] - ux * head - uy * head * 0.55,
+      end[1] - uy * head + ux * head * 0.55
+    );
+    ctx.lineTo(
+      end[0] - ux * head + uy * head * 0.55,
+      end[1] - uy * head - ux * head * 0.55
+    );
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function resizeCanvas() {
+    const ratio = Math.min(window.devicePixelRatio || 1, 2);
+    const rectangle = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(rectangle.width * ratio));
+    canvas.height = Math.max(1, Math.floor(rectangle.height * ratio));
+    ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  }
+
+  function rebuildAltitudeOptions() {
+    const frame = activeFrame();
+    const select = $("altitude");
+    const previous = select.value;
+    while (select.firstChild) select.removeChild(select.firstChild);
+
+    const all = document.createElement("option");
+    all.value = "all";
+    all.textContent = "All levels";
+    select.append(all);
+
+    if (!frame) return;
+    const levels = [...new Set(frame.samples.map((sample) => sample.position[1]))]
+      .sort((left, right) => left - right);
+    for (const altitude of levels) {
+      const option = document.createElement("option");
+      option.value = String(altitude);
+      option.textContent = "Y = " + fmt(altitude, 0);
+      select.append(option);
+    }
+    if ([...select.options].some((option) => option.value === previous)) {
+      select.value = previous;
+    }
+  }
+
+  function renderInspector(sample) {
+    if (!scene) return;
+    $("inspect-binding").textContent = scene.source.binding;
+    $("inspect-artifact").textContent =
+      scene.source.artifactId || scene.source.artifactTitle || scene.source.artifactKind;
+    $("inspect-sha").textContent = scene.source.sourceSha || "unbound";
+    $("inspect-provider").textContent =
+      [scene.provider.modId, scene.provider.version].filter(Boolean).join(" ") || "—";
+    $("review-warning").hidden = scene.source.reviewAuthority;
+
+    $("owner-sampling").textContent =
+      scene.ownership.serverWorldSampling ? "server world" : "unknown";
+    $("owner-persistence").textContent = scene.ownership.skyforgePersistsAtmosphere
+      ? "Skyforge"
+      : (scene.ownership.providerPersistenceOwner || "provider");
+    $("owner-render").textContent =
+      scene.ownership.renderingBackendDependency ? "yes" : "no";
+
+    if (!sample) {
+      $("inspect-position").textContent = "click a sample";
+      $("inspect-vector").textContent = "—";
+      $("inspect-updraft").textContent = "—";
+      $("inspect-turbulence").textContent = "—";
+      $("inspect-shear").textContent = "—";
+      $("inspect-confidence").textContent = "—";
+      $("inspect-authority").textContent = "—";
+      return;
+    }
+
+    const vector = currentVector(sample);
+    $("inspect-position").textContent =
+      "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
+    $("inspect-vector").textContent =
+      "[" + vector.map((value) => fmt(value)).join(", ") + "] m/s";
+    $("inspect-updraft").textContent = fmt(sample.verticalAir) + " m/s";
+    $("inspect-turbulence").textContent = fmt(sample.turbulence);
+    $("inspect-shear").textContent = fmt(sample.shear, 5);
+    $("inspect-confidence").textContent = fmt(sample.confidence);
+    $("inspect-authority").textContent =
+      [sample.sourceLevel, sample.authority].filter(Boolean).join(" · ") || "—";
+  }
+
+  function draw() {
+    resizeCanvas();
+    ctx.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight);
+
+    const frame = filteredFrame();
+    if (!frame || frame.samples.length === 0) return;
+    const transform = fitTransform(frame.samples);
+    const values = frame.samples.map(colorValue);
+    let minimum = Math.min(...values);
+    let maximum = Math.max(...values);
+    if ($("color-mode").value === "verticalAir") {
+      const absolute = Math.max(Math.abs(minimum), Math.abs(maximum), 0.001);
+      minimum = -absolute;
+      maximum = absolute;
+    }
+
+    const multiplier = 28 * Number($("arrow-scale").value);
+    projected = frame.samples.map((sample) => {
+      const vector = currentVector(sample);
+      const endpoint = [
+        sample.position[0] + vector[0] * multiplier,
+        sample.position[1] + vector[1] * multiplier,
+        sample.position[2] + vector[2] * multiplier,
+      ];
+      return {
+        sample,
+        start: project(sample.position, transform),
+        end: project(endpoint, transform),
+        value: colorValue(sample),
+      };
+    }).sort((left, right) => left.start[2] - right.start[2]);
+
+    for (const item of projected) {
+      const valueColor = diagnosticColor(item.value, minimum, maximum);
+      const active = selected === item.sample;
+      drawArrow(item.start, item.end, valueColor, active ? 4 : 2);
+      ctx.fillStyle = active ? "#ffffff" : valueColor;
+      ctx.beginPath();
+      ctx.arc(item.start[0], item.start[1], active ? 4.5 : 2.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    $("arrow-scale-value").textContent =
+      Number($("arrow-scale").value).toFixed(2) + "×";
+    $("frame-summary").textContent =
+      frame.samples.length + " vectors" +
+      (frame.tick === null ? "" : " · tick " + frame.tick);
+    if ($("dataset").value === "opportunity") {
+      $("frame-value").textContent =
+        $("frame").value + " / " + (frame.tick === null ? "—" : frame.tick);
+    }
+    renderInspector(selected);
+  }
+
+  function resetView() {
+    yaw = -0.72;
+    pitch = 0.50;
+    zoom = 1.0;
+    draw();
+  }
+
+  function stopPlayback() {
+    if (playback !== null) clearInterval(playback);
+    playback = null;
+    $("play").textContent = "Play";
+  }
+
+  function togglePlayback() {
+    if (playback !== null) {
+      stopPlayback();
+      return;
+    }
+    $("play").textContent = "Pause";
+    playback = setInterval(() => {
+      const maximum = Number($("frame").max);
+      $("frame").value =
+        String((Number($("frame").value) + 1) % (maximum + 1));
+      selected = null;
+      draw();
+    }, 500);
+  }
+
+  function setScene(nextScene) {
+    stopPlayback();
+    scene = nextScene;
+    selected = null;
+    $("scene-kind").textContent = scene.sceneKind;
+    $("viewport-title").textContent =
+      scene.source.artifactTitle || "Atmosphere semantic field";
+    $("viewport-subtitle").textContent =
+      scene.coordinateSystem.id + " · " + scene.source.artifactKind;
+    $("binding-pill").textContent = scene.source.reviewAuthority
+      ? "Exact registered artifact"
+      : "Unbound local diagnostic";
+    $("binding-pill").className =
+      "pill " + (scene.source.reviewAuthority ? "good" : "warn");
+
+    const hasOpportunity = scene.opportunity.frames.length > 0;
+    $("dataset").disabled = !hasOpportunity;
+    $("frame").max = String(Math.max(0, scene.opportunity.frames.length - 1));
+    $("frame").value = "0";
+    $("dataset").value = "snapshot";
+    $("time-controls").hidden = true;
+    $("static-controls").hidden = false;
+    rebuildAltitudeOptions();
+    renderInspector(null);
+    draw();
+  }
+
+  async function loadRegisteredArtifact() {
+    const select = $("artifact-select");
+    const artifactId = select.value;
+    if (!artifactId) return;
+    const option = select.selectedOptions[0];
+    $("source-status").textContent = "Loading exact registered artifact…";
+
+    const response = await api(
+      "/api/v1/artifacts/" + encodeURIComponent(artifactId) + "/content"
+    );
+    if (!response.ok) {
+      throw new Error("artifact content request failed: HTTP " + response.status);
+    }
+    const artifact = await response.json();
+    const nextScene = window.SkyforgeStudioScene.adaptArtifact(artifact, {
+      binding: "REGISTERED_ARTIFACT",
+      artifactId,
+      artifactTitle: option.dataset.title || artifactId,
+      sourceSha: option.dataset.sha || "",
+      reviewAuthority: true,
+    });
+    setScene(nextScene);
+    $("source-status").textContent = "Loaded exact artifact " + artifactId + ".";
+  }
+
+  async function loadArtifactCatalog() {
+    const response = await api("/api/v1/artifacts");
+    if (!response.ok) {
+      throw new Error("artifact catalog request failed: HTTP " + response.status);
+    }
+    const payload = await response.json();
+    const select = $("artifact-select");
+    while (select.firstChild) select.removeChild(select.firstChild);
+
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = "Select a registered JSON artifact";
+    select.append(placeholder);
+
+    for (const artifact of payload.artifacts || []) {
+      if (artifact.kind !== "FILE") continue;
+      const mediaType = String(artifact.file?.media_type || "").toLowerCase();
+      if (!mediaType.includes("json")) continue;
+
+      const option = document.createElement("option");
+      option.value = artifact.artifact_id;
+      option.textContent = artifact.title || artifact.artifact_id;
+      option.dataset.title = artifact.title || artifact.artifact_id;
+      option.dataset.sha = artifact.source_sha || "";
+      select.append(option);
+    }
+
+    $("source-status").textContent = select.options.length > 1
+      ? "Choose a registered JSON artifact, or import a local diagnostic."
+      : "No registered JSON semantic artifacts are currently available; local diagnostics remain available.";
+  }
+
+  async function connect(event) {
+    if (event) event.preventDefault();
+    token = $("api-token").value.trim();
+    if (!token) return;
+    sessionStorage.setItem(TOKEN_KEY, token);
+    $("auth-error").textContent = "";
+
+    try {
+      const response = await api("/api/v1/development-state");
+      if (!response.ok) {
+        throw new Error("authorization failed: HTTP " + response.status);
+      }
+      await loadArtifactCatalog();
+      $("auth-panel").hidden = true;
+      $("studio-content").hidden = false;
+      setConnection("Connected", "good");
+    } catch (error) {
+      setConnection("Disconnected", "muted");
+      $("auth-error").textContent = String(error.message || error);
+    }
+  }
+
+  $("auth-form").addEventListener("submit", connect);
+  $("forget-token").addEventListener("click", () => {
+    token = "";
+    sessionStorage.removeItem(TOKEN_KEY);
+    $("api-token").value = "";
+    $("studio-content").hidden = true;
+    $("auth-panel").hidden = false;
+    setConnection("Disconnected");
+  });
+
+  $("load-artifact").addEventListener("click", () => {
+    loadRegisteredArtifact().catch((error) => {
+      $("source-status").textContent = String(error.message || error);
+    });
+  });
+
+  $("local-file").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const artifact = JSON.parse(await file.text());
+      setScene(window.SkyforgeStudioScene.adaptArtifact(artifact, {
+        binding: "UNBOUND_LOCAL",
+        artifactTitle: file.name,
+        reviewAuthority: false,
+      }));
+      $("source-status").textContent =
+        "Loaded local diagnostic " + file.name + "; not review authority.";
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    }
+  });
+
+  $("dataset").addEventListener("change", () => {
+    stopPlayback();
+    selected = null;
+    const temporal = $("dataset").value === "opportunity";
+    $("time-controls").hidden = !temporal;
+    $("static-controls").hidden = temporal;
+    rebuildAltitudeOptions();
+    draw();
+  });
+  $("vector-mode").addEventListener("change", () => {
+    renderInspector(selected);
+    draw();
+  });
+  $("color-mode").addEventListener("change", draw);
+  $("altitude").addEventListener("change", draw);
+  $("arrow-scale").addEventListener("input", draw);
+  $("frame").addEventListener("input", () => {
+    selected = null;
+    draw();
+  });
+  $("play").addEventListener("click", togglePlayback);
+  $("reset-view").addEventListener("click", resetView);
+  $("reset-view-static").addEventListener("click", resetView);
+
+  canvas.addEventListener("pointerdown", (event) => {
+    dragging = true;
+    lastX = event.clientX;
+    lastY = event.clientY;
+    canvas.setPointerCapture(event.pointerId);
+  });
+  canvas.addEventListener("pointermove", (event) => {
+    if (!dragging) return;
+    yaw += (event.clientX - lastX) * 0.008;
+    pitch = Math.max(
+      -1.35,
+      Math.min(1.35, pitch + (event.clientY - lastY) * 0.008)
+    );
+    lastX = event.clientX;
+    lastY = event.clientY;
+    draw();
+  });
+  canvas.addEventListener("pointerup", () => {
+    dragging = false;
+  });
+  canvas.addEventListener("pointercancel", () => {
+    dragging = false;
+  });
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    zoom = Math.max(
+      0.45,
+      Math.min(3.5, zoom * (event.deltaY > 0 ? 0.9 : 1.1))
+    );
+    draw();
+  }, { passive: false });
+  canvas.addEventListener("click", (event) => {
+    const rectangle = canvas.getBoundingClientRect();
+    const x = event.clientX - rectangle.left;
+    const y = event.clientY - rectangle.top;
+    let best = null;
+    let distance = 14;
+    for (const item of projected) {
+      const current = Math.hypot(item.start[0] - x, item.start[1] - y);
+      if (current < distance) {
+        distance = current;
+        best = item;
+      }
+    }
+    if (best) {
+      selected = best.sample;
+      draw();
+    }
+  });
+  window.addEventListener("resize", draw);
+
+  if (token) {
+    $("api-token").value = token;
+  }
+})();
