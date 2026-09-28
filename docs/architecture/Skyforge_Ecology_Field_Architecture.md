@@ -1,7 +1,7 @@
 # Skyforge ecology field architecture
 
 **Status:** first integration architecture; compatibility-preserving  
-**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212  
+**Governing issues:** #1192, #1194, #1196, #1198, #1200, #1202, #1204, #1206, #1208, #1212, #1216  
 **Scope:** backend-neutral Authorship ecology
 
 ## Purpose
@@ -341,6 +341,20 @@ Concrete vanilla/modded species are downstream content/backend choices constrain
 A rich installed mod catalogue is therefore compatible with a sparse authored island: the ecological
 model constrains which roles are actually realized.
 
+Issue #1216 adds the first explicit vegetation functional-group niche layer above #1212 aggregate
+realization. `SkyIslandVegetationFunctionalGroup` introduces backend-neutral growth-form / role identities
+for tall canopy tree, small tree, shrub, grass/forb, fern/groundcover, aquatic plant, and
+decomposer/fungus. The enum carries identity only; it does not embed structural preferences.
+
+`SkyIslandFunctionalGroupStructuralAffinity` supplies explicit non-negative weights over the accepted
+neutral structural dimensions, and `SkyIslandWeightedMeanFunctionalGroupNicheTransform` maps resolved
+aggregate structure to normalized structural niche support. Callers may therefore give the same
+functional-group identity different structural policies without changing upstream ecology.
+
+Functional-group structural niche support remains a semantic support signal only. It does not establish
+presence, abundance, carrying capacity, percent cover, backend feature placement, or species identity.
+Unresolved #1212 aggregate realization propagates to unresolved functional-group support.
+
 ## 8. Backend boundary
 
 The ecology kernel/world layer may expose:
@@ -462,13 +476,14 @@ Therefore:
 9. issue #1206 composes suitability and explicit assembly factors into transparent profile-specific support without asserting occupancy;
 10. issue #1208 maps resolved community assembly support into explicit per-community neutral structural-realization envelopes without backend content or winner selection;
 11. issue #1212 preserves overlapping community realizations and permits explicit weighted composition without hidden winner selection;
-12. later replacement response/community models must be versioned or explicitly migrated;
-13. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
+12. issue #1216 maps resolved aggregate structure into explicit vegetation functional-group structural niche support without species/backend identity;
+13. later replacement response/community models must be versioned or explicitly migrated;
+14. AUTH-0088/0089/0090/0103 consumers must not silently observe changed semantics merely because a
    richer model exists;
-14. new ecology authority should be earned through deterministic reference evidence before a backend
+15. new ecology authority should be earned through deterministic reference evidence before a backend
    adopts it.
 
-## Immediate next work after #1212
+## Immediate next work after #1216
 
 The compatibility input seam and reusable AUTH-0003 response layer are now structurally defined. The
 next ecology tranche should still be selected from actual available upstream semantics rather than
@@ -489,11 +504,13 @@ A prudent sequence is:
    automatically from community names;
 10. keep #1212 multi-community composition explicitly policy-driven and retain every constituent
     realization rather than collapsing provenance;
-11. introduce broader functional-group/niche profiles only when their suitability, dispersal, and
-    disturbance semantics are explicit and testable rather than inferred from species/backend identity;
-12. add spatial realization/patch structure only after composition semantics remain deterministic and
-    backend-neutral;
-13. keep concrete species/population lifecycle policy downstream of neutral realization.
+11. keep #1216 vegetation functional-group profiles explicit and caller-authored rather than attaching
+    hidden structural behavior to group names;
+12. add spatial realization/patch structure only after functional-group support can be spatialized
+    deterministically without turning signal noise into ecological identity;
+13. extend to fauna/decomposer niche layers only when their required habitat and trophic semantics are
+    explicit rather than inferred from species/backend identity;
+14. keep concrete species/population lifecycle policy downstream of neutral realization.
 
 This keeps ecology integrated with the rest of Skyforge without allowing any backend or one subsystem
 to become the owner of ecological meaning.
