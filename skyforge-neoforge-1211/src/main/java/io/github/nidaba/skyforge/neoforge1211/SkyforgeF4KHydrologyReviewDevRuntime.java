@@ -23,12 +23,15 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificatio
 import io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificationPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlanner;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
@@ -62,7 +65,9 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeF4KHydrologyReviewDevRuntime.class.getName());
     private static AutoCloseable persistentBinding;
+    private static Fixture reviewFixture;
     private static boolean preparationComplete;
+    private static int lastLoggedPersistedWaterHeads = -1;
 
     private SkyforgeF4KHydrologyReviewDevRuntime() {}
 
@@ -77,6 +82,11 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
         }
 
         Fixture fixture = fixture();
+        reviewFixture = fixture;
+        if (SkyforgeAutomatedAcceptanceHarness.serverMode()) {
+            SkyforgeAutomatedAcceptanceHarness.installWarmupChunkKeys(
+                    requiredWaterHeadChunkKeys(fixture));
+        }
         SkyforgeNeoForge1211ChunkAdapter adapter = new SkyforgeNeoForge1211ChunkAdapter(
                 fixture.catalog(),
                 SkyIslandTerrainProfile.reference(),
@@ -145,32 +155,58 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
         if (preparationComplete) {
             return;
         }
-        Fixture fixture = fixture();
-        int expectedWaterHeads = 0;
-        for (SkyIslandFluvialVoxelColumn column : fixture.authorization().quantization().authorizedColumns()) {
-            if (!column.projection().semanticSample().wet() || !column.mutatesTerrain()) {
-                continue;
-            }
-            int firstWaterY = column.targetMaximumSolidY() + 1;
-            int maximumWaterY = waterMaximumY(column, fixture);
-            if (maximumWaterY < firstWaterY) {
-                continue;
-            }
-            BlockPos position = new BlockPos(column.worldX(), firstWaterY, column.worldZ());
-            // The opt-in acceptance harness synchronously warms the finite F4K footprint before
-            // this proof can pass. Reading the head here therefore observes the persisted chunk
-            // state rather than creating an ordinary-runtime chunk-loading policy.
-            expectedWaterHeads++;
-            if (!level.getBlockState(position).is(Blocks.WATER)) {
-                return;
-            }
+        Fixture fixture = reviewFixture;
+        if (fixture == null) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    event.getServer(),
+                    "F4K preparation fixture was not retained after installing its review binding");
+            return;
         }
-        if (expectedWaterHeads == 0) {
+
+        List<BlockPos> expectedWaterHeads = expectedWaterHeadPositions(fixture);
+        if (expectedWaterHeads.isEmpty()) {
             SkyforgeAutomatedAcceptanceHarness.fail(
                     event.getServer(),
                     "F4K preparation produced no realizable F4H water-head columns");
             return;
         }
+
+        int persistedWaterHeads = 0;
+        for (BlockPos position : expectedWaterHeads) {
+            ChunkPos chunkPos = new ChunkPos(position);
+            var chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+            if (chunk == null) {
+                SkyforgeAutomatedAcceptanceHarness.fail(
+                        event.getServer(),
+                        "F4K acceptance warmup omitted expected water head "
+                                + position + " in chunk " + chunkPos);
+                return;
+            }
+            if (chunk.getBlockState(position).is(Blocks.WATER)) {
+                persistedWaterHeads++;
+            }
+        }
+
+        if (persistedWaterHeads != expectedWaterHeads.size()) {
+            if (persistedWaterHeads != lastLoggedPersistedWaterHeads) {
+                BlockPos firstMissing = expectedWaterHeads.stream()
+                        .filter(position -> {
+                            var chunkPos = new ChunkPos(position);
+                            var chunk = level.getChunkSource().getChunkNow(chunkPos.x, chunkPos.z);
+                            return chunk != null && !chunk.getBlockState(position).is(Blocks.WATER);
+                        })
+                        .findFirst()
+                        .orElse(null);
+                LOGGER.log(
+                        System.Logger.Level.INFO,
+                        "F4K preparation waiting for persisted water heads: observed="
+                                + persistedWaterHeads + "/" + expectedWaterHeads.size()
+                                + ", firstMissing=" + firstMissing);
+                lastLoggedPersistedWaterHeads = persistedWaterHeads;
+            }
+            return;
+        }
+
         preparationComplete = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 event.getServer(),
@@ -178,12 +214,35 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                         "f4hAuthorizedColumns", fixture.authorization().quantization().authorizedColumns().size(),
                         "f4dRemovedSolidBlocks", fixture.authorization().quantization().totalRemovedSolidBlocks(),
                         "f4hRefinedReaches", fixture.refined().reaches().size(),
-                        "persistedWaterHeads", expectedWaterHeads,
+                        "persistedWaterHeads", persistedWaterHeads,
                         "surfaceBindingActive", SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()));
         LOGGER.log(
                 System.Logger.Level.INFO,
-                "F4K HYDROLOGY PREPARATION PASS: persisted " + expectedWaterHeads
+                "F4K HYDROLOGY PREPARATION PASS: persisted " + persistedWaterHeads
                         + " exact F4H water heads after F4D authorized terrain removal.");
+    }
+
+    static List<BlockPos> expectedWaterHeadPositions(Fixture fixture) {
+        Objects.requireNonNull(fixture, "fixture");
+        return fixture.authorization().quantization().authorizedColumns().stream()
+                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
+                .filter(column -> Math.min(
+                                waterMaximumY(column, fixture),
+                                column.originalSupport().maximumSolidY())
+                        >= column.targetMaximumSolidY() + 1)
+                .map(column -> new BlockPos(
+                        column.worldX(),
+                        column.targetMaximumSolidY() + 1,
+                        column.worldZ()))
+                .toList();
+    }
+
+    static Set<Long> requiredWaterHeadChunkKeys(Fixture fixture) {
+        Set<Long> chunkKeys = new LinkedHashSet<>();
+        for (BlockPos position : expectedWaterHeadPositions(fixture)) {
+            chunkKeys.add(new ChunkPos(position).toLong());
+        }
+        return Set.copyOf(chunkKeys);
     }
 
     private static int waterMaximumY(SkyIslandFluvialVoxelColumn column, Fixture fixture) {
