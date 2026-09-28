@@ -902,6 +902,59 @@
     }
   });
 
+  $("local-pair-files").addEventListener("change", async (event) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+
+    try {
+      if (files.length !== 2) {
+        throw new Error(
+          "Select both JSON files: the terrain semantic volume and its bound hydrology layer."
+        );
+      }
+      const entries = await Promise.all(files.map(async (file) => ({
+        file,
+        artifact: JSON.parse(await file.text()),
+      })));
+      const terrainEntry = entries.find(
+        (entry) => entry.artifact?.artifact_kind === "SKYFORGE_TERRAIN_SEMANTIC_VOLUME"
+      );
+      const hydrologyEntry = entries.find(
+        (entry) => entry.artifact?.artifact_kind === "SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER"
+      );
+      if (!terrainEntry || !hydrologyEntry) {
+        throw new Error(
+          "Choose one terrain semantic volume JSON and one bound hydrology layer JSON."
+        );
+      }
+
+      const nextScene = window.SkyforgeStudioScene.adaptArtifact(terrainEntry.artifact, {
+        binding: "UNBOUND_LOCAL",
+        artifactTitle: terrainEntry.file.name,
+        reviewAuthority: false,
+      });
+      const nextOverlay = window.SkyforgeStudioScene.adaptOverlayArtifact(
+        hydrologyEntry.artifact,
+        nextScene,
+        {
+          binding: "UNBOUND_LOCAL",
+          artifactTitle: hydrologyEntry.file.name,
+          reviewAuthority: false,
+        }
+      );
+
+      setScene(nextScene);
+      setOverlay(nextOverlay);
+      $("source-status").textContent =
+        "Loaded " + terrainEntry.file.name + " with " + hydrologyEntry.file.name +
+        "; paired local diagnostics only, not review authority.";
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    } finally {
+      event.target.value = "";
+    }
+  });
+
   $("load-overlay").addEventListener("click", () => {
     loadRegisteredOverlay().catch((error) => {
       $("overlay-status").textContent = String(error.message || error);

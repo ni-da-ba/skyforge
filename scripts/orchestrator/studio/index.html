@@ -59,6 +59,11 @@
             <label for="local-file">Local JSON diagnostic</label>
             <input id="local-file" type="file" accept=".json,application/json">
           </div>
+          <div>
+            <label for="local-pair-files">Terrain + hydrology pair</label>
+            <input id="local-pair-files" type="file" accept=".json,application/json" multiple>
+            <p class="small muted">Select both JSON files together to see this specimen in Studio. Local diagnostics only.</p>
+          </div>
         </div>
         <p id="source-status" class="small muted" aria-live="polite"></p>
       </section>
