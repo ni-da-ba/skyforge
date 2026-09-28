@@ -30,9 +30,16 @@ public record SkyIslandVegetationPlacementCandidateEvaluation(
             throw new IllegalArgumentException(
                     "candidate position must exactly match spatial ecological evaluation position");
         }
-        if (admissionState.isPresent() && !spatialPatchEvaluation.resolved()) {
-            throw new IllegalArgumentException(
-                    "resolved candidate admission requires resolved upstream spatial ecology");
+        if (admissionState.isPresent()) {
+            if (!spatialPatchEvaluation.resolved()) {
+                throw new IllegalArgumentException(
+                        "resolved candidate admission requires resolved upstream spatial ecology");
+            }
+            if (admissionState.orElseThrow().admitted()
+                    && spatialPatchEvaluation.state().orElseThrow().spatialNicheSupport() == 0.0) {
+                throw new IllegalArgumentException(
+                        "candidate admission must not create presence from zero spatial support");
+            }
         }
     }
 

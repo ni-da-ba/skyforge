@@ -471,6 +471,28 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     }
 
     @Test
+    void customAdmissionCannotCreatePresenceFromZeroSpatialSupport() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1223078L,
+                        "ecology.candidate.invalid-admission",
+                        16.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile invalid =
+                new SkyIslandVegetationPlacementProfile(
+                        candidateProfile,
+                        (spatial, candidate) -> Optional.of(
+                                new SkyIslandVegetationPlacementAdmissionState(true)));
+        SkyIslandEcologicalPlacementCandidate candidate = invalid.candidate(0L, 0L);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> invalid.evaluate(
+                        spatialEvaluationAt(candidate.position(), 0.0),
+                        candidate));
+    }
+
+    @Test
     void invalidCandidateLatticeParametersFailClosed() {
         SkyIslandEcologicalCandidateLatticeProfile valid =
                 candidateProfile(
