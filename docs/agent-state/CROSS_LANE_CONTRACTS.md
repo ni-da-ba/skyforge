@@ -583,6 +583,15 @@ AUTH-0088/0089/0090/0091/0092 are evidence inputs only. SF-IMP-0080 is the curre
 
 AUTH-0103 / PR #709 / merge `6d3a4873a45d62ee9bf18e080909d6d2ac465d07` is the accepted DR-40 consumer-driven bridge for exact AUTH-0046 associations whose runtime volumes are not AUTH-0058 publications. It preserves AUTH-0088 surface-projection semantics, AUTH-0090 area weighting, and AUTH-0092 raw isolation semantics without weakening AUTH-0087. The locked DR-00 singleton has no regional neighbor; that absence is diagnostic only and is not population-pressure authority.
 
+### CONTENT C28 — production vegetation policy — CANDIDATE
+
+Issue #1233 / PR #1234 consumes the accepted ecology stack rather than extending Authorship. Content
+owns the requested semantic surface-presentation regime, explicit community structural capacities,
+vegetation functional-group structural affinities, and the retained-waterbody requirement for aquatic
+plants. Authorship remains authority for source ecology/hydrology evidence; Implementation remains
+authority for voxel rasterization, Minecraft carrier/feature identity, population execution,
+persistence, and lifecycle. C28 defines no species, occupancy, carrying capacity, or final density.
+
 ## Nether / dimension routing
 
 - C10 proves live Nether `coordinate_scale=1.0`.
