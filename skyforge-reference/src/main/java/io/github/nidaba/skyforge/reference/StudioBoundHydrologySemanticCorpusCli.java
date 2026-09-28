@@ -531,6 +531,11 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                   figure{margin:0;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:10px}
                   figure img{display:block;width:100%%;height:auto;background:#e9edf0;border-radius:5px}
                   figcaption{padding:10px 2px 2px;color:var(--muted);font-size:.94rem}.note{font-size:.93rem}
+                  .hydrology{margin:22px 0;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:10px}
+                  .hydrology-controls{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:10px 0}
+                  .hydrology-controls label{color:var(--ink);font-size:.92rem}
+                  canvas{display:block;width:100%%;height:560px;background:#e8edf0;border:1px solid var(--line);border-radius:8px}
+                  .legend{font-size:.9rem}
                 </style>
                 <body>
                 <main>
