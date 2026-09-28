@@ -36,6 +36,7 @@ import java.util.Map;
  */
 final class SkyforgeF4KHydrologyReviewDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.f4kHydrologyReview";
+    static final String VIEWER_PROPERTY = "skyforge.dev.f4kHydrologyReviewViewer";
     static final String REVIEW_WORLD = "Skyforge F4K Hydrology Review";
     static final int INSPECTION_X = 0;
     static final int INSPECTION_Y = 320;
@@ -51,6 +52,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
     private static final System.Logger LOGGER =
             System.getLogger(SkyforgeF4KHydrologyReviewDevRuntime.class.getName());
     private static AutoCloseable persistentBinding;
+    private static boolean preparationComplete;
 
     private SkyforgeF4KHydrologyReviewDevRuntime() {}
 
@@ -90,6 +92,97 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                         + ", y=" + INSPECTION_Y
                         + ", z=" + INSPECTION_Z
                         + "; the generated water must remain inside the authored channel and exact island owner.");
+    }
+
+    static boolean viewerEnabled() {
+        return Boolean.getBoolean(ENABLE_PROPERTY) || Boolean.getBoolean(VIEWER_PROPERTY);
+    }
+
+    @SubscribeEvent
+    static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!viewerEnabled() || !(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        player.setGameMode(GameType.SPECTATOR);
+        player.teleportTo(INSPECTION_X, INSPECTION_Y, INSPECTION_Z);
+        player.setYRot(180.0f);
+        player.setXRot(16.0f);
+        player.sendSystemMessage(Component.literal(
+                "[Skyforge F4K] Persisted F4H hydrology specimen loaded at the overview. "
+                        + "The viewer does not reinstall the hydrology mutation binding."));
+        player.sendSystemMessage(Component.literal(
+                "[Skyforge F4K] Inspect the channel for water constrained to its carved, island-owned bed; "
+                        + "use spectator flight to follow it downstream."));
+    }
+
+    @SubscribeEvent
+    static void onServerTick(ServerTickEvent.Post event) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)
+                || !SkyforgeAutomatedAcceptanceHarness.serverMode()
+                || preparationComplete) {
+            return;
+        }
+        for (ServerLevel level : event.getServer().getAllLevels()) {
+            if (level.dimension().equals(Level.OVERWORLD)) {
+                verifyPreparedWorld(level, event);
+            }
+        }
+    }
+
+    private static synchronized void verifyPreparedWorld(
+            ServerLevel level,
+            ServerTickEvent.Post event) {
+        if (preparationComplete) {
+            return;
+        }
+        Fixture fixture = fixture();
+        int expectedWaterHeads = 0;
+        for (SkyIslandFluvialVoxelColumn column : fixture.authorization().quantization().authorizedColumns()) {
+            if (!column.projection().semanticSample().wet() || !column.mutatesTerrain()) {
+                continue;
+            }
+            int firstWaterY = column.targetMaximumSolidY() + 1;
+            int maximumWaterY = waterMaximumY(column, fixture);
+            if (maximumWaterY < firstWaterY) {
+                continue;
+            }
+            BlockPos position = new BlockPos(column.worldX(), firstWaterY, column.worldZ());
+            if (!level.hasChunkAt(position)) {
+                return;
+            }
+            expectedWaterHeads++;
+            if (!level.getBlockState(position).is(Blocks.WATER)) {
+                return;
+            }
+        }
+        if (expectedWaterHeads == 0) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    event.getServer(),
+                    "F4K preparation produced no realizable F4H water-head columns");
+            return;
+        }
+        preparationComplete = true;
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                event.getServer(),
+                Map.of(
+                        "f4hAuthorizedColumns", fixture.authorization().quantization().authorizedColumns().size(),
+                        "f4dRemovedSolidBlocks", fixture.authorization().quantization().totalRemovedSolidBlocks(),
+                        "f4hRefinedReaches", fixture.refined().reaches().size(),
+                        "persistedWaterHeads", expectedWaterHeads,
+                        "surfaceBindingActive", SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()));
+        LOGGER.log(
+                System.Logger.Level.INFO,
+                "F4K HYDROLOGY PREPARATION PASS: persisted " + expectedWaterHeads
+                        + " exact F4H water heads after F4D authorized terrain removal.");
+    }
+
+    private static int waterMaximumY(SkyIslandFluvialVoxelColumn column, Fixture fixture) {
+        var projection = column.projection();
+        var semantic = projection.semanticSample();
+        double waterHeadWorld = projection.originalUpperSurfaceWorldY()
+                + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
+                        * fixture.descriptor().reliefBudget();
+        return (int) Math.ceil(waterHeadWorld) - 1;
     }
 
     private static String formatAnchor(SkyIslandFluvialVoxelColumn column) {
