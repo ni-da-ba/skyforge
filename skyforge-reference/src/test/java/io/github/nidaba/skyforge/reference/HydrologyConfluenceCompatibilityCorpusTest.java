@@ -18,6 +18,7 @@ class HydrologyConfluenceCompatibilityCorpusTest {
 
         String a = Files.readString(first.resolve("manifest.csv"));
         String b = Files.readString(second.resolve("manifest.csv"));
+        System.out.println(a);
         assertEquals(a, b);
         assertTrue(a.contains("control-241,241,671,SOLVED"));
         assertTrue(a.contains("confluence-632,632,710,SOLVED"));
