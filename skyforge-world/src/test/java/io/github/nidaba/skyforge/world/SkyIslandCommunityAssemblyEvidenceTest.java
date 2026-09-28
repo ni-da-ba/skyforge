@@ -111,6 +111,92 @@ final class SkyIslandCommunityAssemblyEvidenceTest {
     }
 
     @Test
+    void hydrologicBinderPreservesExactAssemblyAssociationAndAuth0096Cells() {
+        Fixture fixture = fixture(120006L, 2);
+        SkyIslandAuthoredRealizationIsolationProfile isolation =
+                new SkyIslandAuthoredRealizationIsolationProfiler().profile(fixture.catalog());
+        SkyIslandRegionalIsolationEntry source = isolation.islands().getFirst();
+        SkyIslandCommunityAssemblyEvidence assembly =
+                new SkyIslandCommunityAssemblyEvidenceBinder().bind(
+                        SkyIslandCommunitySuitabilityFieldSet.create(
+                                source.association().authoredDescriptor()),
+                        isolation);
+        SkyIslandSurfaceSiteCapabilityProfile surface =
+                new SkyIslandSurfaceSiteCapabilityProfiler().profile(source.association());
+
+        SkyIslandCommunityHydrologicEvidence evidence =
+                new SkyIslandCommunityHydrologicEvidenceBinder().bind(
+                        assembly,
+                        surface);
+
+        assertEquals(assembly, evidence.assemblyEvidence());
+        assertEquals(surface, evidence.surfaceSiteProfile());
+        assertEquals(source.association(), evidence.association());
+        assertEquals(surface.cells().size(), evidence.surfaceSiteProfile().cells().size());
+
+        for (int index = 0; index < surface.cells().size(); index++) {
+            SkyIslandSurfaceSiteCapabilityCell sourceCell = surface.cells().get(index);
+            assertEquals(sourceCell, evidence.cell(index));
+            assertEquals(
+                    sourceCell,
+                    evidence.cellAt(sourceCell.position()).orElseThrow());
+        }
+    }
+
+    @Test
+    void hydrologicBinderRejectsForeignAssociationEvidence() {
+        Fixture fixture = fixture(120007L, 2);
+        SkyIslandAuthoredRealizationIsolationProfile isolation =
+                new SkyIslandAuthoredRealizationIsolationProfiler().profile(fixture.catalog());
+        SkyIslandRegionalIsolationEntry first = isolation.islands().get(0);
+        SkyIslandRegionalIsolationEntry second = isolation.islands().get(1);
+        SkyIslandCommunityAssemblyEvidence assembly =
+                new SkyIslandCommunityAssemblyEvidenceBinder().bind(
+                        SkyIslandCommunitySuitabilityFieldSet.create(
+                                first.association().authoredDescriptor()),
+                        isolation);
+        SkyIslandSurfaceSiteCapabilityProfile foreignSurface =
+                new SkyIslandSurfaceSiteCapabilityProfiler().profile(second.association());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandCommunityHydrologicEvidenceBinder().bind(
+                        assembly,
+                        foreignSurface));
+    }
+
+    @Test
+    void hydrologicEvidenceExactLookupDoesNotInterpolateOrUseNearestCell() {
+        Fixture fixture = fixture(120008L, 1);
+        SkyIslandAuthoredRealizationIsolationProfile isolation =
+                new SkyIslandAuthoredRealizationIsolationProfiler().profile(fixture.catalog());
+        SkyIslandRegionalIsolationEntry source = isolation.islands().getFirst();
+        SkyIslandCommunityAssemblyEvidence assembly =
+                new SkyIslandCommunityAssemblyEvidenceBinder().bind(
+                        SkyIslandCommunitySuitabilityFieldSet.create(
+                                source.association().authoredDescriptor()),
+                        isolation);
+        SkyIslandSurfaceSiteCapabilityProfile surface =
+                new SkyIslandSurfaceSiteCapabilityProfiler().profile(source.association());
+        SkyIslandCommunityHydrologicEvidence evidence =
+                new SkyIslandCommunityHydrologicEvidenceBinder().bind(
+                        assembly,
+                        surface);
+        SkyIslandSurfaceSiteCapabilityCell cell = surface.cells().get(surface.cells().size() / 2);
+        SkyIslandLocalPosition nearby =
+                new SkyIslandLocalPosition(
+                        cell.position().x() + 1.0e-9,
+                        cell.position().z());
+
+        assertTrue(evidence.cellAt(cell.position()).isPresent());
+        assertTrue(evidence.cellAt(nearby).isEmpty());
+        assertThrows(IndexOutOfBoundsException.class, () -> evidence.cell(-1));
+        assertThrows(
+                IndexOutOfBoundsException.class,
+                () -> evidence.cell(surface.cells().size()));
+    }
+
+    @Test
     void currentSemanticsBindingPreservesCanonicalIsolationOrder() {
         Fixture fixture = fixture(120005L, 3);
         SkyIslandAuthoredRealizationIsolationProfile profile =
