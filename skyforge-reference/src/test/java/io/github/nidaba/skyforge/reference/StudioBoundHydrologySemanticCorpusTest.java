@@ -24,8 +24,25 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(Files.isRegularFile(hydrology));
         assertTrue(Files.isRegularFile(index));
 
+        Path terrainViews = temp.resolve("terrain");
+        for (String image : new String[] {
+            "legend.png",
+            "top-surface-semantics.png",
+            "east-west-section.png",
+            "north-south-section.png",
+            "isometric-top-semantics.png"
+        }) {
+            assertTrue(Files.isRegularFile(terrainViews.resolve(image)), image);
+        }
+
         String terrainJson = Files.readString(terrain);
         String hydrologyJson = Files.readString(hydrology);
+        String indexHtml = Files.readString(index);
+        assertTrue(indexHtml.contains("terrain/top-surface-semantics.png"));
+        assertTrue(indexHtml.contains("terrain/isometric-top-semantics.png"));
+        assertTrue(indexHtml.contains("terrain/east-west-section.png"));
+        assertTrue(indexHtml.contains("terrain/north-south-section.png"));
+        assertTrue(indexHtml.contains("hydrology-semantic-layer.json"));
 
         assertTrue(terrainJson.contains(
                 "\"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\""));
