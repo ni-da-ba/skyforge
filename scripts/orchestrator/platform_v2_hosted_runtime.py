@@ -2024,6 +2024,25 @@ class Handler(BaseHTTPRequestHandler):
         ).read_bytes()
         return media_type, content
 
+    def _studio_asset(self, path: str) -> tuple[str, bytes] | None:
+        assets = {
+            "/studio": ("text/html; charset=utf-8", "index.html"),
+            "/studio/": ("text/html; charset=utf-8", "index.html"),
+            "/studio/app.js": ("text/javascript; charset=utf-8", "app.js"),
+            "/studio/scene.js": ("text/javascript; charset=utf-8", "scene.js"),
+            "/studio/styles.css": ("text/css; charset=utf-8", "styles.css"),
+        }
+        entry = assets.get(path)
+        if entry is None:
+            return None
+        media_type, filename = entry
+        content = (
+            Path(__file__).resolve().parent
+            / "studio"
+            / filename
+        ).read_bytes()
+        return media_type, content
+
     def _respond_console_asset(self, media_type: str, payload: bytes) -> None:
         self._respond_bytes(
             200,
@@ -2052,6 +2071,11 @@ class Handler(BaseHTTPRequestHandler):
         console_asset = self._console_asset(path)
         if console_asset is not None:
             media_type, payload = console_asset
+            self._respond_console_asset(media_type, payload)
+            return
+        studio_asset = self._studio_asset(path)
+        if studio_asset is not None:
+            media_type, payload = studio_asset
             self._respond_console_asset(media_type, payload)
             return
         if path == "/api/v1/development-state":

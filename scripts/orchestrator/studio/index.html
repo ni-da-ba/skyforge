@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skyforge Studio</title>
+  <link rel="stylesheet" href="/studio/styles.css">
+  <script src="/studio/scene.js" defer></script>
+  <script src="/studio/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Skyforge Studio</h1>
+      <p>Backend-neutral semantic inspection</p>
+    </div>
+    <div class="top-actions">
+      <a class="secondary-link" href="/console">Operations Console</a>
+      <div id="connection" class="pill muted">Disconnected</div>
+    </div>
+  </header>
+
+  <main>
+    <section id="auth-panel" class="panel auth-panel">
+      <div>
+        <h2>Studio access</h2>
+        <p>Use the same read token as the Operations Console. Studio S0 is read-only.</p>
+      </div>
+      <form id="auth-form">
+        <label for="api-token">Development API token</label>
+        <div class="auth-row">
+          <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
+          <button type="submit">Connect</button>
+          <button id="forget-token" type="button" class="secondary">Forget</button>
+        </div>
+      </form>
+      <p id="auth-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <section id="studio-content" hidden>
+      <section class="panel source-panel">
+        <div class="section-heading">
+          <div>
+            <h2>Semantic specimen</h2>
+            <p class="muted small">Registered artifacts retain exact review provenance. Local imports are diagnostic only.</p>
+          </div>
+          <span id="binding-pill" class="pill warn">No specimen</span>
+        </div>
+
+        <div class="source-grid">
+          <div>
+            <label for="artifact-select">Registered artifact</label>
+            <div class="row">
+              <select id="artifact-select"></select>
+              <button id="load-artifact" type="button">Open artifact</button>
+            </div>
+          </div>
+          <div>
+            <label for="local-file">Local JSON diagnostic</label>
+            <input id="local-file" type="file" accept=".json,application/json">
+          </div>
+        </div>
+        <p id="source-status" class="small muted" aria-live="polite"></p>
+      </section>
+
+      <section class="workspace">
+        <aside class="panel layers">
+          <div class="section-heading">
+            <h2>Layers</h2>
+            <span id="scene-kind" class="pill"></span>
+          </div>
+
+          <label for="dataset">Dataset</label>
+          <select id="dataset">
+            <option value="snapshot">Spatial snapshot</option>
+            <option value="opportunity">Opportunity scan</option>
+          </select>
+
+          <label for="vector-mode">Vector field</label>
+          <select id="vector-mode">
+            <option value="effective">Effective wind</option>
+            <option value="mean">Mean wind</option>
+            <option value="gust">Gust contribution</option>
+          </select>
+
+          <label for="color-mode">Color</label>
+          <select id="color-mode">
+            <option value="verticalAir">Signed vertical air</option>
+            <option value="turbulence">Turbulence</option>
+            <option value="shear">Shear</option>
+            <option value="speed">Vector speed</option>
+          </select>
+
+          <label for="altitude">Altitude</label>
+          <select id="altitude">
+            <option value="all">All levels</option>
+          </select>
+
+          <label for="arrow-scale">Arrow scale <span id="arrow-scale-value">1.25×</span></label>
+          <input id="arrow-scale" type="range" min="0.25" max="4" step="0.05" value="1.25">
+
+          <div id="time-controls" hidden>
+            <label for="frame">Frame <span id="frame-value">0</span></label>
+            <input id="frame" type="range" min="0" max="0" step="1" value="0">
+            <div class="row">
+              <button id="play" type="button">Play</button>
+              <button id="reset-view" type="button" class="secondary">Reset view</button>
+            </div>
+          </div>
+
+          <div id="static-controls">
+            <button id="reset-view-static" type="button" class="secondary full-button">Reset view</button>
+          </div>
+        </aside>
+
+        <section class="panel viewport-panel">
+          <div class="viewport-heading">
+            <div>
+              <h2 id="viewport-title">No semantic specimen loaded</h2>
+              <p id="viewport-subtitle" class="muted small">Open an exact registered artifact or import a local diagnostic JSON.</p>
+            </div>
+            <div id="frame-summary" class="small muted"></div>
+          </div>
+          <canvas id="viewport" aria-label="Skyforge semantic three-dimensional viewport"></canvas>
+          <div class="viewport-help">Drag to rotate · wheel to zoom · click a sample to inspect</div>
+        </section>
+
+        <aside class="panel inspector">
+          <h2>Inspector</h2>
+          <dl class="kv">
+            <dt>Binding</dt><dd id="inspect-binding">—</dd>
+            <dt>Artifact</dt><dd id="inspect-artifact">—</dd>
+            <dt>Source SHA</dt><dd id="inspect-sha">—</dd>
+            <dt>Provider</dt><dd id="inspect-provider">—</dd>
+            <dt>Position</dt><dd id="inspect-position">click a sample</dd>
+            <dt>Vector</dt><dd id="inspect-vector">—</dd>
+            <dt>Vertical air</dt><dd id="inspect-updraft">—</dd>
+            <dt>Turbulence</dt><dd id="inspect-turbulence">—</dd>
+            <dt>Shear</dt><dd id="inspect-shear">—</dd>
+            <dt>Confidence</dt><dd id="inspect-confidence">—</dd>
+            <dt>Authority</dt><dd id="inspect-authority">—</dd>
+          </dl>
+
+          <div id="review-warning" class="authority-warning" hidden>
+            <strong>UNBOUND LOCAL DIAGNOSTIC</strong>
+            <span>This view cannot satisfy an artifact-bound human gate.</span>
+          </div>
+
+          <details>
+            <summary>Semantic ownership</summary>
+            <dl class="kv compact">
+              <dt>Sampling</dt><dd id="owner-sampling">—</dd>
+              <dt>Persistence</dt><dd id="owner-persistence">—</dd>
+              <dt>Render dependency</dt><dd id="owner-render">—</dd>
+            </dl>
+          </details>
+        </aside>
+      </section>
+    </section>
+  </main>
+</body>
+</html>
