@@ -37,6 +37,7 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
@@ -48,6 +49,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  * the exact runtime authorization before installing the Minecraft adapter. No production runtime
  * enables it unless the dedicated ModDev run property is set.
  */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeF4KHydrologyReviewDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.f4kHydrologyReview";
     static final String VIEWER_PROPERTY = "skyforge.dev.f4kHydrologyReviewViewer";
