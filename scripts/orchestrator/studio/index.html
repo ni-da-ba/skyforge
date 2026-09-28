@@ -122,6 +122,17 @@
             </div>
 
             <div id="terrain-legend" class="terrain-legend"></div>
+
+            <div class="overlay-controls">
+              <h3>Semantic overlay</h3>
+              <label for="overlay-artifact-select">Registered hydrology artifact</label>
+              <select id="overlay-artifact-select"></select>
+              <button id="load-overlay" type="button" class="full-button">Attach overlay</button>
+              <label for="local-overlay-file">Local overlay diagnostic</label>
+              <input id="local-overlay-file" type="file" accept=".json,application/json">
+              <button id="clear-overlay" type="button" class="secondary full-button">Clear overlay</button>
+              <p id="overlay-status" class="small muted"></p>
+            </div>
           </div>
 
           <button id="reset-view" type="button" class="secondary full-button">Reset view</button>
@@ -144,6 +155,7 @@
           <dl class="kv">
             <dt>Binding</dt><dd id="inspect-binding">—</dd>
             <dt>Artifact</dt><dd id="inspect-artifact">—</dd>
+            <dt>Overlay</dt><dd id="inspect-overlay">none</dd>
             <dt>Source SHA</dt><dd id="inspect-sha">—</dd>
             <dt>Provider</dt><dd id="inspect-provider">—</dd>
             <dt>Position</dt><dd id="inspect-position">click a sample</dd>
