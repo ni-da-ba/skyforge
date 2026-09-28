@@ -29,17 +29,17 @@ class StudioBoundHydrologySemanticCorpusTest {
 
         assertTrue(terrainJson.contains(
                 "\"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\""));
-        assertTrue(hydrologyJson.contains(
-                "\"artifact_kind\": \"SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER\""));
-        assertTrue(hydrologyJson.contains(
-                "\"association_authority\": \"AUTH-0046\""));
-        assertTrue(hydrologyJson.contains(
-                "\"terrain_projection_authority\": \"F4B\""));
-        assertTrue(hydrologyJson.contains(
-                "\"water_projection_authority\": \"F4E\""));
-        assertTrue(hydrologyJson.contains("\"minecraft_dependency\": false"));
-        assertTrue(hydrologyJson.contains("\"studio_recomputes_hydrology\": false"));
-
+        assertTrue(hydrologyJson.contains("\"hydrology_causes\": ["));
+        assertTrue(hydrologyJson.contains("\"runoff_potential\":"));
+        assertTrue(hydrologyJson.contains("\"retention_potential\":"));
+        assertTrue(hydrologyJson.contains("\"drainage_potential\":"));
+        assertTrue(hydrologyJson.contains("\"outflow_potential\":"));
+        assertTrue(hydrologyJson.contains("\"flow_x\":"));
+        assertTrue(hydrologyJson.contains("\"flow_z\":"));
+        assertTrue(hydrologyJson.contains("\"cause_stride\": 2"));
+        assertTrue(hydrologyJson.contains("\"cause_sample_count\": "));
+        assertTrue(hydrologyJson.contains("\"minimum_x\": "));
+        assertTrue(hydrologyJson.contains("\"world_frame\": {"));
         String terrainSha = stringValue(terrainJson, "semantic_sha256");
         String boundTerrainSha = stringValue(hydrologyJson, "terrain_semantic_sha256");
         assertEquals(terrainSha, boundTerrainSha);

@@ -14,6 +14,9 @@ import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProj
 import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldWaterProjection;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicReachGeometry;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologyField;
+import io.github.nidaba.skyforge.world.SkyIslandHydrologySample;
+import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import io.github.nidaba.skyforge.world.SkyIslandProjectedFluvialTerrainSample;
 import io.github.nidaba.skyforge.world.SkyIslandProjectedFluvialWaterSample;
 import io.github.nidaba.skyforge.world.SkyIslandQualifiedFluvialSample;
@@ -72,6 +75,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 productionAssociation(authored, GEOMETRY_SEED);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(authored);
+        SkyIslandHydrologyField authoredHydrology = SkyIslandHydrologyField.create(authored);
 
         SkyIslandWorldVolume volume = association.realizedVolume();
         SkyIslandWorldCatalog catalog =
@@ -112,6 +116,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 encodeHydrologyArtifact(
                         association,
                         candidate,
+                        authoredHydrology,
                         terrain,
                         grid,
                         surface,
@@ -132,6 +137,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
     private static String encodeHydrologyArtifact(
             SkyIslandAuthoredRealizationAssociation association,
             SkyIslandComponentFluvialTerrainCandidatePlan candidate,
+            SkyIslandHydrologyField authoredHydrology,
             WorldRegionTerrain terrain,
             WorldSampleGrid grid,
             SkyIslandComponentFluvialWorldSurfaceProjection surface,
@@ -141,6 +147,35 @@ public final class StudioBoundHydrologySemanticCorpusCli {
         var authored = association.authoredIdentity();
         var realizedId = association.realizedVolumeId();
         var physical = association.realizedVolume().compiledVolume().descriptor();
+        int causeStride = 2;
+        StringBuilder causeSamples = new StringBuilder();
+        int causeSampleCount = 0;
+        for (int z = 0; z < grid.zSamples(); z += causeStride) {
+            for (int x = 0; x < grid.xSamples(); x += causeStride) {
+                if (!hasSolidColumn(terrain, x, z)) {
+                    continue;
+                }
+                double worldX = grid.xAt(x);
+                double worldZ = grid.zAt(z);
+                SkyIslandHydrologySample sample = authoredHydrology.sample(
+                        new SkyIslandLocalPosition(
+                                worldX - physical.centerX(),
+                                worldZ - physical.centerZ()));
+                if (causeSampleCount > 0) {
+                    causeSamples.append(",\n");
+                }
+                appendHydrologyCauseSample(
+                        causeSamples,
+                        x,
+                        z,
+                        worldX - physical.centerX(),
+                        worldZ - physical.centerZ(),
+                        worldX,
+                        worldZ,
+                        sample);
+                causeSampleCount++;
+            }
+        }
 
         json.append("{\n")
                 .append("  \"schema_version\": 1,\n")
@@ -190,8 +225,13 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 .append("    \"spacing_x\": ").append(number(grid.spacingX())).append(",\n")
                 .append("    \"spacing_z\": ").append(number(grid.spacingZ())).append(",\n")
                 .append("    \"x_samples\": ").append(grid.xSamples()).append(",\n")
-                .append("    \"z_samples\": ").append(grid.zSamples()).append("\n")
+                .append("    \"z_samples\": ").append(grid.zSamples()).append(",\n")
+                .append("    \"cause_stride\": ").append(causeStride).append(",\n")
+                .append("    \"cause_sample_count\": ").append(causeSampleCount).append("\n")
                 .append("  },\n")
+                .append("  \"hydrology_causes\": [\n")
+                .append(causeSamples)
+                .append("\n  ],\n")
                 .append("  \"field_samples\": [\n");
 
         boolean first = true;
@@ -262,6 +302,30 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 .append("  }\n")
                 .append("}\n");
         return json.toString();
+    }
+
+    private static void appendHydrologyCauseSample(
+            StringBuilder json,
+            int gridX,
+            int gridZ,
+            double localX,
+            double localZ,
+            double worldX,
+            double worldZ,
+            SkyIslandHydrologySample sample) {
+        json.append("    {")
+                .append("\"grid\":[").append(gridX).append(',').append(gridZ).append("],")
+                .append("\"local_x\":").append(number(localX)).append(',')
+                .append("\"local_z\":").append(number(localZ)).append(',')
+                .append("\"world_x\":").append(number(worldX)).append(',')
+                .append("\"world_z\":").append(number(worldZ)).append(',')
+                .append("\"runoff_potential\":").append(number(sample.runoffPotential())).append(',')
+                .append("\"retention_potential\":").append(number(sample.retentionPotential())).append(',')
+                .append("\"drainage_potential\":").append(number(sample.drainagePotential())).append(',')
+                .append("\"outflow_potential\":").append(number(sample.outflowPotential())).append(',')
+                .append("\"flow_x\":").append(number(sample.flowX())).append(',')
+                .append("\"flow_z\":").append(number(sample.flowZ()))
+                .append('}');
     }
 
     private static void appendFieldSample(

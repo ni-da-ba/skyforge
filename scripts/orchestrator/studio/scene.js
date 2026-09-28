@@ -404,10 +404,74 @@
     return finite(value, label);
   }
 
-  function hydrologyFieldSample(record, index) {
+  function coordinateMatches(actual, expected) {
+    return Math.abs(actual - expected) <= Math.max(1e-9, Math.abs(expected) * 1e-12);
+  }
+
+  function hydrologyGridBinding(record, terrainGrid) {
+    if (!record || typeof record !== "object") {
+      throw new Error("hydrology grid_binding is required");
+    }
+    const grid = {
+      minimumX: finite(record.minimum_x, "hydrology grid minimum_x"),
+      minimumZ: finite(record.minimum_z, "hydrology grid minimum_z"),
+      spacingX: finite(record.spacing_x, "hydrology grid spacing_x"),
+      spacingZ: finite(record.spacing_z, "hydrology grid spacing_z"),
+      xSamples: positiveInteger(record.x_samples, "hydrology grid x_samples"),
+      zSamples: positiveInteger(record.z_samples, "hydrology grid z_samples"),
+      causeStride: positiveInteger(record.cause_stride, "hydrology grid cause_stride"),
+      causeSampleCount: positiveInteger(
+        record.cause_sample_count,
+        "hydrology grid cause_sample_count"
+      ),
+    };
+    if (
+      !coordinateMatches(grid.minimumX, terrainGrid.minimumX) ||
+      !coordinateMatches(grid.minimumZ, terrainGrid.minimumZ) ||
+      !coordinateMatches(grid.spacingX, terrainGrid.spacingX) ||
+      !coordinateMatches(grid.spacingZ, terrainGrid.spacingZ) ||
+      grid.xSamples !== terrainGrid.xSamples ||
+      grid.zSamples !== terrainGrid.zSamples
+    ) {
+      throw new Error("hydrology grid does not match loaded terrain semantic specimen");
+    }
+    return Object.freeze(grid);
+  }
+
+  function gridCoordinates(record, index, label, binding, stride = 1) {
+    if (!Array.isArray(record.grid) || record.grid.length !== 2) {
+      throw new Error(label + " grid must contain x/z indices");
+    }
+    const gridX = Number(record.grid[0]);
+    const gridZ = Number(record.grid[1]);
+    if (
+      !Number.isSafeInteger(gridX) ||
+      !Number.isSafeInteger(gridZ) ||
+      gridX < 0 ||
+      gridZ < 0 ||
+      gridX >= binding.xSamples ||
+      gridZ >= binding.zSamples ||
+      gridX % stride !== 0 ||
+      gridZ % stride !== 0
+    ) {
+      throw new Error(label + " grid indices are outside the bound terrain lattice");
+    }
+    const worldX = finite(record.world_x, label + " world_x");
+    const worldZ = finite(record.world_z, label + " world_z");
+    if (
+      !coordinateMatches(worldX, binding.minimumX + binding.spacingX * gridX) ||
+      !coordinateMatches(worldZ, binding.minimumZ + binding.spacingZ * gridZ)
+    ) {
+      throw new Error(label + " world coordinates do not match the bound terrain lattice");
+    }
+    return Object.freeze([gridX, gridZ]);
+  }
+
+  function hydrologyFieldSample(record, index, binding) {
     if (!record || typeof record !== "object") {
       throw new Error("hydrology field sample " + index + " is not an object");
     }
+    const grid = gridCoordinates(record, index, "hydrology field sample " + index, binding);
     const worldX = finite(record.world_x, "hydrology field sample world_x");
     const worldZ = finite(record.world_z, "hydrology field sample world_z");
     const targetY = finite(
@@ -421,6 +485,7 @@
     const provenance = record.provenance;
     return Object.freeze({
       overlayKind: "HYDROLOGY_FIELD_SAMPLE",
+      grid,
       position: Object.freeze([worldX, targetY, worldZ]),
       waterPosition: waterY === null
         ? null
@@ -451,6 +516,72 @@
     });
   }
 
+  function hydrologyCauseSample(record, index, binding, worldFrame, topByGrid) {
+    if (!record || typeof record !== "object") {
+      throw new Error("hydrology cause sample " + index + " is not an object");
+    }
+    const label = "hydrology cause sample " + index;
+    const grid = gridCoordinates(
+      record,
+      index,
+      label,
+      binding,
+      binding.causeStride
+    );
+    const worldX = finite(record.world_x, label + " world_x");
+    const worldZ = finite(record.world_z, label + " world_z");
+    const localX = finite(record.local_x, label + " local_x");
+    const localZ = finite(record.local_z, label + " local_z");
+    if (
+      !coordinateMatches(worldX, localX + worldFrame.centerX) ||
+      !coordinateMatches(worldZ, localZ + worldFrame.centerZ)
+    ) {
+      throw new Error(label + " local/world coordinates do not match specimen transform");
+    }
+    const key = grid[0] + ":" + grid[1];
+    const terrainPoint = topByGrid.get(key);
+    if (!terrainPoint) {
+      throw new Error(label + " does not bind to a solid terrain column");
+    }
+    const runoffPotential = finite(record.runoff_potential, label + " runoff_potential");
+    const retentionPotential = finite(record.retention_potential, label + " retention_potential");
+    const drainagePotential = finite(record.drainage_potential, label + " drainage_potential");
+    const outflowPotential = finite(record.outflow_potential, label + " outflow_potential");
+    for (const [name, value] of [
+      ["runoff_potential", runoffPotential],
+      ["retention_potential", retentionPotential],
+      ["drainage_potential", drainagePotential],
+      ["outflow_potential", outflowPotential],
+    ]) {
+      if (value < 0 || value > 1) {
+        throw new Error(label + " " + name + " must be in [0, 1]");
+      }
+    }
+    const flowX = finite(record.flow_x, label + " flow_x");
+    const flowZ = finite(record.flow_z, label + " flow_z");
+    if (Math.hypot(flowX, flowZ) > 1.0000001) {
+      throw new Error(label + " flow direction magnitude must not exceed one");
+    }
+    return Object.freeze({
+      overlayKind: "HYDROLOGY_CAUSE_SAMPLE",
+      grid,
+      localPosition: Object.freeze([localX, localZ]),
+      worldPosition: Object.freeze([worldX, terrainPoint.position[1], worldZ]),
+      position: terrainPoint.position,
+      displayPosition: Object.freeze([
+        terrainPoint.position[0],
+        terrainPoint.position[1] + 0.5,
+        terrainPoint.position[2],
+      ]),
+      runoffPotential,
+      retentionPotential,
+      drainagePotential,
+      outflowPotential,
+      flowX,
+      flowZ,
+    });
+  }
+
   function hydrologyReach(record, index) {
     if (!record || !Array.isArray(record.points) || record.points.length < 2) {
       throw new Error("hydrology reach " + index + " must contain at least two points");
@@ -477,6 +608,21 @@
         point.water_surface_y,
         "hydrology reach point water_surface_y"
       );
+      const stationFraction = finite(
+        point.station_fraction,
+        "hydrology reach station_fraction"
+      );
+      const relativeDischarge = finite(
+        point.relative_discharge,
+        "hydrology reach relative_discharge"
+      );
+      const bankfullHalfWidth = finite(
+        point.bankfull_half_width,
+        "hydrology reach bankfull_half_width"
+      );
+      if (stationFraction < 0 || stationFraction > 1 || relativeDischarge < 0 || bankfullHalfWidth < 0) {
+        throw new Error("hydrology reach point contains an invalid hydraulic value");
+      }
       return Object.freeze({
         overlayKind: "HYDROLOGY_REACH_POINT",
         position: Object.freeze([worldX, targetY, worldZ]),
@@ -485,24 +631,18 @@
           : Object.freeze([worldX, waterY, worldZ]),
         startCell,
         endCell,
-        stationFraction: finite(
-          point.station_fraction,
-          "hydrology reach point station_fraction"
-        ),
-        relativeDischarge: finite(
-          point.relative_discharge,
-          "hydrology reach point relative_discharge"
-        ),
-        bankfullHalfWidth: finite(
-          point.bankfull_half_width,
-          "hydrology reach point bankfull_half_width"
-        ),
+        stationFraction,
+        relativeDischarge,
+        bankfullHalfWidth,
       });
     });
     return Object.freeze({
       startCell,
       endCell,
-      downstreamStreamOrder: Number(record.downstream_stream_order),
+      downstreamStreamOrder: positiveInteger(
+        record.downstream_stream_order,
+        "hydrology downstream stream order"
+      ),
       downstreamRelativeDischarge: finite(
         record.downstream_relative_discharge,
         "hydrology downstream relative discharge"
@@ -533,26 +673,95 @@
       );
     }
     const terrainDigest = String(artifact.terrain_semantic_sha256 || "");
-    if (!terrainDigest || terrainDigest !== baseScene.source.artifactDigest) {
+    if (
+      !/^[a-f0-9]{64}$/i.test(terrainDigest) ||
+      terrainDigest !== baseScene.source.artifactDigest
+    ) {
       throw new Error(
         "hydrology terrain semantic SHA does not match loaded terrain specimen"
       );
     }
+
     const binding = artifact.specimen_binding || {};
     const associationToken = String(binding.association_token || "");
-    if (!associationToken.startsWith("sfassoc:v1:")) {
-      throw new Error("hydrology overlay lacks an exact AUTH-0046 association token");
-    }
-    if (!Array.isArray(artifact.field_samples)) {
-      throw new Error("hydrology field_samples must be an array");
-    }
-    if (!Array.isArray(artifact.reaches)) {
-      throw new Error("hydrology reaches must be an array");
+    const authoredIdentity = binding.authored_identity || {};
+    const realizedVolume = binding.realized_volume || {};
+    const rawWorldFrame = binding.world_frame || {};
+    if (
+      binding.association_schema_version !== 1 ||
+      !associationToken.startsWith("sfassoc:v1:") ||
+      !/^[a-f0-9]{16}$/i.test(String(authoredIdentity.world_seed_hex || "")) ||
+      !/^[a-f0-9]{16}$/i.test(String(authoredIdentity.province_key_hex || "")) ||
+      !/^[a-f0-9]{16}$/i.test(String(authoredIdentity.cluster_key_hex || "")) ||
+      !/^[a-f0-9]{16}$/i.test(String(authoredIdentity.island_key_hex || "")) ||
+      !String(realizedVolume.path || "") ||
+      !String(realizedVolume.group_identifier || "")
+    ) {
+      throw new Error("hydrology overlay lacks a complete AUTH-0046 specimen binding");
     }
 
-    const fieldSamples = Object.freeze(
-      artifact.field_samples.map(hydrologyFieldSample)
+    const worldFrame = Object.freeze({
+      centerX: finite(rawWorldFrame.center_x, "hydrology world frame center_x"),
+      centerZ: finite(rawWorldFrame.center_z, "hydrology world frame center_z"),
+      suspensionElevation: finite(
+        rawWorldFrame.suspension_elevation,
+        "hydrology world frame suspension_elevation"
+      ),
+      nominalRadius: finite(rawWorldFrame.nominal_radius, "hydrology world frame nominal_radius"),
+    });
+    if (worldFrame.nominalRadius <= 0) {
+      throw new Error("hydrology world frame nominal_radius must be positive");
+    }
+
+    const gridBinding = hydrologyGridBinding(
+      artifact.grid_binding,
+      baseScene.terrain.grid
     );
+    if (!Array.isArray(artifact.hydrology_causes) || !artifact.hydrology_causes.length) {
+      throw new Error("hydrology_causes must contain bounded authored field samples");
+    }
+    if (artifact.hydrology_causes.length !== gridBinding.causeSampleCount) {
+      throw new Error("hydrology cause sample count does not match grid_binding");
+    }
+    if (!Array.isArray(artifact.field_samples) || !artifact.field_samples.length) {
+      throw new Error("hydrology field_samples must contain affected terrain samples");
+    }
+    if (!Array.isArray(artifact.reaches) || !artifact.reaches.length) {
+      throw new Error("hydrology reaches must contain an accepted reach");
+    }
+
+    const ownership = artifact.ownership || {};
+    if (
+      ownership.association_authority !== "AUTH-0046" ||
+      ownership.terrain_projection_authority !== "F4B" ||
+      ownership.water_projection_authority !== "F4E" ||
+      ownership.backend_neutral_semantics !== true ||
+      ownership.minecraft_dependency !== false ||
+      ownership.studio_recomputes_hydrology !== false
+    ) {
+      throw new Error("hydrology overlay ownership contract is unsupported");
+    }
+
+    const topByGrid = new Map(
+      baseScene.terrain.topSurface.map((point) => [
+        point.gridIndex[0] + ":" + point.gridIndex[2],
+        point,
+      ])
+    );
+    const fieldSamples = Object.freeze(
+      artifact.field_samples.map((record, index) =>
+        hydrologyFieldSample(record, index, gridBinding)
+      )
+    );
+    const causeSamples = Object.freeze(
+      artifact.hydrology_causes.map((record, index) =>
+        hydrologyCauseSample(record, index, gridBinding, worldFrame, topByGrid)
+      )
+    );
+    const causeKeys = new Set(causeSamples.map((sample) => sample.grid.join(":")));
+    if (causeKeys.size !== causeSamples.length) {
+      throw new Error("hydrology cause lattice contains duplicate grid samples");
+    }
     const reaches = Object.freeze(artifact.reaches.map(hydrologyReach));
     return Object.freeze({
       schemaVersion: 1,
@@ -569,28 +778,22 @@
       terrainSemanticSha256: terrainDigest,
       binding: Object.freeze({
         associationToken,
-        authoredIdentity: Object.freeze({ ...(binding.authored_identity || {}) }),
-        realizedVolume: Object.freeze({ ...(binding.realized_volume || {}) }),
-        worldFrame: Object.freeze({ ...(binding.world_frame || {}) }),
+        authoredIdentity: Object.freeze({ ...authoredIdentity }),
+        realizedVolume: Object.freeze({ ...realizedVolume }),
+        worldFrame,
       }),
+      gridBinding,
       fieldSamples,
+      causeSamples,
       reaches,
       ownership: Object.freeze({
         semanticOwner: "Skyforge F4B/F4E world-space hydrology projection",
-        associationAuthority: String(
-          artifact.ownership?.association_authority || ""
-        ),
-        terrainProjectionAuthority: String(
-          artifact.ownership?.terrain_projection_authority || ""
-        ),
-        waterProjectionAuthority: String(
-          artifact.ownership?.water_projection_authority || ""
-        ),
-        backendNeutral:
-          artifact.ownership?.backend_neutral_semantics === true &&
-          artifact.ownership?.minecraft_dependency !== true,
-        studioRecomputesHydrology:
-          artifact.ownership?.studio_recomputes_hydrology === true,
+        causeFieldOwner: "SkyIslandHydrologyField",
+        associationAuthority: ownership.association_authority,
+        terrainProjectionAuthority: ownership.terrain_projection_authority,
+        waterProjectionAuthority: ownership.water_projection_authority,
+        backendNeutral: true,
+        studioRecomputesHydrology: false,
       }),
     });
   }

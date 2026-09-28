@@ -2,10 +2,10 @@
 
 **Lane:** Authorship  
 **Status:** Canonical live lane handoff  
-**Updated:** 2026-09-25 (America/Chicago)
-**Main snapshot carrying latest accepted Authorship reset implementation:** `75fe12f3299c241196b57fb9919d0da5a0bd8e17`
+**Updated:** 2026-09-28 (America/Chicago)
+**Main snapshot carrying latest accepted Authorship reset implementation:** `daf568ee0cc6554da56548fc3eafe5e26375e159`
 **Highest MERGED / ACCEPTED numbered Authorship milestone:** **AUTH-0105**
-**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2/F2A/F2B; D3 diagnostic evidence merged**
+**Current accepted hydrology-reset boundary:** **C2 + D2/E2/F0/F1/F2/F2A/F2B/C3; post-C3 requalification; F3/F4 realization through F4K**
 
 Read first:
 
@@ -36,18 +36,22 @@ The reset authority is now executable through the first terrain-mutating Authors
   authored CASCADE segments, supporting explicit drop-boundary experimentation rather than stronger excavation.
 
 F2's coupled profile contract, F2A deterministic bounded-QP primitive, and F2B head-independent
-hydraulic geometry skeleton are merged and accepted. Current work is F2C: solve only transition-free
-ordinary reaches in world units against D2-derived bounds, regenerate D1/D2 evidence, and prove
-coarse/medium/fine collocation convergence without changing C2 geometry authority.
+hydraulic geometry skeleton are merged and accepted. F2C's bounded ordinary-profile assembly and
+three-resolution evidence, followed by F3/F4 qualification and restricted realization, have since
+advanced through F4K. C3 was merged as PR #1240 at
+`daf568ee0cc6554da56548fc3eafe5e26375e159`; its 4/8/16 physical route objective and regenerated
+post-C3 qualification/confluence corpus passed the exact-head geometry gate plus CI, DR-40, and DR-50.
+The key-287 case remains rejected under the unchanged D2 policy.
 
 F2C terminal fate is resolved through the watershed graph: only an explicit edge outlet is a free
 ordinary terminal. Retained open water, retained wetland, and unresolved terminal fate remain
 transition-owned and fail closed. The pre-F2 topological clipping profile remains staging only.
 
-Issue #1084 also records a separate **C3 upstream numerical-consistency dependency**: the terrain-aware
-A* route functional/probes/route diagnostics are deterministic but not yet proven resolution-invariant.
-F2C may establish reusable hydraulic solver/evidence architecture, but its fixed-corpus values are
-pre-C3 and must be regenerated after C3 before production hydraulic/terrain authority advances.
+The current review boundary is the scoped F4K prepared-world check on the ordinary (8, 81, 77)
+fixture. It verifies the water adapter stays within F4D-authorized carved columns; it is not the final
+DR-70/product gate. The meaningful DR-70 human review remains downstream of Minecraft discretization
+and must use the key-287 product-review specimen. See the F4K runbook for the scoped check and
+launch command.
 
 Retained-basin terrain authority remains blocked until POND/LAKE qualification policy is adequately
 calibrated; current POND evidence is insufficient. Pure-INCISED D2 limits also remain provisional

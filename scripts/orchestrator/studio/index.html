@@ -116,6 +116,31 @@
               <option value="slice">Horizontal slice</option>
             </select>
 
+            <div id="terrain-surface-control" hidden>
+              <label for="terrain-surface">Surface</label>
+              <select id="terrain-surface">
+                <option value="base">Base terrain</option>
+                <option value="hydrology">F4B target surface</option>
+              </select>
+            </div>
+
+            <div id="hydrology-visual-controls" class="hydrology-visual-controls" hidden>
+              <h3>Authored hydrology</h3>
+              <label for="hydrology-potential">Cause field</label>
+              <select id="hydrology-potential">
+                <option value="none">No cause coloring</option>
+                <option value="runoffPotential">Runoff potential</option>
+                <option value="retentionPotential">Retention potential</option>
+                <option value="drainagePotential">Drainage potential</option>
+                <option value="outflowPotential">Outflow potential</option>
+              </select>
+              <label class="check-row"><input id="show-flow-vectors" type="checkbox" checked> Flow vectors</label>
+              <label class="check-row"><input id="show-channel-width" type="checkbox" checked> F4B bankfull envelope</label>
+              <label class="check-row"><input id="show-hydrology-response" type="checkbox" checked> F4B terrain response</label>
+              <label class="check-row"><input id="show-water-intent" type="checkbox" checked> F4E water intent</label>
+              <p class="small muted">Cause values and projected channels are authored data attached to this exact terrain digest.</p>
+            </div>
+
             <div id="terrain-slice-control" hidden>
               <label for="terrain-slice">Slice Y <span id="terrain-slice-value">—</span></label>
               <input id="terrain-slice" type="range" min="0" max="0" step="1" value="0">

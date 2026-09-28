@@ -263,7 +263,9 @@
         scene.provider?.version,
       ].filter(Boolean).join(" · ") || "—";
     updateBindingPill();
-    $("owner-semantic").textContent = scene.ownership.semanticOwner || "—";
+    $("owner-semantic").textContent = overlay
+      ? scene.ownership.semanticOwner + " · " + overlay.ownership.causeFieldOwner
+      : (scene.ownership.semanticOwner || "—");
     $("owner-persistence").textContent = scene.ownership.persistenceOwner || "—";
     $("owner-backend-neutral").textContent =
       scene.ownership.backendNeutral ? "yes" : "no";
@@ -273,6 +275,20 @@
 
     $("inspect-position").textContent =
       "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
+
+    if (sample.overlayKind === "HYDROLOGY_CAUSE_SAMPLE") {
+      $("inspect-semantic").textContent =
+        "runoff " + fmt(sample.runoffPotential) +
+        " · retention " + fmt(sample.retentionPotential) +
+        " · drainage " + fmt(sample.drainagePotential) +
+        " · outflow " + fmt(sample.outflowPotential);
+      $("inspect-vector").textContent =
+        "[" + fmt(sample.flowX) + ", " + fmt(sample.flowZ) + "] local flow";
+      $("inspect-authority").textContent =
+        "SkyIslandHydrologyField · local [" +
+        sample.localPosition.map((value) => fmt(value, 1)).join(", ") + "]";
+      return;
+    }
 
     if (sample.overlayKind === "HYDROLOGY_FIELD_SAMPLE") {
       $("inspect-semantic").textContent =
@@ -369,12 +385,49 @@
 
   function terrainDisplayPoints() {
     const view = $("terrain-view").value;
-    if (view === "top") return scene.terrain.topSurface;
+    if (view === "top") {
+      if (overlay && $("terrain-surface").value === "hydrology") {
+        const targets = new Map(
+          overlay.fieldSamples.map((sample) => [
+            sample.grid.join(":"),
+            sample.targetUpperY,
+          ])
+        );
+        return scene.terrain.topSurface.map((point) => {
+          const targetY = targets.get(point.gridIndex[0] + ":" + point.gridIndex[2]);
+          return targetY === undefined
+            ? point
+            : Object.freeze({
+                ...point,
+                position: Object.freeze([
+                  point.position[0],
+                  targetY,
+                  point.position[2],
+                ]),
+              });
+        });
+      }
+      return scene.terrain.topSurface;
+    }
     if (view === "underside") return scene.terrain.underside;
     if (view === "both") {
       return [...scene.terrain.topSurface, ...scene.terrain.underside];
     }
     return scene.terrain.sliceAtYIndex(Number($("terrain-slice").value));
+  }
+
+  function updateHydrologyControlVisibility() {
+    $("hydrology-visual-controls").hidden = !overlay;
+    $("terrain-surface-control").hidden =
+      !overlay || $("terrain-view").value !== "top";
+  }
+
+  function potentialColor(value) {
+    const amount = Math.max(0, Math.min(1, value));
+    const red = Math.round(44 + amount * 206);
+    const green = Math.round(92 + amount * 130);
+    const blue = Math.round(170 - amount * 116);
+    return "rgb(" + red + "," + green + "," + blue + ")";
   }
 
   function drawTerrain() {
@@ -417,6 +470,7 @@
       drawHydrologyOverlay(transform);
     }
 
+    updateHydrologyControlVisibility();
     $("frame-summary").textContent =
       points.length + " semantic samples · " + view + sliceSuffix +
       (overlay
@@ -426,29 +480,100 @@
       " · " + shortDigest(scene.source.artifactDigest);
   }
 
-  function drawHydrologyOverlay(transform) {
-    for (const sample of overlay.fieldSamples) {
-      const projectedPoint = project(sample.position, transform);
-      const active = selected === sample;
-      ctx.fillStyle = active ? "#ffffff" : (sample.wet ? "#42a5f5" : "#d4a64f");
-      ctx.globalAlpha = active ? 1.0 : 0.72;
-      ctx.beginPath();
-      ctx.arc(
-        projectedPoint[0],
-        projectedPoint[1],
-        active ? 4.5 : 2.2,
-        0,
-        Math.PI * 2
+  function drawReachEnvelope(reach, terrainPoints, transform) {
+    const left = [];
+    const right = [];
+    for (let index = 0; index < reach.points.length; index++) {
+      const previous = terrainPoints[Math.max(0, index - 1)];
+      const next = terrainPoints[Math.min(terrainPoints.length - 1, index + 1)];
+      const dx = next[0] - previous[0];
+      const dy = next[1] - previous[1];
+      const length = Math.hypot(dx, dy) || 1;
+      const perspective = 900 / (900 + terrainPoints[index][2] * 0.35);
+      const halfWidth = Math.min(
+        48,
+        Math.max(
+          1,
+          reach.points[index].bankfullHalfWidth * transform.scale * perspective
+        )
       );
-      ctx.fill();
-      projected.push({ sample, start: projectedPoint });
+      const offsetX = (-dy / length) * halfWidth;
+      const offsetY = (dx / length) * halfWidth;
+      left.push([terrainPoints[index][0] + offsetX, terrainPoints[index][1] + offsetY]);
+      right.push([terrainPoints[index][0] - offsetX, terrainPoints[index][1] - offsetY]);
     }
-    ctx.globalAlpha = 1.0;
+    ctx.fillStyle = "rgba(225,168,74,0.18)";
+    ctx.beginPath();
+    left.forEach((point, index) => {
+      if (index === 0) ctx.moveTo(point[0], point[1]);
+      else ctx.lineTo(point[0], point[1]);
+    });
+    for (let index = right.length - 1; index >= 0; index--) {
+      ctx.lineTo(right[index][0], right[index][1]);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawHydrologyOverlay(transform) {
+    const potential = $("hydrology-potential").value;
+    if (potential !== "none") {
+      for (const sample of overlay.causeSamples) {
+        const projectedPoint = project(sample.displayPosition, transform);
+        const active = selected === sample;
+        ctx.fillStyle = active ? "#ffffff" : potentialColor(sample[potential]);
+        ctx.globalAlpha = active ? 1.0 : 0.78;
+        ctx.beginPath();
+        ctx.arc(projectedPoint[0], projectedPoint[1], active ? 4.5 : 2.4, 0, Math.PI * 2);
+        ctx.fill();
+        projected.push({ sample, start: projectedPoint });
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    if ($("show-flow-vectors").checked) {
+      const samples = overlay.causeSamples;
+      const sampleStep = Math.max(1, Math.ceil(samples.length / 2400));
+      const arrowLength = Math.max(
+        overlay.gridBinding.spacingX * 2,
+        overlay.binding.worldFrame.nominalRadius * 0.035
+      );
+      for (let index = 0; index < samples.length; index += sampleStep) {
+        const sample = samples[index];
+        if (Math.hypot(sample.flowX, sample.flowZ) < 1e-9) continue;
+        const start = project(sample.displayPosition, transform);
+        const end = project([
+          sample.displayPosition[0] + sample.flowX * arrowLength,
+          sample.displayPosition[1],
+          sample.displayPosition[2] + sample.flowZ * arrowLength,
+        ], transform);
+        drawArrow(start, end, "rgba(240,245,255,0.88)", 1.15);
+      }
+    }
+
+    if ($("show-hydrology-response").checked) {
+      for (const sample of overlay.fieldSamples) {
+        const projectedPoint = project(sample.position, transform);
+        const active = selected === sample;
+        ctx.fillStyle = active
+          ? "#ffffff"
+          : (sample.wet && $("show-water-intent").checked ? "#42a5f5" : "#d4a64f");
+        ctx.globalAlpha = active ? 1.0 : 0.72;
+        ctx.beginPath();
+        ctx.arc(projectedPoint[0], projectedPoint[1], active ? 4.5 : 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        projected.push({ sample, start: projectedPoint });
+      }
+      ctx.globalAlpha = 1.0;
+    }
 
     for (const reach of overlay.reaches) {
       const terrainPoints = reach.points.map((point) =>
         project(point.position, transform)
       );
+      if ($("show-channel-width").checked) {
+        drawReachEnvelope(reach, terrainPoints, transform);
+      }
       ctx.strokeStyle = "#e1a84a";
       ctx.lineWidth = 2.4;
       ctx.beginPath();
@@ -458,34 +583,36 @@
       });
       ctx.stroke();
 
-      const wetSegments = [];
-      let current = [];
-      for (const point of reach.points) {
-        if (point.waterPosition) {
-          current.push(project(point.waterPosition, transform));
-        } else if (current.length) {
-          wetSegments.push(current);
-          current = [];
+      if ($("show-water-intent").checked) {
+        const wetSegments = [];
+        let current = [];
+        for (const point of reach.points) {
+          if (point.waterPosition) {
+            current.push(project(point.waterPosition, transform));
+          } else if (current.length) {
+            wetSegments.push(current);
+            current = [];
+          }
         }
-      }
-      if (current.length) wetSegments.push(current);
-      ctx.strokeStyle = "#45b9ff";
-      ctx.lineWidth = 2.8;
-      for (const segment of wetSegments) {
-        if (segment.length < 2) continue;
-        ctx.beginPath();
-        segment.forEach((point, index) => {
-          if (index === 0) ctx.moveTo(point[0], point[1]);
-          else ctx.lineTo(point[0], point[1]);
-        });
-        ctx.stroke();
+        if (current.length) wetSegments.push(current);
+        ctx.strokeStyle = "#45b9ff";
+        ctx.lineWidth = 2.8;
+        for (const segment of wetSegments) {
+          if (segment.length < 2) continue;
+          ctx.beginPath();
+          segment.forEach((point, index) => {
+            if (index === 0) ctx.moveTo(point[0], point[1]);
+            else ctx.lineTo(point[0], point[1]);
+          });
+          ctx.stroke();
+        }
       }
 
       reach.points.forEach((sample, index) => {
-        const point = terrainPoints[index];
-        projected.push({ sample, start: point });
+        projected.push({ sample, start: terrainPoints[index] });
       });
     }
+    ctx.globalAlpha = 1.0;
   }
 
   function draw() {
@@ -580,6 +707,7 @@
       scene.coordinateSystem.id + " · " + scene.source.artifactKind;
     updateBindingPill();
     $("overlay-status").textContent = "";
+    updateHydrologyControlVisibility();
 
     $("atmosphere-controls").hidden = !isAtmosphere();
     $("terrain-controls").hidden = !isTerrain();
@@ -675,6 +803,7 @@
   function setOverlay(nextOverlay) {
     overlay = nextOverlay;
     selected = null;
+    updateHydrologyControlVisibility();
     $("overlay-status").textContent =
       "Attached " +
       (overlay.source.artifactId || overlay.source.artifactTitle || "hydrology overlay") +
@@ -711,6 +840,7 @@
   function clearOverlay() {
     overlay = null;
     selected = null;
+    updateHydrologyControlVisibility();
     $("overlay-status").textContent = "";
     updateBindingPill();
     renderInspector(null);
@@ -824,8 +954,15 @@
   $("terrain-view").addEventListener("change", () => {
     selected = null;
     $("terrain-slice-control").hidden = $("terrain-view").value !== "slice";
+    updateHydrologyControlVisibility();
     draw();
   });
+  $("terrain-surface").addEventListener("change", draw);
+  $("hydrology-potential").addEventListener("change", draw);
+  $("show-flow-vectors").addEventListener("change", draw);
+  $("show-channel-width").addEventListener("change", draw);
+  $("show-hydrology-response").addEventListener("change", draw);
+  $("show-water-intent").addEventListener("change", draw);
   $("terrain-slice").addEventListener("input", () => {
     selected = null;
     updateTerrainSliceLabel();
