@@ -528,6 +528,166 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     }
 
     @Test
+    void candidateWindowCompositionMatchesDirectPlacementEvaluation() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1227A11L,
+                        "ecology.window.shrub",
+                        10.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile placement = placementProfile(candidateProfile);
+        SkyIslandVegetationSpatialPatchSampler sampler = localPosition -> {
+            if (localPosition.z() < 0.0) {
+                return unresolvedSpatialEvaluationAt(localPosition);
+            }
+            return spatialEvaluationAt(
+                    localPosition,
+                    localPosition.x() < 0.0 ? 0.0 : 1.0);
+        };
+        SkyIslandVegetationCandidateWindowProfile profile =
+                new SkyIslandVegetationCandidateWindowProfile(
+                        placement,
+                        sampler);
+        SkyIslandEcologicalCandidateQueryWindow window =
+                new SkyIslandEcologicalCandidateQueryWindow(
+                        -60.0,
+                        60.0,
+                        -60.0,
+                        60.0);
+
+        SkyIslandVegetationCandidateWindowEvaluation first = profile.evaluate(window);
+        SkyIslandVegetationCandidateWindowEvaluation second = profile.evaluate(window);
+        SkyIslandEcologicalCandidateWindowResult directQuery =
+                candidateProfile.query(window);
+
+        assertEquals(first, second);
+        assertEquals(profile, first.profile());
+        assertEquals(directQuery, first.candidateQuery());
+        assertEquals(directQuery.candidates().size(), first.evaluations().size());
+
+        for (int index = 0; index < directQuery.candidates().size(); index++) {
+            SkyIslandEcologicalPlacementCandidate candidate =
+                    directQuery.candidates().get(index);
+            SkyIslandVegetationPlacementCandidateEvaluation direct =
+                    placement.evaluate(
+                            sampler.sample(candidate.position()),
+                            candidate);
+            assertEquals(candidate, first.evaluations().get(index).candidate());
+            assertEquals(direct, first.evaluations().get(index));
+        }
+
+        assertFalse(first.admitted().isEmpty());
+        assertFalse(first.rejected().isEmpty());
+        assertFalse(first.unresolved().isEmpty());
+        assertEquals(
+                first.evaluations().size(),
+                first.admitted().size()
+                        + first.rejected().size()
+                        + first.unresolved().size());
+    }
+
+    @Test
+    void candidateWindowCompositionFailsClosedOnWrongSamplePosition() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1227B22L,
+                        "ecology.window.position",
+                        12.0,
+                        2.0);
+        SkyIslandVegetationPlacementProfile placement = placementProfile(candidateProfile);
+        SkyIslandVegetationCandidateWindowProfile profile =
+                new SkyIslandVegetationCandidateWindowProfile(
+                        placement,
+                        localPosition -> spatialEvaluationAt(
+                                new SkyIslandLocalPosition(
+                                        localPosition.x() + 1.0,
+                                        localPosition.z()),
+                                1.0));
+        SkyIslandEcologicalCandidateQueryWindow window =
+                new SkyIslandEcologicalCandidateQueryWindow(
+                        -30.0,
+                        30.0,
+                        -30.0,
+                        30.0);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> profile.evaluate(window));
+    }
+
+    @Test
+    void zeroSupportCandidateWindowCannotCreateAdmission() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1227C33L,
+                        "ecology.window.zero-support",
+                        11.0,
+                        2.0);
+        SkyIslandVegetationCandidateWindowProfile profile =
+                new SkyIslandVegetationCandidateWindowProfile(
+                        placementProfile(candidateProfile),
+                        localPosition -> spatialEvaluationAt(localPosition, 0.0));
+        SkyIslandEcologicalCandidateQueryWindow window =
+                new SkyIslandEcologicalCandidateQueryWindow(
+                        -40.0,
+                        40.0,
+                        -40.0,
+                        40.0);
+
+        SkyIslandVegetationCandidateWindowEvaluation evaluation =
+                profile.evaluate(window);
+
+        assertFalse(evaluation.evaluations().isEmpty());
+        assertTrue(evaluation.admitted().isEmpty());
+        assertTrue(evaluation.unresolved().isEmpty());
+        assertEquals(evaluation.evaluations(), evaluation.rejected());
+    }
+
+    @Test
+    void candidateWindowResultRejectsReorderedOrIncompleteEvaluationLists() {
+        SkyIslandEcologicalCandidateLatticeProfile candidateProfile =
+                candidateProfile(
+                        0x1227D44L,
+                        "ecology.window.provenance",
+                        10.0,
+                        1.0);
+        SkyIslandVegetationCandidateWindowProfile profile =
+                new SkyIslandVegetationCandidateWindowProfile(
+                        placementProfile(candidateProfile),
+                        localPosition -> spatialEvaluationAt(localPosition, 1.0));
+        SkyIslandEcologicalCandidateQueryWindow window =
+                new SkyIslandEcologicalCandidateQueryWindow(
+                        -30.0,
+                        30.0,
+                        -30.0,
+                        30.0);
+        SkyIslandVegetationCandidateWindowEvaluation canonical =
+                profile.evaluate(window);
+        assertTrue(canonical.evaluations().size() >= 2);
+
+        ArrayList<SkyIslandVegetationPlacementCandidateEvaluation> reordered =
+                new ArrayList<>(canonical.evaluations());
+        SkyIslandVegetationPlacementCandidateEvaluation first = reordered.get(0);
+        reordered.set(0, reordered.get(1));
+        reordered.set(1, first);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandVegetationCandidateWindowEvaluation(
+                        profile,
+                        canonical.candidateQuery(),
+                        reordered));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandVegetationCandidateWindowEvaluation(
+                        profile,
+                        canonical.candidateQuery(),
+                        canonical.evaluations().subList(
+                                0,
+                                canonical.evaluations().size() - 1)));
+    }
+
+    @Test
     void invalidCandidateLatticeParametersFailClosed() {
         SkyIslandEcologicalCandidateLatticeProfile valid =
                 candidateProfile(
