@@ -1,7 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayDeque;
 import java.util.List;
@@ -76,6 +78,12 @@ final class SkyforgePhysicalVolumeCatchupServiceTest {
                 List.of(c, b, d, a),
                 SkyforgePhysicalVolumeCatchupService.canonicalPopulationChunkKeys(
                         Set.of(a, b, c, d)));
+    }
+
+    @Test
+    void biomePresentationWaitsForWholeVolumeTerrainStability() {
+        assertFalse(SkyforgePhysicalVolumeCatchupService.biomePresentationMayRun(true));
+        assertTrue(SkyforgePhysicalVolumeCatchupService.biomePresentationMayRun(false));
     }
 
     @Test
