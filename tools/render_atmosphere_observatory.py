@@ -176,6 +176,53 @@ def main():
                           '<img src="opportunity-atlas.svg" alt="Maximum observed updraft by opportunity-scan cell" style="max-width:100%;height:auto">'
                           '<img src="opportunity-max-over-time.svg" alt="Maximum opportunity-scan updraft over time" style="max-width:100%;height:auto">')
     (out/"summary.json").write_text(json.dumps(summary,indent=2)+"\n")
+
+    # Interactive 3-D vector inspector. Keep the generated viewer standalone and authority-neutral:
+    # it embeds only the exact values already present in the accepted probe artifact.
+    def viewer_sample(sample):
+        return {
+            "p": sample["position"],
+            "m": sample["mean"],
+            "g": sample["gust"],
+            "e": sample["effective"],
+            "u": sample["signed_vertical_air"],
+            "t": sample["turbulence"],
+            "s": sample["shear"],
+            "c": sample["confidence"],
+            "tr": sample["trusted_for_gameplay"],
+            "src": sample["source_level"],
+            "auth": sample["authority"],
+        }
+
+    viewer_payload = {
+        "schema_version": 1,
+        "artifact_kind": "SKYFORGE_ATMOSPHERE_VECTOR_VIEWER",
+        "source_artifact_kind": data["artifact_kind"],
+        "source_digest": data["ordered_sample_digest"],
+        "provider": data["provider_identity"],
+        "snapshot": {
+            "game_tick": data["specimen"]["acquisition_game_tick"],
+            "samples": [viewer_sample(sample) for sample in samples],
+        },
+        "opportunity": {
+            "period_ticks": opportunity.get("period_ticks"),
+            "frames": [
+                {
+                    "tick": frame["game_tick"],
+                    "samples": [viewer_sample(sample) for sample in frame["samples"]],
+                }
+                for frame in opportunity_frames
+            ],
+        },
+    }
+    viewer_template = Path(__file__).with_name("atmosphere_vector_field_viewer.html").read_text()
+    viewer_json = json.dumps(viewer_payload, separators=(",", ":")).replace("</", "<\\/")
+    placeholder = "__SKYFORGE_EMBEDDED_DATA__"
+    if viewer_template.count(placeholder) != 1:
+        raise RuntimeError(
+            f"atmosphere vector viewer template must contain exactly one {placeholder} placeholder"
+        )
+    (out/"vector-field.html").write_text(viewer_template.replace(placeholder, viewer_json))
     W=780; cell=92; margin=80; panel=cell*5
     sv=[f'<svg xmlns="http://www.w3.org/2000/svg" width="{W}" height="{len(levels)*(panel+75)+60}" viewBox="0 0 {W} {len(levels)*(panel+75)+60}">',
         '<style>text{font-family:system-ui,sans-serif;fill:#222}.small{font-size:11px}.label{font-size:14px;font-weight:600}.arrow{stroke:#111;stroke-width:2}</style>',
@@ -290,6 +337,7 @@ def main():
 <h1>Skyforge Atmosphere Observatory</h1>
 <p class="note"><b>Diagnostic artifact.</b> Raw values below are measured from the accepted real A4MC server-authoritative gameplay sample. Coherence metrics and consumer overlays are derived and do not create atmosphere authority.</p>
 <p>Source digest: <code>{esc(data["ordered_sample_digest"])}</code>. Samples: {len(samples)}. Provider: {esc(data["provider_identity"]["mod_id"])} {esc(data["provider_identity"]["version"])}.</p>
+<p><a href="vector-field.html"><b>Open interactive 3-D vector field inspector</b></a> — rotate the real vectors, switch mean/gust/effective flow, inspect altitude slices, and replay the 31-frame opportunity scan.</p>
 <h2>Spatial field atlas</h2><p>Cell color encodes signed vertical air; arrows show effective horizontal wind (mean + gust). “HAWK ENTER” marks cells meeting the current 1.5 m/s soaring-entry threshold.</p>
 <img src="field-atlas.svg" alt="Four altitude slices of measured atmosphere" style="max-width:100%;height:auto">
 <h2>Turbulence and shear</h2><p>These heatmaps use the same measured snapshot. They are kept separate from lift so local hazard structure is not visually conflated with thermal opportunity.</p>
