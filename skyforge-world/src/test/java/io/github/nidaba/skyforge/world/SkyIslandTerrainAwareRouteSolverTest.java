@@ -128,6 +128,38 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void uphillObjectiveUsesNormalizedPositiveVariationAtEveryResolution() {
+        double planningSpacing = 4.0;
+        SkyIslandSemanticField terrain =
+                position -> 0.30 + 0.01 * position.x();
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(16.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(16.0, 0.0), 0.0);
+
+        for (int divisions : new int[] {4, 8, 16}) {
+            SkyIslandGeomorphicCandidateRoute route =
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                            terrain,
+                            interiority,
+                            guidance,
+                            planningSpacing,
+                            2.0,
+                            start,
+                            end,
+                            divisions);
+            assertEquals(16.0, route.pathLength(), EPSILON);
+            assertEquals(10.6, route.totalCost(), 1.0e-9);
+        }
+    }
+
+    @Test
     void ridgeGapChoiceRemainsPhysicalAcrossSearchResolutions() {
         SkyIslandSemanticField terrain =
                 position -> syntheticRidgeTerrain(position.x(), position.z());
