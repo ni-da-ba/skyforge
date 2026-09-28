@@ -177,6 +177,15 @@ tasks.register<JavaExec>("terrainSemanticCorpus") {
     args(layout.buildDirectory.dir("evidence/terrain-semantics-v1").get().asFile.absolutePath)
 }
 
+tasks.register<JavaExec>("studioBoundHydrologySemanticCorpus") {
+    group = "verification"
+    description = "Generates the Studio S2 exact bound terrain/hydrology semantic review package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.StudioBoundHydrologySemanticCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/studio-bound-hydrology-semantic-v1").get().asFile.absolutePath)
+}
+
 
 tasks.register<JavaExec>("authorshipSurfaceSiteCapabilityCorpus") {
     group = "verification"
