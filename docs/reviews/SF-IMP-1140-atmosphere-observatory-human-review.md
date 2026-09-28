@@ -1,6 +1,6 @@
 # SF-IMP-1140 — Atmosphere Observatory Human Review Runbook
 
-**Status:** Ready for project-owner review. Automated authority, coherence, cost, and terrain-correlation gates pass; human gameplay/legibility review remains.
+**Status:** HUMAN REVIEW DEFERRED. Automated authority, coherence, cost, and terrain-correlation gates pass; the first player-facing sensory slice is implemented but still requires machine validation before interactive review is ready.
 
 ## Purpose
 
@@ -15,6 +15,20 @@ The automated work has already proven:
 - Reliable Gliders and Fowl Play hawks consume the same accepted A4MC lift authority through the existing C7/C6 adapters.
 
 This review is **not** permission to tune A4MC physics, hawk thresholds, glider smoothing, climatology, or production weather.
+
+## Current stop boundary
+
+Do not ask the project owner to run the interactive gate yet. The prior C6/C7 runtime proves that those consumers read the shared A4MC field, but by itself it does not expose that field to the player through a clear visual or audible wind signal:
+
+- C7 changes server-authoritative glider Y velocity; by itself it does not provide wind visuals, particles, foliage motion, or wind audio.
+- C6 changes hawk navigation/state internally; by itself it does not provide a player-readable wind direction or strength cue.
+- The plots and machine diagnostics are useful engineering evidence, but they cannot answer whether a player can see, hear, or learn the wind in play.
+
+The current presentation tranche adds a bounded player-facing read-through driven by the existing A4MC authority, without creating a second wind/weather authority. It emits directional vanilla gust particles and a rate-limited ambient wind cue from the player's actual server-side sample. Only after that layer has machine evidence should this runbook be reopened for visual and listening review.
+
+When the gate is eventually opened, the player should be able to observe three concrete differences from the previous build: gust particles travel consistently with the sampled horizontal wind direction, the cue rises or falls with the sampled signed updraft, and stronger trusted flow produces a more frequent/louder wind impression. Weak or untrusted samples should remain visually and audibly quiet.
+
+The machine proof is the paired `presentation-a.json` / `presentation-b.json` artifact from the Bootstrap Atmosphere Reconstruction Provenance workflow. Each artifact must report trusted samples, active cues, visual emissions, and audio emissions, with `authority=SERVER_AUTHORITATIVE`. This proves that the read-through executed; it does not replace the later visual/listening judgment.
 
 ## Accepted machine evidence
 
@@ -91,7 +105,9 @@ Record **PASS**, **TUNE-LATER**, or **FAIL** for each:
 
 Automated evidence strongly supports 1–4. Question 5 is intentionally left for human judgment. Question 6 is a gameplay-legibility judgment, not a correctness assertion.
 
-## Interactive review launch — Windows
+## Interactive review launch — deferred
+
+The commands below are retained for the later human gate. Do not run them as an atmosphere-legibility review until the current stop boundary is cleared and this status is changed.
 
 From the repository root, run:
 

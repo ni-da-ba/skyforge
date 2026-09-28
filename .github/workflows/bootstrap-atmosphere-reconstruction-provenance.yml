@@ -15,6 +15,9 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeFowlPlayHawkBridge.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeReliableGlidersBridge.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereReconstructionProvenanceAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmospherePresentationCue.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmospherePresentationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmospherePresentationCueTest.java"
   workflow_dispatch:
 
 permissions:
@@ -46,6 +49,7 @@ jobs:
           --tests '*SkyforgeAtmosphereViewTest'
           --tests '*SkyforgeThermalSoaringDecisionTest'
           --tests '*SkyforgeGliderLiftCouplingTest'
+          --tests '*SkyforgeAtmospherePresentationCueTest'
           --no-configuration-cache
 
       - name: Configure unattended evidence client
@@ -159,6 +163,25 @@ jobs:
             "$result_b" \
             bootstrap-atmosphere-evidence-server-b.log \
             bootstrap-atmosphere-evidence-client-b.log
+
+          for boot in a b; do
+            presentation_result="skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/presentation-${boot}.json"
+            test -f "$presentation_result"
+            python3 - "$presentation_result" <<'PY'
+            import json
+            import sys
+            from pathlib import Path
+
+            data = json.loads(Path(sys.argv[1]).read_text())
+            assert data["status"] == "PASS", data
+            assert data["trusted_samples"] >= 6, data
+            assert data["active_cues"] > 0, data
+            assert data["visual_emissions"] > 0, data
+            assert data["audio_emissions"] > 0, data
+            assert data["source_level"] != "NONE", data
+            assert data["authority"] == "SERVER_AUTHORITATIVE", data
+            PY
+          done
 
       - name: Verify shared truth and reconstruction
         shell: bash

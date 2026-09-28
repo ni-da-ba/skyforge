@@ -2039,6 +2039,7 @@ neoForge {
             systemProperty("skyforge.dev.a4mcTerrainProvider", "true")
             systemProperty("skyforge.dev.waveC6SoaringFauna", "true")
             systemProperty("skyforge.dev.waveC7GliderLift", "true")
+            systemProperty("skyforge.dev.atmospherePresentation", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -2052,6 +2053,7 @@ neoForge {
             programArgument("--nogui")
             systemProperty("skyforge.dev.atmosphereReconstructionProvenance", "true")
             systemProperty("skyforge.dev.atmosphereEvidenceBoot", "A")
+            systemProperty("skyforge.dev.atmospherePresentation", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-reconstruction-a")
@@ -2065,6 +2067,10 @@ neoForge {
                 "skyforge.dev.atmosphereEvidenceOutput",
                 layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-a.json").get().asFile.absolutePath,
             )
+            systemProperty(
+                "skyforge.dev.atmospherePresentationOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/presentation-a.json").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -2075,6 +2081,7 @@ neoForge {
             programArgument("--nogui")
             systemProperty("skyforge.dev.atmosphereReconstructionProvenance", "true")
             systemProperty("skyforge.dev.atmosphereEvidenceBoot", "B")
+            systemProperty("skyforge.dev.atmospherePresentation", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "bootstrap-atmosphere-reconstruction-b")
@@ -2087,6 +2094,10 @@ neoForge {
             systemProperty(
                 "skyforge.dev.atmosphereEvidenceOutput",
                 layout.buildDirectory.file("acceptance/atmosphere-evidence/boot-b.json").get().asFile.absolutePath,
+            )
+            systemProperty(
+                "skyforge.dev.atmospherePresentationOutput",
+                layout.buildDirectory.file("acceptance/atmosphere-evidence/presentation-b.json").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
