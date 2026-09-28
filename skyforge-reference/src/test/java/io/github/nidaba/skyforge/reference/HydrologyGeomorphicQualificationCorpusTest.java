@@ -18,6 +18,7 @@ class HydrologyGeomorphicQualificationCorpusTest {
 
         String a = Files.readString(first.resolve("qualification-manifest.csv"));
         String b = Files.readString(second.resolve("qualification-manifest.csv"));
+        System.out.println("C3_QUALIFICATION_MANIFEST_BEGIN\n" + a + "C3_QUALIFICATION_MANIFEST_END");
         assertEquals(a, b);
         assertTrue(a.contains("ridgeLengthFraction"));
         assertTrue(a.contains(
