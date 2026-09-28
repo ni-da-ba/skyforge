@@ -5,6 +5,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
 import io.github.nidaba.skyforge.recipes.skyisland.CompiledSkyIslandVolume;
 import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe;
+import io.github.nidaba.skyforge.reference.evidence.SkyIslandHydrologySemanticEvidenceWriter;
 import io.github.nidaba.skyforge.reference.evidence.SkyIslandTerrainSemanticEvidenceWriter;
 import io.github.nidaba.skyforge.world.ReferenceTiledSkyIslandTerrainBackend;
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
@@ -123,6 +124,21 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                         water,
                         version),
                 StandardCharsets.UTF_8);
+
+        var hydrologyView =
+                new SkyIslandHydrologySemanticEvidenceWriter().writeTopView(
+                        terrainOutput.resolve("top-surface-semantics.png"),
+                        terrainOutput.resolve("hydrology-plan-view.png"),
+                        grid,
+                        water,
+                        candidate.terrainField().acceptedReaches(),
+                        association.realizedVolume().compiledVolume().descriptor().centerX(),
+                        association.realizedVolume().compiledVolume().descriptor().centerZ());
+        System.out.println(
+                "F4E semantic hydrology view: wetGridSamples="
+                        + hydrologyView.wetGridSamples()
+                        + " acceptedReaches="
+                        + hydrologyView.acceptedReachCount());
 
         Files.writeString(
                 output.resolve("index.html"),
@@ -532,12 +548,16 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 <p>One exact AUTH-0046 authored-realization association rendered through F4B terrain and F4E water projection. No Minecraft dependency or Studio-side hydrology solve exists.</p>
                 <p>Association: <code>%s</code></p>
                 <p>Terrain semantic SHA-256: <code>%s</code></p>
+                <h2>Hydrology semantic overlay</h2>
+                <p>This is a visual rendering of the backend-neutral F4E water-surface projection on the exact terrain lattice. Blue cells are F4E wet samples; the gold trace is the accepted reach centerline. The displayed terrain SHA-256 is the one bound by the hydrology JSON.</p>
+                <figure><a href="terrain/hydrology-plan-view.png"><img src="terrain/hydrology-plan-view.png" alt="F4E wet samples and accepted hydrology reach over exact terrain semantic top view"></a><figcaption>F4E semantic water overlay on the terrain semantic top view.</figcaption></figure>
+                <p class="gate"><strong>Scope:</strong> this is <strong>not voxelized or Minecraft-realized water</strong>. It shows the accepted backend-neutral water projection only; it is not S3 realization, aesthetic/product approval, or the separate DR-70/key-287 review.</p>
                 <h2>Review in Studio</h2>
                 <ol>
                   <li>Load the <a href="terrain/terrain-semantic-volume.json">exact terrain semantic volume</a>.</li>
                   <li>Inspect the <a href="hydrology-semantic-layer.json">bound hydrology semantic overlay JSON</a> against it; the overlay carries the terrain semantic SHA-256 and AUTH-0046 association.</li>
                 </ol>
-                <p class="gate"><strong>Human gate:</strong> these views and machine checks do not approve aesthetics, product quality, or the separate DR-70/key-287 review. Record a human visual finding before advancing that boundary.</p>
+                <p class="gate"><strong>Human gate:</strong> machine checks do not approve aesthetic or product quality. Record the visual finding before advancing this semantic review boundary.</p>
                 <h2>Terrain semantic views</h2>
                 <div class="views">
                   <figure><a href="terrain/top-surface-semantics.png"><img src="terrain/top-surface-semantics.png" alt="Terrain top-surface semantic map"></a><figcaption>Top-surface semantics</figcaption></figure>

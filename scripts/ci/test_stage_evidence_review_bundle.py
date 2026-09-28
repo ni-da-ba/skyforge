@@ -56,6 +56,7 @@ class EvidenceReviewBundleTests(unittest.TestCase):
                 f'{base}/terrain/terrain-semantic-volume.json',
                 f'{base}/terrain/summary.json',
                 f'{base}/terrain/legend.png',
+                f'{base}/terrain/hydrology-plan-view.png',
                 f'{base}/terrain/top-surface-semantics.png',
                 f'{base}/terrain/east-west-section.png',
                 f'{base}/terrain/north-south-section.png',
@@ -71,6 +72,7 @@ class EvidenceReviewBundleTests(unittest.TestCase):
                 'terrain/terrain-semantic-volume.json',
                 'terrain/summary.json',
                 'terrain/legend.png',
+                'terrain/hydrology-plan-view.png',
                 'terrain/top-surface-semantics.png',
                 'terrain/east-west-section.png',
                 'terrain/north-south-section.png',
@@ -84,7 +86,7 @@ class EvidenceReviewBundleTests(unittest.TestCase):
 
             files, _ = bundle.stage_bundle(manifest, root, destination)
 
-            self.assertEqual(9, files)
+            self.assertEqual(10, files)
             staged = sorted(path.relative_to(destination).as_posix() for path in destination.rglob('*') if path.is_file())
             self.assertEqual(sorted(path[len(verifier.EVIDENCE_ROOT):] for path in paths), staged)
             self.assertFalse((destination / 'studio-bound-hydrology-semantic-v1/terrain/ignored.csv').exists())

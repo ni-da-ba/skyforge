@@ -4,8 +4,10 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.awt.image.BufferedImage;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -20,15 +22,18 @@ class StudioBoundHydrologySemanticCorpusTest {
         Path hydrology = temp.resolve("hydrology-semantic-layer.json");
         Path index = temp.resolve("index.html");
 
+        Path hydrologyView = temp.resolve("terrain").resolve("hydrology-plan-view.png");
         assertTrue(Files.isRegularFile(terrain));
         assertTrue(Files.isRegularFile(hydrology));
         assertTrue(Files.isRegularFile(index));
+        assertTrue(Files.isRegularFile(hydrologyView));
 
         String terrainJson = Files.readString(terrain);
         String hydrologyJson = Files.readString(hydrology);
         String indexHtml = Files.readString(index);
         for (String view : new String[] {
                 "legend.png",
+                "hydrology-plan-view.png",
                 "top-surface-semantics.png",
                 "east-west-section.png",
                 "north-south-section.png",
@@ -39,7 +44,26 @@ class StudioBoundHydrologySemanticCorpusTest {
         }
         assertTrue(indexHtml.contains("Review in Studio"));
         assertTrue(indexHtml.contains("bound hydrology semantic overlay JSON"));
+        assertTrue(indexHtml.contains("Blue cells are F4E wet samples"));
+        assertTrue(indexHtml.contains("not voxelized or Minecraft-realized water"));
         assertTrue(indexHtml.contains("Human gate"));
+
+        BufferedImage overlay = ImageIO.read(hydrologyView.toFile());
+        int wetPixels = 0;
+        int reachPixels = 0;
+        for (int y = 0; y < overlay.getHeight(); y++) {
+            for (int x = 0; x < overlay.getWidth(); x++) {
+                int rgb = overlay.getRGB(x, y) & 0x00ffffff;
+                if (rgb == (SkyIslandHydrologySemanticEvidenceWriter.WET_SAMPLE_RGB & 0x00ffffff)) {
+                    wetPixels++;
+                }
+                if (rgb == (SkyIslandHydrologySemanticEvidenceWriter.REACH_CENTERLINE_RGB & 0x00ffffff)) {
+                    reachPixels++;
+                }
+            }
+        }
+        assertTrue(wetPixels > 0, "rendered view must visibly contain F4E wet samples");
+        assertTrue(reachPixels > 0, "rendered view must visibly contain accepted reach centerlines");
 
         assertTrue(terrainJson.contains(
                 "\"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\""));
