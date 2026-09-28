@@ -73,12 +73,16 @@ final class SkyIslandVegetationContentPolicyTest {
         for (SkyIslandVegetationFunctionalGroup group :
                 SkyIslandVegetationFunctionalGroup.values()) {
             var policy = SkyIslandVegetationContentPolicy.functionalGroupPolicy(group);
+            var evidence = group == SkyIslandVegetationFunctionalGroup.AQUATIC_PLANT
+                    ? Optional.of(cell(true))
+                    : Optional.<SkyIslandSurfaceSiteCapabilityCell>empty();
+            var nicheProfile = policy.nicheProfile(evidence).orElseThrow();
             assertEquals(group, policy.functionalGroup());
-            assertEquals(group, policy.nicheProfile().functionalGroup());
+            assertEquals(group, nicheProfile.functionalGroup());
             assertSame(
                     SkyIslandWeightedMeanFunctionalGroupNicheTransform.INSTANCE,
-                    policy.nicheProfile().transform());
-            assertEquals(policy.structuralAffinity(), policy.nicheProfile().structuralAffinity());
+                    nicheProfile.transform());
+            assertEquals(policy.structuralAffinity(), nicheProfile.structuralAffinity());
             seen.add(policy.functionalGroup());
         }
 
@@ -131,6 +135,16 @@ final class SkyIslandVegetationContentPolicyTest {
         assertTrue(SkyIslandVegetationContentPolicy.hydrologicallyEligible(
                 SkyIslandVegetationFunctionalGroup.TALL_CANOPY_TREE,
                 Optional.empty()));
+
+        var aquatic = SkyIslandVegetationContentPolicy.functionalGroupPolicy(
+                SkyIslandVegetationFunctionalGroup.AQUATIC_PLANT);
+        assertTrue(aquatic.nicheProfile(Optional.empty()).isEmpty());
+        assertTrue(aquatic.nicheProfile(Optional.of(cell(false))).isEmpty());
+        assertTrue(aquatic.nicheProfile(Optional.of(cell(true))).isPresent());
+
+        var canopy = SkyIslandVegetationContentPolicy.functionalGroupPolicy(
+                SkyIslandVegetationFunctionalGroup.TALL_CANOPY_TREE);
+        assertTrue(canopy.nicheProfile(Optional.empty()).isPresent());
     }
 
     private static SkyIslandSurfaceSiteCapabilityCell cell(boolean retainedWaterbody) {
