@@ -51,7 +51,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         StringBuilder semantics = new StringBuilder(
                 "seed_id,world_seed_hex,namespace,province,cluster,island_key,sink_cell,kind,"
                         + "catchment_cell_count,catchment_fraction,relative_inflow,retention,saturation,"
-                        + "persistence,basin_scale\\n");
+                        + "persistence,basin_scale\n");
         StringBuilder failures = new StringBuilder(
                 "seed_id,world_seed_hex,namespace,province,cluster,island_key,error\n");
 
