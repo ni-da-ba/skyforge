@@ -18,6 +18,7 @@ class HydrologyConfluenceCompatibilityCorpusTest {
 
         String a = Files.readString(first.resolve("manifest.csv"));
         String b = Files.readString(second.resolve("manifest.csv"));
+        System.out.println("C3_CONFLUENCE_MANIFEST_BEGIN\n" + a + "C3_CONFLUENCE_MANIFEST_END");
         assertEquals(a, b);
         assertTrue(a.contains("control-241,241,671,TRANSITION_DEFERRED"));
         assertTrue(a.contains("confluence-632,632,710,TRANSITION_DEFERRED"));
