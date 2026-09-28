@@ -41,7 +41,38 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         }
     }
 
+    private static volatile AuthorizedRemovalProjectionCache cachedAuthorizedRemovalProjection;
+
     private SkyforgeAuthoredVisibleHydrologyAdapter() {}
+
+    /**
+     * Expands the immutable F4D removal authority once per exact runtime authorization. Chunk
+     * realization visits the same authorization many times; recomputing all block positions per
+     * chunk needlessly turns world startup into an apparent 0% generation stall.
+     */
+    private static List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval>
+            authorizedRemovalProjection(SkyIslandHydrologyRuntimeAuthorization authorization) {
+        AuthorizedRemovalProjectionCache cached = cachedAuthorizedRemovalProjection;
+        if (cached != null && cached.authorization() == authorization) {
+            return cached.removals();
+        }
+        synchronized (SkyforgeAuthoredVisibleHydrologyAdapter.class) {
+            cached = cachedAuthorizedRemovalProjection;
+            if (cached != null && cached.authorization() == authorization) {
+                return cached.removals();
+            }
+            List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval> removals =
+                    SkyforgeQualifiedFluvialVoxelRemovalProjection.plan(
+                            authorization.quantization(), authorization);
+            cachedAuthorizedRemovalProjection =
+                    new AuthorizedRemovalProjectionCache(authorization, removals);
+            return removals;
+        }
+    }
+
+    private record AuthorizedRemovalProjectionCache(
+            SkyIslandHydrologyRuntimeAuthorization authorization,
+            List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval> removals) {}
 
     static List<Deployment> plan(
             io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
@@ -114,8 +145,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         // F4D is the only source of terrain-removal positions. The projection is exact and
         // re-validates the authorization token before any ChunkAccess mutation occurs.
         int changed = 0;
-        for (var component : SkyforgeQualifiedFluvialVoxelRemovalProjection.plan(
-                authorization.quantization(), authorization)) {
+        for (var component : authorizedRemovalProjection(authorization)) {
             for (BlockPos position : component.positions()) {
                 if (!chunk.getPos().equals(new ChunkPos(position))) {
                     continue;
