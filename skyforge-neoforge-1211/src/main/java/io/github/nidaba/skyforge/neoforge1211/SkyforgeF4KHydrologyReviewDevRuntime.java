@@ -25,6 +25,16 @@ import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlanner;
 import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.List;
 import java.util.Map;
+import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.GameType;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.Blocks;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /**
  * Disposable, opt-in F4K visual-review binding.
