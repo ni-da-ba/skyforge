@@ -20,6 +20,44 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     private static final long[] ACCEPTED_CORPUS_KEYS = {77L, 118L, 241L, 512L, 811L, 83L};
 
     @Test
+    void f4kReviewFixtureClipsWaterHeadsToTheF4dAuthorizedReplacementBand() throws Exception {
+        var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(-1, 0));
+
+        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(
+                terrain,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
+                fixture.authorization())) {
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        }
+
+        int persistedHeads = 0;
+        for (var column : fixture.authorization().quantization().authorizedColumns()) {
+            if (!column.projection().semanticSample().wet()
+                    || !column.mutatesTerrain()
+                    || new net.minecraft.world.level.ChunkPos(column.worldX() >> 4, column.worldZ() >> 4)
+                            .toLong() != chunk.getPos().toLong()) {
+                continue;
+            }
+            int firstWaterY = column.targetMaximumSolidY() + 1;
+            int lastWaterY = Math.min(
+                    (int) Math.ceil(column.projection().originalUpperSurfaceWorldY()
+                            + (column.projection().semanticSample().waterSurfacePotential()
+                                    - column.projection().semanticSample().originalTerrainPotential())
+                                    * fixture.descriptor().reliefBudget()) - 1,
+                    column.originalSupport().maximumSolidY());
+            if (lastWaterY < firstWaterY) {
+                continue;
+            }
+            persistedHeads++;
+            assertTrue(chunk.getBlockState(new BlockPos(column.worldX(), firstWaterY, column.worldZ()))
+                    .is(Blocks.WATER));
+        }
+        assertTrue(persistedHeads > 0);
+    }
+
+    @Test
     void canonicalSpecimenRealizesOnlyAuthoredKindsWithoutSynthesisOrForeignOwnership() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
