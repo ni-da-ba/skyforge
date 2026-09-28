@@ -116,7 +116,7 @@ jobs:
 
       - name: Build, test, and generate evidence
         if: steps.impact.outputs.full == 'true'
-        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence
+        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence :skyforge-reference:studioBoundHydrologySemanticCorpus
 
       - name: Verify evidence review entry points
         if: steps.impact.outputs.full == 'true'

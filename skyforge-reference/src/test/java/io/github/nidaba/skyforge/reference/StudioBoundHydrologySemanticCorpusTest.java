@@ -26,6 +26,20 @@ class StudioBoundHydrologySemanticCorpusTest {
 
         String terrainJson = Files.readString(terrain);
         String hydrologyJson = Files.readString(hydrology);
+        String indexHtml = Files.readString(index);
+        for (String view : new String[] {
+                "legend.png",
+                "top-surface-semantics.png",
+                "east-west-section.png",
+                "north-south-section.png",
+                "isometric-top-semantics.png"
+        }) {
+            assertTrue(Files.isRegularFile(temp.resolve("terrain").resolve(view)), "missing terrain view " + view);
+            assertTrue(indexHtml.contains("terrain/" + view), "review index must expose " + view);
+        }
+        assertTrue(indexHtml.contains("Review in Studio"));
+        assertTrue(indexHtml.contains("bound hydrology semantic overlay JSON"));
+        assertTrue(indexHtml.contains("Human gate"));
 
         assertTrue(terrainJson.contains(
                 "\"artifact_kind\": \"SKYFORGE_TERRAIN_SEMANTIC_VOLUME\""));
