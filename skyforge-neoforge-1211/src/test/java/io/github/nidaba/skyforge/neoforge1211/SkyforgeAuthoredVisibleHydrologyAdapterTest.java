@@ -61,6 +61,20 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
     }
 
     @Test
+    void f4kReviewWarmupCoversExactlyTheChunksContainingEligibleWaterHeads() {
+        var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
+        Set<Long> expectedChunks = new HashSet<>();
+        for (BlockPos position : SkyforgeF4KHydrologyReviewDevRuntime.expectedWaterHeadPositions(fixture)) {
+            expectedChunks.add(new net.minecraft.world.level.ChunkPos(position).toLong());
+        }
+
+        assertFalse(expectedChunks.isEmpty());
+        assertEquals(
+                expectedChunks,
+                SkyforgeF4KHydrologyReviewDevRuntime.requiredWaterHeadChunkKeys(fixture));
+    }
+
+    @Test
     void canonicalSpecimenRealizesOnlyAuthoredKindsWithoutSynthesisOrForeignOwnership() {
         var fixture = SkyforgeNeoForge1211ProductionComposedCaveFixture.single();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
