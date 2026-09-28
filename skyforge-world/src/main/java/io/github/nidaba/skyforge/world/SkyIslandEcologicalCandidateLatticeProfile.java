@@ -65,6 +65,15 @@ public record SkyIslandEcologicalCandidateLatticeProfile(
 
     /** Generates the exact deterministic candidate assigned to one integer lattice cell. */
     public SkyIslandEcologicalPlacementCandidate candidate(long cellX, long cellZ) {
+        return new SkyIslandEcologicalPlacementCandidate(
+                this,
+                cellX,
+                cellZ,
+                candidatePosition(cellX, cellZ),
+                candidateAdmissionValue(cellX, cellZ));
+    }
+
+    SkyIslandLocalPosition candidatePosition(long cellX, long cellZ) {
         double phaseX = unitInterval(SeedDerivation.derive(rootSeed, namespace + ".phase-x"))
                 * cellPitch;
         double phaseZ = unitInterval(SeedDerivation.derive(rootSeed, namespace + ".phase-z"))
@@ -73,14 +82,11 @@ public record SkyIslandEcologicalCandidateLatticeProfile(
         double jitterZ = signedUnit(cellSample(cellX, cellZ, "jitter-z")) * maxAxisJitter;
         double x = (((double) cellX + 0.5) * cellPitch) + phaseX + jitterX;
         double z = (((double) cellZ + 0.5) * cellPitch) + phaseZ + jitterZ;
-        SkyIslandLocalPosition position = new SkyIslandLocalPosition(x, z);
-        double admissionValue = unitInterval(cellSample(cellX, cellZ, "admission"));
-        return new SkyIslandEcologicalPlacementCandidate(
-                this,
-                cellX,
-                cellZ,
-                position,
-                admissionValue);
+        return new SkyIslandLocalPosition(x, z);
+    }
+
+    double candidateAdmissionValue(long cellX, long cellZ) {
+        return unitInterval(cellSample(cellX, cellZ, "admission"));
     }
 
     private long cellSample(long cellX, long cellZ, String channel) {

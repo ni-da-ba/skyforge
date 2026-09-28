@@ -318,6 +318,41 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
     }
 
     @Test
+    void fabricatedCandidateGeometryOrAdmissionFailsClosed() {
+        SkyIslandEcologicalCandidateLatticeProfile profile =
+                candidateProfile(
+                        0x1223A12L,
+                        "ecology.candidate.provenance",
+                        24.0,
+                        4.0);
+        SkyIslandEcologicalPlacementCandidate canonical = profile.candidate(3L, -4L);
+        SkyIslandLocalPosition shifted =
+                new SkyIslandLocalPosition(
+                        canonical.position().x() + 0.25,
+                        canonical.position().z());
+        double alteredAdmission = canonical.admissionValue() == 0.0
+                ? Math.nextUp(canonical.admissionValue())
+                : Math.nextDown(canonical.admissionValue());
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalPlacementCandidate(
+                        profile,
+                        canonical.cellX(),
+                        canonical.cellZ(),
+                        shifted,
+                        canonical.admissionValue()));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandEcologicalPlacementCandidate(
+                        profile,
+                        canonical.cellX(),
+                        canonical.cellZ(),
+                        canonical.position(),
+                        alteredAdmission));
+    }
+
+    @Test
     void candidateIdentityChangesRealizationWithoutChangingSpacingPolicy() {
         SkyIslandEcologicalCandidateLatticeProfile first =
                 candidateProfile(

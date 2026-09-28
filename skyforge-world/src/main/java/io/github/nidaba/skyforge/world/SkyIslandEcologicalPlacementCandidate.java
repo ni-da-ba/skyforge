@@ -23,5 +23,18 @@ public record SkyIslandEcologicalPlacementCandidate(
                 || admissionValue >= 1.0) {
             throw new IllegalArgumentException("admissionValue must be finite and in [0, 1)");
         }
+        SkyIslandLocalPosition expectedPosition =
+                latticeProfile.candidatePosition(cellX, cellZ);
+        if (!position.equals(expectedPosition)) {
+            throw new IllegalArgumentException(
+                    "candidate position must exactly match lattice-derived geometry");
+        }
+        double expectedAdmissionValue =
+                latticeProfile.candidateAdmissionValue(cellX, cellZ);
+        if (Double.doubleToLongBits(admissionValue)
+                != Double.doubleToLongBits(expectedAdmissionValue)) {
+            throw new IllegalArgumentException(
+                    "candidate admissionValue must exactly match lattice-derived provenance");
+        }
     }
 }
