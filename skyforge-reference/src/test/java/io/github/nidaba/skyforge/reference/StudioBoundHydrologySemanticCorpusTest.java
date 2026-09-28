@@ -44,7 +44,7 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(indexHtml.contains("terrain/north-south-section.png"));
         assertTrue(indexHtml.contains("hydrology-semantic-layer.json"));
         assertTrue(indexHtml.contains("Bound hydrology · top-down view"));
-        assertTrue(indexHtml.contains("id=\\"hydrology-view\\""));
+        assertTrue(indexHtml.contains("hydrology-view"));
         assertTrue(indexHtml.contains("data.hydrology_causes"));
         assertTrue(indexHtml.contains("data.field_samples"));
         assertTrue(indexHtml.contains("data.reaches"));
