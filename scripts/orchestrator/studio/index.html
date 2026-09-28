@@ -70,47 +70,61 @@
             <span id="scene-kind" class="pill"></span>
           </div>
 
-          <label for="dataset">Dataset</label>
-          <select id="dataset">
-            <option value="snapshot">Spatial snapshot</option>
-            <option value="opportunity">Opportunity scan</option>
-          </select>
+          <div id="atmosphere-controls">
+            <label for="dataset">Dataset</label>
+            <select id="dataset">
+              <option value="snapshot">Spatial snapshot</option>
+              <option value="opportunity">Opportunity scan</option>
+            </select>
 
-          <label for="vector-mode">Vector field</label>
-          <select id="vector-mode">
-            <option value="effective">Effective wind</option>
-            <option value="mean">Mean wind</option>
-            <option value="gust">Gust contribution</option>
-          </select>
+            <label for="vector-mode">Vector field</label>
+            <select id="vector-mode">
+              <option value="effective">Effective wind</option>
+              <option value="mean">Mean wind</option>
+              <option value="gust">Gust contribution</option>
+            </select>
 
-          <label for="color-mode">Color</label>
-          <select id="color-mode">
-            <option value="verticalAir">Signed vertical air</option>
-            <option value="turbulence">Turbulence</option>
-            <option value="shear">Shear</option>
-            <option value="speed">Vector speed</option>
-          </select>
+            <label for="color-mode">Color</label>
+            <select id="color-mode">
+              <option value="verticalAir">Signed vertical air</option>
+              <option value="turbulence">Turbulence</option>
+              <option value="shear">Shear</option>
+              <option value="speed">Vector speed</option>
+            </select>
 
-          <label for="altitude">Altitude</label>
-          <select id="altitude">
-            <option value="all">All levels</option>
-          </select>
+            <label for="altitude">Altitude</label>
+            <select id="altitude">
+              <option value="all">All levels</option>
+            </select>
 
-          <label for="arrow-scale">Arrow scale <span id="arrow-scale-value">1.25×</span></label>
-          <input id="arrow-scale" type="range" min="0.25" max="4" step="0.05" value="1.25">
+            <label for="arrow-scale">Arrow scale <span id="arrow-scale-value">1.25×</span></label>
+            <input id="arrow-scale" type="range" min="0.25" max="4" step="0.05" value="1.25">
 
-          <div id="time-controls" hidden>
-            <label for="frame">Frame <span id="frame-value">0</span></label>
-            <input id="frame" type="range" min="0" max="0" step="1" value="0">
-            <div class="row">
-              <button id="play" type="button">Play</button>
-              <button id="reset-view" type="button" class="secondary">Reset view</button>
+            <div id="time-controls" hidden>
+              <label for="frame">Frame <span id="frame-value">0</span></label>
+              <input id="frame" type="range" min="0" max="0" step="1" value="0">
+              <button id="play" type="button" class="full-button">Play</button>
             </div>
           </div>
 
-          <div id="static-controls">
-            <button id="reset-view-static" type="button" class="secondary full-button">Reset view</button>
+          <div id="terrain-controls" hidden>
+            <label for="terrain-view">Semantic view</label>
+            <select id="terrain-view">
+              <option value="top">Top surface</option>
+              <option value="underside">Underside</option>
+              <option value="both">Top + underside</option>
+              <option value="slice">Horizontal slice</option>
+            </select>
+
+            <div id="terrain-slice-control" hidden>
+              <label for="terrain-slice">Slice Y <span id="terrain-slice-value">—</span></label>
+              <input id="terrain-slice" type="range" min="0" max="0" step="1" value="0">
+            </div>
+
+            <div id="terrain-legend" class="terrain-legend"></div>
           </div>
+
+          <button id="reset-view" type="button" class="secondary full-button">Reset view</button>
         </aside>
 
         <section class="panel viewport-panel">
@@ -133,6 +147,7 @@
             <dt>Source SHA</dt><dd id="inspect-sha">—</dd>
             <dt>Provider</dt><dd id="inspect-provider">—</dd>
             <dt>Position</dt><dd id="inspect-position">click a sample</dd>
+            <dt>Semantic</dt><dd id="inspect-semantic">—</dd>
             <dt>Vector</dt><dd id="inspect-vector">—</dd>
             <dt>Vertical air</dt><dd id="inspect-updraft">—</dd>
             <dt>Turbulence</dt><dd id="inspect-turbulence">—</dd>
@@ -149,9 +164,9 @@
           <details>
             <summary>Semantic ownership</summary>
             <dl class="kv compact">
-              <dt>Sampling</dt><dd id="owner-sampling">—</dd>
+              <dt>Semantic owner</dt><dd id="owner-semantic">—</dd>
               <dt>Persistence</dt><dd id="owner-persistence">—</dd>
-              <dt>Render dependency</dt><dd id="owner-render">—</dd>
+              <dt>Backend-neutral</dt><dd id="owner-backend-neutral">—</dd>
             </dl>
           </details>
         </aside>
