@@ -42,7 +42,7 @@ jobs:
           head -n 31 skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/candidates.csv
           echo "--- all retained-sink semantic classifications ---"
           cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/semantics.csv
-          echo "--- geometry failures ---
+          echo "--- geometry failures ---"
           cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v1/geometry-failures.csv
 
       - name: Upload retained-basin discovery evidence
