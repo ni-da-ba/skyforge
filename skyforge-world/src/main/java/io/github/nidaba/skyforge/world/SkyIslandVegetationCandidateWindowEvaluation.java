@@ -20,13 +20,14 @@ public record SkyIslandVegetationCandidateWindowEvaluation(
         Objects.requireNonNull(evaluations, "evaluations");
         evaluations = List.copyOf(evaluations);
 
-        if (!profile.placementProfile().candidateProfile().equals(candidateQuery.latticeProfile())) {
+        if (!profile.placementProfile()\n                .candidateProfile()\n                .equals(candidateQuery.latticeProfile())) {
             throw new IllegalArgumentException(
                     "candidate query lattice must match window placement profile");
         }
         if (evaluations.size() != candidateQuery.candidates().size()) {
             throw new IllegalArgumentException(
-                    "candidate-window evaluation must retain exactly one result per queried candidate");
+                    "candidate-window evaluation must retain exactly one result per queried "
+                            + "candidate");
         }
 
         for (int index = 0; index < evaluations.size(); index++) {
