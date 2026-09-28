@@ -162,6 +162,17 @@ final class SkyforgePhysicalVolumeCatchupService {
         return List.copyOf(ordered);
     }
 
+    /**
+     * Whether persistent biome presentation may retire obligations for one exact volume.
+     *
+     * <p>Surface population uses retained presentation obligations as its canonical stable-chunk
+     * worklist. While whole-volume terrain catch-up remains pending, retiring those obligations
+     * would hide already-stable chunks before the #1092 terrain barrier can open for population.
+     */
+    static boolean biomePresentationMayRun(boolean volumeHasPendingCatchup) {
+        return !volumeHasPendingCatchup;
+    }
+
     private static PumpResult pumpBoundedWork(
             BooleanSupplier serviceOneWorkItem,
             LongSupplier nanoTime,
@@ -282,8 +293,10 @@ final class SkyforgePhysicalVolumeCatchupService {
             }
 
             // Biome identity is committed only after admission and only on stable chunks Minecraft
-            // already loaded independently. The obligation includes the admission-triggering chunk,
-            // which may never have needed terrain catch-up, as well as all earlier deferred chunks.
+            // already loaded independently. Keep every exact volume's presentation obligations
+            // alive until that volume has crossed the same whole-volume terrain phase boundary as
+            // surface population; those obligations are also the canonical population worklist.
+            // Population runs above, so presentation can retire obligations safely afterward.
             for (long chunkKey : canonicalPopulationChunkKeys(
                     SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
                 int chunkX = ChunkPos.getX(chunkKey);
@@ -293,9 +306,18 @@ final class SkyforgePhysicalVolumeCatchupService {
                         || !SkyforgePhysicalVolumeAdmissionStage.eligibleCatchup(chunk.getPos()).isEmpty()) {
                     continue;
                 }
-                for (var volumeId : SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                for (var volumeId :
+                        SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentation(chunk.getPos())) {
+                    if (!biomePresentationMayRun(
+                            !SkyforgePhysicalVolumeAdmissionStage
+                                    .pendingCatchupChunks(volumeId)
+                                    .isEmpty())) {
+                        continue;
+                    }
                     SkyforgePersistentBiomePresentationStage.present(level, chunk, volumeId);
-                    SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(volumeId, chunk.getPos());
+                    SkyforgePhysicalVolumeAdmissionStage.completeBiomePresentation(
+                            volumeId,
+                            chunk.getPos());
                 }
             }
             SkyforgeNeoForge1211PhysicalAdmissionDevRuntime.observeLoaded(level);
