@@ -227,8 +227,10 @@ final class SkyforgePhysicalVolumeCatchupService {
 
             // Physically admitted surface ecology has one execution environment only: stable
             // LevelChunks. WorldGenRegion callbacks are intentionally deferred by the population
-            // stage, and every loaded chunk whose terrain catch-up is complete reaches the same
-            // coordinator here in canonical X/Z order before post-terrain cave/interior work.
+            // stage. The population stage additionally enforces a whole-volume terrain barrier:
+            // no native surface feature may run while any deferred terrain remains for that exact
+            // volume. Once that phase boundary is stable, loaded chunks reach the coordinator here
+            // in canonical X/Z order before post-terrain cave/interior work.
             for (long chunkKey : canonicalPopulationChunkKeys(
                     SkyforgePhysicalVolumeAdmissionStage.eligibleBiomePresentationChunkKeys())) {
                 int chunkX = ChunkPos.getX(chunkKey);
