@@ -131,10 +131,12 @@ public final class SkyIslandTerrainSemanticCorpusCli {
                 <p>Skyforge version: <code>%s</code></p>
                 <p>Specimen SHA-256: <code>%s</code><br>Regional SHA-256: <code>%s</code></p>
                 <h2>Single anchor specimen</h2>
+                <p><a href=\"specimen/terrain-semantic-volume.json\">Open Studio semantic volume artifact</a></p>
                 <img src=\"specimen/legend.png\"><img src=\"specimen/east-west-section.png\">
                 <img src=\"specimen/north-south-section.png\"><img src=\"specimen/top-surface-semantics.png\">
                 <img src=\"specimen/isometric-top-semantics.png\">
                 <h2>Regional Hub</h2>
+                <p><a href=\"regional-hub/terrain-semantic-volume.json\">Open Studio semantic volume artifact</a></p>
                 <img src=\"regional-hub/top-surface-semantics.png\"><img src=\"regional-hub/isometric-top-semantics.png\">
                 </body></html>
                 """.formatted(escape(version), specimen.sha256(), regional.sha256());
