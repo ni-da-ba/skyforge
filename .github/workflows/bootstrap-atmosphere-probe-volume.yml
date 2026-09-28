@@ -10,6 +10,7 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeA4mcAtmosphereBridge.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAtmosphereProbeVolumeAcceptance.java"
       - "tools/render_atmosphere_observatory.py"
+      - "tools/atmosphere_vector_field_viewer.html"
   workflow_dispatch:
 
 permissions:
@@ -187,6 +188,9 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/probe-volume.json \
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/index.html
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/vector-field.html
+          grep -q "Skyforge Atmosphere Vector Field" skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/vector-field.html
+          ! grep -q "__SKYFORGE_EMBEDDED_DATA__" skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/vector-field.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/field-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/hazard-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe/observatory/vertical-profiles.svg
@@ -377,6 +381,9 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/probe-volume.json \
             skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/index.html
+          test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/vector-field.html
+          grep -q "Skyforge Atmosphere Vector Field" skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/vector-field.html
+          ! grep -q "__SKYFORGE_EMBEDDED_DATA__" skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/vector-field.html
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/field-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/hazard-atlas.svg
           test -f skyforge-neoforge-1211/build/acceptance/atmosphere-probe-skyforge/observatory/vertical-profiles.svg
