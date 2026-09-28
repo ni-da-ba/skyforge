@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
+import io.github.nidaba.skyforge.world.content.SkyIslandSurfaceEcologyContentPolicy;
 import java.util.HashSet;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biomes;
@@ -59,7 +60,7 @@ final class SkyforgeProductionEcologyResolverTest {
         var rasterizer = new SkyforgeAuthoredSurfaceCellRasterizer(profile);
         var wet = profile.cells().stream()
                 .filter(cell -> cell.physicalSurfacePresent()
-                        && rasterizer.hasAuthoredFreshwaterOrRiparianContext(cell))
+                        && SkyIslandSurfaceEcologyContentPolicy.requestsWetlandPresentation(cell))
                 .findFirst()
                 .orElseThrow();
         var projected = rasterizer.projectAnchor(

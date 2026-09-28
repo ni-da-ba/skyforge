@@ -558,6 +558,23 @@ neighbor-redstone shutdown play gate**. Machine acceptance items #1-#9 are now s
 - SF-IMP-0080 is accepted: legible forest/taiga ecology showcase.
 - SF-IMP-0081 and SF-IMP-0082 are accepted for all five SMALL / seed-skyforge built-in morphology carriers; SF-IMP-0083 / issue #284 owns the remaining multi-seed/multi-scale built-in matrix, while #267 and #283 separately track tuning concerns.
 
+### C28 — production ecology presentation and vegetation-role policy — CANDIDATE
+
+**Issue #1233 / PR #1234** is the first concrete Content consumer of the post-#1229 neutral ecology
+stack. It moves the existing DR-40 freshwater/riparian wetland-presentation decision out of NeoForge
+semantic ownership while preserving its accepted behavior, and defines explicit structural-capacity
+policy for all five accepted community archetypes plus structural-affinity policy for all seven
+accepted vegetation functional groups.
+
+C28 intentionally stops before final density: it adds no species IDs, occupancy, abundance, carrying
+capacity, patch scale, candidate spacing, or Minecraft feature policy. AQUATIC_PLANT alone requires
+exact AUTH-0096 retained-waterbody evidence and fails closed when that evidence is absent. NeoForge
+continues to own exact-volume rasterization, Minecraft biome/feature projection, population lifecycle,
+and persistence.
+
+This is an authorized Phase-2 ecology tranche and does not supersede the existing ordered Bootstrap
+Content priority headed by C12 / issue #239.
+
 ## PROPOSED / OPEN CONTENT QUESTIONS
 
 ### Create:Aero Automated Logistics (AAL) — issue #431 Content audit (2026-09-09)

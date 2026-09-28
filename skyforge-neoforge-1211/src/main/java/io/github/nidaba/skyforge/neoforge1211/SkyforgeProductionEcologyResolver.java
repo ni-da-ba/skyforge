@@ -7,6 +7,7 @@ import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationSurfaceEcologyResolver;
 import io.github.nidaba.skyforge.world.SkyIslandSurfaceSiteCapabilityProfiler;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.content.SkyIslandSurfaceEcologyContentPolicy;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -67,10 +68,10 @@ final class SkyforgeProductionEcologyResolver implements SkyforgeExactVolumeBiom
             return Optional.empty();
         }
         var cell = hydrology.cellForWorldColumn(volumeId, worldX, worldZ);
-        if (cell.isPresent() && hydrology.hasAuthoredFreshwaterOrRiparianContext(cell.orElseThrow())) {
-            return Optional.of(Biomes.SWAMP);
-        }
-        return Optional.of(carrier(authored.orElseThrow().regime()));
+        var presentationRegime = SkyIslandSurfaceEcologyContentPolicy.presentationRegime(
+                authored.orElseThrow(),
+                cell);
+        return Optional.of(carrier(presentationRegime));
     }
 
     boolean supportsCoordinatorSurface(
