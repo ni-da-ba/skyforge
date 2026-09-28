@@ -62,12 +62,38 @@ public final class SkyIslandVegetationContentPolicy {
                     Objects.requireNonNull(hydrologicRequirement, "hydrologicRequirement");
         }
 
-        /** Creates the accepted neutral niche profile for this Content policy. */
-        public SkyIslandVegetationFunctionalGroupProfile nicheProfile() {
-            return new SkyIslandVegetationFunctionalGroupProfile(
+        /**
+         * Returns whether accepted raw AUTH-0096 evidence satisfies this role's hydrologic
+         * requirement.
+         *
+         * <p>Missing evidence fails closed only for hydrology-dependent roles.
+         */
+        public boolean hydrologicallyEligible(
+                Optional<SkyIslandSurfaceSiteCapabilityCell> surfaceEvidence) {
+            surfaceEvidence = Objects.requireNonNull(surfaceEvidence, "surfaceEvidence");
+            return switch (hydrologicRequirement) {
+                case NONE -> true;
+                case RETAINED_WATERBODY ->
+                        surfaceEvidence.map(SkyIslandSurfaceSiteCapabilityCell::retainedWaterbody)
+                                .orElse(false);
+            };
+        }
+
+        /**
+         * Creates the accepted neutral niche profile only when this Content role is eligible.
+         *
+         * <p>This keeps the hydrologic requirement on the production-facing profile path rather
+         * than relying on callers to remember a separate advisory check.
+         */
+        public Optional<SkyIslandVegetationFunctionalGroupProfile> nicheProfile(
+                Optional<SkyIslandSurfaceSiteCapabilityCell> surfaceEvidence) {
+            if (!hydrologicallyEligible(surfaceEvidence)) {
+                return Optional.empty();
+            }
+            return Optional.of(new SkyIslandVegetationFunctionalGroupProfile(
                     functionalGroup,
                     structuralAffinity,
-                    SkyIslandWeightedMeanFunctionalGroupNicheTransform.INSTANCE);
+                    SkyIslandWeightedMeanFunctionalGroupNicheTransform.INSTANCE));
         }
     }
 
@@ -170,15 +196,7 @@ public final class SkyIslandVegetationContentPolicy {
     public static boolean hydrologicallyEligible(
             SkyIslandVegetationFunctionalGroup functionalGroup,
             Optional<SkyIslandSurfaceSiteCapabilityCell> surfaceEvidence) {
-        FunctionalGroupPolicy policy = functionalGroupPolicy(functionalGroup);
-        surfaceEvidence = Objects.requireNonNull(surfaceEvidence, "surfaceEvidence");
-
-        return switch (policy.hydrologicRequirement()) {
-            case NONE -> true;
-            case RETAINED_WATERBODY ->
-                    surfaceEvidence.map(SkyIslandSurfaceSiteCapabilityCell::retainedWaterbody)
-                            .orElse(false);
-        };
+        return functionalGroupPolicy(functionalGroup).hydrologicallyEligible(surfaceEvidence);
     }
 
     private static SkyIslandFunctionalGroupStructuralAffinity affinity(
