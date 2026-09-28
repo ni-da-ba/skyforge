@@ -47,6 +47,11 @@ so a cardinal edge at the existing default resolution reproduces the existing ba
 penalty scale. Equivalently, the continuous line-density weights absorb the factor `N_ref`; refinement
 changes quadrature accuracy, not the relative authored routing preferences.
 
+When expressing the normalized objective with unit line-density weights (without explicitly multiplying
+line integrals by `N_ref`), normalize the historical positive-variation coefficient by the same factor:
+`w_ascent = 40 / N_ref = 10`. This makes the new objective exactly one quarter of the prior
+objective, preserving route preferences while giving its line terms the direct `ds / S` scale.
+
 The dimensionless route objective is
 
 ```text
