@@ -81,7 +81,7 @@ class SkyIslandTerrainSemanticEvidenceWriterTest {
     }
 
     private static String jsonStringValue(String json, String key) {
-        String marker = "\\\"" + key + "\\": \\"";
+        String marker = "\"" + key + "\": \"";
         int start = json.indexOf(marker);
         if (start < 0) {
             throw new AssertionError("missing JSON string property " + key);
