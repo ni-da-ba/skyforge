@@ -271,7 +271,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
             SkyIslandWorldWaterHeadRefinementPlan head,
             SkyIslandWorldHeadRefinedTerrainPlan refined,
             SkyIslandHydrologyRuntimeAuthorization authorization) {
-        private Fixture {
+        Fixture {
             if (direct.terrainVoxelPlan().association() != authorization.association()
                     || head.directQualification() != direct
                     || refined.headRefinement() != head) {
