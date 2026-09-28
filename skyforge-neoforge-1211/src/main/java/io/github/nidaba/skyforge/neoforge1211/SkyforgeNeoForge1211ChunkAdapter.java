@@ -92,6 +92,14 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
         return Optional.ofNullable(authoredDescriptorsByVolumeId.get(volumeId));
     }
 
+    /** Returns the exact catalog volume for binding-time authorization validation. */
+    Optional<SkyIslandWorldVolume> worldVolume(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return catalog.volumes().stream()
+                .filter(volume -> volume.id().equals(volumeId))
+                .findFirst();
+    }
+
     /**
      * Returns whether one exact runtime position belongs to accepted authored visible hydrology.
      *
