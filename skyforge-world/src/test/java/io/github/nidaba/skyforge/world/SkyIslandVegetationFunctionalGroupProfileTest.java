@@ -277,13 +277,22 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
                         "ecology.patch.second",
                         80.0);
 
-        double firstSignal = first.sample(new SkyIslandLocalPosition(37.0, -51.0));
-        double secondSignal = second.sample(new SkyIslandLocalPosition(37.0, -51.0));
+        SkyIslandVegetationSpatialPatchEvaluation firstEvaluation =
+                new SkyIslandVegetationSpatialPatchProfile(
+                                first,
+                                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE)
+                        .evaluate(group);
+        SkyIslandVegetationSpatialPatchEvaluation secondEvaluation =
+                new SkyIslandVegetationSpatialPatchProfile(
+                                second,
+                                SkyIslandPatchinessRetentionSpatialTransform.INSTANCE)
+                        .evaluate(group);
 
         assertTrue(
-                Double.doubleToLongBits(firstSignal)
-                        != Double.doubleToLongBits(secondSignal));
-        assertEquals(group.composition(), group.composition());
+                Double.doubleToLongBits(firstEvaluation.rawSignal())
+                        != Double.doubleToLongBits(secondEvaluation.rawSignal()));
+        assertEquals(group, firstEvaluation.functionalGroupEvaluation());
+        assertEquals(group, secondEvaluation.functionalGroupEvaluation());
     }
 
     private static SkyIslandVegetationFunctionalGroupProfile functionalGroupProfile() {
