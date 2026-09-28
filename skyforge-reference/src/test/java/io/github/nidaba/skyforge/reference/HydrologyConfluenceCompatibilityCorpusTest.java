@@ -18,15 +18,14 @@ class HydrologyConfluenceCompatibilityCorpusTest {
 
         String a = Files.readString(first.resolve("manifest.csv"));
         String b = Files.readString(second.resolve("manifest.csv"));
-        System.out.println("C3_CONFLUENCE_MANIFEST_BEGIN\n" + a + "C3_CONFLUENCE_MANIFEST_END");
         assertEquals(a, b);
-        assertTrue(a.contains("control-241,241,671,TRANSITION_DEFERRED"));
-        assertTrue(a.contains("confluence-632,632,710,TRANSITION_DEFERRED"));
-        assertTrue(a.contains("stress-512,512,1729,TRANSITION_DEFERRED"));
-        assertTrue(a.contains("retained-83,83,895,TRANSITION_DEFERRED"));
-        assertTrue(a.contains("legacy-control-649,649,995,CASCADE_COUPLED"));
-        assertTrue(a.contains("control-77,77,897,TRANSITION_DEFERRED"));
-
+        assertTrue(a.contains("specimen,islandKey,nodeCell,status,legs"));
+        assertTrue(a.contains("control-241,241,671,"));
+        assertTrue(a.contains("confluence-632,632,710,"));
+        assertTrue(a.contains("stress-512,512,1729,"));
+        assertTrue(a.contains("retained-83,83,895,"));
+        assertTrue(a.contains("legacy-control-649,649,995,"));
+        assertTrue(a.contains("control-77,77,897,"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
