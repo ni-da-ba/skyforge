@@ -16,6 +16,7 @@ SPECIAL_EXTENSIONS: dict[str, tuple[str, ...]] = {
     'fixed-seed-island-v1': ('.png', '.html', '.json', '.csv', '.sha256'),
     'signal-free-suspended-volume-v1': ('.png', '.html', '.json', '.csv', '.sha256'),
     'authorship-semantic-fields-v1': ('.png', '.html', '.json', '.csv'),
+    'studio-bound-hydrology-semantic-v1': ('.png', '.html', '.json'),
 }
 PUBLISH_STEP = '      - name: Publish compact evidence review bundle\n'
 
