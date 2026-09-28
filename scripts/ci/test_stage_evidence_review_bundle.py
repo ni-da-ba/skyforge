@@ -86,7 +86,7 @@ class EvidenceReviewBundleTests(unittest.TestCase):
 
             self.assertEqual(9, files)
             staged = sorted(path.relative_to(destination).as_posix() for path in destination.rglob('*') if path.is_file())
-            self.assertEqual(sorted(path[len(base) + 1:] for path in paths), staged)
+            self.assertEqual(sorted(path[len(verifier.EVIDENCE_ROOT):] for path in paths), staged)
             self.assertFalse((destination / 'studio-bound-hydrology-semantic-v1/terrain/ignored.csv').exists())
 
     def test_stage_copies_only_policy_extensions_and_preserves_tree(self):

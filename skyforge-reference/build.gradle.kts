@@ -187,6 +187,7 @@ tasks.register<JavaExec>("studioBoundHydrologySemanticCorpus") {
 }
 
 
+
 tasks.register<JavaExec>("authorshipSurfaceSiteCapabilityCorpus") {
     group = "verification"
     description = "Generates the AUTH-0096 local surface-site capability evidence package."
