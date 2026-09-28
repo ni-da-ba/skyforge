@@ -11,7 +11,15 @@
     DEEP_MASS: "#594c44",
   });
 
-  let token = sessionStorage.getItem(TOKEN_KEY) || "";
+  function readStoredToken() {
+    try {
+      return window.sessionStorage?.getItem(TOKEN_KEY) || "";
+    } catch {
+      return "";
+    }
+  }
+
+  let token = readStoredToken();
   let scene = null;
   let overlay = null;
   let artifactCatalog = [];
@@ -54,6 +62,24 @@
     const node = $("connection");
     node.textContent = text;
     node.className = "pill " + severity;
+  }
+
+  function showLocalMode() {
+    $("auth-panel").hidden = false;
+    $("studio-content").hidden = false;
+    $("registered-artifact-source").hidden = true;
+    $("registered-overlay-source").hidden = true;
+    $("console-link").hidden = true;
+    setConnection("Local diagnostics", "warn");
+  }
+
+  function showConnectedMode() {
+    $("auth-panel").hidden = true;
+    $("studio-content").hidden = false;
+    $("registered-artifact-source").hidden = false;
+    $("registered-overlay-source").hidden = false;
+    $("console-link").hidden = false;
+    setConnection("Connected", "good");
   }
 
   async function api(path) {
@@ -851,7 +877,11 @@
     if (event) event.preventDefault();
     token = $("api-token").value.trim();
     if (!token) return;
-    sessionStorage.setItem(TOKEN_KEY, token);
+    try {
+      window.sessionStorage?.setItem(TOKEN_KEY, token);
+    } catch {
+      // Local diagnostics remain available when browser storage is restricted.
+    }
     $("auth-error").textContent = "";
 
     try {
@@ -860,11 +890,9 @@
         throw new Error("authorization failed: HTTP " + response.status);
       }
       await loadArtifactCatalog();
-      $("auth-panel").hidden = true;
-      $("studio-content").hidden = false;
-      setConnection("Connected", "good");
+      showConnectedMode();
     } catch (error) {
-      setConnection("Disconnected", "muted");
+      showLocalMode();
       $("auth-error").textContent = String(error.message || error);
     }
   }
@@ -872,11 +900,14 @@
   $("auth-form").addEventListener("submit", connect);
   $("forget-token").addEventListener("click", () => {
     token = "";
-    sessionStorage.removeItem(TOKEN_KEY);
+    try {
+      window.sessionStorage?.removeItem(TOKEN_KEY);
+    } catch {
+      // Forgetting a token is best-effort when browser storage is restricted.
+    }
     $("api-token").value = "";
-    $("studio-content").hidden = true;
-    $("auth-panel").hidden = false;
-    setConnection("Disconnected");
+    $("auth-error").textContent = "";
+    showLocalMode();
   });
 
   $("load-artifact").addEventListener("click", () => {
@@ -1075,6 +1106,7 @@
   });
   window.addEventListener("resize", draw);
 
+  showLocalMode();
   if (token) {
     $("api-token").value = token;
   }
