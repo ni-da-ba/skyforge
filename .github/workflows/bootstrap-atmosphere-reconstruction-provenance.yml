@@ -168,18 +168,18 @@ jobs:
             presentation_result="skyforge-neoforge-1211/build/acceptance/atmosphere-evidence/presentation-${boot}.json"
             test -f "$presentation_result"
             python3 - "$presentation_result" <<'PY'
-            import json
-            import sys
-            from pathlib import Path
+          import json
+          import sys
+          from pathlib import Path
 
-            data = json.loads(Path(sys.argv[1]).read_text())
-            assert data["status"] == "PASS", data
-            assert data["trusted_samples"] >= 6, data
-            assert data["active_cues"] > 0, data
-            assert data["visual_emissions"] > 0, data
-            assert data["audio_emissions"] > 0, data
-            assert data["source_level"] != "NONE", data
-            assert data["authority"] == "SERVER_AUTHORITATIVE", data
+          data = json.loads(Path(sys.argv[1]).read_text())
+          assert data["status"] == "PASS", data
+          assert data["trusted_samples"] >= 6, data
+          assert data["active_cues"] > 0, data
+          assert data["visual_emissions"] > 0, data
+          assert data["audio_emissions"] > 0, data
+          assert data["source_level"] != "NONE", data
+          assert data["authority"] == "SERVER_AUTHORITATIVE", data
           PY
           done
 
