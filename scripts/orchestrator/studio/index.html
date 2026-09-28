@@ -4,9 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Skyforge Studio</title>
-  <link rel="stylesheet" href="/studio/styles.css">
-  <script src="/studio/scene.js" defer></script>
-  <script src="/studio/app.js" defer></script>
+  <link rel="stylesheet" href="styles.css">
+  <script src="scene.js" defer></script>
+  <script src="app.js" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -15,7 +15,7 @@
       <p>Backend-neutral semantic inspection</p>
     </div>
     <div class="top-actions">
-      <a class="secondary-link" href="/console">Operations Console</a>
+      <a id="console-link" class="secondary-link" href="/console" hidden>Operations Console</a>
       <div id="connection" class="pill muted">Disconnected</div>
     </div>
   </header>
@@ -24,7 +24,7 @@
     <section id="auth-panel" class="panel auth-panel">
       <div>
         <h2>Studio access</h2>
-        <p>Use the same read token as the Operations Console. Studio S0 is read-only.</p>
+        <p>Local JSON diagnostics work without connecting. Connect only to browse registered artifacts. Studio is read-only.</p>
       </div>
       <form id="auth-form">
         <label for="api-token">Development API token</label>
@@ -37,7 +37,7 @@
       <p id="auth-error" class="error" aria-live="polite"></p>
     </section>
 
-    <section id="studio-content" hidden>
+    <section id="studio-content">
       <section class="panel source-panel">
         <div class="section-heading">
           <div>
@@ -48,7 +48,7 @@
         </div>
 
         <div class="source-grid">
-          <div>
+          <div id="registered-artifact-source" hidden>
             <label for="artifact-select">Registered artifact</label>
             <div class="row">
               <select id="artifact-select"></select>
@@ -155,9 +155,11 @@
 
             <div class="overlay-controls">
               <h3>Semantic overlay</h3>
+              <div id="registered-overlay-source" hidden>
               <label for="overlay-artifact-select">Registered hydrology artifact</label>
               <select id="overlay-artifact-select"></select>
               <button id="load-overlay" type="button" class="full-button">Attach overlay</button>
+              </div>
               <label for="local-overlay-file">Local overlay diagnostic</label>
               <input id="local-overlay-file" type="file" accept=".json,application/json">
               <button id="clear-overlay" type="button" class="secondary full-button">Clear overlay</button>
