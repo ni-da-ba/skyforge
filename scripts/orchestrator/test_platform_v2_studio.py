@@ -117,28 +117,58 @@ class SkyforgeStudioTest(unittest.TestCase):
         self.assertIn("UNBOUND LOCAL DIAGNOSTIC", markup)
         self.assertIn('href="/console"', markup)
 
-    def test_scene_contract_is_authority_neutral_and_atmosphere_specific(self):
+    def test_scene_contract_is_authority_neutral_and_supports_exact_semantics(self):
         source = (
             Path(hosted.__file__).resolve().parent
             / "studio"
             / "scene.js"
+        ).read_text(encoding="utf-8")
+        app = (
+            Path(hosted.__file__).resolve().parent
+            / "studio"
+            / "app.js"
+        ).read_text(encoding="utf-8")
+        markup = (
+            Path(hosted.__file__).resolve().parent
+            / "studio"
+            / "index.html"
         ).read_text(encoding="utf-8")
 
         self.assertIn(
             'const ATMOSPHERE_KIND = "SKYFORGE_ATMOSPHERE_PROBE_VOLUME"',
             source,
         )
+        self.assertIn(
+            'const TERRAIN_KIND = "SKYFORGE_TERRAIN_SEMANTIC_VOLUME"',
+            source,
+        )
         self.assertIn('primitive: "VectorField"', source)
         self.assertIn('primitive: "PointSet"', source)
+        self.assertIn('primitive: "SemanticVolume"', source)
         self.assertIn('sceneKind: "ATMOSPHERE_VECTOR_FIELD"', source)
-        self.assertIn('coordinateSystem: Object.freeze({', source)
+        self.assertIn('sceneKind: "TERRAIN_SEMANTIC_VOLUME"', source)
         self.assertIn('semanticOwner: "Aerodynamics4MC"', source)
-        self.assertIn("serverWorldSampling", source)
-        self.assertIn("skyforgePersistsAtmosphere", source)
-        self.assertIn("providerPersistenceOwner", source)
-        self.assertIn("renderingBackendDependency", source)
+        self.assertIn('semanticOwner: "Skyforge WorldRegionTerrain"', source)
+        self.assertIn('artifact.encoding?.kind !== "BASE64_UINT8_ORDINAL"', source)
+        self.assertIn(
+            '"x + x_samples * (z + z_samples * y)"',
+            source,
+        )
+        self.assertIn("terrain grid sample_count does not match dimensions", source)
+        self.assertIn("terrain semantic payload length does not match grid", source)
+        self.assertIn("terrain semantic payload contains unknown ordinal", source)
+        self.assertIn("deriveTerrainSurfaces", source)
+        self.assertIn("sliceAtYIndex", source)
         self.assertIn("unsupported artifact_kind", source)
         self.assertIn("unsupported atmosphere schema_version", source)
+        self.assertIn("unsupported terrain schema_version", source)
+
+        self.assertIn("TERRAIN_COLORS", app)
+        self.assertIn("terrainDisplayPoints", app)
+        self.assertIn("drawTerrain", app)
+        self.assertIn('id="terrain-view"', markup)
+        self.assertIn('id="terrain-slice"', markup)
+        self.assertIn('id="inspect-semantic"', markup)
 
         self.assertNotIn("Math.random", source)
         self.assertNotIn("fetch(", source)
