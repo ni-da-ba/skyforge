@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -129,15 +130,16 @@ final class SkyIslandCommunityAssemblyEvidenceTest {
                         assembly,
                         surface);
 
-        assertEquals(assembly, evidence.assemblyEvidence());
-        assertEquals(surface, evidence.surfaceSiteProfile());
+        assertSame(assembly, evidence.assemblyEvidence());
+        assertSame(surface, evidence.surfaceSiteProfile());
         assertEquals(source.association(), evidence.association());
         assertEquals(surface.cells().size(), evidence.surfaceSiteProfile().cells().size());
 
-        for (int index = 0; index < surface.cells().size(); index++) {
-            SkyIslandSurfaceSiteCapabilityCell sourceCell = surface.cells().get(index);
-            assertEquals(sourceCell, evidence.cell(index));
-            assertEquals(
+        for (SkyIslandSurfaceSiteCapabilityCell sourceCell : surface.cells()) {
+            assertSame(
+                    sourceCell,
+                    evidence.cell(sourceCell.watershedCellIndex()));
+            assertSame(
                     sourceCell,
                     evidence.cellAt(sourceCell.position()).orElseThrow());
         }
@@ -193,7 +195,7 @@ final class SkyIslandCommunityAssemblyEvidenceTest {
         assertThrows(IndexOutOfBoundsException.class, () -> evidence.cell(-1));
         assertThrows(
                 IndexOutOfBoundsException.class,
-                () -> evidence.cell(surface.cells().size()));
+                () -> evidence.cell(Integer.MAX_VALUE));
     }
 
     @Test

@@ -45,17 +45,16 @@ public record SkyIslandCommunityHydrologicEvidence(
      * <p>No interpolation or nearest-cell policy is applied.
      */
     public SkyIslandSurfaceSiteCapabilityCell cell(int watershedCellIndex) {
-        if (watershedCellIndex < 0 || watershedCellIndex >= surfaceSiteProfile.cells().size()) {
+        if (watershedCellIndex < 0) {
             throw new IndexOutOfBoundsException(
-                    "watershedCellIndex out of accepted AUTH-0096 range: " + watershedCellIndex);
+                    "watershedCellIndex must be non-negative: " + watershedCellIndex);
         }
-        SkyIslandSurfaceSiteCapabilityCell cell =
-                surfaceSiteProfile.cells().get(watershedCellIndex);
-        if (cell.watershedCellIndex() != watershedCellIndex) {
-            throw new IllegalStateException(
-                    "AUTH-0096 canonical cell order no longer matches watershed identity");
-        }
-        return cell;
+        return surfaceSiteProfile.cells().stream()
+                .filter(cell -> cell.watershedCellIndex() == watershedCellIndex)
+                .findFirst()
+                .orElseThrow(() -> new IndexOutOfBoundsException(
+                        "watershedCellIndex is not present in accepted AUTH-0096 evidence: "
+                                + watershedCellIndex));
     }
 
     /**
