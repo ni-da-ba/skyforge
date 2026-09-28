@@ -443,12 +443,35 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
-        // F4K visual gate: bind the exact F4H-authorized ordinary (8,81,77) fixture.
-        // This is a disposable local review run and remains absent from the packaged mod.
+        // F4K visual gate follows the established prepare-then-quick-play pattern. The dedicated
+        // server writes a bounded F4H/F4D specimen; the viewer then opens only that persisted world.
+        create("f4kHydrologyReviewPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-f4k-hydrology-review").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("f4k-hydrology-review")
+            systemProperty("skyforge.dev.f4kHydrologyReview", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0043-f4k-hydrology-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/f4k-hydrology-review/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("f4kHydrologyReviewClient") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-f4k-hydrology-review").asFile
-            systemProperty("skyforge.dev.f4kHydrologyReview", "true")
+            programArgument("--quickPlaySingleplayer")
+            programArgument("f4k-hydrology-review")
+            systemProperty("skyforge.dev.f4kHydrologyReviewViewer", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -7789,4 +7812,92 @@ tasks.register("dr30NativeStructureAcceptance") {
         check(stacked.getProperty("lowerStructureMinY") != stacked.getProperty("upperStructureMinY"))
         println("DR-30 NATIVE STRUCTURE ACCEPTANCE PASS: placement + reload mutation + stacked exact-volume identity")
     }
+}
+
+
+val skyforgeF4kHydrologyReviewResultDirectory =
+    layout.buildDirectory.dir("acceptance/f4k-hydrology-review")
+val skyforgeF4kHydrologyReviewServerProperties = """
+    level-name=f4k-hydrology-review
+    level-seed=910077
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=8
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeF4kHydrologyReviewDirectory() {
+    val directory = layout.projectDirectory.dir("run-f4k-hydrology-review").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeF4kHydrologyReviewServerProperties)
+}
+
+fun requireSkyforgeF4kHydrologyReviewPreparationPass() {
+    val file = skyforgeF4kHydrologyReviewResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "F4K hydrology preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("surfaceBindingActive") == "true"
+            && properties.getProperty("f4hAuthorizedColumns").toInt() > 0
+            && properties.getProperty("f4dRemovedSolidBlocks").toInt() > 0
+            && properties.getProperty("f4hRefinedReaches").toInt() > 0
+            && properties.getProperty("persistedWaterHeads").toInt() > 0) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "F4K hydrology preparation did not persist a reviewable F4H specimen: $detail"
+    }
+}
+
+tasks.named("runF4kHydrologyReviewPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and F4K prepared-world orchestration are intentionally runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeF4kHydrologyReviewResultDirectory)
+        prepareSkyforgeF4kHydrologyReviewDirectory()
+    }
+    doLast {
+        requireSkyforgeF4kHydrologyReviewPreparationPass()
+    }
+}
+
+tasks.named("runF4kHydrologyReviewClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an interactive quick-play F4K hydrology review.",
+    )
+    mustRunAfter("runF4kHydrologyReviewPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-f4k-hydrology-review").asFile
+        check(directory.resolve("saves/f4k-hydrology-review/level.dat").isFile) {
+            "F4K hydrology review world is missing; run runF4kHydrologyReviewPrepare first or use launchF4KHydrologyReview."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("f4kHydrologyReviewPrepareVerify") {
+    group = "verification"
+    description = "Prepare and verify the persisted F4H/F4D hydrology review specimen."
+    dependsOn("runF4kHydrologyReviewPrepare")
+    doLast {
+        requireSkyforgeF4kHydrologyReviewPreparationPass()
+        println("F4K HYDROLOGY PREPARATION PASS: persisted exact F4H water heads are ready for human review.")
+    }
+}
+
+tasks.register("launchF4KHydrologyReview") {
+    group = "application"
+    description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
+    dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
 }
