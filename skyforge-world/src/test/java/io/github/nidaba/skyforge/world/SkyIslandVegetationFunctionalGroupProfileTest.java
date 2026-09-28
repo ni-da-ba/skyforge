@@ -141,6 +141,12 @@ final class SkyIslandVegetationFunctionalGroupProfileTest {
                 IllegalArgumentException.class,
                 () -> new SkyIslandFunctionalGroupStructuralAffinity(
                         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandFunctionalGroupStructuralAffinity(
+                        Double.MAX_VALUE,
+                        Double.MAX_VALUE,
+                        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
     }
 
     @Test
