@@ -65,11 +65,10 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority) {
         SkyIslandSemanticChannelReach semantic = route.semanticReach();
-        double startDischarge = startDischarge(semantic);
-        double endDischarge = endDischarge(semantic, startDischarge);
+        SemanticDischargeProfile dischargeProfile = semanticDischargeProfile(semantic);
         double maximumBankfullWidth =
                 2.0 * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                        descriptor.nominalRadius(), endDischarge);
+                        descriptor.nominalRadius(), dischargeProfile.maximumDischarge());
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
@@ -83,8 +82,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 network.planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION,
                 maximumBankfullWidth,
-                station -> bankfullHalfWidth(
-                        descriptor, startDischarge, endDischarge, station),
+                station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                        descriptor.nominalRadius(), dischargeProfile.atStation(station)),
                 (position, station, tangentX, tangentZ, halfWidth) -> {
                     SkyIslandChannelProfileKind kind =
                             SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
@@ -104,7 +103,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                                     position,
                                     halfWidth,
                                     SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
-                                            lerp(startDischarge, endDischarge, station)),
+                                            dischargeProfile.atStation(station)),
                                     clamp01(terrain.sample(position)),
                                     -tangentZ,
                                     tangentX,
@@ -141,28 +140,38 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         };
     }
 
-    private static double startDischarge(SkyIslandSemanticChannelReach semantic) {
-        return Math.max(
-                SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
-                semantic.profiles().getFirst().segment().relativeDischarge());
+    static double relativeDischargeAtStation(
+            SkyIslandSemanticChannelReach semantic, double station) {
+        Objects.requireNonNull(semantic, "semantic");
+        return semanticDischargeProfile(semantic).atStation(station);
     }
 
-    private static double endDischarge(
-            SkyIslandSemanticChannelReach semantic,
-            double startDischarge) {
-        return Math.max(
-                startDischarge,
-                semantic.profiles().getLast().segment().relativeDischarge());
-    }
-
-    private static double bankfullHalfWidth(
-            SkyIslandDescriptor descriptor,
-            double startDischarge,
-            double endDischarge,
-            double station) {
-        double discharge = lerp(startDischarge, endDischarge, station);
-        return SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                descriptor.nominalRadius(), discharge);
+    private static SemanticDischargeProfile semanticDischargeProfile(
+            SkyIslandSemanticChannelReach semantic) {
+        List<SkyIslandLocalPosition> guidance = semantic.guidancePoints();
+        double[] cumulativeDistance = cumulativeDistance(guidance);
+        double totalLength = cumulativeDistance[cumulativeDistance.length - 1];
+        if (!(totalLength > 0.0)) {
+            throw new IllegalArgumentException("semantic reach must have positive physical length");
+        }
+        double[] discharge = new double[semantic.profiles().size()];
+        double previous = SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE;
+        for (int i = 0; i < discharge.length; i++) {
+            double value = Math.max(
+                    SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
+                    semantic.profiles().get(i).segment().relativeDischarge());
+            if (value + 1.0e-12 < previous) {
+                throw new IllegalStateException(
+                        "semantic reach discharge must not decrease downstream");
+            }
+            discharge[i] = value;
+            previous = value;
+            if (!(cumulativeDistance[i + 1] > cumulativeDistance[i])) {
+                throw new IllegalStateException(
+                        "semantic reach profile segment must have positive physical length");
+            }
+        }
+        return new SemanticDischargeProfile(cumulativeDistance, totalLength, discharge);
     }
 
     private static SkyIslandHydraulicReachSkeleton sampleReach(
@@ -178,8 +187,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
 
         SkyIslandSemanticChannelReach semantic = route.semanticReach();
-        double startDischarge = startDischarge(semantic);
-        double endDischarge = endDischarge(semantic, startDischarge);
+        SemanticDischargeProfile dischargeProfile = semanticDischargeProfile(semantic);
 
         List<SkyIslandHydraulicGeometrySkeletonSample> samples =
                 new ArrayList<>(points.size());
@@ -188,7 +196,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
 
         for (int i = 0; i < points.size(); i++) {
             double station = cumulative[i] / pathLength;
-            double discharge = lerp(startDischarge, endDischarge, station);
+            double discharge = dischargeProfile.atStation(station);
             double width =
                     SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                             descriptor.nominalRadius(), discharge);
@@ -214,6 +222,38 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 pathLength,
                 maximumWidth,
                 maximumDepth);
+    }
+
+    private record SemanticDischargeProfile(
+            double[] cumulativeDistance, double totalLength, double[] dischargeAtSegmentStart) {
+        private double maximumDischarge() {
+            return dischargeAtSegmentStart[dischargeAtSegmentStart.length - 1];
+        }
+
+        private double atStation(double station) {
+            if (!Double.isFinite(station) || station < 0.0 || station > 1.0) {
+                throw new IllegalArgumentException("station must be finite and in [0, 1]");
+            }
+            double targetDistance = station * totalLength;
+            for (int i = 0; i < dischargeAtSegmentStart.length; i++) {
+                double startDistance = cumulativeDistance[i];
+                double endDistance = cumulativeDistance[i + 1];
+                if (targetDistance <= endDistance || i == dischargeAtSegmentStart.length - 1) {
+                    double startDischarge = dischargeAtSegmentStart[i];
+                    double endDischarge = i + 1 < dischargeAtSegmentStart.length
+                            ? dischargeAtSegmentStart[i + 1]
+                            : startDischarge;
+                    double fraction = Math.max(
+                            0.0,
+                            Math.min(
+                                    1.0,
+                                    (targetDistance - startDistance)
+                                            / (endDistance - startDistance)));
+                    return lerp(startDischarge, endDischarge, fraction);
+                }
+            }
+            throw new IllegalStateException("station escaped semantic discharge profile");
+        }
     }
 
     private static double[] cumulativeDistance(List<SkyIslandLocalPosition> points) {
