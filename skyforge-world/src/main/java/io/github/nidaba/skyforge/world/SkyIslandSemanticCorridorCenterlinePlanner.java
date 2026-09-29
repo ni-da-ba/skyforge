@@ -107,7 +107,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
                                     && (minimumBendRadius <= EPSILON
                                             || candidate.maximumCurvature() * minimumBendRadius
-                                                    <= 1.0 + EPSILON))) {
+                                                    <= 1.0 + EPSILON)))) {
                 break;
             }
         }
