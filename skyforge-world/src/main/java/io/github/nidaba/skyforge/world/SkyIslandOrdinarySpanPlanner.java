@@ -161,6 +161,70 @@ public final class SkyIslandOrdinarySpanPlanner {
                 descriptor, span, terrain, policy, planningSpacing));
     }
 
+    /**
+     * Reports whether a small local cross-section translation could improve an empty D2 envelope.
+     *
+     * <p>This is sensitivity evidence only. It does not check semantic-corridor, continuity,
+     * interiority, neighboring-station, or whole-route constraints and grants no rerouting authority.
+     */
+    private static String localCrossSectionProbe(
+            SkyIslandDescriptor descriptor,
+            SkyIslandChannelProfileKind profileKind,
+            SkyIslandHydraulicGeometrySkeletonSample sample,
+            Vector normal,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicProfileLimits limits) {
+        double baselineGap =
+                sampleHeadEnvelopeGap(
+                        descriptor, profileKind, sample, sample.position(), normal, terrain, limits);
+        double bestGap = baselineGap;
+        double bestOffset = 0.0;
+        for (int step = 1; step <= 2; step++) {
+            double offset = 0.25 * step * sample.bankfullHalfWidth();
+            for (double signedOffset : new double[] {-offset, offset}) {
+                SkyIslandLocalPosition candidate =
+                        new SkyIslandLocalPosition(
+                                sample.position().x() + normal.x() * signedOffset,
+                                sample.position().z() + normal.z() * signedOffset);
+                double gap =
+                        sampleHeadEnvelopeGap(
+                                descriptor, profileKind, sample, candidate, normal, terrain, limits);
+                if (gap < bestGap - EPSILON) {
+                    bestGap = gap;
+                    bestOffset = signedOffset;
+                }
+            }
+        }
+        return "offsetWorld="
+                + Double.toString(bestOffset)
+                + ",gapWorld="
+                + Double.toString(bestGap)
+                + ",scope=local-cross-section-only";
+    }
+
+    private static double sampleHeadEnvelopeGap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandChannelProfileKind profileKind,
+            SkyIslandHydraulicGeometrySkeletonSample sample,
+            SkyIslandLocalPosition position,
+            Vector normal,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicProfileLimits limits) {
+        SkyIslandHydraulicHeadEnvelope envelope =
+                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                        descriptor,
+                        profileKind,
+                        position,
+                        sample.bankfullHalfWidth(),
+                        sample.waterDepthPotential(),
+                        terrain.sample(position),
+                        normal.x(),
+                        normal.z(),
+                        terrain,
+                        limits);
+        return Math.max(0.0, envelope.lowerHead() - envelope.upperHead());
+    }
+
     private static SkyIslandOrdinarySpanOutcome solve(
             SkyIslandDescriptor descriptor,
             SkyIslandOrdinaryHydraulicSpan span,
@@ -238,11 +302,36 @@ public final class SkyIslandOrdinarySpanPlanner {
             }
 
             if (lower[i] > upper[i] + EPSILON) {
+                SkyIslandHydraulicGeometrySkeletonSample failed = samples.get(i);
                 return unsolved(
                         span,
                         SkyIslandOrdinarySpanStatus.INFEASIBLE,
                         Optional.empty(),
-                        "D2-derived pointwise head interval is empty at sample " + i);
+                        "D2-derived pointwise head interval is empty at sample "
+                                + i
+                                + " (stationFraction="
+                                + Double.toString(failed.stationFraction())
+                                + ", profile="
+                                + span.sampleProfileKinds().get(i).name()
+                                + ", x="
+                                + Double.toString(failed.position().x())
+                                + ", z="
+                                + Double.toString(failed.position().z())
+                                + ", lowerHeadWorld="
+                                + Double.toString(lower[i])
+                                + ", upperHeadWorld="
+                                + Double.toString(upper[i])
+                                + ", infeasibilityGapWorld="
+                                + Double.toString(lower[i] - upper[i])
+                                + ", localCrossSectionProbe="
+                                + localCrossSectionProbe(
+                                        descriptor,
+                                        span.sampleProfileKinds().get(i),
+                                        failed,
+                                        normal,
+                                        terrain,
+                                        limits)
+                                + ")");
             }
             if (lower[i] > upper[i]) {
                 double common = 0.5 * (lower[i] + upper[i]);

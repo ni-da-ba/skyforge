@@ -19,14 +19,22 @@ import java.util.Map;
 
 /** Fixed seed-stratified discovery evidence for retained open-water calibration. */
 public final class HydrologyRetainedBasinSeedStrataCorpusCli {
-    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v1";
-    public static final int EXPECTED_SPECIMEN_COUNT = 768;
+    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v5";
+    public static final int EXPECTED_SPECIMEN_COUNT = 22528;
     private static final int FIRST_KEY = 1;
-    private static final int LAST_KEY = 128;
+    private static final int LAST_KEY = 1024;
     private static final List<SeedStratum> SEEDS = List.of(
             new SeedStratum("seed-min", Long.MIN_VALUE),
             new SeedStratum("seed-zero", 0L),
-            new SeedStratum("seed-skyforge", 0x534B59464F524745L));
+            new SeedStratum("seed-skyforge", 0x534B59464F524745L),
+            new SeedStratum("seed-u64-midpoint-00", 0x1000000000000000L),
+            new SeedStratum("seed-u64-midpoint-01", 0x3000000000000000L),
+            new SeedStratum("seed-u64-midpoint-02", 0x5000000000000000L),
+            new SeedStratum("seed-u64-midpoint-03", 0x7000000000000000L),
+            new SeedStratum("seed-u64-midpoint-04", 0x9000000000000000L),
+            new SeedStratum("seed-u64-midpoint-05", 0xB000000000000000L),
+            new SeedStratum("seed-u64-midpoint-06", 0xD000000000000000L),
+            new SeedStratum("seed-u64-midpoint-07", 0xF000000000000000L));
     private static final List<Namespace> NAMESPACES = List.of(
             new Namespace("reference-8-81", 8L, 81L),
             new Namespace("reference-6-61", 6L, 61L));
@@ -47,7 +55,10 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                         + "catchment_fraction,relative_inflow,retention,saturation,persistence,basin_scale,"
                         + "area_world2,equivalent_diameter,max_depth_world,depth_to_diameter,"
                         + "max_shoreline_grade,spill_headroom_world,matched_terminal_reaches,"
-                        + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings\n");
+                        + "min_channel_datum_offset_world,max_channel_datum_offset_world,"
+                        + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings,"
+                        + "shoreline_perimeter_world,shoreline_isoperimetric_ratio,"
+                        + "closed_shoreline_loops,non_degree_two_shoreline_vertices\n");
         StringBuilder semantics = new StringBuilder(
                 "seed_id,world_seed_hex,namespace,province,cluster,island_key,sink_cell,kind,"
                         + "catchment_cell_count,catchment_fraction,relative_inflow,retention,saturation,"
@@ -139,7 +150,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
             }
         }
         if (specimenCount != EXPECTED_SPECIMEN_COUNT
-                || stratumCounts.values().stream().anyMatch(count -> count != 128)) {
+                || stratumCounts.values().stream().anyMatch(count -> count != 1024)) {
             throw new IllegalStateException("fixed seed-strata sample is incomplete");
         }
 
@@ -149,7 +160,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         Files.writeString(out.resolve("geometry-failures.csv"), failures, StandardCharsets.UTF_8);
         StringBuilder summary = new StringBuilder(
                 "metric,value\n"
-                        + "sample_design,3 seed strata x 2 fixed namespaces x 128 keys\n"
+                        + "sample_design,11 fixed seed strata x 2 fixed namespaces x 1024 keys\n"
                         + "specimens,").append(specimenCount).append('\n')
                 .append("pond_candidates,").append(pondCount).append('\n')
                 .append("lake_candidates,").append(lakeCount).append('\n')
@@ -164,14 +175,18 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         }
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), """
-                Retained open-water seed-strata discovery v1
+                Retained open-water seed-strata discovery v5
 
                 This is a deterministic candidate-discovery scan, not a prevalence estimate, basin
                 calibration, threshold change, terrain authority, or Minecraft authorization.
-                It holds the two existing reference identity namespaces fixed and varies only the
-                three canonical signed seed strata (minimum, zero, Skyforge) over island keys 1..128.
+                It holds the two existing reference identity namespaces and keys 1..1024 fixed. The seed set
+                contains three anchors (minimum, zero, Skyforge) and eight evenly spaced unsigned 64-bit
+                midpoint strata. This is deterministic candidate discovery, not a random sample.
                 Existing POND/LAKE classification is unchanged. Continuous E1 geometry diagnostics
-                are measured only for identities that yield an existing open-water candidate.
+                are measured only for identities that yield an existing open-water candidate. The
+                candidate manifest includes marching-squares shoreline perimeter, normalized
+                isoperimetric ratio, contour closure/topology diagnostics, and signed terminal
+                channel datum offsets; none of these measurements adds a calibrated threshold.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
     }
@@ -227,9 +242,15 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 .append(format(d.maximumShorelineGrade())).append(',')
                 .append(format(d.spillHeadroomWorldUnits())).append(',')
                 .append(d.matchedTerminalReachCount()).append(',')
+                .append(format(d.minimumTerminalChannelDatumOffsetWorldUnits())).append(',')
+                .append(format(d.maximumTerminalChannelDatumOffsetWorldUnits())).append(',')
                 .append(format(d.maximumChannelDatumMismatchWorldUnits())).append(',')
                 .append(d.reachesSearchBoundary()).append(',')
-                .append(d.shorelineCrossingCount()).append('\n');
+                .append(d.shorelineCrossingCount()).append(',')
+                .append(format(d.basin().shorelinePerimeterWorldUnits())).append(',')
+                .append(format(d.basin().shorelineIsoperimetricRatio())).append(',')
+                .append(d.basin().closedShorelineLoopCount()).append(',')
+                .append(d.basin().nonDegreeTwoShorelineVertexCount()).append('\n');
     }
 
     private static int count(

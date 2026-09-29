@@ -85,7 +85,7 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
                 new SkyIslandContinuousWaterbodyQualificationPolicy(limits, limits);
 
         SkyIslandContinuousWaterbodyDiagnostics unmatched =
-                copy(baseline, 0, 100.0, false, baseline.shorelineCrossingCount());
+                copy(baseline, 0, 0.0, false, baseline.shorelineCrossingCount());
         SkyIslandContinuousWaterbodyQualification result =
                 SkyIslandContinuousWaterbodyQualificationEvaluator.evaluate(unmatched, policy);
 
@@ -96,8 +96,7 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 609L);
         for (SkyIslandContinuousWaterbodyDiagnostics diagnostics :
                 SkyIslandContinuousWaterbodyDiagnosticsPlanner.measure(descriptor)) {
-            if (!diagnostics.reachesSearchBoundary()
-                    && diagnostics.shorelineCrossingCount() > 0) {
+            if (diagnostics.hasClosedNumericalShoreline()) {
                 return diagnostics;
             }
         }
@@ -110,6 +109,20 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
             double maximumChannelDatumMismatchWorldUnits,
             boolean reachesSearchBoundary,
             int shorelineCrossingCount) {
+        double minimumOffset;
+        double maximumOffset;
+        if (matchedTerminalReachCount == 0) {
+            minimumOffset = 0.0;
+            maximumOffset = 0.0;
+        } else if (matchedTerminalReachCount == baseline.matchedTerminalReachCount()
+                && maximumChannelDatumMismatchWorldUnits
+                        == baseline.maximumChannelDatumMismatchWorldUnits()) {
+            minimumOffset = baseline.minimumTerminalChannelDatumOffsetWorldUnits();
+            maximumOffset = baseline.maximumTerminalChannelDatumOffsetWorldUnits();
+        } else {
+            minimumOffset = maximumChannelDatumMismatchWorldUnits;
+            maximumOffset = maximumChannelDatumMismatchWorldUnits;
+        }
         return new SkyIslandContinuousWaterbodyDiagnostics(
                 baseline.basin(),
                 baseline.equivalentDiameter(),
@@ -118,6 +131,8 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
                 baseline.maximumShorelineGrade(),
                 baseline.spillHeadroomWorldUnits(),
                 matchedTerminalReachCount,
+                minimumOffset,
+                maximumOffset,
                 maximumChannelDatumMismatchWorldUnits,
                 reachesSearchBoundary,
                 shorelineCrossingCount);

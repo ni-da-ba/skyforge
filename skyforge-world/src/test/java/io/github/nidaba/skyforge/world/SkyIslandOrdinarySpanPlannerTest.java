@@ -29,6 +29,36 @@ class SkyIslandOrdinarySpanPlannerTest {
         assertTrue(primary.stream()
                 .allMatch(outcome ->
                         outcome.status() == SkyIslandOrdinarySpanStatus.INFEASIBLE));
+
+        var quantifiedEnvelopeFailures = primary.stream()
+                .filter(outcome ->
+                        outcome.diagnostic()
+                                .orElse("")
+                                .contains("infeasibilityGapWorld="))
+                .toList();
+        assertFalse(quantifiedEnvelopeFailures.isEmpty());
+        for (var outcome : quantifiedEnvelopeFailures) {
+            String diagnostic = outcome.diagnostic().orElseThrow();
+            assertTrue(diagnostic.contains("lowerHeadWorld="));
+            assertTrue(diagnostic.contains("upperHeadWorld="));
+            String marker = "infeasibilityGapWorld=";
+            String gapText = diagnostic.substring(diagnostic.indexOf(marker) + marker.length());
+            gapText = gapText.substring(0, gapText.indexOf(','));
+            double originalGap = Double.parseDouble(gapText);
+            assertTrue(originalGap > 0.0);
+
+            assertTrue(diagnostic.contains("localCrossSectionProbe=offsetWorld="));
+            assertTrue(diagnostic.contains(",scope=local-cross-section-only"));
+            String probeMarker = "localCrossSectionProbe=offsetWorld=";
+            String probe = diagnostic.substring(diagnostic.indexOf(probeMarker));
+            String probeGapMarker = ",gapWorld=";
+            String probeGapText =
+                    probe.substring(probe.indexOf(probeGapMarker) + probeGapMarker.length());
+            probeGapText = probeGapText.substring(0, probeGapText.indexOf(','));
+            double probeGap = Double.parseDouble(probeGapText);
+            assertTrue(probeGap >= 0.0 && probeGap <= originalGap + 1.0e-10);
+        }
+
         for (int i = 0; i + 1 < primary.size(); i++) {
             assertTrue(
                     primary.get(i).span().parentEndStationFraction()

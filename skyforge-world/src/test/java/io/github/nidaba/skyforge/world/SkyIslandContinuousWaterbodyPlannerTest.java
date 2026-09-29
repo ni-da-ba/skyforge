@@ -94,6 +94,25 @@ class SkyIslandContinuousWaterbodyPlannerTest {
         assertFalse(
                 basin.shorelineCrossings().isEmpty(),
                 "continuous open-water basin should expose interpolated contour crossings");
+        assertTrue(basin.hasClosedNumericalShoreline());
+        assertTrue(basin.closedShorelineLoopCount() >= 1);
+        assertEquals(0, basin.nonDegreeTwoShorelineVertexCount());
+        assertTrue(basin.shorelinePerimeterWorldUnits() > 0.0);
+        assertTrue(Double.isFinite(basin.shorelineIsoperimetricRatio()));
+        SkyIslandContinuousWaterbodyBasin openContour = new SkyIslandContinuousWaterbodyBasin(
+                basin.sourceCandidate(),
+                basin.waterSurfacePotential(),
+                basin.spillSurfacePotential(),
+                basin.sampleSpacing(),
+                basin.connectedSampleCount(),
+                basin.approximateArea(),
+                basin.maximumDepthPotential(),
+                basin.reachesSearchBoundary(),
+                basin.shorelineCrossings(),
+                basin.shorelinePerimeterWorldUnits(),
+                0,
+                2);
+        assertFalse(openContour.hasClosedNumericalShoreline());
         assertTrue(basin.sampleSpacing() < coarseSpacing);
         assertFalse(
                 basin.reachesSearchBoundary(),

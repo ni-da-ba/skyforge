@@ -60,19 +60,26 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
         }
 
         int matchedTerminalReachCount = 0;
-        double maximumChannelDatumMismatch = 0.0;
+        double minimumChannelDatumOffset = Double.POSITIVE_INFINITY;
+        double maximumChannelDatumOffset = Double.NEGATIVE_INFINITY;
         int sinkCell = basin.sourceCandidate().sinkCellIndex();
         for (SkyIslandHydraulicReachGeometry reach : hydraulics.reaches()) {
             if (reach.geomorphicRoute().semanticReach().endCellIndex() != sinkCell) {
                 continue;
             }
             matchedTerminalReachCount++;
-            double mismatch =
-                    Math.abs(reach.endWaterSurfacePotential() - basin.waterSurfacePotential())
+            double offset =
+                    (reach.endWaterSurfacePotential() - basin.waterSurfacePotential())
                             * descriptor.reliefBudget();
-            maximumChannelDatumMismatch =
-                    Math.max(maximumChannelDatumMismatch, mismatch);
+            minimumChannelDatumOffset = Math.min(minimumChannelDatumOffset, offset);
+            maximumChannelDatumOffset = Math.max(maximumChannelDatumOffset, offset);
         }
+        if (matchedTerminalReachCount == 0) {
+            minimumChannelDatumOffset = 0.0;
+            maximumChannelDatumOffset = 0.0;
+        }
+        double maximumChannelDatumMismatch =
+                Math.max(Math.abs(minimumChannelDatumOffset), Math.abs(maximumChannelDatumOffset));
 
         return new SkyIslandContinuousWaterbodyDiagnostics(
                 basin,
@@ -82,6 +89,8 @@ public final class SkyIslandContinuousWaterbodyDiagnosticsPlanner {
                 maximumShorelineGrade,
                 spillHeadroom,
                 matchedTerminalReachCount,
+                minimumChannelDatumOffset,
+                maximumChannelDatumOffset,
                 maximumChannelDatumMismatch,
                 basin.reachesSearchBoundary(),
                 basin.shorelineCrossings().size());

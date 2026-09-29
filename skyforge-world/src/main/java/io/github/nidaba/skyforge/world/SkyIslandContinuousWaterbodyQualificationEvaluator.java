@@ -28,7 +28,8 @@ public final class SkyIslandContinuousWaterbodyQualificationEvaluator {
             violations.add(
                     SkyIslandContinuousWaterbodyQualificationViolation.SEARCH_BOUNDARY_ESCAPE);
         }
-        if (diagnostics.shorelineCrossingCount() < limits.minimumShorelineCrossings()) {
+        if (!diagnostics.basin().hasClosedNumericalShoreline()
+                || diagnostics.shorelineCrossingCount() < limits.minimumShorelineCrossings()) {
             violations.add(
                     SkyIslandContinuousWaterbodyQualificationViolation.MISSING_SHORELINE);
         }
