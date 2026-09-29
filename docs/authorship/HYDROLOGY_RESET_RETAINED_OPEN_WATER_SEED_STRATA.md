@@ -33,6 +33,6 @@ Minecraft realization. A candidate can support a later fixed E1/E2 calibration c
 leaves the existing retained-open-water path fail-closed and makes a classifier/product decision
 explicit rather than silently weakening policy.
 
-The machine-readable output is hydrology-retained-basin-seed-strata-v3; semantics.csv records all retained-sink classifier inputs and outcomes. Candidate rows also include the E1 marching-squares perimeter, normalized isoperimetric ratio, and structural contour diagnostics. The
+The machine-readable output is hydrology-retained-basin-seed-strata-v4; semantics.csv records all retained-sink classifier inputs and outcomes. Candidate rows also include the E1 marching-squares perimeter, normalized isoperimetric ratio, structural contour diagnostics, and signed terminal channel datum offsets. The
 Hydrology Retained Basin Discovery workflow prints a compact summary and uploads the complete
 manifests.

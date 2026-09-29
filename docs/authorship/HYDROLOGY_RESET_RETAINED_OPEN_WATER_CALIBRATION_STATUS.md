@@ -39,8 +39,9 @@ This is a measured candidate, not a qualified basin. In particular, the large da
 explicit adverse evidence for the lake-609 channel transition; the discovery does not calibrate
 an acceptable mismatch limit or establish retained-water production authority.
 
-The follow-on E1 v3 corpus adds marching-squares shoreline perimeter, the normalized isoperimetric
-ratio P² / (4πA), and explicit contour-loop/topology measurements. These quantify sampled
+The follow-on E1 v4 corpus records marching-squares shoreline perimeter, the normalized isoperimetric
+ratio P² / (4πA), explicit contour-loop/topology measurements, and the signed range of exact terminal
+channel datum offsets from each basin water datum. These quantify sampled
 planform compactness and closure; they are diagnostics only, not calibrated rejection thresholds.
 
 ## Interpretation
