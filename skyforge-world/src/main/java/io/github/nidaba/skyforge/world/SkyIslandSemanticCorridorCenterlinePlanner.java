@@ -17,7 +17,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
     private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
-    private static final double[] D2_JOINT_STEP_FACTORS = {0.125, 0.25, 0.5};
+    private static final double[] D2_JOINT_STEP_FACTORS = {0.015625, 0.03125, 0.0625, 0.125};
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
