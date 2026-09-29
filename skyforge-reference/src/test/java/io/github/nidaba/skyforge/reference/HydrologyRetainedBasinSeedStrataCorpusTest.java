@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
@@ -37,7 +38,48 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
                     fields[3], fields[4], fields[5]));
         }
         assertEquals(6144, identities.size());
-        assertEquals(28, candidateLines.get(0).split(",", -1).length);
+        String[] candidateHeader = candidateLines.get(0).split(",", -1);
+        int matchedIndex = Arrays.asList(candidateHeader).indexOf("matched_terminal_reaches");
+        int minimumOffsetIndex =
+                Arrays.asList(candidateHeader).indexOf("min_channel_datum_offset_world");
+        int maximumOffsetIndex =
+                Arrays.asList(candidateHeader).indexOf("max_channel_datum_offset_world");
+        int mismatchIndex =
+                Arrays.asList(candidateHeader).indexOf("max_channel_datum_mismatch_world");
+        for (String line : candidateLines.subList(1, candidateLines.size())) {
+            String[] fields = line.split(",", -1);
+            int matched = Integer.parseInt(fields[matchedIndex]);
+            double minimum = Double.parseDouble(fields[minimumOffsetIndex]);
+            double maximum = Double.parseDouble(fields[maximumOffsetIndex]);
+            double mismatch = Double.parseDouble(fields[mismatchIndex]);
+            if (matched == 0) {
+                assertEquals(0.0, minimum);
+                assertEquals(0.0, maximum);
+                assertEquals(0.0, mismatch);
+            } else {
+                assertTrue(minimum <= maximum);
+                assertEquals(mismatch, Math.max(Math.abs(minimum), Math.abs(maximum)), 1.0e-8);
+            }
+        }
+        String lake609 = candidateLines.stream().skip(1)
+                .filter(line -> {
+                    String[] fields = line.split(",", -1);
+                    return fields[0].equals("seed-skyforge")
+                            && fields[2].equals("reference-8-81")
+                            && fields[5].equals("609")
+                            && fields[7].equals("lake");
+                })
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("fixed lake-609 candidate must be present"));
+        String[] lakeFields = lake609.split(",", -1);
+        double minimumLakeOffset = Double.parseDouble(lakeFields[minimumOffsetIndex]);
+        double maximumLakeOffset = Double.parseDouble(lakeFields[maximumOffsetIndex]);
+        double lakeMismatch = Double.parseDouble(lakeFields[mismatchIndex]);
+        assertEquals(1, Integer.parseInt(lakeFields[matchedIndex]));
+        assertTrue(Math.abs(minimumLakeOffset) > 0.0,
+                "the fixed exact terminal must expose its transition direction");
+        assertEquals(minimumLakeOffset, maximumLakeOffset, 1.0e-9);
+        assertEquals(lakeMismatch, Math.abs(minimumLakeOffset), 1.0e-8);
         assertEquals(15, semanticLines.get(0).split(",", -1).length);
         assertTrue(semanticLines.size() > 1, "retained-sink semantic classifications are recorded");
         assertTrue(summary.contains("stratum_seed-min/reference-8-81,1024"));
@@ -51,6 +93,7 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
         assertTrue(summary.contains("production_qualification,NOT_GRANTED"));
         assertTrue(readme.contains("not a prevalence estimate"));
         assertTrue(readme.contains("marching-squares shoreline perimeter"));
+        assertTrue(readme.contains("signed terminal"));
         assertTrue(Files.isRegularFile(out.resolve("geometry-failures.csv")));
     }
 }

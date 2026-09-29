@@ -18,7 +18,9 @@ For each POND/LAKE basin, E1 records:
 - maximum pre-hydrologic shoreline grade;
 - spill headroom between water datum and semantic spill surface;
 - exact semantic terminal-reach count at the retained sink;
-- maximum hydraulic terminal-datum mismatch against the basin water datum;
+- signed range of exact terminal-channel water datum offsets from the basin datum
+  (positive means the channel surface is higher; negative means lower);
+- maximum absolute hydraulic terminal-datum mismatch, retained as the E2 compatibility measure;
 - whether the sink-connected sublevel set escapes the padded search boundary;
 - shoreline crossing count, which remains a sampling diagnostic rather than a contour-shape measure;
 - marching-squares shoreline perimeter from the sampled water-level/interiority level set;

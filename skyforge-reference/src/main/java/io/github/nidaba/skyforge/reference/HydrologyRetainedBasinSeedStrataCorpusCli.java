@@ -19,7 +19,7 @@ import java.util.Map;
 
 /** Fixed seed-stratified discovery evidence for retained open-water calibration. */
 public final class HydrologyRetainedBasinSeedStrataCorpusCli {
-    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v3";
+    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v4";
     public static final int EXPECTED_SPECIMEN_COUNT = 6144;
     private static final int FIRST_KEY = 1;
     private static final int LAST_KEY = 1024;
@@ -47,6 +47,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                         + "catchment_fraction,relative_inflow,retention,saturation,persistence,basin_scale,"
                         + "area_world2,equivalent_diameter,max_depth_world,depth_to_diameter,"
                         + "max_shoreline_grade,spill_headroom_world,matched_terminal_reaches,"
+                        + "min_channel_datum_offset_world,max_channel_datum_offset_world,"
                         + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings,"
                         + "shoreline_perimeter_world,shoreline_isoperimetric_ratio,"
                         + "closed_shoreline_loops,non_degree_two_shoreline_vertices\n");
@@ -166,7 +167,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         }
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), """
-                Retained open-water seed-strata discovery v3
+                Retained open-water seed-strata discovery v4
 
                 This is a deterministic candidate-discovery scan, not a prevalence estimate, basin
                 calibration, threshold change, terrain authority, or Minecraft authorization.
@@ -174,9 +175,9 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 three canonical signed seed strata (minimum, zero, Skyforge) over island keys 1..1024.
                 Existing POND/LAKE classification is unchanged. Continuous E1 geometry diagnostics
                 are measured only for identities that yield an existing open-water candidate. The
-                candidate manifest adds a marching-squares shoreline perimeter, its normalized
-                isoperimetric ratio, and contour closure/topology diagnostics; these measurements
-                have no calibrated qualification threshold.
+                candidate manifest includes marching-squares shoreline perimeter, normalized
+                isoperimetric ratio, contour closure/topology diagnostics, and signed terminal
+                channel datum offsets; none of these measurements adds a calibrated threshold.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
     }
@@ -232,6 +233,8 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 .append(format(d.maximumShorelineGrade())).append(',')
                 .append(format(d.spillHeadroomWorldUnits())).append(',')
                 .append(d.matchedTerminalReachCount()).append(',')
+                .append(format(d.minimumTerminalChannelDatumOffsetWorldUnits())).append(',')
+                .append(format(d.maximumTerminalChannelDatumOffsetWorldUnits())).append(',')
                 .append(format(d.maximumChannelDatumMismatchWorldUnits())).append(',')
                 .append(d.reachesSearchBoundary()).append(',')
                 .append(d.shorelineCrossingCount()).append(',')
