@@ -238,11 +238,28 @@ public final class SkyIslandOrdinarySpanPlanner {
             }
 
             if (lower[i] > upper[i] + EPSILON) {
+                SkyIslandHydraulicGeometrySkeletonSample failed = samples.get(i);
                 return unsolved(
                         span,
                         SkyIslandOrdinarySpanStatus.INFEASIBLE,
                         Optional.empty(),
-                        "D2-derived pointwise head interval is empty at sample " + i);
+                        "D2-derived pointwise head interval is empty at sample "
+                                + i
+                                + " (stationFraction="
+                                + Double.toString(failed.stationFraction())
+                                + ", profile="
+                                + span.sampleProfileKinds().get(i).name()
+                                + ", x="
+                                + Double.toString(failed.position().x())
+                                + ", z="
+                                + Double.toString(failed.position().z())
+                                + ", lowerHeadWorld="
+                                + Double.toString(lower[i])
+                                + ", upperHeadWorld="
+                                + Double.toString(upper[i])
+                                + ", infeasibilityGapWorld="
+                                + Double.toString(lower[i] - upper[i])
+                                + ")");
             }
             if (lower[i] > upper[i]) {
                 double common = 0.5 * (lower[i] + upper[i]);
