@@ -143,12 +143,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
 
         SkyIslandSemanticChannelReach semantic = route.semanticReach();
-        double startDischarge = Math.max(
-                SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
-                semantic.profiles().getFirst().segment().relativeDischarge());
-        double endDischarge = Math.max(
-                startDischarge,
-                semantic.profiles().getLast().segment().relativeDischarge());
+        double startDischarge = startDischarge(semantic);
+        double endDischarge = endDischarge(semantic, startDischarge);
 
         List<SkyIslandHydraulicGeometrySkeletonSample> samples =
                 new ArrayList<>(points.size());
