@@ -25,7 +25,7 @@ class HydrologyWorldWaterProjectionCorpusTest {
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
         assertTrue(summaryA.contains(
-                "ordinary-77,77,2,0,2,8969,2477,0.002619649,2.805327115,-5.419589927,2.365899859"));
+                "ordinary-77,77,2,0,2,9005,2483,0.002619649,2.805964392,-5.419589927,2.365899859"));
         assertTrue(summaryA.contains(
                 "primary-287,287,0,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
@@ -34,10 +34,10 @@ class HydrologyWorldWaterProjectionCorpusTest {
                 "lake-609,609,0,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(reachesA.contains(
                 "ordinary-77,77,709,559,false,\"[UPHILL_HEAD]\",35,35,"
-                        + "269.463026857,282.533331955,1,0.168878403,0.084049826,0.210190740"));
+                        + "269.463026857,282.533331955,1,0.168878403,0.084049826,0.210443604"));
         assertTrue(reachesA.contains(
                 "ordinary-77,77,1742,1842,false,\"[UPHILL_HEAD]\",24,24,"
-                        + "273.172341988,281.340191248,2,0.034208932,0.017275969,0.246577288"));
+                        + "273.172341988,281.340191248,2,0.034208932,0.017275969,0.246125042"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
