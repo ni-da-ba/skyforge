@@ -111,7 +111,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         double peakDepth =
                 SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
         SkyIslandChannelProfileKind peakKind =
-                SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                SkyIslandHydraulicGeometrySkeletonPlanner.profileKindAtStation(
                         semantic, peakStation);
         SkyIslandGeomorphicQualificationClass peakClass =
                 peakKind == SkyIslandChannelProfileKind.ALLUVIAL
@@ -248,7 +248,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                     / length;
                     assertEquals(
                             semantic.profiles().get(i).kind(),
-                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            SkyIslandHydraulicGeometrySkeletonPlanner.profileKindAtStation(
                                     semantic, segmentMidpointStation));
                     if (i + 1 < semantic.profiles().size()) {
                         double nextDischarge = Math.max(
