@@ -668,9 +668,10 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
             Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
-            HydrologyMode hydrologyMode) {
+            HydrologyMode hydrologyMode,
+            SkyforgeAuthoredVisibleHydrologyAdapter.QualifiedHydrologyBinding qualifiedHydrologyBinding) {
         RuntimeBinding binding = new RuntimeBinding(
-                adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorizations, hydrologyMode);
+                adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorizations, hydrologyMode, null);
         if (!ACTIVE.compareAndSet(null, binding)) {
             throw new IllegalStateException("a Skyforge post-surface runtime binding is already installed");
         }
@@ -792,7 +793,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         Objects.requireNonNull(binding, "binding");
         if (binding.hydrologyMode() == HydrologyMode.QUALIFIED_ONLY) {
             SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
-                    chunk, binding.adapter(), binding.hydrologyAuthorizations());
+                    chunk, binding.adapter(), binding.qualifiedHydrologyBinding());
             return;
         }
         SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(chunk, binding.adapter());
@@ -840,6 +841,13 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                     && !hydrologyAuthorizations.isEmpty()) {
                 throw new IllegalArgumentException(
                         "legacy compatibility binding cannot carry qualified hydrology authorizations");
+            }
+            if (hydrologyMode == HydrologyMode.QUALIFIED_ONLY) {
+                qualifiedHydrologyBinding =
+                        SkyforgeAuthoredVisibleHydrologyAdapter.bindQualified(hydrologyAuthorizations);
+            } else if (qualifiedHydrologyBinding != null) {
+                throw new IllegalArgumentException(
+                        "legacy compatibility binding cannot carry a qualified hydrology projection");
             }
         }
     }
