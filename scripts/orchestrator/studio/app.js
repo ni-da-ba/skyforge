@@ -933,6 +933,29 @@
     }
   });
 
+  function loadLocalPair(terrainArtifact, terrainTitle, hydrologyArtifact, hydrologyTitle) {
+    const nextScene = window.SkyforgeStudioScene.adaptArtifact(terrainArtifact, {
+      binding: "UNBOUND_LOCAL",
+      artifactTitle: terrainTitle,
+      reviewAuthority: false,
+    });
+    const nextOverlay = window.SkyforgeStudioScene.adaptOverlayArtifact(
+      hydrologyArtifact,
+      nextScene,
+      {
+        binding: "UNBOUND_LOCAL",
+        artifactTitle: hydrologyTitle,
+        reviewAuthority: false,
+      }
+    );
+
+    setScene(nextScene);
+    setOverlay(nextOverlay);
+    $("source-status").textContent =
+      "Loaded " + terrainTitle + " with " + hydrologyTitle +
+      "; paired local diagnostics only, not review authority.";
+  }
+
   $("local-pair-files").addEventListener("change", async (event) => {
     const files = Array.from(event.target.files || []);
     if (files.length === 0) return;
@@ -959,32 +982,43 @@
         );
       }
 
-      const nextScene = window.SkyforgeStudioScene.adaptArtifact(terrainEntry.artifact, {
-        binding: "UNBOUND_LOCAL",
-        artifactTitle: terrainEntry.file.name,
-        reviewAuthority: false,
-      });
-      const nextOverlay = window.SkyforgeStudioScene.adaptOverlayArtifact(
+      loadLocalPair(
+        terrainEntry.artifact,
+        terrainEntry.file.name,
         hydrologyEntry.artifact,
-        nextScene,
-        {
-          binding: "UNBOUND_LOCAL",
-          artifactTitle: hydrologyEntry.file.name,
-          reviewAuthority: false,
-        }
+        hydrologyEntry.file.name
       );
-
-      setScene(nextScene);
-      setOverlay(nextOverlay);
-      $("source-status").textContent =
-        "Loaded " + terrainEntry.file.name + " with " + hydrologyEntry.file.name +
-        "; paired local diagnostics only, not review authority.";
     } catch (error) {
       $("source-status").textContent = String(error.message || error);
     } finally {
       event.target.value = "";
     }
   });
+
+  $("open-bundled-sample").addEventListener("click", () => {
+    const sample = window.SKYFORGE_STUDIO_SAMPLE;
+    if (!sample) {
+      $("source-status").textContent = "The included S2 specimen is unavailable.";
+      return;
+    }
+    try {
+      loadLocalPair(
+        sample.terrain,
+        "terrain-semantic-volume.json",
+        sample.hydrology,
+        "hydrology-semantic-layer.json"
+      );
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    }
+  });
+
+  function configureBundledSample() {
+    $("bundled-sample-callout").hidden = !(
+      window.SKYFORGE_STUDIO_SAMPLE?.terrain &&
+      window.SKYFORGE_STUDIO_SAMPLE?.hydrology
+    );
+  }
 
   $("load-overlay").addEventListener("click", () => {
     loadRegisteredOverlay().catch((error) => {
@@ -1107,6 +1141,7 @@
   window.addEventListener("resize", draw);
 
   showLocalMode();
+  configureBundledSample();
   if (token) {
     $("api-token").value = token;
   }

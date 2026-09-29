@@ -7,3 +7,6 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 .overlay-controls{margin-top:1rem;padding-top:.85rem;border-top:1px solid #263140}.overlay-controls h3{margin:0 0 .35rem;font-size:.82rem;color:#d7dee8}.overlay-controls .full-button{margin-top:.45rem}.overlay-controls p{margin:.55rem 0 0;overflow-wrap:anywhere}
 
 .hydrology-visual-controls{margin-top:1rem;padding-top:.85rem;border-top:1px solid #263140}.hydrology-visual-controls h3{margin:0 0 .35rem;font-size:.82rem;color:#d7dee8}.check-row{display:flex;align-items:center;gap:.45rem;margin:.55rem 0;color:#cbd5e1}.check-row input{width:auto;margin:0;accent-color:#4c9bd6}.hydrology-visual-controls p{margin:.6rem 0 0}
+
+.bundled-sample-callout{display:flex;align-items:center;justify-content:space-between;gap:1rem;margin:0 0 .9rem;padding:.85rem 1rem;border:1px solid #285c75;border-radius:8px;background:linear-gradient(110deg,#102733,#12202a)}.bundled-sample-callout strong{display:block;color:#d7f1ff;margin-bottom:.2rem}.bundled-sample-callout p{margin:0}.bundled-sample-callout button{flex:0 0 auto;background:#17617c;border-color:#3487a4}
+@media(max-width:650px){.bundled-sample-callout{align-items:stretch;flex-direction:column}.bundled-sample-callout button{width:100%}}
