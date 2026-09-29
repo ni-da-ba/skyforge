@@ -92,15 +92,14 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         for contract in (
             "SKYFORGE_STUDIO_WORLD_BRIEF",
             "SKYFORGE_STUDIO_BRIEF_LIBRARY",
-            "localStorage",
-            "world-brief-library-v1",
-            "exportWorldBrief",
-            "parseWorldBrief",
-            "generation-disabled-reason",
-            "A world-generation backend is not connected",
+            "window.localStorage",
+            "skyforge-studio-world-brief-library-v1",
+            "function exportBrief()",
+            "function parseWorldBrief(value)",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, app)
+        self.assertIn("This Studio preview has no generator connected", markup)
 
         for control in (
             'aria-label="Studio workspace"',
@@ -110,14 +109,14 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             'id="world-brief-title"',
             'id="world-brief-intent"',
             'id="world-brief-form"',
-            'id="world-brief-import"',
-            'id="world-brief-export"',
+            'id="world-brief-import-file"',
+            'id="world-brief-download"',
             'aria-live="polite"',
             'id="generation-disabled-reason"',
         ):
             with self.subTest(control=control):
                 self.assertIn(control, markup)
-        self.assertRegex(markup, r'<button[^>]*id="generate-world"[^>]*disabled')
+        self.assertRegex(markup, r'<button[^>]*disabled[^>]*aria-describedby="generation-disabled-reason"')
         self.assertIn("max-width: 850px", styles)
         self.assertIn("max-width: 600px", styles)
         self.assertIn(":focus-visible", styles)
