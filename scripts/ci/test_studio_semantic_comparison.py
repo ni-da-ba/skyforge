@@ -195,6 +195,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "function mergeWorldBriefLibraries(currentValue, importedValue)",
             "function parseWorldBrief(value)",
             "function flushPendingSave()",
+            "function removeWorldBriefFromLibrary(value, briefId)",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, app)
@@ -214,6 +215,8 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "Back up all saved briefs",
             "Import a brief or backup",
             "Download this brief",
+            'id="world-brief-delete"',
+            "Delete saved brief",
             'aria-live="polite"',
             'id="generation-disabled-reason"',
         ):
@@ -225,6 +228,9 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "Could not import this brief or library:",
             "skyforge-studio-brief-library.json",
             "Saved briefs could not be read; use Download this brief",
+            "Delete saved brief",
+            "from this browser?",
+            "window.SkyforgeStudioWorldBrief.removeBrief(library, selected.id)",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, app)
