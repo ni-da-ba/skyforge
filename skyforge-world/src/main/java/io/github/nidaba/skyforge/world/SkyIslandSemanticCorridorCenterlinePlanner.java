@@ -258,11 +258,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
                     for (int direction = -1; direction <= 1; direction += 2) {
-                        // Search across the semantic corridor at a coarse scale, then refine the
-                        // largest curvature-safe step. This permits coupled cross-section repair
-                        // without relaxing corridor, terrain, interiority, or bend constraints.
-                        double offset =
-                                Math.min(2.0 * halfWidth, semanticCorridorHalfWidth);
+                        double offset = 0.5 * halfWidth;
                         int backtracks = 0;
                         SkyIslandLocalPosition option =
                                 lateralOption(point, normal, direction, offset);
