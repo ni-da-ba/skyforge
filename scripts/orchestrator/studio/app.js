@@ -395,7 +395,17 @@
     $("comparison-delta-value").textContent = "—";
   }
 
+  function clearSampleProvenance() {
+    const panel = $("sample-provenance");
+    if (!panel) return;
+    panel.hidden = true;
+    $("provenance-note").textContent = "";
+    const fields = $("provenance-fields");
+    while (fields.firstChild) fields.removeChild(fields.firstChild);
+  }
+
   function clearInspectorValues() {
+    clearSampleProvenance();
     $("inspect-position").textContent = "click a sample";
     $("inspect-semantic").textContent = "—";
     $("inspect-vector").textContent = "—";
@@ -468,6 +478,93 @@
     panel.hidden = false;
   }
 
+  function renderSampleProvenance(sample) {
+    const panel = $("sample-provenance");
+    const fields = $("provenance-fields");
+    const note = $("provenance-note");
+    while (fields.firstChild) fields.removeChild(fields.firstChild);
+
+    function addField(label, value) {
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = value === null || value === undefined || value === ""
+        ? "Not recorded"
+        : String(value);
+      fields.append(term, description);
+    }
+
+    function addSource(prefix, source) {
+      if (!source) return;
+      addField(prefix, source.artifactTitle || source.artifactId || source.artifactKind);
+      addField(prefix + " kind", source.artifactKind);
+      addField(prefix + " artifact ID", source.artifactId);
+      addField(prefix + " source revision", source.sourceSha);
+      addField(prefix + " recorded digest", source.artifactDigest);
+      addField(prefix + " binding", source.binding);
+      addField(prefix + " review authority",
+        source.reviewAuthority ? "Artifact-bound" : "Unbound local diagnostic");
+    }
+
+    if (hydrologyComparison) {
+      addSource("Terrain source", scene.source);
+      addSource("Reference source", hydrologyComparison.comparison.referenceSource);
+      addSource("Candidate source", hydrologyComparison.comparison.candidateSource);
+      addField("Association token", hydrologyComparison.comparison.associationToken);
+    } else {
+      addSource("Scene source", scene.source);
+      if (overlay) addSource("Overlay source", overlay.source);
+    }
+
+    const coordinates = Array.isArray(sample.position)
+      ? "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]"
+      : null;
+    addField("Selected world position", coordinates);
+    if (Array.isArray(sample.grid)) {
+      addField("Sample grid coordinate", "[" + sample.grid.join(", ") + "]");
+    } else if (Array.isArray(sample.localPosition)) {
+      addField("Sample local coordinate",
+        "[" + sample.localPosition.map((value) => fmt(value, 1)).join(", ") + "]");
+    }
+    if (scene.coordinateSystem?.id) {
+      addField("Coordinate frame", scene.coordinateSystem.id);
+    }
+    if (scene.provider?.label) {
+      addField("Recorded provider", scene.provider.label +
+        (scene.provider.version ? " · " + scene.provider.version : ""));
+    }
+    if (overlay?.terrainSemanticSha256) {
+      addField("Bound terrain semantic digest", overlay.terrainSemanticSha256);
+    }
+    if (overlay?.binding?.worldFrame) {
+      addField("Recorded world frame", JSON.stringify(overlay.binding.worldFrame));
+    }
+
+    let sampleLineageRecorded = false;
+    if (sample.provenance && typeof sample.provenance === "object") {
+      for (const [key, value] of Object.entries(sample.provenance)) {
+        addField("Sample provenance · " + key, value);
+        sampleLineageRecorded = true;
+      }
+    }
+    if (sample.startCell !== undefined || sample.endCell !== undefined) {
+      if (sample.startCell !== undefined) addField("Recorded start cell", sample.startCell);
+      if (sample.endCell !== undefined) addField("Recorded end cell", sample.endCell);
+      sampleLineageRecorded = true;
+    }
+    if (sample.coverage) addField("Comparison coverage", sample.coverage);
+    if (sample.wetTransition) addField("Wet-state transition", sample.wetTransition);
+    if (!sampleLineageRecorded) {
+      addField("Sample-specific lineage", "Not recorded by this artifact.");
+    }
+
+    note.textContent = (scene.source.reviewAuthority
+      ? "Values shown here come from loaded artifact metadata."
+      : "Unbound local diagnostic. This view cannot satisfy an artifact-bound human gate.") +
+      " Missing lineage is shown as not recorded; Studio does not infer it.";
+    panel.hidden = false;
+  }
+
   function renderInspector(sample) {
     if (!scene) return;
     $("inspect-binding").textContent = scene.source.binding;
@@ -498,6 +595,7 @@
 
     clearInspectorValues();
     if (!sample) return;
+    renderSampleProvenance(sample);
 
     $("inspect-position").textContent =
       "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
