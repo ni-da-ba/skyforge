@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.world;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -150,6 +151,46 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
                 "D2-directed search must not regress the accepted C2 curvature-width bound");
         assertEquals(route.points().getFirst(), d2Directed.points().getFirst());
         assertEquals(route.points().getLast(), d2Directed.points().getLast());
+    }
+
+    @Test
+    void coupledWindowSearchFindsSmoothMoveBlockedByPointwiseCurvatureLimit() {
+        List<SkyIslandLocalPosition> points = new ArrayList<>();
+        for (int i = 0; i <= 20; i++) {
+            points.add(new SkyIslandLocalPosition(i, 0.0));
+        }
+        SkyIslandGeomorphicCandidateRoute route =
+                new SkyIslandGeomorphicCandidateRoute(
+                        points, 1.0, 20.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        List<SkyIslandLocalPosition> guidance =
+                List.of(points.getFirst(), points.getLast());
+        SkyIslandSemanticField terrain = ignored -> 0.5;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        SkyIslandCenterlineHeadEnvelopeGap gap =
+                (position, station, tangentX, tangentZ, halfWidth) ->
+                        Math.abs(position.z()) < 0.5 ? 1.0 : 0.0;
+
+        SkyIslandContinuousChannelCenterline first =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route, guidance, terrain, interiority,
+                        1.0, 1.0, 20.0, ignored -> 1.0, gap);
+        SkyIslandContinuousChannelCenterline second =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route, guidance, terrain, interiority,
+                        1.0, 1.0, 20.0, ignored -> 1.0, gap);
+
+        assertEquals(first, second);
+        assertEquals(points.getFirst(), first.points().getFirst());
+        assertEquals(points.getLast(), first.points().getLast());
+        assertTrue(
+                meanInteriorAbsoluteZ(first.points()) >= 0.25,
+                "a smooth coordinated move should improve the integrated head-gap objective");
+        assertTrue(
+                maximumCurvature(first.points()) * 20.0 <= 1.0 + 1.0e-6,
+                "the coupled move must preserve the hard curvature-width bound");
+        for (SkyIslandLocalPosition point : first.points()) {
+            assertTrue(Math.abs(point.z()) <= 1.0 + EPSILON);
+        }
     }
 
     private static double meanInteriorAbsoluteZ(List<SkyIslandLocalPosition> points) {
