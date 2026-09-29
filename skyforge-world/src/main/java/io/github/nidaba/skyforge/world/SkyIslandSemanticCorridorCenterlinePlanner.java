@@ -16,8 +16,6 @@ import java.util.function.DoubleUnaryOperator;
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
-    private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
-    private static final double[] D2_JOINT_STEP_FACTORS = {0.015625, 0.03125, 0.0625, 0.125};
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
@@ -172,39 +170,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
-        int restartSweeps = 0;
-        BlockMoveSearch blockSearch =
-                new BlockMoveSearch(best, best, 0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
-        if (headEnvelopeGap != null) {
-            blockSearch = refinePeakWithBlockMoves(
-                    searchRoute,
-                    semanticGuidance,
-                    best,
-                    terrain,
-                    interiority,
-                    semanticCorridorHalfWidth,
-                    minimumBendRadius,
-                    bankfullHalfWidthAtStation,
-                    headEnvelopeGap);
-            best = blockSearch.best();
-            if (!blockSearch.exploration().points().equals(best.points())) {
-                D2RestartSearch restart = refineD2FromSeed(
-                        searchRoute,
-                        semanticGuidance,
-                        blockSearch.exploration(),
-                        terrain,
-                        interiority,
-                        semanticCorridorHalfWidth,
-                        minimumBendRadius,
-                        bankfullHalfWidthAtStation,
-                        headEnvelopeGap);
-                restartSweeps = restart.sweeps();
-                if (restart.best().compareTo(best, minimumBendRadius) < 0) {
-                    best = restart.best();
-                }
-            }
-        }
-
         for (SkyIslandLocalPosition point : best.points()) {
             if (distanceToPolyline(point, semanticGuidance) > semanticCorridorHalfWidth + EPSILON) {
                 throw new IllegalStateException("relaxed centerline escaped semantic corridor");
@@ -229,15 +194,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
                 lateralCandidateGapImproving,
                 selectedLateralMoves, globalGapImprovementsBlockedByCurvature,
-                relaxationSweeps,
-                blockSearch.proposals(),
-                blockSearch.fieldAdmissible(),
-                blockSearch.curvatureAdmissible(),
-                blockSearch.objectiveImproving(),
-                blockSearch.selected(),
-                blockSearch.minimumCandidateMaximumGap(),
-                blockSearch.minimumCandidateIntegratedSquaredGap(),
-                restartSweeps);
+                relaxationSweeps);
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -358,183 +315,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
                 lateralCandidateGapImproving, selectedLateralMoves);
-    }
-
-    private static BlockMoveSearch refinePeakWithBlockMoves(
-            SkyIslandGeomorphicCandidateRoute searchRoute,
-            List<SkyIslandLocalPosition> semanticGuidance,
-            Candidate initial,
-            SkyIslandSemanticField terrain,
-            SkyIslandSemanticField interiority,
-            double semanticCorridorHalfWidth,
-            double minimumBendRadius,
-            DoubleUnaryOperator bankfullHalfWidthAtStation,
-            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
-        Candidate minimaxBest = initial;
-        Candidate exploration = initial;
-        long proposals = 0;
-        long fieldAdmissible = 0;
-        long curvatureAdmissible = 0;
-        long objectiveImproving = 0;
-        long selected = 0;
-        double minimumCandidateMaximumGap = Double.POSITIVE_INFINITY;
-        double minimumCandidateIntegratedSquaredGap = Double.POSITIVE_INFINITY;
-        double peakGapAllowance =
-                Math.max(EPSILON, initial.maximumHeadEnvelopeGap() * 0.005);
-        for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
-            Candidate nextExploration = exploration;
-            int peakIndex = exploration.maximumHeadEnvelopeGapIndex();
-            if (peakIndex <= 0 || peakIndex >= exploration.points().size() - 1) {
-                break;
-            }
-            double[] station = stations(exploration.points());
-            double halfWidth =
-                    bankfullHalfWidthAtStation.applyAsDouble(station[peakIndex]);
-            int[] indices = {peakIndex - 1, peakIndex, peakIndex + 1};
-            for (double stepFactor : D2_JOINT_STEP_FACTORS) {
-                double magnitude =
-                        Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
-                if (magnitude <= EPSILON) {
-                    continue;
-                }
-                for (int firstDirection = -1; firstDirection <= 1; firstDirection++) {
-                    for (int centerDirection = -1; centerDirection <= 1; centerDirection++) {
-                        for (int lastDirection = -1; lastDirection <= 1; lastDirection++) {
-                            if (firstDirection == 0
-                                    && centerDirection == 0
-                                    && lastDirection == 0) {
-                                continue;
-                            }
-                            proposals++;
-                            int[] directions = {
-                                firstDirection, centerDirection, lastDirection
-                            };
-                            List<SkyIslandLocalPosition> points =
-                                    new ArrayList<>(exploration.points());
-                            boolean admissible = true;
-                            for (int position = 0; position < indices.length; position++) {
-                                int direction = directions[position];
-                                if (direction == 0) {
-                                    continue;
-                                }
-                                int index = indices[position];
-                                if (index <= 0 || index >= points.size() - 1) {
-                                    admissible = false;
-                                    break;
-                                }
-                                Vector tangent = tangentAt(exploration.points(), index);
-                                SkyIslandLocalPosition original =
-                                        exploration.points().get(index);
-                                SkyIslandLocalPosition moved =
-                                        new SkyIslandLocalPosition(
-                                                original.x() - direction * tangent.z() * magnitude,
-                                                original.z() + direction * tangent.x() * magnitude);
-                                if (!admissibilityCheck(
-                                                moved,
-                                                searchRoute,
-                                                semanticGuidance,
-                                                terrain,
-                                                interiority,
-                                                semanticCorridorHalfWidth)
-                                        .allowed()) {
-                                    admissible = false;
-                                    break;
-                                }
-                                points.set(index, moved);
-                            }
-                            if (!admissible) {
-                                continue;
-                            }
-                            fieldAdmissible++;
-                            if (maximumCurvature(points) * minimumBendRadius
-                                    > 1.0 + EPSILON) {
-                                continue;
-                            }
-                            curvatureAdmissible++;
-                            Candidate candidate = evaluate(
-                                    searchRoute,
-                                    points,
-                                    headEnvelopeGap,
-                                    bankfullHalfWidthAtStation);
-                            minimumCandidateMaximumGap =
-                                    Math.min(
-                                            minimumCandidateMaximumGap,
-                                            candidate.maximumHeadEnvelopeGap());
-                            minimumCandidateIntegratedSquaredGap =
-                                    Math.min(
-                                            minimumCandidateIntegratedSquaredGap,
-                                            candidate.integratedSquaredHeadEnvelopeGap());
-                            if (candidate.compareTo(minimaxBest, minimumBendRadius) < 0) {
-                                minimaxBest = candidate;
-                            }
-                            double allowedMaximumGap =
-                                    minimaxBest.maximumHeadEnvelopeGap() + peakGapAllowance;
-                            if (candidate.maximumHeadEnvelopeGap() <= allowedMaximumGap
-                                    && candidate.integratedSquaredHeadEnvelopeGap()
-                                            < nextExploration.integratedSquaredHeadEnvelopeGap()
-                                                    - EPSILON) {
-                                objectiveImproving++;
-                                nextExploration = candidate;
-                            }
-                        }
-                    }
-                }
-            }
-            if (nextExploration.points().equals(exploration.points())) {
-                break;
-            }
-            exploration = nextExploration;
-            selected++;
-        }
-        return new BlockMoveSearch(
-                minimaxBest, exploration, proposals, fieldAdmissible, curvatureAdmissible,
-                objectiveImproving, selected,
-                minimumCandidateMaximumGap,
-                minimumCandidateIntegratedSquaredGap);
-    }
-
-    private static D2RestartSearch refineD2FromSeed(
-            SkyIslandGeomorphicCandidateRoute searchRoute,
-            List<SkyIslandLocalPosition> semanticGuidance,
-            Candidate initial,
-            SkyIslandSemanticField terrain,
-            SkyIslandSemanticField interiority,
-            double semanticCorridorHalfWidth,
-            double minimumBendRadius,
-            DoubleUnaryOperator bankfullHalfWidthAtStation,
-            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
-        List<SkyIslandLocalPosition> current = new ArrayList<>(initial.points());
-        Candidate best = initial;
-        int sweeps = 0;
-        for (int sweep = 0; sweep < MAXIMUM_D2_RELAXATION_SWEEPS; sweep++) {
-            sweeps++;
-            RelaxationStep step = relaxOnce(
-                    searchRoute,
-                    semanticGuidance,
-                    current,
-                    terrain,
-                    interiority,
-                    semanticCorridorHalfWidth,
-                    minimumBendRadius,
-                    bankfullHalfWidthAtStation,
-                    headEnvelopeGap);
-            List<SkyIslandLocalPosition> next = new ArrayList<>(step.points());
-            next.set(0, searchRoute.points().getFirst());
-            next.set(next.size() - 1, searchRoute.points().getLast());
-            Candidate candidate = evaluate(
-                    searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
-            if (candidate.compareTo(best, minimumBendRadius) < 0) {
-                best = candidate;
-            }
-            boolean unchanged = next.equals(current);
-            current = next;
-            if (unchanged
-                    || (candidate.maximumHeadEnvelopeGap() <= EPSILON
-                            && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON)) {
-                break;
-            }
-        }
-        return new D2RestartSearch(best, sweeps);
     }
 
     private static Candidate evaluate(
@@ -860,19 +640,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandContinuousChannelCenterline centerline,
             SearchDiagnostics diagnostics) {}
 
-    private record D2RestartSearch(Candidate best, int sweeps) {}
-
-    private record BlockMoveSearch(
-            Candidate best,
-            Candidate exploration,
-            long proposals,
-            long fieldAdmissible,
-            long curvatureAdmissible,
-            long objectiveImproving,
-            long selected,
-            double minimumCandidateMaximumGap,
-            double minimumCandidateIntegratedSquaredGap) {}
-
     record SearchDiagnostics(
             double initialMaximumHeadEnvelopeGap,
             int initialMaximumHeadEnvelopeGapIndex,
@@ -891,15 +658,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long lateralCandidateGapImproving,
             long selectedLateralMoves,
             long globalGapImprovementsBlockedByCurvature,
-            int relaxationSweeps,
-            long blockMoveProposals,
-            long blockMoveFieldAdmissible,
-            long blockMoveCurvatureAdmissible,
-            long blockMoveObjectiveImproving,
-            long selectedBlockMoves,
-            double minimumBlockCandidateMaximumGap,
-            double minimumBlockCandidateIntegratedSquaredGap,
-            int restartSweeps) {}
+            int relaxationSweeps) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
