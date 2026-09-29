@@ -101,7 +101,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 best = candidate;
                 break;
             }
-            if (headEnvelopeGap != null && unchanged) {
+            if (headEnvelopeGap != null
+                    && (unchanged
+                            || (candidate.maximumHeadEnvelopeGap() <= EPSILON
+                                    && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
+                                    && (minimumBendRadius <= EPSILON
+                                            || candidate.maximumCurvature() * minimumBendRadius
+                                                    <= 1.0 + EPSILON))) {
+                best = candidate;
                 break;
             }
         }
