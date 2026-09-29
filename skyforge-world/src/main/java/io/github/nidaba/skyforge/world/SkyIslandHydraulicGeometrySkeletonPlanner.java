@@ -41,23 +41,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             throw new IllegalArgumentException("geomorphic network descriptor must match skeleton descriptor");
         }
 
-        double semanticCorridorHalfWidth =
-                network.planningSpacing()
-                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
         List<SkyIslandHydraulicReachSkeleton> reaches = new ArrayList<>(network.routes().size());
 
         for (SkyIslandGeomorphicReachRoute route : network.routes()) {
-            SkyIslandSemanticChannelReach semantic = route.semanticReach();
-            double startDischarge = startDischarge(semantic);
-            double endDischarge = endDischarge(semantic, startDischarge);
-            double maximumBankfullWidth =
-                    2.0
-                            * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                    descriptor.nominalRadius(), endDischarge);
-            SkyIslandGeomorphicQualificationPolicy policy =
-                    SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
-            Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
-                    singleOrdinaryProfileKind(semantic);
             CenterlineRefinement refinement =
                     refineCenterline(descriptor, network, route, terrain, interiority);
             reaches.add(sampleReach(descriptor, terrain, route, refinement.centerline()));
