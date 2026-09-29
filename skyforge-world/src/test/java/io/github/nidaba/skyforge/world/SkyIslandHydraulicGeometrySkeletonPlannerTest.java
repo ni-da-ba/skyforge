@@ -96,6 +96,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " corridorRejected=" + d.lateralCandidateCorridorRejected()
                         + " terrainRejected=" + d.lateralCandidateTerrainRejected()
                         + " interiorityRejected=" + d.lateralCandidateInteriorityRejected()
+                        + " curvatureRejected=" + d.lateralCandidateCurvatureRejected()
                         + " gapImproving=" + d.lateralCandidateGapImproving()
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
