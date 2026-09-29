@@ -100,11 +100,19 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " gapImproving=" + d.lateralCandidateGapImproving()
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
+                        + " sweeps=" + d.relaxationSweeps()
                         + System.lineSeparator();
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
         Files.createDirectories(report.getParent());
         Files.writeString(report, summary);
         assertTrue(d.lateralCandidateProposals() > 0);
+        assertTrue(
+                d.finalMaximumHeadEnvelopeGap()
+                        <= d.initialMaximumHeadEnvelopeGap() + EPSILON);
+        assertTrue(
+                d.finalIntegratedSquaredHeadEnvelopeGap()
+                        < d.initialIntegratedSquaredHeadEnvelopeGap(),
+                summary);
         assertTrue(d.finalMaximumHeadEnvelopeGap() >= 0.0);
     }
 
