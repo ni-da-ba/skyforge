@@ -46,7 +46,9 @@ assert.equal(brief.parseLibrary(brief.serializeLibrary(library)).active_brief_id
 assert.equal(brief.parseLibrary(brief.serializeLibrary(brief.createLibrary())).briefs.length, 0);
 const restored = brief.mergeLibraries(brief.createLibrary([first]), library);
 assert.equal(restored.briefs.length, 2);
-assert.equal(restored.active_brief_id, second.id);
+assert.equal(restored.active_brief_id, first.id, "importing a backup keeps the current brief selected");
+const restoredIntoEmpty = brief.mergeLibraries(brief.createLibrary(), library);
+assert.equal(restoredIntoEmpty.active_brief_id, second.id, "an empty workspace restores the backup selection");
 assert.equal(brief.mergeLibraries(restored, library).briefs.length, 2, "re-importing a backup is idempotent");
 const changedFirst = brief.create(
   first.id,

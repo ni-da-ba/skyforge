@@ -118,9 +118,9 @@
       byId.set(brief.id, brief);
     }
 
-    const activeBriefId = imported.active_brief_id && byId.has(imported.active_brief_id)
-      ? imported.active_brief_id
-      : current.active_brief_id;
+    const activeBriefId = current.active_brief_id && byId.has(current.active_brief_id)
+      ? current.active_brief_id
+      : imported.active_brief_id;
     return createWorldBriefLibrary(mergedBriefs, activeBriefId);
   }
 
