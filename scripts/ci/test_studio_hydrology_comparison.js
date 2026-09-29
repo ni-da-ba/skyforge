@@ -155,6 +155,7 @@ const fieldCandidate = layer(candidate.causeSamples, {
   fieldSamples: [
     fieldSample(0, {
       position: [100, 6, 200],
+      targetUpperY: 6,
       waterPosition: [100, 5, 200],
       wet: true,
       waterSurfaceY: 5,

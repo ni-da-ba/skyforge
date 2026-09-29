@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - studio/hydrology-comparison
+      - studio/local-world-brief
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"

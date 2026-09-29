@@ -183,6 +183,19 @@ Bind semantic and backend-specific artifacts to the same specimen identity and e
 
 This is the stage expected to make Authorship-vs-Implementation diagnosis substantially cheaper.
 
+### Early application workflow — local world briefs
+
+Studio may let users capture world intent before an evaluator or realization backend is connected.
+The first brief workflow is a browser-local workspace: drafts can be edited, saved in browser storage,
+and exported or imported as JSON. They are workspace notes only. They are not semantic artifacts,
+evaluator inputs, registered evidence, or human-review evidence, and saving/exporting a brief does
+not imply generation or evaluation.
+
+The interface must make the missing generation backend explicit and preserve a clear connection
+point for a future backend-neutral service. This workflow does not define world semantics, alter the
+semantic scene contract, or claim a generated world exists. When a real generator is added, its
+request and response contracts must be established by the owning lane.
+
 ### Later — provenance and authoring
 
 Once read-only inspection contracts are stable:

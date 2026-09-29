@@ -24,8 +24,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "hydrology comparison cause sample counts do not match",
             "candidate hydrology comparison is missing cause sample",
             "hydrology comparison cause coordinates do not match",
-            "candidate hydrology comparison contains duplicate field samples",
-            "reference hydrology comparison contains duplicate field samples",
+            "hydrology comparison contains duplicate field samples",
             "hydrology comparison field coordinates do not match",
             "hydrology comparison produced a non-finite ",
             "HYDROLOGY_FIELD_COMPARISON_SAMPLE",
@@ -82,6 +81,57 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("PASS Studio hydrology candidate comparison behavior", result.stdout)
+
+
+    def test_world_brief_workspace_is_local_and_backend_neutral(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
+
+        for contract in (
+            "SKYFORGE_STUDIO_WORLD_BRIEF",
+            "SKYFORGE_STUDIO_BRIEF_LIBRARY",
+            "window.localStorage",
+            "skyforge-studio-world-brief-library-v1",
+            "function exportBrief()",
+            "function parseWorldBrief(value)",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, app)
+        self.assertIn("This Studio preview has no generator connected", markup)
+
+        for control in (
+            'aria-label="Studio workspace"',
+            'data-workspace-view="brief"',
+            'data-workspace-view="inspect"',
+            'id="world-brief-library"',
+            'id="world-brief-title"',
+            'id="world-brief-intent"',
+            'id="world-brief-form"',
+            'id="world-brief-import-file"',
+            'id="world-brief-download"',
+            'aria-live="polite"',
+            'id="generation-disabled-reason"',
+        ):
+            with self.subTest(control=control):
+                self.assertIn(control, markup)
+        self.assertRegex(markup, r'<button[^>]*disabled[^>]*aria-describedby="generation-disabled-reason"')
+        self.assertIn("@media(max-width:850px)", styles)
+        self.assertIn("@media(max-width:600px)", styles)
+        self.assertIn(":focus-visible", styles)
+        self.assertIn(".world-brief-view[hidden]{display:none}", styles)
+
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_world_brief.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio local world brief document behavior", result.stdout)
 
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")

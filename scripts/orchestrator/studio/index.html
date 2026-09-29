@@ -13,7 +13,7 @@
   <header class="topbar">
     <div>
       <h1>Skyforge Studio</h1>
-      <p>Backend-neutral semantic inspection</p>
+      <p>Create local world briefs. Inspect semantic artifacts.</p>
     </div>
     <div class="top-actions">
       <a id="console-link" class="secondary-link" href="/console" hidden>Operations Console</a>
@@ -25,7 +25,7 @@
     <section id="auth-panel" class="panel auth-panel">
       <div>
         <h2>Studio access</h2>
-        <p>Local JSON diagnostics work without connecting. Connect only to browse registered artifacts. Studio is read-only.</p>
+        <p>World briefs and local JSON diagnostics work without connecting. Connect to browse registered artifacts.</p>
       </div>
       <form id="auth-form">
         <label for="api-token">Development API token</label>
@@ -36,6 +36,72 @@
         </div>
       </form>
       <p id="auth-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <nav class="workspace-nav" aria-label="Studio workspace">
+      <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="true">Inspect semantics</button>
+      <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
+    </nav>
+
+    <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">WORLD INTENT · LOCAL DRAFT</p>
+          <h2 id="world-brief-heading">Start with the world you imagine</h2>
+          <p class="muted">Describe it in your own words. Studio keeps drafts in this browser while generation services are being connected.</p>
+        </div>
+        <span class="pill warn">Not evaluated</span>
+      </div>
+
+      <div class="brief-layout">
+        <form id="world-brief-form" class="panel brief-editor">
+          <div class="section-heading">
+            <h3>Your world brief</h3>
+            <span id="world-brief-state" class="pill warn">Local draft</span>
+          </div>
+          <label for="world-brief-library">Your saved briefs</label>
+          <div class="row">
+            <select id="world-brief-library" aria-label="Choose a saved world brief"></select>
+            <button id="world-brief-new" type="button" class="secondary">New brief</button>
+          </div>
+
+          <label for="world-brief-title">World name</label>
+          <input id="world-brief-title" name="title" maxlength="120" value="Untitled world" autocomplete="off" required>
+
+          <label for="world-brief-intent">Describe the world you want</label>
+          <textarea id="world-brief-intent" name="intent" maxlength="8000" rows="12" placeholder="For example: a chain of wind-carved islands above a deep cloud sea, with cold high ridges and sheltered green valleys."></textarea>
+          <p class="small muted">Use any words that matter to you. This is a starting brief, not a fixed world schema.</p>
+
+          <div class="brief-actions">
+            <button type="submit">Save draft now</button>
+            <button id="world-brief-download" type="button" class="secondary">Download JSON</button>
+            <button id="world-brief-import-button" type="button" class="secondary">Import JSON</button>
+            <input id="world-brief-import-file" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p id="world-brief-status" class="small muted" aria-live="polite"></p>
+          <p id="world-brief-count" class="small muted"></p>
+        </form>
+
+        <aside class="panel backend-status" aria-labelledby="generation-status-heading">
+          <p class="eyebrow">BACKEND CONNECTION</p>
+          <div class="section-heading">
+            <h3 id="generation-status-heading">World generation</h3>
+            <span class="pill warn">Not connected</span>
+          </div>
+          <p class="muted">This Studio preview has no generator connected. Your brief stays in this browser; it is not sent to a service, evaluated, or turned into a world.</p>
+          <button type="button" class="full-button" disabled aria-describedby="generation-disabled-reason">Generate world</button>
+          <p id="generation-disabled-reason" class="small muted">Generation will be enabled when a semantic evaluator and a realization backend are connected.</p>
+          <div class="backend-next">
+            <h4>What comes next</h4>
+            <ol>
+              <li>Connect a world-semantics evaluator.</li>
+              <li>Review its exact semantic artifacts in the inspection workspace.</li>
+              <li>Choose an available realization backend when one is ready.</li>
+            </ol>
+          </div>
+          <p class="small muted">Local briefs are Studio workspace documents, not semantic artifacts or human-review evidence.</p>
+        </aside>
+      </div>
     </section>
 
     <section id="studio-content">

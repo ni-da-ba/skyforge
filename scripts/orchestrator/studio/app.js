@@ -11,6 +11,107 @@
     DEEP_MASS: "#594c44",
   });
 
+  // BEGIN STUDIO WORLD BRIEF DOCUMENT CONTRACT
+  const WORLD_BRIEF_DOCUMENT_TYPE = "SKYFORGE_STUDIO_WORLD_BRIEF";
+  const WORLD_BRIEF_LIBRARY_TYPE = "SKYFORGE_STUDIO_BRIEF_LIBRARY";
+  const WORLD_BRIEF_FORMAT_VERSION = 1;
+  const WORLD_BRIEF_MAX_TITLE_LENGTH = 120;
+  const WORLD_BRIEF_MAX_INTENT_LENGTH = 8000;
+  const WORLD_BRIEF_MAX_LIBRARY_SIZE = 100;
+
+  function canonicalWorldBriefTimestamp(value, label) {
+    if (typeof value !== "string" || !Number.isFinite(Date.parse(value))) {
+      throw new Error(label + " must be a valid timestamp");
+    }
+    return new Date(value).toISOString();
+  }
+
+  function createWorldBrief(id, title, intent, createdAt, updatedAt) {
+    if (typeof id !== "string" || !/^[a-zA-Z0-9-]{8,80}$/.test(id)) throw new Error("world brief id is invalid");
+    if (typeof title !== "string" || !title.trim()) throw new Error("world brief title is required");
+    const normalizedTitle = title.trim();
+    if (normalizedTitle.length > WORLD_BRIEF_MAX_TITLE_LENGTH) {
+      throw new Error("world brief title must be " + WORLD_BRIEF_MAX_TITLE_LENGTH + " characters or fewer");
+    }
+    if (typeof intent !== "string") throw new Error("world brief intent must be text");
+    if (intent.length > WORLD_BRIEF_MAX_INTENT_LENGTH) {
+      throw new Error("world brief intent must be " + WORLD_BRIEF_MAX_INTENT_LENGTH + " characters or fewer");
+    }
+    return Object.freeze({
+      document_type: WORLD_BRIEF_DOCUMENT_TYPE,
+      format_version: WORLD_BRIEF_FORMAT_VERSION,
+      id,
+      title: normalizedTitle,
+      intent,
+      created_at: canonicalWorldBriefTimestamp(createdAt, "world brief created_at"),
+      updated_at: canonicalWorldBriefTimestamp(updatedAt, "world brief updated_at"),
+    });
+  }
+
+  function parseWorldBrief(value) {
+    const document = typeof value === "string" ? JSON.parse(value) : value;
+    if (!document || typeof document !== "object" || Array.isArray(document)) {
+      throw new Error("world brief must be a JSON object");
+    }
+    if (document.document_type !== WORLD_BRIEF_DOCUMENT_TYPE) throw new Error("file is not a Skyforge Studio world brief");
+    if (document.format_version !== WORLD_BRIEF_FORMAT_VERSION) throw new Error("unsupported world brief format version");
+    const allowed = new Set(["document_type", "format_version", "id", "title", "intent", "created_at", "updated_at"]);
+    if (Object.keys(document).some((key) => !allowed.has(key))) throw new Error("world brief contains unsupported fields");
+    return createWorldBrief(document.id, document.title, document.intent, document.created_at, document.updated_at);
+  }
+
+  function createWorldBriefLibrary(briefs = [], activeBriefId = null) {
+    if (!Array.isArray(briefs) || briefs.length > WORLD_BRIEF_MAX_LIBRARY_SIZE) {
+      throw new Error("world brief library has an invalid number of drafts");
+    }
+    const parsedBriefs = briefs.map((brief) => parseWorldBrief(brief));
+    const ids = new Set(parsedBriefs.map((brief) => brief.id));
+    if (ids.size !== parsedBriefs.length) throw new Error("world brief library contains duplicate draft ids");
+    if (activeBriefId !== null && (typeof activeBriefId !== "string" || !ids.has(activeBriefId))) {
+      throw new Error("world brief library active draft does not exist");
+    }
+    return Object.freeze({
+      document_type: WORLD_BRIEF_LIBRARY_TYPE,
+      format_version: WORLD_BRIEF_FORMAT_VERSION,
+      active_brief_id: activeBriefId,
+      briefs: Object.freeze(parsedBriefs),
+    });
+  }
+
+  function parseWorldBriefLibrary(value) {
+    const library = typeof value === "string" ? JSON.parse(value) : value;
+    if (!library || typeof library !== "object" || Array.isArray(library)) throw new Error("saved world brief library must be a JSON object");
+    if (library.document_type !== WORLD_BRIEF_LIBRARY_TYPE) throw new Error("saved browser data is not a Skyforge Studio brief library");
+    if (library.format_version !== WORLD_BRIEF_FORMAT_VERSION) throw new Error("unsupported saved world brief library version");
+    const required = ["document_type", "format_version", "active_brief_id", "briefs"];
+    if (required.some((key) => !Object.prototype.hasOwnProperty.call(library, key))) {
+      throw new Error("saved world brief library is missing required fields");
+    }
+    const allowed = new Set(required);
+    if (Object.keys(library).some((key) => !allowed.has(key))) throw new Error("saved world brief library contains unsupported fields");
+    return createWorldBriefLibrary(library.briefs, library.active_brief_id);
+  }
+
+  function serializeWorldBrief(value) {
+    return JSON.stringify(parseWorldBrief(value), null, 2) + "\n";
+  }
+
+  function serializeWorldBriefLibrary(value) {
+    return JSON.stringify(parseWorldBriefLibrary(value), null, 2);
+  }
+
+  window.SkyforgeStudioWorldBrief = Object.freeze({
+    create: createWorldBrief,
+    parse: parseWorldBrief,
+    serialize: serializeWorldBrief,
+    createLibrary: createWorldBriefLibrary,
+    parseLibrary: parseWorldBriefLibrary,
+    serializeLibrary: serializeWorldBriefLibrary,
+    documentType: WORLD_BRIEF_DOCUMENT_TYPE,
+    libraryType: WORLD_BRIEF_LIBRARY_TYPE,
+  });
+  // END STUDIO WORLD BRIEF DOCUMENT CONTRACT
+
   function readStoredToken() {
     try {
       return window.sessionStorage?.getItem(TOKEN_KEY) || "";
@@ -33,10 +134,26 @@
   let lastX = 0;
   let lastY = 0;
   let playback = null;
+  let studioWorkspaceView = "inspect";
 
   const $ = (id) => document.getElementById(id);
   const canvas = $("viewport");
   const ctx = canvas.getContext("2d");
+
+  function syncWorkspaceVisibility() {
+    $("studio-content").hidden = studioWorkspaceView !== "inspect";
+    $("world-brief-view").hidden = studioWorkspaceView !== "brief";
+    for (const button of document.querySelectorAll("[data-workspace-view]")) {
+      button.setAttribute("aria-pressed", String(button.dataset.workspaceView === studioWorkspaceView));
+    }
+  }
+
+  function selectWorkspaceView(view) {
+    if (view !== "inspect" && view !== "brief") return;
+    studioWorkspaceView = view;
+    syncWorkspaceVisibility();
+    if (view === "inspect") window.requestAnimationFrame(() => { resizeCanvas(); draw(); });
+  }
 
   function fmt(value, digits = 3) {
     return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
@@ -67,7 +184,7 @@
 
   function showLocalMode() {
     $("auth-panel").hidden = false;
-    $("studio-content").hidden = false;
+    syncWorkspaceVisibility();
     $("registered-artifact-source").hidden = true;
     $("registered-overlay-source").hidden = true;
     $("registered-comparison-source").hidden = true;
@@ -77,7 +194,7 @@
 
   function showConnectedMode() {
     $("auth-panel").hidden = true;
-    $("studio-content").hidden = false;
+    syncWorkspaceVisibility();
     $("registered-artifact-source").hidden = false;
     $("registered-overlay-source").hidden = false;
     $("registered-comparison-source").hidden = false;
@@ -1322,6 +1439,193 @@
     );
   }
 
+  function initializeWorldBrief() {
+    const storageKey = "skyforge-studio-world-brief-library-v1";
+    const titleInput = $("world-brief-title");
+    const intentInput = $("world-brief-intent");
+    const librarySelect = $("world-brief-library");
+    const form = $("world-brief-form");
+    const statePill = $("world-brief-state");
+    const status = $("world-brief-status");
+    const savedBriefs = $("world-brief-count");
+    let library = window.SkyforgeStudioWorldBrief.createLibrary();
+    let activeBriefId = null;
+    let isDirty = false;
+    let storageAvailable = true;
+    let saveTimer = null;
+
+    function newId() {
+      if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+      return "brief-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 12);
+    }
+
+    function setStatus(message, saved = false, severity = "muted") {
+      status.textContent = message;
+      statePill.textContent = saved ? "Saved locally" : (isDirty ? "Unsaved changes" : "Local draft");
+      statePill.className = "pill " + (saved ? "good" : "warn");
+      status.dataset.severity = severity;
+      savedBriefs.textContent = library.briefs.length === 1 ? "1 saved brief in this browser" :
+        library.briefs.length + " saved briefs in this browser";
+    }
+
+    function refreshLibrarySelect() {
+      while (librarySelect.firstChild) librarySelect.removeChild(librarySelect.firstChild);
+      const empty = document.createElement("option");
+      empty.value = "";
+      empty.textContent = "New brief";
+      librarySelect.append(empty);
+      for (const brief of library.briefs) {
+        const option = document.createElement("option");
+        option.value = brief.id;
+        option.textContent = brief.title;
+        librarySelect.append(option);
+      }
+      librarySelect.value = activeBriefId || "";
+    }
+
+    function loadBrief(brief) {
+      activeBriefId = brief?.id || null;
+      titleInput.value = brief?.title || "Untitled world";
+      intentInput.value = brief?.intent || "";
+      isDirty = false;
+      refreshLibrarySelect();
+      setStatus(brief
+        ? "Saved in this browser. It has not been sent to a generator."
+        : "This brief stays in this browser. It is not evaluated or sent to a service.",
+        Boolean(brief));
+    }
+
+    function readLibrary() {
+      try {
+        const storage = window.localStorage;
+        if (!storage) throw new Error("browser storage is unavailable");
+        const raw = storage.getItem(storageKey);
+        if (!raw) { loadBrief(null); return; }
+        library = window.SkyforgeStudioWorldBrief.parseLibrary(raw);
+        const active = library.briefs.find((brief) => brief.id === library.active_brief_id) || null;
+        loadBrief(active);
+      } catch (error) {
+        storageAvailable = false;
+        loadBrief(null);
+        setStatus("Saved briefs could not be read (" + String(error.message || error) +
+          "). You can still download a JSON copy.", false, "error");
+      }
+    }
+
+    function saveCurrentBrief(force = false) {
+      if (!isDirty && !force) return true;
+      if (!storageAvailable) {
+        setStatus("Browser storage is unavailable. You can still download this brief as JSON.", false, "error");
+        return false;
+      }
+      try {
+        const existing = library.briefs.find((brief) => brief.id === activeBriefId) || null;
+        const now = new Date().toISOString();
+        const draft = window.SkyforgeStudioWorldBrief.create(activeBriefId || newId(),
+          titleInput.value, intentInput.value, existing?.created_at || now, now);
+        const nextBriefs = [draft, ...library.briefs.filter((brief) => brief.id !== draft.id)];
+        const nextLibrary = window.SkyforgeStudioWorldBrief.createLibrary(nextBriefs, draft.id);
+        window.localStorage.setItem(storageKey, window.SkyforgeStudioWorldBrief.serializeLibrary(nextLibrary));
+        library = nextLibrary;
+        activeBriefId = draft.id;
+        isDirty = false;
+        refreshLibrarySelect();
+        setStatus("Saved automatically in this browser. No generator has evaluated it.", true);
+        return true;
+      } catch (error) {
+        setStatus(String(error.message || error), false, "error");
+        return false;
+      }
+    }
+
+    function scheduleSave() {
+      isDirty = true;
+      statePill.textContent = "Unsaved changes";
+      statePill.className = "pill warn";
+      status.textContent = "Saving this brief in your browser…";
+      if (saveTimer !== null) window.clearTimeout(saveTimer);
+      saveTimer = window.setTimeout(() => { saveTimer = null; saveCurrentBrief(); }, 450);
+    }
+
+    function exportBrief() {
+      try {
+        const existing = library.briefs.find((brief) => brief.id === activeBriefId) || null;
+        const now = new Date().toISOString();
+        const draft = window.SkyforgeStudioWorldBrief.create(activeBriefId || newId(),
+          titleInput.value, intentInput.value, existing?.created_at || now, now);
+        const blob = new Blob([window.SkyforgeStudioWorldBrief.serialize(draft)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = draft.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") +
+          ".skyforge-brief.json";
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+        setStatus("Downloaded a local draft JSON. It is not a generated world or review artifact.");
+      } catch (error) {
+        setStatus(String(error.message || error), false, "error");
+      }
+    }
+
+    async function importBrief(event) {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      try {
+        if (file.size > 1_000_000) throw new Error("world brief files must be smaller than 1 MB");
+        const imported = window.SkyforgeStudioWorldBrief.parse(await file.text());
+        if (saveTimer !== null) {
+          window.clearTimeout(saveTimer);
+          saveTimer = null;
+          if (!saveCurrentBrief()) return;
+        }
+        activeBriefId = null;
+        titleInput.value = imported.title;
+        intentInput.value = imported.intent;
+        isDirty = true;
+        setStatus("Imported as a new local draft. It will save in this browser automatically.", false);
+        scheduleSave();
+      } catch (error) {
+        setStatus("Could not import this brief: " + String(error.message || error), false, "error");
+      } finally {
+        event.target.value = "";
+      }
+    }
+
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      if (saveTimer !== null) { window.clearTimeout(saveTimer); saveTimer = null; }
+      isDirty = true;
+      saveCurrentBrief(true);
+    });
+    for (const input of [titleInput, intentInput]) input.addEventListener("input", scheduleSave);
+    $("world-brief-new").addEventListener("click", () => {
+      if (saveTimer !== null) {
+        window.clearTimeout(saveTimer); saveTimer = null;
+        if (!saveCurrentBrief()) return;
+      } else if (isDirty && !saveCurrentBrief()) return;
+      activeBriefId = null;
+      loadBrief(null);
+      titleInput.focus();
+    });
+    librarySelect.addEventListener("change", () => {
+      const requestedId = librarySelect.value;
+      if (saveTimer !== null) { window.clearTimeout(saveTimer); saveTimer = null; }
+      if (isDirty && !saveCurrentBrief()) { librarySelect.value = activeBriefId || ""; return; }
+      loadBrief(library.briefs.find((brief) => brief.id === requestedId) || null);
+    });
+    $("world-brief-download").addEventListener("click", exportBrief);
+    $("world-brief-import-button").addEventListener("click", () => $("world-brief-import-file").click());
+    $("world-brief-import-file").addEventListener("change", importBrief);
+    readLibrary();
+  }
+
+  function configureWorkspaceNavigation() {
+    for (const button of document.querySelectorAll("[data-workspace-view]")) {
+      button.addEventListener("click", () => selectWorkspaceView(button.dataset.workspaceView));
+    }
+    syncWorkspaceVisibility();
+  }
+
   $("load-overlay").addEventListener("click", () => {
     loadRegisteredOverlay().catch((error) => {
       $("overlay-status").textContent = String(error.message || error);
@@ -1478,6 +1782,8 @@
   });
   window.addEventListener("resize", draw);
 
+  configureWorkspaceNavigation();
+  initializeWorldBrief();
   showLocalMode();
   configureBundledSample();
   if (token) {
