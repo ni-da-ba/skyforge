@@ -471,7 +471,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
     }
 
-    private record Projection(SkyIslandLocalPosition position, double distance) {}
+    private record Vector(double x, double z) {}\n\n    private record Projection(SkyIslandLocalPosition position, double distance) {}
 
     private record Candidate(
             List<SkyIslandLocalPosition> points,
