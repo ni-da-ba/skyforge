@@ -246,7 +246,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 network.planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
         StringBuilder rows = new StringBuilder(
-                "criticalIndex,alongOffsetWorld,lateralOffsetWorld,stationFraction,"
+                "criticalIndex,alongOffsetWorld,lateralOffsetWorld,stationFraction,profileKind,"
                         + "lowerHead,upperHead,gap,lowerConstraint,lowerBound,"
                         + "upperConstraint,upperBound,insideSemanticCorridor,"
                         + "terrainAdmissible,interiorityAdmissible,curvatureAdmissible,"
@@ -255,6 +255,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         double minimumGapInCorridor = Double.POSITIVE_INFINITY;
         double minimumGapBeforeCurvature = Double.POSITIVE_INFINITY;
         double minimumAdmissibleGap = Double.POSITIVE_INFINITY;
+        int ordinaryProfileSamples = 0;
+        int cascadeSamples = 0;
         int semanticCorridorSamples = 0;
         int terrainAdmissibleSamples = 0;
         int interiorityAdmissibleSamples = 0;
@@ -308,9 +310,18 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
                                     semantic.profiles(), station);
                     if (kind == SkyIslandChannelProfileKind.CASCADE) {
-                        throw new IllegalStateException(
-                                "D2 corridor audit must remain on an ordinary profile");
+                        cascadeSamples++;
+                        rows.append(String.format(
+                                Locale.ROOT,
+                                "%d,%.9f,%.9f,%.12f,CASCADE,,,,,,,false,false,false,false,false%n",
+                                criticalIndex,
+                                alongOffset,
+                                lateralOffset,
+                                station));
+                        sampleCount++;
+                        continue;
                     }
+                    ordinaryProfileSamples++;
                     double halfWidth =
                             SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                                     descriptor.nominalRadius(), discharge);
@@ -387,12 +398,13 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     }
                     rows.append(String.format(
                             Locale.ROOT,
-                            "%d,%.9f,%.9f,%.12f,%.9f,%.9f,%.9f,%s,%.9f,%s,%.9f,"
+                            "%d,%.9f,%.9f,%.12f,%s,%.9f,%.9f,%.9f,%s,%.9f,%s,%.9f,"
                                     + "%s,%s,%s,%s,%s%n",
                             criticalIndex,
                             alongOffset,
                             lateralOffset,
                             station,
+                            kind,
                             evaluation.envelope().lowerHead(),
                             evaluation.envelope().upperHead(),
                             gap,
@@ -416,7 +428,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         String summary = String.format(
                 Locale.ROOT,
                 "F3G_D2_CORRIDOR key=287 stations=%d samplesPerStation=%d totalSamples=%d "
-                        + "semanticCorridorSamples=%d terrainAdmissibleSamples=%d "
+                        + "ordinaryProfileSamples=%d cascadeSamples=%d semanticCorridorSamples=%d terrainAdmissibleSamples=%d "
                         + "interiorityAdmissibleSamples=%d curvatureAdmissibleSamples=%d "
                         + "baseAdmissibleSamples=%d admissibleSamples=%d "
                         + "feasibleAnySamples=%d feasibleAdmissibleSamples=%d "
@@ -425,6 +437,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 criticalIndices.length,
                 samplesPerStation,
                 sampleCount,
+                ordinaryProfileSamples,
+                cascadeSamples,
                 semanticCorridorSamples,
                 terrainAdmissibleSamples,
                 interiorityAdmissibleSamples,
