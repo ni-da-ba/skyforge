@@ -44,7 +44,7 @@ const second = brief.create(
 const library = brief.createLibrary([first, second], second.id);
 assert.equal(brief.parseLibrary(brief.serializeLibrary(library)).active_brief_id, second.id);
 assert.equal(brief.parseLibrary(brief.serializeLibrary(brief.createLibrary())).briefs.length, 0);
-const restored = brief.mergeLibraries(brief.createLibrary([first]), library);
+const restored = brief.mergeLibraries(brief.createLibrary([first], first.id), library);
 assert.equal(restored.briefs.length, 2);
 assert.equal(restored.active_brief_id, first.id, "importing a backup keeps the current brief selected");
 const restoredIntoEmpty = brief.mergeLibraries(brief.createLibrary(), library);
