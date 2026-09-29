@@ -1507,6 +1507,39 @@
     }
   });
 
+  $("preview-bundled-comparison").addEventListener("click", () => {
+    const sample = window.SKYFORGE_STUDIO_SAMPLE;
+    if (!sample?.terrain || !sample?.hydrology) {
+      $("source-status").textContent = "The included S2 comparison walkthrough is unavailable.";
+      return;
+    }
+    try {
+      loadLocalPair(
+        sample.terrain,
+        "terrain-semantic-volume.json",
+        sample.hydrology,
+        "hydrology-semantic-layer.json"
+      );
+      const candidate = window.SkyforgeStudioScene.adaptOverlayArtifact(
+        sample.hydrology,
+        scene,
+        {
+          binding: "UNBOUND_LOCAL",
+          artifactTitle: "included S2 specimen · same data",
+          reviewAuthority: false,
+        }
+      );
+      displayHydrologyComparison(candidate);
+      selected = hydrologyComparison.comparison.samples[0] || null;
+      draw();
+      $("source-status").textContent =
+        "Walkthrough only: this specimen is compared with itself, so the values match and deltas are zero.";
+      $("comparison-value-inspector").scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    }
+  });
+
   function configureBundledSample() {
     $("bundled-sample-callout").hidden = !(
       window.SKYFORGE_STUDIO_SAMPLE?.terrain &&
