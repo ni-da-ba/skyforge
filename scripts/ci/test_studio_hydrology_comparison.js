@@ -48,6 +48,26 @@ function sample(index, values = {}) {
   };
 }
 
+function fieldSample(index, overrides = {}) {
+  const worldX = 100 + index * 10;
+  const worldZ = 200;
+  const targetUpperY = 8;
+  const waterSurfaceY = null;
+  return {
+    overlayKind: "HYDROLOGY_FIELD_SAMPLE",
+    grid: [index, 0],
+    position: [worldX, targetUpperY, worldZ],
+    waterPosition: null,
+    originalUpperY: 10,
+    targetUpperY,
+    terrainDeltaWorld: -2,
+    wet: false,
+    waterSurfaceY,
+    waterDepthWorld: 0,
+    ...overrides,
+  };
+}
+
 function layer(causeSamples, overrides = {}) {
   return {
     sceneKind: "HYDROLOGY_SEMANTIC_LAYER",
@@ -57,6 +77,7 @@ function layer(causeSamples, overrides = {}) {
       worldFrame: { ...WORLD_FRAME },
     },
     gridBinding: { ...GRID },
+    fieldSamples: [],
     causeSamples,
     source: { reviewAuthority: true },
     ...overrides,
@@ -117,6 +138,113 @@ assert.deepEqual({ ...comparison.samples[1].deltas }, {
   outflowPotential: 0,
 });
 assert.ok(FIELDS.every((field) => Number.isFinite(comparison.samples[0].deltas[field])));
+
+const fieldReference = layer(reference.causeSamples, {
+  fieldSamples: [
+    fieldSample(0, {
+      position: [100, 8, 200],
+      waterPosition: [100, 7.5, 200],
+      wet: true,
+      waterSurfaceY: 7.5,
+      waterDepthWorld: 0.5,
+    }),
+    fieldSample(1),
+  ],
+});
+const fieldCandidate = layer(candidate.causeSamples, {
+  fieldSamples: [
+    fieldSample(0, {
+      position: [100, 6, 200],
+      waterPosition: [100, 5, 200],
+      wet: true,
+      waterSurfaceY: 5,
+      waterDepthWorld: 1.25,
+    }),
+    fieldSample(1, {
+      position: [110, 8, 200],
+      waterPosition: [110, 7, 200],
+      wet: true,
+      waterSurfaceY: 7,
+      waterDepthWorld: 1,
+    }),
+  ],
+});
+const fieldComparison = compare(fieldReference, fieldCandidate).fieldSamples;
+assert.deepEqual(fieldComparison.map((entry) => entry.coverage), ["shared", "shared"]);
+assert.equal(fieldComparison[0].surfaceDeltaY, -2);
+assert.equal(fieldComparison[0].waterSurfaceDeltaY, -2.5);
+assert.equal(fieldComparison[0].waterDepthDelta, 0.75);
+assert.equal(fieldComparison[0].referenceWet, true);
+assert.equal(fieldComparison[0].candidateWet, true);
+assert.equal(fieldComparison[0].wetTransition, null);
+assert.equal(fieldComparison[1].surfaceDeltaY, 0);
+assert.equal(fieldComparison[1].waterSurfaceDeltaY, null);
+assert.equal(fieldComparison[1].waterDepthDelta, 1);
+assert.equal(fieldComparison[1].referenceWet, false);
+assert.equal(fieldComparison[1].candidateWet, true);
+assert.equal(fieldComparison[1].wetTransition, "WET_ADDED");
+
+const referenceOnly = compare(
+  layer(reference.causeSamples, { fieldSamples: [fieldSample(0)] }),
+  layer(candidate.causeSamples, { fieldSamples: [] })
+).fieldSamples;
+assert.equal(referenceOnly.length, 1);
+assert.equal(referenceOnly[0].coverage, "reference-only");
+assert.equal(referenceOnly[0].reference.position[0], 100);
+assert.equal(referenceOnly[0].candidate, null);
+
+const candidateOnly = compare(
+  layer(reference.causeSamples, { fieldSamples: [] }),
+  layer(candidate.causeSamples, { fieldSamples: [fieldSample(1)] })
+).fieldSamples;
+assert.equal(candidateOnly.length, 1);
+assert.equal(candidateOnly[0].coverage, "candidate-only");
+assert.equal(candidateOnly[0].candidate.position[0], 110);
+assert.equal(candidateOnly[0].reference, null);
+
+const wetRemoval = compare(
+  layer(reference.causeSamples, {
+    fieldSamples: [fieldSample(0, {
+      wet: true,
+      waterSurfaceY: 7,
+      waterPosition: [100, 7, 200],
+      waterDepthWorld: 1,
+    })],
+  }),
+  layer(candidate.causeSamples, { fieldSamples: [fieldSample(0)] })
+).fieldSamples[0];
+assert.equal(wetRemoval.wetTransition, "WET_REMOVED");
+assert.equal(wetRemoval.waterSurfaceDeltaY, null);
+assert.equal(wetRemoval.waterDepthDelta, -1);
+
+expectFailure(
+  "duplicate reference field sample",
+  layer(reference.causeSamples, { fieldSamples: [fieldSample(0), fieldSample(0)] }),
+  layer(candidate.causeSamples, { fieldSamples: [] }),
+  "reference hydrology comparison contains duplicate field samples"
+);
+expectFailure(
+  "duplicate candidate field sample",
+  layer(reference.causeSamples, { fieldSamples: [] }),
+  layer(candidate.causeSamples, { fieldSamples: [fieldSample(0), fieldSample(0)] }),
+  "candidate hydrology comparison contains duplicate field samples"
+);
+expectFailure(
+  "field coordinate mismatch",
+  layer(reference.causeSamples, { fieldSamples: [fieldSample(0)] }),
+  layer(candidate.causeSamples, {
+    fieldSamples: [fieldSample(0, { position: [999, 8, 200] })],
+  }),
+  "hydrology comparison field coordinates do not match"
+);
+expectFailure(
+  "non-finite field sample",
+  layer(reference.causeSamples, { fieldSamples: [fieldSample(0)] }),
+  layer(candidate.causeSamples, {
+    fieldSamples: [fieldSample(0, { targetUpperY: Number.NaN })],
+  }),
+  "candidate hydrology comparison contains a non-finite field sample"
+);
 
 const unboundReference = layer(reference.causeSamples, {
   source: { reviewAuthority: false },

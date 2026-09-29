@@ -897,6 +897,126 @@
       });
     });
 
+    const fieldSampleMap = (layer, label) => {
+      if (!Array.isArray(layer.fieldSamples)) {
+        throw new Error(label + " hydrology comparison field samples are invalid");
+      }
+      const samplesByGrid = new Map();
+      for (const sample of layer.fieldSamples) {
+        const validGrid = Array.isArray(sample?.grid) &&
+          sample.grid.length === 2 &&
+          sample.grid.every((value) => Number.isInteger(value) && value >= 0);
+        if (!validGrid) {
+          throw new Error(label + " hydrology comparison contains an invalid field sample grid");
+        }
+        const key = sample.grid.join(":");
+        if (samplesByGrid.has(key)) {
+          throw new Error(label + " hydrology comparison contains duplicate field samples");
+        }
+        const finitePosition = (position) =>
+          Array.isArray(position) &&
+          position.length === 3 &&
+          position.every(Number.isFinite);
+        const finiteOrNull = (value) => value === null || Number.isFinite(value);
+        if (
+          !finitePosition(sample.position) ||
+          (sample.waterPosition !== null && !finitePosition(sample.waterPosition)) ||
+          !Number.isFinite(sample.originalUpperY) ||
+          !Number.isFinite(sample.targetUpperY) ||
+          !Number.isFinite(sample.terrainDeltaWorld) ||
+          !Number.isFinite(sample.waterDepthWorld) ||
+          !finiteOrNull(sample.waterSurfaceY) ||
+          typeof sample.wet !== "boolean"
+        ) {
+          throw new Error(label + " hydrology comparison contains a non-finite field sample");
+        }
+        if (
+          sample.waterPosition &&
+          (sample.waterPosition[0] !== sample.position[0] ||
+            sample.waterPosition[2] !== sample.position[2] ||
+            sample.waterPosition[1] !== sample.waterSurfaceY)
+        ) {
+          throw new Error("hydrology comparison field coordinates do not match");
+        }
+        samplesByGrid.set(key, sample);
+      }
+      return samplesByGrid;
+    };
+    const referenceFields = fieldSampleMap(reference, "reference");
+    const candidateFields = fieldSampleMap(candidate, "candidate");
+    const fieldKeys = [...new Set([
+      ...referenceFields.keys(),
+      ...candidateFields.keys(),
+    ])].sort((left, right) => {
+      const [leftX, leftZ] = left.split(":").map(Number);
+      const [rightX, rightZ] = right.split(":").map(Number);
+      return leftZ - rightZ || leftX - rightX;
+    });
+    const fieldSamples = fieldKeys.map((key) => {
+      const referenceSample = referenceFields.get(key) || null;
+      const candidateSample = candidateFields.get(key) || null;
+      const coverage = referenceSample && candidateSample
+        ? "shared"
+        : referenceSample
+          ? "reference-only"
+          : "candidate-only";
+      if (
+        referenceSample &&
+        candidateSample &&
+        (referenceSample.position[0] !== candidateSample.position[0] ||
+          referenceSample.position[2] !== candidateSample.position[2])
+      ) {
+        throw new Error("hydrology comparison field coordinates do not match");
+      }
+      const surfaceDeltaY = referenceSample && candidateSample
+        ? candidateSample.targetUpperY - referenceSample.targetUpperY
+        : null;
+      const waterSurfaceDeltaY =
+        referenceSample?.waterSurfaceY !== null &&
+        referenceSample?.waterSurfaceY !== undefined &&
+        candidateSample?.waterSurfaceY !== null &&
+        candidateSample?.waterSurfaceY !== undefined
+          ? candidateSample.waterSurfaceY - referenceSample.waterSurfaceY
+          : null;
+      const waterDepthDelta = referenceSample && candidateSample
+        ? candidateSample.waterDepthWorld - referenceSample.waterDepthWorld
+        : null;
+      for (const [name, value] of Object.entries({
+        surfaceDeltaY,
+        waterSurfaceDeltaY,
+        waterDepthDelta,
+      })) {
+        if (value !== null && !Number.isFinite(value)) {
+          throw new Error("hydrology comparison produced a non-finite " + name);
+        }
+      }
+      const wetTransition = !referenceSample || !candidateSample ||
+        referenceSample.wet === candidateSample.wet
+        ? null
+        : candidateSample.wet
+          ? "WET_ADDED"
+          : "WET_REMOVED";
+      const selectedPosition = candidateSample?.position || referenceSample.position;
+      return Object.freeze({
+        overlayKind: "HYDROLOGY_FIELD_COMPARISON_SAMPLE",
+        grid: (candidateSample || referenceSample).grid,
+        coverage,
+        position: selectedPosition,
+        referencePosition: referenceSample?.position || null,
+        candidatePosition: candidateSample?.position || null,
+        referenceWaterPosition: referenceSample?.waterPosition || null,
+        candidateWaterPosition: candidateSample?.waterPosition || null,
+        reference: referenceSample,
+        candidate: candidateSample,
+        surfaceDeltaY,
+        waterSurfaceDeltaY,
+        waterDepthDelta,
+        referenceWet: referenceSample?.wet ?? null,
+        candidateWet: candidateSample?.wet ?? null,
+        wetTransition,
+      });
+    });
+
     return Object.freeze({
       sceneKind: "HYDROLOGY_SEMANTIC_COMPARISON",
       terrainSemanticSha256: reference.terrainSemanticSha256,
@@ -904,6 +1024,7 @@
       referenceSource: reference.source,
       candidateSource: candidate.source,
       samples: Object.freeze(samples),
+      fieldSamples: Object.freeze(fieldSamples),
       reviewAuthority:
         reference.source.reviewAuthority && candidate.source.reviewAuthority,
     });
