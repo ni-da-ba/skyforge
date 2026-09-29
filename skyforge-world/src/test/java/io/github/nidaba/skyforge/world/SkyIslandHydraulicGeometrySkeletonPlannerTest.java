@@ -84,7 +84,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         var d = result.diagnostics();
         String summary =
                 "F3G_D2_SEARCH key=287 initialMaxGap=" + d.initialMaximumHeadEnvelopeGap()
+                        + " initialMaxAt=" + d.initialMaximumHeadEnvelopeGapIndex() + "@"
+                        + d.initialMaximumHeadEnvelopeGapStation()
                         + " finalMaxGap=" + d.finalMaximumHeadEnvelopeGap()
+                        + " finalMaxAt=" + d.finalMaximumHeadEnvelopeGapIndex() + "@"
+                        + d.finalMaximumHeadEnvelopeGapStation()
                         + " initialIntegratedGap=" + d.initialIntegratedSquaredHeadEnvelopeGap()
                         + " finalIntegratedGap=" + d.finalIntegratedSquaredHeadEnvelopeGap()
                         + " lateralProposals=" + d.lateralCandidateProposals()
