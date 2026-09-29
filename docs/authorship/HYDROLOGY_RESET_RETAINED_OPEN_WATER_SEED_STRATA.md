@@ -19,7 +19,7 @@ The new evidence corpus keeps the two already-used identity namespaces (province
 - seed-zero = 0;
 - seed-skyforge = the canonical Skyforge seed.
 
-Within every seed/namespace stratum it scans island keys 1 through 128, for 768 deterministic
+Within every seed/namespace stratum it scans island keys 1 through 1024, for 6144 deterministic
 identities total. It records the exact identity, morphology, descriptor budgets, and counts of
 existing POND, LAKE, and WETLAND classifications plus the exact retained-sink semantic predictors. For any POND/LAKE candidate it also records the
 existing continuous E1 geometry diagnostics; a geometry failure is explicit and does not grant
