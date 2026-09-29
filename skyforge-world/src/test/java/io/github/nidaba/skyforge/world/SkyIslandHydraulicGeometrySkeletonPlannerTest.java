@@ -183,15 +183,6 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
                         + " sweeps=" + d.relaxationSweeps()
-                        + " blockProposals=" + d.blockMoveProposals()
-                        + " blockFieldAdmissible=" + d.blockMoveFieldAdmissible()
-                        + " blockCurvatureAdmissible=" + d.blockMoveCurvatureAdmissible()
-                        + " blockObjectiveImproving=" + d.blockMoveObjectiveImproving()
-                        + " selectedBlockMoves=" + d.selectedBlockMoves()
-                        + " blockBestMaxGap=" + d.minimumBlockCandidateMaximumGap()
-                        + " blockBestIntegratedGap="
-                        + d.minimumBlockCandidateIntegratedSquaredGap()
-                        + " restartSweeps=" + d.restartSweeps()
                         + " profileDischargeMidpointMaxAbsError=" + profileDischargeMaximumError
                         + " profileDischargeMidpointWeightedRmsError=" + profileDischargeWeightedRmsError
                         + peakBounds
