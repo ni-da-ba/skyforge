@@ -16,6 +16,9 @@ import java.util.function.DoubleUnaryOperator;
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
+    private static final int D2_BLOCK_MOVE_RADIUS = 3;
+    private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
+    private static final double[] D2_BLOCK_STEP_FACTORS = {0.5, 1.0, 2.0};
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
@@ -170,6 +173,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
+        if (headEnvelopeGap != null) {
+            best = refinePeakWithBlockMoves(
+                    searchRoute,
+                    semanticGuidance,
+                    best,
+                    terrain,
+                    interiority,
+                    semanticCorridorHalfWidth,
+                    minimumBendRadius,
+                    bankfullHalfWidthAtStation,
+                    headEnvelopeGap);
+        }
+
         for (SkyIslandLocalPosition point : best.points()) {
             if (distanceToPolyline(point, semanticGuidance) > semanticCorridorHalfWidth + EPSILON) {
                 throw new IllegalStateException("relaxed centerline escaped semantic corridor");
@@ -319,6 +335,87 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
                 lateralCandidateGapImproving, selectedLateralMoves);
+    }
+
+    private static Candidate refinePeakWithBlockMoves(
+            SkyIslandGeomorphicCandidateRoute searchRoute,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            Candidate initial,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double semanticCorridorHalfWidth,
+            double minimumBendRadius,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        Candidate best = initial;
+        for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
+            Candidate improved = best;
+            int peakIndex = best.maximumHeadEnvelopeGapIndex();
+            double[] station = stations(best.points());
+            double halfWidth =
+                    bankfullHalfWidthAtStation.applyAsDouble(station[peakIndex]);
+            for (int direction : new int[] {-1, 1}) {
+                for (double stepFactor : D2_BLOCK_STEP_FACTORS) {
+                    double magnitude =
+                            Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
+                    if (magnitude <= EPSILON) {
+                        continue;
+                    }
+                    List<SkyIslandLocalPosition> points =
+                            new ArrayList<>(best.points());
+                    boolean admissible = true;
+                    int first = Math.max(1, peakIndex - D2_BLOCK_MOVE_RADIUS);
+                    int last = Math.min(
+                            points.size() - 2, peakIndex + D2_BLOCK_MOVE_RADIUS);
+                    for (int index = first; index <= last; index++) {
+                        double distance = Math.abs(index - peakIndex);
+                        double weight =
+                                0.5 * (1.0
+                                        + Math.cos(
+                                                Math.PI * distance
+                                                        / (D2_BLOCK_MOVE_RADIUS + 1.0)));
+                        Vector tangent = tangentAt(best.points(), index);
+                        SkyIslandLocalPosition original = best.points().get(index);
+                        SkyIslandLocalPosition moved =
+                                new SkyIslandLocalPosition(
+                                        original.x() - direction * tangent.z()
+                                                * magnitude * weight,
+                                        original.z() + direction * tangent.x()
+                                                * magnitude * weight);
+                        if (!admissibilityCheck(
+                                        moved,
+                                        searchRoute,
+                                        semanticGuidance,
+                                        terrain,
+                                        interiority,
+                                        semanticCorridorHalfWidth)
+                                .allowed()) {
+                            admissible = false;
+                            break;
+                        }
+                        points.set(index, moved);
+                    }
+                    if (!admissible
+                            || maximumCurvature(points) * minimumBendRadius
+                                    > 1.0 + EPSILON) {
+                        continue;
+                    }
+                    Candidate candidate = evaluate(
+                            searchRoute,
+                            points,
+                            headEnvelopeGap,
+                            bankfullHalfWidthAtStation);
+                    if (candidate.compareTo(improved, minimumBendRadius) < 0) {
+                        improved = candidate;
+                    }
+                }
+            }
+            if (improved.compareTo(best, minimumBendRadius) >= 0) {
+                break;
+            }
+            best = improved;
+        }
+        return best;
     }
 
     private static Candidate evaluate(
