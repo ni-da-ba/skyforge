@@ -1970,6 +1970,9 @@
 
     function exportLibrary() {
       try {
+        if (!storageAvailable) {
+          throw new Error("Saved briefs could not be read; use Download this brief to save the open draft.");
+        }
         const existing = library.briefs.find((brief) => brief.id === activeBriefId) || null;
         const includeCurrent = Boolean(activeBriefId || isDirty || intentInput.value ||
           titleInput.value.trim() !== "Untitled world");
@@ -2021,6 +2024,7 @@
           const merged = window.SkyforgeStudioWorldBrief.mergeLibraries(library, importedLibrary);
           window.localStorage.setItem(storageKey,
             window.SkyforgeStudioWorldBrief.serializeLibrary(merged));
+          storageAvailable = true;
           library = merged;
           activeBriefId = merged.active_brief_id;
           loadBrief(library.briefs.find((brief) => brief.id === activeBriefId) || null);

@@ -224,6 +224,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "Identical drafts were skipped",
             "Could not import this brief or library:",
             "skyforge-studio-brief-library.json",
+            "Saved briefs could not be read; use Download this brief",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, app)
