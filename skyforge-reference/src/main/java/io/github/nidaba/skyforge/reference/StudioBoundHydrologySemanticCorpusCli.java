@@ -569,7 +569,7 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                     </div>
                     <canvas id="hydrology-view" aria-label="Bound hydrology over the island terrain"></canvas>
                     <p class="legend">Cause potential · arrows show authored flow · blue ribbon is bankfull width · orange is projected terrain change · cyan is projected water.</p>
-                    <p class="note"><strong>Realization boundary:</strong> this interactive page shows the backend-neutral F4B/F4E semantic projection. It is <strong>not voxelized or Minecraft-realized water</strong>; it does not replace F4K prepared-world review or the final DR-70/key-287 product gate.</p>
+                    <p class="note"><strong>Realization boundary:</strong> this interactive page shows the backend-neutral F4B/F4E semantic projection. It shows semantic intent only; target-specific materialization and implementation review remain separate.</p>
                   </section>
                   <script id="bound-hydrology-data" type="application/json">@@BOUND_HYDROLOGY_JSON@@</script>
                   <script>
