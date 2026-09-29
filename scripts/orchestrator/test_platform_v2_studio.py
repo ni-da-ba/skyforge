@@ -227,7 +227,7 @@ class SkyforgeStudioTest(unittest.TestCase):
         self.assertIn('id="comparison-artifact-select"', markup)
         self.assertIn('id="show-hydrology-delta"', markup)
         self.assertIn("UNBOUND LOCAL DIAGNOSTIC", app)
-        self.assertIn("Candidate − reference: blue − / gray 0 / orange +", markup)
+        self.assertIn("Candidate − reference: purple − / gray 0 / orange +", markup)
 
     def test_console_links_to_studio_without_changing_console_authority(self):
         console = Path(hosted.__file__).resolve().parent / "console"
