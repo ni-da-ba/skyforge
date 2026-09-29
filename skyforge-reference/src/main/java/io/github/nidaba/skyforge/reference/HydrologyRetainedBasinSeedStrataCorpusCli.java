@@ -19,7 +19,7 @@ import java.util.Map;
 
 /** Fixed seed-stratified discovery evidence for retained open-water calibration. */
 public final class HydrologyRetainedBasinSeedStrataCorpusCli {
-    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v2";
+    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v3";
     public static final int EXPECTED_SPECIMEN_COUNT = 6144;
     private static final int FIRST_KEY = 1;
     private static final int LAST_KEY = 1024;
@@ -47,7 +47,9 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                         + "catchment_fraction,relative_inflow,retention,saturation,persistence,basin_scale,"
                         + "area_world2,equivalent_diameter,max_depth_world,depth_to_diameter,"
                         + "max_shoreline_grade,spill_headroom_world,matched_terminal_reaches,"
-                        + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings\n");
+                        + "max_channel_datum_mismatch_world,reaches_search_boundary,shoreline_crossings,"
+                        + "shoreline_perimeter_world,shoreline_isoperimetric_ratio,"
+                        + "closed_shoreline_loops,non_degree_two_shoreline_vertices\n");
         StringBuilder semantics = new StringBuilder(
                 "seed_id,world_seed_hex,namespace,province,cluster,island_key,sink_cell,kind,"
                         + "catchment_cell_count,catchment_fraction,relative_inflow,retention,saturation,"
@@ -164,14 +166,17 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         }
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), """
-                Retained open-water seed-strata discovery v2
+                Retained open-water seed-strata discovery v3
 
                 This is a deterministic candidate-discovery scan, not a prevalence estimate, basin
                 calibration, threshold change, terrain authority, or Minecraft authorization.
                 It holds the two existing reference identity namespaces fixed and varies only the
                 three canonical signed seed strata (minimum, zero, Skyforge) over island keys 1..1024.
                 Existing POND/LAKE classification is unchanged. Continuous E1 geometry diagnostics
-                are measured only for identities that yield an existing open-water candidate.
+                are measured only for identities that yield an existing open-water candidate. The
+                candidate manifest adds a marching-squares shoreline perimeter, its normalized
+                isoperimetric ratio, and contour closure/topology diagnostics; these measurements
+                have no calibrated qualification threshold.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
     }
@@ -229,7 +234,11 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
                 .append(d.matchedTerminalReachCount()).append(',')
                 .append(format(d.maximumChannelDatumMismatchWorldUnits())).append(',')
                 .append(d.reachesSearchBoundary()).append(',')
-                .append(d.shorelineCrossingCount()).append('\n');
+                .append(d.shorelineCrossingCount()).append(',')
+                .append(format(d.basin().shorelinePerimeterWorldUnits())).append(',')
+                .append(format(d.basin().shorelineIsoperimetricRatio())).append(',')
+                .append(d.basin().closedShorelineLoopCount()).append(',')
+                .append(d.basin().nonDegreeTwoShorelineVertexCount()).append('\n');
     }
 
     private static int count(

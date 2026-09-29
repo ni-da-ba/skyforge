@@ -20,7 +20,14 @@ For each POND/LAKE basin, E1 records:
 - exact semantic terminal-reach count at the retained sink;
 - maximum hydraulic terminal-datum mismatch against the basin water datum;
 - whether the sink-connected sublevel set escapes the padded search boundary;
-- shoreline crossing count.
+- shoreline crossing count, which remains a sampling diagnostic rather than a contour-shape measure;
+- marching-squares shoreline perimeter from the sampled water-level/interiority level set;
+- dimensionless shoreline isoperimetric ratio P² / (4πA) as a compactness/irregularity signal;
+- closed contour-loop count and non-degree-two contour vertices, to establish structural closure.
+
+The contour metrics are resolution-dependent measurements whose estimator is checked with analytic
+and grid-refinement fixtures. They have no calibrated E2 limits and do not independently grant
+terrain authority.
 
 A basin that reaches the search boundary is not silently truncated or excavated into a bowl.
 
