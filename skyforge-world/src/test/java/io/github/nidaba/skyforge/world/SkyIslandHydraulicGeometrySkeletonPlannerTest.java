@@ -63,6 +63,41 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     }
 
     @Test
+    void key287D2SearchReportsAdmissibilityAndObjectiveProgress() {
+        SkyIslandDescriptor descriptor = descriptor(287L);
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandGeomorphicReachRoute route = network.routes().stream()
+                .filter(candidate -> candidate.semanticReach().startCellIndex() == 1090
+                        && candidate.semanticReach().endCellIndex() == 1758)
+                .findFirst()
+                .orElseThrow();
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+
+        var result = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                descriptor, network, route, terrain, interiority);
+        var d = result.diagnostics();
+        System.out.println(
+                "F3G_D2_SEARCH key=287 initialMaxGap=" + d.initialMaximumHeadEnvelopeGap()
+                        + " finalMaxGap=" + d.finalMaximumHeadEnvelopeGap()
+                        + " initialIntegratedGap=" + d.initialIntegratedSquaredHeadEnvelopeGap()
+                        + " finalIntegratedGap=" + d.finalIntegratedSquaredHeadEnvelopeGap()
+                        + " lateralProposals=" + d.lateralCandidateProposals()
+                        + " admissible=" + d.lateralCandidateAdmissible()
+                        + " corridorRejected=" + d.lateralCandidateCorridorRejected()
+                        + " terrainRejected=" + d.lateralCandidateTerrainRejected()
+                        + " interiorityRejected=" + d.lateralCandidateInteriorityRejected()
+                        + " gapImproving=" + d.lateralCandidateGapImproving()
+                        + " selected=" + d.selectedLateralMoves()
+                        + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature());
+        assertTrue(d.lateralCandidateProposals() > 0);
+        assertTrue(d.finalMaximumHeadEnvelopeGap() >= 0.0);
+    }
+
+    @Test
     void calibrationDelegatesRemainBackwardCompatible() {
         double radius = 100.0;
         for (int i = 0; i <= 100; i++) {

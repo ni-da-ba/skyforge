@@ -53,6 +53,22 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double minimumBendRadius,
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        return refineWithDiagnostics(
+                searchRoute, semanticGuidance, terrain, interiority, planningSpacing,
+                semanticCorridorHalfWidth, minimumBendRadius, bankfullHalfWidthAtStation,
+                headEnvelopeGap).centerline();
+    }
+
+    static RefinementOutcome refineWithDiagnostics(
+            SkyIslandGeomorphicCandidateRoute searchRoute,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double planningSpacing,
+            double semanticCorridorHalfWidth,
+            double minimumBendRadius,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
         Objects.requireNonNull(searchRoute, "searchRoute");
         Objects.requireNonNull(bankfullHalfWidthAtStation, "bankfullHalfWidthAtStation");
         semanticGuidance = List.copyOf(semanticGuidance);
@@ -87,23 +103,43 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         List<SkyIslandLocalPosition> current = new ArrayList<>(seed.points());
         Candidate best = evaluate(
                 searchRoute, current, headEnvelopeGap, bankfullHalfWidthAtStation);
+        Candidate initial = best;
+        long lateralCandidateProposals = 0;
+        long lateralCandidateAdmissible = 0;
+        long lateralCandidateCorridorRejected = 0;
+        long lateralCandidateTerrainRejected = 0;
+        long lateralCandidateInteriorityRejected = 0;
+        long lateralCandidateGapImproving = 0;
+        long selectedLateralMoves = 0;
+        long globalGapImprovementsBlockedByCurvature = 0;
         for (int sweep = 0; sweep < MAXIMUM_RELAXATION_SWEEPS; sweep++) {
-            List<SkyIslandLocalPosition> next = relaxOnce(
-                    searchRoute,
-                    semanticGuidance,
-                    current,
-                    terrain,
-                    interiority,
-                    semanticCorridorHalfWidth,
-                    bankfullHalfWidthAtStation,
-                    headEnvelopeGap);
+            RelaxationStep step = relaxOnce(
+                    searchRoute, semanticGuidance, current, terrain, interiority,
+                    semanticCorridorHalfWidth, bankfullHalfWidthAtStation, headEnvelopeGap);
+            List<SkyIslandLocalPosition> next = new ArrayList<>(step.points());
+            lateralCandidateProposals += step.lateralCandidateProposals();
+            lateralCandidateAdmissible += step.lateralCandidateAdmissible();
+            lateralCandidateCorridorRejected += step.lateralCandidateCorridorRejected();
+            lateralCandidateTerrainRejected += step.lateralCandidateTerrainRejected();
+            lateralCandidateInteriorityRejected += step.lateralCandidateInteriorityRejected();
+            lateralCandidateGapImproving += step.lateralCandidateGapImproving();
+            selectedLateralMoves += step.selectedLateralMoves();
             next.set(0, searchRoute.points().getFirst());
             next.set(next.size() - 1, searchRoute.points().getLast());
 
             Candidate candidate = evaluate(
                     searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
-            if (candidate.compareTo(best, minimumBendRadius) < 0) {
+            int comparison = candidate.compareTo(best, minimumBendRadius);
+            if (comparison < 0) {
                 best = candidate;
+            } else if (headEnvelopeGap != null
+                    && (candidate.maximumHeadEnvelopeGap()
+                                    < best.maximumHeadEnvelopeGap() - EPSILON
+                            || candidate.integratedSquaredHeadEnvelopeGap()
+                                    < best.integratedSquaredHeadEnvelopeGap() - EPSILON)
+                    && candidate.curvatureExcess(minimumBendRadius)
+                            > best.curvatureExcess(minimumBendRadius) + EPSILON) {
+                globalGapImprovementsBlockedByCurvature++;
             }
             boolean unchanged = next.equals(current);
             current = next;
@@ -132,15 +168,23 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
-        return new SkyIslandContinuousChannelCenterline(
-                searchRoute,
-                best.points(),
-                best.pathLength(),
-                best.maximumSearchDeviation(),
-                best.maximumTurnAngle());
+        SkyIslandContinuousChannelCenterline centerline =
+                new SkyIslandContinuousChannelCenterline(
+                        searchRoute, best.points(), best.pathLength(),
+                        best.maximumSearchDeviation(), best.maximumTurnAngle());
+        SearchDiagnostics diagnostics = new SearchDiagnostics(
+                initial.maximumHeadEnvelopeGap(),
+                initial.integratedSquaredHeadEnvelopeGap(),
+                best.maximumHeadEnvelopeGap(),
+                best.integratedSquaredHeadEnvelopeGap(),
+                lateralCandidateProposals, lateralCandidateAdmissible,
+                lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
+                lateralCandidateInteriorityRejected, lateralCandidateGapImproving,
+                selectedLateralMoves, globalGapImprovementsBlockedByCurvature);
+        return new RefinementOutcome(centerline, diagnostics);
     }
 
-    private static List<SkyIslandLocalPosition> relaxOnce(
+    private static RelaxationStep relaxOnce(
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> semanticGuidance,
             List<SkyIslandLocalPosition> current,
@@ -150,6 +194,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
         List<SkyIslandLocalPosition> result = new ArrayList<>(current);
+        long lateralCandidateProposals = 0;
+        long lateralCandidateAdmissible = 0;
+        long lateralCandidateCorridorRejected = 0;
+        long lateralCandidateTerrainRejected = 0;
+        long lateralCandidateInteriorityRejected = 0;
+        long lateralCandidateGapImproving = 0;
+        long selectedLateralMoves = 0;
         double[] stations = stations(current);
         for (int i = 1; i < current.size() - 1; i++) {
             SkyIslandLocalPosition previous = current.get(i - 1);
@@ -187,34 +238,42 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
 
             SkyIslandLocalPosition selected = point;
-            for (SkyIslandLocalPosition option : options) {
-                if (!allowed(
-                        option,
-                        searchRoute,
-                        semanticGuidance,
-                        terrain,
-                        interiority,
-                        semanticCorridorHalfWidth)) {
-                    continue;
+            int selectedOption = -1;
+            for (int optionIndex = 0; optionIndex < options.size(); optionIndex++) {
+                SkyIslandLocalPosition option = options.get(optionIndex);
+                AdmissionCheck admission = admissibilityCheck(
+                        option, searchRoute, semanticGuidance, terrain, interiority,
+                        semanticCorridorHalfWidth);
+                if (headEnvelopeGap != null && optionIndex > 0) {
+                    lateralCandidateProposals++;
+                    if (!admission.insideSemanticCorridor()) lateralCandidateCorridorRejected++;
+                    if (!admission.withinTerrainRise()) lateralCandidateTerrainRejected++;
+                    if (!admission.insideIslandInteriority()) lateralCandidateInteriorityRejected++;
+                    if (admission.allowed()) {
+                        lateralCandidateAdmissible++;
+                        if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
+                                < currentGap - EPSILON) {
+                            lateralCandidateGapImproving++;
+                        }
+                    }
                 }
+                if (!admission.allowed()) continue;
                 if (headEnvelopeGap == null
                         || compareLocalCandidates(
-                                        option,
-                                        selected,
-                                        previous,
-                                        next,
-                                        station,
-                                        halfWidth,
-                                        tangent,
-                                        headEnvelopeGap,
-                                        searchRoute)
-                                < 0) {
+                                        option, selected, previous, next, station, halfWidth,
+                                        tangent, headEnvelopeGap, searchRoute) < 0) {
                     selected = option;
+                    selectedOption = optionIndex;
                 }
             }
+            if (selectedOption > 0) selectedLateralMoves++;
             result.set(i, selected);
         }
-        return result;
+        return new RelaxationStep(
+                List.copyOf(result), lateralCandidateProposals, lateralCandidateAdmissible,
+                lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
+                lateralCandidateInteriorityRejected, lateralCandidateGapImproving,
+                selectedLateralMoves);
     }
 
     private static Candidate evaluate(
@@ -262,7 +321,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 integratedSquaredGap);
     }
 
-    private static boolean allowed(
+    private static AdmissionCheck admissibilityCheck(
             SkyIslandLocalPosition candidate,
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> semanticGuidance,
@@ -270,11 +329,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandSemanticField interiority,
             double semanticCorridorHalfWidth) {
         Projection seedProjection = project(candidate, searchRoute.points());
-        return distanceToPolyline(candidate, semanticGuidance)
-                        <= semanticCorridorHalfWidth + EPSILON
-                && terrain.sample(candidate) - terrain.sample(seedProjection.position())
-                        <= MAXIMUM_TERRAIN_RISE_FROM_SEED + EPSILON
-                && interiority.sample(candidate) >= MINIMUM_INTERIORITY;
+        return new AdmissionCheck(
+                distanceToPolyline(candidate, semanticGuidance)
+                        <= semanticCorridorHalfWidth + EPSILON,
+                terrain.sample(candidate) - terrain.sample(seedProjection.position())
+                        <= MAXIMUM_TERRAIN_RISE_FROM_SEED + EPSILON,
+                interiority.sample(candidate) >= MINIMUM_INTERIORITY);
     }
 
     private static int compareLocalCandidates(
@@ -495,6 +555,43 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
     }
 
+    record RefinementOutcome(
+            SkyIslandContinuousChannelCenterline centerline,
+            SearchDiagnostics diagnostics) {}
+
+    record SearchDiagnostics(
+            double initialMaximumHeadEnvelopeGap,
+            double initialIntegratedSquaredHeadEnvelopeGap,
+            double finalMaximumHeadEnvelopeGap,
+            double finalIntegratedSquaredHeadEnvelopeGap,
+            long lateralCandidateProposals,
+            long lateralCandidateAdmissible,
+            long lateralCandidateCorridorRejected,
+            long lateralCandidateTerrainRejected,
+            long lateralCandidateInteriorityRejected,
+            long lateralCandidateGapImproving,
+            long selectedLateralMoves,
+            long globalGapImprovementsBlockedByCurvature) {}
+
+    private record RelaxationStep(
+            List<SkyIslandLocalPosition> points,
+            long lateralCandidateProposals,
+            long lateralCandidateAdmissible,
+            long lateralCandidateCorridorRejected,
+            long lateralCandidateTerrainRejected,
+            long lateralCandidateInteriorityRejected,
+            long lateralCandidateGapImproving,
+            long selectedLateralMoves) {}
+
+    private record AdmissionCheck(
+            boolean insideSemanticCorridor,
+            boolean withinTerrainRise,
+            boolean insideIslandInteriority) {
+        private boolean allowed() {
+            return insideSemanticCorridor && withinTerrainRise && insideIslandInteriority;
+        }
+    }
+
     private record Vector(double x, double z) {}
 
     private record Projection(SkyIslandLocalPosition position, double distance) {}
@@ -508,10 +605,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumHeadEnvelopeGap,
             double integratedSquaredHeadEnvelopeGap) {
         private int compareTo(Candidate other, double minimumBendRadius) {
-            double curvatureExcess =
-                    Math.max(0.0, maximumCurvature * minimumBendRadius - 1.0);
-            double otherCurvatureExcess =
-                    Math.max(0.0, other.maximumCurvature * minimumBendRadius - 1.0);
+            double curvatureExcess = curvatureExcess(minimumBendRadius);
+            double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
             int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
             if (excess != 0) {
                 return excess;
@@ -536,6 +631,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 return deviation;
             }
             return Double.compare(pathLength, other.pathLength);
+        }
+
+        private double curvatureExcess(double minimumBendRadius) {
+            return Math.max(0.0, maximumCurvature * minimumBendRadius - 1.0);
         }
     }
 }
