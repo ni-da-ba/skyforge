@@ -85,6 +85,34 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)", styles)
         self.assertIn("UNBOUND LOCAL DIAGNOSTIC", app)
 
+    def test_studio_renderer_surface_is_backend_neutral(self):
+        scene = (STUDIO / "scene.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        design = (ROOT / "docs" / "architecture" / "SKYFORGE_STUDIO_S0.md").read_text(
+            encoding="utf-8"
+        )
+
+        for surface_name, surface in (
+            ("scene projection", scene),
+            ("Studio interface", markup),
+            ("Studio architecture", design),
+        ):
+            for term in ("minecraft", "a4mc", "aerodynamics4mc", "voxel", "world blocks"):
+                with self.subTest(surface=surface_name, term=term):
+                    self.assertNotIn(term, surface.lower())
+
+        for contract in (
+            'id: "WORLD_XYZ"',
+            'x: "+X world units"',
+            'z: "+Z world units"',
+            'units: "world units"',
+            'label: "External atmosphere provider"',
+            'semanticOwner: "External atmosphere provider"',
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, scene)
+        self.assertNotIn("modId", scene)
+
     def test_hydrology_comparison_behavior_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
