@@ -112,6 +112,95 @@
   });
   // END STUDIO WORLD BRIEF DOCUMENT CONTRACT
 
+  // BEGIN STUDIO SELECTED SAMPLE TRACE DOCUMENT CONTRACT
+  const SAMPLE_TRACE_DOCUMENT_TYPE = "SKYFORGE_STUDIO_SELECTED_SAMPLE_TRACE";
+  const SAMPLE_TRACE_FORMAT_VERSION = 1;
+
+  function sampleTraceSource(source) {
+    if (!source) return null;
+    return Object.freeze({
+      binding: source.binding || "UNBOUND_LOCAL",
+      artifactId: source.artifactId || null,
+      artifactTitle: source.artifactTitle || null,
+      sourceSha: source.sourceSha || null,
+      reviewAuthority: source.reviewAuthority === true,
+      artifactKind: source.artifactKind || null,
+      artifactDigest: source.artifactDigest || null,
+    });
+  }
+
+  function createSelectedSampleTrace(input) {
+    if (!input || !input.scene || !input.scene.source) {
+      throw new Error("selected sample trace requires a scene with source metadata");
+    }
+    if (!input.sample || typeof input.sample !== "object" || Array.isArray(input.sample)) {
+      throw new Error("selected sample trace requires a selected sample object");
+    }
+
+    const sceneSource = sampleTraceSource(input.scene.source);
+    const overlaySource = sampleTraceSource(input.overlay?.source);
+    const comparison = input.comparison ? Object.freeze({
+      associationToken: input.comparison.associationToken || null,
+      referenceSource: sampleTraceSource(input.comparison.referenceSource),
+      candidateSource: sampleTraceSource(input.comparison.candidateSource),
+      reviewAuthority: input.comparison.reviewAuthority === true,
+      field: input.comparison.field || null,
+    }) : null;
+
+    return Object.freeze({
+      document_type: SAMPLE_TRACE_DOCUMENT_TYPE,
+      format_version: SAMPLE_TRACE_FORMAT_VERSION,
+      review_authority: sceneSource.reviewAuthority === true &&
+        (!overlaySource || overlaySource.reviewAuthority === true) &&
+        (!comparison || comparison.reviewAuthority === true),
+      scene_kind: input.scene.sceneKind || null,
+      sources: Object.freeze({
+        scene: sceneSource,
+        overlay: overlaySource,
+        reference: comparison?.referenceSource || null,
+        candidate: comparison?.candidateSource || null,
+      }),
+      coordinate_system: input.scene.coordinateSystem || null,
+      provider: input.scene.provider || null,
+      overlay: input.overlay ? Object.freeze({
+        terrainSemanticSha256: input.overlay.terrainSemanticSha256 || null,
+        binding: input.overlay.binding || null,
+        gridBinding: input.overlay.gridBinding || null,
+      }) : null,
+      comparison: comparison ? Object.freeze({
+        associationToken: comparison.associationToken,
+        reviewAuthority: comparison.reviewAuthority,
+        field: comparison.field,
+      }) : null,
+      selected_sample: input.sample,
+    });
+  }
+
+  function selectedSampleTraceFilename(scene, sample) {
+    if (!scene || !scene.source || !sample || typeof sample !== "object") {
+      throw new Error("selected sample trace filename requires scene and sample data");
+    }
+    const base = String(
+      scene.source.artifactTitle || scene.source.artifactId || scene.sceneKind || "studio"
+    ).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "studio";
+    const position = Array.isArray(sample.position) && sample.position.length === 3
+      ? sample.position.map((value) => {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return "na";
+        return number.toFixed(1).replace(/-/g, "m").replace(/\./g, "p");
+      }).join("-")
+      : "selected";
+    return base + "-sample-" + position + ".skyforge-trace.json";
+  }
+
+  window.SkyforgeStudioSampleTrace = Object.freeze({
+    create: createSelectedSampleTrace,
+    filename: selectedSampleTraceFilename,
+    documentType: SAMPLE_TRACE_DOCUMENT_TYPE,
+    formatVersion: SAMPLE_TRACE_FORMAT_VERSION,
+  });
+  // END STUDIO SELECTED SAMPLE TRACE DOCUMENT CONTRACT
+
   function readStoredToken() {
     try {
       return window.sessionStorage?.getItem(TOKEN_KEY) || "";
@@ -483,6 +572,7 @@
     const fields = $("provenance-fields");
     const note = $("provenance-note");
     while (fields.firstChild) fields.removeChild(fields.firstChild);
+    $("sample-export-status").textContent = "";
 
     function addField(label, value) {
       const term = document.createElement("dt");
@@ -572,6 +662,35 @@
       : "Unbound local diagnostic. This view cannot satisfy an artifact-bound human gate.") +
       " Missing lineage is shown as not recorded; Studio does not infer it.";
     panel.hidden = false;
+  }
+
+  function downloadSelectedSampleTrace(sample) {
+    if (!scene || !sample) return;
+    const comparison = hydrologyComparison ? {
+      associationToken: hydrologyComparison.comparison.associationToken,
+      referenceSource: hydrologyComparison.comparison.referenceSource,
+      candidateSource: hydrologyComparison.comparison.candidateSource,
+      reviewAuthority: hydrologyComparison.comparison.reviewAuthority,
+      field: $("comparison-mode").value,
+    } : null;
+    const trace = window.SkyforgeStudioSampleTrace.create({
+      scene,
+      overlay,
+      comparison,
+      sample,
+    });
+    const filename = window.SkyforgeStudioSampleTrace.filename(scene, sample);
+    const blob = new Blob([JSON.stringify(trace, null, 2) + "\n"], {
+      type: "application/json",
+    });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    $("sample-export-status").textContent = "Downloaded one selected sample trace (" +
+      (trace.review_authority ? "artifact-bound source" : "unbound local diagnostic") + ").";
   }
 
   function renderInspector(sample) {
@@ -1882,6 +2001,14 @@
   });
 
   $("clear-hydrology-comparison").addEventListener("click", clearHydrologyComparison);
+  $("download-sample-trace").addEventListener("click", () => {
+    try {
+      downloadSelectedSampleTrace(selected);
+    } catch (error) {
+      $("sample-export-status").textContent = "Could not download this sample trace: " +
+        String(error.message || error);
+    }
+  });
 
   $("local-overlay-file").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];
