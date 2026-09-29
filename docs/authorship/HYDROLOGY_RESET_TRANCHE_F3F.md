@@ -22,6 +22,20 @@ For each failing station, the diagnostic evaluates the unchanged D2 head envelop
 centerline position and at four offsets: ±0.25 and ±0.50 bankfull half-width. It reports the offset
 with the smallest non-negative envelope gap, or zero if no probe improves it.
 
+## Fixed-corpus result
+
+The exact-head Hydrology Reset Geometry run reports:
+
+| Key-287 station fraction | Original gap (world units) | Best local offset (world units) | Residual gap |
+| ---: | ---: | ---: | ---: |
+| 0.1338234268 | 0.1419352561 | -1.1887785252 | 0.0 |
+| 0.3446610118 | 0.2243063420 | +1.8687493269 | 0.0 |
+| 0.3213393356 | 0.1520178924 | +4.4273231119 | 0.0 |
+
+This supports a constrained centerline-candidate experiment, but does not qualify any shifted geometry.
+Key 287 remains PHYSICAL_REJECTION: the separate 0.242424→0.333333 ordinary span still has a solved
+CASCADE boundary head outside its D2 envelope, and the local probes do not solve transitions.
+
 ## Interpretation boundary
 
 This is sensitivity evidence, not a candidate route. It does not check semantic-corridor membership,
