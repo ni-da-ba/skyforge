@@ -187,6 +187,16 @@
             <div id="frame-summary" class="small muted"></div>
           </div>
           <canvas id="viewport" aria-label="Skyforge semantic three-dimensional viewport"></canvas>
+          <div id="hydrology-legend" class="viewport-legend" role="note" aria-label="Authored hydrology legend" hidden>
+            <strong>Authored hydrology</strong>
+            <div id="legend-channel" class="viewport-legend-row"><span class="legend-mark legend-channel"></span><span>Channel reach</span></div>
+            <div id="legend-channel-width" class="viewport-legend-row"><span class="legend-mark legend-envelope"></span><span>Bankfull envelope</span></div>
+            <div id="legend-water-intent" class="viewport-legend-row"><span class="legend-mark legend-water"></span><span>Water intent</span></div>
+            <div id="legend-flow" class="viewport-legend-row"><span class="legend-mark legend-flow"></span><span>Flow direction</span></div>
+            <div id="legend-response" class="viewport-legend-row"><span class="legend-mark legend-response"><i></i><i></i></span><span>Hydrology response samples</span></div>
+            <div id="legend-potential" class="viewport-legend-row"><span class="legend-mark legend-potential"></span><span id="legend-potential-label">Selected cause field</span></div>
+            <p id="legend-water-note">Blue marks authored water intent; it is not placed Minecraft water.</p>
+          </div>
           <div class="viewport-help">Drag to rotate · wheel to zoom · click a sample to inspect</div>
         </section>
 
