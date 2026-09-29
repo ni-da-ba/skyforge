@@ -453,6 +453,8 @@
       !visible || !$("show-channel-width").checked;
     $("legend-water-intent").hidden =
       !visible || !$("show-water-intent").checked;
+    $("legend-water-note").hidden =
+      !visible || !$("show-water-intent").checked;
     $("legend-flow").hidden =
       !visible || !$("show-flow-vectors").checked;
     $("legend-response").hidden =
