@@ -75,10 +75,12 @@
 
           <div class="brief-actions">
             <button type="submit">Save draft now</button>
-            <button id="world-brief-download" type="button" class="secondary">Download JSON</button>
-            <button id="world-brief-import-button" type="button" class="secondary">Import JSON</button>
+            <button id="world-brief-download" type="button" class="secondary">Download this brief</button>
+            <button id="world-brief-library-download" type="button" class="secondary">Back up all saved briefs</button>
+            <button id="world-brief-import-button" type="button" class="secondary">Import a brief or backup</button>
             <input id="world-brief-import-file" type="file" accept=".json,application/json" hidden>
           </div>
+          <p class="small muted">“Download this brief” saves the open draft. “Back up all saved briefs” makes one portable copy of your library.</p>
           <p id="world-brief-status" class="small muted" aria-live="polite"></p>
           <p id="world-brief-count" class="small muted"></p>
         </form>

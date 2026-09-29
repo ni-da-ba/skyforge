@@ -43,6 +43,46 @@ const second = brief.create(
 );
 const library = brief.createLibrary([first, second], second.id);
 assert.equal(brief.parseLibrary(brief.serializeLibrary(library)).active_brief_id, second.id);
+assert.equal(brief.parseLibrary(brief.serializeLibrary(brief.createLibrary())).briefs.length, 0);
+const restored = brief.mergeLibraries(brief.createLibrary([first]), library);
+assert.equal(restored.briefs.length, 2);
+assert.equal(restored.active_brief_id, second.id);
+assert.equal(brief.mergeLibraries(restored, library).briefs.length, 2, "re-importing a backup is idempotent");
+const changedFirst = brief.create(
+  first.id,
+  "Changed copy",
+  first.intent,
+  first.created_at,
+  "2026-09-29T13:00:00Z"
+);
+assert.throws(
+  () => brief.mergeLibraries(
+    brief.createLibrary([first], first.id),
+    brief.createLibrary([changedFirst], changedFirst.id)
+  ),
+  /different local draft with the same ID/
+);
+const fullLibrary = brief.createLibrary(
+  Array.from({ length: 100 }, (_, index) => brief.create(
+    "brief-" + String(index).padStart(8, "0"),
+    "Draft " + index,
+    "",
+    "2026-09-29T12:00:00Z",
+    "2026-09-29T12:00:00Z"
+  ))
+);
+const extraBrief = brief.create(
+  "brief-10000000",
+  "One too many",
+  "",
+  "2026-09-29T12:00:00Z",
+  "2026-09-29T12:00:00Z"
+);
+assert.throws(
+  () => brief.mergeLibraries(fullLibrary, brief.createLibrary([extraBrief], extraBrief.id)),
+  /invalid number of drafts/
+);
+assert.throws(() => brief.parseLibrary("{"), /JSON/);
 assert.throws(() => brief.parseLibrary({ document_type: brief.libraryType, format_version: 1, active_brief_id: null }), /missing required fields/);
 assert.throws(() => brief.parse({ ...first, format_version: 99 }), /unsupported world brief format version/);
 assert.throws(() => brief.parse({ ...first, review_authority: true }), /unsupported fields/);

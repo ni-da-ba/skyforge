@@ -100,6 +100,30 @@
     return JSON.stringify(parseWorldBriefLibrary(value), null, 2);
   }
 
+  function mergeWorldBriefLibraries(currentValue, importedValue) {
+    const current = parseWorldBriefLibrary(currentValue);
+    const imported = parseWorldBriefLibrary(importedValue);
+    const mergedBriefs = current.briefs.slice();
+    const byId = new Map(mergedBriefs.map((brief) => [brief.id, brief]));
+
+    for (const brief of imported.briefs) {
+      const existing = byId.get(brief.id);
+      if (existing) {
+        if (JSON.stringify(existing) !== JSON.stringify(brief)) {
+          throw new Error("brief library contains a different local draft with the same ID");
+        }
+        continue;
+      }
+      mergedBriefs.push(brief);
+      byId.set(brief.id, brief);
+    }
+
+    const activeBriefId = imported.active_brief_id && byId.has(imported.active_brief_id)
+      ? imported.active_brief_id
+      : current.active_brief_id;
+    return createWorldBriefLibrary(mergedBriefs, activeBriefId);
+  }
+
   window.SkyforgeStudioWorldBrief = Object.freeze({
     create: createWorldBrief,
     parse: parseWorldBrief,
@@ -107,6 +131,7 @@
     createLibrary: createWorldBriefLibrary,
     parseLibrary: parseWorldBriefLibrary,
     serializeLibrary: serializeWorldBriefLibrary,
+    mergeLibraries: mergeWorldBriefLibraries,
     documentType: WORLD_BRIEF_DOCUMENT_TYPE,
     libraryType: WORLD_BRIEF_LIBRARY_TYPE,
   });
@@ -1937,10 +1962,50 @@
           ".skyforge-brief.json";
         link.click();
         window.setTimeout(() => URL.revokeObjectURL(url), 0);
-        setStatus("Downloaded a local draft JSON. It is not a generated world or review artifact.");
+        setStatus("Downloaded this local brief as JSON. It is not a generated world or review artifact.");
       } catch (error) {
         setStatus(String(error.message || error), false, "error");
       }
+    }
+
+    function exportLibrary() {
+      try {
+        const existing = library.briefs.find((brief) => brief.id === activeBriefId) || null;
+        const includeCurrent = Boolean(activeBriefId || isDirty || intentInput.value ||
+          titleInput.value.trim() !== "Untitled world");
+        const now = new Date().toISOString();
+        let briefs = library.briefs.slice();
+        let backupActiveId = activeBriefId || library.active_brief_id;
+        if (includeCurrent) {
+          const current = window.SkyforgeStudioWorldBrief.create(activeBriefId || newId(),
+            titleInput.value, intentInput.value, existing?.created_at || now, now);
+          briefs = [current, ...briefs.filter((brief) => brief.id !== current.id)];
+          backupActiveId = current.id;
+        }
+        const backup = window.SkyforgeStudioWorldBrief.createLibrary(briefs, backupActiveId || null);
+        const blob = new Blob([window.SkyforgeStudioWorldBrief.serializeLibrary(backup)], {
+          type: "application/json",
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "skyforge-studio-brief-library.json";
+        link.click();
+        window.setTimeout(() => URL.revokeObjectURL(url), 0);
+        setStatus("Downloaded a backup of " + backup.briefs.length +
+          (backup.briefs.length === 1 ? " brief" : " briefs") +
+          ", including current edits. Nothing was sent to a service.");
+      } catch (error) {
+        setStatus(String(error.message || error), false, "error");
+      }
+    }
+
+    function flushPendingSave() {
+      if (saveTimer !== null) {
+        window.clearTimeout(saveTimer);
+        saveTimer = null;
+      }
+      return !isDirty || saveCurrentBrief();
     }
 
     async function importBrief(event) {
@@ -1948,12 +2013,25 @@
       if (!file) return;
       try {
         if (file.size > 1_000_000) throw new Error("world brief files must be smaller than 1 MB");
-        const imported = window.SkyforgeStudioWorldBrief.parse(await file.text());
-        if (saveTimer !== null) {
-          window.clearTimeout(saveTimer);
-          saveTimer = null;
-          if (!saveCurrentBrief()) return;
+        const document = JSON.parse(await file.text());
+        if (document?.document_type === window.SkyforgeStudioWorldBrief.libraryType) {
+          const importedLibrary = window.SkyforgeStudioWorldBrief.parseLibrary(document);
+          if (!flushPendingSave()) return;
+          const previousCount = library.briefs.length;
+          const merged = window.SkyforgeStudioWorldBrief.mergeLibraries(library, importedLibrary);
+          window.localStorage.setItem(storageKey,
+            window.SkyforgeStudioWorldBrief.serializeLibrary(merged));
+          library = merged;
+          activeBriefId = merged.active_brief_id;
+          loadBrief(library.briefs.find((brief) => brief.id === activeBriefId) || null);
+          const added = library.briefs.length - previousCount;
+          setStatus("Imported a library backup; added " + added +
+            (added === 1 ? " new brief. " : " new briefs. ") +
+            "Identical drafts were skipped; local drafts were not overwritten.", true);
+          return;
         }
+        const imported = window.SkyforgeStudioWorldBrief.parse(document);
+        if (!flushPendingSave()) return;
         activeBriefId = null;
         titleInput.value = imported.title;
         intentInput.value = imported.intent;
@@ -1961,7 +2039,7 @@
         setStatus("Imported as a new local draft. It will save in this browser automatically.", false);
         scheduleSave();
       } catch (error) {
-        setStatus("Could not import this brief: " + String(error.message || error), false, "error");
+        setStatus("Could not import this brief or library: " + String(error.message || error), false, "error");
       } finally {
         event.target.value = "";
       }
@@ -1990,6 +2068,7 @@
       loadBrief(library.briefs.find((brief) => brief.id === requestedId) || null);
     });
     $("world-brief-download").addEventListener("click", exportBrief);
+    $("world-brief-library-download").addEventListener("click", exportLibrary);
     $("world-brief-import-button").addEventListener("click", () => $("world-brief-import-file").click());
     $("world-brief-import-file").addEventListener("change", importBrief);
     readLibrary();
