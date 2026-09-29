@@ -71,7 +71,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         searchRoute, terrain, interiority, planningSpacing);
 
         List<SkyIslandLocalPosition> current = new ArrayList<>(seed.points());
-        Candidate best = evaluate(\n                searchRoute, current, headEnvelopeGap, bankfullHalfWidthAtStation);
+        Candidate best = evaluate(
+                searchRoute, current, headEnvelopeGap, bankfullHalfWidthAtStation);
         for (int sweep = 0; sweep < MAXIMUM_RELAXATION_SWEEPS; sweep++) {
             List<SkyIslandLocalPosition> next = relaxOnce(
                     searchRoute,
@@ -85,7 +86,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             next.set(0, searchRoute.points().getFirst());
             next.set(next.size() - 1, searchRoute.points().getLast());
 
-            Candidate candidate = evaluate(\n                    searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
+            Candidate candidate = evaluate(
+                    searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
             if (candidate.compareTo(best, minimumBendRadius) < 0) {
                 best = candidate;
             }
