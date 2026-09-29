@@ -17,7 +17,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
     private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
-    private static final double[] D2_BLOCK_STEP_FACTORS = {0.0625, 0.125, 0.25, 0.5, 1.0, 2.0};
+    private static final double[] D2_JOINT_STEP_FACTORS = {0.125, 0.25, 0.5};
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
@@ -358,91 +358,92 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long curvatureAdmissible = 0;
         long objectiveImproving = 0;
         long selected = 0;
-        double minimumCandidateMaximumGap = Double.POSITIVE_INFINITY;
-        double minimumCandidateIntegratedSquaredGap = Double.POSITIVE_INFINITY;
         for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
             Candidate improved = best;
             int peakIndex = best.maximumHeadEnvelopeGapIndex();
+            if (peakIndex <= 0 || peakIndex >= best.points().size() - 1) {
+                break;
+            }
             double[] station = stations(best.points());
             double halfWidth =
                     bankfullHalfWidthAtStation.applyAsDouble(station[peakIndex]);
-            double peakStation = station[peakIndex];
-            double tiltHalfSpan =
-                    Math.min(0.15, 0.5 * Math.min(peakStation, 1.0 - peakStation));
-            for (int mode = 0; mode < 2; mode++) {
-                if (mode == 1 && tiltHalfSpan <= EPSILON) {
+            int[] indices = {peakIndex - 1, peakIndex, peakIndex + 1};
+            for (double stepFactor : D2_JOINT_STEP_FACTORS) {
+                double magnitude =
+                        Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
+                if (magnitude <= EPSILON) {
                     continue;
                 }
-                for (int direction : new int[] {-1, 1}) {
-                    for (double stepFactor : D2_BLOCK_STEP_FACTORS) {
-                        double magnitude =
-                                Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
-                        if (magnitude <= EPSILON) {
-                            continue;
-                        }
-                        proposals++;
-                        List<SkyIslandLocalPosition> points =
-                                new ArrayList<>(best.points());
-                        boolean admissible = true;
-                        for (int index = 1; index < points.size() - 1; index++) {
-                            double stationOffset = station[index] - peakStation;
-                            double normalizedOffset = stationOffset / tiltHalfSpan;
-                            double weight =
-                                    mode == 0
-                                            ? Math.sin(Math.PI * station[index])
-                                            : Math.abs(normalizedOffset) < 1.0
-                                                    ? 3.5 * normalizedOffset
-                                                            * (1.0 - normalizedOffset
-                                                                    * normalizedOffset)
-                                                            * (1.0 - normalizedOffset
-                                                                    * normalizedOffset)
-                                                    : 0.0;
-                            Vector tangent = tangentAt(best.points(), index);
-                            SkyIslandLocalPosition original = best.points().get(index);
-                            SkyIslandLocalPosition moved =
-                                    new SkyIslandLocalPosition(
-                                            original.x() - direction * tangent.z()
-                                                    * magnitude * weight,
-                                            original.z() + direction * tangent.x()
-                                                    * magnitude * weight);
-                            if (!admissibilityCheck(
-                                            moved,
-                                            searchRoute,
-                                            semanticGuidance,
-                                            terrain,
-                                            interiority,
-                                            semanticCorridorHalfWidth)
-                                    .allowed()) {
-                                admissible = false;
-                                break;
+                for (int firstDirection = -1; firstDirection <= 1; firstDirection++) {
+                    for (int centerDirection = -1; centerDirection <= 1; centerDirection++) {
+                        for (int lastDirection = -1; lastDirection <= 1; lastDirection++) {
+                            if (firstDirection == 0
+                                    && centerDirection == 0
+                                    && lastDirection == 0) {
+                                continue;
                             }
-                            points.set(index, moved);
-                        }
-                        if (!admissible) {
-                            continue;
-                        }
-                        fieldAdmissible++;
-                        if (maximumCurvature(points) * minimumBendRadius
-                                > 1.0 + EPSILON) {
-                            continue;
-                        }
-                        curvatureAdmissible++;
-                        Candidate candidate = evaluate(
-                                searchRoute,
-                                points,
-                                headEnvelopeGap,
-                                bankfullHalfWidthAtStation);
-                        minimumCandidateMaximumGap =
-                                Math.min(
-                                        minimumCandidateMaximumGap,
-                                        candidate.maximumHeadEnvelopeGap());
-                        minimumCandidateIntegratedSquaredGap =
-                                Math.min(
-                                        minimumCandidateIntegratedSquaredGap,
-                                        candidate.integratedSquaredHeadEnvelopeGap());
-                        if (candidate.compareTo(improved, minimumBendRadius) < 0) {
-                            objectiveImproving++;
-                            improved = candidate;
+                            proposals++;
+                            int[] directions = {
+                                firstDirection, centerDirection, lastDirection
+                            };
+                            List<SkyIslandLocalPosition> points =
+                                    new ArrayList<>(best.points());
+                            boolean admissible = true;
+                            for (int position = 0; position < indices.length; position++) {
+                                int direction = directions[position];
+                                if (direction == 0) {
+                                    continue;
+                                }
+                                int index = indices[position];
+                                if (index <= 0 || index >= points.size() - 1) {
+                                    admissible = false;
+                                    break;
+                                }
+                                Vector tangent = tangentAt(best.points(), index);
+                                SkyIslandLocalPosition original = best.points().get(index);
+                                SkyIslandLocalPosition moved =
+                                        new SkyIslandLocalPosition(
+                                                original.x() - direction * tangent.z() * magnitude,
+                                                original.z() + direction * tangent.x() * magnitude);
+                                if (!admissibilityCheck(
+                                                moved,
+                                                searchRoute,
+                                                semanticGuidance,
+                                                terrain,
+                                                interiority,
+                                                semanticCorridorHalfWidth)
+                                        .allowed()) {
+                                    admissible = false;
+                                    break;
+                                }
+                                points.set(index, moved);
+                            }
+                            if (!admissible) {
+                                continue;
+                            }
+                            fieldAdmissible++;
+                            if (maximumCurvature(points) * minimumBendRadius
+                                    > 1.0 + EPSILON) {
+                                continue;
+                            }
+                            curvatureAdmissible++;
+                            Candidate candidate = evaluate(
+                                    searchRoute,
+                                    points,
+                                    headEnvelopeGap,
+                                    bankfullHalfWidthAtStation);
+                            minimumCandidateMaximumGap =
+                                    Math.min(
+                                            minimumCandidateMaximumGap,
+                                            candidate.maximumHeadEnvelopeGap());
+                            minimumCandidateIntegratedSquaredGap =
+                                    Math.min(
+                                            minimumCandidateIntegratedSquaredGap,
+                                            candidate.integratedSquaredHeadEnvelopeGap());
+                            if (candidate.compareTo(improved, minimumBendRadius) < 0) {
+                                objectiveImproving++;
+                                improved = candidate;
+                            }
                         }
                     }
                 }
