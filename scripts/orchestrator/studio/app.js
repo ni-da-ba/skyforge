@@ -327,6 +327,35 @@
       return;
     }
 
+    if (sample.overlayKind === "HYDROLOGY_FIELD_COMPARISON_SAMPLE") {
+      const deltaLabel = $("comparison-mode").selectedOptions[0]?.textContent || "projection";
+      const surface = sample.surfaceDeltaY === null
+        ? "n/a"
+        : fmt(sample.surfaceDeltaY) + " world units";
+      const waterSurface = sample.waterSurfaceDeltaY === null
+        ? "n/a"
+        : fmt(sample.waterSurfaceDeltaY) + " world units";
+      const waterDepth = sample.waterDepthDelta === null
+        ? "n/a"
+        : fmt(sample.waterDepthDelta) + " world units";
+      const wetState = sample.referenceWet === null || sample.candidateWet === null
+        ? "wet state unavailable"
+        : (sample.referenceWet ? "wet" : "dry") + " → " +
+          (sample.candidateWet ? "wet" : "dry");
+      $("inspect-semantic").textContent =
+        sample.coverage + " · " + deltaLabel +
+        " · surface Δ " + surface +
+        " · water surface Δ " + waterSurface +
+        " · water depth Δ " + waterDepth +
+        " · " + wetState;
+      $("inspect-authority").textContent =
+        (hydrologyComparison.comparison.reviewAuthority
+          ? "Bound F4B/F4E projection comparison"
+          : "UNBOUND LOCAL DIAGNOSTIC comparison — not review authority") +
+        " · exact terrain " + scene.source.artifactDigest;
+      return;
+    }
+
     if (sample.overlayKind === "HYDROLOGY_CAUSE_SAMPLE") {
       $("inspect-semantic").textContent =
         "runoff " + fmt(sample.runoffPotential) +
@@ -487,12 +516,28 @@
       !visible || !$("show-hydrology-response").checked;
     const comparisonActive =
       hydrologyComparison !== null && $("show-hydrology-delta").checked;
+    const comparisonMode = $("comparison-mode").value;
+    const causeComparison = comparisonActive && comparisonMode === "causes";
+    const fieldComparison = comparisonActive && comparisonMode !== "causes";
+    $("cause-field-control").hidden = fieldComparison;
     $("legend-potential").hidden =
-      !visible || comparisonActive || $("hydrology-potential").value === "none";
+      !visible || causeComparison || fieldComparison ||
+      $("hydrology-potential").value === "none";
     $("legend-potential-label").textContent =
       $("hydrology-potential").selectedOptions[0]?.textContent || "Selected cause field";
     $("legend-delta").hidden = !visible || !comparisonActive;
     $("legend-delta-note").hidden = !visible || !comparisonActive;
+    $("legend-delta-label").textContent = fieldComparison
+      ? (comparisonMode === "surface"
+        ? "Candidate − reference surface elevation: purple − / gray 0 / orange + (world units)"
+        : comparisonMode === "water-surface"
+          ? "Candidate − reference water surface: purple − / gray 0 / orange + (world units)"
+          : "Candidate − reference water depth: purple − / gray 0 / orange + (world units)")
+      : "Candidate − reference: purple − / gray 0 / orange +";
+    $("legend-delta-note").textContent = fieldComparison
+      ? "Sparse affected samples show shared values and one-sided footprint changes; channel, flow, response, and water layers show the reference."
+      : "Only the selected cause field is compared; channel, flow, response, and water layers show the reference.";
+    $("comparison-mode").disabled = hydrologyComparison === null;
     $("show-hydrology-delta").disabled = hydrologyComparison === null;
     $("clear-hydrology-comparison").disabled = hydrologyComparison === null;
   }
@@ -516,6 +561,36 @@
     return "rgb(" + color.join(",") + ")";
   }
 
+  function fieldComparisonPosition(sample, mode) {
+    if (mode === "surface") {
+      return sample.candidatePosition || sample.referencePosition;
+    }
+    return sample.candidateWaterPosition ||
+      sample.referenceWaterPosition ||
+      sample.candidatePosition ||
+      sample.referencePosition;
+  }
+
+  function fieldComparisonDelta(sample, mode) {
+    if (sample.coverage === "candidate-only") return 1;
+    if (sample.coverage === "reference-only") return -1;
+    if (sample.wetTransition === "WET_ADDED") return 1;
+    if (sample.wetTransition === "WET_REMOVED") return -1;
+    if (mode === "surface") return sample.surfaceDeltaY;
+    if (mode === "water-surface") return sample.waterSurfaceDeltaY;
+    return sample.waterDepthDelta;
+  }
+
+  function fieldComparisonScale(samples, mode) {
+    let maximum = 0;
+    for (const sample of samples) {
+      if (sample.coverage !== "shared" || sample.wetTransition) continue;
+      const value = fieldComparisonDelta(sample, mode);
+      if (Number.isFinite(value)) maximum = Math.max(maximum, Math.abs(value));
+    }
+    return maximum || 1;
+  }
+
   function drawTerrain() {
     const points = terrainDisplayPoints();
     if (!points.length) {
@@ -523,8 +598,15 @@
       $("frame-summary").textContent = "No solid semantic samples in this view";
       return;
     }
-
-    const transform = fitTransform(points);
+    const comparisonActive =
+      hydrologyComparison !== null && $("show-hydrology-delta").checked;
+    const comparisonMode = $("comparison-mode").value;
+    const fitPoints = comparisonActive && comparisonMode !== "causes"
+      ? points.concat(hydrologyComparison.comparison.fieldSamples.map((sample) => ({
+          position: fieldComparisonPosition(sample, comparisonMode),
+        })))
+      : points;
+    const transform = fitTransform(fitPoints);
     const radius = points.length > 15000 ? 1.2 : points.length > 5000 ? 1.8 : 2.8;
     projected = points.map((sample) => ({
       sample,
@@ -605,8 +687,11 @@
     const potential = $("hydrology-potential").value;
     const comparisonActive =
       hydrologyComparison !== null && $("show-hydrology-delta").checked;
-    if (potential !== "none") {
-      const causeSamples = comparisonActive
+    const comparisonMode = $("comparison-mode").value;
+    const causeComparison = comparisonActive && comparisonMode === "causes";
+    const fieldComparison = comparisonActive && comparisonMode !== "causes";
+    if (potential !== "none" && (!comparisonActive || causeComparison)) {
+      const causeSamples = causeComparison
         ? hydrologyComparison.comparison.samples
         : overlay.causeSamples;
       for (const sample of causeSamples) {
@@ -614,7 +699,7 @@
         const active = selected === sample;
         ctx.fillStyle = active
           ? "#ffffff"
-          : (comparisonActive
+          : (causeComparison
             ? hydrologyDeltaColor(sample.deltas[potential])
             : potentialColor(sample[potential]));
         ctx.globalAlpha = active ? 1.0 : 0.78;
@@ -656,6 +741,48 @@
         ctx.globalAlpha = active ? 1.0 : 0.72;
         ctx.beginPath();
         ctx.arc(projectedPoint[0], projectedPoint[1], active ? 4.5 : 2.2, 0, Math.PI * 2);
+        ctx.fill();
+        projected.push({ sample, start: projectedPoint });
+      }
+      ctx.globalAlpha = 1.0;
+    }
+
+    if (fieldComparison) {
+      const samples = hydrologyComparison.comparison.fieldSamples;
+      const scale = fieldComparisonScale(samples, comparisonMode);
+      for (const sample of samples) {
+        const position = fieldComparisonPosition(sample, comparisonMode);
+        if (!position) continue;
+        const projectedPoint = project(position, transform);
+        const referencePosition = comparisonMode === "surface"
+          ? sample.referencePosition
+          : sample.referenceWaterPosition;
+        const candidatePosition = comparisonMode === "surface"
+          ? sample.candidatePosition
+          : sample.candidateWaterPosition;
+        if (
+          referencePosition &&
+          candidatePosition &&
+          (referencePosition[1] !== candidatePosition[1])
+        ) {
+          const referencePoint = project(referencePosition, transform);
+          ctx.strokeStyle = "rgba(220,225,235,0.58)";
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(referencePoint[0], referencePoint[1]);
+          ctx.lineTo(projectedPoint[0], projectedPoint[1]);
+          ctx.stroke();
+        }
+        const delta = fieldComparisonDelta(sample, comparisonMode);
+        const active = selected === sample;
+        ctx.fillStyle = active
+          ? "#ffffff"
+          : (Number.isFinite(delta)
+            ? hydrologyDeltaColor(delta / scale)
+            : "#c3c5ca");
+        ctx.globalAlpha = active ? 1 : 0.88;
+        ctx.beginPath();
+        ctx.arc(projectedPoint[0], projectedPoint[1], active ? 5 : 3.4, 0, Math.PI * 2);
         ctx.fill();
         projected.push({ sample, start: projectedPoint });
       }
@@ -794,6 +921,7 @@
     scene = nextScene;
     overlay = null;
     hydrologyComparison = null;
+    $("comparison-mode").value = "causes";
     $("show-hydrology-delta").checked = false;
     selected = null;
     $("scene-kind").textContent = scene.sceneKind;
@@ -910,6 +1038,7 @@
   function setOverlay(nextOverlay) {
     overlay = nextOverlay;
     hydrologyComparison = null;
+    $("comparison-mode").value = "causes";
     $("show-hydrology-delta").checked = false;
     selected = null;
     updateHydrologyControlVisibility();
@@ -954,6 +1083,7 @@
       candidate
     );
     hydrologyComparison = { candidate, comparison };
+    $("comparison-mode").value = "causes";
     $("show-hydrology-delta").checked = true;
     if ($("hydrology-potential").value === "none") {
       $("hydrology-potential").value = "runoffPotential";
@@ -1020,6 +1150,7 @@
 
   function clearHydrologyComparison() {
     hydrologyComparison = null;
+    $("comparison-mode").value = "causes";
     $("show-hydrology-delta").checked = false;
     $("local-comparison-file").value = "";
     $("comparison-status").textContent =
@@ -1220,6 +1351,12 @@
   });
 
   $("show-hydrology-delta").addEventListener("change", () => {
+    selected = null;
+    updateHydrologyControlVisibility();
+    draw();
+  });
+
+  $("comparison-mode").addEventListener("change", () => {
     selected = null;
     updateHydrologyControlVisibility();
     draw();

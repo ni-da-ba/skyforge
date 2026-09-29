@@ -139,14 +139,16 @@
 
             <div id="hydrology-visual-controls" class="hydrology-visual-controls" hidden>
               <h3>Authored hydrology</h3>
-              <label for="hydrology-potential">Cause field</label>
-              <select id="hydrology-potential">
-                <option value="none">No cause coloring</option>
-                <option value="runoffPotential">Runoff potential</option>
-                <option value="retentionPotential">Retention potential</option>
-                <option value="drainagePotential">Drainage potential</option>
-                <option value="outflowPotential">Outflow potential</option>
-              </select>
+              <div id="cause-field-control">
+                <label for="hydrology-potential">Cause field</label>
+                <select id="hydrology-potential">
+                  <option value="none">No cause coloring</option>
+                  <option value="runoffPotential">Runoff potential</option>
+                  <option value="retentionPotential">Retention potential</option>
+                  <option value="drainagePotential">Drainage potential</option>
+                  <option value="outflowPotential">Outflow potential</option>
+                </select>
+              </div>
               <label class="check-row"><input id="show-flow-vectors" type="checkbox" checked> Flow vectors</label>
               <label class="check-row"><input id="show-channel-width" type="checkbox" checked> F4B bankfull envelope</label>
               <label class="check-row"><input id="show-hydrology-response" type="checkbox" checked> F4B terrain response</label>
@@ -177,6 +179,13 @@
                 <label for="local-comparison-file">Local candidate hydrology JSON</label>
                 <input id="local-comparison-file" type="file" accept=".json,application/json">
                 <button id="load-local-comparison" type="button" class="secondary full-button">Compare local candidate</button>
+                <label for="comparison-mode">Compare field</label>
+                <select id="comparison-mode" disabled>
+                  <option value="causes">Cause potentials</option>
+                  <option value="surface">Target surface elevation</option>
+                  <option value="water-surface">Water surface elevation</option>
+                  <option value="water-depth">Water depth</option>
+                </select>
                 <label class="check-row"><input id="show-hydrology-delta" type="checkbox" disabled> Show candidate − reference</label>
                 <button id="clear-hydrology-comparison" type="button" class="secondary full-button" disabled>Clear comparison</button>
                 <p id="comparison-status" class="small muted">Attach a reference hydrology artifact first.</p>
@@ -208,7 +217,7 @@
             <div id="legend-flow" class="viewport-legend-row"><span class="legend-mark legend-flow"></span><span>Flow direction</span></div>
             <div id="legend-response" class="viewport-legend-row"><span class="legend-mark legend-response"><i></i><i></i></span><span>Hydrology response samples</span></div>
             <div id="legend-potential" class="viewport-legend-row"><span class="legend-mark legend-potential"></span><span id="legend-potential-label">Selected cause field</span></div>
-            <div id="legend-delta" class="viewport-legend-row" hidden><span class="legend-mark legend-delta"></span><span>Candidate − reference: purple − / gray 0 / orange +</span></div>
+            <div id="legend-delta" class="viewport-legend-row" hidden><span class="legend-mark legend-delta"></span><span id="legend-delta-label">Candidate − reference: purple − / gray 0 / orange +</span></div>
             <p id="legend-water-note">Blue marks authored water intent; it is not placed Minecraft water.</p>
             <p id="legend-delta-note" hidden>Only the selected cause field is compared; channel, flow, response, and water layers show the reference.</p>
           </div>

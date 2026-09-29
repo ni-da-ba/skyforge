@@ -24,6 +24,12 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "hydrology comparison cause sample counts do not match",
             "candidate hydrology comparison is missing cause sample",
             "hydrology comparison cause coordinates do not match",
+            "candidate hydrology comparison contains duplicate field samples",
+            "reference hydrology comparison contains duplicate field samples",
+            "hydrology comparison field coordinates do not match",
+            "hydrology comparison produced a non-finite ",
+            "HYDROLOGY_FIELD_COMPARISON_SAMPLE",
+            "fieldSamples: Object.freeze(fieldSamples)",
             "reference.source.reviewAuthority && candidate.source.reviewAuthority",
             "compareHydrologyLayers,",
         ):
@@ -43,7 +49,17 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn('id="local-comparison-file"', markup)
         self.assertIn('id="load-local-comparison"', markup)
         self.assertIn('id="show-hydrology-delta"', markup)
+        self.assertIn('id="comparison-mode"', markup)
+        self.assertIn('value="surface"', markup)
+        self.assertIn('value="water-surface"', markup)
+        self.assertIn('value="water-depth"', markup)
         self.assertIn('id="comparison-controls" class="comparison-controls" hidden', markup)
+        self.assertIn('id="legend-delta-label"', markup)
+        self.assertIn("fieldComparisonDelta(sample, comparisonMode)", app)
+        self.assertIn("HYDROLOGY_FIELD_COMPARISON_SAMPLE", app)
+        self.assertIn("Target surface elevation", markup)
+        self.assertIn("Water surface elevation", markup)
+        self.assertIn("Water depth", markup)
         self.assertIn('binding: "UNBOUND_LOCAL"', app)
         self.assertIn('reviewAuthority: false,', app)
         self.assertIn('UNBOUND LOCAL DIAGNOSTIC — not review authority', app)
