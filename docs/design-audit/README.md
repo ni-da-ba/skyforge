@@ -1,6 +1,6 @@
 # Skyforge Minecraft Content Integration Audit
 
-**Snapshot:** 2026-09-05  
+**Snapshot:** 2026-09-29  
 **Status:** Working design corpus; not an accepted architecture or implementation milestone.
 
 This directory records the Minecraft-backend content, experience, ecosystem, threat, atmosphere, navigation, and structure audit conducted in parallel with the active Skyforge authorship and implementation lanes.
@@ -161,4 +161,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Portable Engine redstone cutoff compatibility contract v0.1](portable-engine-redstone-cutoff-compatibility-contract-v0.1.md)
 - [Bootstrap experience recipes v0.1](bootstrap-experience-recipes-v0.1.md)
 - [Selected-mod resource worldgen authority audit v0.1](selected-mod-resource-worldgen-authority-audit-v0.1.md)
+- [Engineered weapons systems stack v0.1](engineered-weapons-systems-stack-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
