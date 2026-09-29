@@ -58,10 +58,86 @@ public final class SkyIslandHydraulicHeadEnvelopePlanner {
             double normalZ,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicProfileLimits limits) {
-        return evaluateForKindWithDiagnostics(
-                        descriptor, kind, position, bankfullHalfWidth, waterDepthPotential,
-                        terrainElevation, normalX, normalZ, terrain, limits)
-                .envelope();
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(kind, "kind");
+        Objects.requireNonNull(position, "position");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(limits, "limits");
+        requireFinitePositive(bankfullHalfWidth, "bankfullHalfWidth");
+        requireFraction(waterDepthPotential, "waterDepthPotential");
+        requireFraction(terrainElevation, "terrainElevation");
+        if (kind == SkyIslandChannelProfileKind.CASCADE) {
+            throw new IllegalArgumentException(
+                    "ordinary hydraulic head envelope cannot use CASCADE profile");
+        }
+
+        double normalLength = Math.hypot(normalX, normalZ);
+        if (!Double.isFinite(normalLength) || normalLength <= 0.0) {
+            throw new IllegalArgumentException("normal must be finite and non-zero");
+        }
+        normalX /= normalLength;
+        normalZ /= normalLength;
+
+        double relief = descriptor.reliefBudget();
+        if (!Double.isFinite(relief) || relief <= 0.0) {
+            throw new IllegalArgumentException(
+                    "descriptor relief budget must be finite and positive");
+        }
+
+        double valleyHalfWidth = bankfullHalfWidth * valleyMultiplier(kind);
+        double fullValleyWidth = 2.0 * valleyHalfWidth;
+        double centerTerrain = terrainElevation * relief;
+        double depth = waterDepthPotential * relief;
+        double leftValleyTerrain =
+                terrain.sample(offset(position, normalX, normalZ, valleyHalfWidth)) * relief;
+        double rightValleyTerrain =
+                terrain.sample(offset(position, normalX, normalZ, -valleyHalfWidth)) * relief;
+        double leftBankTerrain =
+                terrain.sample(offset(position, normalX, normalZ, bankfullHalfWidth)) * relief;
+        double rightBankTerrain =
+                terrain.sample(offset(position, normalX, normalZ, -bankfullHalfWidth)) * relief;
+
+        double lowerHead = Math.max(
+                depth,
+                Math.max(
+                        centerTerrain
+                                - limits.maximumCenterlineLoweringPotential() * relief
+                                + depth,
+                        Math.max(
+                                Math.max(
+                                        leftValleyTerrain
+                                                - limits.maximumLateralRecoveryGrade()
+                                                        * valleyHalfWidth
+                                                + depth,
+                                        rightValleyTerrain
+                                                - limits.maximumLateralRecoveryGrade()
+                                                        * valleyHalfWidth
+                                                + depth),
+                                Math.max(
+                                        leftValleyTerrain
+                                                - limits.maximumReliefToValleyWidthRatio()
+                                                        * fullValleyWidth
+                                                + depth,
+                                        rightValleyTerrain
+                                                - limits.maximumReliefToValleyWidthRatio()
+                                                        * fullValleyWidth
+                                                + depth))));
+        double upperHead = Math.min(
+                relief,
+                Math.min(leftBankTerrain, rightBankTerrain)
+                        + limits.maximumBankContainmentDeficitWorldUnits());
+
+        double preferredPotential = Math.max(
+                waterDepthPotential,
+                terrainElevation
+                        - SkyIslandHydraulicGeometryCalibration.freeboardFromDepthPotential(
+                                waterDepthPotential));
+
+        return new SkyIslandHydraulicHeadEnvelope(
+                kind,
+                preferredPotential * relief,
+                lowerHead,
+                upperHead);
     }
 
     static HeadEnvelopeEvaluation evaluateForKindWithDiagnostics(
