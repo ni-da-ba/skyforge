@@ -190,6 +190,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
         Files.createDirectories(report.getParent());
         Files.writeString(report, summary);
+        System.out.println(summary);
         assertTrue(d.lateralCandidateProposals() > 0);
         assertEquals(
                 d.finalMaximumHeadEnvelopeGap(),
