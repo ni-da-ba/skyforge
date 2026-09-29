@@ -388,17 +388,18 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                                 halfWidth,
                                                 depth,
                                                 Math.max(0.0, Math.min(1.0, terrain.sample(point))),
-                                                tangentZ / tangentLength,
-                                                -tangentX / tangentLength,
+                                                -tangentZ / tangentLength,
+                                                tangentX / tangentLength,
                                                 terrain,
                                                 policy.limits(qualificationClass));
                         double gap = evaluation.positiveGap();
                         maximumGap = Math.max(maximumGap, gap);
+                        double candidateLength = arc[arc.length - 1] * stations[stations.length - 1];
                         double segmentWeight = i == 0
-                                ? 0.5 * (arc[1] - arc[0])
+                                ? 0.5 * stations[1] * candidateLength
                                 : i == candidate.size() - 1
-                                        ? 0.5 * (arc[i] - arc[i - 1])
-                                        : 0.5 * (arc[i + 1] - arc[i - 1]);
+                                        ? 0.5 * (stations[i] - stations[i - 1]) * candidateLength
+                                        : 0.5 * (stations[i + 1] - stations[i - 1]) * candidateLength;
                         integratedGap += segmentWeight * gap * gap;
                         feasible &= evaluation.envelope().feasible(EPSILON);
                     }
