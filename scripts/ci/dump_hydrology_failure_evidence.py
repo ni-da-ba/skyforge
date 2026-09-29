@@ -14,7 +14,7 @@ REPORTS = (
     Path("skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv"),
     Path("skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv"),
 )
-ROW = re.compile(r"^(ordinary-77(?:-weak)?|primary-287|confluence-632|lake-609)(?:,|-)")
+ROW = re.compile(r"^(ordinary-77(?:-weak)?|primary-287|confluence-632|lake-609)(?:,|-)|^(?:709,559|1742,1842)(?:,|$)")
 
 
 def main() -> None:
