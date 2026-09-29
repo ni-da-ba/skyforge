@@ -173,7 +173,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
 
         BlockMoveSearch blockSearch =
-                new BlockMoveSearch(best, 0, 0, 0, 0, 0);
+                new BlockMoveSearch(best, 0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
         if (headEnvelopeGap != null) {
             blockSearch = refinePeakWithBlockMoves(
                     searchRoute,
@@ -356,6 +356,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long curvatureAdmissible = 0;
         long objectiveImproving = 0;
         long selected = 0;
+        double minimumCandidateMaximumGap = Double.POSITIVE_INFINITY;
+        double minimumCandidateIntegratedSquaredGap = Double.POSITIVE_INFINITY;
         for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
             Candidate improved = best;
             int peakIndex = best.maximumHeadEnvelopeGapIndex();
@@ -428,6 +430,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                 points,
                                 headEnvelopeGap,
                                 bankfullHalfWidthAtStation);
+                        minimumCandidateMaximumGap =
+                                Math.min(
+                                        minimumCandidateMaximumGap,
+                                        candidate.maximumHeadEnvelopeGap());
+                        minimumCandidateIntegratedSquaredGap =
+                                Math.min(
+                                        minimumCandidateIntegratedSquaredGap,
+                                        candidate.integratedSquaredHeadEnvelopeGap());
                         if (candidate.compareTo(improved, minimumBendRadius) < 0) {
                             objectiveImproving++;
                             improved = candidate;
@@ -443,7 +453,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
         return new BlockMoveSearch(
                 best, proposals, fieldAdmissible, curvatureAdmissible,
-                objectiveImproving, selected);
+                objectiveImproving, selected,
+                minimumCandidateMaximumGap,
+                minimumCandidateIntegratedSquaredGap);
     }
 
     private static Candidate evaluate(
@@ -800,7 +812,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long blockMoveFieldAdmissible,
             long blockMoveCurvatureAdmissible,
             long blockMoveObjectiveImproving,
-            long selectedBlockMoves) {}
+            long selectedBlockMoves,
+            double minimumBlockCandidateMaximumGap,
+            double minimumBlockCandidateIntegratedSquaredGap) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
