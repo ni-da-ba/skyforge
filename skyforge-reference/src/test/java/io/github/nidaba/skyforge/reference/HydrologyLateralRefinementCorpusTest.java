@@ -20,12 +20,6 @@ class HydrologyLateralRefinementCorpusTest {
         String summaryB = Files.readString(b.resolve("summary.csv"));
         String reachesA = Files.readString(a.resolve("reaches.csv"));
         String reachesB = Files.readString(b.resolve("reaches.csv"));
-        System.out.println("F4G_SUMMARY=" + summaryA.lines()
-                .filter(line -> line.startsWith("ordinary-77,77,"))
-                .toList());
-        System.out.println("F4G_REACHES=" + reachesA.lines()
-                .filter(line -> line.startsWith("ordinary-77,77,"))
-                .toList());
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
