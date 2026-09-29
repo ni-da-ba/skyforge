@@ -118,6 +118,18 @@ assert.deepEqual({ ...comparison.samples[1].deltas }, {
 });
 assert.ok(FIELDS.every((field) => Number.isFinite(comparison.samples[0].deltas[field])));
 
+const unboundReference = layer(reference.causeSamples, {
+  source: { reviewAuthority: false },
+});
+const registeredCandidate = layer(candidate.causeSamples, {
+  source: { reviewAuthority: true },
+});
+assert.equal(
+  compare(unboundReference, registeredCandidate).reviewAuthority,
+  false,
+  "an unbound reference cannot grant review authority to the comparison"
+);
+
 expectFailure(
   "terrain digest mismatch",
   reference,
