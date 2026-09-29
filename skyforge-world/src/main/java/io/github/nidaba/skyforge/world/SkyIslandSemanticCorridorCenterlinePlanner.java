@@ -158,14 +158,18 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         "bankfull half-width must be finite and non-negative");
             }
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
-                for (int step = 1; step <= 2; step++) {
-                    double offset = 0.25 * step * halfWidth;
-                    options.add(new SkyIslandLocalPosition(
-                            point.x() - normal.x() * offset,
-                            point.z() - normal.z() * offset));
-                    options.add(new SkyIslandLocalPosition(
-                            point.x() + normal.x() * offset,
-                            point.z() + normal.z() * offset));
+                double currentGap =
+                        checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
+                if (currentGap > EPSILON) {
+                    for (int step = 1; step <= 2; step++) {
+                        double offset = 0.25 * step * halfWidth;
+                        options.add(new SkyIslandLocalPosition(
+                                point.x() - normal.x() * offset,
+                                point.z() - normal.z() * offset));
+                        options.add(new SkyIslandLocalPosition(
+                                point.x() + normal.x() * offset,
+                                point.z() + normal.z() * offset));
+                    }
                 }
             }
 
