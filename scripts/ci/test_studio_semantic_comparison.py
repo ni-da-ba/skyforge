@@ -243,7 +243,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             'id="imported-sample-trace-sample"',
             'id="clear-imported-sample-trace"',
             "trace-viewer.js",
-            "one saved sample and its recorded context",
+            "exported from the Inspector with",
         ):
             with self.subTest(control=control):
                 self.assertIn(control, markup)
