@@ -217,11 +217,18 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long lateralCandidateCurvatureRejected = 0;
         long lateralCandidateGapImproving = 0;
         long selectedLateralMoves = 0;
-        double[] stations = stations(current);
+        double[] stationSnapshot = headEnvelopeGap == null ? stations(current) : null;
         for (int i = 1; i < current.size() - 1; i++) {
-            SkyIslandLocalPosition previous = current.get(i - 1);
-            SkyIslandLocalPosition point = current.get(i);
-            SkyIslandLocalPosition next = current.get(i + 1);
+            // D2 geometry depends on physical station through discharge-scaled width and depth.
+            // Re-score each lateral move against the path already updated in this sweep.
+            List<SkyIslandLocalPosition> working =
+                    headEnvelopeGap == null ? current : result;
+            double station = headEnvelopeGap == null
+                    ? stationSnapshot[i]
+                    : stations(working)[i];
+            SkyIslandLocalPosition previous = working.get(i - 1);
+            SkyIslandLocalPosition point = working.get(i);
+            SkyIslandLocalPosition next = working.get(i + 1);
             SkyIslandLocalPosition midpoint =
                     new SkyIslandLocalPosition(
                             0.5 * (previous.x() + next.x()),
@@ -229,7 +236,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandLocalPosition smoothed = lerp(point, midpoint, RELAXATION_FRACTION);
             List<SkyIslandLocalPosition> options = new ArrayList<>(13);
             options.add(smoothed);
-            double station = stations[i];
             Vector tangent = tangent(previous, next);
             Vector normal = new Vector(-tangent.z(), tangent.x());
             double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
