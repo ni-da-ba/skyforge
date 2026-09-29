@@ -38,19 +38,19 @@ jobs:
       - name: Print compact discovery results
         if: success()
         run: |
-          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/summary.csv
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/summary.csv
           echo "--- open-water candidate rows ---"
-          head -n 31 skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/candidates.csv
+          head -n 31 skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/candidates.csv
           echo "--- all retained-sink semantic classifications ---"
-          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/semantics.csv
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/semantics.csv
           echo "--- geometry failures ---"
-          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/geometry-failures.csv
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/geometry-failures.csv
 
       - name: Upload retained-basin discovery evidence
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: skyforge-hydrology-retained-basin-seed-strata-${{ github.sha }}
-          path: skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/
+          path: skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/
           if-no-files-found: error
           retention-days: 14

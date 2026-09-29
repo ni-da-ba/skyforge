@@ -44,6 +44,29 @@ ratio P² / (4πA), explicit contour-loop/topology measurements, and the signed 
 channel datum offsets from each basin water datum. These quantify sampled
 planform compactness and closure; they are diagnostics only, not calibrated rejection thresholds.
 
+The expanded v5 corpus crossed 11 seed strata with the same two namespaces and 1,024 keys
+(22,528 identities). Exact-head Hydrology Retained Basin Discovery run #13 succeeded with 0 POND,
+6 LAKE, 195 WETLAND candidates, and 0 geometry-measurement failures. All six lakes had one matched
+terminal reach, one closed shoreline loop, and zero non-degree-two shoreline vertices. However, every
+matched channel terminal was below its basin datum, by 11.06–11.59 times that lake's measured spill
+headroom:
+
+| Seed / namespace / key | Spill headroom | Signed channel offset | Absolute mismatch / headroom |
+| --- | ---: | ---: | ---: |
+| seed-skyforge / 8-81 / 609 | 4.9209 | -55.8019 | 11.3399 |
+| u64-midpoint-01 / 6-61 / 35 | 2.5060 | -27.8673 | 11.1201 |
+| u64-midpoint-01 / 6-61 / 200 | 0.4851 | -5.4458 | 11.2252 |
+| u64-midpoint-04 / 6-61 / 624 | 6.8032 | -75.2277 | 11.0577 |
+| u64-midpoint-05 / 8-81 / 500 | 7.4340 | -84.8912 | 11.4194 |
+| u64-midpoint-07 / 6-61 / 772 | 6.5057 | -75.4288 | 11.5943 |
+
+The broader scan therefore found more naturally occurring, geometrically closed lakes, but did not find a
+near-level channel/basin junction. This is not evidence that a waterfall/outlet transition is impossible;
+it is evidence that the current terminal-to-retained-sink association cannot be treated as an ordinary
+level junction. No outlet/drop policy or E2 threshold is inferred, and all six remain unqualified for
+production realization. The exact evidence is retained in Actions run #13 (artifact 11011155455,
+SHA-256 `fb2eb29c46d69dfb01d525bf9a3cf838bef1a16f5ffd05cd037472d21dcd2408`).
+
 ## Interpretation
 
 This is evidence about corpus support, not evidence that POND or LAKE can never occur.
