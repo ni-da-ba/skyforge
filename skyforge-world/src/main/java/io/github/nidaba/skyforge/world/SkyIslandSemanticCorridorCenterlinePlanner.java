@@ -235,7 +235,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
-                    for (int direction : new int[] {-1, 1}) {
+                    for (int direction = -1; direction <= 1; direction += 2) {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
                         SkyIslandLocalPosition option =
@@ -249,7 +249,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             option = lateralOption(point, normal, direction, offset);
                         }
                         for (int refinement = 0;
-                                backtracks < 12 && refinement < 3
+                                refinement < 3
                                         && curvatureAdmissible(
                                                 result, i, option, minimumBendRadius);
                                 refinement++) {
