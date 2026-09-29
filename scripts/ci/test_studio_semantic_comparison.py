@@ -133,6 +133,39 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn('overlay.gridBinding', app)
         self.assertIn("clearSampleProvenance()", app)
 
+    def test_selected_sample_trace_export_document_contract(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
+
+        for contract in (
+            "SKYFORGE_STUDIO_SELECTED_SAMPLE_TRACE",
+            "function createSelectedSampleTrace(input)",
+            "function selectedSampleTraceFilename(scene, sample)",
+            "selected_sample: input.sample",
+            "review_authority: sceneSource.reviewAuthority === true",
+            "downloadSelectedSampleTrace(selected)",
+            "URL.createObjectURL(blob)",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, app)
+        self.assertIn('id="download-sample-trace"', markup)
+        self.assertIn('id="sample-export-status"', markup)
+        self.assertIn("Download sample trace JSON", markup)
+        self.assertIn(".sample-trace-actions", styles)
+
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_sample_trace.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio selected sample trace document behavior", result.stdout)
+
     def test_hydrology_comparison_behavior_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
