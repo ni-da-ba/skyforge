@@ -418,6 +418,29 @@ jobs:
           echo "--- D2 centerline candidate admissibility: key 287 ---"
           cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
 
+      - name: Dump generated hydrology evidence on failure
+        if: failure()
+        shell: bash
+        run: |
+          for path in \
+            skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv \
+            skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv \
+            skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv \
+            skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv \
+            skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/components.csv \
+            skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv \
+            skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv \
+            skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt; do
+            if [[ -f "$path" ]]; then
+              echo "--- $path ---"
+              if [[ "$path" == *key-287.txt ]]; then
+                cat "$path"
+              else
+                grep -E '^(ordinary-77|ordinary-77-weak|primary-287|confluence-632|lake-609)(,|-)' "$path" || true
+              fi
+            fi
+          done
+
       - name: Dump focused failure report
         if: failure()
         run: |
