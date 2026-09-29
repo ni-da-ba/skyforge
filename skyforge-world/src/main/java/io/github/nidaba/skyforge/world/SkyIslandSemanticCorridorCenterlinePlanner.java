@@ -307,8 +307,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 if (!admission.allowed() || !curvatureAllowed) continue;
                 if (headEnvelopeGap == null
                         || compareLocalCandidates(
-                                        option, selected, previous, next, station, halfWidth,
-                                        tangent, headEnvelopeGap, searchRoute) < 0) {
+                                        result, i, option, selected,
+                                        bankfullHalfWidthAtStation, headEnvelopeGap,
+                                        searchRoute) < 0) {
                     selected = option;
                     selectedOption = optionIndex;
                 }
@@ -388,21 +389,28 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     }
 
     private static int compareLocalCandidates(
+            List<SkyIslandLocalPosition> points,
+            int changedIndex,
             SkyIslandLocalPosition first,
             SkyIslandLocalPosition second,
-            SkyIslandLocalPosition previous,
-            SkyIslandLocalPosition next,
-            double station,
-            double halfWidth,
-            Vector tangent,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap,
             SkyIslandGeomorphicCandidateRoute searchRoute) {
-        int gap = Double.compare(
-                checkedGap(headEnvelopeGap, first, station, tangent, halfWidth),
-                checkedGap(headEnvelopeGap, second, station, tangent, halfWidth));
-        if (gap != 0) {
-            return gap;
+        LocalHeadGapScore firstGap = localHeadGapScore(
+                points, changedIndex, first, bankfullHalfWidthAtStation, headEnvelopeGap);
+        LocalHeadGapScore secondGap = localHeadGapScore(
+                points, changedIndex, second, bankfullHalfWidthAtStation, headEnvelopeGap);
+        int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
+        if (maximumGap != 0) {
+            return maximumGap;
         }
+        int integratedGap = Double.compare(
+                firstGap.integratedSquaredGap(), secondGap.integratedSquaredGap());
+        if (integratedGap != 0) {
+            return integratedGap;
+        }
+        SkyIslandLocalPosition previous = points.get(changedIndex - 1);
+        SkyIslandLocalPosition next = points.get(changedIndex + 1);
         int curvature = Double.compare(
                 localCurvature(previous, first, next),
                 localCurvature(previous, second, next));
@@ -413,6 +421,37 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 project(first, searchRoute.points()).distance(),
                 project(second, searchRoute.points()).distance());
     }
+
+    private static LocalHeadGapScore localHeadGapScore(
+            List<SkyIslandLocalPosition> points,
+            int changedIndex,
+            SkyIslandLocalPosition candidate,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        List<SkyIslandLocalPosition> candidatePoints = new ArrayList<>(points);
+        candidatePoints.set(changedIndex, candidate);
+        double[] candidateStations = stations(candidatePoints);
+        double maximumGap = 0.0;
+        double integratedSquaredGap = 0.0;
+        for (int index = Math.max(0, changedIndex - 1);
+                index <= Math.min(candidatePoints.size() - 1, changedIndex + 1);
+                index++) {
+            double station = candidateStations[index];
+            double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
+            if (!Double.isFinite(halfWidth) || halfWidth < 0.0) {
+                throw new IllegalArgumentException(
+                        "bankfull half-width must be finite and non-negative");
+            }
+            double gap = checkedGap(
+                    headEnvelopeGap, candidatePoints.get(index), station,
+                    tangentAt(candidatePoints, index), halfWidth);
+            maximumGap = Math.max(maximumGap, gap);
+            integratedSquaredGap += gap * gap;
+        }
+        return new LocalHeadGapScore(maximumGap, integratedSquaredGap);
+    }
+
+    private record LocalHeadGapScore(double maximumGap, double integratedSquaredGap) {}
 
     private static SkyIslandLocalPosition lateralOption(
             SkyIslandLocalPosition point,
