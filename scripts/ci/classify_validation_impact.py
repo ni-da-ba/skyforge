@@ -28,6 +28,7 @@ LIGHTWEIGHT_FILES = {
 }
 MUSIC_PREFIXES = ("assets/music/",)
 MUSIC_FILES = {"scripts/music/verify_music_sources.py"}
+EVIDENCE_BUNDLE_FILES = {"scripts/ci/stage_evidence_review_bundle.py"}
 
 
 @dataclass(frozen=True)
@@ -53,6 +54,12 @@ def classify_paths(paths: Iterable[str]) -> ValidationImpact:
         path in MUSIC_FILES or any(path.startswith(prefix) for prefix in MUSIC_PREFIXES)
         for path in changed
     )
+    if any(path in EVIDENCE_BUNDLE_FILES for path in changed):
+        return ValidationImpact(
+            True,
+            music,
+            "evidence bundle packaging requires generated product evidence",
+        )
     lightweight = all(
         path in LIGHTWEIGHT_FILES
         or any(path.startswith(prefix) for prefix in LIGHTWEIGHT_PREFIXES)

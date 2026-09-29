@@ -121,6 +121,63 @@ def stage_bundle(manifest_path: Path, root: Path, destination: Path) -> tuple[in
     return total_files, total_bytes
 
 
+STUDIO_APP_FILES = (
+    Path('index.html'),
+    Path('app.js'),
+    Path('scene.js'),
+    Path('styles.css'),
+)
+STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
+STUDIO_README = """Skyforge Studio — local S2 review
+
+1. Open index.html in a browser.
+2. Choose “Terrain + hydrology pair”.
+3. In the sample folder, select both JSON files together. On Windows, hold Ctrl while
+   selecting the second file, then choose Open.
+4. Studio will show the specimen with an UNBOUND LOCAL DIAGNOSTIC warning.
+
+The local diagnostic needs no token or server. It is for inspecting authored semantics;
+it does not count as formal visual approval or change artifact authority.
+"""
+
+
+def stage_studio_app(root: Path, destination: Path) -> tuple[int, int]:
+    """Add a portable Studio app and its exact generated S2 JSON pair to the review bundle."""
+    target_root = destination if destination.is_absolute() else root / destination
+    app_root = target_root / 'studio-app'
+    sample_root = app_root / 'sample'
+    sample_root.mkdir(parents=True, exist_ok=True)
+
+    studio_source = root / 'scripts' / 'orchestrator' / 'studio'
+    evidence_source = root / EVIDENCE_ROOT / STUDIO_EVIDENCE_ID
+    files: list[tuple[Path, Path]] = [
+        (studio_source / source.name, app_root / source.name)
+        for source in STUDIO_APP_FILES
+    ]
+    files.extend([
+        (
+            evidence_source / 'terrain' / 'terrain-semantic-volume.json',
+            sample_root / 'terrain-semantic-volume.json',
+        ),
+        (
+            evidence_source / 'hydrology-semantic-layer.json',
+            sample_root / 'hydrology-semantic-layer.json',
+        ),
+    ])
+
+    total_bytes = 0
+    for source, target in files:
+        if not source.is_file():
+            raise BundleError(f'missing Studio review-package input: {source}')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
+        total_bytes += source.stat().st_size
+
+    readme = app_root / 'README.txt'
+    readme.write_text(STUDIO_README, encoding='utf-8')
+    total_bytes += readme.stat().st_size
+    return len(files) + 1, total_bytes
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--manifest', type=Path, default=DEFAULT_MANIFEST)
@@ -147,7 +204,11 @@ def main() -> int:
 
     if args.stage:
         files, size = stage_bundle(args.manifest, args.root, args.destination)
-        print(f'staged_directories={len(directories)} staged_files={files} staged_bytes={size}')
+        studio_files, studio_size = stage_studio_app(args.root, args.destination)
+        print(
+            f'staged_directories={len(directories)} staged_files={files + studio_files} '
+            f'staged_bytes={size + studio_size} studio_app_files={studio_files}'
+        )
 
     if not requested:
         print(f'evidence_directories={len(directories)} upload_patterns={len(upload_patterns(directories))}')
