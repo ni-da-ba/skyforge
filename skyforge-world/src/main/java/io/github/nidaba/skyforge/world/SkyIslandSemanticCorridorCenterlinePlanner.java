@@ -366,64 +366,64 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             for (int radius : D2_BLOCK_MOVE_RADII) {
                 for (int direction : new int[] {-1, 1}) {
                     for (double stepFactor : D2_BLOCK_STEP_FACTORS) {
-                    double magnitude =
-                            Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
-                    if (magnitude <= EPSILON) {
-                        continue;
-                    }
-                    proposals++;
-                    List<SkyIslandLocalPosition> points =
-                            new ArrayList<>(best.points());
-                    boolean admissible = true;
-                    int first = Math.max(1, peakIndex - radius);
-                    int last = Math.min(
-                            points.size() - 2, peakIndex + radius);
-                    for (int index = first; index <= last; index++) {
-                        double distance = Math.abs(index - peakIndex);
-                        double weight =
-                                0.5 * (1.0
-                                        + Math.cos(
-                                                Math.PI * distance
-                                                        / (radius + 1.0)));
-                        Vector tangent = tangentAt(best.points(), index);
-                        SkyIslandLocalPosition original = best.points().get(index);
-                        SkyIslandLocalPosition moved =
-                                new SkyIslandLocalPosition(
-                                        original.x() - direction * tangent.z()
-                                                * magnitude * weight,
-                                        original.z() + direction * tangent.x()
-                                                * magnitude * weight);
-                        if (!admissibilityCheck(
-                                        moved,
-                                        searchRoute,
-                                        semanticGuidance,
-                                        terrain,
-                                        interiority,
-                                        semanticCorridorHalfWidth)
-                                .allowed()) {
-                            admissible = false;
-                            break;
+                        double magnitude =
+                                Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
+                        if (magnitude <= EPSILON) {
+                            continue;
                         }
-                        points.set(index, moved);
-                    }
-                    if (!admissible) {
-                        continue;
-                    }
-                    fieldAdmissible++;
-                    if (maximumCurvature(points) * minimumBendRadius
-                            > 1.0 + EPSILON) {
-                        continue;
-                    }
-                    curvatureAdmissible++;
-                    Candidate candidate = evaluate(
-                            searchRoute,
-                            points,
-                            headEnvelopeGap,
-                            bankfullHalfWidthAtStation);
-                    if (candidate.compareTo(improved, minimumBendRadius) < 0) {
-                        objectiveImproving++;
-                        improved = candidate;
-                    }
+                        proposals++;
+                        List<SkyIslandLocalPosition> points =
+                                new ArrayList<>(best.points());
+                        boolean admissible = true;
+                        int first = Math.max(1, peakIndex - radius);
+                        int last = Math.min(
+                                points.size() - 2, peakIndex + radius);
+                        for (int index = first; index <= last; index++) {
+                            double distance = Math.abs(index - peakIndex);
+                            double weight =
+                                    0.5 * (1.0
+                                            + Math.cos(
+                                                    Math.PI * distance
+                                                            / (radius + 1.0)));
+                            Vector tangent = tangentAt(best.points(), index);
+                            SkyIslandLocalPosition original = best.points().get(index);
+                            SkyIslandLocalPosition moved =
+                                    new SkyIslandLocalPosition(
+                                            original.x() - direction * tangent.z()
+                                                    * magnitude * weight,
+                                            original.z() + direction * tangent.x()
+                                                    * magnitude * weight);
+                            if (!admissibilityCheck(
+                                            moved,
+                                            searchRoute,
+                                            semanticGuidance,
+                                            terrain,
+                                            interiority,
+                                            semanticCorridorHalfWidth)
+                                    .allowed()) {
+                                admissible = false;
+                                break;
+                            }
+                            points.set(index, moved);
+                        }
+                        if (!admissible) {
+                            continue;
+                        }
+                        fieldAdmissible++;
+                        if (maximumCurvature(points) * minimumBendRadius
+                                > 1.0 + EPSILON) {
+                            continue;
+                        }
+                        curvatureAdmissible++;
+                        Candidate candidate = evaluate(
+                                searchRoute,
+                                points,
+                                headEnvelopeGap,
+                                bankfullHalfWidthAtStation);
+                        if (candidate.compareTo(improved, minimumBendRadius) < 0) {
+                            objectiveImproving++;
+                            improved = candidate;
+                        }
                     }
                 }
             }
