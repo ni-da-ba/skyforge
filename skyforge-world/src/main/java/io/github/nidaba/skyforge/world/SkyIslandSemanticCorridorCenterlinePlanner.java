@@ -16,7 +16,7 @@ import java.util.function.DoubleUnaryOperator;
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
-    private static final int D2_BLOCK_MOVE_RADIUS = 12;
+    private static final int[] D2_BLOCK_MOVE_RADII = {12, 24, 48};
     private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
     private static final double[] D2_BLOCK_STEP_FACTORS = {0.5, 1.0, 2.0};
     public static final double RELAXATION_FRACTION = 0.40;
@@ -363,8 +363,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double[] station = stations(best.points());
             double halfWidth =
                     bankfullHalfWidthAtStation.applyAsDouble(station[peakIndex]);
-            for (int direction : new int[] {-1, 1}) {
-                for (double stepFactor : D2_BLOCK_STEP_FACTORS) {
+            for (int radius : D2_BLOCK_MOVE_RADII) {
+                for (int direction : new int[] {-1, 1}) {
+                    for (double stepFactor : D2_BLOCK_STEP_FACTORS) {
                     double magnitude =
                             Math.min(stepFactor * halfWidth, semanticCorridorHalfWidth);
                     if (magnitude <= EPSILON) {
@@ -374,16 +375,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     List<SkyIslandLocalPosition> points =
                             new ArrayList<>(best.points());
                     boolean admissible = true;
-                    int first = Math.max(1, peakIndex - D2_BLOCK_MOVE_RADIUS);
+                    int first = Math.max(1, peakIndex - radius);
                     int last = Math.min(
-                            points.size() - 2, peakIndex + D2_BLOCK_MOVE_RADIUS);
+                            points.size() - 2, peakIndex + radius);
                     for (int index = first; index <= last; index++) {
                         double distance = Math.abs(index - peakIndex);
                         double weight =
                                 0.5 * (1.0
                                         + Math.cos(
                                                 Math.PI * distance
-                                                        / (D2_BLOCK_MOVE_RADIUS + 1.0)));
+                                                        / (radius + 1.0)));
                         Vector tangent = tangentAt(best.points(), index);
                         SkyIslandLocalPosition original = best.points().get(index);
                         SkyIslandLocalPosition moved =
@@ -422,6 +423,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     if (candidate.compareTo(improved, minimumBendRadius) < 0) {
                         objectiveImproving++;
                         improved = candidate;
+                    }
                     }
                 }
             }
