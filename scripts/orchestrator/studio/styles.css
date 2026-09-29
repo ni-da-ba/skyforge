@@ -22,3 +22,29 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 .comparison-controls p{margin:.5rem 0 0}
 .viewport-legend-row[hidden],#legend-delta-note[hidden]{display:none}
 .legend-delta{height:.62rem;border-radius:3px;background:linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)}
+
+.workspace-nav{display:flex;gap:.5rem;margin:0 0 1rem;padding:.25rem;border-bottom:1px solid #263140}
+.workspace-tab{background:transparent;border-color:transparent;color:#aebdca}
+.workspace-tab[aria-pressed="true"]{background:#172a3a;border-color:#347299;color:#e6f6ff}
+.workspace-tab:focus-visible,button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #70c8f0;outline-offset:2px}
+.world-brief-view{display:grid;gap:1rem}
+.brief-intro{display:flex;align-items:center;justify-content:space-between;gap:1rem;border-color:#285c75;background:linear-gradient(110deg,#102733,#111923)}
+.brief-intro h2{font-size:1.15rem;margin:.2rem 0 .5rem}
+.brief-intro p{max-width:760px;margin-bottom:0}
+.eyebrow{margin:0 0 .4rem;color:#72bddc;font-size:.68rem;font-weight:700;letter-spacing:.11em}
+.brief-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(280px,.8fr);gap:1rem;align-items:start}
+.brief-editor h3,.backend-status h3{font-size:.95rem;margin:0}
+.brief-editor textarea{width:100%;min-height:230px;resize:vertical;background:#0b1119;border:1px solid #36465b;border-radius:6px;color:#f3f4f6;padding:.65rem;font:inherit;line-height:1.5}
+.brief-editor input{width:100%}
+.brief-editor .row select{min-width:0;flex:1}
+.brief-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.9rem}
+#world-brief-status{min-height:1.25rem;margin:.8rem 0 .15rem}
+#world-brief-count{margin:0}
+.backend-status{position:sticky;top:78px}
+.backend-status>p{line-height:1.5}
+.backend-next{margin-top:1rem;padding-top:.9rem;border-top:1px solid #263140}
+.backend-next h4{margin:0 0 .4rem;font-size:.8rem}
+.backend-next ol{padding-left:1.2rem;color:#bdc9d6;font-size:.79rem;line-height:1.6}
+button:disabled{cursor:not-allowed;opacity:.5}
+@media(max-width:850px){.brief-layout{grid-template-columns:1fr}.backend-status{position:static}}
+@media(max-width:600px){.workspace-nav{display:grid;grid-template-columns:1fr 1fr}.workspace-tab{padding:.65rem .4rem}.brief-intro{align-items:flex-start;flex-direction:column}.brief-editor .row{align-items:stretch}.brief-editor .row button{white-space:nowrap}.brief-actions>*{flex:1 1 140px}.brief-editor textarea{min-height:190px}}
