@@ -21,4 +21,4 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 .comparison-controls .check-row input{width:auto}
 .comparison-controls p{margin:.5rem 0 0}
 .viewport-legend-row[hidden],#legend-delta-note[hidden]{display:none}
-.legend-delta{height:.62rem;border-radius:3px;background:linear-gradient(90deg,#3789bd 0%,#c3c5ca 50%,#d25343 100%)}
+.legend-delta{height:.62rem;border-radius:3px;background:linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)}
