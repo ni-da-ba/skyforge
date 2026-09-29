@@ -629,7 +629,12 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             boolean curvatureAllowed,
             boolean feasible,
             double integratedGap,
-            double maximumGap) {}
+            double maximumGap) {
+        private boolean admissible() {
+            return corridorAllowed && terrainAllowed
+                    && interiorityAllowed && curvatureAllowed;
+        }
+    }
 
     private record SmoothRouteAudit(
             int candidateCount,
