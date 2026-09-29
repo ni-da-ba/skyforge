@@ -118,8 +118,12 @@
           <div>
             <strong>Start with the included S2 specimen</strong>
             <p class="small muted">Open the terrain and its authored hydrology together. This local view stays unbound.</p>
+            <p class="small muted">The comparison walkthrough uses the included specimen as both sides, so values match and deltas are zero.</p>
           </div>
-          <button id="open-bundled-sample" type="button">Open included S2 specimen</button>
+          <div class="bundled-sample-actions">
+            <button id="open-bundled-sample" type="button">Open included S2 specimen</button>
+            <button id="preview-bundled-comparison" type="button" class="secondary">Try comparison inspector</button>
+          </div>
         </div>
         <div class="source-grid">
           <div id="registered-artifact-source" hidden>
@@ -284,7 +288,7 @@
             <div id="legend-response" class="viewport-legend-row"><span class="legend-mark legend-response"><i></i><i></i></span><span>Hydrology response samples</span></div>
             <div id="legend-potential" class="viewport-legend-row"><span class="legend-mark legend-potential"></span><span id="legend-potential-label">Selected cause field</span></div>
             <div id="legend-delta" class="viewport-legend-row" hidden><span class="legend-mark legend-delta"></span><span id="legend-delta-label">Candidate − reference: purple − / gray 0 / orange +</span></div>
-            <p id="legend-water-note">Blue marks authored water intent; it is not placed Minecraft water.</p>
+            <p id="legend-water-note">Blue marks authored water intent; it does not represent a realized surface.</p>
             <p id="legend-delta-note" hidden>Only the selected cause field is compared; channel, flow, response, and water layers show the reference.</p>
           </div>
           <div class="viewport-help">Drag to rotate · wheel to zoom · click a sample to inspect</div>
@@ -307,6 +311,26 @@
             <dt>Confidence</dt><dd id="inspect-confidence">—</dd>
             <dt>Authority</dt><dd id="inspect-authority">—</dd>
           </dl>
+
+          <section id="comparison-value-inspector" class="comparison-value-inspector" aria-live="polite" hidden>
+            <h3>Selected comparison values</h3>
+            <p id="comparison-value-context" class="small muted"></p>
+            <div class="comparison-table-wrap">
+              <table>
+                <thead>
+                  <tr><th scope="col">Field</th><th scope="col">Reference</th><th scope="col">Candidate</th><th scope="col">Δ</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th id="comparison-value-field" scope="row"></th>
+                    <td id="comparison-reference-value">—</td>
+                    <td id="comparison-candidate-value">—</td>
+                    <td id="comparison-delta-value">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
 
           <div id="review-warning" class="authority-warning" hidden>
             <strong>UNBOUND LOCAL DIAGNOSTIC</strong>

@@ -384,6 +384,17 @@
     $("review-warning").hidden = authoritative;
   }
 
+  function resetComparisonValueInspector() {
+    const panel = $("comparison-value-inspector");
+    if (!panel) return;
+    panel.hidden = true;
+    $("comparison-value-context").textContent = "";
+    $("comparison-value-field").textContent = "";
+    $("comparison-reference-value").textContent = "—";
+    $("comparison-candidate-value").textContent = "—";
+    $("comparison-delta-value").textContent = "—";
+  }
+
   function clearInspectorValues() {
     $("inspect-position").textContent = "click a sample";
     $("inspect-semantic").textContent = "—";
@@ -393,6 +404,68 @@
     $("inspect-shear").textContent = "—";
     $("inspect-confidence").textContent = "—";
     $("inspect-authority").textContent = "—";
+    resetComparisonValueInspector();
+  }
+
+  function renderSelectedComparison(sample) {
+    const panel = $("comparison-value-inspector");
+    if (sample.overlayKind === "HYDROLOGY_COMPARISON_SAMPLE") {
+      const potential = $("hydrology-potential").value;
+      const field = [
+        "runoffPotential",
+        "retentionPotential",
+        "drainagePotential",
+        "outflowPotential",
+      ].includes(potential) ? potential : "runoffPotential";
+      const fieldLabel = {
+        runoffPotential: "Runoff potential",
+        retentionPotential: "Retention potential",
+        drainagePotential: "Drainage potential",
+        outflowPotential: "Outflow potential",
+      }[field];
+      $("comparison-value-field").textContent = fieldLabel;
+      $("comparison-reference-value").textContent = fmt(sample.reference[field]);
+      $("comparison-candidate-value").textContent = fmt(sample.candidate[field]);
+      $("comparison-delta-value").textContent = fmt(sample.deltas[field]);
+      $("comparison-value-context").textContent =
+        "Cause-grid sample [" + sample.grid.join(", ") + "]";
+      panel.hidden = false;
+      return;
+    }
+    if (sample.overlayKind !== "HYDROLOGY_FIELD_COMPARISON_SAMPLE") return;
+
+    const mode = $("comparison-mode").value;
+    const selection = mode === "surface"
+      ? { label: "Target surface elevation", field: "targetUpperY", delta: sample.surfaceDeltaY, unit: " world units" }
+      : mode === "water-surface"
+        ? { label: "Water surface elevation", field: "waterSurfaceY", delta: sample.waterSurfaceDeltaY, unit: " world units" }
+        : { label: "Water depth", field: "waterDepthWorld", delta: sample.waterDepthDelta, unit: " world units" };
+    const valueText = (record) => {
+      if (!record) return "not sampled";
+      const value = record[selection.field];
+      if (selection.field === "waterSurfaceY" && (value === null || value === undefined)) {
+        return "no water surface";
+      }
+      return Number.isFinite(value) ? fmt(value) + selection.unit : "—";
+    };
+    $("comparison-value-field").textContent = selection.label;
+    $("comparison-reference-value").textContent = valueText(sample.reference);
+    $("comparison-candidate-value").textContent = valueText(sample.candidate);
+    $("comparison-delta-value").textContent =
+      sample.coverage !== "shared"
+        ? "not comparable · " + sample.coverage
+        : selection.delta === null
+          ? "not available · wet/dry transition"
+          : fmt(selection.delta) + selection.unit;
+    const wetState = sample.referenceWet === null || sample.candidateWet === null
+      ? "wet state unavailable"
+      : (sample.referenceWet ? "wet" : "dry") + " → " +
+        (sample.candidateWet ? "wet" : "dry") +
+        (sample.wetTransition ? " · " + sample.wetTransition : "");
+    $("comparison-value-context").textContent =
+      "Projected-field sample [" + sample.grid.join(", ") + "] · " +
+      sample.coverage + " coverage · " + wetState;
+    panel.hidden = false;
   }
 
   function renderInspector(sample) {
@@ -430,6 +503,7 @@
       "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
 
     if (sample.overlayKind === "HYDROLOGY_COMPARISON_SAMPLE") {
+      renderSelectedComparison(sample);
       const deltas = sample.deltas;
       $("inspect-semantic").textContent =
         "Candidate − reference · runoff " + fmt(deltas.runoffPotential) +
@@ -445,6 +519,7 @@
     }
 
     if (sample.overlayKind === "HYDROLOGY_FIELD_COMPARISON_SAMPLE") {
+      renderSelectedComparison(sample);
       const deltaLabel = $("comparison-mode").selectedOptions[0]?.textContent || "projection";
       const surface = sample.surfaceDeltaY === null
         ? "n/a"
@@ -1427,6 +1502,39 @@
         sample.hydrology,
         "hydrology-semantic-layer.json"
       );
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    }
+  });
+
+  $("preview-bundled-comparison").addEventListener("click", () => {
+    const sample = window.SKYFORGE_STUDIO_SAMPLE;
+    if (!sample?.terrain || !sample?.hydrology) {
+      $("source-status").textContent = "The included S2 comparison walkthrough is unavailable.";
+      return;
+    }
+    try {
+      loadLocalPair(
+        sample.terrain,
+        "terrain-semantic-volume.json",
+        sample.hydrology,
+        "hydrology-semantic-layer.json"
+      );
+      const candidate = window.SkyforgeStudioScene.adaptOverlayArtifact(
+        sample.hydrology,
+        scene,
+        {
+          binding: "UNBOUND_LOCAL",
+          artifactTitle: "included S2 specimen · same data",
+          reviewAuthority: false,
+        }
+      );
+      displayHydrologyComparison(candidate);
+      selected = hydrologyComparison.comparison.samples[0] || null;
+      draw();
+      $("source-status").textContent =
+        "Walkthrough only: this specimen is compared with itself, so the values match and deltas are zero.";
+      $("comparison-value-inspector").scrollIntoView({ behavior: "smooth", block: "center" });
     } catch (error) {
       $("source-status").textContent = String(error.message || error);
     }

@@ -20,18 +20,17 @@ Skyforge semantic world
         |
         +--> Studio inspection / authoring
         |
-        +--> Minecraft adapter
-        +--> future game-engine adapter
+        +--> supported realization adapters
         +--> simulation / visualization adapter
         +--> other supported realizations
 ```
 
-Studio is not a Minecraft editor. Minecraft is one realization backend.
+Studio is a semantic workspace. It does not assume or control a realization backend.
 
 ## 2. Immediate S0 purpose
 
 The current development problem is narrower: authorship defects are often discovered only after
-Minecraft realization, which makes it expensive to determine whether a failure belongs to authored
+backend realization, which makes it expensive to determine whether a failure belongs to authored
 semantics, reference evaluation, an adapter, or presentation.
 
 S0 therefore begins as a **semantic renderer**.
@@ -66,8 +65,7 @@ Studio is a thin client. It does not become a new authority.
 - GitHub remains source/code/PR/CI authority.
 - Platform-v2 remains objective, workflow, artifact-registration, and human-gate authority.
 - Skyforge reference/semantic evaluators remain backend-neutral world-semantics authority.
-- External runtime authorities remain authoritative where explicitly contracted (for example A4MC
-  atmosphere truth).
+- External data providers remain authoritative where an explicit contract assigns them ownership.
 - Studio renders exact artifacts and typed scene projections.
 - Studio does not silently synthesize missing world truth.
 - Local files may be inspected, but an unbound local import cannot satisfy an artifact-bound human
@@ -99,7 +97,6 @@ Expected later primitives, introduced only when real consumers require them:
 - `PolylineSet`
 - `RegionSet`
 - `SurfaceMesh`
-- `VoxelSet`
 - `VolumeField`
 - `TimeSeries`
 - `Annotation`
@@ -112,7 +109,7 @@ The browser does not reimplement procedural semantics.
 `SKYFORGE_ATMOSPHERE_PROBE_VOLUME` is the first Studio semantic artifact.
 
 ```text
-A4MC authoritative gameplay samples
+Provider-authoritative atmosphere samples
         |
         v
 SkyforgeAtmosphereView
@@ -164,13 +161,13 @@ Platform-v2 domain operation used by the Operations Console and MCP surfaces.
 
 ### S1 — backend-neutral terrain renderer
 
-Render island semantic geometry/fields directly from reference-engine output before Minecraft block
-materialization.
+Render island semantic geometry and fields directly from reference-engine output before
+target-specific materialization.
 
 ### S2 — hydrology renderer
 
-Render drainage, channels, water surfaces, catchments, and related semantic fields without requiring
-Minecraft.
+Render drainage, channels, water surfaces, catchments, and related semantic fields before
+target-specific realization.
 
 ### S3 — semantic vs. realized comparison
 
@@ -214,11 +211,11 @@ S0 does not add:
 - a second workflow state store;
 - arbitrary repository/filesystem access;
 - arbitrary shell/Git controls;
-- Minecraft block editing;
+- direct editing of backend-specific realized output;
 - final consumer authoring UX;
 - a frontend package/build framework;
 - automatic human-gate verdicts;
 - backend-specific assumptions in the semantic scene contract.
 
-The platform must remain smaller than the game, and Studio must remain a client of semantic truth
+The platform must remain smaller than the experiences it supports, and Studio must remain a client of semantic truth
 rather than its owner.

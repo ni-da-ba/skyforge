@@ -54,6 +54,22 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn('value="water-depth"', markup)
         self.assertIn('id="comparison-controls" class="comparison-controls" hidden', markup)
         self.assertIn('id="legend-delta-label"', markup)
+        self.assertIn('id="comparison-value-inspector"', markup)
+        self.assertIn('id="comparison-reference-value"', markup)
+        self.assertIn('id="comparison-candidate-value"', markup)
+        self.assertIn('id="comparison-delta-value"', markup)
+        self.assertIn('id="preview-bundled-comparison"', markup)
+        self.assertIn("included S2 specimen · same data", app)
+        self.assertIn("Walkthrough only: this specimen is compared with itself", app)
+        self.assertIn("comparison.samples[0]", app)
+        self.assertIn("function renderSelectedComparison(sample)", app)
+        self.assertIn("sample.reference[field]", app)
+        self.assertIn("sample.candidate[field]", app)
+        self.assertIn("sample.surfaceDeltaY", app)
+        self.assertIn("sample.waterSurfaceDeltaY", app)
+        self.assertIn("sample.waterDepthDelta", app)
+        self.assertIn('"not sampled"', app)
+        self.assertIn("panel.hidden = true", app)
         self.assertIn("fieldComparisonDelta(sample, comparisonMode)", app)
         self.assertIn("HYDROLOGY_FIELD_COMPARISON_SAMPLE", app)
         self.assertIn("Target surface elevation", markup)
@@ -68,6 +84,34 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("channel, flow, response, and water layers show the reference", markup)
         self.assertIn("linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)", styles)
         self.assertIn("UNBOUND LOCAL DIAGNOSTIC", app)
+
+    def test_studio_renderer_surface_is_backend_neutral(self):
+        scene = (STUDIO / "scene.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        design = (ROOT / "docs" / "architecture" / "SKYFORGE_STUDIO_S0.md").read_text(
+            encoding="utf-8"
+        )
+
+        for surface_name, surface in (
+            ("scene projection", scene),
+            ("Studio interface", markup),
+            ("Studio architecture", design),
+        ):
+            for term in ("minecraft", "a4mc", "aerodynamics4mc", "voxel", "world blocks"):
+                with self.subTest(surface=surface_name, term=term):
+                    self.assertNotIn(term, surface.lower())
+
+        for contract in (
+            'id: "WORLD_XYZ"',
+            'x: "+X world units"',
+            'z: "+Z world units"',
+            'units: "world units"',
+            'label: "External atmosphere provider"',
+            'semanticOwner: "External atmosphere provider"',
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, scene)
+        self.assertNotIn("modId", scene)
 
     def test_hydrology_comparison_behavior_in_ci_runtime(self):
         node = shutil.which("node")
