@@ -83,7 +83,11 @@
     if (!library || typeof library !== "object" || Array.isArray(library)) throw new Error("saved world brief library must be a JSON object");
     if (library.document_type !== WORLD_BRIEF_LIBRARY_TYPE) throw new Error("saved browser data is not a Skyforge Studio brief library");
     if (library.format_version !== WORLD_BRIEF_FORMAT_VERSION) throw new Error("unsupported saved world brief library version");
-    const allowed = new Set(["document_type", "format_version", "active_brief_id", "briefs"]);
+    const required = ["document_type", "format_version", "active_brief_id", "briefs"];
+    if (required.some((key) => !Object.prototype.hasOwnProperty.call(library, key))) {
+      throw new Error("saved world brief library is missing required fields");
+    }
+    const allowed = new Set(required);
     if (Object.keys(library).some((key) => !allowed.has(key))) throw new Error("saved world brief library contains unsupported fields");
     return createWorldBriefLibrary(library.briefs, library.active_brief_id);
   }

@@ -43,6 +43,7 @@ const second = brief.create(
 );
 const library = brief.createLibrary([first, second], second.id);
 assert.equal(brief.parseLibrary(brief.serializeLibrary(library)).active_brief_id, second.id);
+assert.throws(() => brief.parseLibrary({ document_type: brief.libraryType, format_version: 1, active_brief_id: null }), /missing required fields/);
 assert.throws(() => brief.parse({ ...first, format_version: 99 }), /unsupported world brief format version/);
 assert.throws(() => brief.parse({ ...first, review_authority: true }), /unsupported fields/);
 assert.throws(() => brief.parse({ ...first, title: "  " }), /title is required/);
