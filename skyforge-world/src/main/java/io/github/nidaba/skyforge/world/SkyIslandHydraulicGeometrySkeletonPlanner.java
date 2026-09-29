@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Builds C2 centerlines and discharge-scaled width/depth geometry without solving water-surface head.
@@ -56,6 +57,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double endDischarge = endDischarge(semantic, startDischarge);
             SkyIslandGeomorphicQualificationPolicy policy =
                     SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+            Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
+                    singleOrdinaryProfileKind(semantic);
             SkyIslandContinuousChannelCenterline centerline =
                     SkyIslandSemanticCorridorCenterlinePlanner.refine(
                             route.route(),
@@ -71,25 +74,28 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                                 SkyIslandChannelProfileKind kind =
                                         SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
                                                 semantic.profiles(), station);
-                                if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                                if (kind == SkyIslandChannelProfileKind.CASCADE
+                                        || ordinaryProfileKind.isEmpty()) {
                                     return 0.0;
                                 }
-                                double discharge =
-                                        lerp(startDischarge, endDischarge, station);
+                                SkyIslandChannelProfileKind ordinaryKind =
+                                        ordinaryProfileKind.orElseThrow();
+                                SkyIslandGeomorphicQualificationClass qualificationClass =
+                                        qualificationClass(ordinaryKind);
                                 SkyIslandHydraulicHeadEnvelope envelope =
-                                        SkyIslandHydraulicHeadEnvelopePlanner.evaluate(
+                                        SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
                                                 descriptor,
-                                                semantic,
-                                                station,
+                                                ordinaryKind,
                                                 position,
                                                 halfWidth,
                                                 SkyIslandHydraulicGeometryCalibration
-                                                        .waterDepthPotential(discharge),
+                                                        .waterDepthPotential(
+                                                                lerp(startDischarge, endDischarge, station)),
                                                 clamp01(terrain.sample(position)),
                                                 -tangentZ,
                                                 tangentX,
                                                 terrain,
-                                                policy);
+                                                policy.limits(qualificationClass));
                                 return Math.max(
                                         0.0,
                                         envelope.lowerHead() - envelope.upperHead());
@@ -104,6 +110,27 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         reach.geomorphicRoute().semanticReach().endCellIndex()));
 
         return new SkyIslandHydraulicGeometrySkeletonPlan(descriptor, network, reaches);
+    }
+
+    private static Optional<SkyIslandChannelProfileKind> singleOrdinaryProfileKind(
+            SkyIslandSemanticChannelReach semantic) {
+        List<SkyIslandChannelProfileKind> kinds =
+                semantic.profiles().stream()
+                        .map(profile -> profile.kind())
+                        .filter(kind -> kind != SkyIslandChannelProfileKind.CASCADE)
+                        .distinct()
+                        .toList();
+        return kinds.size() == 1 ? Optional.of(kinds.getFirst()) : Optional.empty();
+    }
+
+    private static SkyIslandGeomorphicQualificationClass qualificationClass(
+            SkyIslandChannelProfileKind profileKind) {
+        return switch (profileKind) {
+            case ALLUVIAL -> SkyIslandGeomorphicQualificationClass.ALLUVIAL;
+            case INCISED -> SkyIslandGeomorphicQualificationClass.INCISED;
+            case CASCADE -> throw new IllegalArgumentException(
+                    "CASCADE has no ordinary centerline head-gap objective");
+        };
     }
 
     private static double startDischarge(SkyIslandSemanticChannelReach semantic) {
