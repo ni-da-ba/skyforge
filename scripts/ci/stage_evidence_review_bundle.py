@@ -198,7 +198,7 @@ def stage_studio_app(root: Path, destination: Path) -> tuple[int, int]:
             {'terrain': terrain_artifact, 'hydrology': hydrology_artifact},
             ensure_ascii=True,
             separators=(',', ':'),
-        ) + ';\\n',
+        ) + ';\n',
         encoding='utf-8',
     )
     total_bytes -= (studio_source / 'sample-data.js').stat().st_size
