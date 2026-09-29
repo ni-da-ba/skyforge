@@ -71,7 +71,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         searchRoute, terrain, interiority, planningSpacing);
 
         List<SkyIslandLocalPosition> current = new ArrayList<>(seed.points());
-        Candidate best = evaluate(searchRoute, current, headEnvelopeGap);
+        Candidate best = evaluate(\n                searchRoute, current, headEnvelopeGap, bankfullHalfWidthAtStation);
         for (int sweep = 0; sweep < MAXIMUM_RELAXATION_SWEEPS; sweep++) {
             List<SkyIslandLocalPosition> next = relaxOnce(
                     searchRoute,
@@ -85,7 +85,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             next.set(0, searchRoute.points().getFirst());
             next.set(next.size() - 1, searchRoute.points().getLast());
 
-            Candidate candidate = evaluate(searchRoute, next, headEnvelopeGap);
+            Candidate candidate = evaluate(\n                    searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
             if (candidate.compareTo(best, minimumBendRadius) < 0) {
                 best = candidate;
             }
@@ -194,9 +194,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     private static Candidate evaluate(
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> points,
-            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap,
+            DoubleUnaryOperator bankfullHalfWidthAtStation) {
         double maximumSearchDeviation = 0.0;
         double[] gaps = new double[points.size()];
+        double[] station = stations(points);
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition point = points.get(i);
             maximumSearchDeviation =
@@ -205,13 +207,18 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             project(point, searchRoute.points()).distance());
             if (headEnvelopeGap != null) {
                 Vector tangent = tangentAt(points, i);
-                gaps[i] = checkedGap(headEnvelopeGap, point, 0.0, tangent, 0.0);
+                double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station[i]);
+                if (!Double.isFinite(halfWidth) || halfWidth < 0.0) {
+                    throw new IllegalArgumentException(
+                            "bankfull half-width must be finite and non-negative");
+                }
+                gaps[i] = checkedGap(
+                        headEnvelopeGap, point, station[i], tangent, halfWidth);
             }
         }
         double pathLength = length(points);
         double integratedSquaredGap = 0.0;
         if (headEnvelopeGap != null && pathLength > EPSILON) {
-            double[] station = stations(points);
             for (int i = 0; i + 1 < points.size(); i++) {
                 double ds = pathLength * (station[i + 1] - station[i]);
                 integratedSquaredGap +=
