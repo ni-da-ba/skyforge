@@ -19,14 +19,22 @@ import java.util.Map;
 
 /** Fixed seed-stratified discovery evidence for retained open-water calibration. */
 public final class HydrologyRetainedBasinSeedStrataCorpusCli {
-    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v4";
-    public static final int EXPECTED_SPECIMEN_COUNT = 6144;
+    public static final String EVIDENCE_ID = "hydrology-retained-basin-seed-strata-v5";
+    public static final int EXPECTED_SPECIMEN_COUNT = 22528;
     private static final int FIRST_KEY = 1;
     private static final int LAST_KEY = 1024;
     private static final List<SeedStratum> SEEDS = List.of(
             new SeedStratum("seed-min", Long.MIN_VALUE),
             new SeedStratum("seed-zero", 0L),
-            new SeedStratum("seed-skyforge", 0x534B59464F524745L));
+            new SeedStratum("seed-skyforge", 0x534B59464F524745L),
+            new SeedStratum("seed-u64-midpoint-00", 0x1000000000000000L),
+            new SeedStratum("seed-u64-midpoint-01", 0x3000000000000000L),
+            new SeedStratum("seed-u64-midpoint-02", 0x5000000000000000L),
+            new SeedStratum("seed-u64-midpoint-03", 0x7000000000000000L),
+            new SeedStratum("seed-u64-midpoint-04", 0x9000000000000000L),
+            new SeedStratum("seed-u64-midpoint-05", 0xB000000000000000L),
+            new SeedStratum("seed-u64-midpoint-06", 0xD000000000000000L),
+            new SeedStratum("seed-u64-midpoint-07", 0xF000000000000000L));
     private static final List<Namespace> NAMESPACES = List.of(
             new Namespace("reference-8-81", 8L, 81L),
             new Namespace("reference-6-61", 6L, 61L));
@@ -152,7 +160,7 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         Files.writeString(out.resolve("geometry-failures.csv"), failures, StandardCharsets.UTF_8);
         StringBuilder summary = new StringBuilder(
                 "metric,value\n"
-                        + "sample_design,3 seed strata x 2 fixed namespaces x 1024 keys\n"
+                        + "sample_design,11 fixed seed strata x 2 fixed namespaces x 1024 keys\n"
                         + "specimens,").append(specimenCount).append('\n')
                 .append("pond_candidates,").append(pondCount).append('\n')
                 .append("lake_candidates,").append(lakeCount).append('\n')
@@ -167,12 +175,13 @@ public final class HydrologyRetainedBasinSeedStrataCorpusCli {
         }
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), """
-                Retained open-water seed-strata discovery v4
+                Retained open-water seed-strata discovery v5
 
                 This is a deterministic candidate-discovery scan, not a prevalence estimate, basin
                 calibration, threshold change, terrain authority, or Minecraft authorization.
-                It holds the two existing reference identity namespaces fixed and varies only the
-                three canonical signed seed strata (minimum, zero, Skyforge) over island keys 1..1024.
+                It holds the two existing reference identity namespaces and keys 1..1024 fixed. The seed set
+                contains three anchors (minimum, zero, Skyforge) and eight evenly spaced unsigned 64-bit
+                midpoint strata. This is deterministic candidate discovery, not a random sample.
                 Existing POND/LAKE classification is unchanged. Continuous E1 geometry diagnostics
                 are measured only for identities that yield an existing open-water candidate. The
                 candidate manifest includes marching-squares shoreline perimeter, normalized

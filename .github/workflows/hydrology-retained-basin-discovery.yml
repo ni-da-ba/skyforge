@@ -38,7 +38,7 @@ jobs:
       - name: Print compact discovery results
         if: success()
         run: |
-          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/summary.csv
+          cat skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v5/summary.csv
           echo "--- open-water candidate rows ---"
           head -n 31 skyforge-reference/build/evidence/hydrology-retained-basin-seed-strata-v4/candidates.csv
           echo "--- all retained-sink semantic classifications ---"
