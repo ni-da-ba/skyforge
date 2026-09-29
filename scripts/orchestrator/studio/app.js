@@ -490,11 +490,6 @@
     $("legend-delta-note").hidden = !visible || !comparisonActive;
     $("show-hydrology-delta").disabled = hydrologyComparison === null;
     $("clear-hydrology-comparison").disabled = hydrologyComparison === null;
-    if (hydrologyComparison === null) {
-      $("comparison-status").textContent = visible
-        ? "Attach a candidate with the same exact terrain and AUTH-0046 binding."
-        : "Attach a reference hydrology artifact first.";
-    }
   }
 
   function potentialColor(value) {
@@ -804,6 +799,7 @@
       scene.coordinateSystem.id + " · " + scene.source.artifactKind;
     updateBindingPill();
     $("overlay-status").textContent = "";
+    $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     updateHydrologyControlVisibility();
 
     $("atmosphere-controls").hidden = !isAtmosphere();
@@ -916,6 +912,8 @@
       "Attached " +
       (overlay.source.artifactId || overlay.source.artifactTitle || "hydrology overlay") +
       " · " + overlay.binding.associationToken;
+    $("comparison-status").textContent =
+      "Attach a candidate with the same exact terrain and AUTH-0046 binding.";
     updateBindingPill();
     renderInspector(null);
     draw();
@@ -996,6 +994,8 @@
   function clearHydrologyComparison() {
     hydrologyComparison = null;
     $("show-hydrology-delta").checked = false;
+    $("comparison-status").textContent =
+      "Attach a candidate with the same exact terrain and AUTH-0046 binding.";
     selected = null;
     updateHydrologyControlVisibility();
     updateBindingPill();
@@ -1007,6 +1007,7 @@
     overlay = null;
     hydrologyComparison = null;
     $("show-hydrology-delta").checked = false;
+    $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     selected = null;
     updateHydrologyControlVisibility();
     $("overlay-status").textContent = "";
