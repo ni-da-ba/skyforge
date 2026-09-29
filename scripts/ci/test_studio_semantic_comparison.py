@@ -117,8 +117,8 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             with self.subTest(control=control):
                 self.assertIn(control, markup)
         self.assertRegex(markup, r'<button[^>]*disabled[^>]*aria-describedby="generation-disabled-reason"')
-        self.assertIn("max-width: 850px", styles)
-        self.assertIn("max-width: 600px", styles)
+        self.assertIn("@media(max-width:850px)", styles)
+        self.assertIn("@media(max-width:600px)", styles)
         self.assertIn(":focus-visible", styles)
 
         node = shutil.which("node")
