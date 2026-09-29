@@ -192,7 +192,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
         Files.createDirectories(report.getParent());
         Files.writeString(report, summary);
-        CorridorFeasibilityAudit corridorAudit = auditD2LateralCorridor(
+        CorridorFeasibilityAudit corridorAudit = auditD2Corridor(
                 descriptor,
                 network,
                 route,
@@ -204,7 +204,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 d.initialMaximumHeadEnvelopeGapIndex(),
                 d.finalMaximumHeadEnvelopeGapIndex(),
                 maximumWidthFor( descriptor, endDischarge));
-        assertEquals(514, corridorAudit.sampleCount());
+        assertEquals(8_450, corridorAudit.sampleCount());
         assertTrue(corridorAudit.admissibleSampleCount() > 0, corridorAudit.summary());
         assertTrue(Double.isFinite(corridorAudit.minimumAdmissibleGap()), corridorAudit.summary());
         assertTrue(d.lateralCandidateProposals() > 0);
@@ -228,7 +228,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 descriptor.nominalRadius(), discharge);
     }
 
-    private static CorridorFeasibilityAudit auditD2LateralCorridor(
+    private static CorridorFeasibilityAudit auditD2Corridor(
             SkyIslandDescriptor descriptor,
             SkyIslandGeomorphicChannelNetworkPlan network,
             SkyIslandGeomorphicReachRoute route,
@@ -240,18 +240,28 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             int initialPeakIndex,
             int finalPeakIndex,
             double minimumBendRadius) throws Exception {
+        final int samplesPerAxis = 65;
+        final int samplesPerStation = samplesPerAxis * samplesPerAxis;
         double corridorHalfWidth =
                 network.planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
         StringBuilder rows = new StringBuilder(
-                "criticalIndex,offsetWorld,stationFraction,lowerHead,upperHead,gap,"
-                        + "lowerConstraint,lowerBound,upperConstraint,upperBound,"
-                        + "insideSemanticCorridor,terrainAdmissible,interiorityAdmissible,"
-                        + "curvatureAdmissible,admissible\\n");
-        double minimumGap = Double.POSITIVE_INFINITY;
+                "criticalIndex,alongOffsetWorld,lateralOffsetWorld,stationFraction,"
+                        + "lowerHead,upperHead,gap,lowerConstraint,lowerBound,"
+                        + "upperConstraint,upperBound,insideSemanticCorridor,"
+                        + "terrainAdmissible,interiorityAdmissible,curvatureAdmissible,"
+                        + "admissible\\n");
+        double minimumGapAny = Double.POSITIVE_INFINITY;
+        double minimumGapInCorridor = Double.POSITIVE_INFINITY;
+        double minimumGapBeforeCurvature = Double.POSITIVE_INFINITY;
         double minimumAdmissibleGap = Double.POSITIVE_INFINITY;
-        double minimumAdmissibleOffset = Double.NaN;
+        int semanticCorridorSamples = 0;
+        int terrainAdmissibleSamples = 0;
+        int interiorityAdmissibleSamples = 0;
+        int curvatureAdmissibleSamples = 0;
+        int baseAdmissibleSamples = 0;
         int admissibleSamples = 0;
+        int feasibleAnySamples = 0;
         int feasibleAdmissibleSamples = 0;
         int sampleCount = 0;
         int[] criticalIndices = {initialPeakIndex, finalPeakIndex};
@@ -268,101 +278,135 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             if (!(tangentLength > 0.0)) {
                 throw new IllegalStateException("D2 critical station tangent must be non-zero");
             }
-            double normalX = -tangentZ / tangentLength;
-            double normalZ = tangentX / tangentLength;
-            for (int sample = 0; sample <= 256; sample++) {
-                double offset = -corridorHalfWidth
-                        + 2.0 * corridorHalfWidth * sample / 256.0;
-                SkyIslandLocalPosition candidate =
-                        new SkyIslandLocalPosition(
-                                current.x() + normalX * offset,
-                                current.z() + normalZ * offset);
-                List<SkyIslandLocalPosition> candidatePoints = new ArrayList<>(centerline);
-                candidatePoints.set(criticalIndex, candidate);
-                double station = normalizedStations(candidatePoints)[criticalIndex];
-                double discharge =
-                        SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
-                                semantic, station);
-                SkyIslandChannelProfileKind kind =
-                        SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                                semantic.profiles(), station);
-                if (kind == SkyIslandChannelProfileKind.CASCADE) {
-                    throw new IllegalStateException(
-                            "D2 lateral corridor audit must remain on an ordinary profile");
-                }
-                double halfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                        descriptor.nominalRadius(), discharge);
-                double depth =
-                        SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
-                SkyIslandGeomorphicQualificationClass qualificationClass =
-                        kind == SkyIslandChannelProfileKind.ALLUVIAL
-                                ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
-                                : SkyIslandGeomorphicQualificationClass.INCISED;
-                var evaluation =
-                        SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKindWithDiagnostics(
-                                descriptor,
-                                kind,
-                                candidate,
-                                halfWidth,
-                                depth,
-                                Math.max(0.0, Math.min(1.0, terrain.sample(candidate))),
-                                normalX,
-                                normalZ,
-                                terrain,
-                                policy.limits(qualificationClass));
-                double gap = evaluation.positiveGap();
-                minimumGap = Math.min(minimumGap, gap);
-                boolean insideCorridor =
-                        distanceToPolyline(candidate, semantic.guidancePoints())
-                                <= corridorHalfWidth + EPSILON;
-                SkyIslandLocalPosition seedProjection =
-                        projectToPolyline(candidate, route.route().points());
-                boolean terrainAllowed =
-                        terrain.sample(candidate) - terrain.sample(seedProjection)
-                                <= SkyIslandSemanticCorridorCenterlinePlanner
-                                                .MAXIMUM_TERRAIN_RISE_FROM_SEED
-                                        + EPSILON;
-                boolean interiorityAllowed =
-                        interiority.sample(candidate)
-                                >= SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY;
-                boolean curvatureAllowed =
-                        maximumCurvatureAround(candidatePoints, criticalIndex)
-                                        * minimumBendRadius
-                                <= 1.0 + EPSILON;
-                boolean admissible = insideCorridor
-                        && terrainAllowed
-                        && interiorityAllowed
-                        && curvatureAllowed;
-                if (admissible) {
-                    admissibleSamples++;
-                    if (gap < minimumAdmissibleGap) {
-                        minimumAdmissibleGap = gap;
-                        minimumAdmissibleOffset = offset;
+            tangentX /= tangentLength;
+            tangentZ /= tangentLength;
+            double normalX = -tangentZ;
+            double normalZ = tangentX;
+            for (int alongSample = 0; alongSample < samplesPerAxis; alongSample++) {
+                double alongOffset = -corridorHalfWidth
+                        + 2.0 * corridorHalfWidth * alongSample / (samplesPerAxis - 1.0);
+                for (int lateralSample = 0;
+                        lateralSample < samplesPerAxis;
+                        lateralSample++) {
+                    double lateralOffset = -corridorHalfWidth
+                            + 2.0 * corridorHalfWidth * lateralSample / (samplesPerAxis - 1.0);
+                    SkyIslandLocalPosition candidate =
+                            new SkyIslandLocalPosition(
+                                    current.x()
+                                            + tangentX * alongOffset
+                                            + normalX * lateralOffset,
+                                    current.z()
+                                            + tangentZ * alongOffset
+                                            + normalZ * lateralOffset);
+                    List<SkyIslandLocalPosition> candidatePoints = new ArrayList<>(centerline);
+                    candidatePoints.set(criticalIndex, candidate);
+                    double station = normalizedStations(candidatePoints)[criticalIndex];
+                    double discharge =
+                            SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
+                                    semantic, station);
+                    SkyIslandChannelProfileKind kind =
+                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                                    semantic.profiles(), station);
+                    if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                        throw new IllegalStateException(
+                                "D2 corridor audit must remain on an ordinary profile");
                     }
-                    if (evaluation.envelope().feasible(EPSILON)) {
-                        feasibleAdmissibleSamples++;
+                    double halfWidth =
+                            SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                    descriptor.nominalRadius(), discharge);
+                    double depth =
+                            SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+                    SkyIslandGeomorphicQualificationClass qualificationClass =
+                            kind == SkyIslandChannelProfileKind.ALLUVIAL
+                                    ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
+                                    : SkyIslandGeomorphicQualificationClass.INCISED;
+                    var evaluation =
+                            SkyIslandHydraulicHeadEnvelopePlanner
+                                    .evaluateForKindWithDiagnostics(
+                                            descriptor,
+                                            kind,
+                                            candidate,
+                                            halfWidth,
+                                            depth,
+                                            Math.max(0.0, Math.min(1.0, terrain.sample(candidate))),
+                                            normalX,
+                                            normalZ,
+                                            terrain,
+                                            policy.limits(qualificationClass));
+                    double gap = evaluation.positiveGap();
+                    minimumGapAny = Math.min(minimumGapAny, gap);
+                    boolean feasible = evaluation.envelope().feasible(EPSILON);
+                    if (feasible) {
+                        feasibleAnySamples++;
                     }
+                    boolean insideCorridor =
+                            distanceToPolyline(candidate, semantic.guidancePoints())
+                                    <= corridorHalfWidth + EPSILON;
+                    if (insideCorridor) {
+                        semanticCorridorSamples++;
+                        minimumGapInCorridor = Math.min(minimumGapInCorridor, gap);
+                    }
+                    SkyIslandLocalPosition seedProjection =
+                            projectToPolyline(candidate, route.route().points());
+                    boolean terrainAllowed =
+                            terrain.sample(candidate) - terrain.sample(seedProjection)
+                                    <= SkyIslandSemanticCorridorCenterlinePlanner
+                                                    .MAXIMUM_TERRAIN_RISE_FROM_SEED
+                                            + EPSILON;
+                    if (terrainAllowed) {
+                        terrainAdmissibleSamples++;
+                    }
+                    boolean interiorityAllowed =
+                            interiority.sample(candidate)
+                                    >= SkyIslandSemanticCorridorCenterlinePlanner
+                                            .MINIMUM_INTERIORITY;
+                    if (interiorityAllowed) {
+                        interiorityAdmissibleSamples++;
+                    }
+                    boolean curvatureAllowed =
+                            maximumCurvatureAround(candidatePoints, criticalIndex)
+                                            * minimumBendRadius
+                                    <= 1.0 + EPSILON;
+                    if (curvatureAllowed) {
+                        curvatureAdmissibleSamples++;
+                    }
+                    boolean baseAdmissible =
+                            insideCorridor && terrainAllowed && interiorityAllowed;
+                    if (baseAdmissible) {
+                        baseAdmissibleSamples++;
+                        minimumGapBeforeCurvature =
+                                Math.min(minimumGapBeforeCurvature, gap);
+                    }
+                    boolean admissible = baseAdmissible && curvatureAllowed;
+                    if (admissible) {
+                        admissibleSamples++;
+                        minimumAdmissibleGap = Math.min(minimumAdmissibleGap, gap);
+                        if (feasible) {
+                            feasibleAdmissibleSamples++;
+                        }
+                    }
+                    rows.append(String.format(
+                            Locale.ROOT,
+                            "%d,%.9f,%.9f,%.12f,%.9f,%.9f,%.9f,%s,%.9f,%s,%.9f,"
+                                    + "%s,%s,%s,%s,%s%n",
+                            criticalIndex,
+                            alongOffset,
+                            lateralOffset,
+                            station,
+                            evaluation.envelope().lowerHead(),
+                            evaluation.envelope().upperHead(),
+                            gap,
+                            evaluation.activeLowerBound().constraint(),
+                            evaluation.activeLowerBound().head(),
+                            evaluation.activeUpperBound().constraint(),
+                            evaluation.activeUpperBound().head(),
+                            insideCorridor,
+                            terrainAllowed,
+                            interiorityAllowed,
+                            curvatureAllowed,
+                            admissible));
+                    sampleCount++;
                 }
-                rows.append(String.format(
-                        Locale.ROOT,
-                        "%d,%.9f,%.12f,%.9f,%.9f,%.9f,%s,%.9f,%s,%.9f,"
-                                + "%s,%s,%s,%s,%s%n",
-                        criticalIndex,
-                        offset,
-                        station,
-                        evaluation.envelope().lowerHead(),
-                        evaluation.envelope().upperHead(),
-                        gap,
-                        evaluation.activeLowerBound().constraint(),
-                        evaluation.activeLowerBound().head(),
-                        evaluation.activeUpperBound().constraint(),
-                        evaluation.activeUpperBound().head(),
-                        insideCorridor,
-                        terrainAllowed,
-                        interiorityAllowed,
-                        curvatureAllowed,
-                        admissible));
-                sampleCount++;
             }
         }
         Path evidenceDirectory =
@@ -371,17 +415,28 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         Files.writeString(evidenceDirectory.resolve("key-287-corridor.csv"), rows);
         String summary = String.format(
                 Locale.ROOT,
-                "F3G_D2_CORRIDOR key=287 stations=%d samplesPerStation=257 "
-                        + "totalSamples=%d admissibleSamples=%d feasibleAdmissibleSamples=%d "
-                        + "minimumGapAny=%.9f minimumGapAdmissible=%.9f "
-                        + "minimumAdmissibleOffset=%.9f%n",
+                "F3G_D2_CORRIDOR key=287 stations=%d samplesPerStation=%d totalSamples=%d "
+                        + "semanticCorridorSamples=%d terrainAdmissibleSamples=%d "
+                        + "interiorityAdmissibleSamples=%d curvatureAdmissibleSamples=%d "
+                        + "baseAdmissibleSamples=%d admissibleSamples=%d "
+                        + "feasibleAnySamples=%d feasibleAdmissibleSamples=%d "
+                        + "minimumGapAny=%.9f minimumGapInCorridor=%.9f "
+                        + "minimumGapBeforeCurvature=%.9f minimumAdmissibleGap=%.9f%n",
                 criticalIndices.length,
+                samplesPerStation,
                 sampleCount,
+                semanticCorridorSamples,
+                terrainAdmissibleSamples,
+                interiorityAdmissibleSamples,
+                curvatureAdmissibleSamples,
+                baseAdmissibleSamples,
                 admissibleSamples,
+                feasibleAnySamples,
                 feasibleAdmissibleSamples,
-                minimumGap,
-                minimumAdmissibleGap,
-                minimumAdmissibleOffset);
+                minimumGapAny,
+                minimumGapInCorridor,
+                minimumGapBeforeCurvature,
+                minimumAdmissibleGap);
         Files.writeString(evidenceDirectory.resolve("key-287-corridor-summary.txt"), summary);
         return new CorridorFeasibilityAudit(
                 sampleCount,
