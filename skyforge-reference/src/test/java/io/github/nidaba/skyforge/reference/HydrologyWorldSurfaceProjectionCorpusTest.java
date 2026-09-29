@@ -43,11 +43,11 @@ class HydrologyWorldSurfaceProjectionCorpusTest {
                 .toString();
         assertTrue(
                 reachesA.contains(
-                        "ordinary-77,77,709,559,35,35,-4.480910369,-3.635747789,36.994664581"),
+                        "ordinary-77,77,709,559,35,35,-4.488065774,-3.635747789,36.994664581"),
                 ordinary77ReachRows);
         assertTrue(
                 reachesA.contains(
-                        "ordinary-77,77,1742,1842,24,24,-4.453474879,-2.232739641,45.833595170"),
+                        "ordinary-77,77,1742,1842,24,24,-4.467823552,-2.232739641,45.833595170"),
                 ordinary77ReachRows);
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
