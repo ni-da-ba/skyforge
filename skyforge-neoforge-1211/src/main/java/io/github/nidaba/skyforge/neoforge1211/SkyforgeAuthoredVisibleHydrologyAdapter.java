@@ -11,7 +11,10 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.block.Blocks;
@@ -73,6 +76,63 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     private record AuthorizedRemovalProjectionCache(
             SkyIslandHydrologyRuntimeAuthorization authorization,
             List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval> removals) {}
+
+    record QualifiedHydrologyBinding(
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> authorizations,
+            Map<SkyIslandWorldVolumeId,
+                    List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval>> removals,
+            Map<SkyIslandWorldVolumeId, Set<Long>> authorizedWaterPositions) {
+        QualifiedHydrologyBinding {
+            authorizations = Map.copyOf(authorizations);
+            Map<SkyIslandWorldVolumeId,
+                    List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval>> immutableRemovals =
+                            new LinkedHashMap<>();
+            removals.forEach((volumeId, components) ->
+                    immutableRemovals.put(volumeId, List.copyOf(components)));
+            removals = Map.copyOf(immutableRemovals);
+            Map<SkyIslandWorldVolumeId, Set<Long>> immutableWaterPositions = new LinkedHashMap<>();
+            authorizedWaterPositions.forEach((volumeId, positions) ->
+                    immutableWaterPositions.put(volumeId, Set.copyOf(positions)));
+            authorizedWaterPositions = Map.copyOf(immutableWaterPositions);
+        }
+    }
+
+    static QualifiedHydrologyBinding bindQualified(
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> authorizations) {
+        Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> bindings =
+                Map.copyOf(Objects.requireNonNull(authorizations, "authorizations"));
+        Map<SkyIslandWorldVolumeId,
+                List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval>> removals =
+                        new LinkedHashMap<>();
+        Map<SkyIslandWorldVolumeId, Set<Long>> authorizedWaterPositions = new LinkedHashMap<>();
+        for (var entry : bindings.entrySet()) {
+            SkyIslandHydrologyRuntimeAuthorization authorization = entry.getValue();
+            if (!entry.getKey().equals(authorization.association().realizedVolumeId())) {
+                throw new IllegalArgumentException(
+                        "F4H authorization map key must match its exact realized volume id");
+            }
+            removals.put(entry.getKey(), authorizedRemovalProjection(authorization));
+            authorizedWaterPositions.put(entry.getKey(), authorizedWaterPositions(authorization));
+        }
+        return new QualifiedHydrologyBinding(bindings, removals, authorizedWaterPositions);
+    }
+
+    private static Set<Long> authorizedWaterPositions(
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Set<Long> positions = new LinkedHashSet<>();
+        for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {
+            if (!column.projection().semanticSample().wet() || !column.mutatesTerrain()) {
+                continue;
+            }
+            int waterMaximumY = Math.min(
+                    waterMaximumY(column, authorization),
+                    column.originalSupport().maximumSolidY());
+            for (int y = column.targetMaximumSolidY() + 1; y <= waterMaximumY; y++) {
+                positions.add(new BlockPos(column.worldX(), y, column.worldZ()).asLong());
+            }
+        }
+        return Set.copyOf(positions);
+    }
 
     static List<Deployment> plan(
             io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
@@ -138,21 +198,36 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             ChunkAccess chunk,
             SkyforgeNeoForge1211ChunkAdapter terrain,
             SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Objects.requireNonNull(authorization, "authorization");
+        return applyAvailable(
+                chunk,
+                terrain,
+                authorization,
+                authorizedRemovalProjection(authorization),
+                authorizedWaterPositions(authorization));
+    }
+
+    private static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            SkyIslandHydrologyRuntimeAuthorization authorization,
+            List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval> removals,
+            Set<Long> authorizedWaterPositions) {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(authorization, "authorization");
 
-        // F4D is the only source of terrain-removal positions. The projection is exact and
-        // re-validates the authorization token before any ChunkAccess mutation occurs.
         int changed = 0;
-        for (var component : authorizedRemovalProjection(authorization)) {
+        for (var component : removals) {
             for (BlockPos position : component.positions()) {
                 if (!chunk.getPos().equals(new ChunkPos(position))) {
                     continue;
                 }
                 requireAuthorizedOwner(terrain, authorization, position);
-                if (!chunk.getBlockState(position).isAir()) {
-                    var previous = chunk.getBlockState(position);
+                var previous = chunk.getBlockState(position);
+                boolean existingWaterIsAuthorized = previous.is(Blocks.WATER)
+                        && authorizedWaterPositions.contains(position.asLong());
+                if (!previous.isAir() && !existingWaterIsAuthorized) {
                     chunk.setBlockState(position, Blocks.AIR.defaultBlockState(), false);
                     SkyforgeDeferredChunkMutationLifecycle.afterWrite(
                             chunk, position, previous, chunk.getBlockState(position));
@@ -161,17 +236,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
 
-        // F4H water heads are reconstructed from the refined world-space projection, not from
-        // legacy AUTH-0086 intent geometry. Only columns with a discrete removal band can carry
-        // water: omitting a sub-voxel column is the permitted one-sided quantization residual.
         for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {
             if (!column.projection().semanticSample().wet()
                     || !column.mutatesTerrain()) {
                 continue;
             }
-            // F4C/F4D authorizes only the removed solid band. A continuous F4H head may
-            // mathematically rise above the original voxel support; retain its intersection with
-            // that band rather than adding a new water voxel into unowned air.
             int waterMaximumY = Math.min(
                     waterMaximumY(column, authorization),
                     column.originalSupport().maximumSolidY());
@@ -193,6 +262,42 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                     changed++;
                 }
             }
+        }
+        return changed;
+    }
+
+    static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> authorizations) {
+        return applyAvailable(chunk, terrain, bindQualified(authorizations));
+    }
+
+    static int applyAvailable(
+            ChunkAccess chunk,
+            SkyforgeNeoForge1211ChunkAdapter terrain,
+            QualifiedHydrologyBinding binding) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(binding, "binding");
+        int changed = 0;
+        for (SkyIslandWorldVolume volume : terrain.candidateVolumes(chunk)) {
+            SkyIslandHydrologyRuntimeAuthorization authorization =
+                    binding.authorizations().get(volume.id());
+            if (authorization == null) {
+                continue;
+            }
+            if (!authorization.association().realizedVolume().equals(volume)) {
+                throw new IllegalArgumentException(
+                        "F4H authorization must match the exact catalog volume");
+            }
+            List<SkyforgeQualifiedFluvialVoxelRemovalProjection.ComponentRemoval> removals =
+                    binding.removals().get(volume.id());
+            Set<Long> authorizedWaterPositions = binding.authorizedWaterPositions().get(volume.id());
+            if (removals == null || authorizedWaterPositions == null) {
+                throw new IllegalStateException("qualified hydrology binding is missing its cached projection");
+            }
+            changed += applyAvailable(chunk, terrain, authorization, removals, authorizedWaterPositions);
         }
         return changed;
     }

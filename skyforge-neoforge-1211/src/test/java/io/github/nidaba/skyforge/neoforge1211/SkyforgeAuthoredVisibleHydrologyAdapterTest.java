@@ -8,6 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.Blocks;
@@ -72,6 +74,82 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertEquals(
                 expectedChunks,
                 SkyforgeF4KHydrologyReviewDevRuntime.requiredWaterHeadChunkKeys(fixture));
+    }
+
+    @Test
+    void qualifiedOnlyBindingDoesNotFallBackWhenAuthorizationIsAbsent() throws Exception {
+        CorpusFixture fixture = corpus(77L);
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var legacyDeployments = SkyforgeAuthoredVisibleHydrologyAdapter.plan(
+                fixture.descriptor(), fixture.volume(), terrain);
+        assertFalse(legacyDeployments.isEmpty());
+        BlockPos sample = legacyDeployments.getFirst().positions().getFirst();
+        var chunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(sample));
+
+        try (AutoCloseable installed = SkyforgeNeoForge1211SurfaceStage.installQualifiedHydrology(
+                terrain,
+                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
+                Map.of())) {
+            assertNotNull(installed);
+            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        }
+
+        for (var deployment : legacyDeployments) {
+            for (BlockPos position : deployment.positions()) {
+                if (chunk.getPos().equals(new net.minecraft.world.level.ChunkPos(position))) {
+                    assertFalse(chunk.getBlockState(position).is(Blocks.WATER));
+                }
+            }
+        }
+    }
+
+    @Test
+    void qualifiedBindingAppliesMultipleExactVolumeAuthorizations() {
+        StackedCorpusFixture fixture = qualifiedMultiVolumeCorpus(77L);
+        var terrain = terrain(fixture.catalog(), fixture.descriptor());
+        var candidate = io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlanner
+                .plan(fixture.descriptor());
+        Map<io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId,
+                io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization> authorizations =
+                        new LinkedHashMap<>();
+        for (var volume : List.of(fixture.lower(), fixture.upper())) {
+            var association = io.github.nidaba.skyforge.world.SkyIslandAuthoredRealizationAssociation
+                    .of(fixture.descriptor(), volume);
+            var voxel = io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelQuantizationPlanner
+                    .plan(association, candidate);
+            var direct = io.github.nidaba.skyforge.world.SkyIslandWorldWaterProjectionQualificationPlanner
+                    .plan(voxel);
+            var head = io.github.nidaba.skyforge.world.SkyIslandWorldWaterHeadRefinementPlanner
+                    .plan(direct);
+            var refined = io.github.nidaba.skyforge.world.SkyIslandWorldHeadRefinedTerrainPlanner
+                    .plan(head);
+            authorizations.put(
+                    volume.id(),
+                    io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization.fromF4H(
+                            association, candidate, refined.terrainField()));
+        }
+
+        var binding = SkyforgeAuthoredVisibleHydrologyAdapter.bindQualified(authorizations);
+        var lowerAuthorization = authorizations.get(fixture.lower().id());
+        var upperAuthorization = authorizations.get(fixture.upper().id());
+        BlockPos lowerWaterHead = firstAuthorizedWaterHead(lowerAuthorization, fixture.descriptor());
+        BlockPos upperWaterHead = firstAuthorizedWaterHead(upperAuthorization, fixture.descriptor());
+        var lowerChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(lowerWaterHead));
+        var upperChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(upperWaterHead));
+        assertNotEquals(lowerChunk.getPos(), upperChunk.getPos());
+        int lowerChanged = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                lowerChunk, terrain, binding);
+        int upperChanged = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                upperChunk, terrain, binding);
+        assertTrue(lowerChanged > 0);
+        assertTrue(upperChanged > 0);
+        assertTrue(lowerChunk.getBlockState(lowerWaterHead).is(Blocks.WATER));
+        assertTrue(upperChunk.getBlockState(upperWaterHead).is(Blocks.WATER));
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                lowerChunk, terrain, binding));
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                upperChunk, terrain, binding));
     }
 
     @Test
@@ -209,6 +287,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE);
     }
 
+    private static BlockPos firstAuthorizedWaterHead(
+            io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization authorization,
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor) {
+        return authorization.quantization().authorizedColumns().stream()
+                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
+                .filter(column -> {
+                    var projection = column.projection();
+                    var semantic = projection.semanticSample();
+                    double waterHeadWorld = projection.originalUpperSurfaceWorldY()
+                            + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
+                                    * descriptor.reliefBudget();
+                    int waterMaximumY = (int) Math.ceil(waterHeadWorld) - 1;
+                    return Math.min(waterMaximumY, column.originalSupport().maximumSolidY())
+                            >= column.targetMaximumSolidY() + 1;
+                })
+                .map(column -> new BlockPos(
+                        column.worldX(),
+                        column.targetMaximumSolidY() + 1,
+                        column.worldZ()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("qualified F4H authorization has no discrete water head"));
+    }
+
     private static void assertOwned(
             List<SkyforgeAuthoredVisibleHydrologyAdapter.Deployment> deployments,
             SkyforgeNeoForge1211ChunkAdapter terrain) {
@@ -250,17 +351,68 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var descriptor = io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator.derive(
                 io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(WORLD_SEED, 6L, 61L, key));
         double rimDepth = Math.min(48.0, descriptor.nominalRadius() * 0.16);
+        double acceptedRimDepth = Math.min(32.0, descriptor.nominalRadius());
         var lower = volume(
                 descriptor, 830_000L + key, "dr20-accepted-corpus-stacked/lower/" + key,
-                170.0, 30.0, 38.0, rimDepth, 55.0, 45.0);
+                256.0, 72.0, 104.0, acceptedRimDepth, 192.0, 192.0);
         var upper = volume(
                 descriptor, 840_000L + key, "dr20-accepted-corpus-stacked/upper/" + key,
-                260.0, 30.0, 38.0, rimDepth, 55.0, 45.0);
+                768.0, 72.0, 104.0, acceptedRimDepth, 192.0, 192.0);
         return new StackedCorpusFixture(
                 descriptor,
                 lower,
                 upper,
                 new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(WORLD_SEED, List.of(lower, upper)));
+    }
+
+    private static StackedCorpusFixture qualifiedMultiVolumeCorpus(long key) {
+        var descriptor = io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator.derive(
+                io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(WORLD_SEED, 8L, 81L, key));
+        var lower = qualifiedF4hVolumeAt(
+                descriptor, 910_077L, "dr20-f4h-multivolume/lower/" + key, 0.0);
+        var upper = qualifiedF4hVolumeAt(
+                descriptor, 910_078L, "dr20-f4h-multivolume/upper/" + key, 512.0);
+        return new StackedCorpusFixture(
+                descriptor,
+                lower,
+                upper,
+                new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(WORLD_SEED, List.of(lower, upper)));
+    }
+
+    private static io.github.nidaba.skyforge.world.SkyIslandWorldVolume qualifiedF4hVolumeAt(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            long seed,
+            String path,
+            double centerX) {
+        double radius = descriptor.nominalRadius();
+        var physicalDescriptor = io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor.schema2(
+                seed,
+                centerX,
+                0.0,
+                256.0,
+                radius,
+                72.0,
+                104.0,
+                Math.min(32.0, radius),
+                0.43,
+                0.62,
+                0.57,
+                0.18,
+                descriptor.morphologyFamily(),
+                0.22,
+                38.0,
+                0.31);
+        var compiled = new io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe()
+                .compile(physicalDescriptor);
+        var id = new io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId(WORLD_SEED, path, 0, 0, seed);
+        var bounds = new io.github.nidaba.skyforge.world.WorldBounds(
+                centerX - radius,
+                centerX + radius,
+                64.0,
+                448.0,
+                -radius,
+                radius);
+        return new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(id, bounds, compiled);
     }
 
     private static io.github.nidaba.skyforge.world.SkyIslandWorldVolume volume(
@@ -273,11 +425,37 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
             double rimDepth,
             double lowerBounds,
             double upperBounds) {
+        return volumeAt(
+                descriptor,
+                seed,
+                path,
+                0.0,
+                0.0,
+                suspensionY,
+                upperThickness,
+                lowerThickness,
+                rimDepth,
+                lowerBounds,
+                upperBounds);
+    }
+
+    private static io.github.nidaba.skyforge.world.SkyIslandWorldVolume volumeAt(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            long seed,
+            String path,
+            double centerX,
+            double centerZ,
+            double suspensionY,
+            double upperThickness,
+            double lowerThickness,
+            double rimDepth,
+            double lowerBounds,
+            double upperBounds) {
         double radius = descriptor.nominalRadius();
         var physicalDescriptor = io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor.schema2(
                 seed,
-                0.0,
-                0.0,
+                centerX,
+                centerZ,
                 suspensionY,
                 radius,
                 upperThickness,
@@ -295,12 +473,12 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 .compile(physicalDescriptor);
         var id = new io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId(WORLD_SEED, path, 0, 0, seed);
         var bounds = new io.github.nidaba.skyforge.world.WorldBounds(
-                -radius * 1.08,
-                radius * 1.08,
+                centerX - radius * 1.08,
+                centerX + radius * 1.08,
                 suspensionY - lowerBounds,
                 suspensionY + upperBounds,
-                -radius * 1.08,
-                radius * 1.08);
+                centerZ - radius * 1.08,
+                centerZ + radius * 1.08);
         return new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(id, bounds, compiled);
     }
 
