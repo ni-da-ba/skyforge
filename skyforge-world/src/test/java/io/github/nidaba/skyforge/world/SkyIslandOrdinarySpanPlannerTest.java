@@ -29,6 +29,24 @@ class SkyIslandOrdinarySpanPlannerTest {
         assertTrue(primary.stream()
                 .allMatch(outcome ->
                         outcome.status() == SkyIslandOrdinarySpanStatus.INFEASIBLE));
+
+        var quantifiedEnvelopeFailures = primary.stream()
+                .filter(outcome ->
+                        outcome.diagnostic()
+                                .orElse("")
+                                .contains("infeasibilityGapWorld="))
+                .toList();
+        assertFalse(quantifiedEnvelopeFailures.isEmpty());
+        for (var outcome : quantifiedEnvelopeFailures) {
+            String diagnostic = outcome.diagnostic().orElseThrow();
+            assertTrue(diagnostic.contains("lowerHeadWorld="));
+            assertTrue(diagnostic.contains("upperHeadWorld="));
+            String marker = "infeasibilityGapWorld=";
+            String gapText = diagnostic.substring(diagnostic.indexOf(marker) + marker.length());
+            gapText = gapText.substring(0, gapText.indexOf(')'));
+            assertTrue(Double.parseDouble(gapText) > 0.0);
+        }
+
         for (int i = 0; i + 1 < primary.size(); i++) {
             assertTrue(
                     primary.get(i).span().parentEndStationFraction()
