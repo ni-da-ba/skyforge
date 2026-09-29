@@ -15,6 +15,7 @@ import java.util.function.DoubleUnaryOperator;
  */
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
+    private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
@@ -113,7 +114,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long lateralCandidateGapImproving = 0;
         long selectedLateralMoves = 0;
         long globalGapImprovementsBlockedByCurvature = 0;
-        for (int sweep = 0; sweep < MAXIMUM_RELAXATION_SWEEPS; sweep++) {
+        int relaxationSweeps = 0;
+        int maximumSweeps = headEnvelopeGap == null
+                ? MAXIMUM_RELAXATION_SWEEPS : MAXIMUM_D2_RELAXATION_SWEEPS;
+        for (int sweep = 0; sweep < maximumSweeps; sweep++) {
+            relaxationSweeps++;
             RelaxationStep step = relaxOnce(
                     searchRoute, semanticGuidance, current, terrain, interiority,
                     semanticCorridorHalfWidth, minimumBendRadius,
@@ -188,7 +193,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
                 lateralCandidateGapImproving,
-                selectedLateralMoves, globalGapImprovementsBlockedByCurvature);
+                selectedLateralMoves, globalGapImprovementsBlockedByCurvature,
+                relaxationSweeps);
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -651,7 +657,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long lateralCandidateCurvatureRejected,
             long lateralCandidateGapImproving,
             long selectedLateralMoves,
-            long globalGapImprovementsBlockedByCurvature) {}
+            long globalGapImprovementsBlockedByCurvature,
+            int relaxationSweeps) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
