@@ -837,6 +837,14 @@
       throw new Error("hydrology comparison cause-grid bindings do not match");
     }
 
+    const referenceKeys = new Set();
+    for (const sample of reference.causeSamples) {
+      const key = sample.grid.join(":");
+      if (referenceKeys.has(key)) {
+        throw new Error("reference hydrology comparison contains duplicate cause samples");
+      }
+      referenceKeys.add(key);
+    }
     const candidateByGrid = new Map();
     for (const sample of candidate.causeSamples) {
       const key = sample.grid.join(":");
@@ -845,7 +853,7 @@
       }
       candidateByGrid.set(key, sample);
     }
-    if (candidateByGrid.size !== reference.causeSamples.length) {
+    if (candidateByGrid.size !== referenceKeys.size) {
       throw new Error("hydrology comparison cause sample counts do not match");
     }
 
