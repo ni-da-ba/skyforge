@@ -118,7 +118,6 @@
         label: "External atmosphere provider",
         
         version: String(provider.version || ""),
-        api: String(provider.api || ""),
       }),
       layers: Object.freeze([
         Object.freeze({
