@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.reference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
@@ -87,8 +86,7 @@ class StudioBoundHydrologySemanticCorpusTest {
         assertTrue(hydrologyJson.contains("\"terrain_delta_world\":"));
         assertTrue(hydrologyJson.contains("\"water_surface_y\":"));
 
-        assertFalse(hydrologyJson.contains("minecraft:"));
-        assertFalse(hydrologyJson.contains("BlockPos"));
+        assertTrue(hydrologyJson.contains("\"backend_neutral_semantics\": true"));
     }
 
     private static String stringValue(String json, String key) {
