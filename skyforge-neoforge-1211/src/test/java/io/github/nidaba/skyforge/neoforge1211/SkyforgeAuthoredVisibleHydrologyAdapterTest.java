@@ -337,37 +337,52 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
     private static StackedCorpusFixture qualifiedMultiVolumeCorpus(long key) {
         var descriptor = io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator.derive(
-                io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(WORLD_SEED, 6L, 61L, key));
-        double rimDepth = Math.min(32.0, descriptor.nominalRadius());
-        var lower = volumeAt(
-                descriptor,
-                830_000L + key,
-                "dr20-f4h-multivolume/lower/" + key,
-                0.0,
-                0.0,
-                256.0,
-                72.0,
-                104.0,
-                rimDepth,
-                192.0,
-                192.0);
-        var upper = volumeAt(
-                descriptor,
-                840_000L + key,
-                "dr20-f4h-multivolume/upper/" + key,
-                512.0,
-                0.0,
-                256.0,
-                72.0,
-                104.0,
-                rimDepth,
-                192.0,
-                192.0);
+                io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(WORLD_SEED, 8L, 81L, key));
+        var lower = qualifiedF4hVolumeAt(
+                descriptor, 910_077L, "dr20-f4h-multivolume/lower/" + key, 0.0);
+        var upper = qualifiedF4hVolumeAt(
+                descriptor, 910_078L, "dr20-f4h-multivolume/upper/" + key, 512.0);
         return new StackedCorpusFixture(
                 descriptor,
                 lower,
                 upper,
                 new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(WORLD_SEED, List.of(lower, upper)));
+    }
+
+    private static io.github.nidaba.skyforge.world.SkyIslandWorldVolume qualifiedF4hVolumeAt(
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor,
+            long seed,
+            String path,
+            double centerX) {
+        double radius = descriptor.nominalRadius();
+        var physicalDescriptor = io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor.schema2(
+                seed,
+                centerX,
+                0.0,
+                256.0,
+                radius,
+                72.0,
+                104.0,
+                Math.min(32.0, radius),
+                0.43,
+                0.62,
+                0.57,
+                0.18,
+                descriptor.morphologyFamily(),
+                0.22,
+                38.0,
+                0.31);
+        var compiled = new io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe()
+                .compile(physicalDescriptor);
+        var id = new io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId(WORLD_SEED, path, 0, 0, seed);
+        var bounds = new io.github.nidaba.skyforge.world.WorldBounds(
+                centerX - radius,
+                centerX + radius,
+                64.0,
+                448.0,
+                -radius,
+                radius);
+        return new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(id, bounds, compiled);
     }
 
     private static io.github.nidaba.skyforge.world.SkyIslandWorldVolume volume(
