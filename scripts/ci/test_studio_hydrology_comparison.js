@@ -96,7 +96,7 @@ const candidate = layer([
     runoffPotential: 0.75,
     retentionPotential: 0.25,
     drainagePotential: 0.5,
-    outflowPotential: 0.8,
+    outflowPotential: 0.75,
   }),
 ], { source: { reviewAuthority: false } });
 
