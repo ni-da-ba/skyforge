@@ -168,10 +168,15 @@
               <select id="overlay-artifact-select"></select>
               <button id="load-overlay" type="button" class="full-button">Attach as reference</button>
               </div>
-              <div class="comparison-controls">
-                <label for="comparison-artifact-select">Candidate hydrology artifact</label>
-                <select id="comparison-artifact-select"></select>
-                <button id="load-comparison-overlay" type="button" class="full-button">Compare candidate</button>
+              <div id="comparison-controls" class="comparison-controls" hidden>
+                <div id="registered-comparison-source" hidden>
+                  <label for="comparison-artifact-select">Registered candidate hydrology artifact</label>
+                  <select id="comparison-artifact-select"></select>
+                  <button id="load-comparison-overlay" type="button" class="full-button">Compare registered candidate</button>
+                </div>
+                <label for="local-comparison-file">Local candidate hydrology JSON</label>
+                <input id="local-comparison-file" type="file" accept=".json,application/json">
+                <button id="load-local-comparison" type="button" class="secondary full-button">Compare local candidate</button>
                 <label class="check-row"><input id="show-hydrology-delta" type="checkbox" disabled> Show candidate − reference</label>
                 <button id="clear-hydrology-comparison" type="button" class="secondary full-button" disabled>Clear comparison</button>
                 <p id="comparison-status" class="small muted">Attach a reference hydrology artifact first.</p>
