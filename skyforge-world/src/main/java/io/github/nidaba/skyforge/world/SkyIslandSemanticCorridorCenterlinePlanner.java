@@ -16,7 +16,7 @@ import java.util.function.DoubleUnaryOperator;
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
-    private static final int D2_BLOCK_MOVE_RADIUS = 3;
+    private static final int D2_BLOCK_MOVE_RADIUS = 12;
     private static final int MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS = 8;
     private static final double[] D2_BLOCK_STEP_FACTORS = {0.5, 1.0, 2.0};
     public static final double RELAXATION_FRACTION = 0.40;
