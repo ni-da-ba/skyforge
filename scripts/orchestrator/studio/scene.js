@@ -393,7 +393,7 @@
         persistenceOwner: "evidence artifact",
         backendNeutral: artifact.ownership?.backend_neutral_semantics === true,
         renderingBackendDependency:
-          artifact.ownership?.minecraft_dependency === true,
+          artifact.ownership?.backend_neutral_semantics !== true,
         skyforgePersistsTruth: true,
       }),
     });
