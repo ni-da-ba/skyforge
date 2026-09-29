@@ -86,8 +86,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         descriptor.nominalRadius(), dischargeProfile.atStation(station)),
                 (position, station, tangentX, tangentZ, halfWidth) -> {
                     SkyIslandChannelProfileKind kind =
-                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                                    semantic, station);
+                            dischargeProfile.profileKindAtStation(station);
                     if (kind == SkyIslandChannelProfileKind.CASCADE
                             || ordinaryProfileKind.isEmpty()) {
                         return 0.0;
@@ -171,7 +170,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         "semantic reach profile segment must have positive physical length");
             }
         }
-        return new SemanticDischargeProfile(cumulativeDistance, totalLength, discharge);
+        List<SkyIslandChannelProfileKind> profileKinds = semantic.profiles().stream()
+                .map(SkyIslandChannelProfile::kind)
+                .toList();
+        return new SemanticDischargeProfile(
+                cumulativeDistance, totalLength, discharge, profileKinds);
     }
 
     private static SkyIslandHydraulicReachSkeleton sampleReach(
@@ -224,35 +227,53 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 maximumDepth);
     }
 
+    static SkyIslandChannelProfileKind profileKindAtStation(
+            SkyIslandSemanticChannelReach semantic, double station) {
+        return semanticDischargeProfile(semantic).profileKindAtStation(station);
+    }
+
     private record SemanticDischargeProfile(
-            double[] cumulativeDistance, double totalLength, double[] dischargeAtSegmentStart) {
+            double[] cumulativeDistance,
+            double totalLength,
+            double[] dischargeAtSegmentStart,
+            List<SkyIslandChannelProfileKind> profileKinds) {
         private double maximumDischarge() {
             return dischargeAtSegmentStart[dischargeAtSegmentStart.length - 1];
         }
 
-        private double atStation(double station) {
+        private int segmentIndexAtStation(double station) {
             if (!Double.isFinite(station) || station < 0.0 || station > 1.0) {
                 throw new IllegalArgumentException("station must be finite and in [0, 1]");
             }
             double targetDistance = station * totalLength;
             for (int i = 0; i < dischargeAtSegmentStart.length; i++) {
-                double startDistance = cumulativeDistance[i];
-                double endDistance = cumulativeDistance[i + 1];
-                if (targetDistance <= endDistance || i == dischargeAtSegmentStart.length - 1) {
-                    double startDischarge = dischargeAtSegmentStart[i];
-                    double endDischarge = i + 1 < dischargeAtSegmentStart.length
-                            ? dischargeAtSegmentStart[i + 1]
-                            : startDischarge;
-                    double fraction = Math.max(
-                            0.0,
-                            Math.min(
-                                    1.0,
-                                    (targetDistance - startDistance)
-                                            / (endDistance - startDistance)));
-                    return lerp(startDischarge, endDischarge, fraction);
+                if (targetDistance <= cumulativeDistance[i + 1]
+                        || i == dischargeAtSegmentStart.length - 1) {
+                    return i;
                 }
             }
             throw new IllegalStateException("station escaped semantic discharge profile");
+        }
+
+        private SkyIslandChannelProfileKind profileKindAtStation(double station) {
+            return profileKinds.get(segmentIndexAtStation(station));
+        }
+
+        private double atStation(double station) {
+            int i = segmentIndexAtStation(station);
+            double startDistance = cumulativeDistance[i];
+            double endDistance = cumulativeDistance[i + 1];
+            double startDischarge = dischargeAtSegmentStart[i];
+            double endDischarge = i + 1 < dischargeAtSegmentStart.length
+                    ? dischargeAtSegmentStart[i + 1]
+                    : startDischarge;
+            double fraction = Math.max(
+                    0.0,
+                    Math.min(
+                            1.0,
+                            (station * totalLength - startDistance)
+                                    / (endDistance - startDistance)));
+            return lerp(startDischarge, endDischarge, fraction);
         }
     }
 
