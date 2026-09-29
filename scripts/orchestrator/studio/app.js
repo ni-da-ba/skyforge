@@ -320,8 +320,10 @@
         " · drainage " + fmt(deltas.drainagePotential) +
         " · outflow " + fmt(deltas.outflowPotential);
       $("inspect-authority").textContent =
-        "Bound hydrology comparison · exact terrain " +
-        scene.source.artifactDigest;
+        (hydrologyComparison.comparison.reviewAuthority
+          ? "Bound hydrology comparison"
+          : "UNBOUND LOCAL DIAGNOSTIC comparison — not review authority") +
+        " · exact terrain " + scene.source.artifactDigest;
       return;
     }
 

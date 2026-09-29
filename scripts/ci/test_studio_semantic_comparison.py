@@ -47,6 +47,8 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn('binding: "UNBOUND_LOCAL"', app)
         self.assertIn('reviewAuthority: false,', app)
         self.assertIn('UNBOUND LOCAL DIAGNOSTIC — not review authority', app)
+        self.assertIn('hydrologyComparison.comparison.reviewAuthority', app)
+        self.assertIn('UNBOUND LOCAL DIAGNOSTIC comparison — not review authority', app)
         self.assertIn("Candidate − reference: purple − / gray 0 / orange +", markup)
         self.assertIn("channel, flow, response, and water layers show the reference", markup)
         self.assertIn("linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)", styles)
