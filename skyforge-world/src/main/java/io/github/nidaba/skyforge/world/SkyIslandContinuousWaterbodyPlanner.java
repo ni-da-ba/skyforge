@@ -108,6 +108,7 @@ public final class SkyIslandContinuousWaterbodyPlanner {
 
         SkyIslandLocalPosition[] positions = new SkyIslandLocalPosition[count];
         double[] elevations = new double[count];
+        double[] levelSetValues = new double[count];
         boolean[] eligible = new boolean[count];
 
         for (int gz = 0; gz < height; gz++) {
@@ -119,9 +120,13 @@ public final class SkyIslandContinuousWaterbodyPlanner {
                 int index = index(gx, gz, width);
                 SkyIslandLocalPosition position = new SkyIslandLocalPosition(x, z);
                 double elevation = clamp01(terrain.sample(position));
+                double interiorityValue = interiority.sample(position);
                 positions[index] = position;
                 elevations[index] = elevation;
-                eligible[index] = interiority.sample(position) > ACTIVE_INTERIORITY_THRESHOLD
+                levelSetValues[index] = Math.max(
+                        elevation - waterSurface,
+                        ACTIVE_INTERIORITY_THRESHOLD - interiorityValue);
+                eligible[index] = interiorityValue > ACTIVE_INTERIORITY_THRESHOLD
                         && elevation <= waterSurface + EPSILON;
             }
         }
@@ -157,6 +162,9 @@ public final class SkyIslandContinuousWaterbodyPlanner {
 
         List<SkyIslandLocalPosition> crossings = shorelineCrossings(
                 positions, elevations, connected, width, height, waterSurface);
+        SkyIslandContinuousWaterbodyContourMetrics.Result contour =
+                SkyIslandContinuousWaterbodyContourMetrics.measure(
+                        levelSetValues, connected, width, height, fineSpacing);
 
         return new SkyIslandContinuousWaterbodyBasin(
                 candidate,
@@ -167,7 +175,10 @@ public final class SkyIslandContinuousWaterbodyPlanner {
                 connectedCount * fineSpacing * fineSpacing,
                 clamp01(maximumDepth),
                 reachesBoundary,
-                crossings);
+                crossings,
+                contour.perimeterWorldUnits(),
+                contour.closedLoopCount(),
+                contour.nonDegreeTwoVertexCount());
     }
 
     private static double fillFraction(SkyIslandWaterbodyCandidate candidate) {

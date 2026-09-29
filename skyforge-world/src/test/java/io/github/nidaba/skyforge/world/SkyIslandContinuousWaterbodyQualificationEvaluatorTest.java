@@ -96,7 +96,7 @@ class SkyIslandContinuousWaterbodyQualificationEvaluatorTest {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 609L);
         for (SkyIslandContinuousWaterbodyDiagnostics diagnostics :
                 SkyIslandContinuousWaterbodyDiagnosticsPlanner.measure(descriptor)) {
-            if (!diagnostics.reachesSearchBoundary()
+            if (diagnostics.basin().hasClosedNumericalShoreline()
                     && diagnostics.shorelineCrossingCount() > 0) {
                 return diagnostics;
             }

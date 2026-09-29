@@ -37,7 +37,7 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
                     fields[3], fields[4], fields[5]));
         }
         assertEquals(6144, identities.size());
-        assertEquals(24, candidateLines.get(0).split(",", -1).length);
+        assertEquals(28, candidateLines.get(0).split(",", -1).length);
         assertEquals(15, semanticLines.get(0).split(",", -1).length);
         assertTrue(semanticLines.size() > 1, "retained-sink semantic classifications are recorded");
         assertTrue(summary.contains("stratum_seed-min/reference-8-81,1024"));
@@ -50,6 +50,7 @@ class HydrologyRetainedBasinSeedStrataCorpusTest {
         assertTrue(summary.contains("prevalence_estimate,NOT_CLAIMED"));
         assertTrue(summary.contains("production_qualification,NOT_GRANTED"));
         assertTrue(readme.contains("not a prevalence estimate"));
+        assertTrue(readme.contains("marching-squares shoreline perimeter"));
         assertTrue(Files.isRegularFile(out.resolve("geometry-failures.csv")));
     }
 }

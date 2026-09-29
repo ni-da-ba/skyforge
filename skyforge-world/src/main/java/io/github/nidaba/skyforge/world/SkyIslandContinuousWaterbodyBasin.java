@@ -18,7 +18,10 @@ public record SkyIslandContinuousWaterbodyBasin(
         double approximateArea,
         double maximumDepthPotential,
         boolean reachesSearchBoundary,
-        List<SkyIslandLocalPosition> shorelineCrossings) {
+        List<SkyIslandLocalPosition> shorelineCrossings,
+        double shorelinePerimeterWorldUnits,
+        int closedShorelineLoopCount,
+        int nonDegreeTwoShorelineVertexCount) {
 
     public SkyIslandContinuousWaterbodyBasin {
         sourceCandidate = Objects.requireNonNull(sourceCandidate, "sourceCandidate");
@@ -39,6 +42,30 @@ public record SkyIslandContinuousWaterbodyBasin(
         requireNormalized(maximumDepthPotential, "maximumDepthPotential");
         shorelineCrossings = List.copyOf(shorelineCrossings);
         shorelineCrossings.forEach(point -> Objects.requireNonNull(point, "shoreline crossing"));
+        requireNonNegative(shorelinePerimeterWorldUnits, "shorelinePerimeterWorldUnits");
+        if (closedShorelineLoopCount < 0) {
+            throw new IllegalArgumentException("closedShorelineLoopCount must be non-negative");
+        }
+        if (nonDegreeTwoShorelineVertexCount < 0) {
+            throw new IllegalArgumentException("nonDegreeTwoShorelineVertexCount must be non-negative");
+        }
+    }
+
+    public double shorelineIsoperimetricRatio() {
+        return shorelinePerimeterWorldUnits * shorelinePerimeterWorldUnits
+                / (4.0 * Math.PI * approximateArea);
+    }
+
+    public boolean hasClosedNumericalShoreline() {
+        return !reachesSearchBoundary
+                && closedShorelineLoopCount > 0
+                && nonDegreeTwoShorelineVertexCount == 0;
+    }
+
+    private static void requireNonNegative(double value, String name) {
+        if (!Double.isFinite(value) || value < 0.0) {
+            throw new IllegalArgumentException(name + " must be finite and non-negative");
+        }
     }
 
     private static void requireNormalized(double value, String name) {

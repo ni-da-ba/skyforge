@@ -25,6 +25,10 @@ class SkyIslandContinuousWaterbodyDiagnosticsPlannerTest {
                 assertTrue(Double.isFinite(d.maximumDepthWorldUnits()));
                 assertTrue(Double.isFinite(d.depthToEquivalentDiameterRatio()));
                 assertTrue(Double.isFinite(d.maximumShorelineGrade()));
+                assertTrue(Double.isFinite(d.basin().shorelinePerimeterWorldUnits()));
+                assertTrue(Double.isFinite(d.basin().shorelineIsoperimetricRatio()));
+                assertTrue(d.basin().closedShorelineLoopCount() >= 0);
+                assertTrue(d.basin().nonDegreeTwoShorelineVertexCount() >= 0);
                 assertTrue(Double.isFinite(d.spillHeadroomWorldUnits()));
                 assertTrue(d.matchedTerminalReachCount() >= 0);
                 assertTrue(Double.isFinite(d.maximumChannelDatumMismatchWorldUnits()));
