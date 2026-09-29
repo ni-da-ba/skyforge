@@ -117,6 +117,41 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
         }
     }
 
+    @Test
+    void d2HeadGapObjectiveRetainsBaselineCurvatureWidthQualification() {
+        SkyIslandGeomorphicCandidateRoute route = stairRoute();
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(8.0, 0.0));
+        SkyIslandSemanticField terrain = ignored -> 0.55;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+
+        SkyIslandContinuousChannelCenterline baseline =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route, guidance, terrain, interiority, 4.0, 3.0, 2.0);
+        SkyIslandContinuousChannelCenterline d2Directed =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route,
+                        guidance,
+                        terrain,
+                        interiority,
+                        4.0,
+                        3.0,
+                        2.0,
+                        ignored -> 1.0,
+                        (position, station, tangentX, tangentZ, halfWidth) ->
+                                Math.abs(position.z()));
+
+        assertTrue(
+                maximumCurvature(baseline.points()) * 2.0 <= 1.0 + EPSILON,
+                "geometry-only C2 baseline must satisfy the D1 curvature-width bound");
+        assertTrue(
+                maximumCurvature(d2Directed.points()) * 2.0 <= 1.0 + EPSILON,
+                "D2-directed search must not regress the accepted C2 curvature-width bound");
+        assertEquals(route.points().getFirst(), d2Directed.points().getFirst());
+        assertEquals(route.points().getLast(), d2Directed.points().getLast());
+    }
+
     private static double meanInteriorAbsoluteZ(List<SkyIslandLocalPosition> points) {
         return points.subList(1, points.size() - 1).stream()
                 .mapToDouble(point -> Math.abs(point.z()))

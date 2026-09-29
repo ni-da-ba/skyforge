@@ -69,6 +69,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         SkyIslandContinuousChannelCenterline seed =
                 SkyIslandContinuousChannelCenterlinePlanner.refine(
                         searchRoute, terrain, interiority, planningSpacing);
+        if (headEnvelopeGap != null) {
+            // Begin D2-directed refinement from the already-qualified geometry-only C2 result.
+            // A lower local head gap must not trade away C2's hard curvature-width boundary.
+            seed = refine(
+                    searchRoute,
+                    semanticGuidance,
+                    terrain,
+                    interiority,
+                    planningSpacing,
+                    semanticCorridorHalfWidth,
+                    minimumBendRadius,
+                    bankfullHalfWidthAtStation,
+                    null);
+        }
 
         List<SkyIslandLocalPosition> current = new ArrayList<>(seed.points());
         Candidate best = evaluate(
