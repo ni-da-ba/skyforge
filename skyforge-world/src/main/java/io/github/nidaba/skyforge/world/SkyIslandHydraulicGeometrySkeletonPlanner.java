@@ -87,7 +87,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 (position, station, tangentX, tangentZ, halfWidth) -> {
                     SkyIslandChannelProfileKind kind =
                             SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                                    semantic.profiles(), station);
+                                    semantic, station);
                     if (kind == SkyIslandChannelProfileKind.CASCADE
                             || ordinaryProfileKind.isEmpty()) {
                         return 0.0;
