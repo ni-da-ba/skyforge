@@ -113,6 +113,26 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
                 self.assertIn(contract, scene)
         self.assertNotIn("modId", scene)
 
+    def test_sample_provenance_is_selection_linked_and_recorded_only(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+
+        self.assertIn('id="sample-provenance"', markup)
+        self.assertIn('id="provenance-fields"', markup)
+        self.assertIn("function renderSampleProvenance(sample)", app)
+        self.assertIn("sample.provenance", app)
+        self.assertIn("Not recorded by this artifact.", app)
+        self.assertIn("Missing lineage is shown as not recorded", app)
+        self.assertIn("scene.source.artifactDigest", app)
+        self.assertIn("hydrologyComparison.comparison.referenceSource", app)
+        self.assertIn("hydrologyComparison.comparison.candidateSource", app)
+        self.assertIn("scene.source.reviewAuthority", app)
+        self.assertIn('overlay.binding.associationToken', app)
+        self.assertIn('overlay.binding.authoredIdentity', app)
+        self.assertIn('overlay.binding.worldFrame', app)
+        self.assertIn('overlay.gridBinding', app)
+        self.assertIn("clearSampleProvenance()", app)
+
     def test_hydrology_comparison_behavior_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")

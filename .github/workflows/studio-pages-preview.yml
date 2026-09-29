@@ -6,6 +6,7 @@ on:
     branches:
       - studio/hydrology-comparison
       - studio/local-world-brief
+      - studio/provenance-inspector
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"
