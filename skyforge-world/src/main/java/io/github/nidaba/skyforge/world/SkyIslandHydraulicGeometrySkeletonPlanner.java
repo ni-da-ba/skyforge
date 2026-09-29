@@ -47,14 +47,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         List<SkyIslandHydraulicReachSkeleton> reaches = new ArrayList<>(network.routes().size());
 
         for (SkyIslandGeomorphicReachRoute route : network.routes()) {
-            double maximumBankfullWidth =
-                    2.0
-                            * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                    descriptor.nominalRadius(),
-                                    route.semanticReach().downstreamRelativeDischarge());
             SkyIslandSemanticChannelReach semantic = route.semanticReach();
             double startDischarge = startDischarge(semantic);
             double endDischarge = endDischarge(semantic, startDischarge);
+            double maximumBankfullWidth =
+                    2.0
+                            * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                    descriptor.nominalRadius(), endDischarge);
             SkyIslandGeomorphicQualificationPolicy policy =
                     SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
             Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
