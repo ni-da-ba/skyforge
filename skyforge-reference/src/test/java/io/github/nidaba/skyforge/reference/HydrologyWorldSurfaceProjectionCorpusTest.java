@@ -23,9 +23,15 @@ class HydrologyWorldSurfaceProjectionCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
-        assertTrue(summaryA.contains(
-                "ordinary-77,77,2,59,59,-4.480910369,-2.232739641,36.994664581,76.826056586,"
-                        + "8969,5858,-6.941952488,0.000000000,14.064577406"));
+        String ordinary77SummaryRows = summaryA.lines()
+                .filter(line -> line.startsWith("ordinary-77,77,"))
+                .toList()
+                .toString();
+        assertTrue(
+                summaryA.contains(
+                        "ordinary-77,77,2,59,59,-4.480910369,-2.232739641,36.994664581,76.826056586,"
+                                + "8969,5858,-6.941952488,0.000000000,14.064577406"),
+                ordinary77SummaryRows);
         assertTrue(summaryA.contains(
                 "primary-287,287,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
