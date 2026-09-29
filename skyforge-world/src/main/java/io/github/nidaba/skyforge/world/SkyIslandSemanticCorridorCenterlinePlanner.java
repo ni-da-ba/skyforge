@@ -400,6 +400,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 points, changedIndex, first, bankfullHalfWidthAtStation, headEnvelopeGap);
         LocalHeadGapScore secondGap = localHeadGapScore(
                 points, changedIndex, second, bankfullHalfWidthAtStation, headEnvelopeGap);
+        boolean firstGeometryValid = Double.isFinite(firstGap.maximumGap());
+        boolean secondGeometryValid = Double.isFinite(secondGap.maximumGap());
+        if (firstGeometryValid != secondGeometryValid) {
+            return firstGeometryValid ? -1 : 1;
+        }
+        if (!firstGeometryValid) {
+            return 0;
+        }
         int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
         if (maximumGap != 0) {
             return maximumGap;
@@ -442,9 +450,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 throw new IllegalArgumentException(
                         "bankfull half-width must be finite and non-negative");
             }
+            Vector tangent;
+            try {
+                tangent = tangentAt(candidatePoints, index);
+            } catch (IllegalStateException degenerateTangent) {
+                return new LocalHeadGapScore(Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+            }
             double gap = checkedGap(
-                    headEnvelopeGap, candidatePoints.get(index), station,
-                    tangentAt(candidatePoints, index), halfWidth);
+                    headEnvelopeGap, candidatePoints.get(index), station, tangent, halfWidth);
             maximumGap = Math.max(maximumGap, gap);
             integratedSquaredGap += gap * gap;
         }
