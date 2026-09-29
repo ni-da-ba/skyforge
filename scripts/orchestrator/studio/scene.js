@@ -861,12 +861,14 @@
       if (!candidateSample) {
         throw new Error("candidate hydrology comparison is missing cause sample " + key);
       }
+      const coordinatesMatch = (left, right) =>
+        left.length === right.length &&
+        left.every((value, index) => value === right[index]);
       if (
-        candidateSample.position.some(
-          (value, index) => value !== referenceSample.position[index]
-        )
+        !coordinatesMatch(candidateSample.localPosition, referenceSample.localPosition) ||
+        !coordinatesMatch(candidateSample.worldPosition, referenceSample.worldPosition)
       ) {
-        throw new Error("hydrology comparison world-space cause coordinates do not match");
+        throw new Error("hydrology comparison cause coordinates do not match");
       }
       const deltas = Object.create(null);
       for (const field of fields) {
