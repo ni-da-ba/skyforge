@@ -24,6 +24,15 @@ class HydrologyWorldWaterProjectionCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
+        System.out.println("F4_WATER_SUMMARY=" + summaryA.lines()
+                .filter(line -> line.startsWith("ordinary-77,")
+                        || line.startsWith("primary-287,")
+                        || line.startsWith("confluence-632,")
+                        || line.startsWith("lake-609,"))
+                .toList());
+        System.out.println("F4_WATER_REACHES=" + reachesA.lines()
+                .filter(line -> line.startsWith("ordinary-77,"))
+                .toList());
         assertTrue(summaryA.contains(
                 "ordinary-77,77,2,0,2,8969,2477,0.002619649,2.805327115,-5.419589927,2.365899859"));
         assertTrue(summaryA.contains(
