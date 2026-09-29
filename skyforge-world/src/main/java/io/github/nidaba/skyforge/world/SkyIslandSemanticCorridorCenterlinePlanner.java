@@ -20,8 +20,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final double MINIMUM_INTERIORITY = 0.025;
 
     private static final double EPSILON = 1.0e-12;
-    private static final double[] D2_LATERAL_MOVE_FRACTIONS =
-            {0.0625, 0.125, 0.1875, 0.25, 0.375, 0.5};
 
     private SkyIslandSemanticCorridorCenterlinePlanner() {}
 
@@ -237,14 +235,34 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
-                    for (double lateralFraction : D2_LATERAL_MOVE_FRACTIONS) {
-                        double offset = lateralFraction * halfWidth;
-                        options.add(new SkyIslandLocalPosition(
-                                point.x() - normal.x() * offset,
-                                point.z() - normal.z() * offset));
-                        options.add(new SkyIslandLocalPosition(
-                                point.x() + normal.x() * offset,
-                                point.z() + normal.z() * offset));
+                    for (int direction : new int[] {-1, 1}) {
+                        double offset = 0.5 * halfWidth;
+                        int backtracks = 0;
+                        SkyIslandLocalPosition option =
+                                lateralOption(point, normal, direction, offset);
+                        while (!curvatureAdmissible(result, i, option, minimumBendRadius)
+                                && backtracks < 12) {
+                            lateralCandidateProposals++;
+                            lateralCandidateCurvatureRejected++;
+                            offset *= 0.5;
+                            backtracks++;
+                            option = lateralOption(point, normal, direction, offset);
+                        }
+                        for (int refinement = 0;
+                                backtracks < 12 && refinement < 3
+                                        && curvatureAdmissible(
+                                                result, i, option, minimumBendRadius);
+                                refinement++) {
+                            options.add(option);
+                            offset *= 0.5;
+                            option = lateralOption(point, normal, direction, offset);
+                        }
+                        if (backtracks == 12
+                                && !curvatureAdmissible(
+                                        result, i, option, minimumBendRadius)) {
+                            lateralCandidateProposals++;
+                            lateralCandidateCurvatureRejected++;
+                        }
                     }
                 }
             }
@@ -382,6 +400,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         return Double.compare(
                 project(first, searchRoute.points()).distance(),
                 project(second, searchRoute.points()).distance());
+    }
+
+    private static SkyIslandLocalPosition lateralOption(
+            SkyIslandLocalPosition point,
+            Vector normal,
+            int direction,
+            double offset) {
+        return new SkyIslandLocalPosition(
+                point.x() + direction * normal.x() * offset,
+                point.z() + direction * normal.z() * offset);
     }
 
     private static boolean curvatureAdmissible(
