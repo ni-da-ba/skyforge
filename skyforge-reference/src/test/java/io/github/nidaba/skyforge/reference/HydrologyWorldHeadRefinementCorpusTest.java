@@ -24,6 +24,15 @@ class HydrologyWorldHeadRefinementCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(componentsA, componentsB);
+        System.out.println("F4_HEAD_SUMMARY=" + summaryA.lines()
+                .filter(line -> line.startsWith("ordinary-77,")
+                        || line.startsWith("primary-287,")
+                        || line.startsWith("confluence-632,")
+                        || line.startsWith("lake-609,"))
+                .toList());
+        System.out.println("F4_HEAD_COMPONENTS=" + componentsA.lines()
+                .filter(line -> line.startsWith("ordinary-77,"))
+                .toList());
         assertTrue(summaryA.contains("ordinary-77,77,2,1,1"));
         assertTrue(componentsA.contains(
                 "ordinary-77,77,559,SOLVED,709,559,35,0.168878403,0.007804229,0,0.000000000,0.210190740,0.000000000,\"\""));
