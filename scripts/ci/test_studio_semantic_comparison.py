@@ -34,7 +34,8 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         markup = (STUDIO / "index.html").read_text(encoding="utf-8")
         styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
 
-        self.assertIn("candidateSample[field] - referenceSample[field]", source_text())
+        source = (STUDIO / "scene.js").read_text(encoding="utf-8")
+        self.assertIn("candidateSample[field] - referenceSample[field]", source)
         self.assertIn("hydrologyDeltaColor(sample.deltas[potential])", app)
         self.assertIn("delta < 0 ? [112, 95, 186] : [210, 83, 67]", app)
         self.assertIn('id="comparison-artifact-select"', markup)
@@ -56,10 +57,6 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             )
             with self.subTest(path=path.name):
                 self.assertEqual(result.returncode, 0, result.stderr)
-
-
-def source_text() -> str:
-    return (STUDIO / "scene.js").read_text(encoding="utf-8")
 
 
 if __name__ == "__main__":
