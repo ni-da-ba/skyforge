@@ -215,7 +215,7 @@ class SkyforgeStudioTest(unittest.TestCase):
         self.assertIn("candidate hydrology comparison contains duplicate cause samples", source)
         self.assertIn("hydrology comparison cause sample counts do not match", source)
         self.assertIn("candidate hydrology comparison is missing cause sample", source)
-        self.assertIn("hydrology comparison world-space cause coordinates do not match", source)
+        self.assertIn("hydrology comparison cause coordinates do not match", source)
         self.assertIn("deltas[field] = delta", source)
         self.assertIn("reference.source.reviewAuthority && candidate.source.reviewAuthority", source)
 
