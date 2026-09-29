@@ -26,9 +26,6 @@ class SkyIslandFluvialVoxelQuantizationPlannerTest {
                 SkyIslandFluvialVoxelQuantizationPlanner.plan(
                         productionAssociation(descriptor, 910_077L), candidate);
 
-        System.out.println("F4_VOXEL_PLAN authorizedColumns=" + plan.authorizedColumns().size()
-                + " mutatedColumns=" + plan.mutatedColumns().size()
-                + " maximumUndercutResidualWorld=" + plan.maximumUndercutResidualWorld());
         assertEquals(candidate.realizedComponents().size(), plan.components().size());
         assertTrue(plan.rejectedComponents().isEmpty());
         assertEquals(8969, plan.authorizedColumns().size());
