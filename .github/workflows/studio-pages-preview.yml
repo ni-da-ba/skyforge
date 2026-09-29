@@ -1,6 +1,7 @@
 name: Studio Pages Preview
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - studio/hydrology-comparison
