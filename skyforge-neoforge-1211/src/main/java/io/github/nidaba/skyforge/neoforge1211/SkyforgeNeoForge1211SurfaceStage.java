@@ -668,8 +668,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
             Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
-            HydrologyMode hydrologyMode,
-            SkyforgeAuthoredVisibleHydrologyAdapter.QualifiedHydrologyBinding qualifiedHydrologyBinding) {
+            HydrologyMode hydrologyMode) {
         RuntimeBinding binding = new RuntimeBinding(
                 adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorizations, hydrologyMode, null);
         if (!ACTIVE.compareAndSet(null, binding)) {
@@ -816,7 +815,8 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
             Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
-            HydrologyMode hydrologyMode) {
+            HydrologyMode hydrologyMode,
+            SkyforgeAuthoredVisibleHydrologyAdapter.QualifiedHydrologyBinding qualifiedHydrologyBinding) {
         private RuntimeBinding {
             Objects.requireNonNull(adapter, "adapter");
             Objects.requireNonNull(writer, "writer");
