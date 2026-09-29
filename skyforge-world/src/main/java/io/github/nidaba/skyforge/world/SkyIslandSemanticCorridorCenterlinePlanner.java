@@ -172,6 +172,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
+        int restartSweeps = 0;
         BlockMoveSearch blockSearch =
                 new BlockMoveSearch(best, best, 0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
         if (headEnvelopeGap != null) {
@@ -187,7 +188,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     headEnvelopeGap);
             best = blockSearch.best();
             if (!blockSearch.exploration().points().equals(best.points())) {
-                Candidate restarted = refineD2FromSeed(
+                D2RestartSearch restart = refineD2FromSeed(
                         searchRoute,
                         semanticGuidance,
                         blockSearch.exploration(),
@@ -197,8 +198,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         minimumBendRadius,
                         bankfullHalfWidthAtStation,
                         headEnvelopeGap);
-                if (restarted.compareTo(best, minimumBendRadius) < 0) {
-                    best = restarted;
+                restartSweeps = restart.sweeps();
+                if (restart.best().compareTo(best, minimumBendRadius) < 0) {
+                    best = restart.best();
                 }
             }
         }
@@ -234,7 +236,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 blockSearch.objectiveImproving(),
                 blockSearch.selected(),
                 blockSearch.minimumCandidateMaximumGap(),
-                blockSearch.minimumCandidateIntegratedSquaredGap());
+                blockSearch.minimumCandidateIntegratedSquaredGap(),
+                restartSweeps);
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -490,7 +493,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 minimumCandidateIntegratedSquaredGap);
     }
 
-    private static Candidate refineD2FromSeed(
+    private static D2RestartSearch refineD2FromSeed(
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> semanticGuidance,
             Candidate initial,
@@ -502,7 +505,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
         List<SkyIslandLocalPosition> current = new ArrayList<>(initial.points());
         Candidate best = initial;
+        int sweeps = 0;
         for (int sweep = 0; sweep < MAXIMUM_D2_RELAXATION_SWEEPS; sweep++) {
+            sweeps++;
             RelaxationStep step = relaxOnce(
                     searchRoute,
                     semanticGuidance,
@@ -529,7 +534,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 break;
             }
         }
-        return best;
+        return new D2RestartSearch(best, sweeps);
     }
 
     private static Candidate evaluate(
@@ -855,6 +860,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandContinuousChannelCenterline centerline,
             SearchDiagnostics diagnostics) {}
 
+    private record D2RestartSearch(Candidate best, int sweeps) {}
+
     private record BlockMoveSearch(
             Candidate best,
             Candidate exploration,
@@ -891,7 +898,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long blockMoveObjectiveImproving,
             long selectedBlockMoves,
             double minimumBlockCandidateMaximumGap,
-            double minimumBlockCandidateIntegratedSquaredGap) {}
+            double minimumBlockCandidateIntegratedSquaredGap,
+            int restartSweeps) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
