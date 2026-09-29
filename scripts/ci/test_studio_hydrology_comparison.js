@@ -104,13 +104,13 @@ const comparison = compare(reference, candidate);
 assert.equal(comparison.sceneKind, "HYDROLOGY_SEMANTIC_COMPARISON");
 assert.equal(comparison.reviewAuthority, false);
 assert.deepEqual(comparison.samples.map((entry) => entry.grid), [[0, 0], [1, 0]]);
-assert.deepEqual(comparison.samples[0].deltas, {
+assert.deepEqual({ ...comparison.samples[0].deltas }, {
   runoffPotential: 0.5,
   retentionPotential: -0.25,
   drainagePotential: 0,
   outflowPotential: 0,
 });
-assert.deepEqual(comparison.samples[1].deltas, {
+assert.deepEqual({ ...comparison.samples[1].deltas }, {
   runoffPotential: -0.5,
   retentionPotential: 0,
   drainagePotential: 0,
