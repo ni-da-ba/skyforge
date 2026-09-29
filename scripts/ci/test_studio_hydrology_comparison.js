@@ -73,28 +73,28 @@ function expectFailure(label, reference, candidate, expectedMessage) {
 
 const reference = layer([
   sample(0, {
-    runoffPotential: 0.2,
-    retentionPotential: 0.4,
+    runoffPotential: 0.25,
+    retentionPotential: 0.5,
     drainagePotential: 0.5,
-    outflowPotential: 0.8,
+    outflowPotential: 0.75,
   }),
   sample(1, {
-    runoffPotential: 0.9,
-    retentionPotential: 0.1,
-    drainagePotential: 0.2,
-    outflowPotential: 0.3,
+    runoffPotential: 0.75,
+    retentionPotential: 0.125,
+    drainagePotential: 0.25,
+    outflowPotential: 0.375,
   }),
 ]);
 const candidate = layer([
   sample(1, {
-    runoffPotential: 0.4,
-    retentionPotential: 0.1,
-    drainagePotential: 0.2,
-    outflowPotential: 0.3,
+    runoffPotential: 0.25,
+    retentionPotential: 0.125,
+    drainagePotential: 0.25,
+    outflowPotential: 0.375,
   }),
   sample(0, {
-    runoffPotential: 0.7,
-    retentionPotential: 0.3,
+    runoffPotential: 0.75,
+    retentionPotential: 0.25,
     drainagePotential: 0.5,
     outflowPotential: 0.8,
   }),
@@ -106,7 +106,7 @@ assert.equal(comparison.reviewAuthority, false);
 assert.deepEqual(comparison.samples.map((entry) => entry.grid), [[0, 0], [1, 0]]);
 assert.deepEqual(comparison.samples[0].deltas, {
   runoffPotential: 0.5,
-  retentionPotential: -0.1,
+  retentionPotential: -0.25,
   drainagePotential: 0,
   outflowPotential: 0,
 });
