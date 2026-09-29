@@ -174,7 +174,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
 
         BlockMoveSearch blockSearch =
-                new BlockMoveSearch(best, 0, 0, 0, 0);
+                new BlockMoveSearch(best, 0, 0, 0, 0, 0);
         if (headEnvelopeGap != null) {
             blockSearch = refinePeakWithBlockMoves(
                     searchRoute,
@@ -759,7 +759,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandContinuousChannelCenterline centerline,
             SearchDiagnostics diagnostics) {}
 
-    record BlockMoveSearch(
+    private record BlockMoveSearch(
             Candidate best,
             long proposals,
             long fieldAdmissible,
