@@ -352,7 +352,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double minimumBendRadius,
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
-        Candidate best = initial;
+        Candidate minimaxBest = initial;
+        Candidate exploration = initial;
         long proposals = 0;
         long fieldAdmissible = 0;
         long curvatureAdmissible = 0;
@@ -360,13 +361,15 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long selected = 0;
         double minimumCandidateMaximumGap = Double.POSITIVE_INFINITY;
         double minimumCandidateIntegratedSquaredGap = Double.POSITIVE_INFINITY;
+        double peakGapAllowance =
+                Math.max(EPSILON, initial.maximumHeadEnvelopeGap() * 0.005);
         for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
-            Candidate improved = best;
-            int peakIndex = best.maximumHeadEnvelopeGapIndex();
-            if (peakIndex <= 0 || peakIndex >= best.points().size() - 1) {
+            Candidate nextExploration = exploration;
+            int peakIndex = exploration.maximumHeadEnvelopeGapIndex();
+            if (peakIndex <= 0 || peakIndex >= exploration.points().size() - 1) {
                 break;
             }
-            double[] station = stations(best.points());
+            double[] station = stations(exploration.points());
             double halfWidth =
                     bankfullHalfWidthAtStation.applyAsDouble(station[peakIndex]);
             int[] indices = {peakIndex - 1, peakIndex, peakIndex + 1};
@@ -389,7 +392,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                 firstDirection, centerDirection, lastDirection
                             };
                             List<SkyIslandLocalPosition> points =
-                                    new ArrayList<>(best.points());
+                                    new ArrayList<>(exploration.points());
                             boolean admissible = true;
                             for (int position = 0; position < indices.length; position++) {
                                 int direction = directions[position];
@@ -401,8 +404,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     admissible = false;
                                     break;
                                 }
-                                Vector tangent = tangentAt(best.points(), index);
-                                SkyIslandLocalPosition original = best.points().get(index);
+                                Vector tangent = tangentAt(exploration.points(), index);
+                                SkyIslandLocalPosition original =
+                                        exploration.points().get(index);
                                 SkyIslandLocalPosition moved =
                                         new SkyIslandLocalPosition(
                                                 original.x() - direction * tangent.z() * magnitude,
@@ -442,22 +446,30 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     Math.min(
                                             minimumCandidateIntegratedSquaredGap,
                                             candidate.integratedSquaredHeadEnvelopeGap());
-                            if (candidate.compareTo(improved, minimumBendRadius) < 0) {
+                            if (candidate.compareTo(minimaxBest, minimumBendRadius) < 0) {
+                                minimaxBest = candidate;
+                            }
+                            double allowedMaximumGap =
+                                    minimaxBest.maximumHeadEnvelopeGap() + peakGapAllowance;
+                            if (candidate.maximumHeadEnvelopeGap() <= allowedMaximumGap
+                                    && candidate.integratedSquaredHeadEnvelopeGap()
+                                            < nextExploration.integratedSquaredHeadEnvelopeGap()
+                                                    - EPSILON) {
                                 objectiveImproving++;
-                                improved = candidate;
+                                nextExploration = candidate;
                             }
                         }
                     }
                 }
             }
-            if (improved.compareTo(best, minimumBendRadius) >= 0) {
+            if (nextExploration.points().equals(exploration.points())) {
                 break;
             }
-            best = improved;
+            exploration = nextExploration;
             selected++;
         }
         return new BlockMoveSearch(
-                best, proposals, fieldAdmissible, curvatureAdmissible,
+                minimaxBest, proposals, fieldAdmissible, curvatureAdmissible,
                 objectiveImproving, selected,
                 minimumCandidateMaximumGap,
                 minimumCandidateIntegratedSquaredGap);
