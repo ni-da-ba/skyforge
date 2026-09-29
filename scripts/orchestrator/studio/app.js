@@ -503,7 +503,7 @@
   function hydrologyDeltaColor(value) {
     const delta = Math.max(-1, Math.min(1, value));
     const neutral = [195, 197, 202];
-    const endpoint = delta < 0 ? [55, 137, 189] : [210, 83, 67];
+    const endpoint = delta < 0 ? [112, 95, 186] : [210, 83, 67];
     const amount = Math.abs(delta);
     const color = neutral.map((channel, index) =>
       Math.round(channel + (endpoint[index] - channel) * amount)
