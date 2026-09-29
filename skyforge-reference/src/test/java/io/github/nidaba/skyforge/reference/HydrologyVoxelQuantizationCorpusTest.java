@@ -20,6 +20,12 @@ class HydrologyVoxelQuantizationCorpusTest {
         String a = Files.readString(first.resolve("summary.csv"));
         String b = Files.readString(second.resolve("summary.csv"));
         assertEquals(a, b);
+        System.out.println("F4_QUANTIZATION=" + a.lines()
+                .filter(line -> line.startsWith("ordinary-77")
+                        || line.startsWith("primary-287")
+                        || line.startsWith("confluence-632")
+                        || line.startsWith("lake-609"))
+                .toList());
 
         assertTrue(a.contains(
                 "ordinary-77,77,2,0,8969,4911,15849,7,0.999999918,0.000407162,0.000000000"));
