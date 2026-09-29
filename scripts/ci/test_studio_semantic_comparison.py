@@ -221,6 +221,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         app = (STUDIO / "app.js").read_text(encoding="utf-8")
         markup = (STUDIO / "index.html").read_text(encoding="utf-8")
         viewer = (STUDIO / "trace-viewer.js").read_text(encoding="utf-8")
+        styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
 
         for contract in (
             "SKYFORGE_STUDIO_SELECTED_SAMPLE_TRACE",
