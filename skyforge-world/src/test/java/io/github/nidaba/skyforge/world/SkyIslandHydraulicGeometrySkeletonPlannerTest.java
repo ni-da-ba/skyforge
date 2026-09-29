@@ -85,8 +85,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         SkyIslandSemanticChannelReach semantic = route.semanticReach();
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
-        int peakIndex = d.initialMaximumHeadEnvelopeGapIndex();
-        double peakStation = d.initialMaximumHeadEnvelopeGapStation();
+        int peakIndex = d.finalMaximumHeadEnvelopeGapIndex();
+        double peakStation = d.finalMaximumHeadEnvelopeGapStation();
         SkyIslandLocalPosition peakPosition = result.centerline().points().get(peakIndex);
         SkyIslandLocalPosition before = result.centerline().points().get(peakIndex - 1);
         SkyIslandLocalPosition after = result.centerline().points().get(peakIndex + 1);
@@ -128,9 +128,9 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         terrain,
                         policy.limits(peakClass));
         String peakBounds =
-                " peakLower=" + peakEnvelope.activeLowerBound().constraint() + "@"
+                " plateauLower=" + peakEnvelope.activeLowerBound().constraint() + "@"
                         + peakEnvelope.activeLowerBound().head()
-                        + " peakUpper=" + peakEnvelope.activeUpperBound().constraint() + "@"
+                        + " plateauUpper=" + peakEnvelope.activeUpperBound().constraint() + "@"
                         + peakEnvelope.activeUpperBound().head();
         String summary =
                 "F3G_D2_SEARCH key=287 initialMaxGap=" + d.initialMaximumHeadEnvelopeGap()
@@ -157,7 +157,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         Files.createDirectories(report.getParent());
         Files.writeString(report, summary);
         assertTrue(d.lateralCandidateProposals() > 0);
-        assertEquals(d.initialMaximumHeadEnvelopeGap(), peakEnvelope.positiveGap(), EPSILON, summary);
+        assertEquals(
+                d.finalMaximumHeadEnvelopeGap(),
+                peakEnvelope.positiveGap(),
+                EPSILON,
+                summary);
         assertTrue(
                 d.finalMaximumHeadEnvelopeGap()
                         <= d.initialMaximumHeadEnvelopeGap() + EPSILON);
