@@ -320,42 +320,6 @@ public final class SkyIslandHydraulicHeadEnvelopePlanner {
         return profiles.get(index).kind();
     }
 
-    /**
-     * Selects the semantic profile occupying a physical station along the coarse reach guidance.
-     * Segment lengths, rather than profile count, determine profile boundaries.
-     */
-    public static SkyIslandChannelProfileKind profileKind(
-            SkyIslandSemanticChannelReach semantic, double stationFraction) {
-        Objects.requireNonNull(semantic, "semantic");
-        if (!Double.isFinite(stationFraction)
-                || stationFraction < 0.0
-                || stationFraction > 1.0) {
-            throw new IllegalArgumentException("stationFraction must be finite and in [0, 1]");
-        }
-        List<SkyIslandLocalPosition> guidance = semantic.guidancePoints();
-        double totalLength = 0.0;
-        double[] segmentLengths = new double[semantic.profiles().size()];
-        for (int i = 0; i < segmentLengths.length; i++) {
-            SkyIslandLocalPosition a = guidance.get(i);
-            SkyIslandLocalPosition b = guidance.get(i + 1);
-            segmentLengths[i] = Math.hypot(b.x() - a.x(), b.z() - a.z());
-            if (!(segmentLengths[i] > 0.0)) {
-                throw new IllegalStateException(
-                        "semantic reach profile segment must have positive physical length");
-            }
-            totalLength += segmentLengths[i];
-        }
-        double targetLength = stationFraction * totalLength;
-        double traversed = 0.0;
-        for (int i = 0; i < segmentLengths.length; i++) {
-            traversed += segmentLengths[i];
-            if (targetLength <= traversed || i == segmentLengths.length - 1) {
-                return semantic.profiles().get(i).kind();
-            }
-        }
-        throw new IllegalStateException("station escaped semantic profile chain");
-    }
-
     private static double valleyMultiplier(SkyIslandChannelProfileKind kind) {
         return switch (kind) {
             case ALLUVIAL -> 3.5;
