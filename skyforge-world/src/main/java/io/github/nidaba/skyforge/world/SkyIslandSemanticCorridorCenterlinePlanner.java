@@ -489,13 +489,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumTurnAngle,
             double maximumCurvature,
             double maximumHeadEnvelopeGap,
-            double integratedSquaredHeadEnvelopeGap)
-            implements Comparable<Candidate> {
-        @Override
-        public int compareTo(Candidate other) {
-            return compareTo(other, 0.0);
-        }
-
+            double integratedSquaredHeadEnvelopeGap) {
         private int compareTo(Candidate other, double minimumBendRadius) {
             double curvatureExcess =
                     Math.max(0.0, maximumCurvature * minimumBendRadius - 1.0);
