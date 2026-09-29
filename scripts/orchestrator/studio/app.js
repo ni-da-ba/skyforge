@@ -480,12 +480,12 @@
       !visible || !$("show-flow-vectors").checked;
     $("legend-response").hidden =
       !visible || !$("show-hydrology-response").checked;
-    $("legend-potential").hidden =
-      !visible || $("hydrology-potential").value === "none";
-    $("legend-potential-label").textContent =
-      $("hydrology-potential").selectedOptions[0]?.textContent || "Selected cause field";
     const comparisonActive =
       hydrologyComparison !== null && $("show-hydrology-delta").checked;
+    $("legend-potential").hidden =
+      !visible || comparisonActive || $("hydrology-potential").value === "none";
+    $("legend-potential-label").textContent =
+      $("hydrology-potential").selectedOptions[0]?.textContent || "Selected cause field";
     $("legend-delta").hidden = !visible || !comparisonActive;
     $("legend-delta-note").hidden = !visible || !comparisonActive;
     $("show-hydrology-delta").disabled = hydrologyComparison === null;
@@ -1172,8 +1172,8 @@
     loadRegisteredHydrologyComparison().catch((error) => {
       hydrologyComparison = null;
       $("show-hydrology-delta").checked = false;
-      $("comparison-status").textContent = String(error.message || error);
       updateHydrologyControlVisibility();
+      $("comparison-status").textContent = String(error.message || error);
       updateBindingPill();
       draw();
     });
