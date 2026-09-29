@@ -147,7 +147,7 @@ class SkyforgeStudioTest(unittest.TestCase):
         self.assertIn('primitive: "SemanticVolume"', source)
         self.assertIn('sceneKind: "ATMOSPHERE_VECTOR_FIELD"', source)
         self.assertIn('sceneKind: "TERRAIN_SEMANTIC_VOLUME"', source)
-        self.assertIn('semanticOwner: "Aerodynamics4MC"', source)
+        self.assertIn('semanticOwner: "External atmosphere provider"', source)
         self.assertIn('semanticOwner: "Skyforge WorldRegionTerrain"', source)
         self.assertIn('artifact.encoding?.kind !== "BASE64_UINT8_ORDINAL"', source)
         self.assertIn(
