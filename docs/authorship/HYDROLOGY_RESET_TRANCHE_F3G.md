@@ -15,9 +15,10 @@ continuous centerline candidates, while retaining all accepted geometric guards.
 
 ## Candidate generation and admissibility
 
-For each interior C2 centerline point, refinement compares the existing smoothing proposal with four
-small lateral candidates at ±0.25 and ±0.50 local bankfull half-width. Endpoints remain exact. A
-candidate is admissible only when it:
+At each interior C2 centerline point with a nonzero ordinary D2 head-envelope gap, refinement
+compares the existing smoothing proposal with four small lateral candidates at ±0.25 and ±0.50 local
+bankfull half-width. Feasible ordinary points and transition-owned CASCADE points do not receive these
+lateral proposals. Endpoints remain exact. A candidate is admissible only when it:
 
 - remains inside the authored semantic guidance corridor;
 - does not rise more than the existing 0.015 terrain-potential allowance above the projected seeded
@@ -36,9 +37,10 @@ does not alter any D2 limit. When a reach mixes ALLUVIAL and INCISED ordinary pr
 does not synthesize a scoring envelope: it retains geometry-only C2 refinement and lets F3D apply its
 existing MIXED span class.
 
-Candidate ranking first avoids exceeding the existing curvature-to-width bound, then reduces the
+Candidate ranking first minimizes excess over the existing curvature-to-width bound, then reduces the
 maximum pointwise envelope gap and its arc-length-weighted squared integral. Existing curvature,
-search-route deviation, and path-length tie-breaks remain. This is a bounded deterministic search, not
+search-route deviation, and path-length tie-breaks remain. The unchanged downstream D2 evaluator is
+still the hard acceptance gate if no candidate satisfies every bound. This is a bounded deterministic search, not
 a second route authority: the original fine-lattice route and semantic corridor remain the geometric
 authority.
 
