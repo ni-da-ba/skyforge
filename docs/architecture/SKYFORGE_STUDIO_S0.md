@@ -97,7 +97,6 @@ Expected later primitives, introduced only when real consumers require them:
 - `PolylineSet`
 - `RegionSet`
 - `SurfaceMesh`
-- `VoxelSet`
 - `VolumeField`
 - `TimeSeries`
 - `Annotation`
