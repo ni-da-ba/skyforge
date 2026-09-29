@@ -255,7 +255,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         option, searchRoute, semanticGuidance, terrain, interiority,
                         semanticCorridorHalfWidth);
                 boolean curvatureAllowed =
-                        curvatureAdmissible(result, i, option, minimumBendRadius);
+                        headEnvelopeGap == null
+                                || curvatureAdmissible(
+                                        result, i, option, minimumBendRadius);
                 if (headEnvelopeGap != null && optionIndex > 0) {
                     lateralCandidateProposals++;
                     if (!admission.insideSemanticCorridor()) lateralCandidateCorridorRejected++;
