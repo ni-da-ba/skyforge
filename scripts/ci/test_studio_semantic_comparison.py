@@ -83,6 +83,57 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("PASS Studio hydrology candidate comparison behavior", result.stdout)
 
+
+    def test_world_brief_workspace_is_local_and_backend_neutral(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
+
+        for contract in (
+            "SKYFORGE_STUDIO_WORLD_BRIEF",
+            "SKYFORGE_STUDIO_BRIEF_LIBRARY",
+            "localStorage",
+            "world-brief-library-v1",
+            "exportWorldBrief",
+            "parseWorldBrief",
+            "generation-disabled-reason",
+            "A world-generation backend is not connected",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, app)
+
+        for control in (
+            'aria-label="Studio workspace"',
+            'data-workspace-view="brief"',
+            'data-workspace-view="inspect"',
+            'id="world-brief-library"',
+            'id="world-brief-title"',
+            'id="world-brief-intent"',
+            'id="world-brief-form"',
+            'id="world-brief-import"',
+            'id="world-brief-export"',
+            'aria-live="polite"',
+            'id="generation-disabled-reason"',
+        ):
+            with self.subTest(control=control):
+                self.assertIn(control, markup)
+        self.assertRegex(markup, r'<button[^>]*id="generate-world"[^>]*disabled')
+        self.assertIn("max-width: 850px", styles)
+        self.assertIn("max-width: 600px", styles)
+        self.assertIn(":focus-visible", styles)
+
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_world_brief.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio local world brief document behavior", result.stdout)
+
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for syntax checks")
