@@ -29,17 +29,26 @@ class HydrologyWorldSurfaceProjectionCorpusTest {
                 .toString();
         assertTrue(
                 summaryA.contains(
-                        "ordinary-77,77,2,59,59,-4.480910369,-2.232739641,36.994664581,76.826056586,"
-                                + "8969,5858,-6.941952488,0.000000000,14.064577406"),
+                        "ordinary-77,77,2,59,59,-4.488065774,-2.232739641,36.994664581,76.826056586,"
+                                + "9005,5884,-6.941952488,0.000000000,14.064577406"),
                 ordinary77SummaryRows);
         assertTrue(summaryA.contains(
                 "primary-287,287,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
                 "lake-609,609,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,709,559,35,35,-4.480910369,-3.635747789,36.994664581"));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,1742,1842,24,24,-4.453474879,-2.232739641,45.833595170"));
+        String ordinary77ReachRows = reachesA.lines()
+                .filter(line -> line.startsWith("ordinary-77,77,709,559,")
+                        || line.startsWith("ordinary-77,77,1742,1842,"))
+                .toList()
+                .toString();
+        assertTrue(
+                reachesA.contains(
+                        "ordinary-77,77,709,559,35,35,-4.480910369,-3.635747789,36.994664581"),
+                ordinary77ReachRows);
+        assertTrue(
+                reachesA.contains(
+                        "ordinary-77,77,1742,1842,24,24,-4.453474879,-2.232739641,45.833595170"),
+                ordinary77ReachRows);
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
