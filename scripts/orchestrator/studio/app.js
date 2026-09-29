@@ -22,6 +22,7 @@
   let token = readStoredToken();
   let scene = null;
   let overlay = null;
+  let hydrologyComparison = null;
   let artifactCatalog = [];
   let selected = null;
   let projected = [];
@@ -69,6 +70,7 @@
     $("studio-content").hidden = false;
     $("registered-artifact-source").hidden = true;
     $("registered-overlay-source").hidden = true;
+    $("registered-comparison-source").hidden = true;
     $("console-link").hidden = true;
     setConnection("Local diagnostics", "warn");
   }
@@ -78,6 +80,7 @@
     $("studio-content").hidden = false;
     $("registered-artifact-source").hidden = false;
     $("registered-overlay-source").hidden = false;
+    $("registered-comparison-source").hidden = false;
     $("console-link").hidden = false;
     setConnection("Connected", "good");
   }
@@ -255,7 +258,8 @@
     if (!scene) return;
     const authoritative =
       scene.source.reviewAuthority &&
-      (overlay === null || overlay.source.reviewAuthority);
+      (overlay === null || overlay.source.reviewAuthority) &&
+      (hydrologyComparison === null || hydrologyComparison.candidate.source.reviewAuthority);
     $("binding-pill").textContent = authoritative
       ? (overlay ? "Exact bound semantic composition" : "Exact registered artifact")
       : "Unbound local diagnostic";
@@ -280,7 +284,13 @@
     $("inspect-artifact").textContent =
       scene.source.artifactId || scene.source.artifactTitle || scene.source.artifactKind;
     $("inspect-overlay").textContent = overlay
-      ? (overlay.source.artifactId || overlay.source.artifactTitle || overlay.source.artifactKind)
+      ? (overlay.source.artifactId || overlay.source.artifactTitle || overlay.source.artifactKind) +
+        (hydrologyComparison
+          ? " · candidate " +
+            (hydrologyComparison.candidate.source.artifactId ||
+              hydrologyComparison.candidate.source.artifactTitle ||
+              hydrologyComparison.candidate.source.artifactKind)
+          : "")
       : "none";
     $("inspect-sha").textContent = scene.source.sourceSha || "unbound";
     $("inspect-provider").textContent =
@@ -301,6 +311,21 @@
 
     $("inspect-position").textContent =
       "[" + sample.position.map((value) => fmt(value, 1)).join(", ") + "]";
+
+    if (sample.overlayKind === "HYDROLOGY_COMPARISON_SAMPLE") {
+      const deltas = sample.deltas;
+      $("inspect-semantic").textContent =
+        "Candidate − reference · runoff " + fmt(deltas.runoffPotential) +
+        " · retention " + fmt(deltas.retentionPotential) +
+        " · drainage " + fmt(deltas.drainagePotential) +
+        " · outflow " + fmt(deltas.outflowPotential);
+      $("inspect-authority").textContent =
+        (hydrologyComparison.comparison.reviewAuthority
+          ? "Bound hydrology comparison"
+          : "UNBOUND LOCAL DIAGNOSTIC comparison — not review authority") +
+        " · exact terrain " + scene.source.artifactDigest;
+      return;
+    }
 
     if (sample.overlayKind === "HYDROLOGY_CAUSE_SAMPLE") {
       $("inspect-semantic").textContent =
@@ -445,6 +470,7 @@
   function updateHydrologyControlVisibility() {
     const visible = overlay !== null;
     $("hydrology-visual-controls").hidden = !visible;
+    $("comparison-controls").hidden = !visible;
     $("terrain-surface-control").hidden =
       !visible || $("terrain-view").value !== "top";
     $("hydrology-legend").hidden = !visible;
@@ -459,10 +485,16 @@
       !visible || !$("show-flow-vectors").checked;
     $("legend-response").hidden =
       !visible || !$("show-hydrology-response").checked;
+    const comparisonActive =
+      hydrologyComparison !== null && $("show-hydrology-delta").checked;
     $("legend-potential").hidden =
-      !visible || $("hydrology-potential").value === "none";
+      !visible || comparisonActive || $("hydrology-potential").value === "none";
     $("legend-potential-label").textContent =
       $("hydrology-potential").selectedOptions[0]?.textContent || "Selected cause field";
+    $("legend-delta").hidden = !visible || !comparisonActive;
+    $("legend-delta-note").hidden = !visible || !comparisonActive;
+    $("show-hydrology-delta").disabled = hydrologyComparison === null;
+    $("clear-hydrology-comparison").disabled = hydrologyComparison === null;
   }
 
   function potentialColor(value) {
@@ -471,6 +503,17 @@
     const green = Math.round(92 + amount * 130);
     const blue = Math.round(170 - amount * 116);
     return "rgb(" + red + "," + green + "," + blue + ")";
+  }
+
+  function hydrologyDeltaColor(value) {
+    const delta = Math.max(-1, Math.min(1, value));
+    const neutral = [195, 197, 202];
+    const endpoint = delta < 0 ? [112, 95, 186] : [210, 83, 67];
+    const amount = Math.abs(delta);
+    const color = neutral.map((channel, index) =>
+      Math.round(channel + (endpoint[index] - channel) * amount)
+    );
+    return "rgb(" + color.join(",") + ")";
   }
 
   function drawTerrain() {
@@ -560,11 +603,20 @@
 
   function drawHydrologyOverlay(transform) {
     const potential = $("hydrology-potential").value;
+    const comparisonActive =
+      hydrologyComparison !== null && $("show-hydrology-delta").checked;
     if (potential !== "none") {
-      for (const sample of overlay.causeSamples) {
+      const causeSamples = comparisonActive
+        ? hydrologyComparison.comparison.samples
+        : overlay.causeSamples;
+      for (const sample of causeSamples) {
         const projectedPoint = project(sample.displayPosition, transform);
         const active = selected === sample;
-        ctx.fillStyle = active ? "#ffffff" : potentialColor(sample[potential]);
+        ctx.fillStyle = active
+          ? "#ffffff"
+          : (comparisonActive
+            ? hydrologyDeltaColor(sample.deltas[potential])
+            : potentialColor(sample[potential]));
         ctx.globalAlpha = active ? 1.0 : 0.78;
         ctx.beginPath();
         ctx.arc(projectedPoint[0], projectedPoint[1], active ? 4.5 : 2.4, 0, Math.PI * 2);
@@ -741,6 +793,8 @@
     stopPlayback();
     scene = nextScene;
     overlay = null;
+    hydrologyComparison = null;
+    $("show-hydrology-delta").checked = false;
     selected = null;
     $("scene-kind").textContent = scene.sceneKind;
     $("viewport-title").textContent =
@@ -750,6 +804,7 @@
       scene.coordinateSystem.id + " · " + scene.source.artifactKind;
     updateBindingPill();
     $("overlay-status").textContent = "";
+    $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     updateHydrologyControlVisibility();
 
     $("atmosphere-controls").hidden = !isAtmosphere();
@@ -805,8 +860,10 @@
     artifactCatalog = payload.artifacts || [];
     const select = $("artifact-select");
     const overlaySelect = $("overlay-artifact-select");
+    const comparisonSelect = $("comparison-artifact-select");
     while (select.firstChild) select.removeChild(select.firstChild);
     while (overlaySelect.firstChild) overlaySelect.removeChild(overlaySelect.firstChild);
+    while (comparisonSelect.firstChild) comparisonSelect.removeChild(comparisonSelect.firstChild);
 
     const placeholder = document.createElement("option");
     placeholder.value = "";
@@ -817,6 +874,11 @@
     overlayPlaceholder.value = "";
     overlayPlaceholder.textContent = "Select a registered hydrology JSON";
     overlaySelect.append(overlayPlaceholder);
+
+    const comparisonPlaceholder = document.createElement("option");
+    comparisonPlaceholder.value = "";
+    comparisonPlaceholder.textContent = "Select a registered candidate JSON";
+    comparisonSelect.append(comparisonPlaceholder);
 
     for (const artifact of artifactCatalog) {
       if (artifact.kind !== "FILE") continue;
@@ -836,6 +898,8 @@
       overlayOption.dataset.title = artifact.title || artifact.artifact_id;
       overlayOption.dataset.sha = artifact.source_sha || "";
       overlaySelect.append(overlayOption);
+      const comparisonOption = overlayOption.cloneNode(true);
+      comparisonSelect.append(comparisonOption);
     }
 
     $("source-status").textContent = select.options.length > 1
@@ -845,12 +909,16 @@
 
   function setOverlay(nextOverlay) {
     overlay = nextOverlay;
+    hydrologyComparison = null;
+    $("show-hydrology-delta").checked = false;
     selected = null;
     updateHydrologyControlVisibility();
     $("overlay-status").textContent =
       "Attached " +
       (overlay.source.artifactId || overlay.source.artifactTitle || "hydrology overlay") +
       " · " + overlay.binding.associationToken;
+    $("comparison-status").textContent =
+      "Attach a candidate with the same exact terrain and AUTH-0046 binding.";
     updateBindingPill();
     renderInspector(null);
     draw();
@@ -880,8 +948,94 @@
     }));
   }
 
+  function displayHydrologyComparison(candidate) {
+    const comparison = window.SkyforgeStudioScene.compareHydrologyLayers(
+      overlay,
+      candidate
+    );
+    hydrologyComparison = { candidate, comparison };
+    $("show-hydrology-delta").checked = true;
+    if ($("hydrology-potential").value === "none") {
+      $("hydrology-potential").value = "runoffPotential";
+    }
+    selected = null;
+    const referenceName =
+      overlay.source.artifactId || overlay.source.artifactTitle || overlay.source.artifactKind;
+    const candidateName =
+      candidate.source.artifactId || candidate.source.artifactTitle || candidate.source.artifactKind;
+    $("comparison-status").textContent =
+      "Reference: " + referenceName + " · Candidate: " + candidateName +
+      (comparison.reviewAuthority
+        ? " · registered comparison"
+        : " · UNBOUND LOCAL DIAGNOSTIC — not review authority");
+    updateHydrologyControlVisibility();
+    updateBindingPill();
+    renderInspector(null);
+    draw();
+  }
+
+  async function loadRegisteredHydrologyComparison() {
+    if (!isTerrain() || !overlay) {
+      throw new Error("attach a reference hydrology artifact before loading a candidate");
+    }
+    const select = $("comparison-artifact-select");
+    const artifactId = select.value;
+    if (!artifactId) return;
+    const option = select.selectedOptions[0];
+    $("comparison-status").textContent = "Loading and checking candidate binding…";
+    const response = await api(
+      "/api/v1/artifacts/" + encodeURIComponent(artifactId) + "/content"
+    );
+    if (!response.ok) {
+      throw new Error("candidate artifact content request failed: HTTP " + response.status);
+    }
+    const artifact = await response.json();
+    const candidate = window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, scene, {
+      binding: "REGISTERED_ARTIFACT",
+      artifactId,
+      artifactTitle: option.dataset.title || artifactId,
+      sourceSha: option.dataset.sha || "",
+      reviewAuthority: true,
+    });
+    displayHydrologyComparison(candidate);
+  }
+
+  async function loadLocalHydrologyComparison() {
+    if (!isTerrain() || !overlay) {
+      throw new Error("attach a reference hydrology artifact before loading a candidate");
+    }
+    const file = $("local-comparison-file").files?.[0];
+    if (!file) {
+      throw new Error("choose a local candidate hydrology JSON file first");
+    }
+    $("comparison-status").textContent = "Loading local candidate and checking exact binding…";
+    const artifact = JSON.parse(await file.text());
+    const candidate = window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, scene, {
+      binding: "UNBOUND_LOCAL",
+      artifactTitle: file.name,
+      reviewAuthority: false,
+    });
+    displayHydrologyComparison(candidate);
+  }
+
+  function clearHydrologyComparison() {
+    hydrologyComparison = null;
+    $("show-hydrology-delta").checked = false;
+    $("local-comparison-file").value = "";
+    $("comparison-status").textContent =
+      "Attach a candidate with the same exact terrain and AUTH-0046 binding.";
+    selected = null;
+    updateHydrologyControlVisibility();
+    updateBindingPill();
+    renderInspector(null);
+    draw();
+  }
+
   function clearOverlay() {
     overlay = null;
+    hydrologyComparison = null;
+    $("show-hydrology-delta").checked = false;
+    $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
     selected = null;
     updateHydrologyControlVisibility();
     $("overlay-status").textContent = "";
@@ -1042,6 +1196,36 @@
       $("overlay-status").textContent = String(error.message || error);
     });
   });
+
+  $("load-comparison-overlay").addEventListener("click", () => {
+    loadRegisteredHydrologyComparison().catch((error) => {
+      hydrologyComparison = null;
+      $("show-hydrology-delta").checked = false;
+      updateHydrologyControlVisibility();
+      $("comparison-status").textContent = String(error.message || error);
+      updateBindingPill();
+      draw();
+    });
+  });
+
+  $("load-local-comparison").addEventListener("click", () => {
+    loadLocalHydrologyComparison().catch((error) => {
+      hydrologyComparison = null;
+      $("show-hydrology-delta").checked = false;
+      updateHydrologyControlVisibility();
+      $("comparison-status").textContent = String(error.message || error);
+      updateBindingPill();
+      draw();
+    });
+  });
+
+  $("show-hydrology-delta").addEventListener("change", () => {
+    selected = null;
+    updateHydrologyControlVisibility();
+    draw();
+  });
+
+  $("clear-hydrology-comparison").addEventListener("click", clearHydrologyComparison);
 
   $("local-overlay-file").addEventListener("change", async (event) => {
     const file = event.target.files?.[0];

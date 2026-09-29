@@ -190,6 +190,45 @@ class SkyforgeStudioTest(unittest.TestCase):
         self.assertNotIn("fetch(", source)
         self.assertNotIn("localStorage", source)
 
+    def test_hydrology_candidate_comparison_preserves_exact_binding(self):
+        source = (
+            Path(hosted.__file__).resolve().parent
+            / "studio"
+            / "scene.js"
+        ).read_text(encoding="utf-8")
+        app = (
+            Path(hosted.__file__).resolve().parent
+            / "studio"
+            / "app.js"
+        ).read_text(encoding="utf-8")
+        markup = (
+            Path(hosted.__file__).resolve().parent
+            / "studio"
+            / "index.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("function compareHydrologyLayers(reference, candidate)", source)
+        self.assertIn("hydrology comparison requires the same exact terrain semantic SHA", source)
+        self.assertIn("hydrology comparison requires the same AUTH-0046 association", source)
+        self.assertIn("hydrology comparison world frames do not match", source)
+        self.assertIn("hydrology comparison cause-grid bindings do not match", source)
+        self.assertIn("candidate hydrology comparison contains duplicate cause samples", source)
+        self.assertIn("hydrology comparison cause sample counts do not match", source)
+        self.assertIn("candidate hydrology comparison is missing cause sample", source)
+        self.assertIn("hydrology comparison cause coordinates do not match", source)
+        self.assertIn("deltas[field] = delta", source)
+        self.assertIn("reference.source.reviewAuthority && candidate.source.reviewAuthority", source)
+
+        self.assertIn("compareHydrologyLayers", app)
+        self.assertIn("hydrologyDeltaColor", app)
+        self.assertIn("Candidate − reference", app)
+        self.assertIn("referenceSource", source)
+        self.assertIn("candidateSource", source)
+        self.assertIn('id="comparison-artifact-select"', markup)
+        self.assertIn('id="show-hydrology-delta"', markup)
+        self.assertIn("UNBOUND LOCAL DIAGNOSTIC", app)
+        self.assertIn("Candidate − reference: purple − / gray 0 / orange +", markup)
+
     def test_console_links_to_studio_without_changing_console_authority(self):
         console = Path(hosted.__file__).resolve().parent / "console"
         markup = (console / "index.html").read_text(encoding="utf-8")

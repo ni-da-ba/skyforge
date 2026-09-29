@@ -13,3 +13,12 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 
 .viewport-legend{position:absolute;top:68px;right:12px;z-index:2;width:min(245px,calc(100% - 24px));display:grid;gap:.48rem;padding:.75rem .85rem;border:1px solid #385064;border-radius:8px;background:#0e151ef2;color:#dce6ef;font-size:.74rem;pointer-events:none;box-shadow:0 8px 28px #0006}.viewport-legend[hidden]{display:none}.viewport-legend>strong{font-size:.78rem;color:#eaf4fb}.viewport-legend-row{display:flex;align-items:center;gap:.55rem;min-height:1rem}.viewport-legend-row[hidden]{display:none}.viewport-legend p{margin:.2rem 0 0;padding-top:.45rem;border-top:1px solid #344352;color:#aebdca;font-size:.68rem;line-height:1.35}.legend-mark{display:inline-block;position:relative;flex:0 0 1.15rem;width:1.15rem;height:.65rem}.legend-channel{border-top:3px solid #e1a84a}.legend-water{border-top:3px solid #45b9ff}.legend-envelope{border:1px solid #e1a84a;background:rgba(225,168,74,.24);border-radius:2px}.legend-flow{color:#f0f5ff;font-size:1rem;line-height:.6;text-align:center}.legend-flow::before{content:"→"}.legend-response{display:flex;align-items:center;justify-content:center;gap:3px}.legend-response i{width:7px;height:7px;border-radius:50%;background:#42a5f5}.legend-response i+ i{background:#d4a64f}.legend-potential{height:.55rem;border-radius:3px;background:linear-gradient(90deg,rgb(44,92,170),rgb(147,157,112),rgb(250,222,54))}
 @media(max-width:650px){.viewport-legend{top:62px;right:8px;width:min(225px,calc(100% - 16px));padding:.6rem .7rem}}
+
+
+.comparison-controls{margin:.8rem 0;padding:.75rem;border:1px solid #35404e;border-radius:7px;background:#111821}
+.comparison-controls label{display:block}
+.comparison-controls .check-row{display:flex;align-items:center;gap:.5rem}
+.comparison-controls .check-row input{width:auto}
+.comparison-controls p{margin:.5rem 0 0}
+.viewport-legend-row[hidden],#legend-delta-note[hidden]{display:none}
+.legend-delta{height:.62rem;border-radius:3px;background:linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)}
