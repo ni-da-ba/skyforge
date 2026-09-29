@@ -151,6 +151,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
                         + " sweeps=" + d.relaxationSweeps()
+                        + " blockProposals=" + d.blockMoveProposals()
+                        + " blockFieldAdmissible=" + d.blockMoveFieldAdmissible()
+                        + " blockCurvatureAdmissible=" + d.blockMoveCurvatureAdmissible()
+                        + " blockObjectiveImproving=" + d.blockMoveObjectiveImproving()
+                        + " selectedBlockMoves=" + d.selectedBlockMoves()
                         + peakBounds
                         + System.lineSeparator();
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
