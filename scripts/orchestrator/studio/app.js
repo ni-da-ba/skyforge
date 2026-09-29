@@ -536,8 +536,17 @@
     if (overlay?.terrainSemanticSha256) {
       addField("Bound terrain semantic digest", overlay.terrainSemanticSha256);
     }
+    if (overlay?.binding?.associationToken) {
+      addField("Authorship association", overlay.binding.associationToken);
+    }
+    if (overlay?.binding?.authoredIdentity) {
+      addField("Authored specimen identity", JSON.stringify(overlay.binding.authoredIdentity));
+    }
     if (overlay?.binding?.worldFrame) {
       addField("Recorded world frame", JSON.stringify(overlay.binding.worldFrame));
+    }
+    if (overlay?.gridBinding) {
+      addField("Hydrology sample grid binding", JSON.stringify(overlay.gridBinding));
     }
 
     let sampleLineageRecorded = false;

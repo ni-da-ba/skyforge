@@ -127,6 +127,10 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("hydrologyComparison.comparison.referenceSource", app)
         self.assertIn("hydrologyComparison.comparison.candidateSource", app)
         self.assertIn("scene.source.reviewAuthority", app)
+        self.assertIn('overlay.binding.associationToken', app)
+        self.assertIn('overlay.binding.authoredIdentity', app)
+        self.assertIn('overlay.binding.worldFrame', app)
+        self.assertIn('overlay.gridBinding', app)
         self.assertIn("clearSampleProvenance()", app)
 
     def test_hydrology_comparison_behavior_in_ci_runtime(self):
