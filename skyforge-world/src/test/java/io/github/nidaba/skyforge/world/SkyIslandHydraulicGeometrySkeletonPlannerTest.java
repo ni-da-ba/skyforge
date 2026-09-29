@@ -159,6 +159,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " blockBestMaxGap=" + d.minimumBlockCandidateMaximumGap()
                         + " blockBestIntegratedGap="
                         + d.minimumBlockCandidateIntegratedSquaredGap()
+                        + " restartSweeps=" + d.restartSweeps()
                         + peakBounds
                         + System.lineSeparator();
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
