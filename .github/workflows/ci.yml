@@ -120,26 +120,7 @@ jobs:
 
       - name: Dump hydrology evidence on failure
         if: failure() && steps.impact.outputs.full == 'true'
-        shell: bash
-        run: |
-          for path in \
-            skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt \
-            skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv \
-            skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv \
-            skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv \
-            skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv \
-            skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/components.csv \
-            skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv \
-            skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv; do
-            if [[ -f "$path" ]]; then
-              echo "--- $path ---"
-              if [[ "$path" == *key-287.txt ]]; then
-                cat "$path"
-              else
-                grep -E '^(ordinary-77|ordinary-77-weak|primary-287|confluence-632|lake-609)(,|-)' "$path" || true
-              fi
-            fi
-          done
+        run: python3 scripts/ci/dump_hydrology_failure_evidence.py
 
       - name: Verify evidence review entry points
         if: steps.impact.outputs.full == 'true'
