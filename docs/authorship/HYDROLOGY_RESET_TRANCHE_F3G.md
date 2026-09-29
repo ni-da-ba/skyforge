@@ -29,9 +29,12 @@ ownership and are still solved by the F3 transition planners.
 
 ## Objective and authority
 
-For ordinary profiles the candidate scorer evaluates the exact shared D2 pointwise head envelope at
-the candidate centerline position, station, local tangent, discharge-derived width, and depth. It does
-not alter any D2 limit.
+For reaches with one ordinary profile kind after CASCADE intervals are excluded, the candidate
+scorer evaluates the exact shared D2 pointwise head envelope and that same profile's accepted limits
+at the candidate centerline position, station, local tangent, discharge-derived width, and depth. It
+does not alter any D2 limit. When a reach mixes ALLUVIAL and INCISED ordinary profiles, this tranche
+does not synthesize a scoring envelope: it retains geometry-only C2 refinement and lets F3D apply its
+existing MIXED span class.
 
 Candidate ranking first avoids exceeding the existing curvature-to-width bound, then reduces the
 maximum pointwise envelope gap and its arc-length-weighted squared integral. Existing curvature,
