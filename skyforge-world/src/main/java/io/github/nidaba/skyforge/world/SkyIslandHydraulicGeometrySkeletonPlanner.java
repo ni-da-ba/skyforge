@@ -86,7 +86,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         descriptor.nominalRadius(), dischargeProfile.atStation(station)),
                 (position, station, tangentX, tangentZ, halfWidth) -> {
                     SkyIslandChannelProfileKind kind =
-                            dischargeProfile.profileKindAtStation(station);
+                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                                    semantic.profiles(), station);
                     if (kind == SkyIslandChannelProfileKind.CASCADE
                             || ordinaryProfileKind.isEmpty()) {
                         return 0.0;
@@ -170,11 +171,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         "semantic reach profile segment must have positive physical length");
             }
         }
-        List<SkyIslandChannelProfileKind> profileKinds = semantic.profiles().stream()
-                .map(SkyIslandChannelProfile::kind)
-                .toList();
         return new SemanticDischargeProfile(
-                cumulativeDistance, totalLength, discharge, profileKinds);
+                cumulativeDistance, totalLength, discharge);
     }
 
     private static SkyIslandHydraulicReachSkeleton sampleReach(
@@ -227,16 +225,10 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 maximumDepth);
     }
 
-    static SkyIslandChannelProfileKind profileKindAtStation(
-            SkyIslandSemanticChannelReach semantic, double station) {
-        return semanticDischargeProfile(semantic).profileKindAtStation(station);
-    }
-
     private record SemanticDischargeProfile(
             double[] cumulativeDistance,
             double totalLength,
-            double[] dischargeAtSegmentStart,
-            List<SkyIslandChannelProfileKind> profileKinds) {
+            double[] dischargeAtSegmentStart) {
         private double maximumDischarge() {
             return dischargeAtSegmentStart[dischargeAtSegmentStart.length - 1];
         }
@@ -253,10 +245,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 }
             }
             throw new IllegalStateException("station escaped semantic discharge profile");
-        }
-
-        private SkyIslandChannelProfileKind profileKindAtStation(double station) {
-            return profileKinds.get(segmentIndexAtStation(station));
         }
 
         private double atStation(double station) {
