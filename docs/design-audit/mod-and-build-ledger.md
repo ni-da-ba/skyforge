@@ -1,6 +1,6 @@
 # Working Mod and To-Build Ledger
 
-**Snapshot:** 2026-09-05  
+**Snapshot:** 2026-09-29  
 **Status:** Working selection ledger; versions/licensing must be reverified at implementation time.
 
 This document consolidates the current candidate stack from the content-integration audit.
@@ -47,15 +47,21 @@ This document consolidates the current candidate stack from the content-integrat
 - In Control! as a generic/static integration safety layer
 
 ### Infrastructure / engineering
-- CC:Tweaked likely core advanced automation/navigation
-- Create: Radars candidate
-- Create avionics/telemetry integration candidate
+- CC:Tweaked + Create: Avionics retained as the baseline programmable aircraft-computing / avionics substrate
+- Create: Radars promoted to strong provisional radar/track infrastructure; Create Aero Radars is the preferred Aeronautics turret-actuation bridge
+- Create: Fire Control promoted to strong provisional advanced stabilization / EO / thermal / guided-weapon fire-control layer
+- Mianbao's NewModernWarfare promoted to strong provisional aircraft-stores / guided-munition / APS / countermeasure / CIWS hardware library; duplicate direct-fire/radar content remains subject to suppression and recipe normalization
+- CBC Neo Warfare promoted to strong provisional extension for medium/rotary cannon, specialist ammunition, launchers, armor, and ERA
+- CBC Terminal Ballistics is the leading penetration/armor-interaction extension pending cross-mod runtime acceptance
+- Drive By Wire, Tweaked Controllers, and Create Crafts & Additions Sable compatibility are strong provisional onboard-control/electrical integration components
 - Create Diesel Generators probable; strategic petroleum/refining candidate
 - Create: Big Cannons retained; leading heavy-industry/artillery material and manufacturing spine
 - Create: Metallurgy provisional foundry-mechanics A/B only; Wolframite/Tungsten/Obdurium are not current Skyforge progression
 - Create Crafts & Additions currently leads the single-electricity-ecosystem slot; Silver geology excluded and Electrum retained only if its high-current role proves useful
 - late-game logistics automation candidate
 - Sophisticated Storage/Backpacks only if freight gameplay remains meaningful; reject warehouse-scale early backpack configurations, recursive portable storage, or early fluid capacity that erases freight roles
+
+See [Engineered Weapons Systems Stack v0.1](engineered-weapons-systems-stack-v0.1.md) for the current provisional combat-system authority map, recipe-normalization doctrine, and compatibility backlog.
 
 ### Ordinary life/building
 - Supplementaries strong candidate
@@ -420,3 +426,6 @@ non-omniscient sensor access to Skyforge truth
 66. Thermal soaring should substitute SOAR into the stock raptor HUNT windows only while trusted useful lift exists; preserve stock idle/rest windows and higher-priority avoid/fight/interaction behavior.
 67. Thermal presence may alter movement choice for an already-admitted hawk but may not create population. Ecology remains the sole species/population authority.
 68. Soaring-fauna route selection should reuse a low-frequency shared A4MC lift cache; do not perform independent wide atmosphere scans per bird per tick.
+69. Vehicle combat is one engineered system: Sable owns rigid-body truth, CBC/CBC-family mods own conventional ballistic hardware, Radars owns preferred tracks, Avionics + CC:Tweaked own general programmable aircraft I/O, and Fire Control is the preferred advanced weapon-electronics layer.
+70. Mianbao is a selected military-hardware/content library rather than an independent industrial authority; normalize its recipes onto the canonical Create/CBC/CC&A economy and suppress same-tier duplicates where stronger native Create/CBC implementations exist.
+71. Cross-mod defense interoperability is an acceptance gate, not an assumption. APS, ERA, countermeasures, CIWS, radar/IFF, missile guidance, and terminal ballistics must be tested against foreign projectile classes before production lock.
