@@ -920,5 +920,6 @@
     HYDROLOGY_KIND,
     adaptArtifact,
     adaptOverlayArtifact,
+    compareHydrologyLayers,
   });
 })();
