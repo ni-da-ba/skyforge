@@ -358,6 +358,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long curvatureAdmissible = 0;
         long objectiveImproving = 0;
         long selected = 0;
+        double minimumCandidateMaximumGap = Double.POSITIVE_INFINITY;
+        double minimumCandidateIntegratedSquaredGap = Double.POSITIVE_INFINITY;
         for (int attempt = 0; attempt < MAXIMUM_D2_BLOCK_MOVE_ATTEMPTS; attempt++) {
             Candidate improved = best;
             int peakIndex = best.maximumHeadEnvelopeGapIndex();
