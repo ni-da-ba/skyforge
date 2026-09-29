@@ -41,65 +41,12 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             throw new IllegalArgumentException("geomorphic network descriptor must match skeleton descriptor");
         }
 
-        double semanticCorridorHalfWidth =
-                network.planningSpacing()
-                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
         List<SkyIslandHydraulicReachSkeleton> reaches = new ArrayList<>(network.routes().size());
 
         for (SkyIslandGeomorphicReachRoute route : network.routes()) {
-            SkyIslandSemanticChannelReach semantic = route.semanticReach();
-            double startDischarge = startDischarge(semantic);
-            double endDischarge = endDischarge(semantic, startDischarge);
-            double maximumBankfullWidth =
-                    2.0
-                            * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                    descriptor.nominalRadius(), endDischarge);
-            SkyIslandGeomorphicQualificationPolicy policy =
-                    SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
-            Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
-                    singleOrdinaryProfileKind(semantic);
-            SkyIslandContinuousChannelCenterline centerline =
-                    SkyIslandSemanticCorridorCenterlinePlanner.refine(
-                            route.route(),
-                            semantic.guidancePoints(),
-                            terrain,
-                            interiority,
-                            network.planningSpacing(),
-                            semanticCorridorHalfWidth,
-                            maximumBankfullWidth,
-                            station -> bankfullHalfWidth(
-                                    descriptor, startDischarge, endDischarge, station),
-                            (position, station, tangentX, tangentZ, halfWidth) -> {
-                                SkyIslandChannelProfileKind kind =
-                                        SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                                                semantic.profiles(), station);
-                                if (kind == SkyIslandChannelProfileKind.CASCADE
-                                        || ordinaryProfileKind.isEmpty()) {
-                                    return 0.0;
-                                }
-                                SkyIslandChannelProfileKind ordinaryKind =
-                                        ordinaryProfileKind.orElseThrow();
-                                SkyIslandGeomorphicQualificationClass qualificationClass =
-                                        qualificationClass(ordinaryKind);
-                                SkyIslandHydraulicHeadEnvelope envelope =
-                                        SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
-                                                descriptor,
-                                                ordinaryKind,
-                                                position,
-                                                halfWidth,
-                                                SkyIslandHydraulicGeometryCalibration
-                                                        .waterDepthPotential(
-                                                                lerp(startDischarge, endDischarge, station)),
-                                                clamp01(terrain.sample(position)),
-                                                -tangentZ,
-                                                tangentX,
-                                                terrain,
-                                                policy.limits(qualificationClass));
-                                return Math.max(
-                                        0.0,
-                                        envelope.lowerHead() - envelope.upperHead());
-                            });
-            reaches.add(sampleReach(descriptor, terrain, route, centerline));
+            CenterlineRefinement refinement =
+                    refineCenterline(descriptor, network, route, terrain, interiority);
+            reaches.add(sampleReach(descriptor, terrain, route, refinement.centerline()));
         }
 
         reaches.sort(Comparator
@@ -110,6 +57,68 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
 
         return new SkyIslandHydraulicGeometrySkeletonPlan(descriptor, network, reaches);
     }
+
+    static CenterlineRefinement refineCenterline(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandGeomorphicReachRoute route,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority) {
+        SkyIslandSemanticChannelReach semantic = route.semanticReach();
+        double startDischarge = startDischarge(semantic);
+        double endDischarge = endDischarge(semantic, startDischarge);
+        double maximumBankfullWidth =
+                2.0 * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                        descriptor.nominalRadius(), endDischarge);
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
+                singleOrdinaryProfileKind(semantic);
+        var outcome = SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
+                route.route(),
+                semantic.guidancePoints(),
+                terrain,
+                interiority,
+                network.planningSpacing(),
+                network.planningSpacing()
+                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION,
+                maximumBankfullWidth,
+                station -> bankfullHalfWidth(
+                        descriptor, startDischarge, endDischarge, station),
+                (position, station, tangentX, tangentZ, halfWidth) -> {
+                    SkyIslandChannelProfileKind kind =
+                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                                    semantic.profiles(), station);
+                    if (kind == SkyIslandChannelProfileKind.CASCADE
+                            || ordinaryProfileKind.isEmpty()) {
+                        return 0.0;
+                    }
+                    SkyIslandChannelProfileKind ordinaryKind =
+                            ordinaryProfileKind.orElseThrow();
+                    SkyIslandGeomorphicQualificationClass qualificationClass =
+                            qualificationClass(ordinaryKind);
+                    SkyIslandHydraulicHeadEnvelope envelope =
+                            SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                                    descriptor,
+                                    ordinaryKind,
+                                    position,
+                                    halfWidth,
+                                    SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
+                                            lerp(startDischarge, endDischarge, station)),
+                                    clamp01(terrain.sample(position)),
+                                    -tangentZ,
+                                    tangentX,
+                                    terrain,
+                                    policy.limits(qualificationClass));
+                    return Math.max(
+                            0.0, envelope.lowerHead() - envelope.upperHead());
+                });
+        return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
+    }
+
+    record CenterlineRefinement(
+            SkyIslandContinuousChannelCenterline centerline,
+            SkyIslandSemanticCorridorCenterlinePlanner.SearchDiagnostics diagnostics) {}
 
     private static Optional<SkyIslandChannelProfileKind> singleOrdinaryProfileKind(
             SkyIslandSemanticChannelReach semantic) {

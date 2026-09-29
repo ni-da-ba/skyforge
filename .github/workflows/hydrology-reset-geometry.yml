@@ -414,6 +414,9 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv
           echo "--- lateral-refinement-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv
+          ./gradlew :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' --rerun-tasks --no-configuration-cache
+          echo "--- D2 centerline candidate admissibility: key 287 ---"
+          cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
 
       - name: Dump focused failure report
         if: failure()

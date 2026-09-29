@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandHydraulicGeometrySkeletonPlannerTest {
@@ -60,6 +62,58 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 }
             }
         }
+    }
+
+    @Test
+    void key287D2SearchReportsAdmissibilityAndObjectiveProgress() throws Exception {
+        SkyIslandDescriptor descriptor = descriptor(287L);
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandGeomorphicReachRoute route = network.routes().stream()
+                .filter(candidate -> candidate.semanticReach().startCellIndex() == 1090
+                        && candidate.semanticReach().endCellIndex() == 1758)
+                .findFirst()
+                .orElseThrow();
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+
+        var result = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                descriptor, network, route, terrain, interiority);
+        var d = result.diagnostics();
+        String summary =
+                "F3G_D2_SEARCH key=287 initialMaxGap=" + d.initialMaximumHeadEnvelopeGap()
+                        + " initialMaxAt=" + d.initialMaximumHeadEnvelopeGapIndex() + "@"
+                        + d.initialMaximumHeadEnvelopeGapStation()
+                        + " finalMaxGap=" + d.finalMaximumHeadEnvelopeGap()
+                        + " finalMaxAt=" + d.finalMaximumHeadEnvelopeGapIndex() + "@"
+                        + d.finalMaximumHeadEnvelopeGapStation()
+                        + " initialIntegratedGap=" + d.initialIntegratedSquaredHeadEnvelopeGap()
+                        + " finalIntegratedGap=" + d.finalIntegratedSquaredHeadEnvelopeGap()
+                        + " lateralProposals=" + d.lateralCandidateProposals()
+                        + " admissible=" + d.lateralCandidateAdmissible()
+                        + " corridorRejected=" + d.lateralCandidateCorridorRejected()
+                        + " terrainRejected=" + d.lateralCandidateTerrainRejected()
+                        + " interiorityRejected=" + d.lateralCandidateInteriorityRejected()
+                        + " curvatureRejected=" + d.lateralCandidateCurvatureRejected()
+                        + " gapImproving=" + d.lateralCandidateGapImproving()
+                        + " selected=" + d.selectedLateralMoves()
+                        + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
+                        + " sweeps=" + d.relaxationSweeps()
+                        + System.lineSeparator();
+        Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
+        Files.createDirectories(report.getParent());
+        Files.writeString(report, summary);
+        assertTrue(d.lateralCandidateProposals() > 0);
+        assertTrue(
+                d.finalMaximumHeadEnvelopeGap()
+                        <= d.initialMaximumHeadEnvelopeGap() + EPSILON);
+        assertTrue(
+                d.finalIntegratedSquaredHeadEnvelopeGap()
+                        < d.initialIntegratedSquaredHeadEnvelopeGap(),
+                summary);
+        assertTrue(d.finalMaximumHeadEnvelopeGap() >= 0.0);
     }
 
     @Test
