@@ -221,9 +221,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 throw new IllegalArgumentException(
                         "bankfull half-width must be finite and non-negative");
             }
+            double currentGap = 0.0;
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
-                double currentGap =
-                        checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
+                currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
                     for (int step = 1; step <= 2; step++) {
                         double offset = 0.25 * step * halfWidth;
