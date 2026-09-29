@@ -295,7 +295,6 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 .append("    \"association_authority\": \"AUTH-0046\",\n")
                 .append("    \"terrain_projection_authority\": \"F4B\",\n")
                 .append("    \"water_projection_authority\": \"F4E\",\n")
-                .append("    \"minecraft_dependency\": false,\n")
                 .append("    \"studio_recomputes_hydrology\": false\n")
                 .append("  }\n")
                 .append("}\n");
@@ -716,3 +715,4 @@ public final class StudioBoundHydrologySemanticCorpusCli {
                 .replace("\r", "\\r");
     }
 }
+
