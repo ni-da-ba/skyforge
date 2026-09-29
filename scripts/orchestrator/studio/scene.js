@@ -798,6 +798,107 @@
     });
   }
 
+  function sameHydrologyGrid(left, right) {
+    const keys = [
+      "minimumX",
+      "minimumZ",
+      "spacingX",
+      "spacingZ",
+      "xSamples",
+      "zSamples",
+      "causeStride",
+      "causeSampleCount",
+    ];
+    return keys.every((key) => left?.[key] === right?.[key]);
+  }
+
+  function sameWorldFrame(left, right) {
+    const keys = ["centerX", "centerZ", "suspensionElevation", "nominalRadius"];
+    return keys.every((key) => left?.[key] === right?.[key]);
+  }
+
+  function compareHydrologyLayers(reference, candidate) {
+    if (
+      reference?.sceneKind !== "HYDROLOGY_SEMANTIC_LAYER" ||
+      candidate?.sceneKind !== "HYDROLOGY_SEMANTIC_LAYER"
+    ) {
+      throw new Error("comparison requires two adapted hydrology semantic layers");
+    }
+    if (reference.terrainSemanticSha256 !== candidate.terrainSemanticSha256) {
+      throw new Error("hydrology comparison requires the same exact terrain semantic SHA");
+    }
+    if (reference.binding.associationToken !== candidate.binding.associationToken) {
+      throw new Error("hydrology comparison requires the same AUTH-0046 association");
+    }
+    if (!sameWorldFrame(reference.binding.worldFrame, candidate.binding.worldFrame)) {
+      throw new Error("hydrology comparison world frames do not match");
+    }
+    if (!sameHydrologyGrid(reference.gridBinding, candidate.gridBinding)) {
+      throw new Error("hydrology comparison cause-grid bindings do not match");
+    }
+
+    const candidateByGrid = new Map();
+    for (const sample of candidate.causeSamples) {
+      const key = sample.grid.join(":");
+      if (candidateByGrid.has(key)) {
+        throw new Error("candidate hydrology comparison contains duplicate cause samples");
+      }
+      candidateByGrid.set(key, sample);
+    }
+    if (candidateByGrid.size !== reference.causeSamples.length) {
+      throw new Error("hydrology comparison cause sample counts do not match");
+    }
+
+    const fields = [
+      "runoffPotential",
+      "retentionPotential",
+      "drainagePotential",
+      "outflowPotential",
+    ];
+    const samples = reference.causeSamples.map((referenceSample) => {
+      const key = referenceSample.grid.join(":");
+      const candidateSample = candidateByGrid.get(key);
+      if (!candidateSample) {
+        throw new Error("candidate hydrology comparison is missing cause sample " + key);
+      }
+      if (
+        candidateSample.position.some(
+          (value, index) => value !== referenceSample.position[index]
+        )
+      ) {
+        throw new Error("hydrology comparison world-space cause coordinates do not match");
+      }
+      const deltas = Object.create(null);
+      for (const field of fields) {
+        const delta = candidateSample[field] - referenceSample[field];
+        if (!Number.isFinite(delta)) {
+          throw new Error("hydrology comparison produced a non-finite cause delta");
+        }
+        deltas[field] = delta;
+      }
+      return Object.freeze({
+        overlayKind: "HYDROLOGY_COMPARISON_SAMPLE",
+        grid: referenceSample.grid,
+        position: referenceSample.position,
+        displayPosition: referenceSample.displayPosition,
+        reference: referenceSample,
+        candidate: candidateSample,
+        deltas: Object.freeze(deltas),
+      });
+    });
+
+    return Object.freeze({
+      sceneKind: "HYDROLOGY_SEMANTIC_COMPARISON",
+      terrainSemanticSha256: reference.terrainSemanticSha256,
+      associationToken: reference.binding.associationToken,
+      referenceSource: reference.source,
+      candidateSource: candidate.source,
+      samples: Object.freeze(samples),
+      reviewAuthority:
+        reference.source.reviewAuthority && candidate.source.reviewAuthority,
+    });
+  }
+
   function adaptArtifact(artifact, context = {}) {
     if (!artifact || typeof artifact !== "object") {
       throw new Error("artifact must be an object");
