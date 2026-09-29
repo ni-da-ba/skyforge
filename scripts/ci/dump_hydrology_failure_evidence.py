@@ -6,6 +6,7 @@ import re
 
 REPORTS = (
     Path("skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt"),
+    Path("skyforge-world/build/evidence/hydrology-d2-search-test/key-287-corridor-summary.txt"),
     Path("skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv"),
     Path("skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv"),
     Path("skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv"),
