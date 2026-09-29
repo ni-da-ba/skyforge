@@ -6,6 +6,7 @@ import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicQualificationEvaluator;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicQualificationPolicy;
 import io.github.nidaba.skyforge.world.SkyIslandGeomorphicReachDiagnosticsPlanner;
+import io.github.nidaba.skyforge.world.SkyIslandLocalPosition;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -42,16 +43,19 @@ public final class HydrologyGeomorphicQualificationCorpusCli {
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         StringBuilder csv = new StringBuilder(
-                "specimen,islandKey,startCell,endCell,accepted,violations,ridgeLengthFraction\n");
+                "specimen,islandKey,startCell,endCell,accepted,violations,ridgeLengthFraction,maximumCurvatureWidthRatio,maximumCenterlineCurvature,maximumBankfullWidth\n");
 
         for (Specimen specimen : specimens) {
             var diagnostics =
                     SkyIslandGeomorphicReachDiagnosticsPlanner.measure(specimen.descriptor());
             for (var diagnostic : diagnostics) {
-                var reach =
-                        diagnostic.hydraulicReach()
-                                .geomorphicRoute()
-                                .semanticReach();
+                var hydraulicReach = diagnostic.hydraulicReach();
+                var reach = hydraulicReach.geomorphicRoute().semanticReach();
+                double maximumCurvature = maximumCurvature(hydraulicReach.centerline().points());
+                double maximumBankfullWidth = 2.0 * hydraulicReach.samples().stream()
+                        .mapToDouble(sample -> sample.bankfullHalfWidth())
+                        .max()
+                        .orElseThrow();
                 var qualification =
                         SkyIslandGeomorphicQualificationEvaluator.evaluate(diagnostic, policy);
                 String violations =
@@ -67,7 +71,19 @@ public final class HydrologyGeomorphicQualificationCorpusCli {
                         .append(String.format(
                                 java.util.Locale.ROOT,
                                 "%.9f",
-                                diagnostic.ridgeSampleFraction()))
+                                diagnostic.ridgeSampleFraction())).append(',')
+                        .append(String.format(
+                                java.util.Locale.ROOT,
+                                "%.12f",
+                                diagnostic.maximumCurvatureWidthRatio())).append(',')
+                        .append(String.format(
+                                java.util.Locale.ROOT,
+                                "%.12f",
+                                maximumCurvature)).append(',')
+                        .append(String.format(
+                                java.util.Locale.ROOT,
+                                "%.12f",
+                                maximumBankfullWidth))
                         .append('\n');
             }
         }
@@ -81,6 +97,33 @@ public final class HydrologyGeomorphicQualificationCorpusCli {
                 carried through the compatibility-named D1 ridge accessor.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("qualification-manifest.csv").toAbsolutePath());
+    }
+
+    private static double maximumCurvature(List<SkyIslandLocalPosition> points) {
+        double maximum = 0.0;
+        for (int i = 1; i + 1 < points.size(); i++) {
+            var a = points.get(i - 1);
+            var b = points.get(i);
+            var c = points.get(i + 1);
+            double ax = b.x() - a.x();
+            double az = b.z() - a.z();
+            double bx = c.x() - b.x();
+            double bz = c.z() - b.z();
+            double firstLength = Math.hypot(ax, az);
+            double secondLength = Math.hypot(bx, bz);
+            if (firstLength <= 1.0e-12 || secondLength <= 1.0e-12) {
+                continue;
+            }
+            double cosine = Math.max(
+                    -1.0,
+                    Math.min(
+                            1.0,
+                            (ax * bx + az * bz) / (firstLength * secondLength)));
+            maximum = Math.max(
+                    maximum,
+                    Math.acos(cosine) / (0.5 * (firstLength + secondLength)));
+        }
+        return maximum;
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {

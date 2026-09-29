@@ -427,3 +427,5 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProjectionTest.xml || true
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
+          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyGeomorphicQualificationCorpusTest.xml || true
+          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyOrdinarySpanCorpusTest.xml || true
