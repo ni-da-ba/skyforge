@@ -173,7 +173,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
 
         BlockMoveSearch blockSearch =
-                new BlockMoveSearch(best, 0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+                new BlockMoveSearch(best, best, 0, 0, 0, 0, 0, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
         if (headEnvelopeGap != null) {
             blockSearch = refinePeakWithBlockMoves(
                     searchRoute,
@@ -186,6 +186,21 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     bankfullHalfWidthAtStation,
                     headEnvelopeGap);
             best = blockSearch.best();
+            if (!blockSearch.exploration().points().equals(best.points())) {
+                Candidate restarted = refineD2FromSeed(
+                        searchRoute,
+                        semanticGuidance,
+                        blockSearch.exploration(),
+                        terrain,
+                        interiority,
+                        semanticCorridorHalfWidth,
+                        minimumBendRadius,
+                        bankfullHalfWidthAtStation,
+                        headEnvelopeGap);
+                if (restarted.compareTo(best, minimumBendRadius) < 0) {
+                    best = restarted;
+                }
+            }
         }
 
         for (SkyIslandLocalPosition point : best.points()) {
@@ -469,10 +484,52 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             selected++;
         }
         return new BlockMoveSearch(
-                minimaxBest, proposals, fieldAdmissible, curvatureAdmissible,
+                minimaxBest, exploration, proposals, fieldAdmissible, curvatureAdmissible,
                 objectiveImproving, selected,
                 minimumCandidateMaximumGap,
                 minimumCandidateIntegratedSquaredGap);
+    }
+
+    private static Candidate refineD2FromSeed(
+            SkyIslandGeomorphicCandidateRoute searchRoute,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            Candidate initial,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double semanticCorridorHalfWidth,
+            double minimumBendRadius,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        List<SkyIslandLocalPosition> current = new ArrayList<>(initial.points());
+        Candidate best = initial;
+        for (int sweep = 0; sweep < MAXIMUM_D2_RELAXATION_SWEEPS; sweep++) {
+            RelaxationStep step = relaxOnce(
+                    searchRoute,
+                    semanticGuidance,
+                    current,
+                    terrain,
+                    interiority,
+                    semanticCorridorHalfWidth,
+                    minimumBendRadius,
+                    bankfullHalfWidthAtStation,
+                    headEnvelopeGap);
+            List<SkyIslandLocalPosition> next = new ArrayList<>(step.points());
+            next.set(0, searchRoute.points().getFirst());
+            next.set(next.size() - 1, searchRoute.points().getLast());
+            Candidate candidate = evaluate(
+                    searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation);
+            if (candidate.compareTo(best, minimumBendRadius) < 0) {
+                best = candidate;
+            }
+            boolean unchanged = next.equals(current);
+            current = next;
+            if (unchanged
+                    || (candidate.maximumHeadEnvelopeGap() <= EPSILON
+                            && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON)) {
+                break;
+            }
+        }
+        return best;
     }
 
     private static Candidate evaluate(
@@ -800,6 +857,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
 
     private record BlockMoveSearch(
             Candidate best,
+            Candidate exploration,
             long proposals,
             long fieldAdmissible,
             long curvatureAdmissible,
