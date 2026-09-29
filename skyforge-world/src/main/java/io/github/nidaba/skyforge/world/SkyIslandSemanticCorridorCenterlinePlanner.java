@@ -170,6 +170,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
+        if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
+            best = refineCoupledBlocks(
+                    searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth, minimumBendRadius,
+                    bankfullHalfWidthAtStation, headEnvelopeGap, best);
+        }
+
         for (SkyIslandLocalPosition point : best.points()) {
             if (distanceToPolyline(point, semanticGuidance) > semanticCorridorHalfWidth + EPSILON) {
                 throw new IllegalStateException("relaxed centerline escaped semantic corridor");
@@ -196,6 +203,207 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 selectedLateralMoves, globalGapImprovementsBlockedByCurvature,
                 relaxationSweeps);
         return new RefinementOutcome(centerline, diagnostics);
+    }
+
+    /**
+     * Searches smooth multi-sample lateral moves after pointwise relaxation reaches a plateau.
+     *
+     * <p>Pointwise moves can all violate the width-scaled curvature bound even when a coordinated
+     * centerline displacement is admissible. This bounded direct search changes only continuous
+     * centerline samples; semantic-corridor, terrain-rise, interiority, endpoint, and curvature
+     * constraints remain hard. The head-envelope score ranks candidates but never authorizes
+     * terrain mutation or bypasses the downstream D2 qualification gate.
+     */
+    private static Candidate refineCoupledBlocks(
+            SkyIslandGeomorphicCandidateRoute searchRoute,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double semanticCorridorHalfWidth,
+            double minimumBendRadius,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap,
+            Candidate initial) {
+        Candidate best = initial;
+        double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
+        double[] amplitudeFractions = {0.25, 0.5, 1.0};
+        for (int round = 0; round < 4; round++) {
+            List<SkyIslandLocalPosition> points = best.points();
+            double[] arc = cumulativeArc(points);
+            double totalLength = arc[arc.length - 1];
+            if (totalLength <= EPSILON) {
+                break;
+            }
+            double nominalStep = totalLength / (points.size() - 1.0);
+            double[] pointGaps = headEnvelopeGaps(
+                    points, bankfullHalfWidthAtStation, headEnvelopeGap);
+            List<Integer> centers = gapPeakCenters(pointGaps);
+            Candidate roundBest = best;
+            for (int center : centers) {
+                double availableSupport = Math.min(arc[center], totalLength - arc[center]);
+                if (availableSupport <= EPSILON) {
+                    continue;
+                }
+                double localHalfWidth = bankfullHalfWidthAtStation.applyAsDouble(
+                        stations(points)[center]);
+                double maximumAmplitude = Math.min(
+                        semanticCorridorHalfWidth, Math.max(nominalStep, localHalfWidth));
+                for (double supportFraction : supportFractions) {
+                    double supportLength = availableSupport * supportFraction;
+                    if (supportLength + EPSILON < nominalStep) {
+                        continue;
+                    }
+                    for (double amplitudeFraction : amplitudeFractions) {
+                        double amplitude = maximumAmplitude * amplitudeFraction;
+                        for (int direction : new int[] {-1, 1}) {
+                            List<SkyIslandLocalPosition> candidatePoints =
+                                    coupledDisplacement(
+                                            points, arc, center, supportLength,
+                                            direction * amplitude);
+                            if (!geometryAdmissible(
+                                    candidatePoints, searchRoute, semanticGuidance,
+                                    terrain, interiority, semanticCorridorHalfWidth,
+                                    minimumBendRadius)) {
+                                continue;
+                            }
+                            Candidate candidate = evaluate(
+                                    searchRoute, candidatePoints, headEnvelopeGap,
+                                    bankfullHalfWidthAtStation);
+                            if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
+                                roundBest = candidate;
+                            }
+                        }
+                    }
+                }
+            }
+            if (roundBest.compareTo(best, minimumBendRadius) >= 0) {
+                break;
+            }
+            best = roundBest;
+        }
+        return best;
+    }
+
+    private static double[] cumulativeArc(List<SkyIslandLocalPosition> points) {
+        double[] arc = new double[points.size()];
+        for (int i = 1; i < points.size(); i++) {
+            SkyIslandLocalPosition previous = points.get(i - 1);
+            SkyIslandLocalPosition point = points.get(i);
+            arc[i] = arc[i - 1]
+                    + Math.hypot(point.x() - previous.x(), point.z() - previous.z());
+        }
+        return arc;
+    }
+
+    private static double[] headEnvelopeGaps(
+            List<SkyIslandLocalPosition> points,
+            DoubleUnaryOperator bankfullHalfWidthAtStation,
+            SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        double[] station = stations(points);
+        double[] gaps = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            Vector tangent = tangentAt(points, i);
+            double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station[i]);
+            if (!Double.isFinite(halfWidth) || halfWidth < 0.0) {
+                throw new IllegalArgumentException(
+                        "bankfull half-width must be finite and non-negative");
+            }
+            gaps[i] = checkedGap(headEnvelopeGap, points.get(i), station[i], tangent, halfWidth);
+        }
+        return gaps;
+    }
+
+    private static List<Integer> gapPeakCenters(double[] gaps) {
+        List<Integer> centers = new ArrayList<>();
+        int lastInterior = gaps.length - 2;
+        int index = 1;
+        while (index <= lastInterior) {
+            if (gaps[index] <= EPSILON) {
+                index++;
+                continue;
+            }
+            int start = index;
+            int end = index;
+            double level = gaps[index];
+            while (end < lastInterior
+                    && Math.abs(gaps[end + 1] - level) <= EPSILON) {
+                end++;
+            }
+            double left = start == 1 ? Double.NEGATIVE_INFINITY : gaps[start - 1];
+            double right = end == lastInterior ? Double.NEGATIVE_INFINITY : gaps[end + 1];
+            if (level + EPSILON >= left && level + EPSILON >= right) {
+                centers.add((start + end) / 2);
+            }
+            index = end + 1;
+        }
+        centers.sort(Comparator
+                .comparingDouble((Integer center) -> gaps[center])
+                .reversed()
+                .thenComparingInt(Integer::intValue));
+        if (centers.size() > 3) {
+            return List.copyOf(centers.subList(0, 3));
+        }
+        if (centers.isEmpty() && gaps.length > 2) {
+            int maximum = maximumIndex(gaps);
+            if (maximum > 0 && maximum < gaps.length - 1 && gaps[maximum] > EPSILON) {
+                centers.add(maximum);
+            }
+        }
+        return List.copyOf(centers);
+    }
+
+    private static List<SkyIslandLocalPosition> coupledDisplacement(
+            List<SkyIslandLocalPosition> points,
+            double[] arc,
+            int center,
+            double supportLength,
+            double amplitude) {
+        List<SkyIslandLocalPosition> result = new ArrayList<>(points);
+        for (int i = 1; i < points.size() - 1; i++) {
+            double distance = Math.abs(arc[i] - arc[center]);
+            if (distance >= supportLength) {
+                continue;
+            }
+            double weight = 0.5 * (1.0 + Math.cos(Math.PI * distance / supportLength));
+            Vector tangent = tangentAt(points, i);
+            Vector normal = new Vector(-tangent.z(), tangent.x());
+            SkyIslandLocalPosition point = points.get(i);
+            result.set(
+                    i,
+                    new SkyIslandLocalPosition(
+                            point.x() + normal.x() * amplitude * weight,
+                            point.z() + normal.z() * amplitude * weight));
+        }
+        return result;
+    }
+
+    private static boolean geometryAdmissible(
+            List<SkyIslandLocalPosition> points,
+            SkyIslandGeomorphicCandidateRoute searchRoute,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double semanticCorridorHalfWidth,
+            double minimumBendRadius) {
+        if (!points.getFirst().equals(searchRoute.points().getFirst())
+                || !points.getLast().equals(searchRoute.points().getLast())) {
+            return false;
+        }
+        for (int i = 0; i < points.size(); i++) {
+            if (!admissibilityCheck(
+                            points.get(i), searchRoute, semanticGuidance,
+                            terrain, interiority, semanticCorridorHalfWidth)
+                    .allowed()) {
+                return false;
+            }
+            if (i > 0 && i < points.size() - 1
+                    && localCurvature(points.get(i - 1), points.get(i), points.get(i + 1))
+                                    * minimumBendRadius
+                            > 1.0 + EPSILON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static RelaxationStep relaxOnce(
