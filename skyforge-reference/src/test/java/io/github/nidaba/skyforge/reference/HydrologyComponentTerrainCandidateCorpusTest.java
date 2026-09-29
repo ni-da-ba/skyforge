@@ -34,9 +34,9 @@ class HydrologyComponentTerrainCandidateCorpusTest {
         assertTrue(componentsA.contains(
                 "lake-609,609,1397,PHYSICAL_REJECTION,EXCLUDED,"));
         assertTrue(reachesA.contains(
-                "ordinary-77,77,559,709,559,35,35,-0.032263256,-0.031626352,-0.026177953"));
+                "ordinary-77,77,559,709,559,35,35,-0.032314776,-0.031773042,-0.026177953"));
         assertTrue(reachesA.contains(
-                "ordinary-77,77,1842,1742,1842,24,24,-0.032065716,-0.029976568,-0.016076075"));
+                "ordinary-77,77,1842,1742,1842,24,24,-0.032169029,-0.030088643,-0.016076075"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }

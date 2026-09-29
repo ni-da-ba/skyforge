@@ -26,7 +26,7 @@ class HydrologyWorldHeadRefinementCorpusTest {
         assertEquals(componentsA, componentsB);
         assertTrue(summaryA.contains("ordinary-77,77,2,1,1"));
         assertTrue(componentsA.contains(
-                "ordinary-77,77,559,SOLVED,709,559,35,0.168878403,0.007804229,0,0.000000000,0.210190740,0.000000000,\"\""));
+                "ordinary-77,77,559,SOLVED,709,559,35,0.168878403,0.007867676,0,0.000000000,0.210443604,0.000000000,\"\""));
         assertTrue(componentsA.contains("ordinary-77,77,1842,INFEASIBLE,1742,1842,0,"));
         assertTrue(componentsA.contains("binding=BANK_CONTAINMENT"));
         assertTrue(summaryA.contains("primary-287,287,0,0,0"));

@@ -47,6 +47,9 @@ across the proving-ground/stress corpus rather than copied from one real watersh
 The important invariant is monotonicity: greater accepted discharge cannot produce a narrower or
 shallower ordinary channel.
 
+The continuous discharge profile preserves the authoritative `relativeDischarge` value carried by each semantic channel segment at that segment's source-cell knot. Knots are ordered by cumulative physical distance along the semantic guidance polyline; discharge is interpolated linearly between adjacent knots, with the last knot value extending to the reach endpoint. The same profile feeds width, depth, and D2 centerline scoring. This keeps continuous geometry tied to accepted per-segment accumulation data instead of replacing it with a reach-wide endpoint chord.
+
+
 Reference basis: Leopold & Maddock (1953), USGS Professional Paper 252.
 
 ## Shared longitudinal datum

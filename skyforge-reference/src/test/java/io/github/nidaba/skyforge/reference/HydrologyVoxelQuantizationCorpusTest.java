@@ -22,7 +22,7 @@ class HydrologyVoxelQuantizationCorpusTest {
         assertEquals(a, b);
 
         assertTrue(a.contains(
-                "ordinary-77,77,2,0,8969,4911,15849,7,0.999999918,0.000407162,0.000000000"));
+                "ordinary-77,77,2,0,9005,4934,15997,7,0.999880972,0.000147845,0.000000000"));
         assertTrue(a.contains(
                 "ordinary-77-weak,77,0,2,0,0,0,0,0.000000000,0.000000000,0.000000000"));
 
