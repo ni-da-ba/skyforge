@@ -20,6 +20,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "hydrology comparison world frames do not match",
             "hydrology comparison cause-grid bindings do not match",
             "candidate hydrology comparison contains duplicate cause samples",
+            "reference hydrology comparison contains duplicate cause samples",
             "hydrology comparison cause sample counts do not match",
             "candidate hydrology comparison is missing cause sample",
             "hydrology comparison cause coordinates do not match",
@@ -44,6 +45,19 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("channel, flow, response, and water layers show the reference", markup)
         self.assertIn("linear-gradient(90deg,#705fba 0%,#c3c5ca 50%,#d25343 100%)", styles)
         self.assertIn("UNBOUND LOCAL DIAGNOSTIC", app)
+
+    def test_hydrology_comparison_behavior_in_ci_runtime(self):
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_hydrology_comparison.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio hydrology candidate comparison behavior", result.stdout)
 
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")
