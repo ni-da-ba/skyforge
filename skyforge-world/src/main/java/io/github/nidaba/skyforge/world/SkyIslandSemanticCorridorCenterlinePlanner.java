@@ -20,6 +20,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final double MINIMUM_INTERIORITY = 0.025;
 
     private static final double EPSILON = 1.0e-12;
+    private static final double[] D2_LATERAL_MOVE_FRACTIONS =
+            {0.0625, 0.125, 0.1875, 0.25, 0.375, 0.5};
 
     private SkyIslandSemanticCorridorCenterlinePlanner() {}
 
@@ -235,8 +237,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
-                    for (double lateralFraction :
-                            new double[] {0.0625, 0.125, 0.1875, 0.25, 0.375, 0.5}) {
+                    for (double lateralFraction : D2_LATERAL_MOVE_FRACTIONS) {
                         double offset = lateralFraction * halfWidth;
                         options.add(new SkyIslandLocalPosition(
                                 point.x() - normal.x() * offset,
