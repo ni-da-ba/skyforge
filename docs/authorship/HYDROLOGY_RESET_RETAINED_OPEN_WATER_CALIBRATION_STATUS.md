@@ -24,6 +24,21 @@ That expanded sweep found:
 
 The temporary scanner was closed unmerged after recording this result.
 
+A later deterministic seed-stratified v2 discovery under #1084 covered 6,144 exact identities
+(three seeds × two fixed namespaces × keys 1–1,024) and found 0 POND, 1 LAKE, and 48 WETLAND
+candidates, with no geometry-measurement failures. Its sole lake is the seed-skyforge, namespace
+8/81, island-key 609 candidate. E1 diagnostics for that lake are:
+
+- continuous wet area: 15,037.629 world²; equivalent diameter: 138.371 world units;
+- maximum depth: 54.715 world units; depth/diameter: 0.3954;
+- maximum shoreline grade: 1.8579; spill headroom: 4.9209 world units;
+- exact terminal reaches: 1; maximum channel/water datum mismatch: 55.8019 world units;
+- bounded-search escape: false; shoreline crossings: 368.
+
+This is a measured candidate, not a qualified basin. In particular, the large datum mismatch is
+explicit adverse evidence for the lake-609 channel transition; the discovery does not calibrate
+an acceptable mismatch limit or establish retained-water production authority.
+
 ## Interpretation
 
 This is evidence about corpus support, not evidence that POND or LAKE can never occur.
