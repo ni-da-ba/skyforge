@@ -629,6 +629,8 @@
       !visible || !$("show-water-intent").checked;
     $("legend-flow").hidden =
       !visible || !$("show-flow-vectors").checked;
+    $("legend-flow-note").hidden =
+      !visible || !$("show-flow-vectors").checked;
     $("legend-response").hidden =
       !visible || !$("show-hydrology-response").checked;
     const comparisonActive =
