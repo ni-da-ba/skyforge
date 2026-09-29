@@ -130,12 +130,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                             association, candidate, refined.terrainField()));
         }
 
+        var binding = SkyforgeAuthoredVisibleHydrologyAdapter.bindQualified(authorizations);
         var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
         int changed = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
-                chunk, terrain, authorizations);
+                chunk, terrain, binding);
         assertTrue(changed > 0);
         assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
-                chunk, terrain, authorizations));
+                chunk, terrain, binding));
     }
 
     @Test
