@@ -174,8 +174,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         best.maximumSearchDeviation(), best.maximumTurnAngle());
         SearchDiagnostics diagnostics = new SearchDiagnostics(
                 initial.maximumHeadEnvelopeGap(),
+                initial.maximumHeadEnvelopeGapIndex(),
+                initial.maximumHeadEnvelopeGapStation(),
                 initial.integratedSquaredHeadEnvelopeGap(),
                 best.maximumHeadEnvelopeGap(),
+                best.maximumHeadEnvelopeGapIndex(),
+                best.maximumHeadEnvelopeGapStation(),
                 best.integratedSquaredHeadEnvelopeGap(),
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
@@ -311,13 +315,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
             integratedSquaredGap /= pathLength;
         }
+        int maximumGapIndex = maximumIndex(gaps);
         return new Candidate(
                 List.copyOf(points),
                 pathLength,
                 maximumSearchDeviation,
                 maximumTurnAngle(points),
                 maximumCurvature(points),
-                maximum(gaps),
+                gaps[maximumGapIndex],
+                maximumGapIndex,
+                station[maximumGapIndex],
                 integratedSquaredGap);
     }
 
@@ -433,10 +440,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         : tangent(points.get(index - 1), points.get(index + 1));
     }
 
-    private static double maximum(double[] values) {
-        double result = 0.0;
-        for (double value : values) {
-            result = Math.max(result, value);
+    private static int maximumIndex(double[] values) {
+        int result = 0;
+        for (int i = 1; i < values.length; i++) {
+            if (values[i] > values[result]) {
+                result = i;
+            }
         }
         return result;
     }
@@ -561,8 +570,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
 
     record SearchDiagnostics(
             double initialMaximumHeadEnvelopeGap,
+            int initialMaximumHeadEnvelopeGapIndex,
+            double initialMaximumHeadEnvelopeGapStation,
             double initialIntegratedSquaredHeadEnvelopeGap,
             double finalMaximumHeadEnvelopeGap,
+            int finalMaximumHeadEnvelopeGapIndex,
+            double finalMaximumHeadEnvelopeGapStation,
             double finalIntegratedSquaredHeadEnvelopeGap,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
@@ -603,6 +616,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumTurnAngle,
             double maximumCurvature,
             double maximumHeadEnvelopeGap,
+            int maximumHeadEnvelopeGapIndex,
+            double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap) {
         private int compareTo(Candidate other, double minimumBendRadius) {
             double curvatureExcess = curvatureExcess(minimumBendRadius);
