@@ -263,14 +263,18 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             arc[i] = arc[i - 1] + Math.hypot(b.x() - a.x(), b.z() - a.z());
         }
         double nominalStep = arc[arc.length - 1] / (basePoints.size() - 1.0);
-        int[] supportSteps = {2, 4, 8, 12, 16, 24};
+        int[] supportSteps = {2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128};
         int[] peakIndices = initialPeakIndex == finalPeakIndex
                 ? new int[] {finalPeakIndex}
                 : new int[] {initialPeakIndex, finalPeakIndex};
-        int amplitudeSteps = 32;
+        int amplitudeSteps = 64;
         int candidateCount = 0;
         int admissibleCandidateCount = 0;
         int feasibleRouteCount = 0;
+        int corridorRejected = 0;
+        int terrainRejected = 0;
+        int interiorityRejected = 0;
+        int curvatureRejected = 0;
         double minimumIntegratedGap = Double.POSITIVE_INFINITY;
         double bestMaximumGap = Double.POSITIVE_INFINITY;
         double bestAmplitude = Double.NaN;
@@ -283,6 +287,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             }
             for (int support : supportSteps) {
                 double supportLength = support * nominalStep;
+                if (supportLength
+                        >= 0.9 * Math.min(
+                                arc[peakIndex], arc[arc.length - 1] - arc[peakIndex])) {
+                    continue;
+                }
                 for (int amplitudeIndex = -amplitudeSteps;
                         amplitudeIndex <= amplitudeSteps;
                         amplitudeIndex++) {
@@ -311,23 +320,26 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     }
                     candidateCount++;
                     double[] stations = normalizedStations(candidate);
-                    boolean physicallyAdmissible = true;
+                    boolean corridorAllowed = true;
+                    boolean terrainAllowed = true;
+                    boolean interiorityAllowed = true;
+                    boolean curvatureAllowed = true;
                     for (int i = 0; i < candidate.size(); i++) {
                         SkyIslandLocalPosition point = candidate.get(i);
                         if (distanceToPolyline(point, semantic.guidancePoints())
                                 > corridorHalfWidth + EPSILON) {
-                            physicallyAdmissible = false;
-                            break;
+                            corridorAllowed = false;
                         }
                         SkyIslandLocalPosition seedProjection =
                                 projectToPolyline(point, route.route().points());
                         if (terrain.sample(point) - terrain.sample(seedProjection)
                                 > SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
-                                        + EPSILON
-                                || interiority.sample(point)
-                                        < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
-                            physicallyAdmissible = false;
-                            break;
+                                        + EPSILON) {
+                            terrainAllowed = false;
+                        }
+                        if (interiority.sample(point)
+                                < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
+                            interiorityAllowed = false;
                         }
                         if (i > 0 && i < candidate.size() - 1
                                 && localCurvature(
@@ -336,10 +348,16 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                                         candidate.get(i + 1))
                                                 * minimumBendRadius
                                         > 1.0 + EPSILON) {
-                            physicallyAdmissible = false;
-                            break;
+                            curvatureAllowed = false;
                         }
                     }
+                    corridorRejected += corridorAllowed ? 0 : 1;
+                    terrainRejected += terrainAllowed ? 0 : 1;
+                    interiorityRejected += interiorityAllowed ? 0 : 1;
+                    curvatureRejected += curvatureAllowed ? 0 : 1;
+                    boolean physicallyAdmissible =
+                            corridorAllowed && terrainAllowed
+                                    && interiorityAllowed && curvatureAllowed;
                     if (!physicallyAdmissible) {
                         continue;
                     }
@@ -422,11 +440,17 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         String summary = String.format(
                 Locale.ROOT,
                 "F3G_D2_SMOOTH_ROUTE key=287 candidateCount=%d admissibleCandidates=%d "
-                        + "feasibleRoutes=%d bestIntegratedGap=%.9f bestMaximumGap=%.9f "
+                        + "feasibleRoutes=%d corridorRejected=%d terrainRejected=%d "
+                        + "interiorityRejected=%d curvatureRejected=%d "
+                        + "bestIntegratedGap=%.9f bestMaximumGap=%.9f "
                         + "bestAmplitude=%.9f bestSupportSteps=%d bestPeakIndex=%d%n",
                 candidateCount,
                 admissibleCandidateCount,
                 feasibleRouteCount,
+                corridorRejected,
+                terrainRejected,
+                interiorityRejected,
+                curvatureRejected,
                 minimumIntegratedGap,
                 bestMaximumGap,
                 bestAmplitude,
