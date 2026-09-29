@@ -82,6 +82,56 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         var result = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
                 descriptor, network, route, terrain, interiority);
         var d = result.diagnostics();
+        SkyIslandSemanticChannelReach semantic = route.semanticReach();
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        int peakIndex = d.finalMaximumHeadEnvelopeGapIndex();
+        double peakStation = d.finalMaximumHeadEnvelopeGapStation();
+        SkyIslandLocalPosition peakPosition = result.centerline().points().get(peakIndex);
+        SkyIslandLocalPosition before = result.centerline().points().get(peakIndex - 1);
+        SkyIslandLocalPosition after = result.centerline().points().get(peakIndex + 1);
+        double tangentX = after.x() - before.x();
+        double tangentZ = after.z() - before.z();
+        double tangentLength = Math.hypot(tangentX, tangentZ);
+        double normalX = -tangentZ / tangentLength;
+        double normalZ = tangentX / tangentLength;
+        double startDischarge = Math.max(
+                SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
+                semantic.profiles().getFirst().segment().relativeDischarge());
+        double endDischarge = Math.max(
+                startDischarge,
+                semantic.profiles().getLast().segment().relativeDischarge());
+        double discharge =
+                startDischarge + (endDischarge - startDischarge) * peakStation;
+        double peakHalfWidth =
+                SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                        descriptor.nominalRadius(), discharge);
+        double peakDepth =
+                SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+        SkyIslandChannelProfileKind peakKind =
+                SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                        semantic.profiles(), peakStation);
+        SkyIslandGeomorphicQualificationClass peakClass =
+                peakKind == SkyIslandChannelProfileKind.ALLUVIAL
+                        ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
+                        : SkyIslandGeomorphicQualificationClass.INCISED;
+        var peakEnvelope =
+                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKindWithDiagnostics(
+                        descriptor,
+                        peakKind,
+                        peakPosition,
+                        peakHalfWidth,
+                        peakDepth,
+                        Math.max(0.0, Math.min(1.0, terrain.sample(peakPosition))),
+                        normalX,
+                        normalZ,
+                        terrain,
+                        policy.limits(peakClass));
+        String peakBounds =
+                " plateauLower=" + peakEnvelope.activeLowerBound().constraint() + "@"
+                        + peakEnvelope.activeLowerBound().head()
+                        + " plateauUpper=" + peakEnvelope.activeUpperBound().constraint() + "@"
+                        + peakEnvelope.activeUpperBound().head();
         String summary =
                 "F3G_D2_SEARCH key=287 initialMaxGap=" + d.initialMaximumHeadEnvelopeGap()
                         + " initialMaxAt=" + d.initialMaximumHeadEnvelopeGapIndex() + "@"
@@ -101,11 +151,17 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
                         + " sweeps=" + d.relaxationSweeps()
+                        + peakBounds
                         + System.lineSeparator();
         Path report = Path.of("build", "evidence", "hydrology-d2-search-test", "key-287.txt");
         Files.createDirectories(report.getParent());
         Files.writeString(report, summary);
         assertTrue(d.lateralCandidateProposals() > 0);
+        assertEquals(
+                d.finalMaximumHeadEnvelopeGap(),
+                peakEnvelope.positiveGap(),
+                EPSILON,
+                summary);
         assertTrue(
                 d.finalMaximumHeadEnvelopeGap()
                         <= d.initialMaximumHeadEnvelopeGap() + EPSILON);
