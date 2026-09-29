@@ -52,8 +52,8 @@
       shear: finite(record.shear, "sample " + index + " shear"),
       confidence: finite(record.confidence, "sample " + index + " confidence"),
       trusted: record.trusted_for_gameplay === true,
-      sourceLevel: String(record.source_level || ""),
-      authority: String(record.authority || ""),
+      sourceLevel: record.source_level ? "provider-declared" : "",
+      authority: record.authority ? "provider-declared" : "",
     });
   }
 
@@ -104,10 +104,10 @@
       schemaVersion: 1,
       sceneKind: "ATMOSPHERE_VECTOR_FIELD",
       coordinateSystem: Object.freeze({
-        id: "MINECRAFT_WORLD_XYZ",
-        x: "+X world blocks",
+        id: "WORLD_XYZ",
+        x: "+X world units",
         y: "+Y altitude",
-        z: "+Z world blocks",
+        z: "+Z world units",
       }),
       source: authoritySource(
         ATMOSPHERE_KIND,
@@ -115,8 +115,8 @@
         context
       ),
       provider: Object.freeze({
-        label: "Aerodynamics4MC",
-        modId: String(provider.mod_id || ""),
+        label: "External atmosphere provider",
+        
         version: String(provider.version || ""),
         api: String(provider.api || ""),
       }),
@@ -126,7 +126,7 @@
           primitive: "VectorField",
           title: "Effective wind",
           units: "m/s",
-          semanticOwner: "Aerodynamics4MC",
+          semanticOwner: "External atmosphere provider",
           vectorProperty: "effective",
         }),
         Object.freeze({
@@ -134,7 +134,7 @@
           primitive: "VectorField",
           title: "Mean wind",
           units: "m/s",
-          semanticOwner: "Aerodynamics4MC",
+          semanticOwner: "External atmosphere provider",
           vectorProperty: "mean",
         }),
         Object.freeze({
@@ -142,15 +142,15 @@
           primitive: "VectorField",
           title: "Gust contribution",
           units: "m/s",
-          semanticOwner: "Aerodynamics4MC",
+          semanticOwner: "External atmosphere provider",
           vectorProperty: "gust",
         }),
         Object.freeze({
           id: "samples",
           primitive: "PointSet",
           title: "Atmosphere samples",
-          units: "world blocks",
-          semanticOwner: "Aerodynamics4MC",
+          units: "world units",
+          semanticOwner: "External atmosphere provider",
         }),
       ]),
       snapshot,
@@ -161,9 +161,9 @@
         frames: opportunityFrames,
       }),
       ownership: Object.freeze({
-        semanticOwner: "Aerodynamics4MC gameplay provider",
+        semanticOwner: "External atmosphere authority",
         persistenceOwner: String(
-          artifact.ownership?.provider_persistence_owner || "aerodynamics4mc"
+          "external provider"
         ),
         backendNeutral: artifact.ownership?.rendering_backend_dependency !== true,
         renderingBackendDependency:
@@ -355,7 +355,7 @@
       source: authoritySource(TERRAIN_KIND, artifact.semantic_sha256, context),
       provider: Object.freeze({
         label: "Skyforge backend-neutral terrain semantics",
-        modId: "",
+        
         version: String(artifact.skyforge_version || ""),
         api: "WorldRegionTerrain",
       }),
@@ -736,7 +736,6 @@
       ownership.terrain_projection_authority !== "F4B" ||
       ownership.water_projection_authority !== "F4E" ||
       ownership.backend_neutral_semantics !== true ||
-      ownership.minecraft_dependency !== false ||
       ownership.studio_recomputes_hydrology !== false
     ) {
       throw new Error("hydrology overlay ownership contract is unsupported");
