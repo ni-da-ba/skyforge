@@ -103,7 +103,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 startDischarge,
                 semantic.profiles().getLast().segment().relativeDischarge());
         double discharge =
-                startDischarge + (endDischarge - startDischarge) * peakStation;
+                SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
+                        semantic, peakStation);
         double peakHalfWidth =
                 SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                         descriptor.nominalRadius(), discharge);
@@ -212,6 +213,53 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         < d.initialIntegratedSquaredHeadEnvelopeGap(),
                 summary);
         assertTrue(d.finalMaximumHeadEnvelopeGap() >= 0.0);
+    }
+
+    @Test
+    void semanticDischargeInterpolationPreservesPhysicalSegmentKnots() {
+        for (long key : new long[] {118L, 287L, 512L}) {
+            SkyIslandDescriptor descriptor = descriptor(key);
+            SkyIslandSemanticChannelReachPlan semantics =
+                    SkyIslandSemanticChannelReachPlanner.plan(descriptor);
+            for (SkyIslandSemanticChannelReach semantic : semantics.reaches()) {
+                List<SkyIslandLocalPosition> guidance = semantic.guidancePoints();
+                double[] cumulative = new double[guidance.size()];
+                for (int i = 1; i < guidance.size(); i++) {
+                    SkyIslandLocalPosition a = guidance.get(i - 1);
+                    SkyIslandLocalPosition b = guidance.get(i);
+                    cumulative[i] = cumulative[i - 1]
+                            + Math.hypot(b.x() - a.x(), b.z() - a.z());
+                }
+                double length = cumulative[cumulative.length - 1];
+                double previousDischarge = -1.0;
+                for (int i = 0; i < semantic.profiles().size(); i++) {
+                    double discharge = Math.max(
+                            SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
+                            semantic.profiles().get(i).segment().relativeDischarge());
+                    assertTrue(discharge + EPSILON >= previousDischarge);
+                    double station = cumulative[i] / length;
+                    assertEquals(
+                            discharge,
+                            SkyIslandHydraulicGeometrySkeletonPlanner
+                                    .relativeDischargeAtStation(semantic, station),
+                            EPSILON);
+                    if (i + 1 < semantic.profiles().size()) {
+                        double nextDischarge = Math.max(
+                                SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
+                                semantic.profiles().get(i + 1).segment().relativeDischarge());
+                        double midpointStation =
+                                (cumulative[i] + 0.5 * (cumulative[i + 1] - cumulative[i]))
+                                        / length;
+                        assertEquals(
+                                0.5 * (discharge + nextDischarge),
+                                SkyIslandHydraulicGeometrySkeletonPlanner
+                                        .relativeDischargeAtStation(semantic, midpointStation),
+                                EPSILON);
+                    }
+                    previousDischarge = discharge;
+                }
+            }
+        }
     }
 
     @Test
