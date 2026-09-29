@@ -20,8 +20,14 @@ class HydrologyGeomorphicQualificationCorpusTest {
         String b = Files.readString(second.resolve("qualification-manifest.csv"));
         assertEquals(a, b);
         assertTrue(a.contains("ridgeLengthFraction"));
-        assertTrue(a.contains(
-                "primary-287,287,1090,1758,false,CENTERLINE_LOWERING|LATERAL_RECOVERY_GRADE|BANK_CONTAINMENT|RELIEF_TO_VALLEY_WIDTH|EXCAVATION_BURDEN,0.101411175"));
+        assertTrue(
+                a.contains(
+                        "primary-287,287,1090,1758,false,CENTERLINE_LOWERING|LATERAL_RECOVERY_GRADE|BANK_CONTAINMENT|RELIEF_TO_VALLEY_WIDTH|EXCAVATION_BURDEN,0.101411175"),
+                () -> "unexpected key-287 qualification row: "
+                        + a.lines()
+                                .filter(line -> line.startsWith("primary-287,287,1090,1758,"))
+                                .findFirst()
+                                .orElse("missing"));
         assertTrue(a.contains(
                 "control-241,241,671,479,false,RIDGE_OCCUPANCY,0.375000000"));
         assertTrue(a.contains(
