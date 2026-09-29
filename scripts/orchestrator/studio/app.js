@@ -693,7 +693,7 @@
         : null);
 
     $("imported-sample-trace-note").textContent =
-      "Read-only record of one selected sample. Opening it does not restore its source artifacts or establish review authority.";
+      "Read-only record of one selected sample. Opening a trace does not restore its source artifacts or establish review authority.";
     $("imported-sample-trace-context").textContent = JSON.stringify({
       sources: trace.sources,
       coordinate_system: trace.coordinate_system,
