@@ -221,7 +221,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             0.5 * (previous.x() + next.x()),
                             0.5 * (previous.z() + next.z()));
             SkyIslandLocalPosition smoothed = lerp(point, midpoint, RELAXATION_FRACTION);
-            List<SkyIslandLocalPosition> options = new ArrayList<>(5);
+            List<SkyIslandLocalPosition> options = new ArrayList<>(13);
             options.add(smoothed);
             double station = stations[i];
             Vector tangent = tangent(previous, next);
@@ -235,8 +235,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
-                    for (int step = 1; step <= 2; step++) {
-                        double offset = 0.25 * step * halfWidth;
+                    for (double lateralFraction :
+                            new double[] {0.0625, 0.125, 0.1875, 0.25, 0.375, 0.5}) {
+                        double offset = lateralFraction * halfWidth;
                         options.add(new SkyIslandLocalPosition(
                                 point.x() - normal.x() * offset,
                                 point.z() - normal.z() * offset));
