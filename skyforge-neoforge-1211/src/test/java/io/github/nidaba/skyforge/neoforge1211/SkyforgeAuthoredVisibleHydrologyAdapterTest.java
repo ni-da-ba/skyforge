@@ -131,14 +131,21 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         }
 
         var binding = SkyforgeAuthoredVisibleHydrologyAdapter.bindQualified(authorizations);
-        var lowerChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(0, 0));
-        var upperChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(32, 0));
+        var lowerAuthorization = authorizations.get(fixture.lower().id());
+        var upperAuthorization = authorizations.get(fixture.upper().id());
+        BlockPos lowerWaterHead = firstAuthorizedWaterHead(lowerAuthorization, fixture.descriptor());
+        BlockPos upperWaterHead = firstAuthorizedWaterHead(upperAuthorization, fixture.descriptor());
+        var lowerChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(lowerWaterHead));
+        var upperChunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(upperWaterHead));
+        assertNotEquals(lowerChunk.getPos(), upperChunk.getPos());
         int lowerChanged = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
                 lowerChunk, terrain, binding);
         int upperChanged = SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
                 upperChunk, terrain, binding);
         assertTrue(lowerChanged > 0);
         assertTrue(upperChanged > 0);
+        assertTrue(lowerChunk.getBlockState(lowerWaterHead).is(Blocks.WATER));
+        assertTrue(upperChunk.getBlockState(upperWaterHead).is(Blocks.WATER));
         assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
                 lowerChunk, terrain, binding));
         assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
@@ -278,6 +285,29 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.RETAINED_WATER,
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.VERTICAL_DISCHARGE,
                 SkyforgeAuthoredVisibleHydrologyAdapter.Feature.EDGE_DISCHARGE);
+    }
+
+    private static BlockPos firstAuthorizedWaterHead(
+            io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization authorization,
+            io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor descriptor) {
+        return authorization.quantization().authorizedColumns().stream()
+                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
+                .filter(column -> {
+                    var projection = column.projection();
+                    var semantic = projection.semanticSample();
+                    double waterHeadWorld = projection.originalUpperSurfaceWorldY()
+                            + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
+                                    * descriptor.reliefBudget();
+                    int waterMaximumY = (int) Math.ceil(waterHeadWorld) - 1;
+                    return Math.min(waterMaximumY, column.originalSupport().maximumSolidY())
+                            >= column.targetMaximumSolidY() + 1;
+                })
+                .map(column -> new BlockPos(
+                        column.worldX(),
+                        column.targetMaximumSolidY() + 1,
+                        column.worldZ()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("qualified F4H authorization has no discrete water head"));
     }
 
     private static void assertOwned(
