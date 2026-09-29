@@ -30,6 +30,15 @@ and WETLAND classifications, and exact retained-sink semantic predictors. For ea
 it records the existing continuous E1 geometry diagnostics, including shoreline topology and signed
 channel-datum offsets. A geometry failure is explicit and never grants authority.
 
+## v5 exact-head result
+
+Hydrology Retained Basin Discovery run #13 passed for the 22,528-identity v5 grid: 0 POND, 6 LAKE,
+195 WETLAND candidates, and no continuous-geometry failures. All six LAKE candidates had one matched
+terminal reach, a closed contour, and a channel water surface below the basin datum by 11.06–11.59×
+measured spill headroom. The six exact identities and measurements are recorded in
+`HYDROLOGY_RESET_RETAINED_OPEN_WATER_CALIBRATION_STATUS.md`. No candidate is promoted to E2 or
+Minecraft authority.
+
 ## Interpretation boundary
 
 The scan changes no classifier weights or thresholds and does not promote any basin to terrain authority.
