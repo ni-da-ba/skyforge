@@ -191,7 +191,10 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             "window.localStorage",
             "skyforge-studio-world-brief-library-v1",
             "function exportBrief()",
+            "function exportLibrary()",
+            "function mergeWorldBriefLibraries(currentValue, importedValue)",
             "function parseWorldBrief(value)",
+            "function flushPendingSave()",
         ):
             with self.subTest(contract=contract):
                 self.assertIn(contract, app)
@@ -207,11 +210,24 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
             'id="world-brief-form"',
             'id="world-brief-import-file"',
             'id="world-brief-download"',
+            'id="world-brief-library-download"',
+            "Back up all saved briefs",
+            "Import a brief or backup",
+            "Download this brief",
             'aria-live="polite"',
             'id="generation-disabled-reason"',
         ):
             with self.subTest(control=control):
                 self.assertIn(control, markup)
+        for contract in (
+            "window.SkyforgeStudioWorldBrief.mergeLibraries(library, importedLibrary)",
+            "Identical drafts were skipped",
+            "Could not import this brief or library:",
+            "skyforge-studio-brief-library.json",
+            "Saved briefs could not be read; use Download this brief",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, app)
         self.assertRegex(markup, r'<button[^>]*disabled[^>]*aria-describedby="generation-disabled-reason"')
         self.assertIn("@media(max-width:850px)", styles)
         self.assertIn("@media(max-width:600px)", styles)
