@@ -315,12 +315,13 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         var descriptor = io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator.derive(
                 io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(WORLD_SEED, 6L, 61L, key));
         double rimDepth = Math.min(48.0, descriptor.nominalRadius() * 0.16);
+        double acceptedRimDepth = Math.min(32.0, descriptor.nominalRadius());
         var lower = volume(
                 descriptor, 830_000L + key, "dr20-accepted-corpus-stacked/lower/" + key,
-                170.0, 30.0, 38.0, rimDepth, 55.0, 45.0);
+                256.0, 72.0, 104.0, acceptedRimDepth, 192.0, 192.0);
         var upper = volume(
                 descriptor, 840_000L + key, "dr20-accepted-corpus-stacked/upper/" + key,
-                260.0, 30.0, 38.0, rimDepth, 55.0, 45.0);
+                768.0, 72.0, 104.0, acceptedRimDepth, 192.0, 192.0);
         return new StackedCorpusFixture(
                 descriptor,
                 lower,
