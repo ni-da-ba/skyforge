@@ -112,7 +112,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
         SkyIslandChannelProfileKind peakKind =
                 SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                        semantic.profiles(), peakStation);
+                        semantic, peakStation);
         SkyIslandGeomorphicQualificationClass peakClass =
                 peakKind == SkyIslandChannelProfileKind.ALLUVIAL
                         ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
@@ -243,17 +243,21 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             SkyIslandHydraulicGeometrySkeletonPlanner
                                     .relativeDischargeAtStation(semantic, station),
                             EPSILON);
+                    double segmentMidpointStation =
+                            (cumulative[i] + 0.5 * (cumulative[i + 1] - cumulative[i]))
+                                    / length;
+                    assertEquals(
+                            semantic.profiles().get(i).kind(),
+                            SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                                    semantic, segmentMidpointStation));
                     if (i + 1 < semantic.profiles().size()) {
                         double nextDischarge = Math.max(
                                 SkyIslandHydraulicGeometryCalibration.MINIMUM_DISCHARGE,
                                 semantic.profiles().get(i + 1).segment().relativeDischarge());
-                        double midpointStation =
-                                (cumulative[i] + 0.5 * (cumulative[i + 1] - cumulative[i]))
-                                        / length;
                         assertEquals(
                                 0.5 * (discharge + nextDischarge),
                                 SkyIslandHydraulicGeometrySkeletonPlanner
-                                        .relativeDischargeAtStation(semantic, midpointStation),
+                                        .relativeDischargeAtStation(semantic, segmentMidpointStation),
                                 EPSILON);
                     }
                     previousDischarge = discharge;
