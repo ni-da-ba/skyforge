@@ -256,12 +256,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         double corridorHalfWidth =
                 network.planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-        double[] arc = new double[basePoints.size()];
-        for (int i = 1; i < basePoints.size(); i++) {
-            SkyIslandLocalPosition a = basePoints.get(i - 1);
-            SkyIslandLocalPosition b = basePoints.get(i);
-            arc[i] = arc[i - 1] + Math.hypot(b.x() - a.x(), b.z() - a.z());
-        }
+        double[] arc = cumulativeArc(basePoints);
         double nominalStep = arc[arc.length - 1] / (basePoints.size() - 1.0);
         int[] supportSteps = {2, 4, 8, 12, 16, 24, 32, 48, 64, 96, 128};
         int[] peakIndices = initialPeakIndex == finalPeakIndex
@@ -296,143 +291,113 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         amplitudeIndex <= amplitudeSteps;
                         amplitudeIndex++) {
                     double amplitude = corridorHalfWidth * amplitudeIndex / amplitudeSteps;
-                    List<SkyIslandLocalPosition> candidate = new ArrayList<>(basePoints);
-                    for (int i = 1; i < basePoints.size() - 1; i++) {
-                        double distance = Math.abs(arc[i] - arc[peakIndex]);
-                        if (distance >= supportLength) {
-                            continue;
-                        }
-                        SkyIslandLocalPosition previous = basePoints.get(i - 1);
-                        SkyIslandLocalPosition next = basePoints.get(i + 1);
-                        double tangentX = next.x() - previous.x();
-                        double tangentZ = next.z() - previous.z();
-                        double tangentLength = Math.hypot(tangentX, tangentZ);
-                        if (!(tangentLength > 0.0)) {
-                            throw new IllegalStateException("smooth D2 route tangent must be non-zero");
-                        }
-                        double weight = 0.5
-                                * (1.0 + Math.cos(Math.PI * distance / supportLength));
-                        candidate.set(
-                                i,
-                                new SkyIslandLocalPosition(
-                                        basePoints.get(i).x() - tangentZ / tangentLength * amplitude * weight,
-                                        basePoints.get(i).z() + tangentX / tangentLength * amplitude * weight));
-                    }
+                    List<SkyIslandLocalPosition> candidate = smoothDisplacement(
+                            basePoints,
+                            arc,
+                            peakIndex,
+                            supportLength,
+                            amplitude,
+                            -1,
+                            0.0,
+                            0.0);
                     candidateCount++;
-                    double[] stations = normalizedStations(candidate);
-                    boolean corridorAllowed = true;
-                    boolean terrainAllowed = true;
-                    boolean interiorityAllowed = true;
-                    boolean curvatureAllowed = true;
-                    for (int i = 0; i < candidate.size(); i++) {
-                        SkyIslandLocalPosition point = candidate.get(i);
-                        if (distanceToPolyline(point, semantic.guidancePoints())
-                                > corridorHalfWidth + EPSILON) {
-                            corridorAllowed = false;
-                        }
-                        SkyIslandLocalPosition seedProjection =
-                                projectToPolyline(point, route.route().points());
-                        if (terrain.sample(point) - terrain.sample(seedProjection)
-                                > SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
-                                        + EPSILON) {
-                            terrainAllowed = false;
-                        }
-                        if (interiority.sample(point)
-                                < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
-                            interiorityAllowed = false;
-                        }
-                        if (i > 0 && i < candidate.size() - 1
-                                && localCurvature(
-                                                        candidate.get(i - 1),
-                                                        point,
-                                                        candidate.get(i + 1))
-                                                * minimumBendRadius
-                                        > 1.0 + EPSILON) {
-                            curvatureAllowed = false;
-                        }
-                    }
-                    corridorRejected += corridorAllowed ? 0 : 1;
-                    terrainRejected += terrainAllowed ? 0 : 1;
-                    interiorityRejected += interiorityAllowed ? 0 : 1;
-                    curvatureRejected += curvatureAllowed ? 0 : 1;
-                    boolean physicallyAdmissible =
-                            corridorAllowed && terrainAllowed
-                                    && interiorityAllowed && curvatureAllowed;
-                    if (!physicallyAdmissible) {
+                    SmoothCandidateMetrics metrics = evaluateSmoothCandidate(
+                            descriptor, route, candidate, terrain, interiority, semantic,
+                            policy, minimumBendRadius, corridorHalfWidth);
+                    corridorRejected += metrics.corridorAllowed() ? 0 : 1;
+                    terrainRejected += metrics.terrainAllowed() ? 0 : 1;
+                    interiorityRejected += metrics.interiorityAllowed() ? 0 : 1;
+                    curvatureRejected += metrics.curvatureAllowed() ? 0 : 1;
+                    if (!metrics.admissible()) {
                         continue;
                     }
                     admissibleCandidateCount++;
-                    double integratedGap = 0.0;
-                    double maximumGap = 0.0;
-                    boolean feasible = true;
-                    for (int i = 0; i < candidate.size(); i++) {
-                        double station = stations[i];
-                        SkyIslandChannelProfileKind kind =
-                                SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                                        semantic.profiles(), station);
-                        if (kind == SkyIslandChannelProfileKind.CASCADE) {
-                            continue;
-                        }
-                        SkyIslandLocalPosition point = candidate.get(i);
-                        SkyIslandLocalPosition previous =
-                                candidate.get(Math.max(0, i - 1));
-                        SkyIslandLocalPosition next =
-                                candidate.get(Math.min(candidate.size() - 1, i + 1));
-                        double tangentX = next.x() - previous.x();
-                        double tangentZ = next.z() - previous.z();
-                        double tangentLength = Math.hypot(tangentX, tangentZ);
-                        if (!(tangentLength > 0.0)) {
-                            physicallyAdmissible = false;
-                            break;
-                        }
-                        double discharge =
-                                SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
-                                        semantic, station);
-                        double halfWidth =
-                                SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                        descriptor.nominalRadius(), discharge);
-                        double depth =
-                                SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
-                        SkyIslandGeomorphicQualificationClass qualificationClass =
-                                kind == SkyIslandChannelProfileKind.ALLUVIAL
-                                        ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
-                                        : SkyIslandGeomorphicQualificationClass.INCISED;
-                        var evaluation =
-                                SkyIslandHydraulicHeadEnvelopePlanner
-                                        .evaluateForKindWithDiagnostics(
-                                                descriptor,
-                                                kind,
-                                                point,
-                                                halfWidth,
-                                                depth,
-                                                Math.max(0.0, Math.min(1.0, terrain.sample(point))),
-                                                -tangentZ / tangentLength,
-                                                tangentX / tangentLength,
-                                                terrain,
-                                                policy.limits(qualificationClass));
-                        double gap = evaluation.positiveGap();
-                        maximumGap = Math.max(maximumGap, gap);
-                        double candidateLength = arc[arc.length - 1] * stations[stations.length - 1];
-                        double segmentWeight = i == 0
-                                ? 0.5 * stations[1] * candidateLength
-                                : i == candidate.size() - 1
-                                        ? 0.5 * (stations[i] - stations[i - 1]) * candidateLength
-                                        : 0.5 * (stations[i + 1] - stations[i - 1]) * candidateLength;
-                        integratedGap += segmentWeight * gap * gap;
-                        feasible &= evaluation.envelope().feasible(EPSILON);
-                    }
-                    if (!physicallyAdmissible) {
-                        continue;
-                    }
-                    if (feasible) {
+                    if (metrics.feasible()) {
                         feasibleRouteCount++;
                     }
-                    if (integratedGap < minimumIntegratedGap) {
-                        minimumIntegratedGap = integratedGap;
-                        bestMaximumGap = maximumGap;
+                    if (metrics.integratedGap() < minimumIntegratedGap) {
+                        minimumIntegratedGap = metrics.integratedGap();
+                        bestMaximumGap = metrics.maximumGap();
                         bestAmplitude = amplitude;
                         bestSupport = support;
                         bestPeak = peakIndex;
+                    }
+                }
+            }
+        }
+
+        int multiCandidateCount = 0;
+        int multiAdmissibleCount = 0;
+        int multiFeasibleCount = 0;
+        int multiImprovingCount = 0;
+        double multiBestIntegratedGap = Double.POSITIVE_INFINITY;
+        double multiBestMaximumGap = Double.POSITIVE_INFINITY;
+        String multiBestControls = "none";
+        double baselineIntegratedGap = evaluateSmoothCandidate(
+                descriptor, route, basePoints, terrain, interiority, semantic,
+                policy, minimumBendRadius, corridorHalfWidth).integratedGap();
+        int[] controlFractions = {-4, -2, 0, 2, 4};
+        for (int peakIndex : peakIndices) {
+            for (int support : new int[] {8, 12, 16, 24, 32, 48, 64}) {
+                double supportLength = support * nominalStep;
+                if (supportLength
+                        >= 0.75 * Math.min(
+                                arc[peakIndex], arc[arc.length - 1] - arc[peakIndex])) {
+                    continue;
+                }
+                for (int direction : new int[] {-1, 1}) {
+                    int secondPeak = nearestArcIndex(
+                            arc, arc[peakIndex] + direction * 1.5 * supportLength);
+                    if (secondPeak <= 0 || secondPeak >= basePoints.size() - 1
+                            || secondPeak == peakIndex
+                            || supportLength
+                                    >= 0.75 * Math.min(
+                                            arc[secondPeak],
+                                            arc[arc.length - 1] - arc[secondPeak])) {
+                        continue;
+                    }
+                    for (int firstFraction : controlFractions) {
+                        for (int secondFraction : controlFractions) {
+                            double firstAmplitude =
+                                    corridorHalfWidth * firstFraction / 8.0;
+                            double secondAmplitude =
+                                    corridorHalfWidth * secondFraction / 8.0;
+                            List<SkyIslandLocalPosition> candidate = smoothDisplacement(
+                                    basePoints,
+                                    arc,
+                                    peakIndex,
+                                    supportLength,
+                                    firstAmplitude,
+                                    secondPeak,
+                                    supportLength,
+                                    secondAmplitude);
+                            multiCandidateCount++;
+                            SmoothCandidateMetrics metrics = evaluateSmoothCandidate(
+                                    descriptor, route, candidate, terrain, interiority, semantic,
+                                    policy, minimumBendRadius, corridorHalfWidth);
+                            if (!metrics.admissible()) {
+                                continue;
+                            }
+                            multiAdmissibleCount++;
+                            if (metrics.feasible()) {
+                                multiFeasibleCount++;
+                            }
+                            if (metrics.integratedGap() < baselineIntegratedGap - EPSILON) {
+                                multiImprovingCount++;
+                            }
+                            if (metrics.integratedGap() < multiBestIntegratedGap) {
+                                multiBestIntegratedGap = metrics.integratedGap();
+                                multiBestMaximumGap = metrics.maximumGap();
+                                multiBestControls = String.format(
+                                        Locale.ROOT,
+                                        "%d:%d:%.6f|%d:%.6f",
+                                        peakIndex,
+                                        support,
+                                        firstAmplitude,
+                                        secondPeak,
+                                        secondAmplitude);
+                            }
+                        }
                     }
                 }
             }
@@ -455,11 +420,216 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 bestMaximumGap,
                 bestAmplitude,
                 bestSupport,
-                bestPeak);
+                bestPeak)
+                + String.format(
+                        Locale.ROOT,
+                        "F3G_D2_MULTI_ROUTE key=287 candidateCount=%d admissibleCandidates=%d "
+                                + "feasibleRoutes=%d improvingRoutes=%d "
+                                + "bestIntegratedGap=%.9f bestMaximumGap=%.9f "
+                                + "bestControls=%s baselineIntegratedGap=%.9f%n",
+                        multiCandidateCount,
+                        multiAdmissibleCount,
+                        multiFeasibleCount,
+                        multiImprovingCount,
+                        multiBestIntegratedGap,
+                        multiBestMaximumGap,
+                        multiBestControls,
+                        baselineIntegratedGap);
         return new SmoothRouteAudit(
                 candidateCount, admissibleCandidateCount, feasibleRouteCount,
                 minimumIntegratedGap, summary);
     }
+
+    private static double[] cumulativeArc(List<SkyIslandLocalPosition> points) {
+        double[] arc = new double[points.size()];
+        for (int i = 1; i < points.size(); i++) {
+            SkyIslandLocalPosition a = points.get(i - 1);
+            SkyIslandLocalPosition b = points.get(i);
+            arc[i] = arc[i - 1] + Math.hypot(b.x() - a.x(), b.z() - a.z());
+        }
+        return arc;
+    }
+
+    private static int nearestArcIndex(double[] arc, double target) {
+        int bestIndex = 0;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < arc.length; i++) {
+            double distance = Math.abs(arc[i] - target);
+            if (distance < bestDistance) {
+                bestDistance = distance;
+                bestIndex = i;
+            }
+        }
+        return bestIndex;
+    }
+
+    private static List<SkyIslandLocalPosition> smoothDisplacement(
+            List<SkyIslandLocalPosition> basePoints,
+            double[] arc,
+            int firstCenter,
+            double firstSupportLength,
+            double firstAmplitude,
+            int secondCenter,
+            double secondSupportLength,
+            double secondAmplitude) {
+        List<SkyIslandLocalPosition> candidate = new ArrayList<>(basePoints);
+        for (int i = 1; i < basePoints.size() - 1; i++) {
+            SkyIslandLocalPosition previous = basePoints.get(i - 1);
+            SkyIslandLocalPosition next = basePoints.get(i + 1);
+            double tangentX = next.x() - previous.x();
+            double tangentZ = next.z() - previous.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                throw new IllegalStateException("smooth D2 route tangent must be non-zero");
+            }
+            double firstWeight = cosineBumpWeight(
+                    Math.abs(arc[i] - arc[firstCenter]), firstSupportLength);
+            double secondWeight = secondCenter < 0
+                    ? 0.0
+                    : cosineBumpWeight(
+                            Math.abs(arc[i] - arc[secondCenter]), secondSupportLength);
+            double amplitude =
+                    firstAmplitude * firstWeight + secondAmplitude * secondWeight;
+            candidate.set(
+                    i,
+                    new SkyIslandLocalPosition(
+                            basePoints.get(i).x() - tangentZ / tangentLength * amplitude,
+                            basePoints.get(i).z() + tangentX / tangentLength * amplitude));
+        }
+        return candidate;
+    }
+
+    private static double cosineBumpWeight(double distance, double supportLength) {
+        return distance >= supportLength
+                ? 0.0
+                : 0.5 * (1.0 + Math.cos(Math.PI * distance / supportLength));
+    }
+
+    private static SmoothCandidateMetrics evaluateSmoothCandidate(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicReachRoute route,
+            List<SkyIslandLocalPosition> candidate,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            SkyIslandSemanticChannelReach semantic,
+            SkyIslandGeomorphicQualificationPolicy policy,
+            double minimumBendRadius,
+            double corridorHalfWidth) {
+        double[] stations = normalizedStations(candidate);
+        boolean corridorAllowed = true;
+        boolean terrainAllowed = true;
+        boolean interiorityAllowed = true;
+        boolean curvatureAllowed = true;
+        for (int i = 0; i < candidate.size(); i++) {
+            SkyIslandLocalPosition point = candidate.get(i);
+            if (distanceToPolyline(point, semantic.guidancePoints())
+                    > corridorHalfWidth + EPSILON) {
+                corridorAllowed = false;
+            }
+            SkyIslandLocalPosition seedProjection =
+                    projectToPolyline(point, route.route().points());
+            if (terrain.sample(point) - terrain.sample(seedProjection)
+                    > SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
+                            + EPSILON) {
+                terrainAllowed = false;
+            }
+            if (interiority.sample(point)
+                    < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
+                interiorityAllowed = false;
+            }
+            if (i > 0 && i < candidate.size() - 1
+                    && localCurvature(
+                                    candidate.get(i - 1),
+                                    point,
+                                    candidate.get(i + 1))
+                                    * minimumBendRadius
+                            > 1.0 + EPSILON) {
+                curvatureAllowed = false;
+            }
+        }
+        boolean admissible =
+                corridorAllowed && terrainAllowed && interiorityAllowed && curvatureAllowed;
+        if (!admissible) {
+            return new SmoothCandidateMetrics(
+                    corridorAllowed, terrainAllowed, interiorityAllowed, curvatureAllowed,
+                    false, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+        }
+        double candidateLength = 0.0;
+        for (int i = 1; i < candidate.size(); i++) {
+            SkyIslandLocalPosition a = candidate.get(i - 1);
+            SkyIslandLocalPosition b = candidate.get(i);
+            candidateLength += Math.hypot(b.x() - a.x(), b.z() - a.z());
+        }
+        double integratedGap = 0.0;
+        double maximumGap = 0.0;
+        boolean feasible = true;
+        for (int i = 0; i < candidate.size(); i++) {
+            double station = stations[i];
+            SkyIslandChannelProfileKind kind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            semantic.profiles(), station);
+            if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                continue;
+            }
+            SkyIslandLocalPosition point = candidate.get(i);
+            SkyIslandLocalPosition previous = candidate.get(Math.max(0, i - 1));
+            SkyIslandLocalPosition next =
+                    candidate.get(Math.min(candidate.size() - 1, i + 1));
+            double tangentX = next.x() - previous.x();
+            double tangentZ = next.z() - previous.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                return new SmoothCandidateMetrics(
+                        corridorAllowed, terrainAllowed, interiorityAllowed, false,
+                        false, Double.POSITIVE_INFINITY, Double.POSITIVE_INFINITY);
+            }
+            double discharge =
+                    SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
+                            semantic, station);
+            double halfWidth =
+                    SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                            descriptor.nominalRadius(), discharge);
+            double depth =
+                    SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+            SkyIslandGeomorphicQualificationClass qualificationClass =
+                    kind == SkyIslandChannelProfileKind.ALLUVIAL
+                            ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
+                            : SkyIslandGeomorphicQualificationClass.INCISED;
+            var evaluation =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKindWithDiagnostics(
+                            descriptor,
+                            kind,
+                            point,
+                            halfWidth,
+                            depth,
+                            Math.max(0.0, Math.min(1.0, terrain.sample(point))),
+                            -tangentZ / tangentLength,
+                            tangentX / tangentLength,
+                            terrain,
+                            policy.limits(qualificationClass));
+            double gap = evaluation.positiveGap();
+            maximumGap = Math.max(maximumGap, gap);
+            double segmentWeight = i == 0
+                    ? 0.5 * stations[1] * candidateLength
+                    : i == candidate.size() - 1
+                            ? 0.5 * (stations[i] - stations[i - 1]) * candidateLength
+                            : 0.5 * (stations[i + 1] - stations[i - 1]) * candidateLength;
+            integratedGap += segmentWeight * gap * gap;
+            feasible &= evaluation.envelope().feasible(EPSILON);
+        }
+        return new SmoothCandidateMetrics(
+                corridorAllowed, terrainAllowed, interiorityAllowed, curvatureAllowed,
+                feasible, integratedGap, maximumGap);
+    }
+
+    private record SmoothCandidateMetrics(
+            boolean corridorAllowed,
+            boolean terrainAllowed,
+            boolean interiorityAllowed,
+            boolean curvatureAllowed,
+            boolean feasible,
+            double integratedGap,
+            double maximumGap) {}
 
     private record SmoothRouteAudit(
             int candidateCount,
