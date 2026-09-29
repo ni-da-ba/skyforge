@@ -59,3 +59,7 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .comparison-value-inspector thead th{color:#91a0b4;font-weight:600}
 .comparison-value-inspector tbody th{color:#dce6ef;font-weight:600}
 .comparison-value-inspector td{color:#cbd5e1}
+
+.bundled-sample-actions{display:flex;gap:.5rem;flex:0 0 auto}
+.bundled-sample-callout button.secondary{background:#17212c;border-color:#36465b}
+@media(max-width:650px){.bundled-sample-actions{flex-direction:column}.bundled-sample-actions button{width:100%}}
