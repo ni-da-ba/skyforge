@@ -217,7 +217,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 blockSearch.fieldAdmissible(),
                 blockSearch.curvatureAdmissible(),
                 blockSearch.objectiveImproving(),
-                blockSearch.selected());
+                blockSearch.selected(),
+                blockSearch.minimumCandidateMaximumGap(),
+                blockSearch.minimumCandidateIntegratedSquaredGap());
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -787,7 +789,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long fieldAdmissible,
             long curvatureAdmissible,
             long objectiveImproving,
-            long selected) {}
+            long selected,
+            double minimumCandidateMaximumGap,
+            double minimumCandidateIntegratedSquaredGap) {}
 
     record SearchDiagnostics(
             double initialMaximumHeadEnvelopeGap,
