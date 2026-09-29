@@ -7,6 +7,7 @@
   <link rel="stylesheet" href="styles.css">
   <script src="scene.js" defer></script>
   <script src="sample-data.js" defer></script>
+  <script src="trace-viewer.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -144,6 +145,12 @@
           </div>
         </div>
         <p id="source-status" class="small muted" aria-live="polite"></p>
+        <div class="trace-import-controls">
+          <button id="open-sample-trace" type="button" class="secondary">Open sample trace JSON</button>
+          <input id="sample-trace-file" type="file" accept=".json,application/json" hidden>
+          <p class="small muted">Choose a JSON exported from the Inspector with “Download sample trace JSON.” Studio shows that sample and its recorded context only; it does not restore the scene or grant review authority.</p>
+          <p id="sample-trace-import-status" class="small muted" aria-live="polite"></p>
+        </div>
       </section>
 
       <section class="workspace">
@@ -340,6 +347,23 @@
               <button id="download-sample-trace" type="button" class="secondary full-button" aria-describedby="sample-export-status">Download sample trace JSON</button>
               <p id="sample-export-status" class="small muted" aria-live="polite"></p>
             </div>
+          </section>
+
+          <section id="imported-sample-trace" class="imported-sample-trace" aria-live="polite" hidden>
+            <div class="section-heading">
+              <h3>Imported sample trace</h3>
+              <button id="clear-imported-sample-trace" type="button" class="secondary">Close</button>
+            </div>
+            <p id="imported-sample-trace-note" class="small muted"></p>
+            <dl id="imported-sample-trace-fields" class="kv compact"></dl>
+            <details>
+              <summary>Recorded provenance and context</summary>
+              <pre id="imported-sample-trace-context"></pre>
+            </details>
+            <details open>
+              <summary>Selected sample values</summary>
+              <pre id="imported-sample-trace-sample"></pre>
+            </details>
           </section>
 
           <div id="review-warning" class="authority-warning" hidden>

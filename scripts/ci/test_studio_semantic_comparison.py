@@ -216,6 +216,61 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("@media(max-width:850px)", styles)
         self.assertIn("@media(max-width:600px)", styles)
         self.assertIn(":focus-visible", styles)
+
+    def test_selected_sample_trace_import_is_read_only_and_bounded(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        viewer = (STUDIO / "trace-viewer.js").read_text(encoding="utf-8")
+        styles = (STUDIO / "styles.css").read_text(encoding="utf-8")
+
+        for contract in (
+            "SKYFORGE_STUDIO_SELECTED_SAMPLE_TRACE",
+            "MAX_FILE_BYTES = 1_000_000",
+            "function parseSelectedSampleTrace(input)",
+            "sample trace must be a JSON object",
+            "unsupported sample trace format version",
+            "selected_sample must be an object",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, viewer)
+
+        for control in (
+            'id="open-sample-trace"',
+            'id="sample-trace-file"',
+            'id="sample-trace-import-status"',
+            'id="imported-sample-trace"',
+            'id="imported-sample-trace-context"',
+            'id="imported-sample-trace-sample"',
+            'id="clear-imported-sample-trace"',
+            "trace-viewer.js",
+            "exported from the Inspector with",
+        ):
+            with self.subTest(control=control):
+                self.assertIn(control, markup)
+
+        for contract in (
+            "file.size > window.SkyforgeStudioTraceViewer.maximumFileBytes",
+            "window.SkyforgeStudioTraceViewer.parse(await file.text())",
+            '$(\"imported-sample-trace-context\").textContent',
+            '$(\"imported-sample-trace-sample\").textContent',
+            "this imported trace is not independent gate evidence",
+            "Opening a trace does not restore",
+        ):
+            with self.subTest(contract=contract):
+                self.assertIn(contract, app)
+
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_sample_trace_import.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio selected sample trace import behavior", result.stdout)
+
         self.assertIn(".world-brief-view[hidden]{display:none}", styles)
 
         node = shutil.which("node")

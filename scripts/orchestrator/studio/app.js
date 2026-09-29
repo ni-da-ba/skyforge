@@ -664,6 +664,48 @@
     panel.hidden = false;
   }
 
+  function renderImportedSampleTrace(trace, fileName) {
+    const panel = $("imported-sample-trace");
+    const fields = $("imported-sample-trace-fields");
+    while (fields.firstChild) fields.removeChild(fields.firstChild);
+
+    function addField(label, value) {
+      const term = document.createElement("dt");
+      const description = document.createElement("dd");
+      term.textContent = label;
+      description.textContent = value === null || value === undefined || value === ""
+        ? "Not recorded"
+        : String(value);
+      fields.append(term, description);
+    }
+
+    addField("Trace file", fileName);
+    addField("Document type", trace.document_type);
+    addField("Format version", trace.format_version);
+    addField("Scene type", trace.scene_kind);
+    addField("Recorded authority",
+      trace.review_authority
+        ? "Marked artifact-bound in the source record; this imported trace is not independent gate evidence."
+        : "Unbound local diagnostic.");
+    addField("Selected position",
+      Array.isArray(trace.selected_sample.position)
+        ? JSON.stringify(trace.selected_sample.position)
+        : null);
+
+    $("imported-sample-trace-note").textContent =
+      "Read-only record of one selected sample. Opening a trace does not restore its source artifacts or establish review authority.";
+    $("imported-sample-trace-context").textContent = JSON.stringify({
+      sources: trace.sources,
+      coordinate_system: trace.coordinate_system,
+      provider: trace.provider,
+      overlay: trace.overlay,
+      comparison: trace.comparison,
+    }, null, 2);
+    $("imported-sample-trace-sample").textContent =
+      JSON.stringify(trace.selected_sample, null, 2);
+    panel.hidden = false;
+  }
+
   function downloadSelectedSampleTrace(sample) {
     if (!scene || !sample) return;
     const comparison = hydrologyComparison ? {
@@ -2001,6 +2043,34 @@
   });
 
   $("clear-hydrology-comparison").addEventListener("click", clearHydrologyComparison);
+  $("open-sample-trace").addEventListener("click", () => {
+    $("sample-trace-file").click();
+  });
+  $("sample-trace-file").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const status = $("sample-trace-import-status");
+    try {
+      if (file.size > window.SkyforgeStudioTraceViewer.maximumFileBytes) {
+        throw new Error("sample trace files must be smaller than 1 MB");
+      }
+      const trace = window.SkyforgeStudioTraceViewer.parse(await file.text());
+      renderImportedSampleTrace(trace, file.name);
+      status.textContent =
+        "Opened one read-only sample trace. Its source authority remains recorded data only.";
+    } catch (error) {
+      status.textContent = "Could not open sample trace: " + String(error.message || error);
+    } finally {
+      event.target.value = "";
+    }
+  });
+  $("clear-imported-sample-trace").addEventListener("click", () => {
+    $("imported-sample-trace").hidden = true;
+    $("imported-sample-trace-fields").replaceChildren();
+    $("imported-sample-trace-context").textContent = "";
+    $("imported-sample-trace-sample").textContent = "";
+    $("sample-trace-import-status").textContent = "Closed the sample trace record.";
+  });
   $("download-sample-trace").addEventListener("click", () => {
     try {
       downloadSelectedSampleTrace(selected);
