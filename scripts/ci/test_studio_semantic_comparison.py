@@ -119,6 +119,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("@media(max-width:850px)", styles)
         self.assertIn("@media(max-width:600px)", styles)
         self.assertIn(":focus-visible", styles)
+        self.assertIn(".world-brief-view[hidden]{display:none}", styles)
 
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
