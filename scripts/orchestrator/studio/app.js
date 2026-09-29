@@ -443,9 +443,24 @@
   }
 
   function updateHydrologyControlVisibility() {
-    $("hydrology-visual-controls").hidden = !overlay;
+    const visible = overlay !== null;
+    $("hydrology-visual-controls").hidden = !visible;
     $("terrain-surface-control").hidden =
-      !overlay || $("terrain-view").value !== "top";
+      !visible || $("terrain-view").value !== "top";
+    $("hydrology-legend").hidden = !visible;
+    $("legend-channel").hidden = !visible;
+    $("legend-channel-width").hidden =
+      !visible || !$("show-channel-width").checked;
+    $("legend-water-intent").hidden =
+      !visible || !$("show-water-intent").checked;
+    $("legend-flow").hidden =
+      !visible || !$("show-flow-vectors").checked;
+    $("legend-response").hidden =
+      !visible || !$("show-hydrology-response").checked;
+    $("legend-potential").hidden =
+      !visible || $("hydrology-potential").value === "none";
+    $("legend-potential-label").textContent =
+      $("hydrology-potential").selectedOptions[0]?.textContent || "Selected cause field";
   }
 
   function potentialColor(value) {
