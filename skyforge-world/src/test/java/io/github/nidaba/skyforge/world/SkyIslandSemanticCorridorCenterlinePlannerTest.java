@@ -65,6 +65,65 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
         }
     }
 
+    @Test
+    void d2HeadGapObjectiveFindsLateralCandidateInsideSemanticCorridor() {
+        List<SkyIslandLocalPosition> points = List.of(
+                new SkyIslandLocalPosition(0.0, 1.0),
+                new SkyIslandLocalPosition(2.0, 1.0),
+                new SkyIslandLocalPosition(4.0, 1.0),
+                new SkyIslandLocalPosition(6.0, 1.0),
+                new SkyIslandLocalPosition(8.0, 1.0));
+        SkyIslandGeomorphicCandidateRoute route =
+                new SkyIslandGeomorphicCandidateRoute(
+                        points, 1.0, 8.0, 2.0, 0.0, 0.0, 0.0, 0.0);
+        List<SkyIslandLocalPosition> guidance = List.of(points.getFirst(), points.getLast());
+        SkyIslandSemanticField terrain = ignored -> 0.5;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        SkyIslandContinuousChannelCenterline seed =
+                SkyIslandContinuousChannelCenterlinePlanner.refine(
+                        route, terrain, interiority, 2.0);
+
+        SkyIslandContinuousChannelCenterline first =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route,
+                        guidance,
+                        terrain,
+                        interiority,
+                        2.0,
+                        2.0,
+                        0.0,
+                        ignored -> 1.0,
+                        (position, station, tangentX, tangentZ, halfWidth) ->
+                                Math.abs(position.z()));
+        SkyIslandContinuousChannelCenterline second =
+                SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route,
+                        guidance,
+                        terrain,
+                        interiority,
+                        2.0,
+                        2.0,
+                        0.0,
+                        ignored -> 1.0,
+                        (position, station, tangentX, tangentZ, halfWidth) ->
+                                Math.abs(position.z()));
+
+        assertEquals(first, second);
+        assertTrue(meanInteriorAbsoluteZ(first.points()) < meanInteriorAbsoluteZ(seed.points()));
+        assertEquals(route.points().getFirst(), first.points().getFirst());
+        assertEquals(route.points().getLast(), first.points().getLast());
+        for (SkyIslandLocalPosition point : first.points()) {
+            assertTrue(Math.abs(point.z() - 1.0) <= 2.0 + EPSILON);
+        }
+    }
+
+    private static double meanInteriorAbsoluteZ(List<SkyIslandLocalPosition> points) {
+        return points.subList(1, points.size() - 1).stream()
+                .mapToDouble(point -> Math.abs(point.z()))
+                .average()
+                .orElseThrow();
+    }
+
     private static SkyIslandLocalPosition projectToPolyline(
             SkyIslandLocalPosition point,
             List<SkyIslandLocalPosition> polyline) {
