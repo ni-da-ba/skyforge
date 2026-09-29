@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 from pathlib import Path
 
@@ -125,19 +126,19 @@ STUDIO_APP_FILES = (
     Path('index.html'),
     Path('app.js'),
     Path('scene.js'),
+    Path('sample-data.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
 STUDIO_README = """Skyforge Studio — local S2 review
 
 1. Open index.html in a browser.
-2. Choose “Terrain + hydrology pair”.
-3. In the sample folder, select both JSON files together. On Windows, hold Ctrl while
-   selecting the second file, then choose Open.
-4. Studio will show the specimen with an UNBOUND LOCAL DIAGNOSTIC warning.
+2. Click “Open included S2 specimen”.
 
-The local diagnostic needs no token or server. It is for inspecting authored semantics;
-it does not count as formal visual approval or change artifact authority.
+Studio opens the exact packaged terrain + hydrology pair in one step. The view is an
+UNBOUND LOCAL DIAGNOSTIC: no token is needed, and it does not count as formal visual
+approval or change artifact authority. The original JSON files remain in sample/ for
+inspection or manual import.
 """
 
 
@@ -172,6 +173,36 @@ def stage_studio_app(root: Path, destination: Path) -> tuple[int, int]:
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source, target)
         total_bytes += source.stat().st_size
+
+    terrain_path = sample_root / 'terrain-semantic-volume.json'
+    hydrology_path = sample_root / 'hydrology-semantic-layer.json'
+    try:
+        terrain_artifact = json.loads(terrain_path.read_text(encoding='utf-8'))
+        hydrology_artifact = json.loads(hydrology_path.read_text(encoding='utf-8'))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise BundleError(f'invalid Studio S2 sample JSON: {exc}') from exc
+
+    expected_kinds = (
+        (terrain_artifact, 'SKYFORGE_TERRAIN_SEMANTIC_VOLUME'),
+        (hydrology_artifact, 'SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER'),
+    )
+    for artifact, expected_kind in expected_kinds:
+        if not isinstance(artifact, dict) or artifact.get('artifact_kind') != expected_kind:
+            raise BundleError(
+                f'invalid Studio S2 sample: expected artifact_kind {expected_kind}'
+            )
+
+    sample_data = app_root / 'sample-data.js'
+    sample_data.write_text(
+        'window.SKYFORGE_STUDIO_SAMPLE = ' + json.dumps(
+            {'terrain': terrain_artifact, 'hydrology': hydrology_artifact},
+            ensure_ascii=True,
+            separators=(',', ':'),
+        ) + ';\\n',
+        encoding='utf-8',
+    )
+    total_bytes -= (studio_source / 'sample-data.js').stat().st_size
+    total_bytes += sample_data.stat().st_size
 
     readme = app_root / 'README.txt'
     readme.write_text(STUDIO_README, encoding='utf-8')
