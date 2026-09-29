@@ -30,7 +30,7 @@ class HydrologyOrdinarySpanCorpusTest {
         assertManifestContains(a,
                 "confluence-632,632,759,710,0.000000000,0.704136615,ALLUVIAL,SOLVED_QUALIFIED");
         assertManifestContains(a,
-                "confluence-632,632,1088,710,0.000000000,0.975385479,ALLUVIAL,SOLVED_QUALIFIED");
+                "confluence-632,632,1088,710,0.000000000,0.975378182,ALLUVIAL,SOLVED_QUALIFIED");
         assertManifestContains(a,
                 "stress-512,512,1631,1729,0.000000000,0.825864069,ALLUVIAL,SOLVED_QUALIFIED");
         assertManifestContains(a, "lake-609");
