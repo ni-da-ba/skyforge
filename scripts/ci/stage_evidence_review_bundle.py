@@ -130,6 +130,7 @@ STUDIO_APP_FILES = (
     Path('trace-viewer.js'),
     Path('comparison-report.js'),
     Path('comparison-report-reader.js'),
+    Path('regional-inventory.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
