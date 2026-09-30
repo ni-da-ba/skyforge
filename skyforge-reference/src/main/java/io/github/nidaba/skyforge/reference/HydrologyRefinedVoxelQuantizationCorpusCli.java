@@ -129,7 +129,7 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                         + "maxRecoveryWorld,meanRecoveryWorld,minUndercutResidualWorld,maxUndercutResidualWorld\n"
                         + String.format(
                                 Locale.ROOT,
-                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f%n",
+                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f%n",
                                 refined.refinedReachCount(),
                                 refined.reaches().size(),
                                 refined.postRefinementQualifications().stream()
