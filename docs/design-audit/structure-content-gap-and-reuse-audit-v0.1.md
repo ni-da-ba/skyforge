@@ -1,7 +1,7 @@
 # Structure Content Gap and Reuse Audit v0.1
 
 **Snapshot:** 2026-09-30  
-**Status:** Provisional structure-content closure. This document preserves the gap-to-asset decisions before integrated runtime/visual testing.
+**Status:** Gap audit complete. Superseded for stack-level policy by [Structure Content Stack v0.1](structure-content-stack-v0.1.md); retained as detailed discovery/asset evidence.
 
 ## Objective
 
