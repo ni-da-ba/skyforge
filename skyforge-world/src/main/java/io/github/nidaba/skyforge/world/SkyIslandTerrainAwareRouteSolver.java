@@ -60,6 +60,29 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain,
+                interiority,
+                guidance,
+                planningSpacing,
+                corridorHalfWidth,
+                startAnchor,
+                endAnchor,
+                divisionsPerPlanningCell,
+                SearchWeights.DEFAULT);
+    }
+
+    static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            SearchWeights weights) {
+        Objects.requireNonNull(weights, "weights");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -133,11 +156,11 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 valleyAdvantage[index] = valley;
                 guidanceDeviation[index] = deviation;
                 localCost[index] =
-                        RIDGE_WEIGHT * ridge
-                                + TERRAIN_LEVEL_WEIGHT * elevation
-                                + GUIDANCE_DEVIATION_WEIGHT
+                        weights.ridgeWeight() * ridge
+                                + weights.terrainLevelWeight() * elevation
+                                + weights.guidanceDeviationWeight()
                                         * square(deviation / corridorHalfWidth)
-                                + LOW_INTERIORITY_WEIGHT * exteriorPenalty;
+                                + weights.lowInteriorityWeight() * exteriorPenalty;
                 valid[index] = true;
                 if (inStart) {
                     start[index] = true;
@@ -210,7 +233,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                                     + 0.5
                                             * (localCost[current.index()] + localCost[next])
                                             * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
+                                    + weights.ascentWeight() * ascent;
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
@@ -377,6 +400,31 @@ public final class SkyIslandTerrainAwareRouteSolver {
 
     private static double square(double value) {
         return value * value;
+    }
+
+    record SearchWeights(
+            double ascentWeight,
+            double ridgeWeight,
+            double terrainLevelWeight,
+            double guidanceDeviationWeight,
+            double lowInteriorityWeight) {
+        private static final SearchWeights DEFAULT =
+                new SearchWeights(ASCENT_WEIGHT, RIDGE_WEIGHT, TERRAIN_LEVEL_WEIGHT,
+                        GUIDANCE_DEVIATION_WEIGHT, LOW_INTERIORITY_WEIGHT);
+
+        SearchWeights {
+            requireWeight(ascentWeight, "ascentWeight");
+            requireWeight(ridgeWeight, "ridgeWeight");
+            requireWeight(terrainLevelWeight, "terrainLevelWeight");
+            requireWeight(guidanceDeviationWeight, "guidanceDeviationWeight");
+            requireWeight(lowInteriorityWeight, "lowInteriorityWeight");
+        }
+
+        private static void requireWeight(double value, String name) {
+            if (!Double.isFinite(value) || value <= 0.0) {
+                throw new IllegalArgumentException(name + " must be finite and positive");
+            }
+        }
     }
 
     private record OpenNode(int index, double cost, double estimatedTotal) {}
