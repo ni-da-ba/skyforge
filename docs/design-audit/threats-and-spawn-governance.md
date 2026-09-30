@@ -301,6 +301,12 @@ Technically controllable, but currently unnecessary because Skyforge already has
 
 Its broad-danger-everywhere premise conflicts with the intended sparse, semantically localized threat topology.
 
+### Ice & Fire CE — strong provisional mythic/deep-sky dependency
+
+Use broadly where its existing creatures and structures fill real Skyforge roles without forcing their stock geography or progression tree. Leading retained roles include dragons as legendary territorial aerial predators, Stymphalian Birds as hostile aerial flocks, ghosts as underside/ruin threats, hippogryphs/amphitheres as mythic aerial fauna, and sea serpents as future maritime threats. Selected roosts/lairs/structures may be admitted semantically and can serve as threat signaling. Dragonsteel, Dragon Forge, mounts/taming, loot, and other progression surfaces remain independently auditable.
+
+See [Deep-Sky and Mythic Threat Stack v0.1](deep-sky-threat-stack-v0.1.md) for the provisional aerial-threat vocabulary and aircraft-integration contract.
+
 ### Cataclysm — later audit only
 
 Large and impressive, but adds another major combat/progression ecosystem. Reconsider only if a real endgame encounter gap remains.
