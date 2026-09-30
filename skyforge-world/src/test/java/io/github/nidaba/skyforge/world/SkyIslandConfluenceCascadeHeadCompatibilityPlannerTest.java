@@ -22,7 +22,11 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         assertEquals(first.outcomes().size(), second.outcomes().size());
         assertTrue(first.outcomes().stream().anyMatch(outcome ->
                 outcome.confluence().transitionSite().nodeCellIndex() == 710));
-        assertTrue(first.solvedCount() > 0, "the eligible confluence/CASCADE overlap should solve jointly");
+        assertTrue(first.outcomes().stream().anyMatch(outcome ->
+                        outcome.confluence().transitionSite().nodeCellIndex() == 710
+                                && outcome.status()
+                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
+                "the eligible confluence-710/CASCADE overlap should solve jointly");
         assertTrue(first.outcomes().stream().noneMatch(outcome ->
                 outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
 
