@@ -9,6 +9,7 @@
   <script src="sample-data.js" defer></script>
   <script src="trace-viewer.js" defer></script>
   <script src="comparison-report.js" defer></script>
+  <script src="comparison-report-reader.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -154,6 +155,12 @@
           <input id="sample-trace-file" type="file" accept=".json,application/json" hidden>
           <p class="small muted">Choose a JSON exported from the Inspector with “Download sample trace JSON.” Studio shows that sample and its recorded context only; it does not restore the scene or grant review authority.</p>
           <p id="sample-trace-import-status" class="small muted" aria-live="polite"></p>
+        </div>
+        <div class="comparison-report-import-controls">
+          <button id="open-comparison-report" type="button" class="secondary">Open comparison report JSON</button>
+          <input id="comparison-report-file" type="file" accept=".json,application/json" hidden>
+          <p class="small muted">Reopen a saved comparison to inspect its recorded values. Imported provenance is not verified.</p>
+          <p id="comparison-report-import-status" class="small muted" aria-live="polite"></p>
         </div>
       </section>
 
@@ -370,6 +377,37 @@
               <summary>Selected sample values</summary>
               <pre id="imported-sample-trace-sample"></pre>
             </details>
+          </section>
+
+          <section id="imported-comparison-report" class="imported-comparison-report" aria-live="polite" hidden>
+            <div class="section-heading">
+              <h3>Saved hydrology comparison</h3>
+              <button id="close-comparison-report" type="button" class="secondary">Close</button>
+            </div>
+            <p id="imported-comparison-report-note" class="small muted"></p>
+            <dl id="imported-comparison-report-summary" class="kv compact"></dl>
+            <details>
+              <summary>Recorded source and binding data</summary>
+              <pre id="imported-comparison-report-metadata"></pre>
+            </details>
+            <label for="comparison-report-sample-set">Recorded samples</label>
+            <select id="comparison-report-sample-set">
+              <option value="causes">Cause-grid samples</option>
+              <option value="projected-fields">Projected-field samples</option>
+            </select>
+            <p id="comparison-report-page-status" class="small muted" aria-live="polite"></p>
+            <div class="comparison-report-table-wrap">
+              <table>
+                <thead>
+                  <tr><th scope="col">Grid</th><th scope="col">Coverage</th><th scope="col">Reference</th><th scope="col">Candidate</th><th scope="col">Recorded changes</th></tr>
+                </thead>
+                <tbody id="comparison-report-samples"></tbody>
+              </table>
+            </div>
+            <div class="comparison-report-page-actions">
+              <button id="comparison-report-previous" type="button" class="secondary">Previous 50</button>
+              <button id="comparison-report-next" type="button" class="secondary">Next 50</button>
+            </div>
           </section>
 
           <div id="review-warning" class="authority-warning" hidden>
