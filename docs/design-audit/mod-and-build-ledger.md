@@ -54,14 +54,20 @@ This document consolidates the current candidate stack from the content-integrat
 - CBC Neo Warfare promoted to strong provisional extension for medium/rotary cannon, specialist ammunition, launchers, armor, and ERA
 - CBC Terminal Ballistics is the leading penetration/armor-interaction extension pending cross-mod runtime acceptance
 - Drive By Wire, Tweaked Controllers, and Create Crafts & Additions Sable compatibility are strong provisional onboard-control/electrical integration components
-- Create Diesel Generators probable; strategic petroleum/refining candidate
+- Create Diesel Generators promoted to strong keep for Skyforge-owned petroleum geography, refining, and compact dispatchable mechanical power
+- SJE / Aero Propulsion promoted to strong provisional keep as the canonical advanced air-breathing engine family
+- Create Propulsion: Simulated promoted to strong provisional keep as the canonical reaction/vector/solid/ion propulsion family; exact fuel/oxidizer/ion balance remains deferred
+- Create Linear Bearing promoted to strong provisional physical linear-actuation candidate for Sable/Aeronautics machinery
 - Create: Big Cannons retained; leading heavy-industry/artillery material and manufacturing spine
 - Create: Metallurgy provisional foundry-mechanics A/B only; Wolframite/Tungsten/Obdurium are not current Skyforge progression
-- Create Crafts & Additions currently leads the single-electricity-ecosystem slot; Silver geology excluded and Electrum retained only if its high-current role proves useful
+- Create Crafts & Additions retained as the preferred single-electricity ecosystem; Silver geology excluded and Electrum retained only if integrated high-current demand proves useful
+- Create: New Age reserved specifically as a future nuclear/advanced-heat candidate, not as a second electrical authority
 - late-game logistics automation candidate
 - Sophisticated Storage/Backpacks only if freight gameplay remains meaningful; reject warehouse-scale early backpack configurations, recursive portable storage, or early fluid capacity that erases freight roles
 
 See [Engineered Weapons Systems Stack v0.1](engineered-weapons-systems-stack-v0.1.md) for the current provisional combat-system authority map, recipe-normalization doctrine, and compatibility backlog.
+
+See [General Engineering Power Stack v0.1](general-engineering-power-stack-v0.1.md) for the provisional mechanical/electrical/chemical/thermal authority model and deferred balance/compatibility work.
 
 ### Ordinary life/building
 - Supplementaries strong candidate
