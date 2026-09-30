@@ -361,38 +361,42 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             maximumBudget = budget;
             List<SkyIslandLocalPosition> reference = best.points();
             double[] referenceStations = stations(reference);
-            double[] coefficients = new double[modeCount];
+            double[] coefficients = new double[2 * modeCount];
             for (int round = 0; round < 8; round++) {
                 double step = budget * Math.scalb(1.0, -round);
-                for (int mode = 0; mode < modeCount; mode++) {
-                    for (int direction : new int[] {-1, 1}) {
-                        double[] trialCoefficients = coefficients.clone();
-                        trialCoefficients[mode] += direction * step;
-                        double totalAmplitude = 0.0;
-                        for (double coefficient : trialCoefficients) {
-                            totalAmplitude += Math.abs(coefficient);
-                        }
-                        if (totalAmplitude > budget + EPSILON) {
-                            continue;
-                        }
-                        proposals++;
-                        List<SkyIslandLocalPosition> candidatePoints =
-                                globalModeDisplacement(
-                                        reference, referenceStations, trialCoefficients);
-                        if (!geometryAdmissible(
-                                candidatePoints, searchRoute, semanticGuidance,
-                                terrain, interiority, semanticCorridorHalfWidth,
-                                minimumBendRadius)) {
-                            continue;
-                        }
-                        admissible++;
-                        Candidate candidate = evaluate(
-                                searchRoute, candidatePoints, headEnvelopeGap,
-                                bankfullHalfWidthAtStation);
-                        if (candidate.compareTo(best, minimumBendRadius) < 0) {
-                            best = candidate;
-                            coefficients = trialCoefficients;
-                            acceptedMoves++;
+                for (int axis = 0; axis < 2; axis++) {
+                    for (int mode = 0; mode < modeCount; mode++) {
+                        int coefficientIndex = axis * modeCount + mode;
+                        for (int direction : new int[] {-1, 1}) {
+                            double[] trialCoefficients = coefficients.clone();
+                            trialCoefficients[coefficientIndex] += direction * step;
+                            double totalAmplitude = 0.0;
+                            for (double coefficient : trialCoefficients) {
+                                totalAmplitude += Math.abs(coefficient);
+                            }
+                            if (totalAmplitude > budget + EPSILON) {
+                                continue;
+                            }
+                            proposals++;
+                            List<SkyIslandLocalPosition> candidatePoints =
+                                    globalModeDisplacement(
+                                            reference, referenceStations, trialCoefficients,
+                                            modeCount);
+                            if (!geometryAdmissible(
+                                    candidatePoints, searchRoute, semanticGuidance,
+                                    terrain, interiority, semanticCorridorHalfWidth,
+                                    minimumBendRadius)) {
+                                continue;
+                            }
+                            admissible++;
+                            Candidate candidate = evaluate(
+                                    searchRoute, candidatePoints, headEnvelopeGap,
+                                    bankfullHalfWidthAtStation);
+                            if (candidate.compareTo(best, minimumBendRadius) < 0) {
+                                best = candidate;
+                                coefficients = trialCoefficients;
+                                acceptedMoves++;
+                            }
                         }
                     }
                 }
@@ -413,20 +417,25 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     private static List<SkyIslandLocalPosition> globalModeDisplacement(
             List<SkyIslandLocalPosition> reference,
             double[] stations,
-            double[] coefficients) {
+            double[] coefficients,
+            int modeCount) {
         List<SkyIslandLocalPosition> result = new ArrayList<>(reference.size());
         for (int i = 0; i < reference.size(); i++) {
-            double displacement = 0.0;
-            for (int mode = 0; mode < coefficients.length; mode++) {
-                displacement += coefficients[mode]
-                        * Math.sin((mode + 1.0) * Math.PI * stations[i]);
+            double normalDisplacement = 0.0;
+            double tangentDisplacement = 0.0;
+            for (int mode = 0; mode < modeCount; mode++) {
+                double basis = Math.sin((mode + 1.0) * Math.PI * stations[i]);
+                normalDisplacement += coefficients[mode] * basis;
+                tangentDisplacement += coefficients[modeCount + mode] * basis;
             }
             Vector tangent = tangentAt(reference, i);
             Vector normal = new Vector(-tangent.z(), tangent.x());
             SkyIslandLocalPosition point = reference.get(i);
             result.add(new SkyIslandLocalPosition(
-                    point.x() + displacement * normal.x(),
-                    point.z() + displacement * normal.z()));
+                    point.x() + normalDisplacement * normal.x()
+                            + tangentDisplacement * tangent.x(),
+                    point.z() + normalDisplacement * normal.z()
+                            + tangentDisplacement * tangent.z()));
         }
         result.set(0, reference.getFirst());
         result.set(result.size() - 1, reference.getLast());
