@@ -270,7 +270,37 @@
     node.className = error ? "small error" : "small muted";
   }
 
+  async function loadIncludedEvidence() {
+    const base = "sample/regional/";
+    const [inventoryResponse, rankingResponse] = await Promise.all([
+      fetch(base + "auth-0094-inventory.csv", { cache: "no-store" }),
+      fetch(base + "auth-0094-ranking.csv", { cache: "no-store" })
+    ]);
+    if (!inventoryResponse.ok || !rankingResponse.ok) {
+      fail("The included evidence is available in the published Studio preview.");
+    }
+    const [inventoryText, rankingText] = await Promise.all([
+      inventoryResponse.text(),
+      rankingResponse.text()
+    ]);
+    const inventory = parseInventoryCsv(inventoryText);
+    const ranking = parseRankingCsv(rankingText, inventory);
+    current = {
+      inventory,
+      inventoryName: "Included Actions evidence (inventory.csv)",
+      ranking,
+      rankingName: "Included Actions evidence (ranking.csv)"
+    };
+    setStatus("Loaded the included AUTH-0094 evidence files as unbound diagnostics.", false);
+    render();
+  }
+
   function initialize() {
+    $("regional-inventory-open-sample").addEventListener("click", () => {
+      loadIncludedEvidence().catch((error) => {
+        setStatus("Could not open the included evidence: " + String(error.message || error), true);
+      });
+    });
     $("regional-inventory-import").addEventListener("click", () => $("regional-inventory-file").click());
     $("regional-ranking-import").addEventListener("click", () => $("regional-ranking-file").click());
     $("regional-inventory-clear").addEventListener("click", () => {
