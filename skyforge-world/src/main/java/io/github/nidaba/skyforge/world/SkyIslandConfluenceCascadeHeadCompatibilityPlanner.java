@@ -63,13 +63,16 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 geometry.confluences()) {
             for (SkyIslandHydraulicTransitionLegGeometry leg : confluence.legs()) {
                 for (SkyIslandHydraulicCascadeGeometryCandidate cascade : geometry.cascades()) {
-                    if (matchesBoundary(cascade, leg)) {
+                    SkyIslandHydraulicReachSkeleton reach =
+                            requireReach(reaches, leg.nodeBoundary());
+                    int profileCount = reach.geomorphicRoute().semanticReach().profiles().size();
+                    if (matchesBoundary(cascade, leg, profileCount)) {
                         outcomes.add(solve(
                                 descriptor,
                                 confluence,
                                 cascade,
                                 leg,
-                                requireReach(reaches, leg.nodeBoundary()),
+                                reach,
                                 cells,
                                 terrain,
                                 policy));
@@ -85,35 +88,6 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 .thenComparingInt(value -> value.cascade().transitionSite().firstProfileIndex()));
         return new SkyIslandConfluenceCascadeHeadCompatibilityPlan(
                 descriptor, geometry, outcomes);
-    }
-
-    private static boolean matchesBoundary(
-            SkyIslandHydraulicCascadeGeometryCandidate cascade,
-            SkyIslandHydraulicTransitionLegGeometry leg) {
-        SkyIslandHydraulicCascadeTransitionSite site = cascade.transitionSite();
-        SkyIslandHydraulicTransitionBoundaryState node = leg.nodeBoundary();
-        if (site.reachStartCellIndex() != node.reachStartCellIndex()
-                || site.reachEndCellIndex() != node.reachEndCellIndex()) {
-            return false;
-        }
-        boolean startsAtNode = site.firstProfileIndex() == 0
-                && site.lastProfileIndexExclusive() > 0
-                && leg.nodeBoundary().role() == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
-                && sameLocation(site.upstreamBoundary(), node);
-        boolean endsAtNode = site.lastProfileIndexExclusive()
-                        == site.lastProfileIndexExclusive() /* replaced after skeleton lookup */
-                && leg.nodeBoundary().role() == SkyIslandHydraulicTransitionBoundaryRole.INCOMING
-                && sameLocation(site.downstreamBoundary(), node);
-        return startsAtNode || endsAtNode;
-    }
-
-    private static boolean sameLocation(
-            SkyIslandHydraulicTransitionBoundaryState first,
-            SkyIslandHydraulicTransitionBoundaryState second) {
-        return Math.abs(first.stationFraction() - second.stationFraction()) <= EPSILON
-                && Math.abs(first.arcLength() - second.arcLength()) <= EPSILON
-                && Math.abs(first.position().x() - second.position().x()) <= EPSILON
-                && Math.abs(first.position().z() - second.position().z()) <= EPSILON;
     }
 
     private static SkyIslandConfluenceCascadeHeadCompatibilityOutcome solve(
