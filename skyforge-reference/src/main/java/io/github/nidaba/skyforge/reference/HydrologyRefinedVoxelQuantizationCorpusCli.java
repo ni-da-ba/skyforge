@@ -90,6 +90,11 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         int shallower = 0;
         int unchanged = 0;
         int deeper = 0;
+        double minimumResidual = requantized.authorizedColumns().stream()
+                .mapToDouble(SkyIslandFluvialVoxelColumn::undercutResidualWorld)
+                .min()
+                .orElse(0.0);
+        double maximumResidual = requantized.maximumUndercutResidualWorld();
         double maxRecoveryWorld = 0.0;
         double meanRecoveryWorld = 0.0;
         for (SkyIslandFluvialVoxelColumn column : voxel.authorizedColumns()) {
@@ -121,10 +126,10 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                         + "authorizedColumns,requantizedColumns,baselineRemovedBlocks,requantizedRemovedBlocks,"
                         + "quantizedShallowerColumns,quantizedUnchangedColumns,quantizedDeeperColumns,"
                         + "continuousShallowerColumns,continuousUnchangedColumns,continuousDeeperColumns,"
-                        + "maxRecoveryWorld,meanRecoveryWorld\n"
+                        + "maxRecoveryWorld,meanRecoveryWorld,minUndercutResidualWorld,maxUndercutResidualWorld\n"
                         + String.format(
                                 Locale.ROOT,
-                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
+                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f,%.9f,%.9f%n",
                                 refined.refinedReachCount(),
                                 refined.reaches().size(),
                                 refined.postRefinementQualifications().stream()
@@ -141,7 +146,9 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                                 unchanged,
                                 deeper,
                                 maxRecoveryWorld,
-                                meanRecoveryWorld);
+                                meanRecoveryWorld,
+                                minimumResidual,
+                                maximumResidual);
 
         StringBuilder reaches = new StringBuilder(
                 "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential\n");
