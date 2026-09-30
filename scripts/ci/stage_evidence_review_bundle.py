@@ -127,6 +127,7 @@ STUDIO_APP_FILES = (
     Path('app.js'),
     Path('scene.js'),
     Path('sample-data.js'),
+    Path('comparison-report.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
