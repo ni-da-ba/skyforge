@@ -163,4 +163,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Selected-mod resource worldgen authority audit v0.1](selected-mod-resource-worldgen-authority-audit-v0.1.md)
 - [Engineered weapons systems stack v0.1](engineered-weapons-systems-stack-v0.1.md)
 - [General engineering power stack v0.1](general-engineering-power-stack-v0.1.md)
+- [General locomotion and physical actuation stack v0.1](general-locomotion-stack-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
