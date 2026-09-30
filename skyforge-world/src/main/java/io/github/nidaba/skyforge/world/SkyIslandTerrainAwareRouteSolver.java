@@ -111,7 +111,6 @@ public final class SkyIslandTerrainAwareRouteSolver {
         double[] localRidge = new double[count];
         double[] valleyAdvantage = new double[count];
         double[] guidanceDeviation = new double[count];
-        double[] guidanceStation = new double[count];
         double[] routePenaltyCost = new double[count];
         double[] localCost = new double[count];
         boolean[] valid = new boolean[count];
@@ -154,7 +153,6 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 localRidge[index] = ridge;
                 valleyAdvantage[index] = valley;
                 guidanceDeviation[index] = deviation;
-                guidanceStation[index] = projection.station();
                 routePenaltyCost[index] = localRoutePenalty.cost(
                         position,
                         projection.tangentX(),
