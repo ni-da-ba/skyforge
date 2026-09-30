@@ -265,6 +265,11 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
                 maximumDisplacement > 1.0 + EPSILON,
                 "the authored corridor permits useful whole-route moves beyond one sample interval");
         assertTrue(maximumDisplacement <= 4.0 + EPSILON);
+        assertEquals(3, outcome.diagnostics().globalModeSearchStages());
+        assertEquals(
+                4.0,
+                outcome.diagnostics().globalModeSearchMaximumBudget(),
+                EPSILON);
         assertTrue(
                 outcome.diagnostics().finalMaximumHeadEnvelopeGap()
                         < outcome.diagnostics().initialMaximumHeadEnvelopeGap());
