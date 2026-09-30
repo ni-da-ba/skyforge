@@ -307,10 +307,31 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("PASS Studio local world brief document behavior", result.stdout)
 
+    def test_studio_hydrology_comparison_report_contract(self):
+        app = (STUDIO / "app.js").read_text(encoding="utf-8")
+        markup = (STUDIO / "index.html").read_text(encoding="utf-8")
+        self.assertIn("comparison-report.js", markup)
+        self.assertIn("function downloadHydrologyComparisonReport()", app)
+        self.assertIn("human-review evidence", app)
+        self.assertIn('id="download-comparison-report"', markup)
+        self.assertIn('id="comparison-report-status"', markup)
+
+        node = shutil.which("node")
+        self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for Studio tests")
+        script = ROOT / "scripts" / "ci" / "test_studio_comparison_report.js"
+        result = subprocess.run(
+            [node, str(script)],
+            check=False,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("PASS Studio hydrology comparison report behavior", result.stdout)
+
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for syntax checks")
-        for path in (STUDIO / "app.js", STUDIO / "scene.js"):
+        for path in (STUDIO / "app.js", STUDIO / "scene.js", STUDIO / "comparison-report.js"):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 check=False,

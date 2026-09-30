@@ -1038,6 +1038,7 @@
     $("comparison-mode").disabled = hydrologyComparison === null;
     $("show-hydrology-delta").disabled = hydrologyComparison === null;
     $("clear-hydrology-comparison").disabled = hydrologyComparison === null;
+    $("download-comparison-report").disabled = hydrologyComparison === null;
   }
 
   function potentialColor(value) {
@@ -1596,6 +1597,8 @@
       (comparison.reviewAuthority
         ? " · registered comparison"
         : " · UNBOUND LOCAL DIAGNOSTIC — not review authority");
+    $("comparison-report-status").textContent =
+      "A full JSON report is ready; local inputs remain diagnostic and cannot become review evidence.";
     updateHydrologyControlVisibility();
     updateBindingPill();
     renderInspector(null);
@@ -2158,7 +2161,36 @@
     draw();
   });
 
+  function downloadHydrologyComparisonReport() {
+    if (!overlay || !hydrologyComparison) return;
+    const mode = $("comparison-mode").value;
+    const report = window.SkyforgeStudioComparisonReport.create({
+      comparison: hydrologyComparison.comparison,
+      reference: overlay,
+      candidate: hydrologyComparison.candidate,
+      selectedField: mode,
+      selectedCauseField: mode === "causes" ? $("hydrology-potential").value : null,
+    });
+    const blob = new Blob([JSON.stringify(report, null, 2) + "\n"], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = window.SkyforgeStudioComparisonReport.filename(report);
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    $("comparison-report-status").textContent =
+      "Downloaded the complete comparison report. It is diagnostic data, not independent human-review evidence.";
+  }
+
   $("clear-hydrology-comparison").addEventListener("click", clearHydrologyComparison);
+  $("download-comparison-report").addEventListener("click", () => {
+    try {
+      downloadHydrologyComparisonReport();
+    } catch (error) {
+      $("comparison-report-status").textContent =
+        "Could not export this comparison: " + String(error.message || error);
+    }
+  });
   $("open-sample-trace").addEventListener("click", () => {
     $("sample-trace-file").click();
   });
