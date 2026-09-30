@@ -98,7 +98,7 @@ assert.equal(imported.causeSampleCount, 2);
 assert.equal(imported.projectedFieldSampleCount, 2);
 assert.equal(imported.sourceReviewAuthorityRecorded, false);
 assert.equal(imported.sourceReviewAuthorityVerified, false, "imported provenance claims are never verified");
-assert.deepEqual(reader.page(imported, "causes", 0).items.map((sample) => sample.grid), [[1, 0], [0, 0]]);
+assert.deepEqual(reader.page(imported, "causes", 0).items.map((sample) => sample.grid), [[0, 0], [1, 0]]);
 assert.throws(() => reader.parse(JSON.stringify({ ...report, format_version: 2 })), /unsupported.*version/);
 assert.throws(() => reader.parse("{"), /not valid JSON/);
 assert.throws(() => reader.parse(JSON.stringify({ ...report, diagnostic_only: false })), /must remain diagnostic/);
