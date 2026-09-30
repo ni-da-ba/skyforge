@@ -120,6 +120,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long globalModeSearchAcceptedMoves = 0;
         int globalModeSearchStages = 0;
         double globalModeSearchMaximumBudget = 0.0;
+        int globalModeSearchMaximumMode = 0;
         int relaxationSweeps = 0;
         if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
             GlobalModeSearchOutcome globalModes = refineGlobalModes(
@@ -132,6 +133,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
             globalModeSearchStages = globalModes.stages();
             globalModeSearchMaximumBudget = globalModes.maximumBudget();
+            globalModeSearchMaximumMode = globalModes.maximumModeCount();
         }
         List<SkyIslandLocalPosition> current = new ArrayList<>(best.points());
         int maximumSweeps = headEnvelopeGap == null
@@ -225,7 +227,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 globalModeSearchAdmissible,
                 globalModeSearchAcceptedMoves,
                 globalModeSearchStages,
-                globalModeSearchMaximumBudget);
+                globalModeSearchMaximumBudget,
+                globalModeSearchMaximumMode);
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -345,8 +348,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         double initialBudget = Math.min(
                 semanticCorridorHalfWidth,
                 Math.max(nominalSpacing, maximumBankfullHalfWidth));
-        int modeCount = Math.min(MAXIMUM_GLOBAL_MODE_COUNT, initialPoints.size() - 2);
-        if (!(initialBudget > EPSILON) || modeCount == 0) {
+        int baseModeCount = Math.min(8, initialPoints.size() - 2);
+        if (!(initialBudget > EPSILON) || baseModeCount == 0) {
             return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
         }
 
@@ -356,16 +359,23 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long acceptedMoves = 0;
         int stages = 0;
         double maximumBudget = 0.0;
+        int maximumModeCount = 0;
         double budget = initialBudget;
         while (true) {
             stages++;
             maximumBudget = budget;
             List<SkyIslandLocalPosition> reference = best.points();
             double[] referenceStations = stations(reference);
-            double[] coefficients = new double[modeCount];
+            int stageModeCount = Math.min(
+                    MAXIMUM_GLOBAL_MODE_COUNT,
+                    Math.min(
+                            reference.size() - 2,
+                            baseModeCount * (stages == 1 ? 1 : 2)));
+            maximumModeCount = Math.max(maximumModeCount, stageModeCount);
+            double[] coefficients = new double[stageModeCount];
             for (int round = 0; round < 8; round++) {
                 double step = budget * Math.scalb(1.0, -round);
-                for (int mode = 0; mode < modeCount; mode++) {
+                for (int mode = 0; mode < stageModeCount; mode++) {
                     for (int direction : new int[] {-1, 1}) {
                         double[] trialCoefficients = coefficients.clone();
                         trialCoefficients[mode] += direction * step;
@@ -408,7 +418,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             budget = nextBudget;
         }
         return new GlobalModeSearchOutcome(
-                best, proposals, admissible, acceptedMoves, stages, maximumBudget);
+                best, proposals, admissible, acceptedMoves, stages, maximumBudget, maximumModeCount);
     }
 
     private static List<SkyIslandLocalPosition> globalModeDisplacement(
@@ -830,7 +840,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long admissible,
             long acceptedMoves,
             int stages,
-            double maximumBudget) {}
+            double maximumBudget,
+            int maximumModeCount) {}
 
     private static SkyIslandLocalPosition lateralOption(
             SkyIslandLocalPosition point,
@@ -1087,7 +1098,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long globalModeSearchAdmissible,
             long globalModeSearchAcceptedMoves,
             int globalModeSearchStages,
-            double globalModeSearchMaximumBudget) {}
+            double globalModeSearchMaximumBudget,
+            int globalModeSearchMaximumMode) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
