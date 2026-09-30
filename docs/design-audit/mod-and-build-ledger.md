@@ -15,11 +15,13 @@ This document consolidates the current candidate stack from the content-integrat
 - Separate Sable Render Distance or equivalent distant-contraption support
 
 ### Atmosphere / sound
-- AmbientSounds
-- Sound Physics Remastered
-- Particle Rain as a low-risk visual candidate
-- Aerodynamics4MC as the leading authoritative wind/atmosphere prototype
-- Wind Tunnel as a strong dev/validation tool
+- Aerodynamics4MC promoted to leading provisional atmospheric-solver backend under Skyforge-owned climate/weather semantics
+- AmbientSounds retained as environmental-audio content
+- Sound Physics Remastered retained as acoustic propagation
+- Particle Rain promoted to strong provisional precipitation presentation, contingent on consuming canonical Skyforge/A4MC wind rather than owning wind semantics
+- Simple Clouds retained as an A/B cloud renderer only; its localized-weather authority must not supersede Skyforge/A4MC
+- Weather2 / Expanded Weather2 Dynamics moved to severe-weather R&D/reserve rather than baseline atmospheric authority
+- Wind Tunnel retained as a strong dev/validation tool
 
 ### Ecology
 - Naturalist
