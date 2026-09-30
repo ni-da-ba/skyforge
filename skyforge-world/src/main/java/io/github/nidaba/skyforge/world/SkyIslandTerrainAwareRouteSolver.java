@@ -408,7 +408,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
             double terrainLevelWeight,
             double guidanceDeviationWeight,
             double lowInteriorityWeight) {
-        private static final SearchWeights DEFAULT =
+        static final SearchWeights DEFAULT =
                 new SearchWeights(ASCENT_WEIGHT, RIDGE_WEIGHT, TERRAIN_LEVEL_WEIGHT,
                         GUIDANCE_DEVIATION_WEIGHT, LOW_INTERIORITY_WEIGHT);
 
