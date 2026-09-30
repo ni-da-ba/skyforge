@@ -170,7 +170,7 @@ Likely Skyforge-specific structure families where existing libraries are insuffi
 - mooring / route-beacon site plans;
 - weather/radar functional overlays using retained tower and systems content.
 
-Current audit no longer justifies bespoke block sets or broad bespoke building catalogues for these roles. See [Structure Content Gap and Reuse Audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md).
+Current audit no longer justifies bespoke block sets or broad bespoke building catalogues for these roles. See [Structure Content Gap and Reuse Audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md) and [Structure Content Stack v0.1](structure-content-stack-v0.1.md) for the provisionally closed structure dependency/authority policy..
 
 The preferred strategy is to build layouts/roles from existing block palettes rather than add bespoke block sets unless needed.
 
@@ -461,3 +461,20 @@ non-omniscient sensor access to Skyforge truth
 69. Vehicle combat is one engineered system: Sable owns rigid-body truth, CBC/CBC-family mods own conventional ballistic hardware, Radars owns preferred tracks, Avionics + CC:Tweaked own general programmable aircraft I/O, and Fire Control is the preferred advanced weapon-electronics layer.
 70. Mianbao is a selected military-hardware/content library rather than an independent industrial authority; normalize its recipes onto the canonical Create/CBC/CC&A economy and suppress same-tier duplicates where stronger native Create/CBC implementations exist.
 71. Cross-mod defense interoperability is an acceptance gate, not an assumption. APS, ERA, countermeasures, CIWS, radar/IFF, missile guidance, and terminal ballistics must be tested against foreign projectile classes before production lock.
+
+
+## 2026-09-30 structure-stack closure
+
+The general V1 structure-content stack is **provisionally closed**.
+
+Key policy:
+- structure assets are vocabulary, not semantic authority;
+- acquisition progression may be bypassed through earned salvage/capture/trade without requiring every player to manufacture everything;
+- operating/support economies remain meaningful;
+- asset-level curation is independent of dependency-level retention;
+- content richness does not increase realized density;
+- Create Aeronautics Discovery is a physical-realization substrate under Skyforge mission/civilization authority;
+- airfield topology, cliff docks, underside sites, mooring/beacon plans, and weather/radar overlays remain Skyforge-owned composition/realization work;
+- visual coherence is a later production gate.
+
+See [Structure Content Stack v0.1](structure-content-stack-v0.1.md).
