@@ -693,6 +693,13 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         int feasibleAnySamples = 0;
         int feasibleAdmissibleSamples = 0;
         int sampleCount = 0;
+        double[] widthScales = {0.5, 0.75, 1.0, 1.25, 1.5, 2.0};
+        double[] minimumWidthGapInCorridor = new double[widthScales.length];
+        double[] minimumWidthGapBeforeCurvature = new double[widthScales.length];
+        int[] feasibleWidthSamplesInCorridor = new int[widthScales.length];
+        int[] feasibleWidthSamplesBeforeCurvature = new int[widthScales.length];
+        java.util.Arrays.fill(minimumWidthGapInCorridor, Double.POSITIVE_INFINITY);
+        java.util.Arrays.fill(minimumWidthGapBeforeCurvature, Double.POSITIVE_INFINITY);
         int[] criticalIndices = {initialPeakIndex, finalPeakIndex};
         for (int criticalIndex : criticalIndices) {
             if (criticalIndex <= 0 || criticalIndex >= centerline.size() - 1) {
@@ -815,6 +822,40 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         minimumGapBeforeCurvature =
                                 Math.min(minimumGapBeforeCurvature, gap);
                     }
+                    if (insideCorridor) {
+                        for (int widthIndex = 0; widthIndex < widthScales.length; widthIndex++) {
+                            var widthEvaluation =
+                                    SkyIslandHydraulicHeadEnvelopePlanner
+                                            .evaluateForKindWithDiagnostics(
+                                                    descriptor,
+                                                    kind,
+                                                    candidate,
+                                                    halfWidth * widthScales[widthIndex],
+                                                    depth,
+                                                    Math.max(
+                                                            0.0,
+                                                            Math.min(1.0, terrain.sample(candidate))),
+                                                    normalX,
+                                                    normalZ,
+                                                    terrain,
+                                                    policy.limits(qualificationClass));
+                            double widthGap = widthEvaluation.positiveGap();
+                            minimumWidthGapInCorridor[widthIndex] =
+                                    Math.min(minimumWidthGapInCorridor[widthIndex], widthGap);
+                            if (widthEvaluation.envelope().feasible(EPSILON)) {
+                                feasibleWidthSamplesInCorridor[widthIndex]++;
+                            }
+                            if (baseAdmissible) {
+                                minimumWidthGapBeforeCurvature[widthIndex] =
+                                        Math.min(
+                                                minimumWidthGapBeforeCurvature[widthIndex],
+                                                widthGap);
+                                if (widthEvaluation.envelope().feasible(EPSILON)) {
+                                    feasibleWidthSamplesBeforeCurvature[widthIndex]++;
+                                }
+                            }
+                        }
+                    }
                     boolean admissible = baseAdmissible && curvatureAllowed;
                     if (admissible) {
                         admissibleSamples++;
@@ -878,12 +919,27 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 minimumGapInCorridor,
                 minimumGapBeforeCurvature,
                 minimumAdmissibleGap);
-        Files.writeString(evidenceDirectory.resolve("key-287-corridor-summary.txt"), summary);
+        StringBuilder widthSensitivity = new StringBuilder(summary);
+        for (int widthIndex = 0; widthIndex < widthScales.length; widthIndex++) {
+            widthSensitivity.append(String.format(
+                    Locale.ROOT,
+                    "F3G_D2_WIDTH_SENSITIVITY key=287 widthScale=%.2f "
+                            + "minimumGapInCorridor=%.9f feasibleCorridorSamples=%d "
+                            + "minimumGapBeforeCurvature=%.9f feasiblePreCurvatureSamples=%d%n",
+                    widthScales[widthIndex],
+                    minimumWidthGapInCorridor[widthIndex],
+                    feasibleWidthSamplesInCorridor[widthIndex],
+                    minimumWidthGapBeforeCurvature[widthIndex],
+                    feasibleWidthSamplesBeforeCurvature[widthIndex]));
+        }
+        Files.writeString(
+                evidenceDirectory.resolve("key-287-corridor-summary.txt"),
+                widthSensitivity.toString());
         return new CorridorFeasibilityAudit(
                 sampleCount,
                 admissibleSamples,
                 minimumAdmissibleGap,
-                summary);
+                widthSensitivity.toString());
     }
 
     private static double[] normalizedStations(List<SkyIslandLocalPosition> points) {
