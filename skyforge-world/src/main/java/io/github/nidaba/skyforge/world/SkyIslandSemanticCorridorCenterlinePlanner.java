@@ -1136,12 +1136,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap) {
         private int compareTo(Candidate other, double minimumBendRadius) {
-            double curvatureExcess = curvatureExcess(minimumBendRadius);
-            double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
-            int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
-            if (excess != 0) {
-                return excess;
-            }
+            // Curvature is an admission constraint, not a competing D2 objective. Once both
+            // candidates are admissible, rank the exact head-envelope objective first.
             int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
             if (maximumGap != 0) {
                 return maximumGap;
@@ -1152,6 +1148,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             other.integratedSquaredHeadEnvelopeGap);
             if (integratedGap != 0) {
                 return integratedGap;
+            }
+            double curvatureExcess = curvatureExcess(minimumBendRadius);
+            double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
+            int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
+            if (excess != 0) {
+                return excess;
             }
             int curvature = Double.compare(maximumCurvature, other.maximumCurvature);
             if (curvature != 0) {
