@@ -10,6 +10,7 @@
   <script src="trace-viewer.js" defer></script>
   <script src="comparison-report.js" defer></script>
   <script src="comparison-report-reader.js" defer></script>
+  <script src="regional-inventory.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -44,6 +45,7 @@
     <nav class="workspace-nav" aria-label="Studio workspace">
       <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="true">Inspect semantics</button>
       <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
+      <button type="button" class="workspace-tab" data-workspace-view="regional" aria-controls="studio-regional-view" aria-pressed="false">Regional geology</button>
     </nav>
 
     <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
@@ -108,6 +110,66 @@
           <p class="small muted">Local briefs are Studio workspace documents, not semantic artifacts or human-review evidence.</p>
         </aside>
       </div>
+    </section>
+
+    <section id="studio-regional-view" class="regional-view" aria-labelledby="regional-inventory-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">AUTH-0094 · REGIONAL GEOLOGICAL EVIDENCE</p>
+          <h2 id="regional-inventory-heading">Inspect a regional inventory</h2>
+          <p class="muted">Open the included Actions-generated AUTH-0094 specimen, or load your own inventory.csv and ranking.csv.</p>
+        </div>
+        <span class="pill warn">Local diagnostic</span>
+      </div>
+
+      <section class="panel regional-import-panel" aria-labelledby="regional-import-heading">
+        <div class="section-heading">
+          <div>
+            <h3 id="regional-import-heading">Load evidence files</h3>
+            <p class="small muted">Files stay in this browser session. Studio reads their recorded values and does not profile the geology.</p>
+          </div>
+        </div>
+        <div class="regional-import-actions">
+          <button id="regional-inventory-open-sample" type="button">Open included evidence</button>
+          <button id="regional-inventory-import" type="button">Open inventory.csv</button>
+          <button id="regional-ranking-import" type="button" class="secondary">Add ranking.csv</button>
+          <button id="regional-inventory-clear" type="button" class="secondary">Clear files</button>
+          <input id="regional-inventory-file" type="file" accept=".csv,text/csv" hidden>
+          <input id="regional-ranking-file" type="file" accept=".csv,text/csv" hidden>
+        </div>
+        <p id="regional-inventory-status" class="small muted" aria-live="polite">Choose inventory.csv to begin.</p>
+        <div class="authority-warning">
+          <strong>Unbound diagnostic data — not review authority</strong>
+          <span>A local CSV does not prove artifact registration or verify its source. Geological opportunity is not a deposit, reserve, site selection, accessibility, or a resource guarantee.</span>
+        </div>
+      </section>
+
+      <section id="regional-inventory-output" class="panel regional-results" aria-labelledby="regional-summary-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h3 id="regional-summary-heading">Inventory summary</h3>
+            <p class="small muted">Source file: <span id="regional-inventory-source">—</span></p>
+          </div>
+          <span class="pill warn">Source values</span>
+        </div>
+        <div id="regional-inventory-summary" class="regional-summary"></div>
+        <h3>Association entries</h3>
+        <div class="regional-table-wrap">
+          <table id="regional-inventory-table" class="regional-table"></table>
+        </div>
+        <section id="regional-ranking-panel" class="regional-ranking-panel" hidden aria-labelledby="regional-ranking-heading">
+          <div class="section-heading">
+            <div>
+              <h3 id="regional-ranking-heading">Source-provided ranking</h3>
+              <p class="small muted">Source file: <span id="regional-ranking-source">—</span></p>
+            </div>
+          </div>
+          <div class="regional-table-wrap">
+            <table id="regional-ranking-table" class="regional-table"></table>
+          </div>
+        </section>
+      </section>
+      <p id="regional-inventory-empty" class="panel muted">Load an AUTH-0094 inventory file to inspect exact association-level geological opportunity.</p>
     </section>
 
     <section id="studio-content">
