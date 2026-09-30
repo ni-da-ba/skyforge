@@ -307,6 +307,7 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
                 outcome.diagnostics().finalMaximumHeadEnvelopeGap() < 0.05,
                 "the basis must resolve the smooth 12-lobe target rather than stall on low modes");
         assertTrue(outcome.diagnostics().globalModeSearchAcceptedMoves() > 0);
+        assertEquals(16, outcome.diagnostics().globalModeSearchMaximumMode());
         assertTrue(
                 maximumCurvature(outcome.centerline().points()) * 2.0
                         <= 1.0 + 1.0e-6,
