@@ -62,7 +62,11 @@ This document consolidates the current candidate stack from the content-integrat
 - Create Aeronautics: Transmission & Linkage promoted to strong provisional articulated-mechanism layer for hinges, universal joints, hydraulics, and linked machinery
 - Create trains + Steam 'n' Rails retained as the preferred fixed-route rail locomotion/freight layer; Aeronautics Offroad remains the baseline wheeled-vehicle layer
 - Create: Big Cannons retained; leading heavy-industry/artillery material and manufacturing spine
-- Create: Metallurgy provisional foundry-mechanics A/B only; Wolframite/Tungsten/Obdurium are not current Skyforge progression
+- Create: Metallurgy promoted to strong provisional keep for industrial melting, alloying, casting, molten handling, and foundry tooling; its native material tree is normalized rather than adopted wholesale
+- Coke, Graphite, Refractory Mortar, and Slag retained as meaningful foundry process materials
+- CBC remains semantic owner of Cast Iron/Bronze/Steel/Nethersteel; simpler CBC workshop routes remain provisionally accessible while Metallurgy provides industrial-scale alternatives
+- Tungsten/Wolframite moved to reserve specialist status with native worldgen suppressed; Obdurium removed/hidden from player-facing progression
+- Create: Metalwork moved to reserve/reference status; current preference is a thin Skyforge CBC↔Metallurgy compatibility datapack rather than adopting its broad processing/yield layer wholesale
 - Create Crafts & Additions retained as the preferred single-electricity ecosystem; Silver geology excluded and Electrum retained only if integrated high-current demand proves useful
 - Create: New Age reserved specifically as a future nuclear/advanced-heat candidate, not as a second electrical authority
 - late-game logistics automation candidate
