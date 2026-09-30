@@ -622,10 +622,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         "bankfull half-width must be finite and non-negative");
             }
             double currentGap = 0.0;
+            LocalHeadGapScore currentLocalScore = null;
             int tangentOptionStartIndex = -1;
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
+                    currentLocalScore = localHeadGapScore(
+                            result, i, point, bankfullHalfWidthAtStation, headEnvelopeGap);
                     for (int direction = -1; direction <= 1; direction += 2) {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
@@ -659,8 +662,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     // Search both across and along the local route direction. The tangent family
                     // permits bounded stationing shifts without moving endpoints.
                     tangentOptionStartIndex = options.size();
+                    double adjacentLength = Math.min(
+                            Math.hypot(point.x() - previous.x(), point.z() - previous.z()),
+                            Math.hypot(next.x() - point.x(), next.z() - point.z()));
+                    double maximumTangentOffset =
+                            Math.min(0.5 * halfWidth, 0.25 * adjacentLength);
                     for (int direction = -1; direction <= 1; direction += 2) {
-                        double offset = 0.5 * halfWidth;
+                        double offset = maximumTangentOffset;
                         int backtracks = 0;
                         SkyIslandLocalPosition option =
                                 axisOffsetOption(point, tangent, direction, offset);
@@ -711,8 +719,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         if (!curvatureAllowed) tangentCandidateCurvatureRejected++;
                         if (admission.allowed() && curvatureAllowed) {
                             tangentCandidateAdmissible++;
-                            if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
-                                    < currentGap - EPSILON) {
+                            LocalHeadGapScore candidateScore = localHeadGapScore(
+                                    result, i, option, bankfullHalfWidthAtStation,
+                                    headEnvelopeGap);
+                            if (candidateScore.maximumGap()
+                                            < currentLocalScore.maximumGap() - EPSILON
+                                    || candidateScore.integratedSquaredGap()
+                                            < currentLocalScore.integratedSquaredGap() - EPSILON) {
                                 tangentCandidateGapImproving++;
                             }
                         }
