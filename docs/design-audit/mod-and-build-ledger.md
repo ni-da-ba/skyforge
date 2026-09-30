@@ -112,7 +112,12 @@ See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-st
 - Towns & Towers — leading civilian village/settlement vocabulary prototype
 - Explorify **or** Structory
 - selected YUNG temple/hut/monument mods
-- Create Aeronautics Structures, pending license/distribution verification
+- Create: Structures Arise — strong provisional industrial/technical/history structure library; selected assets such as fluid tanks, crusher/crane sites, containers, mine trains, lost stations, windmills, and airborne assets should be admitted semantically rather than through unrestricted native generation
+- Creat Aeronautics Structures (MIT project) — strong provisional aviation/history structure library for engineering ruins, abandoned boats, airships, balloons, and related world texture
+- Create Aeronautics Discovery — strong integration prototype for datapack-defined physical aircraft prefabs, flyovers, structure-linked patrols, and reusable autopilot realization under Skyforge civilization/faction authority
+- Aeronautical Explorations — strong narrow external candidate for abandoned airstrip and ruined petrol-station roles; ARR and governance seam require runtime acceptance
+- Radio Towers Lite — strong narrow MIT candidate for navigation/weather/radar tower shells
+- Create Aeronautics Structures (ARR project) — reserve prefab/repairable-craft source; avoid stacking if MIT Aeronautics Structures + Discovery cover the role
 - Repurposed Structures as a selective reserve
 - When Dungeons Arise only as a small curated exceptional subset
 - Hostile Harmony if its data-driven relationship layer proves stable/useful
@@ -128,6 +133,10 @@ See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-st
 - CTOV
 - Guard Villagers — optional maintained-settlement defense prototype only if vanilla golems prove insufficient
 - Dungeons & Taverns
+- Abandoned Structures: Aviation — reserve; valid aviation-ruin library but currently redundant with retained Aeronautics structure sources
+- Create: Sky Village — reserve only; detached-settlement content currently overlaps Structures Arise / Towns & Towers / Aeronautics assets
+- Moog's Voyager Structures — reserve asset quarry for individual religious/navigation/agricultural/maritime roles, not unrestricted catalogue generation
+- Currents of Trade — future maritime R&D candidate; too immature for current lock
 - Cataclysm
 - Quark
 - Serene Seasons
@@ -155,15 +164,13 @@ See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-st
 ### Structure/content
 Likely Skyforge-specific structure families where existing libraries are insufficient:
 
-- navigation towers/beacons;
-- weather stations;
-- mooring towers;
-- cliff ports/hanging docks;
-- airfields/hangars/fuel depots;
-- radar posts;
-- route markers;
-- salvage/wreck markers;
-- settlement/industrial layouts driven by Skyforge semantics.
+- airfield site-plan / approach-clearance geometry;
+- cliff-port / hanging-dock anchor grammar;
+- underside-installation anchor/orientation grammar;
+- mooring / route-beacon site plans;
+- weather/radar functional overlays using retained tower and systems content.
+
+Current audit no longer justifies bespoke block sets or broad bespoke building catalogues for these roles. See [Structure Content Gap and Reuse Audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md).
 
 The preferred strategy is to build layouts/roles from existing block palettes rather than add bespoke block sets unless needed.
 
