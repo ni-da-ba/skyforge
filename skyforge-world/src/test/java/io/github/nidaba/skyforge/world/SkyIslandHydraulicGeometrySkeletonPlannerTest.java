@@ -1007,7 +1007,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 interiority = SkyIslandSemanticFieldSet.create(descriptor).interiority();
                 route = network.routes().stream()
                         .max(java.util.Comparator.comparingDouble(
-                                candidate -> candidate.route().pathLength()))
+                                (SkyIslandGeomorphicReachRoute candidate) ->
+                                        candidate.route().pathLength()))
                         .orElseThrow();
             }
             double corridorHalfWidth =
