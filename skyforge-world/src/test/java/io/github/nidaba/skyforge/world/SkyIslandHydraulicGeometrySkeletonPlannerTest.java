@@ -220,8 +220,12 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 d.initialMaximumHeadEnvelopeGapIndex(),
                 d.finalMaximumHeadEnvelopeGapIndex(),
                 maximumWidthFor(descriptor, endDischarge));
+        String routeCostSensitivity =
+                auditRouteCostSensitivity(descriptor, network, route, terrain, interiority);
         Files.writeString(
-                report, summary + corridorAudit.summary() + smoothRouteAudit.summary());
+                report,
+                summary + corridorAudit.summary() + smoothRouteAudit.summary()
+                        + routeCostSensitivity);
         assertEquals(8_450, corridorAudit.sampleCount());
         assertTrue(corridorAudit.admissibleSampleCount() > 0, corridorAudit.summary());
         assertTrue(Double.isFinite(corridorAudit.minimumAdmissibleGap()), corridorAudit.summary());
@@ -941,6 +945,195 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 minimumAdmissibleGap,
                 widthSensitivity.toString());
     }
+
+    /**
+     * Diagnostic-only one-factor route-objective sensitivity on the fixed seven-key corpus.
+     * The production/default weights and every downstream plausibility limit remain unchanged.
+     */
+    private static String auditRouteCostSensitivity(
+            SkyIslandDescriptor key287Descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan key287Network,
+            SkyIslandGeomorphicReachRoute key287Route,
+            SkyIslandSemanticField key287Terrain,
+            SkyIslandSemanticField key287Interiority) {
+        var base = SkyIslandTerrainAwareRouteSolver.SearchWeights.DEFAULT;
+        List<RouteWeightVariant> variants = List.of(
+                new RouteWeightVariant("baseline", base),
+                new RouteWeightVariant("ascent-0.5x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight() * 0.5, base.ridgeWeight(), base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("ascent-2x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight() * 2.0, base.ridgeWeight(), base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("ridge-0.5x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight() * 0.5, base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("ridge-2x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight() * 2.0, base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("terrain-0.5x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight(), base.terrainLevelWeight() * 0.5,
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("terrain-2x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight(), base.terrainLevelWeight() * 2.0,
+                        base.guidanceDeviationWeight(), base.lowInteriorityWeight())),
+                new RouteWeightVariant("deviation-0.5x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight(), base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight() * 0.5, base.lowInteriorityWeight())),
+                new RouteWeightVariant("deviation-2x", new SkyIslandTerrainAwareRouteSolver.SearchWeights(
+                        base.ascentWeight(), base.ridgeWeight(), base.terrainLevelWeight(),
+                        base.guidanceDeviationWeight() * 2.0, base.lowInteriorityWeight())));
+        StringBuilder output = new StringBuilder(
+                "F3G_ROUTE_COST_SENSITIVITY scope=one longest semantic reach per fixed key; "
+                        + "one objective weight varied by 0.5x/2x; hard limits unchanged; "
+                        + "key287 raw pointwise D2 gap is diagnostic only"
+                        + System.lineSeparator());
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandDescriptor descriptor;
+            SkyIslandGeomorphicChannelNetworkPlan network;
+            SkyIslandGeomorphicReachRoute route;
+            SkyIslandSemanticField terrain;
+            SkyIslandSemanticField interiority;
+            if (key == 287L) {
+                descriptor = key287Descriptor;
+                network = key287Network;
+                route = key287Route;
+                terrain = key287Terrain;
+                interiority = key287Interiority;
+            } else {
+                descriptor = descriptor(key);
+                network = SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+                terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+                interiority = SkyIslandSemanticFieldSet.create(descriptor).interiority();
+                route = network.routes().stream()
+                        .max(java.util.Comparator.comparingDouble(
+                                candidate -> candidate.route().pathLength()))
+                        .orElseThrow();
+            }
+            double corridorHalfWidth =
+                    network.planningSpacing()
+                            * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+            SkyIslandLocalPosition start = route.route().points().getFirst();
+            SkyIslandLocalPosition end = route.route().points().getLast();
+            double baselineGap = key == 287L
+                    ? maximumRawHeadGap(descriptor, route.semanticReach(),
+                            route.route().points(), terrain)
+                    : Double.NaN;
+            for (RouteWeightVariant variant : variants) {
+                SkyIslandGeomorphicCandidateRoute candidate =
+                        SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                                terrain,
+                                interiority,
+                                route.semanticReach().guidancePoints(),
+                                network.planningSpacing(),
+                                corridorHalfWidth,
+                                new SkyIslandGeomorphicRouteAnchor(start, 0.0),
+                                new SkyIslandGeomorphicRouteAnchor(end, 0.0),
+                                SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL,
+                                variant.weights());
+                assertEquals(start, candidate.points().getFirst(), variant.name());
+                assertEquals(end, candidate.points().getLast(), variant.name());
+                if (variant.name().equals("baseline")) {
+                    assertEquals(route.route(), candidate, "default weights must preserve the main route");
+                }
+                double rawHeadGap = key == 287L
+                        ? maximumRawHeadGap(descriptor, route.semanticReach(),
+                                candidate.points(), terrain)
+                        : Double.NaN;
+                output.append(String.format(
+                        Locale.ROOT,
+                        "F3G_ROUTE_COST key=%d reach=%d->%d variant=%s length=%.6f "
+                                + "ridgeFraction=%.8f uphillFraction=%.8f valleyAdvantage=%.8f "
+                                + "maxDeviation=%.6f maxUphillStep=%.8f rawD2MaxGap=%.8f "
+                                + "baselineRawD2MaxGap=%.8f%n",
+                        key,
+                        route.semanticReach().startCellIndex(),
+                        route.semanticReach().endCellIndex(),
+                        variant.name(),
+                        candidate.pathLength(),
+                        candidate.ridgeSampleFraction(),
+                        candidate.uphillStepFraction(),
+                        candidate.meanValleyFloorAdvantage(),
+                        candidate.maxGuidanceDeviation(),
+                        candidate.maxUphillStep(),
+                        rawHeadGap,
+                        baselineGap));
+            }
+        }
+        return output.toString();
+    }
+
+    private static double maximumRawHeadGap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain) {
+        double[] cumulative = new double[points.size()];
+        for (int i = 1; i < points.size(); i++) {
+            SkyIslandLocalPosition previous = points.get(i - 1);
+            SkyIslandLocalPosition current = points.get(i);
+            cumulative[i] = cumulative[i - 1]
+                    + Math.hypot(current.x() - previous.x(), current.z() - previous.z());
+        }
+        double totalLength = cumulative[cumulative.length - 1];
+        if (!(totalLength > 0.0)) {
+            throw new IllegalArgumentException("route must have positive length");
+        }
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        double maximumGap = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            double station = cumulative[i] / totalLength;
+            SkyIslandChannelProfileKind kind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            semantic.profiles(), station);
+            if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                continue;
+            }
+            double discharge =
+                    SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
+                            semantic, station);
+            double halfWidth =
+                    SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                            descriptor.nominalRadius(), discharge);
+            double depth =
+                    SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+            SkyIslandLocalPosition previous = points.get(Math.max(0, i - 1));
+            SkyIslandLocalPosition next = points.get(Math.min(points.size() - 1, i + 1));
+            double tangentX = next.x() - previous.x();
+            double tangentZ = next.z() - previous.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > EPSILON)) {
+                continue;
+            }
+            double normalX = -tangentZ / tangentLength;
+            double normalZ = tangentX / tangentLength;
+            SkyIslandGeomorphicQualificationClass qualificationClass =
+                    kind == SkyIslandChannelProfileKind.ALLUVIAL
+                            ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
+                            : SkyIslandGeomorphicQualificationClass.INCISED;
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            kind,
+                            points.get(i),
+                            halfWidth,
+                            depth,
+                            Math.max(0.0, Math.min(1.0, terrain.sample(points.get(i)))),
+                            normalX,
+                            normalZ,
+                            terrain,
+                            policy.limits(qualificationClass));
+            maximumGap = Math.max(
+                    maximumGap,
+                    Math.max(0.0, envelope.lowerHead() - envelope.upperHead()));
+        }
+        return maximumGap;
+    }
+
+    private record RouteWeightVariant(
+            String name,
+            SkyIslandTerrainAwareRouteSolver.SearchWeights weights) {}
 
     private static double[] normalizedStations(List<SkyIslandLocalPosition> points) {
         double[] cumulative = new double[points.size()];
