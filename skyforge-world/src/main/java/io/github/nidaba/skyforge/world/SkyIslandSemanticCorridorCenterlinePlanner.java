@@ -113,6 +113,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long lateralCandidateCurvatureRejected = 0;
         long lateralCandidateGapImproving = 0;
         long selectedLateralMoves = 0;
+        long tangentCandidateProposals = 0;
+        long tangentCandidateAdmissible = 0;
+        long tangentCandidateCurvatureRejected = 0;
+        long tangentCandidateGapImproving = 0;
+        long selectedTangentMoves = 0;
         long globalGapImprovementsBlockedByCurvature = 0;
         long globalModeSearchProposals = 0;
         long globalModeSearchAdmissible = 0;
@@ -150,6 +155,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             lateralCandidateCurvatureRejected += step.lateralCandidateCurvatureRejected();
             lateralCandidateGapImproving += step.lateralCandidateGapImproving();
             selectedLateralMoves += step.selectedLateralMoves();
+            tangentCandidateProposals += step.tangentCandidateProposals();
+            tangentCandidateAdmissible += step.tangentCandidateAdmissible();
+            tangentCandidateCurvatureRejected += step.tangentCandidateCurvatureRejected();
+            tangentCandidateGapImproving += step.tangentCandidateGapImproving();
+            selectedTangentMoves += step.selectedTangentMoves();
             next.set(0, searchRoute.points().getFirst());
             next.set(next.size() - 1, searchRoute.points().getLast());
 
@@ -218,7 +228,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
                 lateralCandidateGapImproving,
-                selectedLateralMoves, globalGapImprovementsBlockedByCurvature,
+                selectedLateralMoves,
+                tangentCandidateProposals,
+                tangentCandidateAdmissible,
+                tangentCandidateCurvatureRejected,
+                tangentCandidateGapImproving,
+                selectedTangentMoves,
+                globalGapImprovementsBlockedByCurvature,
                 relaxationSweeps,
                 globalModeSearchProposals,
                 globalModeSearchAdmissible,
@@ -574,6 +590,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long lateralCandidateCurvatureRejected = 0;
         long lateralCandidateGapImproving = 0;
         long selectedLateralMoves = 0;
+        long tangentCandidateProposals = 0;
+        long tangentCandidateAdmissible = 0;
+        long tangentCandidateCurvatureRejected = 0;
+        long tangentCandidateGapImproving = 0;
+        long selectedTangentMoves = 0;
         double[] stationSnapshot = headEnvelopeGap == null ? stations(current) : null;
         for (int i = 1; i < current.size() - 1; i++) {
             // D2 geometry depends on physical station through discharge-scaled width and depth.
@@ -601,6 +622,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         "bankfull half-width must be finite and non-negative");
             }
             double currentGap = 0.0;
+            int tangentOptionStartIndex = -1;
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
                 if (currentGap > EPSILON) {
@@ -608,14 +630,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
                         SkyIslandLocalPosition option =
-                                lateralOption(point, normal, direction, offset);
+                                axisOffsetOption(point, normal, direction, offset);
                         while (!curvatureAdmissible(result, i, option, minimumBendRadius)
                                 && backtracks < 12) {
                             lateralCandidateProposals++;
                             lateralCandidateCurvatureRejected++;
                             offset *= 0.5;
                             backtracks++;
-                            option = lateralOption(point, normal, direction, offset);
+                            option = axisOffsetOption(point, normal, direction, offset);
                         }
                         for (int refinement = 0;
                                 refinement < 3
@@ -624,13 +646,46 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                 refinement++) {
                             options.add(option);
                             offset *= 0.5;
-                            option = lateralOption(point, normal, direction, offset);
+                            option = axisOffsetOption(point, normal, direction, offset);
                         }
                         if (backtracks == 12
                                 && !curvatureAdmissible(
                                         result, i, option, minimumBendRadius)) {
                             lateralCandidateProposals++;
                             lateralCandidateCurvatureRejected++;
+                        }
+                    }
+
+                    // Search both across and along the local route direction. The tangent family
+                    // permits bounded stationing shifts without moving endpoints.
+                    tangentOptionStartIndex = options.size();
+                    for (int direction = -1; direction <= 1; direction += 2) {
+                        double offset = 0.5 * halfWidth;
+                        int backtracks = 0;
+                        SkyIslandLocalPosition option =
+                                axisOffsetOption(point, tangent, direction, offset);
+                        while (!curvatureAdmissible(result, i, option, minimumBendRadius)
+                                && backtracks < 12) {
+                            tangentCandidateProposals++;
+                            tangentCandidateCurvatureRejected++;
+                            offset *= 0.5;
+                            backtracks++;
+                            option = axisOffsetOption(point, tangent, direction, offset);
+                        }
+                        for (int refinement = 0;
+                                refinement < 3
+                                        && curvatureAdmissible(
+                                                result, i, option, minimumBendRadius);
+                                refinement++) {
+                            options.add(option);
+                            offset *= 0.5;
+                            option = axisOffsetOption(point, tangent, direction, offset);
+                        }
+                        if (backtracks == 12
+                                && !curvatureAdmissible(
+                                        result, i, option, minimumBendRadius)) {
+                            tangentCandidateProposals++;
+                            tangentCandidateCurvatureRejected++;
                         }
                     }
                 }
@@ -648,16 +703,31 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                 || curvatureAdmissible(
                                         result, i, option, minimumBendRadius);
                 if (headEnvelopeGap != null && optionIndex > 0) {
-                    lateralCandidateProposals++;
-                    if (!admission.insideSemanticCorridor()) lateralCandidateCorridorRejected++;
-                    if (!admission.withinTerrainRise()) lateralCandidateTerrainRejected++;
-                    if (!admission.insideIslandInteriority()) lateralCandidateInteriorityRejected++;
-                    if (!curvatureAllowed) lateralCandidateCurvatureRejected++;
-                    if (admission.allowed() && curvatureAllowed) {
-                        lateralCandidateAdmissible++;
-                        if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
-                                < currentGap - EPSILON) {
-                            lateralCandidateGapImproving++;
+                    boolean tangentOption =
+                            tangentOptionStartIndex >= 0
+                                    && optionIndex >= tangentOptionStartIndex;
+                    if (tangentOption) {
+                        tangentCandidateProposals++;
+                        if (!curvatureAllowed) tangentCandidateCurvatureRejected++;
+                        if (admission.allowed() && curvatureAllowed) {
+                            tangentCandidateAdmissible++;
+                            if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
+                                    < currentGap - EPSILON) {
+                                tangentCandidateGapImproving++;
+                            }
+                        }
+                    } else {
+                        lateralCandidateProposals++;
+                        if (!admission.insideSemanticCorridor()) lateralCandidateCorridorRejected++;
+                        if (!admission.withinTerrainRise()) lateralCandidateTerrainRejected++;
+                        if (!admission.insideIslandInteriority()) lateralCandidateInteriorityRejected++;
+                        if (!curvatureAllowed) lateralCandidateCurvatureRejected++;
+                        if (admission.allowed() && curvatureAllowed) {
+                            lateralCandidateAdmissible++;
+                            if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
+                                    < currentGap - EPSILON) {
+                                lateralCandidateGapImproving++;
+                            }
                         }
                     }
                 }
@@ -671,14 +741,26 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     selectedOption = optionIndex;
                 }
             }
-            if (selectedOption > 0) selectedLateralMoves++;
+            if (selectedOption > 0) {
+                if (tangentOptionStartIndex >= 0 && selectedOption >= tangentOptionStartIndex) {
+                    selectedTangentMoves++;
+                } else {
+                    selectedLateralMoves++;
+                }
+            }
             result.set(i, selected);
         }
         return new RelaxationStep(
                 List.copyOf(result), lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
-                lateralCandidateGapImproving, selectedLateralMoves);
+                lateralCandidateGapImproving,
+                selectedLateralMoves,
+                tangentCandidateProposals,
+                tangentCandidateAdmissible,
+                tangentCandidateCurvatureRejected,
+                tangentCandidateGapImproving,
+                selectedTangentMoves);
     }
 
     private static Candidate evaluate(
@@ -831,14 +913,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             int stages,
             double maximumBudget) {}
 
-    private static SkyIslandLocalPosition lateralOption(
+    private static SkyIslandLocalPosition axisOffsetOption(
             SkyIslandLocalPosition point,
-            Vector normal,
+            Vector axis,
             int direction,
             double offset) {
         return new SkyIslandLocalPosition(
-                point.x() + direction * normal.x() * offset,
-                point.z() + direction * normal.z() * offset);
+                point.x() + direction * axis.x() * offset,
+                point.z() + direction * axis.z() * offset);
     }
 
     private static boolean curvatureAdmissible(
@@ -1080,6 +1162,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long lateralCandidateCurvatureRejected,
             long lateralCandidateGapImproving,
             long selectedLateralMoves,
+            long tangentCandidateProposals,
+            long tangentCandidateAdmissible,
+            long tangentCandidateCurvatureRejected,
+            long tangentCandidateGapImproving,
+            long selectedTangentMoves,
             long globalGapImprovementsBlockedByCurvature,
             int relaxationSweeps,
             long globalModeSearchProposals,
@@ -1097,7 +1184,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long lateralCandidateInteriorityRejected,
             long lateralCandidateCurvatureRejected,
             long lateralCandidateGapImproving,
-            long selectedLateralMoves) {}
+            long selectedLateralMoves,
+            long tangentCandidateProposals,
+            long tangentCandidateAdmissible,
+            long tangentCandidateCurvatureRejected,
+            long tangentCandidateGapImproving,
+            long selectedTangentMoves) {}
 
     private record AdmissionCheck(
             boolean insideSemanticCorridor,
