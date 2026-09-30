@@ -279,6 +279,43 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
                 "full-corridor search must still honor the hard curvature-width constraint");
     }
 
+    @Test
+    void globalModeSearchResolvesHigherFrequencySmoothRouteFeatures() {
+        List<SkyIslandLocalPosition> points = new ArrayList<>();
+        for (int i = 0; i <= 40; i++) {
+            points.add(new SkyIslandLocalPosition(i, 0.0));
+        }
+        SkyIslandGeomorphicCandidateRoute route =
+                new SkyIslandGeomorphicCandidateRoute(
+                        points, 1.0, 40.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        List<SkyIslandLocalPosition> guidance =
+                List.of(points.getFirst(), points.getLast());
+        SkyIslandSemanticField terrain = ignored -> 0.5;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        SkyIslandCenterlineHeadEnvelopeGap gap =
+                (position, station, tangentX, tangentZ, halfWidth) ->
+                        Math.abs(position.z() - 0.15 * Math.sin(12.0 * Math.PI * station));
+
+        SkyIslandSemanticCorridorCenterlinePlanner.RefinementOutcome outcome =
+                SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
+                        route, guidance, terrain, interiority,
+                        1.0, 2.0, 2.0, ignored -> 0.25, gap);
+
+        assertEquals(points.getFirst(), outcome.centerline().points().getFirst());
+        assertEquals(points.getLast(), outcome.centerline().points().getLast());
+        assertTrue(
+                outcome.diagnostics().finalMaximumHeadEnvelopeGap() < 0.05,
+                "the basis must resolve the smooth 12-lobe target rather than stall on low modes");
+        assertTrue(outcome.diagnostics().globalModeSearchAcceptedMoves() > 0);
+        assertTrue(
+                maximumCurvature(outcome.centerline().points()) * 2.0
+                        <= 1.0 + 1.0e-6,
+                "higher-frequency search must remain inside the same hard curvature bound");
+        for (SkyIslandLocalPosition point : outcome.centerline().points()) {
+            assertTrue(Math.abs(point.z()) <= 2.0 + EPSILON);
+        }
+    }
+
     private static double meanInteriorAbsoluteZ(List<SkyIslandLocalPosition> points) {
         return points.subList(1, points.size() - 1).stream()
                 .mapToDouble(point -> Math.abs(point.z()))
