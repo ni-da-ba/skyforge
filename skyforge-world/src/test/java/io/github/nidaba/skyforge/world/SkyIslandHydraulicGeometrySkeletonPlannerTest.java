@@ -423,7 +423,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         terrain,
                         SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
                                 .limits(qualificationClass));
-        return Math.max(0.0, envelope.lowerHead() - envelope.upperHead());
+        return envelope.positiveGap();
     }
 
     private static SmoothRouteAudit auditSmoothRoute(
