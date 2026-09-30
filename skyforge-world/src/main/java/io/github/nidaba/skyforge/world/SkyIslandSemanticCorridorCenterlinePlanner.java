@@ -591,7 +591,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             0.5 * (previous.x() + next.x()),
                             0.5 * (previous.z() + next.z()));
             SkyIslandLocalPosition smoothed = lerp(point, midpoint, RELAXATION_FRACTION);
-            List<SkyIslandLocalPosition> options = new ArrayList<>(45);
+            List<SkyIslandLocalPosition> options = new ArrayList<>(21);
             options.add(smoothed);
             Vector tangent = tangent(previous, next);
             Vector normal = new Vector(-tangent.z(), tangent.x());
@@ -634,52 +634,52 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         }
                     }
 
-                    // Add a small, isotropic 2-D trust region. Normal-only moves can miss
-                    // admissible descent directions when the corridor, terrain-rise and
-                    // width-scaled curvature boundaries intersect obliquely.
+                    // Probe bounded oblique directions between the normal and tangent axes.
+                    // Four directions at three trust-region radii add 12 candidates per point.
                     double adjacentLength = Math.min(
                             Math.hypot(point.x() - previous.x(), point.z() - previous.z()),
                             Math.hypot(next.x() - point.x(), next.z() - point.z()));
                     double radialStep = Math.min(0.5 * halfWidth, 0.25 * adjacentLength);
                     if (radialStep > EPSILON) {
                         double diagonal = Math.sqrt(0.5);
-                        Vector[] radialDirections = {
-                            new Vector(1.0, 0.0),
-                            new Vector(diagonal, diagonal),
-                            new Vector(0.0, 1.0),
-                            new Vector(-diagonal, diagonal),
-                            new Vector(-1.0, 0.0),
-                            new Vector(-diagonal, -diagonal),
-                            new Vector(0.0, -1.0),
-                            new Vector(diagonal, -diagonal)
+                        Vector[] obliqueAxes = {
+                            new Vector(
+                                    diagonal * (normal.x() + tangent.x()),
+                                    diagonal * (normal.z() + tangent.z())),
+                            new Vector(
+                                    diagonal * (normal.x() - tangent.x()),
+                                    diagonal * (normal.z() - tangent.z()))
                         };
-                        for (Vector radialDirection : radialDirections) {
-                            double offset = radialStep;
-                            int backtracks = 0;
-                            SkyIslandLocalPosition option =
-                                    lateralOption(point, radialDirection, 1, offset);
-                            while (!curvatureAdmissible(result, i, option, minimumBendRadius)
-                                    && backtracks < 12) {
-                                lateralCandidateProposals++;
-                                lateralCandidateCurvatureRejected++;
-                                offset *= 0.5;
-                                backtracks++;
-                                option = lateralOption(point, radialDirection, 1, offset);
-                            }
-                            for (int refinement = 0;
-                                    refinement < 3
-                                            && curvatureAdmissible(
-                                                    result, i, option, minimumBendRadius);
-                                    refinement++) {
-                                options.add(option);
-                                offset *= 0.5;
-                                option = lateralOption(point, radialDirection, 1, offset);
-                            }
-                            if (backtracks == 12
-                                    && !curvatureAdmissible(
-                                            result, i, option, minimumBendRadius)) {
-                                lateralCandidateProposals++;
-                                lateralCandidateCurvatureRejected++;
+                        for (Vector obliqueAxis : obliqueAxes) {
+                            for (int direction = -1; direction <= 1; direction += 2) {
+                                double offset = radialStep;
+                                int backtracks = 0;
+                                SkyIslandLocalPosition option =
+                                        lateralOption(point, obliqueAxis, direction, offset);
+                                while (!curvatureAdmissible(
+                                                result, i, option, minimumBendRadius)
+                                        && backtracks < 12) {
+                                    lateralCandidateProposals++;
+                                    lateralCandidateCurvatureRejected++;
+                                    offset *= 0.5;
+                                    backtracks++;
+                                    option = lateralOption(point, obliqueAxis, direction, offset);
+                                }
+                                for (int refinement = 0;
+                                        refinement < 3
+                                                && curvatureAdmissible(
+                                                        result, i, option, minimumBendRadius);
+                                        refinement++) {
+                                    options.add(option);
+                                    offset *= 0.5;
+                                    option = lateralOption(point, obliqueAxis, direction, offset);
+                                }
+                                if (backtracks == 12
+                                        && !curvatureAdmissible(
+                                                result, i, option, minimumBendRadius)) {
+                                    lateralCandidateProposals++;
+                                    lateralCandidateCurvatureRejected++;
+                                }
                             }
                         }
                     }
