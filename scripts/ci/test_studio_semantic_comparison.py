@@ -313,7 +313,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("comparison-report.js", markup)
         self.assertIn("comparison-report-reader.js", markup)
         self.assertIn("function openImportedHydrologyComparisonReport(parsed, filename)", app)
-        self.assertIn("source authority is displayed only as recorded metadata", app)
+        self.assertIn("Source authority is displayed only as recorded metadata", app)
         self.assertIn('id="open-comparison-report"', markup)
         self.assertIn('id="imported-comparison-report"', markup)
         self.assertIn('id="comparison-report-samples"', markup)
