@@ -340,13 +340,17 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             SkyIslandSemanticChannelReach semantic,
             SkyIslandSemanticField terrain,
             double weight) {
+        if (!Double.isFinite(weight) || weight < 0.0) {
+            throw new IllegalArgumentException("weight must be finite and non-negative");
+        }
         return (position, tangentX, tangentZ, station) -> {
             if (weight == 0.0) {
                 return 0.0;
             }
             double gap = d2HeadGapAt(
                     descriptor, semantic, terrain, position, tangentX, tangentZ, station);
-            return weight * square(gap / descriptor.nominalRadius());
+            double normalizedGap = gap / descriptor.nominalRadius();
+            return weight * normalizedGap * normalizedGap;
         };
     }
 
