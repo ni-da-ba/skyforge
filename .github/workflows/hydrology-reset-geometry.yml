@@ -128,6 +128,10 @@ on:
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyWorldHeadRefinementCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyWorldHeadRefinementCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4G.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4H.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRefinedFluvialVoxelQuantizationPlanner.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyRefinedVoxelQuantizationCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyRefinedVoxelQuantizationCorpusTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldHeadRefinedTerrainPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldHeadRefinedTerrainPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandWorldHeadRefinedTerrainPlannerTest.java"
@@ -297,6 +301,7 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyWorldHeadRefinementCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandWorldHeadRefinedTerrainPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyLateralRefinementCorpusTest' \
+            :skyforge-reference:test --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' \
             :skyforge-neoforge-1211:test --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
             :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
             :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
@@ -414,6 +419,13 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv
           echo "--- lateral-refinement-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv
+          if [ ! -f skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/summary.csv ]; then
+            ./gradlew :skyforge-reference:test --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' --rerun-tasks --no-configuration-cache
+          fi
+          echo "--- refined-voxel-quantization-summary.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/summary.csv
+          echo "--- refined-voxel-quantization-reaches.csv ---"
+          cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/reaches.csv
           ./gradlew :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' --rerun-tasks --no-configuration-cache
           echo "--- D2 centerline candidate admissibility: key 287 ---"
           cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
