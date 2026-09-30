@@ -17,6 +17,7 @@ import java.util.function.DoubleUnaryOperator;
 public final class SkyIslandSemanticCorridorCenterlinePlanner {
     public static final int MAXIMUM_RELAXATION_SWEEPS = 48;
     private static final int MAXIMUM_D2_RELAXATION_SWEEPS = 96;
+    private static final int MAXIMUM_GLOBAL_MODE_COUNT = 16;
     public static final double RELAXATION_FRACTION = 0.40;
     public static final double MAXIMUM_TERRAIN_RISE_FROM_SEED = 0.015;
     public static final double MINIMUM_INTERIORITY = 0.025;
@@ -344,7 +345,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         double initialBudget = Math.min(
                 semanticCorridorHalfWidth,
                 Math.max(nominalSpacing, maximumBankfullHalfWidth));
-        int modeCount = Math.min(8, initialPoints.size() - 2);
+        int modeCount = Math.min(MAXIMUM_GLOBAL_MODE_COUNT, initialPoints.size() - 2);
         if (!(initialBudget > EPSILON) || modeCount == 0) {
             return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
         }
