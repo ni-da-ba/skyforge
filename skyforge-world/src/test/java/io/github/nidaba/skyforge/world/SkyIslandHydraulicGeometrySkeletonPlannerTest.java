@@ -26,19 +26,12 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         }
     }
 
-    @Test
-    void d2AwareAStarCostSearchesOnlyWithinTheSemanticCorridor() throws Exception {
-        SkyIslandDescriptor descriptor = descriptor(287L);
-        SkyIslandGeomorphicChannelNetworkPlan network =
-                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
-        SkyIslandGeomorphicReachRoute route = network.routes().stream()
-                .filter(candidate -> candidate.semanticReach().startCellIndex() == 1090
-                        && candidate.semanticReach().endCellIndex() == 1758)
-                .findFirst()
-                .orElseThrow();
-        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
-        SkyIslandSemanticField interiority =
-                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+    private static String d2AwareAStarRouteSearch(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandGeomorphicReachRoute route,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority) {
         double corridorHalfWidth =
                 network.planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
@@ -106,11 +99,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     diagnostics.finalMaximumHeadEnvelopeGap(),
                     diagnostics.finalIntegratedSquaredHeadEnvelopeGap()));
         }
-        Path evidenceDirectory =
-                Path.of("build", "evidence", "hydrology-d2-search-test");
-        Files.createDirectories(evidenceDirectory);
-        Files.writeString(evidenceDirectory.resolve("key-287-d2-aware-a-star.txt"), report);
         assertTrue(Double.isFinite(bestRawGap), report.toString());
+        return report.toString();
     }
 
     @Test
@@ -307,8 +297,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 d.initialMaximumHeadEnvelopeGapIndex(),
                 d.finalMaximumHeadEnvelopeGapIndex(),
                 maximumWidthFor(descriptor, endDischarge));
+        String d2AStarReport =
+                d2AwareAStarRouteSearch(descriptor, network, route, terrain, interiority);
         Files.writeString(
-                report, summary + corridorAudit.summary() + smoothRouteAudit.summary());
+                report,
+                summary + corridorAudit.summary() + smoothRouteAudit.summary() + d2AStarReport);
         assertEquals(8_450, corridorAudit.sampleCount());
         assertTrue(corridorAudit.admissibleSampleCount() > 0, corridorAudit.summary());
         assertTrue(Double.isFinite(corridorAudit.minimumAdmissibleGap()), corridorAudit.summary());
