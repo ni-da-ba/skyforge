@@ -8,6 +8,7 @@
   <script src="scene.js" defer></script>
   <script src="sample-data.js" defer></script>
   <script src="trace-viewer.js" defer></script>
+  <script src="comparison-report.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -268,6 +269,8 @@
                 </select>
                 <label class="check-row"><input id="show-hydrology-delta" type="checkbox" disabled> Show candidate − reference</label>
                 <button id="clear-hydrology-comparison" type="button" class="secondary full-button" disabled>Clear comparison</button>
+                <button id="download-comparison-report" type="button" class="secondary full-button" disabled>Download comparison report</button>
+                <p id="comparison-report-status" class="small muted" aria-live="polite"></p>
                 <p id="comparison-status" class="small muted">Attach a reference hydrology artifact first.</p>
               </div>
               <label for="local-overlay-file">Local reference overlay diagnostic</label>

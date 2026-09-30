@@ -1,4 +1,5 @@
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -88,6 +89,16 @@ class EvidenceReviewBundleTests(unittest.TestCase):
             staged = sorted(path.relative_to(destination).as_posix() for path in destination.rglob('*') if path.is_file())
             self.assertEqual(sorted(path[len(verifier.EVIDENCE_ROOT):] for path in paths), staged)
             self.assertFalse((destination / 'studio-bound-hydrology-semantic-v1/terrain/ignored.csv').exists())
+
+    def test_studio_app_packages_every_local_script_reference(self):
+        repository_root = Path(bundle.__file__).resolve().parents[2]
+        studio_root = repository_root / 'scripts' / 'orchestrator' / 'studio'
+        markup = (studio_root / 'index.html').read_text(encoding='utf-8')
+        referenced_scripts = set(re.findall(r'<script[^>]+src="([^"]+)"', markup))
+        packaged_scripts = {path.name for path in bundle.STUDIO_APP_FILES if path.suffix == '.js'}
+        self.assertTrue(referenced_scripts)
+        self.assertEqual(set(), referenced_scripts - packaged_scripts,
+                         'every local JavaScript file loaded by Studio must be staged')
 
     def test_stage_copies_only_policy_extensions_and_preserves_tree(self):
         with tempfile.TemporaryDirectory() as td:
