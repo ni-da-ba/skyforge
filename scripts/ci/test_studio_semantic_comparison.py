@@ -340,7 +340,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for syntax checks")
-        for path in (STUDIO / "app.js", STUDIO / "scene.js", STUDIO / "comparison-report.js"):
+        for path in (STUDIO / "app.js", STUDIO / "scene.js", STUDIO / "comparison-report.js", STUDIO / "comparison-report-reader.js"):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 check=False,
