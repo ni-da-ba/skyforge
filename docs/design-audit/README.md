@@ -85,6 +85,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 ## Documents
 
 - [Ecology and fauna](ecology-and-fauna.md)
+- [Creature niche and overlap audit v0.1](creature-niche-overlap-audit-v0.1.md)
 - [Atmosphere, aviation, navigation, and horizon](atmosphere-aviation-navigation.md)
 - [Aircraft pitch/roll control semantics v0.1](aircraft-pitch-roll-control-semantics-v0.1.md)
 - [Aircraft atmosphere and stability qualification contract v0.1](aircraft-atmosphere-stability-qualification-v0.1.md)
