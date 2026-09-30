@@ -313,6 +313,8 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         self.assertIn("comparison-report.js", markup)
         self.assertIn("function downloadHydrologyComparisonReport()", app)
         self.assertIn("human-review evidence", app)
+        self.assertIn("comparison.samples.length", app)
+        self.assertIn("comparison.fieldSamples.length", app)
         self.assertIn('id="download-comparison-report"', markup)
         self.assertIn('id="comparison-report-status"', markup)
 

@@ -1598,7 +1598,8 @@
         ? " · registered comparison"
         : " · UNBOUND LOCAL DIAGNOSTIC — not review authority");
     $("comparison-report-status").textContent =
-      "A full JSON report is ready; local inputs remain diagnostic and cannot become review evidence.";
+      "Ready to export " + comparison.samples.length + " cause samples and " +
+      comparison.fieldSamples.length + " projected-field samples. Exported reports remain diagnostics and cannot replace human review.";
     updateHydrologyControlVisibility();
     updateBindingPill();
     renderInspector(null);
