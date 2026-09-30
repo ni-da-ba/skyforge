@@ -1041,6 +1041,29 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         ? maximumRawHeadGap(descriptor, route.semanticReach(),
                                 candidate.points(), terrain)
                         : Double.NaN;
+                if (key == 287L
+                        && (variant.name().equals("baseline")
+                                || variant.name().equals("terrain-2x"))) {
+                    SkyIslandGeomorphicReachRoute candidateReach =
+                            new SkyIslandGeomorphicReachRoute(route.semanticReach(), candidate);
+                    var refined = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                            descriptor, network, candidateReach, terrain, interiority);
+                    var diagnostics = refined.diagnostics();
+                    output.append(String.format(
+                            Locale.ROOT,
+                            "F3G_ROUTE_COST_REFINED key=287 variant=%s rawD2MaxGap=%.8f "
+                                    + "initialD2MaxGap=%.8f finalD2MaxGap=%.8f "
+                                    + "initialIntegratedGap=%.8f finalIntegratedGap=%.8f "
+                                    + "admissible=%d proposals=%d%n",
+                            variant.name(),
+                            rawHeadGap,
+                            diagnostics.initialMaximumHeadEnvelopeGap(),
+                            diagnostics.finalMaximumHeadEnvelopeGap(),
+                            diagnostics.initialIntegratedSquaredHeadEnvelopeGap(),
+                            diagnostics.finalIntegratedSquaredHeadEnvelopeGap(),
+                            diagnostics.globalModeSearchAdmissible(),
+                            diagnostics.globalModeSearchProposals()));
+                }
                 output.append(String.format(
                         Locale.ROOT,
                         "F3G_ROUTE_COST key=%d reach=%d->%d variant=%s length=%.6f "
