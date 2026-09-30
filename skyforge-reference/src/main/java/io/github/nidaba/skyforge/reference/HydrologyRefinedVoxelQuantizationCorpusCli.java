@@ -22,9 +22,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
-/** Fixed F4G full cross-section shallower-only refinement evidence. */
+/** Fixed F4H evidence comparing refined and baseline voxel quantization. */
 public final class HydrologyRefinedVoxelQuantizationCorpusCli {
     public static final String EVIDENCE_ID = "hydrology-refined-voxel-quantization-v1";
     private static final long SEED = 0x534B59464F524745L;
@@ -47,8 +49,37 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         var refined = SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
         var requantized = SkyIslandRefinedFluvialVoxelQuantizationPlanner.plan(
                 association, candidate, refined.terrainField());
-        if (requantized.authorizedColumns().stream().anyMatch(column -> column.removedSolidBlocks() < 0)) {
-            throw new IllegalStateException("F4H produced a negative removal count");
+        Map<Long, SkyIslandFluvialVoxelColumn> baselineByColumn = new HashMap<>();
+        for (SkyIslandFluvialVoxelColumn column : voxel.authorizedColumns()) {
+            long key = columnKey(column);
+            if (baselineByColumn.put(key, column) != null) {
+                throw new IllegalStateException("F4C produced duplicate authorized columns");
+            }
+        }
+        int quantizedShallower = 0;
+        int quantizedUnchanged = 0;
+        int quantizedDeeper = 0;
+        for (SkyIslandFluvialVoxelColumn column : requantized.authorizedColumns()) {
+            SkyIslandFluvialVoxelColumn baseline = baselineByColumn.remove(columnKey(column));
+            if (baseline == null) {
+                throw new IllegalStateException("F4H introduced a column outside F4C authority");
+            }
+            if (column.targetMaximumSolidY() > baseline.targetMaximumSolidY()) {
+                quantizedShallower++;
+            } else if (column.targetMaximumSolidY() < baseline.targetMaximumSolidY()) {
+                quantizedDeeper++;
+            } else {
+                quantizedUnchanged++;
+            }
+        }
+        if (!baselineByColumn.isEmpty()) {
+            throw new IllegalStateException("F4H dropped F4C-authorized columns");
+        }
+        if (quantizedDeeper != 0) {
+            throw new IllegalStateException("F4H voxel target is deeper than accepted F4C quantization");
+        }
+        if (requantized.totalRemovedSolidBlocks() > voxel.totalRemovedSolidBlocks()) {
+            throw new IllegalStateException("F4H removes more blocks than accepted F4C quantization");
         }
 
         double centerX =
@@ -87,11 +118,13 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
 
         String summary =
                 "specimen,islandKey,refinedReaches,totalReaches,postD2Rejected,"
-                        + "authorizedColumns,requantizedColumns,requantizedRemovedBlocks,shallowerColumns,unchangedColumns,deeperColumns,"
+                        + "authorizedColumns,requantizedColumns,baselineRemovedBlocks,requantizedRemovedBlocks,"
+                        + "quantizedShallowerColumns,quantizedUnchangedColumns,quantizedDeeperColumns,"
+                        + "continuousShallowerColumns,continuousUnchangedColumns,continuousDeeperColumns,"
                         + "maxRecoveryWorld,meanRecoveryWorld\n"
                         + String.format(
                                 Locale.ROOT,
-                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
+                                "ordinary-77,77,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%.9f,%.9f%n",
                                 refined.refinedReachCount(),
                                 refined.reaches().size(),
                                 refined.postRefinementQualifications().stream()
@@ -99,7 +132,11 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
                                         .count(),
                                 voxel.authorizedColumns().size(),
                                 requantized.authorizedColumns().size(),
+                                voxel.totalRemovedSolidBlocks(),
                                 requantized.totalRemovedSolidBlocks(),
+                                quantizedShallower,
+                                quantizedUnchanged,
+                                quantizedDeeper,
                                 shallower,
                                 unchanged,
                                 deeper,
@@ -144,9 +181,12 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
 
                 F4G extends solved F4F head/bed corrections through the accepted F4A continuous
                 cross-section primitive. Evidence is association-specific and continuous only.
-                Every sampled refined target must be equal to or higher than F4A: never a deeper cut.
-                """, StandardCharsets.UTF_8);
+                The F4H integer plan must preserve the exact F4C authorized-column set and may only\n                retain or raise each target solid surface; aggregate removed-block count cannot increase.\n                This is evidence only and grants no Minecraft mutation authority.\n                """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
+    }
+
+    private static long columnKey(SkyIslandFluvialVoxelColumn column) {
+        return ((long) column.worldX() << 32) ^ Integer.toUnsignedLong(column.worldZ());
     }
 
     private static String format(double value) {
