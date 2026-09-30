@@ -93,6 +93,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Threats, hostile spawning, and farm compatibility](threats-and-spawn-governance.md)
 - [Deep-sky and mythic threat stack v0.1](deep-sky-threat-stack-v0.1.md)
 - [Structures, dungeons, settlements, and realization modes](structures-and-realization-modes.md)
+- [Structure content gap and reuse audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md)
 - [Structure realization contract v0.1](structure-realization-contract-v0.1.md)
 - [Representative structure realization matrix v0.1](representative-structure-realization-matrix-v0.1.md)
 - [Structure reservation and relocation policy v0.1](structure-reservation-and-relocation-policy-v0.1.md)
