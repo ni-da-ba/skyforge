@@ -235,6 +235,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 smoothRouteAudit.admissibleCandidateCount() > 0,
                 smoothRouteAudit.summary());
         assertTrue(Double.isFinite(smoothRouteAudit.minimumIntegratedGap()), smoothRouteAudit.summary());
+        assertEquals(route.route().points().getFirst(), result.centerline().points().getFirst());
+        assertEquals(route.route().points().getLast(), result.centerline().points().getLast());
         assertTrue(d.lateralCandidateProposals() > 0);
         assertTrue(d.tangentCandidateProposals() > 0);
         assertTrue(d.globalModeSearchProposals() > 0);
