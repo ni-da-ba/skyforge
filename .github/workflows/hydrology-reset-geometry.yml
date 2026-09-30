@@ -103,6 +103,12 @@ on:
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyVoxelQuantizationCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4E.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityStatus.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityOutcome.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityPlan.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityPlanner.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3H.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandProjectedFluvialWaterSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandComponentFluvialWorldWaterProjection.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterQualificationViolation.java"
@@ -282,6 +288,7 @@ jobs:
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
             :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
             :skyforge-world:test --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
+            :skyforge-world:test --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
             :skyforge-world:test --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
             :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' \
