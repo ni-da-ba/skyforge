@@ -107,3 +107,4 @@ button:disabled{cursor:not-allowed;opacity:.5}
 @media(max-width:650px){.regional-summary{grid-template-columns:1fr}.regional-import-actions{display:grid}.regional-import-actions button{width:100%}}
 
 .regional-view>*{min-width:0;max-width:100%}.regional-import-panel,.regional-results{width:100%;min-width:0}.regional-table-wrap{min-width:0;max-width:100%;overflow-x:auto}
+.regional-view[hidden]{display:none}
