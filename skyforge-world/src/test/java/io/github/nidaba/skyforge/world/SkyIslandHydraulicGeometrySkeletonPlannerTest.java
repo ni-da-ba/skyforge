@@ -891,6 +891,13 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                     normalZ,
                                     terrain,
                                     policy.limits(qualificationClass));
+                            if (shareIndex == 2) {
+                                assertEquals(
+                                        gap,
+                                        asymmetricGap,
+                                        1.0e-9,
+                                        "50/50 diagnostic split must reproduce the symmetric evaluator");
+                            }
                             minimumAsymmetricGapInCorridor[shareIndex] =
                                     Math.min(
                                             minimumAsymmetricGapInCorridor[shareIndex],
