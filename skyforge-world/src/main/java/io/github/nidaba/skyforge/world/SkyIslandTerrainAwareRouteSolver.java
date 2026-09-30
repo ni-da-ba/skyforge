@@ -112,6 +112,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
         double[] valleyAdvantage = new double[count];
         double[] guidanceDeviation = new double[count];
         double[] guidanceStation = new double[count];
+        double[] routePenaltyCost = new double[count];
         double[] localCost = new double[count];
         boolean[] valid = new boolean[count];
         boolean[] start = new boolean[count];
@@ -154,6 +155,15 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 valleyAdvantage[index] = valley;
                 guidanceDeviation[index] = deviation;
                 guidanceStation[index] = projection.station();
+                routePenaltyCost[index] = localRoutePenalty.cost(
+                        position,
+                        projection.tangentX(),
+                        projection.tangentZ(),
+                        projection.station());
+                if (!Double.isFinite(routePenaltyCost[index]) || routePenaltyCost[index] < 0.0) {
+                    throw new IllegalArgumentException(
+                            "local route penalty must be finite and non-negative");
+                }
                 localCost[index] =
                         RIDGE_WEIGHT * ridge
                                 + TERRAIN_LEVEL_WEIGHT * elevation
@@ -227,22 +237,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     double stepLength = Math.hypot(dx * step, dz * step);
                     double normalizedLength = stepLength / planningSpacing;
                     double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
-                    double tangentLength = Math.hypot(dx, dz);
-                    double routePenalty = 0.5 * (
-                            localRoutePenalty.cost(
-                                    positions[current.index()],
-                                    dx / tangentLength,
-                                    dz / tangentLength,
-                                    guidanceStation[current.index()])
-                                    + localRoutePenalty.cost(
-                                            positions[next],
-                                            dx / tangentLength,
-                                            dz / tangentLength,
-                                            guidanceStation[next]));
-                    if (!Double.isFinite(routePenalty) || routePenalty < 0.0) {
-                        throw new IllegalArgumentException(
-                                "local route penalty must be finite and non-negative");
-                    }
+                    double routePenalty =
+                            0.5 * (routePenaltyCost[current.index()] + routePenaltyCost[next]);
                     double transitionCost =
                             BASE_LENGTH_WEIGHT * normalizedLength
                                     + 0.5
@@ -383,6 +379,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
             double totalLength) {
         double bestDistance = Double.POSITIVE_INFINITY;
         double bestStation = 0.0;
+        double bestTangentX = 0.0;
+        double bestTangentZ = 0.0;
         for (int i = 1; i < polyline.size(); i++) {
             SkyIslandLocalPosition a = polyline.get(i - 1);
             SkyIslandLocalPosition b = polyline.get(i);
@@ -400,9 +398,16 @@ public final class SkyIslandTerrainAwareRouteSolver {
             if (distance < bestDistance) {
                 bestDistance = distance;
                 bestStation = (arc[i - 1] + t * Math.sqrt(lengthSquared)) / totalLength;
+                double segmentLength = Math.sqrt(lengthSquared);
+                bestTangentX = dx / segmentLength;
+                bestTangentZ = dz / segmentLength;
             }
         }
-        return new PolylineProjection(bestDistance, Math.max(0.0, Math.min(1.0, bestStation)));
+        return new PolylineProjection(
+                bestDistance,
+                Math.max(0.0, Math.min(1.0, bestStation)),
+                bestTangentX,
+                bestTangentZ);
     }
 
     private static double distanceToPolyline(
@@ -469,7 +474,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 double semanticStation);
     }
 
-    private record PolylineProjection(double distance, double station) {}
+    private record PolylineProjection(
+            double distance, double station, double tangentX, double tangentZ) {}
 
     private record OpenNode(int index, double cost, double estimatedTotal) {}
 
