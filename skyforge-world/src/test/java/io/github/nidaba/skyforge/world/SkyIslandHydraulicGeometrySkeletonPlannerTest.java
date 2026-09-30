@@ -184,6 +184,9 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " gapImproving=" + d.lateralCandidateGapImproving()
                         + " selected=" + d.selectedLateralMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
+                        + " globalModeProposals=" + d.globalModeSearchProposals()
+                        + " globalModeAdmissible=" + d.globalModeSearchAdmissible()
+                        + " globalModeAcceptedMoves=" + d.globalModeSearchAcceptedMoves()
                         + " sweeps=" + d.relaxationSweeps()
                         + " profileDischargeMidpointMaxAbsError=" + profileDischargeMaximumError
                         + " profileDischargeMidpointWeightedRmsError=" + profileDischargeWeightedRmsError
@@ -226,6 +229,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 smoothRouteAudit.summary());
         assertTrue(Double.isFinite(smoothRouteAudit.minimumIntegratedGap()), smoothRouteAudit.summary());
         assertTrue(d.lateralCandidateProposals() > 0);
+        assertTrue(d.globalModeSearchProposals() > 0);
+        assertTrue(d.globalModeSearchAdmissible() > 0);
         assertEquals(
                 d.finalMaximumHeadEnvelopeGap(),
                 peakEnvelope.positiveGap(),

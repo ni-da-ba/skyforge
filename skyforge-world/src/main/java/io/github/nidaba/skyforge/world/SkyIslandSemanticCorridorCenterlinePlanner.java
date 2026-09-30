@@ -102,10 +102,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     null);
         }
 
-        List<SkyIslandLocalPosition> current = new ArrayList<>(seed.points());
-        Candidate best = evaluate(
-                searchRoute, current, headEnvelopeGap, bankfullHalfWidthAtStation);
-        Candidate initial = best;
+        Candidate initial = evaluate(
+                searchRoute, seed.points(), headEnvelopeGap, bankfullHalfWidthAtStation);
+        Candidate best = initial;
         long lateralCandidateProposals = 0;
         long lateralCandidateAdmissible = 0;
         long lateralCandidateCorridorRejected = 0;
@@ -119,6 +118,17 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long globalModeSearchAdmissible = 0;
         long globalModeSearchAcceptedMoves = 0;
         int relaxationSweeps = 0;
+        if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
+            GlobalModeSearchOutcome globalModes = refineGlobalModes(
+                    searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth, minimumBendRadius,
+                    bankfullHalfWidthAtStation, headEnvelopeGap, best);
+            best = globalModes.candidate();
+            globalModeSearchProposals = globalModes.proposals();
+            globalModeSearchAdmissible = globalModes.admissible();
+            globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
+        }
+        List<SkyIslandLocalPosition> current = new ArrayList<>(best.points());
         int maximumSweeps = headEnvelopeGap == null
                 ? MAXIMUM_RELAXATION_SWEEPS : MAXIMUM_D2_RELAXATION_SWEEPS;
         for (int sweep = 0; sweep < maximumSweeps; sweep++) {
@@ -175,20 +185,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         }
 
         if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
-            GlobalModeSearchOutcome globalModes = refineGlobalModes(
+            best = refineCoupledBlocks(
                     searchRoute, semanticGuidance, terrain, interiority,
                     semanticCorridorHalfWidth, minimumBendRadius,
                     bankfullHalfWidthAtStation, headEnvelopeGap, best);
-            best = globalModes.candidate();
-            globalModeSearchProposals = globalModes.proposals();
-            globalModeSearchAdmissible = globalModes.admissible();
-            globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
-            if (best.maximumHeadEnvelopeGap() > EPSILON) {
-                best = refineCoupledBlocks(
-                        searchRoute, semanticGuidance, terrain, interiority,
-                        semanticCorridorHalfWidth, minimumBendRadius,
-                        bankfullHalfWidthAtStation, headEnvelopeGap, best);
-            }
         }
 
         for (SkyIslandLocalPosition point : best.points()) {
