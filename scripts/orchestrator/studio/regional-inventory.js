@@ -343,5 +343,8 @@
     render();
   }
 
+  window.SkyforgeRegionalInventory = Object.freeze({ parseInventoryCsv, parseRankingCsv });
+  if (typeof module !== "undefined" && module.exports) module.exports = window.SkyforgeRegionalInventory;
+
   document.addEventListener("DOMContentLoaded", initialize);
 })();

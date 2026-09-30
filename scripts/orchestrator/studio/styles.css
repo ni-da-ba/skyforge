@@ -108,3 +108,5 @@ button:disabled{cursor:not-allowed;opacity:.5}
 
 .regional-view>*{min-width:0;max-width:100%}.regional-import-panel,.regional-results{width:100%;min-width:0}.regional-table-wrap{min-width:0;max-width:100%;overflow-x:auto}
 .regional-view[hidden]{display:none}
+
+.regional-compare-sides{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.regional-compare-sides input[type=file]{display:block;width:100%;margin:.35rem 0 1rem;color:#cbd5e1}.regional-compare-count{padding:.8rem;border:1px solid #2e4054;border-radius:7px;background:#0d151e}.regional-compare-count h4{margin:0 0 .5rem;color:#cbd5e1}.regional-compare-count p{margin:.25rem 0;color:#91a0b4}.regional-compare-count strong{color:#f3f4f6}.regional-compare-table{min-width:1120px}.regional-compare-table th,.regional-compare-table td{white-space:nowrap}.regional-row-added{color:#a7e0bd}.regional-row-removed{color:#f0aaaa}.regional-row-changed{color:#f2d675}@media(max-width:760px){.regional-compare-sides{grid-template-columns:1fr}.regional-summary{grid-template-columns:1fr}}
