@@ -235,6 +235,45 @@ class SkyIslandSemanticCorridorCenterlinePlannerTest {
         }
     }
 
+    @Test
+    void globalModeSearchUsesAuthoredCorridorBeyondLocalSampleScale() {
+        List<SkyIslandLocalPosition> points = new ArrayList<>();
+        for (int i = 0; i <= 40; i++) {
+            points.add(new SkyIslandLocalPosition(i, 0.0));
+        }
+        SkyIslandGeomorphicCandidateRoute route =
+                new SkyIslandGeomorphicCandidateRoute(
+                        points, 1.0, 40.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+        List<SkyIslandLocalPosition> guidance =
+                List.of(points.getFirst(), points.getLast());
+        SkyIslandSemanticField terrain = ignored -> 0.5;
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        SkyIslandCenterlineHeadEnvelopeGap gap =
+                (position, station, tangentX, tangentZ, halfWidth) ->
+                        Math.abs(position.z() - 3.0 * Math.sin(Math.PI * station));
+
+        SkyIslandSemanticCorridorCenterlinePlanner.RefinementOutcome outcome =
+                SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
+                        route, guidance, terrain, interiority,
+                        1.0, 4.0, 10.0, ignored -> 1.0, gap);
+
+        double maximumDisplacement = outcome.centerline().points().stream()
+                .mapToDouble(point -> Math.abs(point.z()))
+                .max()
+                .orElseThrow();
+        assertTrue(
+                maximumDisplacement > 1.0 + EPSILON,
+                "the authored corridor permits useful whole-route moves beyond one sample interval");
+        assertTrue(maximumDisplacement <= 4.0 + EPSILON);
+        assertTrue(
+                outcome.diagnostics().finalMaximumHeadEnvelopeGap()
+                        < outcome.diagnostics().initialMaximumHeadEnvelopeGap());
+        assertTrue(
+                maximumCurvature(outcome.centerline().points()) * 10.0
+                        <= 1.0 + 1.0e-6,
+                "full-corridor search must still honor the hard curvature-width constraint");
+    }
+
     private static double meanInteriorAbsoluteZ(List<SkyIslandLocalPosition> points) {
         return points.subList(1, points.size() - 1).stream()
                 .mapToDouble(point -> Math.abs(point.z()))
