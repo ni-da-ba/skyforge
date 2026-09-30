@@ -93,4 +93,15 @@ assert.throws(() => brief.parse({ ...first, id: "short" }), /id is invalid/);
 assert.throws(() => brief.createLibrary([first, first], first.id), /duplicate draft ids/);
 assert.throws(() => brief.createLibrary([first], "missing-123"), /active draft does not exist/);
 
+const deletedActive = brief.removeBrief(library, second.id);
+assert.equal(deletedActive.briefs.length, 1);
+assert.equal(deletedActive.active_brief_id, first.id);
+assert.equal(library.briefs.length, 2, "deleting a brief does not mutate the original library");
+assert.equal(library.active_brief_id, second.id);
+const deletedInactive = brief.removeBrief(library, first.id);
+assert.equal(deletedInactive.active_brief_id, second.id, "deleting another draft preserves the active selection");
+assert.equal(brief.removeBrief(brief.createLibrary([first], first.id), first.id).active_brief_id, null);
+assert.throws(() => brief.removeBrief(library, "missing-123"), /saved world brief does not exist/);
+assert.throws(() => brief.removeBrief(brief.createLibrary(), first.id), /saved world brief does not exist/);
+
 console.log("PASS Studio local world brief document behavior");

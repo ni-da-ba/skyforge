@@ -124,6 +124,18 @@
     return createWorldBriefLibrary(mergedBriefs, activeBriefId);
   }
 
+  function removeWorldBriefFromLibrary(value, briefId) {
+    const current = parseWorldBriefLibrary(value);
+    const remaining = current.briefs.filter((brief) => brief.id !== briefId);
+    if (remaining.length === current.briefs.length) {
+      throw new Error("saved world brief does not exist");
+    }
+    const activeBriefId = current.active_brief_id === briefId
+      ? (remaining[0]?.id || null)
+      : current.active_brief_id;
+    return createWorldBriefLibrary(remaining, activeBriefId);
+  }
+
   window.SkyforgeStudioWorldBrief = Object.freeze({
     create: createWorldBrief,
     parse: parseWorldBrief,
@@ -132,6 +144,7 @@
     parseLibrary: parseWorldBriefLibrary,
     serializeLibrary: serializeWorldBriefLibrary,
     mergeLibraries: mergeWorldBriefLibraries,
+    removeBrief: removeWorldBriefFromLibrary,
     documentType: WORLD_BRIEF_DOCUMENT_TYPE,
     libraryType: WORLD_BRIEF_LIBRARY_TYPE,
   });
@@ -1882,6 +1895,7 @@
         librarySelect.append(option);
       }
       librarySelect.value = activeBriefId || "";
+      $("world-brief-delete").disabled = !activeBriefId;
     }
 
     function loadBrief(brief) {
@@ -2075,6 +2089,25 @@
     $("world-brief-library-download").addEventListener("click", exportLibrary);
     $("world-brief-import-button").addEventListener("click", () => $("world-brief-import-file").click());
     $("world-brief-import-file").addEventListener("change", importBrief);
+    $("world-brief-delete").addEventListener("click", () => {
+      if (!activeBriefId || !flushPendingSave()) return;
+      const selected = library.briefs.find((brief) => brief.id === activeBriefId);
+      if (!selected) return;
+      if (!window.confirm("Delete saved brief \"" + selected.title +
+        "\" from this browser?")) return;
+      try {
+        const nextLibrary = window.SkyforgeStudioWorldBrief.removeBrief(library, selected.id);
+        window.localStorage.setItem(storageKey,
+          window.SkyforgeStudioWorldBrief.serializeLibrary(nextLibrary));
+        library = nextLibrary;
+        activeBriefId = nextLibrary.active_brief_id;
+        loadBrief(library.briefs.find((brief) => brief.id === activeBriefId) || null);
+        setStatus("Deleted \"" + selected.title + "\" from this browser.",
+          Boolean(activeBriefId));
+      } catch (error) {
+        setStatus("Could not delete this saved brief: " + String(error.message || error), false, "error");
+      }
+    });
     readLibrary();
   }
 
