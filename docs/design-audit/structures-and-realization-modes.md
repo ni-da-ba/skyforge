@@ -387,3 +387,19 @@ Possible values:
 - capability unlocks.
 
 The structure should answer why the player cared enough to travel there.
+
+
+## 2026-09-30 structure-content gap closure
+
+The deeper content audit concludes that most remaining V1 structure gaps can be closed through reuse rather than new Skyforge building content.
+
+Promote for integration testing:
+- Create: Structures Arise as industrial/technical/history vocabulary;
+- Creat Aeronautics Structures (MIT project) as aviation/history vocabulary;
+- Create Aeronautics Discovery as the physical-aircraft prefab/flyover/patrol realization substrate;
+- Aeronautical Explorations as a narrow external candidate for abandoned airstrip/petrol-station assets;
+- Radio Towers Lite as a narrow navigation/weather/radar tower-shell candidate.
+
+The remaining cliff-dock and underside-installation gaps are classified as realization-mode problems, not missing structure-library problems. Skyforge should solve anchor/orientation/support/approach semantics and populate those layouts from retained blocks/assets.
+
+See [Structure Content Gap and Reuse Audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md).
