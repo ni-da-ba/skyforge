@@ -40,3 +40,25 @@ acceptance or a substitute for the key-287 human gate.
 The Hydrology Reset Geometry workflow runs
 `HydrologyRefinedVoxelQuantizationCorpusTest` whenever the F4H planner, corpus, test, workflow, or
 this tranche contract changes. It prints the deterministic summary and per-reach report for review.
+
+## Fixed 8/81/77 result
+
+On exact head `ff105192a529b7133a24e6502a9cad362cf5b5d0`, the deterministic corpus reported:
+
+| Measure | F4C baseline | F4H refined |
+| --- | ---: | ---: |
+| Authorized integer columns | 9,005 | 9,005 |
+| Removed solid blocks | 15,997 | 15,987 |
+| Columns quantized shallower | — | 10 |
+| Columns quantized unchanged | — | 8,995 |
+| Columns quantized deeper | — | 0 |
+| Continuous columns shallower | — | 174 |
+| Continuous columns unchanged | — | 8,831 |
+| Continuous columns deeper | — | 0 |
+
+Maximum/mean continuous recovery was 0.162492698 / 0.001480386 world units. The quantization
+residual ranged from 0.000147845 to 0.999880972 world units. Both reaches re-passed D2
+(`postD2Rejected=0`); one of two centerlines consumed the solved F4F correction, while the
+bank-containment-infeasible reach remained unchanged.
+
+Hydrology Reset Geometry passed on that exact head ([run 36789947793](https://github.com/ni-da-ba/skyforge/actions/runs/36789947793)); the repository build check also passed ([run 36789947710](https://github.com/ni-da-ba/skyforge/actions/runs/36789947710)). These results verify the limited F4H invariants only. They do not authorize voxel placement or a Minecraft/product review.
