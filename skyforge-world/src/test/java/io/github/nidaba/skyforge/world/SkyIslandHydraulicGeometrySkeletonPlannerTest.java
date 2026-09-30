@@ -187,6 +187,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " globalModeProposals=" + d.globalModeSearchProposals()
                         + " globalModeAdmissible=" + d.globalModeSearchAdmissible()
                         + " globalModeAcceptedMoves=" + d.globalModeSearchAcceptedMoves()
+                        + " globalModeStages=" + d.globalModeSearchStages()
+                        + " globalModeMaximumBudget=" + d.globalModeSearchMaximumBudget()
                         + " sweeps=" + d.relaxationSweeps()
                         + " profileDischargeMidpointMaxAbsError=" + profileDischargeMaximumError
                         + " profileDischargeMidpointWeightedRmsError=" + profileDischargeWeightedRmsError
