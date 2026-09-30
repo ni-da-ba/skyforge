@@ -46,10 +46,14 @@ See [Creature Ecology Stack v0.1](creature-ecology-stack-v0.1.md) for the provis
 - It Takes a Pillage Continuation
 - Illager Structures
 - Mowzie's Mobs
+- Ice & Fire CE — strong provisional mythic/deep-sky content dependency; dragons, Stymphalian Birds, ghosts, hippogryphs/amphitheres, sea serpents, and selected roost/lair structures are in scope under Skyforge threat/geography authority; progression/taming/Dragonsteel remain independently audited
+- Alex's Mobs — selected aerial/anomalous threat specialists including Guster, Farseer, Void Worm, Enderiophage, Soul Vulture, and Crimson Mosquito
 - Bosses of Mass Destruction as a strong legendary prototype
 - YUNG's Better Dungeons as a strong dungeon candidate
 - YUNG's Better Mineshafts as a likely underground-history candidate
 - In Control! as a generic/static integration safety layer
+
+See [Deep-Sky and Mythic Threat Stack v0.1](deep-sky-threat-stack-v0.1.md) for the provisional above/between/below-island threat vocabulary, Ice & Fire CE role, and generic aircraft-target bridge requirement.
 
 ### Infrastructure / engineering
 - CC:Tweaked + Create: Avionics retained as the baseline programmable aircraft-computing / avionics substrate
