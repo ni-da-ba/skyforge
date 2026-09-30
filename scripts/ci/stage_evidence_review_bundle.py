@@ -170,6 +170,29 @@ def stage_studio_app(root: Path, destination: Path) -> tuple[int, int]:
         ),
     ])
 
+    regional_evidence_source = (
+        root / 'skyforge-reference' / 'build' / 'evidence'
+        / 'authorship-regional-base-metal-opportunity-v1'
+    )
+    regional_sample_root = sample_root / 'regional'
+    files.extend([
+        (regional_evidence_source / 'inventory.csv', regional_sample_root / 'auth-0094-inventory.csv'),
+        (regional_evidence_source / 'ranking.csv', regional_sample_root / 'auth-0094-ranking.csv'),
+        (regional_evidence_source / 'manifest.csv', regional_sample_root / 'auth-0094-manifest.csv'),
+    ])
+
+    manifest_path = regional_evidence_source / 'manifest.csv'
+    if not manifest_path.is_file():
+        raise BundleError('missing AUTH-0094 machine-evidence manifest')
+    manifest_lines = manifest_path.read_text(encoding='utf-8').splitlines()
+    if (
+        not manifest_lines
+        or manifest_lines[0] != 'scenario,pass'
+        or len(manifest_lines) != 7
+        or any(not line.endswith(',true') for line in manifest_lines[1:])
+    ):
+        raise BundleError('AUTH-0094 manifest does not record all six checks as passed')
+
     total_bytes = 0
     for source, target in files:
         if not source.is_file():
