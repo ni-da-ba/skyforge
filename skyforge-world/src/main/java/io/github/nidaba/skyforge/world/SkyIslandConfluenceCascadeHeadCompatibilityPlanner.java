@@ -306,13 +306,13 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             return unsolved(
                     confluence, cascade, coupledLeg,
                     SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
-                    nodeLower, nodeUpper, authoredMaximumDrop, Optional.of(qp), qp.diagnostic());
+                    nodeLower, nodeUpper, authoredMaximumDrop, Optional.of(qp), qp.diagnostic().orElse("bounded QP failure"));
         }
         if (qp.status() == SkyIslandHydraulicQpStatus.NUMERICAL_FAILURE) {
             return unsolved(
                     confluence, cascade, coupledLeg,
                     SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE,
-                    nodeLower, nodeUpper, authoredMaximumDrop, Optional.of(qp), qp.diagnostic());
+                    nodeLower, nodeUpper, authoredMaximumDrop, Optional.of(qp), qp.diagnostic().orElse("bounded QP failure"));
         }
 
         double[] solution = qp.solution();
@@ -418,6 +418,10 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
     private static Direction direction(SkyIslandLocalPosition upstream, SkyIslandLocalPosition downstream) {
         double dx = downstream.x() - upstream.x();
         double dz = downstream.z() - upstream.z();
+        return direction(dx, dz);
+    }
+
+    private static Direction direction(double dx, double dz) {
         double length = Math.hypot(dx, dz);
         if (!(length > EPSILON)) {
             throw new IllegalStateException("transition tangent must be non-zero");
@@ -523,58 +527,6 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 && Math.abs(first.arcLength() - second.arcLength()) <= EPSILON
                 && Math.abs(first.position().x() - second.position().x()) <= EPSILON
                 && Math.abs(first.position().z() - second.position().z()) <= EPSILON;
-    }
-
-    private static double normalizedLower(SkyIslandHydraulicHeadEnvelope envelope) {
-        return envelope.lowerHead() <= envelope.upperHead()
-                ? envelope.lowerHead()
-                : 0.5 * (envelope.lowerHead() + envelope.upperHead());
-    }
-
-    private static double normalizedUpper(SkyIslandHydraulicHeadEnvelope envelope) {
-        return envelope.lowerHead() <= envelope.upperHead()
-                ? envelope.upperHead()
-                : 0.5 * (envelope.lowerHead() + envelope.upperHead());
-    }
-
-    private static Direction direction(SkyIslandHydraulicTransitionLegGeometry leg) {
-        double dx = leg.finiteBoundary().position().x() - leg.nodeBoundary().position().x();
-        double dz = leg.finiteBoundary().position().z() - leg.nodeBoundary().position().z();
-        if (leg.nodeBoundary().role() == SkyIslandHydraulicTransitionBoundaryRole.INCOMING) {
-            dx = -dx;
-            dz = -dz;
-        }
-        return direction(dx, dz);
-    }
-
-    private static Direction direction(SkyIslandLocalPosition upstream, SkyIslandLocalPosition downstream) {
-        double dx = downstream.x() - upstream.x();
-        double dz = downstream.z() - upstream.z();
-        double length = Math.hypot(dx, dz);
-        if (!(length > EPSILON)) {
-            throw new IllegalStateException("transition tangent must be non-zero");
-        }
-        return new Direction(dx / length, dz / length);
-    }
-
-    private static double authoredDrop(
-            SkyIslandDescriptor descriptor,
-            List<SkyIslandChannelProfile> profiles,
-            SkyIslandHydraulicCascadeTransitionSite site,
-            Map<Integer, SkyIslandWatershedCell> cells) {
-        double dropPotential = 0.0;
-        for (int i = site.firstProfileIndex(); i < site.lastProfileIndexExclusive(); i++) {
-            SkyIslandChannelProfile profile = profiles.get(i);
-            if (profile.kind() != SkyIslandChannelProfileKind.CASCADE) {
-                throw new IllegalStateException(
-                        "joint CASCADE interval contains an ordinary profile");
-            }
-            SkyIslandChannelSegment segment = profile.segment();
-            SkyIslandWatershedCell source = requireCell(cells, segment.sourceCellIndex());
-            SkyIslandWatershedCell downstream = requireCell(cells, segment.downstreamCellIndex());
-            dropPotential += Math.max(0.0, source.surfacePotential() - downstream.surfacePotential());
-        }
-        return dropPotential * descriptor.reliefBudget();
     }
 
     private static long identity(int start, int end) {
