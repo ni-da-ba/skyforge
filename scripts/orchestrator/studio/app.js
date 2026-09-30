@@ -251,6 +251,8 @@
   let scene = null;
   let overlay = null;
   let hydrologyComparison = null;
+  let importedHydrologyComparisonReport = null;
+  let importedComparisonReportPage = 0;
   let artifactCatalog = [];
   let selected = null;
   let projected = [];
@@ -2162,6 +2164,88 @@
     draw();
   });
 
+  function appendComparisonReportSummary(label, value) {
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = label;
+    description.textContent = value;
+    $("imported-comparison-report-summary").append(term, description);
+  }
+
+  function reportValueText(value) {
+    if (value === null) return "null";
+    return typeof value === "string" ? value : JSON.stringify(value);
+  }
+
+  function renderImportedHydrologyComparisonReport() {
+    if (!importedHydrologyComparisonReport) return;
+    const parsed = importedHydrologyComparisonReport;
+    const report = parsed.document;
+    const summary = $("imported-comparison-report-summary");
+    summary.replaceChildren();
+    appendComparisonReportSummary("Format", "Version " + report.format_version);
+    appendComparisonReportSummary("Selected field", report.selected_field +
+      (report.selected_cause_field ? " · " + report.selected_cause_field : ""));
+    appendComparisonReportSummary("Terrain semantic SHA-256", report.binding.terrainSemanticSha256);
+    appendComparisonReportSummary("AUTH-0046 association", report.binding.associationToken);
+    appendComparisonReportSummary("Cause-grid samples", String(parsed.causeSampleCount));
+    appendComparisonReportSummary("Projected-field samples", String(parsed.projectedFieldSampleCount));
+    appendComparisonReportSummary("Recorded source authority",
+      (parsed.sourceReviewAuthorityRecorded ? "Claimed" : "Not claimed") +
+      " · imported data is unverified");
+
+    const kind = $("comparison-report-sample-set").value;
+    const page = window.SkyforgeStudioComparisonReportReader.page(
+      parsed, kind, importedComparisonReportPage);
+    const rows = $("comparison-report-samples");
+    rows.replaceChildren();
+    for (const sample of page.items) {
+      const row = document.createElement("tr");
+      const changes = kind === "causes" ? sample.deltas : {
+        surfaceDeltaY: sample.surfaceDeltaY,
+        waterSurfaceDeltaY: sample.waterSurfaceDeltaY,
+        waterDepthDelta: sample.waterDepthDelta,
+        wetTransition: sample.wetTransition,
+      };
+      const values = [
+        JSON.stringify(sample.grid),
+        kind === "causes" ? "aligned" : sample.coverage,
+        JSON.stringify(sample.reference),
+        JSON.stringify(sample.candidate),
+        JSON.stringify(changes),
+      ];
+      for (const value of values) {
+        const cell = document.createElement("td");
+        cell.textContent = reportValueText(value);
+        row.append(cell);
+      }
+      rows.append(row);
+    }
+    $("comparison-report-page-status").textContent = page.total === 0
+      ? "No samples in this set."
+      : "Samples " + page.firstIndex + "–" + page.lastIndex + " of " + page.total +
+        " · page " + (page.pageIndex + 1) + " of " + page.pageCount +
+        ". Values are shown as recorded; Studio does not recalculate them.";
+    $("comparison-report-previous").disabled = page.pageIndex === 0;
+    $("comparison-report-next").disabled = page.pageIndex + 1 >= page.pageCount;
+  }
+
+  function openImportedHydrologyComparisonReport(parsed, filename) {
+    importedHydrologyComparisonReport = parsed;
+    importedComparisonReportPage = 0;
+    $("comparison-report-sample-set").value = "causes";
+    $("imported-comparison-report-note").textContent =
+      "Opened " + filename + " as a local diagnostic snapshot. Its recorded provenance is unverified; it did not load terrain, change bindings, or establish review authority.";
+    $("imported-comparison-report-metadata").textContent = JSON.stringify({
+      binding: parsed.document.binding,
+      sources: parsed.document.sources,
+    }, null, 2);
+    $("imported-comparison-report").hidden = false;
+    renderImportedHydrologyComparisonReport();
+    $("comparison-report-import-status").textContent =
+      "Opened the saved report. Source authority is displayed only as recorded metadata.";
+  }
+
   function downloadHydrologyComparisonReport() {
     if (!overlay || !hydrologyComparison) return;
     const mode = $("comparison-mode").value;
@@ -2182,6 +2266,49 @@
     $("comparison-report-status").textContent =
       "Downloaded the complete comparison report. It is diagnostic data, not independent human-review evidence.";
   }
+
+  $("open-comparison-report").addEventListener("click", () => $("comparison-report-file").click());
+  $("comparison-report-file").addEventListener("change", async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    try {
+      const parsed = window.SkyforgeStudioComparisonReportReader.parse(
+        await file.text(), file.size);
+      openImportedHydrologyComparisonReport(parsed, file.name);
+    } catch (error) {
+      $("comparison-report-import-status").textContent =
+        "Could not open this comparison report: " + String(error.message || error);
+    } finally {
+      event.target.value = "";
+    }
+  });
+  $("close-comparison-report").addEventListener("click", () => {
+    importedHydrologyComparisonReport = null;
+    $("imported-comparison-report").hidden = true;
+    $("imported-comparison-report-summary").replaceChildren();
+    $("imported-comparison-report-metadata").textContent = "";
+    $("comparison-report-samples").replaceChildren();
+    $("comparison-report-import-status").textContent = "Closed the saved comparison report.";
+  });
+  $("comparison-report-sample-set").addEventListener("change", () => {
+    importedComparisonReportPage = 0;
+    renderImportedHydrologyComparisonReport();
+  });
+  $("comparison-report-previous").addEventListener("click", () => {
+    if (importedComparisonReportPage === 0) return;
+    importedComparisonReportPage -= 1;
+    renderImportedHydrologyComparisonReport();
+  });
+  $("comparison-report-next").addEventListener("click", () => {
+    if (!importedHydrologyComparisonReport) return;
+    const page = window.SkyforgeStudioComparisonReportReader.page(
+      importedHydrologyComparisonReport,
+      $("comparison-report-sample-set").value,
+      importedComparisonReportPage);
+    if (importedComparisonReportPage + 1 >= page.pageCount) return;
+    importedComparisonReportPage += 1;
+    renderImportedHydrologyComparisonReport();
+  });
 
   $("clear-hydrology-comparison").addEventListener("click", clearHydrologyComparison);
   $("download-comparison-report").addEventListener("click", () => {

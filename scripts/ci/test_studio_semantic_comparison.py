@@ -311,6 +311,13 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
         app = (STUDIO / "app.js").read_text(encoding="utf-8")
         markup = (STUDIO / "index.html").read_text(encoding="utf-8")
         self.assertIn("comparison-report.js", markup)
+        self.assertIn("comparison-report-reader.js", markup)
+        self.assertIn("function openImportedHydrologyComparisonReport(parsed, filename)", app)
+        self.assertIn("Source authority is displayed only as recorded metadata", app)
+        self.assertIn('id="open-comparison-report"', markup)
+        self.assertIn('id="imported-comparison-report"', markup)
+        self.assertIn('id="comparison-report-samples"', markup)
+        self.assertIn('id="comparison-report-next"', markup)
         self.assertIn("function downloadHydrologyComparisonReport()", app)
         self.assertIn("human-review evidence", app)
         self.assertIn("comparison.samples.length", app)
@@ -333,7 +340,7 @@ class StudioHydrologyComparisonContractTest(unittest.TestCase):
     def test_studio_javascript_parses_in_ci_runtime(self):
         node = shutil.which("node")
         self.assertIsNotNone(node, "GitHub Actions runner must provide Node.js for syntax checks")
-        for path in (STUDIO / "app.js", STUDIO / "scene.js", STUDIO / "comparison-report.js"):
+        for path in (STUDIO / "app.js", STUDIO / "scene.js", STUDIO / "comparison-report.js", STUDIO / "comparison-report-reader.js"):
             result = subprocess.run(
                 [node, "--check", str(path)],
                 check=False,

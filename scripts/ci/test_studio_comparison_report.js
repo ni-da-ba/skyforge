@@ -3,6 +3,8 @@ const assert = require("node:assert/strict");
 globalThis.window = {};
 require("../orchestrator/studio/comparison-report.js");
 const contract = window.SkyforgeStudioComparisonReport;
+require("../orchestrator/studio/comparison-report-reader.js");
+const reader = window.SkyforgeStudioComparisonReportReader;
 const referenceSource = {
   binding: "AUTH-BOUND", artifactId: "reference-17", artifactTitle: "Reference", sourceSha: "a1",
   reviewAuthority: true, artifactKind: "SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER", artifactDigest: "ref-digest",
@@ -89,4 +91,47 @@ assert.throws(() => contract.create({
 assert.throws(() => contract.create({
   ...input, candidate: { ...candidate, source: { ...candidateSource } },
 }), /sources do not match/);
+
+const serializedReport = JSON.stringify(report);
+const imported = reader.parse(serializedReport);
+assert.equal(imported.causeSampleCount, 2);
+assert.equal(imported.projectedFieldSampleCount, 2);
+assert.equal(imported.sourceReviewAuthorityRecorded, false);
+assert.equal(imported.sourceReviewAuthorityVerified, false, "imported provenance claims are never verified");
+assert.deepEqual(reader.page(imported, "causes", 0).items.map((sample) => sample.grid), [[0, 0], [1, 0]]);
+assert.throws(() => reader.parse(JSON.stringify({ ...report, format_version: 2 })), /unsupported.*version/);
+assert.throws(() => reader.parse("{"), /not valid JSON/);
+assert.throws(() => reader.parse(JSON.stringify({ ...report, diagnostic_only: false })), /must remain diagnostic/);
+assert.throws(() => reader.parse(JSON.stringify({
+  ...report, cause_samples: [{ ...report.cause_samples[0], grid: [0] }],
+})), /grid is invalid/);
+assert.throws(() => reader.parse(serializedReport, reader.maximumFileBytes + 1), /32 MB or smaller/);
+
+const forgedAuthority = JSON.parse(serializedReport);
+forgedAuthority.source_review_authority = true;
+const forgedImport = reader.parse(JSON.stringify(forgedAuthority));
+assert.equal(forgedImport.sourceReviewAuthorityRecorded, true);
+assert.equal(forgedImport.sourceReviewAuthorityVerified, false,
+  "a forged local source authority claim remains only recorded text");
+
+const manySamples = Array.from({ length: 123 }, (_, index) => ({
+  ...report.cause_samples[index % report.cause_samples.length], grid: [index, 0],
+}));
+const paginatedJson = JSON.stringify({ ...report, cause_samples: manySamples });
+const paginated = reader.parse(paginatedJson);
+const firstPage = reader.page(paginated, "causes", 0);
+const secondPage = reader.page(paginated, "causes", 1);
+const thirdPage = reader.page(paginated, "causes", 2);
+assert.equal(firstPage.items.length, 50);
+assert.equal(firstPage.firstIndex, 1);
+assert.equal(secondPage.firstIndex, 51);
+assert.equal(secondPage.items.length, 50);
+assert.equal(thirdPage.firstIndex, 101);
+assert.equal(thirdPage.items.length, 23);
+assert.equal(thirdPage.pageCount, 3);
+assert.ok(Object.isFrozen(firstPage.items));
+assert.equal(paginatedJson, JSON.stringify({ ...report, cause_samples: manySamples }),
+  "reading and paging a report does not mutate source data");
+assert.throws(() => reader.page(paginated, "causes", 3), /page index is invalid/);
 console.log("PASS Studio hydrology comparison report behavior");
+
