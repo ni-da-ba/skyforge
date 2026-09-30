@@ -70,7 +70,7 @@ This document consolidates the current candidate stack from the content-integrat
 - Create Crafts & Additions retained as the preferred single-electricity ecosystem; Silver geology excluded and Electrum retained only if integrated high-current demand proves useful
 - Create: New Age reserved specifically as a future nuclear/advanced-heat candidate, not as a second electrical authority
 - late-game logistics automation candidate
-- Sophisticated Storage/Backpacks only if freight gameplay remains meaningful; reject warehouse-scale early backpack configurations, recursive portable storage, or early fluid capacity that erases freight roles
+- Dedicated storage mods are provisionally omitted: Vanilla + Create storage/logistics are the default substrate. Sophisticated Storage/Backpacks remain reserve-only if playtesting exposes a concrete capacity, performance, or UX gap; freight-scale portable storage, nesting, and bulk-fluid backpacks remain disfavored.
 
 See [Engineered Weapons Systems Stack v0.1](engineered-weapons-systems-stack-v0.1.md) for the current provisional combat-system authority map, recipe-normalization doctrine, and compatibility backlog.
 
