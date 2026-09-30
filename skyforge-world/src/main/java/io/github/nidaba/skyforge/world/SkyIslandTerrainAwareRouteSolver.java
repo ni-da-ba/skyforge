@@ -401,6 +401,11 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 bestTangentZ = dz / segmentLength;
             }
         }
+        if (!Double.isFinite(bestDistance)) {
+            SkyIslandLocalPosition first = polyline.getFirst();
+            return new PolylineProjection(
+                    Math.hypot(point.x() - first.x(), point.z() - first.z()), 0.0, 0.0, 0.0);
+        }
         return new PolylineProjection(
                 bestDistance,
                 Math.max(0.0, Math.min(1.0, bestStation)),
