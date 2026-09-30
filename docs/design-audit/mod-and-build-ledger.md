@@ -24,10 +24,13 @@ This document consolidates the current candidate stack from the content-integrat
 - Wind Tunnel retained as a strong dev/validation tool
 
 ### Ecology
-- Naturalist
-- Fowl Play
-- Critters & Companions, pending performance/visual validation
-- Sky Whales
+- Naturalist — strong core ordinary-fauna library under Skyforge habitat/population authority
+- Fowl Play — strong core and preferred ordinary-bird implementation; flying fauna should consume the shared atmosphere contract
+- Critters & Companions — selective strong keep for small-fauna / arthropod / companion niches; duplicate species and progression rewards audited independently
+- Sky Whales — exceptional aerial-megafauna prototype; native spawning subordinated to Skyforge; whale-derived lift may be early, parallel, or specialist relative to Levitite pending playtesting
+- Alex's Mobs — reserve species library pending species-level audit; both real and fantastical creatures may be admitted where they fill a coherent ecological, encounter, or world-texture niche
+
+See [Creature Ecology Stack v0.1](creature-ecology-stack-v0.1.md) for the provisional ordinary-fauna libraries, Skyforge population authority, shared flying-fauna atmosphere contract, and Sky Whale progression caveat.
 
 ### Hostiles / structures
 - vanilla hostile and structure mechanics
