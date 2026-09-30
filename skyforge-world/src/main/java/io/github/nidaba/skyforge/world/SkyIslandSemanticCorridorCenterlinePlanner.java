@@ -117,6 +117,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long globalModeSearchProposals = 0;
         long globalModeSearchAdmissible = 0;
         long globalModeSearchAcceptedMoves = 0;
+        int globalModeSearchStages = 0;
+        double globalModeSearchMaximumBudget = 0.0;
         int relaxationSweeps = 0;
         if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
             GlobalModeSearchOutcome globalModes = refineGlobalModes(
@@ -127,6 +129,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             globalModeSearchProposals = globalModes.proposals();
             globalModeSearchAdmissible = globalModes.admissible();
             globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
+            globalModeSearchStages = globalModes.stages();
+            globalModeSearchMaximumBudget = globalModes.maximumBudget();
         }
         List<SkyIslandLocalPosition> current = new ArrayList<>(best.points());
         int maximumSweeps = headEnvelopeGap == null
@@ -218,7 +222,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 relaxationSweeps,
                 globalModeSearchProposals,
                 globalModeSearchAdmissible,
-                globalModeSearchAcceptedMoves);
+                globalModeSearchAcceptedMoves,
+                globalModeSearchStages,
+                globalModeSearchMaximumBudget);
         return new RefinementOutcome(centerline, diagnostics);
     }
 
@@ -319,64 +325,89 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap,
             Candidate initial) {
-        List<SkyIslandLocalPosition> reference = initial.points();
-        if (reference.size() < 4) {
-            return new GlobalModeSearchOutcome(initial, 0, 0, 0);
+        List<SkyIslandLocalPosition> initialPoints = initial.points();
+        if (initialPoints.size() < 4) {
+            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
         }
-        double[] referenceStations = stations(reference);
-        // The semantic corridor is the authored search domain. Local sample spacing and
-        // bankfull width are useful proposal scales, but must not silently truncate that domain.
-        // Every full-corridor proposal is still subject to the same hard geometry checks below.
-        double amplitudeBound = semanticCorridorHalfWidth;
-        int modeCount = Math.min(8, reference.size() - 2);
-        if (!(amplitudeBound > EPSILON) || modeCount == 0) {
-            return new GlobalModeSearchOutcome(initial, 0, 0, 0);
+
+        double[] initialStations = stations(initialPoints);
+        double maximumBankfullHalfWidth = 0.0;
+        for (double station : initialStations) {
+            double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
+            if (!Double.isFinite(halfWidth) || halfWidth < 0.0) {
+                throw new IllegalArgumentException(
+                        "bankfull half-width must be finite and non-negative");
+            }
+            maximumBankfullHalfWidth = Math.max(maximumBankfullHalfWidth, halfWidth);
+        }
+        double nominalSpacing = length(initialPoints) / (initialPoints.size() - 1.0);
+        double initialBudget = Math.min(
+                semanticCorridorHalfWidth,
+                Math.max(nominalSpacing, maximumBankfullHalfWidth));
+        int modeCount = Math.min(8, initialPoints.size() - 2);
+        if (!(initialBudget > EPSILON) || modeCount == 0) {
+            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
         }
 
         Candidate best = initial;
-        double[] coefficients = new double[modeCount];
         long proposals = 0;
         long admissible = 0;
         long acceptedMoves = 0;
-        for (int round = 0; round < 8; round++) {
-            double step = amplitudeBound * Math.scalb(1.0, -round);
-            boolean roundImproved = false;
-            for (int mode = 0; mode < modeCount; mode++) {
-                for (int direction : new int[] {-1, 1}) {
-                    double[] trialCoefficients = coefficients.clone();
-                    trialCoefficients[mode] += direction * step;
-                    double totalAmplitude = 0.0;
-                    for (double coefficient : trialCoefficients) {
-                        totalAmplitude += Math.abs(coefficient);
-                    }
-                    if (totalAmplitude > amplitudeBound + EPSILON) {
-                        continue;
-                    }
-                    proposals++;
-                    List<SkyIslandLocalPosition> candidatePoints =
-                            globalModeDisplacement(reference, referenceStations, trialCoefficients);
-                    if (!geometryAdmissible(
-                            candidatePoints, searchRoute, semanticGuidance, terrain, interiority,
-                            semanticCorridorHalfWidth, minimumBendRadius)) {
-                        continue;
-                    }
-                    admissible++;
-                    Candidate candidate = evaluate(
-                            searchRoute, candidatePoints, headEnvelopeGap,
-                            bankfullHalfWidthAtStation);
-                    if (candidate.compareTo(best, minimumBendRadius) < 0) {
-                        best = candidate;
-                        coefficients = trialCoefficients;
-                        acceptedMoves++;
-                        roundImproved = true;
+        int stages = 0;
+        double maximumBudget = 0.0;
+        double budget = initialBudget;
+        while (true) {
+            stages++;
+            maximumBudget = budget;
+            List<SkyIslandLocalPosition> reference = best.points();
+            double[] referenceStations = stations(reference);
+            double[] coefficients = new double[modeCount];
+            for (int round = 0; round < 8; round++) {
+                double step = budget * Math.scalb(1.0, -round);
+                for (int mode = 0; mode < modeCount; mode++) {
+                    for (int direction : new int[] {-1, 1}) {
+                        double[] trialCoefficients = coefficients.clone();
+                        trialCoefficients[mode] += direction * step;
+                        double totalAmplitude = 0.0;
+                        for (double coefficient : trialCoefficients) {
+                            totalAmplitude += Math.abs(coefficient);
+                        }
+                        if (totalAmplitude > budget + EPSILON) {
+                            continue;
+                        }
+                        proposals++;
+                        List<SkyIslandLocalPosition> candidatePoints =
+                                globalModeDisplacement(
+                                        reference, referenceStations, trialCoefficients);
+                        if (!geometryAdmissible(
+                                candidatePoints, searchRoute, semanticGuidance,
+                                terrain, interiority, semanticCorridorHalfWidth,
+                                minimumBendRadius)) {
+                            continue;
+                        }
+                        admissible++;
+                        Candidate candidate = evaluate(
+                                searchRoute, candidatePoints, headEnvelopeGap,
+                                bankfullHalfWidthAtStation);
+                        if (candidate.compareTo(best, minimumBendRadius) < 0) {
+                            best = candidate;
+                            coefficients = trialCoefficients;
+                            acceptedMoves++;
+                        }
                     }
                 }
             }
-            if (!roundImproved && round == 4) {
+            if (budget >= semanticCorridorHalfWidth - EPSILON) {
                 break;
             }
+            double nextBudget = Math.min(semanticCorridorHalfWidth, budget * 2.0);
+            if (!(nextBudget > budget + EPSILON)) {
+                break;
+            }
+            budget = nextBudget;
         }
-        return new GlobalModeSearchOutcome(best, proposals, admissible, acceptedMoves);
+        return new GlobalModeSearchOutcome(
+                best, proposals, admissible, acceptedMoves, stages, maximumBudget);
     }
 
     private static List<SkyIslandLocalPosition> globalModeDisplacement(
@@ -793,7 +824,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     private record LocalHeadGapScore(double maximumGap, double integratedSquaredGap) {}
 
     private record GlobalModeSearchOutcome(
-            Candidate candidate, long proposals, long admissible, long acceptedMoves) {}
+            Candidate candidate,
+            long proposals,
+            long admissible,
+            long acceptedMoves,
+            int stages,
+            double maximumBudget) {}
 
     private static SkyIslandLocalPosition lateralOption(
             SkyIslandLocalPosition point,
@@ -1048,7 +1084,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             int relaxationSweeps,
             long globalModeSearchProposals,
             long globalModeSearchAdmissible,
-            long globalModeSearchAcceptedMoves) {}
+            long globalModeSearchAcceptedMoves,
+            int globalModeSearchStages,
+            double globalModeSearchMaximumBudget) {}
 
     private record RelaxationStep(
             List<SkyIslandLocalPosition> points,
