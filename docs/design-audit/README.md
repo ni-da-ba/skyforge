@@ -65,6 +65,7 @@ Core principle:
 - Progression-critical vanilla structures such as Strongholds must be guaranteed. If no suitable island exists, Skyforge may author terrain around the required structure.
 - Ancient Cities should support both buried and rare exposed/structure-seeded realizations.
 - Ordinary cluster authoring should preserve **layering without roofing**: vertical composition without routinely placing large islands directly over habitable lower surfaces.
+- The general V1 structure-content stack is provisionally closed: existing mods supply most building/vehicle vocabulary, while Skyforge owns site planning, density, provenance, state, airfield topology, cliff/underside anchoring, and functional overlays. Salvage/capture/trade may legitimately shortcut manufacturing acquisition when capability and operating-support costs remain meaningful.
 
 ## Relationship to accepted implementation work
 
@@ -94,6 +95,7 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Deep-sky and mythic threat stack v0.1](deep-sky-threat-stack-v0.1.md)
 - [Structures, dungeons, settlements, and realization modes](structures-and-realization-modes.md)
 - [Structure content gap and reuse audit v0.1](structure-content-gap-and-reuse-audit-v0.1.md)
+- [Structure content stack v0.1](structure-content-stack-v0.1.md)
 - [Structure realization contract v0.1](structure-realization-contract-v0.1.md)
 - [Representative structure realization matrix v0.1](representative-structure-realization-matrix-v0.1.md)
 - [Structure reservation and relocation policy v0.1](structure-reservation-and-relocation-policy-v0.1.md)
