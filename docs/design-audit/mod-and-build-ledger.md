@@ -79,9 +79,10 @@ See [General Engineering Power Stack v0.1](general-engineering-power-stack-v0.1.
 See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-stack-v0.1.md) for the provisional ground/rail/running-gear/joint authority model and locomotion compatibility backlog.
 
 ### Ordinary life/building
-- Supplementaries strong candidate
-- Farmer's Delight strong candidate
-- Slice & Dice compatible extension candidate
+- Farmer's Delight promoted to strong keep as the ordinary food/agriculture substrate
+- Create: Central Kitchen promoted to strong provisional keep as the preferred Create/Farmer's Delight automation bridge; exact Dragons Plus dependency surface remains implementation-time acceptance work
+- Supplementaries promoted to strong keep under curated configuration: ordinary-life/building/utility assets retained while duplicate pulley/cannon/navigation/weather/worldgen authorities are disabled or intercepted
+- Slice & Dice moved to reserve/A-B status, primarily for distinct agricultural machinery such as sprinklers where Central Kitchen does not already cover the processing verb
 - Artifacts strong exploration-reward candidate
 - Lootr for multiplayer if needed
 
