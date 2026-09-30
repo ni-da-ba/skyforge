@@ -58,6 +58,9 @@ This document consolidates the current candidate stack from the content-integrat
 - SJE / Aero Propulsion promoted to strong provisional keep as the canonical advanced air-breathing engine family
 - Create Propulsion: Simulated promoted to strong provisional keep as the canonical reaction/vector/solid/ion propulsion family; exact fuel/oxidizer/ion balance remains deferred
 - Create Linear Bearing promoted to strong provisional physical linear-actuation candidate for Sable/Aeronautics machinery
+- Aeronautics: No Horizon promoted to strong provisional primary heavy-ground locomotion layer for tracks, suspension, wheels, and oleo landing gear; Tracks+ retained as the A/B fallback
+- Create Aeronautics: Transmission & Linkage promoted to strong provisional articulated-mechanism layer for hinges, universal joints, hydraulics, and linked machinery
+- Create trains + Steam 'n' Rails retained as the preferred fixed-route rail locomotion/freight layer; Aeronautics Offroad remains the baseline wheeled-vehicle layer
 - Create: Big Cannons retained; leading heavy-industry/artillery material and manufacturing spine
 - Create: Metallurgy provisional foundry-mechanics A/B only; Wolframite/Tungsten/Obdurium are not current Skyforge progression
 - Create Crafts & Additions retained as the preferred single-electricity ecosystem; Silver geology excluded and Electrum retained only if integrated high-current demand proves useful
@@ -68,6 +71,8 @@ This document consolidates the current candidate stack from the content-integrat
 See [Engineered Weapons Systems Stack v0.1](engineered-weapons-systems-stack-v0.1.md) for the current provisional combat-system authority map, recipe-normalization doctrine, and compatibility backlog.
 
 See [General Engineering Power Stack v0.1](general-engineering-power-stack-v0.1.md) for the provisional mechanical/electrical/chemical/thermal authority model and deferred balance/compatibility work.
+
+See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-stack-v0.1.md) for the provisional ground/rail/running-gear/joint authority model and locomotion compatibility backlog.
 
 ### Ordinary life/building
 - Supplementaries strong candidate
