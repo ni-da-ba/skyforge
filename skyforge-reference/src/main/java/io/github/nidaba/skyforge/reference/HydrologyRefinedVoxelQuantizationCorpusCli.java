@@ -188,7 +188,10 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
 
                 F4G extends solved F4F head/bed corrections through the accepted F4A continuous
                 cross-section primitive. Evidence is association-specific and continuous only.
-                The F4H integer plan must preserve the exact F4C authorized-column set and may only\n                retain or raise each target solid surface; aggregate removed-block count cannot increase.\n                This is evidence only and grants no Minecraft mutation authority.\n                """, StandardCharsets.UTF_8);
+                The F4H integer plan must preserve the exact F4C authorized-column set and may only
+                retain or raise each target solid surface; aggregate removed-block count cannot increase.
+                This is evidence only and grants no Minecraft mutation authority.
+                """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("summary.csv").toAbsolutePath());
     }
 
