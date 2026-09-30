@@ -27,6 +27,93 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     }
 
     @Test
+    void d2AwareAStarCostSearchesOnlyWithinTheSemanticCorridor() throws Exception {
+        SkyIslandDescriptor descriptor = descriptor(287L);
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandGeomorphicReachRoute route = network.routes().stream()
+                .filter(candidate -> candidate.semanticReach().startCellIndex() == 1090
+                        && candidate.semanticReach().endCellIndex() == 1758)
+                .findFirst()
+                .orElseThrow();
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        double corridorHalfWidth =
+                network.planningSpacing()
+                        * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+        SkyIslandLocalPosition start = route.route().points().getFirst();
+        SkyIslandLocalPosition end = route.route().points().getLast();
+        double baselineRawGap = maximumRawD2Gap(
+                descriptor, route.semanticReach(), route.route().points(), terrain);
+        StringBuilder report = new StringBuilder(String.format(
+                Locale.ROOT,
+                "F3G_D2_ASTAR key=287 baselineRawMaxGap=%.8f corridorHalfWidth=%.6f%n",
+                baselineRawGap,
+                corridorHalfWidth));
+        SkyIslandGeomorphicCandidateRoute bestCandidate = route.route();
+        double bestRawGap = baselineRawGap;
+        double bestPenaltyWeight = 0.0;
+        for (double penaltyWeight : new double[] {0.0, 10.0, 40.0}) {
+            SkyIslandGeomorphicCandidateRoute candidate =
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                            terrain,
+                            interiority,
+                            route.semanticReach().guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(start, 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(end, 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL,
+                            d2RoutePenalty(descriptor, route.semanticReach(), terrain, penaltyWeight));
+            assertEquals(start, candidate.points().getFirst());
+            assertEquals(end, candidate.points().getLast());
+            assertTrue(candidate.maxGuidanceDeviation() <= corridorHalfWidth + EPSILON);
+            if (penaltyWeight == 0.0) {
+                assertEquals(route.route(), candidate, "zero D2 cost must preserve the default A* path");
+            }
+            double rawGap = maximumRawD2Gap(
+                    descriptor, route.semanticReach(), candidate.points(), terrain);
+            report.append(String.format(
+                    Locale.ROOT,
+                    "F3G_D2_ASTAR weight=%.3f rawMaxGap=%.8f pathLength=%.6f "
+                            + "maxDeviation=%.6f uphillFraction=%.8f%n",
+                    penaltyWeight,
+                    rawGap,
+                    candidate.pathLength(),
+                    candidate.maxGuidanceDeviation(),
+                    candidate.uphillStepFraction()));
+            if (rawGap < bestRawGap - EPSILON) {
+                bestRawGap = rawGap;
+                bestCandidate = candidate;
+                bestPenaltyWeight = penaltyWeight;
+            }
+        }
+        if (bestPenaltyWeight > 0.0) {
+            var refined = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                    descriptor,
+                    network,
+                    new SkyIslandGeomorphicReachRoute(route.semanticReach(), bestCandidate),
+                    terrain,
+                    interiority);
+            var diagnostics = refined.diagnostics();
+            report.append(String.format(
+                    Locale.ROOT,
+                    "F3G_D2_ASTAR_REFINED weight=%.3f rawMaxGap=%.8f "
+                            + "refinedMaxGap=%.8f refinedIntegratedGap=%.8f%n",
+                    bestPenaltyWeight,
+                    bestRawGap,
+                    diagnostics.finalMaximumHeadEnvelopeGap(),
+                    diagnostics.finalIntegratedSquaredHeadEnvelopeGap()));
+        }
+        Path evidenceDirectory =
+                Path.of("build", "evidence", "hydrology-d2-search-test");
+        Files.createDirectories(evidenceDirectory);
+        Files.writeString(evidenceDirectory.resolve("key-287-d2-aware-a-star.txt"), report);
+        assertTrue(Double.isFinite(bestRawGap), report.toString());
+    }
+
+    @Test
     void legacyPlannerPreservesExactHeadIndependentGeometry() {
         for (long key : new long[] {118L, 287L, 512L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
@@ -246,6 +333,93 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         < d.initialIntegratedSquaredHeadEnvelopeGap(),
                 summary);
         assertTrue(d.finalMaximumHeadEnvelopeGap() >= 0.0);
+    }
+
+    private static SkyIslandTerrainAwareRouteSolver.LocalRoutePenalty d2RoutePenalty(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            SkyIslandSemanticField terrain,
+            double weight) {
+        return (position, tangentX, tangentZ, station) -> {
+            if (weight == 0.0) {
+                return 0.0;
+            }
+            double gap = d2HeadGapAt(
+                    descriptor, semantic, terrain, position, tangentX, tangentZ, station);
+            return weight * square(gap / descriptor.nominalRadius());
+        };
+    }
+
+    private static double maximumRawD2Gap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain) {
+        double[] arc = cumulativeArc(points);
+        double totalLength = arc[arc.length - 1];
+        double maximumGap = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition previous = points.get(Math.max(0, i - 1));
+            SkyIslandLocalPosition current = points.get(i);
+            SkyIslandLocalPosition next = points.get(Math.min(points.size() - 1, i + 1));
+            double tangentX = next.x() - previous.x();
+            double tangentZ = next.z() - previous.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (tangentLength <= EPSILON) {
+                continue;
+            }
+            double station = totalLength <= EPSILON ? 0.0 : arc[i] / totalLength;
+            double gap = d2HeadGapAt(
+                    descriptor,
+                    semantic,
+                    terrain,
+                    current,
+                    tangentX / tangentLength,
+                    tangentZ / tangentLength,
+                    station);
+            maximumGap = Math.max(maximumGap, gap);
+        }
+        return maximumGap;
+    }
+
+    private static double d2HeadGapAt(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            SkyIslandSemanticField terrain,
+            SkyIslandLocalPosition position,
+            double tangentX,
+            double tangentZ,
+            double station) {
+        SkyIslandChannelProfileKind kind =
+                SkyIslandHydraulicHeadEnvelopePlanner.profileKind(semantic.profiles(), station);
+        if (kind == SkyIslandChannelProfileKind.CASCADE) {
+            return 0.0;
+        }
+        double discharge =
+                SkyIslandHydraulicGeometrySkeletonPlanner.relativeDischargeAtStation(
+                        semantic, station);
+        double halfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                descriptor.nominalRadius(), discharge);
+        double depth =
+                SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+        SkyIslandGeomorphicQualificationClass qualificationClass =
+                kind == SkyIslandChannelProfileKind.ALLUVIAL
+                        ? SkyIslandGeomorphicQualificationClass.ALLUVIAL
+                        : SkyIslandGeomorphicQualificationClass.INCISED;
+        var envelope =
+                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKindWithDiagnostics(
+                        descriptor,
+                        kind,
+                        position,
+                        halfWidth,
+                        depth,
+                        Math.max(0.0, Math.min(1.0, terrain.sample(position))),
+                        -tangentZ,
+                        tangentX,
+                        terrain,
+                        SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
+                                .limits(qualificationClass));
+        return Math.max(0.0, envelope.lowerHead() - envelope.upperHead());
     }
 
     private static SmoothRouteAudit auditSmoothRoute(
