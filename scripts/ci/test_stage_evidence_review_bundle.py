@@ -94,7 +94,7 @@ class EvidenceReviewBundleTests(unittest.TestCase):
         repository_root = Path(bundle.__file__).resolve().parents[2]
         studio_root = repository_root / 'scripts' / 'orchestrator' / 'studio'
         markup = (studio_root / 'index.html').read_text(encoding='utf-8')
-        referenced_scripts = set(re.findall(r'<script\\b[^>]*\\bsrc=["\\']([^"\\']+)', markup))
+        referenced_scripts = set(re.findall(r'<script[^>]+src="([^"]+)"', markup))
         packaged_scripts = {path.name for path in bundle.STUDIO_APP_FILES if path.suffix == '.js'}
         self.assertTrue(referenced_scripts)
         self.assertEqual(set(), referenced_scripts - packaged_scripts,
