@@ -45,13 +45,15 @@ class HydrologyRefinedVoxelQuantizationCorpusTest {
         int continuousDeeper = Integer.parseInt(row[14]);
         double maxRecoveryWorld = Double.parseDouble(row[15]);
         double meanRecoveryWorld = Double.parseDouble(row[16]);
+        double minimumResidual = Double.parseDouble(row[17]);
+        double maximumResidual = Double.parseDouble(row[18]);
 
         assertTrue(refinedReaches > 0);
         assertTrue(refinedReaches <= totalReaches);
         assertEquals(0, postD2Rejected);
         assertTrue(baselineColumns > 0);
         assertEquals(baselineColumns, refinedColumns);
-        assertEquals(baselineRemovedBlocks >= 0, true);
+        assertTrue(baselineRemovedBlocks >= 0);
         assertTrue(refinedRemovedBlocks >= 0);
         assertTrue(refinedRemovedBlocks <= baselineRemovedBlocks);
         assertEquals(0, quantizedDeeper);
@@ -61,6 +63,8 @@ class HydrologyRefinedVoxelQuantizationCorpusTest {
         assertTrue(maxRecoveryWorld > 0.0);
         assertTrue(meanRecoveryWorld >= 0.0);
         assertTrue(meanRecoveryWorld <= maxRecoveryWorld);
+        assertTrue(minimumResidual >= 0.0);
+        assertTrue(maximumResidual < 1.0);
         assertTrue(Files.readString(first.resolve("README.txt")).contains("evidence only"));
     }
 }
