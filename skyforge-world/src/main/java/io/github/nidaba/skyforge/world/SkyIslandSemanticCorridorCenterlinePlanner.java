@@ -331,7 +331,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             Candidate initial) {
         List<SkyIslandLocalPosition> initialPoints = initial.points();
         if (initialPoints.size() < 4) {
-            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
+            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0, 0);
         }
 
         double[] initialStations = stations(initialPoints);
@@ -350,7 +350,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 Math.max(nominalSpacing, maximumBankfullHalfWidth));
         int baseModeCount = Math.min(8, initialPoints.size() - 2);
         if (!(initialBudget > EPSILON) || baseModeCount == 0) {
-            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0);
+            return new GlobalModeSearchOutcome(initial, 0, 0, 0, 0, 0.0, 0);
         }
 
         Candidate best = initial;
