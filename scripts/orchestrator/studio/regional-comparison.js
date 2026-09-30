@@ -2,6 +2,12 @@
   "use strict";
   const METALS = ["IRON", "COPPER", "ZINC"];
   function key(row) { return row.association + "\u0000" + row.metal; }
+  function formatDelta(value) {
+    if (value === null) return "—";
+    const normalized = Number(value.toPrecision(12));
+    const text = Object.is(normalized, -0) ? "0" : String(normalized);
+    return normalized > 0 ? "+" + text : text;
+  }
   function compare(left, right, leftRanking, rightRanking) {
     if (!left || !right || !Array.isArray(left.entries) || !Array.isArray(right.entries)) throw new Error("Both validated inventories are required");
     const lmap = new Map(left.entries.map(row => [key(row), row]));
@@ -36,7 +42,7 @@
     }
     return {rows,counts,rankAvailable,leftAssociationCount:left.associationCount,rightAssociationCount:right.associationCount};
   }
-  const api = Object.freeze({compare});
+  const api = Object.freeze({compare,formatDelta});
   if (typeof module !== "undefined" && module.exports) module.exports=api;
   if (root) root.SkyforgeRegionalComparison=api;
   if (typeof document === "undefined") return;
@@ -47,7 +53,7 @@
     const el=$("regional-"+side+"-status"); el.textContent=message; el.className=error?"small error":"small muted";
   }
   function safeName(file){return file ? file.name : "";}
-  function delta(value) { return value===null ? "—" : (value>0?"+":"")+value.toFixed(3); }
+  const delta = formatDelta;
   function cell(row,value,heading){const n=document.createElement(heading?"th":"td");if(heading)n.scope="col";n.textContent=String(value);row.appendChild(n);}
   function render() {
     const out=$("regional-compare-output");

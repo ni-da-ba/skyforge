@@ -1,6 +1,6 @@
 "use strict";
 const assert=require("node:assert/strict");
-const {compare}=require("../orchestrator/studio/regional-comparison.js");
+const {compare,formatDelta}=require("../orchestrator/studio/regional-comparison.js");
 const row=(association,metal,volumeId,eligible,mean,peak)=>({association,metal,volumeId,eligible,mean,peak,meanText:String(mean),peakText:String(peak)});
 const inventory=entries=>({entries,associationCount:new Set(entries.map(x=>x.association)).size});
 const left=inventory([row("a","IRON","v1",true,4,8),row("a","COPPER","v1",false,0,0),row("b","IRON","v2",true,2,3)]);
@@ -12,4 +12,7 @@ assert.equal(result.rows[0].rankDelta,1);
 assert.equal(result.counts.find(x=>x.metal==="IRON").delta,0);
 assert.equal(result.counts.find(x=>x.metal==="COPPER").delta,1);
 assert.equal(compare(left,right,null,null).rows[0].rankDelta,null);
+assert.equal(formatDelta(0.00000005), "+5e-8");
+assert.equal(formatDelta(-0.00000005), "-5e-8");
+assert.equal(formatDelta(0), "0");
 console.log("Studio regional inventory comparison contract passed.");
