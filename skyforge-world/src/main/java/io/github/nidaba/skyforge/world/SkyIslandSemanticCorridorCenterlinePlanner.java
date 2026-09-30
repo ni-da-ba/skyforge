@@ -305,7 +305,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     /**
      * Searches bounded low-frequency whole-route lateral deformations after local and coupled-window
      * refinement plateau. Sine modes vanish at both shared endpoints; their combined L1 amplitude
-     * is bounded by the smaller of the semantic corridor and a local physical scale. Every candidate
+     * is bounded by the full authored semantic corridor. Every candidate
      * is rechecked against the unchanged corridor, terrain-rise, interiority, endpoint and curvature
      * constraints before the exact head-envelope objective can rank it.
      */
@@ -324,20 +324,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             return new GlobalModeSearchOutcome(initial, 0, 0, 0);
         }
         double[] referenceStations = stations(reference);
-        double pathLength = length(reference);
-        double nominalSpacing = pathLength / (reference.size() - 1.0);
-        double maximumBankfullHalfWidth = 0.0;
-        for (double station : referenceStations) {
-            double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
-            if (!Double.isFinite(halfWidth) || halfWidth < 0.0) {
-                throw new IllegalArgumentException(
-                        "bankfull half-width must be finite and non-negative");
-            }
-            maximumBankfullHalfWidth = Math.max(maximumBankfullHalfWidth, halfWidth);
-        }
-        double amplitudeBound = Math.min(
-                semanticCorridorHalfWidth,
-                Math.max(nominalSpacing, maximumBankfullHalfWidth));
+        // The semantic corridor is the authored search domain. Local sample spacing and
+        // bankfull width are useful proposal scales, but must not silently truncate that domain.
+        // Every full-corridor proposal is still subject to the same hard geometry checks below.
+        double amplitudeBound = semanticCorridorHalfWidth;
         int modeCount = Math.min(8, reference.size() - 2);
         if (!(amplitudeBound > EPSILON) || modeCount == 0) {
             return new GlobalModeSearchOutcome(initial, 0, 0, 0);
@@ -348,7 +338,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long proposals = 0;
         long admissible = 0;
         long acceptedMoves = 0;
-        for (int round = 0; round < 5; round++) {
+        for (int round = 0; round < 8; round++) {
             double step = amplitudeBound * Math.scalb(1.0, -round);
             boolean roundImproved = false;
             for (int mode = 0; mode < modeCount; mode++) {
