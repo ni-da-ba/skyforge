@@ -700,6 +700,19 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         int[] feasibleWidthSamplesBeforeCurvature = new int[widthScales.length];
         java.util.Arrays.fill(minimumWidthGapInCorridor, Double.POSITIVE_INFINITY);
         java.util.Arrays.fill(minimumWidthGapBeforeCurvature, Double.POSITIVE_INFINITY);
+        double[] leftWidthShares = {0.25, 0.375, 0.5, 0.625, 0.75};
+        double[] minimumAsymmetricGapInCorridor =
+                new double[leftWidthShares.length];
+        double[] minimumAsymmetricGapBeforeCurvature =
+                new double[leftWidthShares.length];
+        int[] feasibleAsymmetricSamplesInCorridor =
+                new int[leftWidthShares.length];
+        int[] feasibleAsymmetricSamplesBeforeCurvature =
+                new int[leftWidthShares.length];
+        java.util.Arrays.fill(
+                minimumAsymmetricGapInCorridor, Double.POSITIVE_INFINITY);
+        java.util.Arrays.fill(
+                minimumAsymmetricGapBeforeCurvature, Double.POSITIVE_INFINITY);
         int[] criticalIndices = {initialPeakIndex, finalPeakIndex};
         for (int criticalIndex : criticalIndices) {
             if (criticalIndex <= 0 || criticalIndex >= centerline.size() - 1) {
@@ -856,6 +869,46 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             }
                         }
                     }
+                    if (insideCorridor) {
+                        for (int shareIndex = 0;
+                                shareIndex < leftWidthShares.length;
+                                shareIndex++) {
+                            double leftHalfWidth =
+                                    2.0 * halfWidth * leftWidthShares[shareIndex];
+                            double rightHalfWidth =
+                                    2.0 * halfWidth * (1.0 - leftWidthShares[shareIndex]);
+                            double asymmetricGap = asymmetricHeadEnvelopeGap(
+                                    descriptor,
+                                    kind,
+                                    candidate,
+                                    leftHalfWidth,
+                                    rightHalfWidth,
+                                    depth,
+                                    Math.max(
+                                            0.0,
+                                            Math.min(1.0, terrain.sample(candidate))),
+                                    normalX,
+                                    normalZ,
+                                    terrain,
+                                    policy.limits(qualificationClass));
+                            minimumAsymmetricGapInCorridor[shareIndex] =
+                                    Math.min(
+                                            minimumAsymmetricGapInCorridor[shareIndex],
+                                            asymmetricGap);
+                            if (asymmetricGap <= EPSILON) {
+                                feasibleAsymmetricSamplesInCorridor[shareIndex]++;
+                            }
+                            if (baseAdmissible) {
+                                minimumAsymmetricGapBeforeCurvature[shareIndex] =
+                                        Math.min(
+                                                minimumAsymmetricGapBeforeCurvature[shareIndex],
+                                                asymmetricGap);
+                                if (asymmetricGap <= EPSILON) {
+                                    feasibleAsymmetricSamplesBeforeCurvature[shareIndex]++;
+                                }
+                            }
+                        }
+                    }
                     boolean admissible = baseAdmissible && curvatureAllowed;
                     if (admissible) {
                         admissibleSamples++;
@@ -932,6 +985,21 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     minimumWidthGapBeforeCurvature[widthIndex],
                     feasibleWidthSamplesBeforeCurvature[widthIndex]));
         }
+        widthSensitivity.append(
+                "F3G_D2_ASYMMETRY_SCOPE fixed total bankfull width; head-envelope feasibility only; "
+                        + "full route/profile qualification not inferred%n");
+        for (int shareIndex = 0; shareIndex < leftWidthShares.length; shareIndex++) {
+            widthSensitivity.append(String.format(
+                    Locale.ROOT,
+                    "F3G_D2_ASYMMETRIC_WIDTH key=287 leftWidthShare=%.3f "
+                            + "minimumGapInCorridor=%.9f feasibleCorridorSamples=%d "
+                            + "minimumGapBeforeCurvature=%.9f feasiblePreCurvatureSamples=%d%n",
+                    leftWidthShares[shareIndex],
+                    minimumAsymmetricGapInCorridor[shareIndex],
+                    feasibleAsymmetricSamplesInCorridor[shareIndex],
+                    minimumAsymmetricGapBeforeCurvature[shareIndex],
+                    feasibleAsymmetricSamplesBeforeCurvature[shareIndex]));
+        }
         Files.writeString(
                 evidenceDirectory.resolve("key-287-corridor-summary.txt"),
                 widthSensitivity.toString());
@@ -940,6 +1008,84 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 admissibleSamples,
                 minimumAdmissibleGap,
                 widthSensitivity.toString());
+    }
+
+    /**
+     * Diagnostic-only side-specific cross-section sensitivity. Total bankfull width stays fixed;
+     * this mirrors the current head-envelope constraints without changing production geometry.
+     */
+    private static double asymmetricHeadEnvelopeGap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandChannelProfileKind kind,
+            SkyIslandLocalPosition position,
+            double leftBankfullHalfWidth,
+            double rightBankfullHalfWidth,
+            double waterDepthPotential,
+            double terrainElevation,
+            double normalX,
+            double normalZ,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicProfileLimits limits) {
+        double normalLength = Math.hypot(normalX, normalZ);
+        if (!(normalLength > 0.0)) {
+            throw new IllegalArgumentException("normal must be non-zero");
+        }
+        normalX /= normalLength;
+        normalZ /= normalLength;
+        double relief = descriptor.reliefBudget();
+        double valleyMultiplier = switch (kind) {
+            case ALLUVIAL -> 3.5;
+            case INCISED -> 2.5;
+            case CASCADE -> throw new IllegalArgumentException(
+                    "cascade does not have an ordinary pointwise envelope");
+        };
+        double leftValleyHalfWidth = leftBankfullHalfWidth * valleyMultiplier;
+        double rightValleyHalfWidth = rightBankfullHalfWidth * valleyMultiplier;
+        double fullValleyWidth = leftValleyHalfWidth + rightValleyHalfWidth;
+        double centerTerrain = terrainElevation * relief;
+        double depth = waterDepthPotential * relief;
+        double leftValleyTerrain = terrain.sample(new SkyIslandLocalPosition(
+                position.x() + normalX * leftValleyHalfWidth,
+                position.z() + normalZ * leftValleyHalfWidth)) * relief;
+        double rightValleyTerrain = terrain.sample(new SkyIslandLocalPosition(
+                position.x() - normalX * rightValleyHalfWidth,
+                position.z() - normalZ * rightValleyHalfWidth)) * relief;
+        double leftBankTerrain = terrain.sample(new SkyIslandLocalPosition(
+                position.x() + normalX * leftBankfullHalfWidth,
+                position.z() + normalZ * leftBankfullHalfWidth)) * relief;
+        double rightBankTerrain = terrain.sample(new SkyIslandLocalPosition(
+                position.x() - normalX * rightBankfullHalfWidth,
+                position.z() - normalZ * rightBankfullHalfWidth)) * relief;
+        double lowerHead = Math.max(
+                depth,
+                Math.max(
+                        centerTerrain
+                                - limits.maximumCenterlineLoweringPotential() * relief
+                                + depth,
+                        Math.max(
+                                Math.max(
+                                        leftValleyTerrain
+                                                - limits.maximumLateralRecoveryGrade()
+                                                        * leftValleyHalfWidth
+                                                + depth,
+                                        rightValleyTerrain
+                                                - limits.maximumLateralRecoveryGrade()
+                                                        * rightValleyHalfWidth
+                                                + depth),
+                                Math.max(
+                                        leftValleyTerrain
+                                                - limits.maximumReliefToValleyWidthRatio()
+                                                        * fullValleyWidth
+                                                + depth,
+                                        rightValleyTerrain
+                                                - limits.maximumReliefToValleyWidthRatio()
+                                                        * fullValleyWidth
+                                                + depth))));
+        double upperHead = Math.min(
+                relief,
+                Math.min(leftBankTerrain, rightBankTerrain)
+                        + limits.maximumBankContainmentDeficitWorldUnits());
+        return Math.max(0.0, lowerHead - upperHead);
     }
 
     private static double[] normalizedStations(List<SkyIslandLocalPosition> points) {
