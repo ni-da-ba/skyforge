@@ -183,6 +183,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         + " curvatureRejected=" + d.lateralCandidateCurvatureRejected()
                         + " gapImproving=" + d.lateralCandidateGapImproving()
                         + " selected=" + d.selectedLateralMoves()
+                        + " tangentProposals=" + d.tangentCandidateProposals()
+                        + " tangentAdmissible=" + d.tangentCandidateAdmissible()
+                        + " tangentCurvatureRejected=" + d.tangentCandidateCurvatureRejected()
+                        + " tangentGapImproving=" + d.tangentCandidateGapImproving()
+                        + " tangentSelected=" + d.selectedTangentMoves()
                         + " curvatureBlocked=" + d.globalGapImprovementsBlockedByCurvature()
                         + " globalModeProposals=" + d.globalModeSearchProposals()
                         + " globalModeAdmissible=" + d.globalModeSearchAdmissible()
@@ -231,6 +236,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 smoothRouteAudit.summary());
         assertTrue(Double.isFinite(smoothRouteAudit.minimumIntegratedGap()), smoothRouteAudit.summary());
         assertTrue(d.lateralCandidateProposals() > 0);
+        assertTrue(d.tangentCandidateProposals() > 0);
         assertTrue(d.globalModeSearchProposals() > 0);
         assertTrue(d.globalModeSearchAdmissible() > 0);
         assertEquals(
