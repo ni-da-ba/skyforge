@@ -17,6 +17,83 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     private static final double EPSILON = 1.0e-12;
 
     @Test
+    void naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes() throws Exception {
+        SkyIslandDescriptor descriptor = descriptor(700L);
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        java.util.Set<String> incidentReachIds = java.util.Set.of(
+                "660->801", "801->1951", "1140->801");
+        List<SkyIslandGeomorphicReachRoute> incidentRoutes = network.routes().stream()
+                .filter(route -> incidentReachIds.contains(
+                        route.semanticReach().startCellIndex()
+                                + "->"
+                                + route.semanticReach().endCellIndex()))
+                .toList();
+        assertEquals(3, incidentRoutes.size(), "key 700 incident-reach identities are fixed");
+
+        StringBuilder report = new StringBuilder(
+                "F3L_KEY700_D2_COMPONENT seed=0x534B59464F524745 key=700"
+                        + System.lineSeparator());
+        for (SkyIslandGeomorphicReachRoute route : incidentRoutes) {
+            var first = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                    descriptor, network, route, terrain, interiority);
+            var second = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                    descriptor, network, route, terrain, interiority);
+            assertEquals(first.centerline(), second.centerline());
+            var d = first.diagnostics();
+            assertTrue(
+                    d.finalIntegratedSquaredHeadEnvelopeGap()
+                            <= d.initialIntegratedSquaredHeadEnvelopeGap() + EPSILON);
+            report.append("CENTERLINE ")
+                    .append(route.semanticReach().startCellIndex())
+                    .append("->")
+                    .append(route.semanticReach().endCellIndex())
+                    .append(" initialMaxGap=").append(d.initialMaximumHeadEnvelopeGap())
+                    .append(" finalMaxGap=").append(d.finalMaximumHeadEnvelopeGap())
+                    .append(" initialIntegratedGap=")
+                    .append(d.initialIntegratedSquaredHeadEnvelopeGap())
+                    .append(" finalIntegratedGap=")
+                    .append(d.finalIntegratedSquaredHeadEnvelopeGap())
+                    .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
+                    .append(" globalModeAcceptedMoves=")
+                    .append(d.globalModeSearchAcceptedMoves())
+                    .append(System.lineSeparator());
+        }
+
+        SkyIslandOrdinarySpanPlan spans = SkyIslandOrdinarySpanPlanner.plan(descriptor);
+        List<SkyIslandOrdinarySpanOutcome> incidentSpans = spans.outcomes().stream()
+                .filter(outcome -> incidentReachIds.contains(
+                        outcome.span().parentReachStartCellIndex()
+                                + "->"
+                                + outcome.span().parentReachEndCellIndex()))
+                .toList();
+        assertTrue(incidentSpans.size() >= 3, "key 700 component must expose its ordinary spans");
+        for (SkyIslandOrdinarySpanOutcome outcome : incidentSpans) {
+            report.append("SPAN ")
+                    .append(outcome.span().parentReachStartCellIndex())
+                    .append("->")
+                    .append(outcome.span().parentReachEndCellIndex())
+                    .append(" stations=")
+                    .append(outcome.span().parentStartStationFraction())
+                    .append("..")
+                    .append(outcome.span().parentEndStationFraction())
+                    .append(" status=").append(outcome.status())
+                    .append(" diagnostic=")
+                    .append(outcome.diagnostic().orElse("none"))
+                    .append(System.lineSeparator());
+        }
+
+        Path evidence = Path.of(
+                "build", "evidence", "hydrology-key700-d2-component-test", "key-700.txt");
+        Files.createDirectories(evidence.getParent());
+        Files.writeString(evidence, report);
+    }
+
+    @Test
     void skeletonIsDeterministicAcrossFixedCorpus() {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
