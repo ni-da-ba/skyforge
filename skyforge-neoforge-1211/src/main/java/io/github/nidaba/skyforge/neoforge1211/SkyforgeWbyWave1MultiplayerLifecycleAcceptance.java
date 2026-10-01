@@ -7,9 +7,11 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
@@ -67,6 +69,7 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
     private static boolean physicsPauseChanged;
     private static boolean fixtureReady;
     private static long firstTwoPlayerTick = Long.MIN_VALUE;
+    private static int diagnosticTicks;
 
     private SkyforgeWbyWave1MultiplayerLifecycleAcceptance() {}
 
@@ -104,6 +107,10 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
 
         if (fixtureReady) {
             holdNearPlayer(near);
+            diagnosticTicks++;
+            if (diagnosticTicks == 1 || diagnosticTicks % 40 == 0) {
+                logServerDiagnostics(observer, near);
+            }
             return;
         }
 
@@ -201,6 +208,45 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
 
     private static double horizontalDistance(Vec3 a, Vec3 b) {
         return Math.hypot(a.x - b.x, a.z - b.z);
+    }
+
+    private static void logServerDiagnostics(ServerPlayer observer, ServerPlayer near) {
+        try {
+            Object body = findSubLevel(container, bodyId);
+            Collection<?> tracking = body == null
+                    ? List.of()
+                    : (Collection<?>) publicMethod(body, "getTrackingPlayers").invoke(body);
+            Integer observerRange = ssrdRequestedRange(observer);
+            Integer nearRange = ssrdRequestedRange(near);
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "WBY MULTIPLAYER SERVER DIAGNOSTIC: bodyId=" + bodyId
+                            + ", bodyPresent=" + (body != null)
+                            + ", trackingPlayers=" + tracking
+                            + ", observerTracked=" + tracking.contains(observer.getUUID())
+                            + ", nearTracked=" + tracking.contains(near.getUUID())
+                            + ", observerSsrdRangeChunks=" + observerRange
+                            + ", nearSsrdRangeChunks=" + nearRange
+                            + ", observerDistanceBlocks="
+                            + horizontalDistance(observer.position(), expectedBodyCenter)
+                            + ", nearDistanceBlocks="
+                            + near.position().distanceTo(expectedBodyCenter));
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            LOGGER.log(
+                    System.Logger.Level.WARNING,
+                    "WBY MULTIPLAYER SERVER DIAGNOSTIC FAILED: " + failure);
+        }
+    }
+
+    private static Integer ssrdRequestedRange(ServerPlayer player)
+            throws ReflectiveOperationException {
+        Class<?> ssrdClass = Class.forName("net.ranold.ssrd.ssrd");
+        Object value = ssrdClass.getField("playerRequestedRanges").get(null);
+        if (!(value instanceof Map<?, ?> ranges)) {
+            throw new IllegalStateException("SSRD playerRequestedRanges did not resolve to a Map");
+        }
+        Object range = ranges.get(player);
+        return range instanceof Number number ? number.intValue() : null;
     }
 
     private static void writeFixtureEvidence(ServerPlayer observer, ServerPlayer near) {
@@ -301,6 +347,24 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
             throw new IllegalStateException("Sable ServerSubLevelContainer unavailable");
         }
         return value;
+    }
+
+    private static Object findSubLevel(Object value, UUID expected)
+            throws ReflectiveOperationException {
+        if (value == null || expected == null) {
+            return null;
+        }
+        Object subLevelsValue = publicMethod(value, "getAllSubLevels").invoke(value);
+        if (!(subLevelsValue instanceof List<?> subLevels)) {
+            return null;
+        }
+        for (Object subLevel : subLevels) {
+            Object id = publicMethod(subLevel, "getUniqueId").invoke(subLevel);
+            if (expected.equals(id)) {
+                return subLevel;
+            }
+        }
+        return null;
     }
 
     private static Set<UUID> currentSubLevelIds(Object value) throws ReflectiveOperationException {
