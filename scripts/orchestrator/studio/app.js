@@ -2954,10 +2954,31 @@
       workspacePackage: window.SkyforgeStudioWorkspacePackage,
       terrainLibrary: window.SkyforgeStudioTerrainComparisonLibrary,
       regionalLibrary: window.SkyforgeStudioRegionalComparisonLibrary,
+      regionalComparison: window.SkyforgeRegionalComparison,
+      regionalInventory: window.SkyforgeRegionalInventory,
     };
   }
 
+  async function flushPendingBackupInspection() {
+    if (!workspaceSessionController) {
+      throw new Error("inspection storage is unavailable; Studio cannot create a complete backup");
+    }
+    if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+    workspaceSessionSaveTimer = null;
+    const shouldSaveCurrentInspection = workspaceSessionEnabled && Boolean(workspaceSceneArtifact);
+    const serializedWorkspace = shouldSaveCurrentInspection ? serializeInspectionWorkspace() : null;
+    const generation = shouldSaveCurrentInspection ? ++workspaceSessionGeneration : workspaceSessionGeneration;
+    await workspaceSessionSaveChain.catch(() => {});
+    if (!shouldSaveCurrentInspection) return;
+    await workspaceSessionController.save(serializedWorkspace);
+    if (generation === workspaceSessionGeneration && workspaceSessionEnabled) {
+      workspaceSessionHasSaved = true;
+      setWorkspaceSessionStatus("Saved in this browser. Sources remain local diagnostics and are never uploaded.");
+    }
+  }
+
   async function readStudioBackupState() {
+    await flushPendingBackupInspection();
     const briefApi = window.SkyforgeStudioWorldBrief;
     const rawBriefLibrary = window.localStorage.getItem(WORLD_BRIEF_LIBRARY_STORAGE_KEY);
     const worldBriefLibrary = rawBriefLibrary
@@ -3033,6 +3054,15 @@
         }
       }
 
+      const inspectionChanged = JSON.stringify(plan.inspectionSession) !==
+        JSON.stringify(current.inspection_session);
+      if (inspectionChanged && plan.inspectionSession && !workspaceSessionController) {
+        throw new Error("inspection storage is unavailable");
+      }
+      const inspectionPlan = plan.inspectionSession && plan.inspectionSession.workspace_json !== null
+        ? prepareInspectionWorkspace(plan.inspectionSession.workspace_json)
+        : null;
+
       const localStorage = window.localStorage;
       localStorage.setItem(
         WORLD_BRIEF_LIBRARY_STORAGE_KEY,
@@ -3043,8 +3073,6 @@
       await window.SkyforgeStudioRegionalComparisonLibrary.createRepository()
         .replaceAll(plan.regionalComparisons);
 
-      const inspectionChanged = JSON.stringify(plan.inspectionSession) !==
-        JSON.stringify(current.inspection_session);
       if (inspectionChanged && plan.inspectionSession) {
         if (!workspaceSessionController) throw new Error("inspection storage is unavailable");
         workspaceSessionGeneration += 1;
@@ -3062,7 +3090,6 @@
             : "Restored the remember-inspection preference for this device."
         );
         if (workspaceSessionHasSaved) {
-          const inspectionPlan = prepareInspectionWorkspace(plan.inspectionSession.workspace_json);
           applyInspectionWorkspacePlan(inspectionPlan,
             "Restored from a local backup as an unbound diagnostic; registered verification was not restored.");
         }
