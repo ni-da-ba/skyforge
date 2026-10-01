@@ -1,0 +1,242 @@
+name: WBY Integration Wave 1 Multiplayer Remote Craft
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1-multiplayer.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1-multiplayer-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  multiplayer-remote-craft:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile multiplayer acceptance
+        run: ./gradlew :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Configure dedicated server and two clients
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-server"
+          observer_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer"
+          near_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-near"
+          rm -rf "$server_dir" "$observer_dir" "$near_dir"
+          mkdir -p "$server_dir" "$observer_dir" "$near_dir"
+
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          cat > "$server_dir/server.properties" <<'EOF'
+          level-name=wby-wave1-multiplayer
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=4
+          server-port=25567
+          EOF
+
+          cat > "$observer_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+          cat > "$near_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:2
+          simulationDistance:4
+          entityDistanceScaling:0.5
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Qualify remote craft with second multiplayer client nearby
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_log="wby-wave1-multiplayer-server.log"
+          observer_log="wby-wave1-multiplayer-observer.log"
+          near_log="wby-wave1-multiplayer-near.log"
+          observer_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/observer.properties"
+          server_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/server.properties"
+          rm -f "$observer_result" "$server_result"
+
+          server_pid=""
+          observer_pid=""
+          near_pid=""
+          cleanup() {
+            set +e
+            for pid in "$observer_pid" "$near_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+              fi
+            done
+            sleep 2
+            for pid in "$observer_pid" "$near_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerServerAcceptance --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before ready"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "multiplayer server did not become ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          grep -Eq '\(create\)' "$server_log"
+          grep -Eq '\(sable\)' "$server_log"
+          grep -Eq '\(aeronautics\)' "$server_log"
+          grep -Eq '\(ssrd\)' "$server_log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
+            echo "multiplayer server leaked client-only renderer mods"
+            cat "$server_log"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerObserverClientAcceptance --no-configuration-cache >"$observer_log" 2>&1 &
+          observer_pid=$!
+          sleep 3
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerNearClient --no-configuration-cache >"$near_log" 2>&1 &
+          near_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 270); do
+            if [[ -f "$observer_result" ]]; then
+              if grep -q '^status=PASS$' "$observer_result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$observer_result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+            if [[ -f "$server_result" ]] && grep -q '^status=FAIL$' "$server_result"; then
+              echo "multiplayer server acceptance reported FAIL"
+              cat "$server_result"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before observer qualification"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$near_pid" 2>/dev/null; then
+              echo "near client exited before observer qualification"
+              cat "$near_log"
+              exit 1
+            fi
+            if ! kill -0 "$observer_pid" 2>/dev/null; then
+              echo "observer client exited before terminal evidence"
+              cat "$observer_log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY multiplayer observer failed or timed out"
+            [[ -f "$observer_result" ]] && cat "$observer_result"
+            cat "$server_log"
+            cat "$observer_log"
+            cat "$near_log"
+            exit 1
+          fi
+
+          cat "$observer_result"
+          grep -q '^actualClient=true$' "$observer_result"
+          grep -q '^actualMultiplayer=true$' "$observer_result"
+          grep -q '^remotePlayerObserved=true$' "$observer_result"
+          grep -q '^remotePlayerNearSable=true$' "$observer_result"
+          grep -q '^sableRenderDataPresent=true$' "$observer_result"
+          grep -q '^sableFinalized=true$' "$observer_result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$observer_result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$observer_result"
+          grep -q '^distantHorizonsLoaded=true$' "$observer_result"
+          grep -q '^sodiumLoaded=true$' "$observer_result"
+          grep -q '^multiplayerRemoteCraftQualified=true$' "$observer_result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/observer.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+          assert int(p["distantSableStableTicks"]) >= 20, p
+          assert float(p["observerBodyHorizontalDistanceBlocks"]) > 96.0, p
+          assert float(p["remotePlayerBodyDistanceBlocks"]) <= 24.0, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          print("WBY WAVE 1 MULTIPLAYER REMOTE CRAFT PASS", p)
+          PY
+
+      - name: Upload Wave 1 multiplayer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-multiplayer-remote-craft
+          path: |
+            wby-wave1-multiplayer-server.log
+            wby-wave1-multiplayer-observer.log
+            wby-wave1-multiplayer-near.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/logs/latest.log
+          if-no-files-found: warn
