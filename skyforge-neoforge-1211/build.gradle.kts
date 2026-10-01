@@ -2163,6 +2163,50 @@ neoForge {
         }
 
 
+        create("wbyWave1TelemetryServerAcceptance") {
+            server()
+            sourceSet.set(wbyWave1VisibilityServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-telemetry-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1Telemetry", "true")
+            systemProperty(
+                "skyforge.dev.wbyWave1TelemetryServerResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-telemetry/server.properties").get().asFile.absolutePath,
+            )
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-telemetry-server-fixture")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-telemetry/server-fixture.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1TelemetryClientAcceptance") {
+            client()
+            sourceSet.set(wbyWave1VisibilityClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-telemetry-client").asFile
+            programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25569", "--username", "WbyTelemetry")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1Telemetry", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-telemetry-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-telemetry/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         create("wbyWave1PersistencePrepareServer") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
