@@ -112,7 +112,9 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
                     && observerBodyDistanceBlocks < MAX_FIXTURE_HORIZONTAL_BLOCKS
                     && ssrdRenderObserved
                     && projectionMatrixPresent
-                    && "Distant Horizons".equals(distance.source())
+                    // On a real remote server, SSRD's synced server cap intentionally wins
+                    // when it is lower than the client's Distant Horizons LOD distance.
+                    && "Server".equals(distance.source())
                     && distance.chunks() > VANILLA_RENDER_DISTANCE_CHUNKS;
 
             if (!qualified) {
