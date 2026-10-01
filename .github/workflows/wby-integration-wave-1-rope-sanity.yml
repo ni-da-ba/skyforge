@@ -108,6 +108,7 @@ jobs:
           assert int(p["ropePointCount"]) == 32, p
           assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
           assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
+          assert int(p["fixtureTicketDistance"]) == 1, p
           assert int(p["loadedChunkDelta"]) <= 64, p
           assert p["initialBodyChunk"] != p["finalBodyChunk"], p
           print("WBY WAVE 1 ROPE SANITY PASS", p)
