@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           rm -rf skyforge-neoforge-1211/run-wby-wave1-visibility-client
-          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer --no-configuration-cache
+          timeout 180 ./gradlew             :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer             --no-configuration-cache
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
           test -f "$result"
           grep -q '^status=PASS$' "$result"
@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           log="wby-wave1-actual-client.log"
-          timeout 300 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance --no-configuration-cache 2>&1 | tee "$log"
+          timeout 300 xvfb-run -a ./gradlew             :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance             --no-configuration-cache 2>&1 | tee "$log"
 
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties"
           test -f "$result"
