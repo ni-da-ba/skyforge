@@ -84,6 +84,16 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(" status=").append(outcome.status())
                     .append(" diagnostic=")
                     .append(outcome.diagnostic().orElse("none"))
+                    .append(" upstreamBoundary=")
+                    .append(outcome.span().upstreamBoundary().status())
+                    .append(":")
+                    .append(outcome.span().upstreamBoundary().fixedHeadWorldUnits().orElse(Double.NaN))
+                    .append(" downstreamBoundary=")
+                    .append(outcome.span().downstreamBoundary().status())
+                    .append(":")
+                    .append(outcome.span().downstreamBoundary().fixedHeadWorldUnits().orElse(Double.NaN))
+                    .append(" gradePath=")
+                    .append(gradeFeasibilityLocus(descriptor, outcome.span(), terrain))
                     .append(System.lineSeparator());
         }
 
@@ -1204,6 +1214,83 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 previousDepth = sample.waterDepthPotential();
             }
         }
+    }
+
+    private static String gradeFeasibilityLocus(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandSemanticField terrain) {
+        SkyIslandGeomorphicProfileLimits limits =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
+                        .limits(span.qualificationClass());
+        List<SkyIslandHydraulicGeometrySkeletonSample> samples = span.samples();
+        double reachableLower = Double.NaN;
+        double reachableUpper = Double.NaN;
+        for (int i = 0; i < samples.size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = samples.get(i);
+            SkyIslandLocalPosition before = samples.get(Math.max(0, i - 1)).position();
+            SkyIslandLocalPosition after =
+                    samples.get(Math.min(samples.size() - 1, i + 1)).position();
+            double tangentX = after.x() - before.x();
+            double tangentZ = after.z() - before.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                throw new IllegalStateException("key-700 span tangent must be non-zero");
+            }
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            span.sampleProfileKinds().get(i),
+                            sample.position(),
+                            sample.bankfullHalfWidth(),
+                            sample.waterDepthPotential(),
+                            sample.terrainElevation(),
+                            -tangentZ / tangentLength,
+                            tangentX / tangentLength,
+                            terrain,
+                            limits);
+            double localLower = envelope.lowerHead();
+            double localUpper = envelope.upperHead();
+            if (i == 0) {
+                var fixed = span.upstreamBoundary().fixedHeadWorldUnits();
+                if (fixed.isPresent()) {
+                    localLower = Math.max(localLower, fixed.orElseThrow());
+                    localUpper = Math.min(localUpper, fixed.orElseThrow());
+                }
+            }
+            if (i == samples.size() - 1) {
+                var fixed = span.downstreamBoundary().fixedHeadWorldUnits();
+                if (fixed.isPresent()) {
+                    localLower = Math.max(localLower, fixed.orElseThrow());
+                    localUpper = Math.min(localUpper, fixed.orElseThrow());
+                }
+            }
+            if (localLower > localUpper + EPSILON) {
+                return "LOCAL_EMPTY@index=" + i
+                        + ",station=" + sample.stationFraction()
+                        + ",gap=" + (localLower - localUpper);
+            }
+            if (i == 0) {
+                reachableLower = localLower;
+                reachableUpper = localUpper;
+                continue;
+            }
+            double ds = sample.arcLength() - samples.get(i - 1).arcLength();
+            double maxDrop = limits.maximumLongitudinalGrade() * ds;
+            double nextLower = Math.max(localLower, reachableLower - maxDrop);
+            double nextUpper = Math.min(localUpper, reachableUpper);
+            if (nextLower > nextUpper + EPSILON) {
+                return "GRADE_EMPTY@index=" + i
+                        + ",station=" + sample.stationFraction()
+                        + ",previousReachable=" + reachableLower + ".." + reachableUpper
+                        + ",local=" + localLower + ".." + localUpper
+                        + ",maxDrop=" + maxDrop
+                        + ",conflict=" + (nextLower - nextUpper);
+            }
+            reachableLower = nextLower;
+            reachableUpper = nextUpper;
+        }
+        return "FEASIBLE_FINAL=" + reachableLower + ".." + reachableUpper;
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
