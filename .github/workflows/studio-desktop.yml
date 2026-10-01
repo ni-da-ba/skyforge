@@ -7,9 +7,12 @@ on:
       - "scripts/orchestrator/studio-desktop/**"
       - "scripts/ci/stage_evidence_review_bundle.py"
       - "config/ci/evidence-entry-points.json"
-      - "skyforge-reference/src/**"
-      - "skyforge-reference/build.gradle.kts"
-      - "skyforge-reference/**/build.gradle.kts"
+      - "skyforge-*/src/**"
+      - "skyforge-*/build.gradle.kts"
+      - "skyforge-*/**/build.gradle.kts"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
       - ".github/workflows/studio-desktop.yml"
   push:
     branches: [main]
@@ -18,9 +21,12 @@ on:
       - "scripts/orchestrator/studio-desktop/**"
       - "scripts/ci/stage_evidence_review_bundle.py"
       - "config/ci/evidence-entry-points.json"
-      - "skyforge-reference/src/**"
-      - "skyforge-reference/build.gradle.kts"
-      - "skyforge-reference/**/build.gradle.kts"
+      - "skyforge-*/src/**"
+      - "skyforge-*/build.gradle.kts"
+      - "skyforge-*/**/build.gradle.kts"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
       - ".github/workflows/studio-desktop.yml"
   workflow_dispatch:
 
@@ -109,6 +115,10 @@ jobs:
       - name: Install locked desktop dependencies
         working-directory: build/studio-desktop
         run: npm ci --no-audit --no-fund
+
+      - name: Install Debian packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends fakeroot dpkg
 
       - name: Build installer
         working-directory: build/studio-desktop
