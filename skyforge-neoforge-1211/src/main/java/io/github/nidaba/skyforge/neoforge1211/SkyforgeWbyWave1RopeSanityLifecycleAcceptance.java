@@ -70,6 +70,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static Vector3d targetBodyPosition;
     private static ChunkPos initialBodyChunk;
     private static ChunkPos targetBodyChunk;
+    private static ChunkPos relocatedBodyChunk;
     private static final Set<ChunkPos> fixtureTicketChunks = new LinkedHashSet<>();
     private static int loadedChunksBefore = -1;
     private static int forcedChunksBefore = -1;
@@ -141,24 +142,26 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
             if (!moved && now - ropeCreatedTick >= PRE_MOVE_SETTLE_TICKS) {
                 relocateBodyAcrossChunkBoundary();
+                relocatedBodyChunk = chunkAt(bodyWorldPosition(body));
+                if (relocatedBodyChunk.x == initialBodyChunk.x
+                        && relocatedBodyChunk.z == initialBodyChunk.z) {
+                    throw new IllegalStateException(
+                            "Sable pipeline teleport did not cross the intended chunk boundary: "
+                                    + initialBodyChunk + " -> " + relocatedBodyChunk);
+                }
+                if (relocatedBodyChunk.x != targetBodyChunk.x
+                        || relocatedBodyChunk.z != targetBodyChunk.z) {
+                    throw new IllegalStateException(
+                            "Sable pipeline teleport landed in unexpected chunk: target="
+                                    + targetBodyChunk + ", observed=" + relocatedBodyChunk);
+                }
+                boundaryCrossedTick = now;
                 moved = true;
                 return;
             }
 
-            if (moved) {
-                ChunkPos currentChunk = chunkAt(bodyWorldPosition(body));
-                boolean acrossBoundary =
-                        currentChunk.x != initialBodyChunk.x || currentChunk.z != initialBodyChunk.z;
-                if (acrossBoundary) {
-                    if (boundaryCrossedTick == Long.MIN_VALUE) {
-                        boundaryCrossedTick = now;
-                    }
-                    if (now - boundaryCrossedTick >= POST_MOVE_SETTLE_TICKS) {
-                        complete(event);
-                    }
-                } else {
-                    boundaryCrossedTick = Long.MIN_VALUE;
-                }
+            if (moved && now - boundaryCrossedTick >= POST_MOVE_SETTLE_TICKS) {
+                complete(event);
             }
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail(event, "WBY Wave 1 rope sanity failed: " + failure);
@@ -357,10 +360,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
         Vector3d finalBodyPosition = bodyWorldPosition(body);
         ChunkPos finalBodyChunk = chunkAt(finalBodyPosition);
-        if (finalBodyChunk.x == initialBodyChunk.x && finalBodyChunk.z == initialBodyChunk.z) {
-            throw new IllegalStateException(
-                    "Sable body did not remain across the intended chunk boundary: "
-                            + initialBodyChunk + " -> " + finalBodyChunk);
+        if (relocatedBodyChunk == null) {
+            throw new IllegalStateException("rope sanity completed without observing the relocation chunk");
         }
 
         int loadedChunksAfter = level.getChunkSource().getLoadedChunksCount();
@@ -396,6 +397,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("bodyId", bodyId);
         evidence.put("initialBodyChunk", initialBodyChunk.x + "," + initialBodyChunk.z);
         evidence.put("targetBodyChunk", targetBodyChunk.x + "," + targetBodyChunk.z);
+        evidence.put("relocatedBodyChunk", relocatedBodyChunk.x + "," + relocatedBodyChunk.z);
         evidence.put("finalBodyChunk", finalBodyChunk.x + "," + finalBodyChunk.z);
         evidence.put("chunkBoundaryCrossed", true);
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
