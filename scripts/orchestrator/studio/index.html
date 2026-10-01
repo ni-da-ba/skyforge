@@ -52,12 +52,49 @@
     </section>
 
     <nav class="workspace-nav" aria-label="Studio workspace">
-      <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="true">Inspect semantics</button>
+      <button type="button" class="workspace-tab" data-workspace-view="home" aria-controls="studio-home-view" aria-pressed="true">Home</button>
+      <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="false">Inspect semantics</button>
       <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
       <button type="button" class="workspace-tab" data-workspace-view="regional" aria-controls="studio-regional-view" aria-pressed="false">Regional geology</button>
       <button type="button" class="workspace-tab" data-workspace-view="regional-comparison" aria-controls="regional-comparison-view" aria-pressed="false">Compare geology</button>
       <button type="button" class="workspace-tab" data-workspace-view="terrain-comparison" aria-controls="studio-terrain-comparison-view" aria-pressed="false">Compare terrain</button>
     </nav>
+
+    <section id="studio-home-view" class="studio-home-view" aria-labelledby="studio-home-heading">
+      <section class="panel studio-home-intro">
+        <p class="eyebrow">YOUR STUDIO · LOCAL WORKSPACE</p>
+        <h2 id="studio-home-heading">Start with an idea or inspect a world</h2>
+        <p>Move between planning notes and evidence-based inspection. Your work stays on this device. A world generator is not connected yet.</p>
+      </section>
+
+      <div class="studio-home-grid">
+        <article class="panel studio-home-card">
+          <p class="eyebrow">AUTHOR</p>
+          <h3>Describe an idea</h3>
+          <p>Write a free-form world brief without needing a fixed schema or a connected generator.</p>
+          <button type="button" class="home-action" data-open-workspace="brief">Create a world brief</button>
+        </article>
+        <article class="panel studio-home-card">
+          <p class="eyebrow">INSPECT</p>
+          <h3>Explore semantic evidence</h3>
+          <p>Open a bundled specimen or connect to a registered artifact source. Provenance remains visible in the inspector.</p>
+          <button type="button" class="home-action" data-open-workspace="inspect">Inspect a specimen</button>
+        </article>
+        <article class="panel studio-home-card">
+          <p class="eyebrow">COMPARE</p>
+          <h3>Compare terrain</h3>
+          <p>Load two compatible semantic volumes and inspect where their recorded surfaces and fields differ.</p>
+          <button type="button" class="home-action" data-open-workspace="terrain-comparison">Open terrain comparison</button>
+        </article>
+        <article class="panel studio-home-card">
+          <p class="eyebrow">COMPARE</p>
+          <h3>Compare regional geology</h3>
+          <p>Review regional inventory evidence and compare the recorded source rows.</p>
+          <button type="button" class="home-action" data-open-workspace="regional-comparison">Open geology comparison</button>
+        </article>
+      </div>
+      <p class="small muted studio-home-note">Studio is a local authoring and inspection workspace. Saving a brief does not generate or evaluate a world.</p>
+    </section>
 
     <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
       <div class="panel brief-intro">
@@ -281,7 +318,7 @@
       </section>
     </section>
 
-    <section id="studio-content">
+    <section id="studio-content" hidden>
       <section class="panel source-panel">
         <div class="section-heading">
           <div>

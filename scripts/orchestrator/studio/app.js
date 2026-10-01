@@ -269,7 +269,7 @@
   let lastX = 0;
   let lastY = 0;
   let playback = null;
-  let studioWorkspaceView = "inspect";
+  let studioWorkspaceView = "home";
   let terrainSemanticComparison = null;
   let terrainComparisonLibraryRepository = null;
   let terrainComparisonLibraryRecords = [];
@@ -299,6 +299,7 @@
   const ctx = canvas.getContext("2d");
 
   function syncWorkspaceVisibility() {
+    $("studio-home-view").hidden = studioWorkspaceView !== "home";
     $("studio-content").hidden = studioWorkspaceView !== "inspect";
     $("world-brief-view").hidden = studioWorkspaceView !== "brief";
     $("studio-regional-view").hidden = studioWorkspaceView !== "regional";
@@ -310,7 +311,7 @@
   }
 
   function selectWorkspaceView(view) {
-    if (view !== "inspect" && view !== "brief" && view !== "regional" && view !== "regional-comparison" && view !== "terrain-comparison") return;
+    if (view !== "home" && view !== "inspect" && view !== "brief" && view !== "regional" && view !== "regional-comparison" && view !== "terrain-comparison") return;
     studioWorkspaceView = view;
     syncWorkspaceVisibility();
     if (view === "inspect") window.requestAnimationFrame(() => { resizeCanvas(); draw(); });
@@ -2940,6 +2941,9 @@
   function configureWorkspaceNavigation() {
     for (const button of document.querySelectorAll("[data-workspace-view]")) {
       button.addEventListener("click", () => selectWorkspaceView(button.dataset.workspaceView));
+    }
+    for (const button of document.querySelectorAll("[data-open-workspace]")) {
+      button.addEventListener("click", () => selectWorkspaceView(button.dataset.openWorkspace));
     }
     syncWorkspaceVisibility();
   }
