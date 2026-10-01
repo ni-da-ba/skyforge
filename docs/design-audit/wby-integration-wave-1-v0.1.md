@@ -21,7 +21,7 @@ Wave 1 inherits the exact accepted Wave 0 substrate.
 ### Renderer / long-range visibility
 
 - Sodium **0.8.13** for NeoForge 1.21.1.
-- Distant Horizons **3.3.3** for Minecraft 1.21.1 NeoForge/Fabric release line.
+- Distant Horizons **3.3.2** for Minecraft 1.21.1 NeoForge/Fabric release line.
 - Separate Sable Render Distance **1.8.7** for Minecraft 1.21.1 NeoForge.
 
 SSRD 1.8+ requires Sodium 0.8. Distant Horizons 3.3.2 and later explicitly mark SSRD 1.8.6 and older incompatible after DH's reverse-Z depth change. Therefore Wave 1 must not regress to SSRD 1.8.6 or below.
