@@ -82,6 +82,8 @@ jobs:
           entityDistanceScaling:0.5
           particles:0
           narrator:0
+          maxFps:10
+          mipmapLevels:0
           EOF
 
       - name: Stage exact Wave 1 jars into both real client mod directories
@@ -168,11 +170,46 @@ jobs:
             exit 1
           fi
 
-          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerObserverClientAcceptance --no-configuration-cache >"$observer_log" 2>&1 &
-          observer_pid=$!
-          sleep 3
-          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerNearClient --no-configuration-cache >"$near_log" 2>&1 &
+          # Start the inexpensive near-craft client first and let its NeoForge/GL stack
+          # finish initialization before launching the observer. Two simultaneous cold client
+          # startups have produced native loader SIGBUS failures on hosted software-GL runners;
+          # the actual multiplayer proof still runs with both real clients connected concurrently.
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerNearClient --no-configuration-cache >"$near_log" 2>&1 &
           near_pid=$!
+
+          near_joined=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "WbyNear joined the game" "$server_log" 2>/dev/null; then
+              near_joined=1
+              break
+            fi
+            if ! kill -0 "$near_pid" 2>/dev/null; then
+              echo "near client exited before joining the multiplayer server"
+              cat "$near_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before near client joined"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$near_joined" -ne 1 ]]; then
+            echo "near client did not join the multiplayer server"
+            cat "$server_log"
+            cat "$near_log"
+            exit 1
+          fi
+
+          # Give the already-joined client a short steady-state window before initializing the
+          # second software-GL process. It remains connected for the entire observer proof.
+          sleep 8
+
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerObserverClientAcceptance --no-configuration-cache >"$observer_log" 2>&1 &
+          observer_pid=$!
 
           terminal=""
           for _ in $(seq 1 270); do
@@ -276,4 +313,6 @@ jobs:
             skyforge-neoforge-1211/run-wby-wave1-multiplayer-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/logs/latest.log
             skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/hs_err_pid*.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/hs_err_pid*.log
           if-no-files-found: warn
