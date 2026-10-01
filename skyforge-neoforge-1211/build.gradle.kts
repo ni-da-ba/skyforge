@@ -2133,7 +2133,7 @@ neoForge {
             client()
             sourceSet.set(wbyWave1VisibilityClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-multiplayer-observer").asFile
-            programArguments.addAll("--server", "127.0.0.1", "--port", "25567", "--username", "WbyObserver")
+            programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25567", "--username", "WbyObserver")
             systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
             systemProperty("skyforge.dev.wbyWave1MultiplayerRole", "observer")
             systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
@@ -2154,7 +2154,7 @@ neoForge {
             client()
             sourceSet.set(wbyWave1VisibilityClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-multiplayer-near").asFile
-            programArguments.addAll("--server", "127.0.0.1", "--port", "25567", "--username", "WbyNear")
+            programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25567", "--username", "WbyNear")
             systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
             systemProperty("skyforge.dev.wbyWave1MultiplayerRole", "near")
             systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
