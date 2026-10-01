@@ -111,10 +111,13 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
         boolean touchesNode = sameLocation(nearBoundary, coupledLeg.nodeBoundary());
         double nearLength = Math.abs(
                 nearBoundary.arcLength() - coupledLeg.nodeBoundary().arcLength());
-        if (!(nearLength >= 0.0) || !Double.isFinite(nearLength)) {
+        boolean nearBoundaryOnConfluenceSide = cascadeUpstreamAtConfluence
+                ? nearBoundary.arcLength() + EPSILON >= coupledLeg.nodeBoundary().arcLength()
+                : nearBoundary.arcLength() - EPSILON <= coupledLeg.nodeBoundary().arcLength();
+        if (!nearBoundaryOnConfluenceSide || !Double.isFinite(nearLength)) {
             return deferred(
                     confluence, cascade, coupledLeg,
-                    "CASCADE/confluence overlap has invalid arc-length ordering");
+                    "CASCADE near boundary is not ordered on the ordinary confluence approach");
         }
         if (cascadeUpstreamAtConfluence
                         && remoteBoundary.arcLength()
