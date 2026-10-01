@@ -1,10 +1,14 @@
 # Hydrology reset tranche F3H — joint confluence/CASCADE head compatibility
 
-**Status:** machine-evidence tranche; CI validation pending  
+**Status:** accepted machine-evidence tranche; PR #1345 merged  
 **Governing authority:** issue #1084  
 **Depends on:** F3B confluence head compatibility, F3C CASCADE head compatibility, F3E terminal-component accounting  
 **Terrain mutation:** none  
 **Minecraft changes:** none
+
+## Acceptance evidence
+
+PR [#1345](https://github.com/ni-da-ba/skyforge/pull/1345) merged at `856054b8466c7d91132aa39fd0eadb9f5e7ce85c`. Hydrology Reset Geometry run [#531](https://github.com/ni-da-ba/skyforge/actions/runs/36896109409), full CI [#5109](https://github.com/ni-da-ba/skyforge/actions/runs/36896109601), DR-40 [#1220](https://github.com/ni-da-ba/skyforge/actions/runs/36896109437), and DR-50 [#1179](https://github.com/ni-da-ba/skyforge/actions/runs/36896109441) passed on accepted PR head `642b4fb9ad79de6af608876b4db8ee6ad2b60bd0`.
 
 ## Purpose
 
