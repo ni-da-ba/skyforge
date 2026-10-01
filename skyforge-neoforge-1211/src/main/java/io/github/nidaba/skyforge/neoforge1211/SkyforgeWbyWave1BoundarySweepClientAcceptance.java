@@ -129,6 +129,11 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
             boolean beyondBoundary = horizontalDistance > VANILLA_RENDER_DISTANCE_CHUNKS * 16.0 + 32.0;
             boolean atFarEndpoint = horizontalDistance >= FAR_OBSERVATION_DISTANCE_BLOCKS
                     && snapshot.targetDistanceBlocks() >= FAR_TARGET_DISTANCE_BLOCKS;
+            if ("NEAR_HOLD".equals(snapshot.phase()) && insideVanilla) {
+                // The server holds the start endpoint until the actual client has finalized
+                // the exact UUID and verified render-data/projection/distance authority.
+                SkyforgeWbyWave1VisibilityLifecycleAcceptance.markBoundaryClientReady();
+            }
             if (atFarEndpoint) {
                 // The server intentionally dwells at 256 blocks both at the tail of RECEDING
                 // and in FAR_HOLD. Under heavily lagged software rendering the client can skip
