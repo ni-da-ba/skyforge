@@ -84,7 +84,87 @@ jobs:
           grep -q '^ropeActive=true$' "$result"
           grep -q '^worldAttachmentStable=true$' "$result"
           grep -q '^sableAttachmentStable=true$' "$result"
-          grep -q '^chunkBoundaryCrossed=true$' "$result"
+          grep -q '^chunkBoundaryCrossed=true          grep -q '^forcedChunkGrowth=0$' "$result"
+          grep -q '^ropeChunkTransitionQualified=true$' "$result"
+
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "rope server leaked client-only renderer mods"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+
+          assert int(p["ropePointCount"]) == 32, p
+          assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
+          assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
+          assert int(p["boundaryStableTicks"]) >= 20, p
+          assert int(p["ticketSettleTicks"]) >= 40, p
+          assert int(p["loadedChunkDelta"]) <= 64, p
+          assert p["initialBodyChunk"] != p["relocatedBodyChunk"], p
+          assert p["targetBodyChunk"] == p["relocatedBodyChunk"], p
+          print("WBY WAVE 1 ROPE SANITY PASS", p)
+          PY
+
+      - name: Upload Wave 1 rope evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-rope-sanity
+          path: |
+            wby-wave1-rope-sanity.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+          if-no-files-found: warn
+ "$result"
+          grep -q '^bodyRelocationMethod=SablePhysicsPipeline.teleport          grep -q '^forcedChunkGrowth=0$' "$result"
+          grep -q '^ropeChunkTransitionQualified=true$' "$result"
+
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "rope server leaked client-only renderer mods"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+
+          assert int(p["ropePointCount"]) == 32, p
+          assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
+          assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
+          assert int(p["loadedChunkDelta"]) <= 64, p
+          assert p["initialBodyChunk"] != p["finalBodyChunk"], p
+          print("WBY WAVE 1 ROPE SANITY PASS", p)
+          PY
+
+      - name: Upload Wave 1 rope evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-rope-sanity
+          path: |
+            wby-wave1-rope-sanity.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+          if-no-files-found: warn
+ "$result"
           grep -q '^forcedChunkGrowth=0$' "$result"
           grep -q '^ropeChunkTransitionQualified=true$' "$result"
 
