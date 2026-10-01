@@ -238,7 +238,7 @@ check(wbyWave1BPin("neoforge", "version") == "21.1.249") {
     "WBY Wave 1B NeoForge pin must match the adapter runtime"
 }
 
-val wbyWave1BSupportedOptimizers = setOf("lithium", "ferritecore")
+val wbyWave1BSupportedOptimizers = setOf("lithium", "ferritecore", "immediatelyfast")
 val wbyWave1BOptimizer = providers.gradleProperty("wbyWave1BOptimizer")
     .orNull
     ?.trim()
@@ -255,7 +255,21 @@ val wbyWave1BOptimizerMods = when (wbyWave1BOptimizer) {
     null -> emptyList()
     "lithium" -> listOf("lithium")
     "ferritecore" -> listOf("lithium", "ferritecore")
+    "immediatelyfast" -> listOf("lithium", "ferritecore", "immediatelyfast")
     else -> error("unreachable WBY Wave 1B optimizer '$wbyWave1BOptimizer'")
+}
+
+val wbyWave1BAllowedEnvironments = setOf("client", "server", "client-server")
+wbyWave1BOptimizerMods.forEach { mod ->
+    check(wbyWave1BPin(mod, "environment") in wbyWave1BAllowedEnvironments) {
+        "unsupported WBY Wave 1B environment for $mod: " + wbyWave1BPin(mod, "environment")
+    }
+}
+val wbyWave1BClientOptimizerMods = wbyWave1BOptimizerMods.filter { mod ->
+    wbyWave1BPin(mod, "environment") != "server"
+}
+val wbyWave1BServerOptimizerMods = wbyWave1BOptimizerMods.filter { mod ->
+    wbyWave1BPin(mod, "environment") != "client"
 }
 
 
@@ -6360,7 +6374,7 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1BOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6397,7 +6411,7 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1BOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6472,13 +6486,22 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             "WBY Wave 1 server leaked client-only/optional renderer artifacts: $serverFiles"
         }
 
-        wbyWave1BOptimizerMods.forEach { mod ->
+        wbyWave1BClientOptimizerMods.forEach { mod ->
             val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
                 "WBY Wave 1B client missing optimizer $mod token '$token': $clientFiles"
             }
+        }
+        wbyWave1BServerOptimizerMods.forEach { mod ->
+            val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(serverFiles.any { it.contains(token) }) {
                 "WBY Wave 1B server missing optimizer $mod token '$token': $serverFiles"
+            }
+        }
+        (wbyWave1BOptimizerMods - wbyWave1BServerOptimizerMods.toSet()).forEach { mod ->
+            val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
+            check(serverFiles.none { it.contains(token) }) {
+                "WBY Wave 1B server leaked client-only optimizer $mod token '$token': $serverFiles"
             }
         }
 
@@ -6946,11 +6969,13 @@ dependencies {
             wbyWave1Pin(mod, "coordinate"),
         )
     }
-    wbyWave1BOptimizerMods.forEach { mod ->
+    wbyWave1BClientOptimizerMods.forEach { mod ->
         add(
             wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
             wbyWave1BPin(mod, "coordinate"),
         )
+    }
+    wbyWave1BServerOptimizerMods.forEach { mod ->
         add(
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1BPin(mod, "coordinate"),
