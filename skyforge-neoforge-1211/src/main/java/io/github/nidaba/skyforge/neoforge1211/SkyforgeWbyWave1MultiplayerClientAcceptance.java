@@ -66,7 +66,8 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
                     + "; stableTicks=" + stableTicks
                     + "; ssrdRenderObserved=" + ssrdRenderObserved
                     + "; selectedBodyId=" + selectedBodyId
-                    + "; observerBodyDistanceBlocks=" + observerBodyDistanceBlocks);
+                    + "; observerBodyDistanceBlocks=" + observerBodyDistanceBlocks
+                    + "; diagnosticTicks=" + diagnosticTicks);
             return;
         }
 
