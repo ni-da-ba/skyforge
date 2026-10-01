@@ -6,7 +6,7 @@
     spacing_x: 20, spacing_y: 2, spacing_z: 20,
     x_samples: 3, y_samples: 3, z_samples: 3, sample_count: 27,
   });
-  const NAMES = Object.freeze(["OPEN_SPACE", "LOWLAND", "UPLAND"]);
+  const NAMES = Object.freeze(["AIR", "LOWLAND", "UPLAND"]);
 
   function cellIndex(x, y, z) {
     return x + GRID.x_samples * (z + GRID.z_samples * y);
@@ -22,7 +22,7 @@
       skyforge_version: "Studio synthetic walkthrough",
       grid: { ...GRID },
       semantic_legend: NAMES.map((name, ordinal) => ({
-        ordinal, name, solid: name !== "OPEN_SPACE",
+        ordinal, name, solid: name !== "AIR",
       })),
       encoding: {
         kind: "BASE64_UINT8_ORDINAL",
@@ -34,7 +34,7 @@
   }
 
   function createInputs() {
-    const reference = new Array(GRID.sample_count).fill("OPEN_SPACE");
+    const reference = new Array(GRID.sample_count).fill("AIR");
     for (let z = 0; z < GRID.z_samples; z++) {
       for (let x = 0; x < GRID.x_samples; x++) {
         reference[cellIndex(x, 0, z)] = "LOWLAND";
@@ -45,7 +45,7 @@
     const candidate = reference.slice();
     candidate[cellIndex(0, 0, 0)] = "UPLAND";
     candidate[cellIndex(2, 1, 2)] = "UPLAND";
-    candidate[cellIndex(2, 0, 0)] = "OPEN_SPACE";
+    candidate[cellIndex(2, 0, 0)] = "AIR";
 
     return Object.freeze([
       Object.freeze({
