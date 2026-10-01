@@ -176,6 +176,29 @@ val waveC13Runtime = sourceSets.create("waveC13Runtime") {
         development.output
 }
 
+// WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
+val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
+val wbyWave1Pins = Properties().apply {
+    wbyWave1PinFile.asFile.inputStream().use(::load)
+}
+
+fun wbyWave1Pin(mod: String, field: String): String =
+    requireNotNull(wbyWave1Pins.getProperty("$mod.$field")) {
+        "missing WBY Wave 1 pin: $mod.$field in " + wbyWave1PinFile.asFile
+    }
+
+check(wbyWave1Pin("minecraft", "version") == "1.21.1") {
+    "WBY Wave 1 is defined only for Minecraft 1.21.1"
+}
+check(wbyWave1Pin("neoforge", "version") == "21.1.249") {
+    "WBY Wave 1 NeoForge pin must match the adapter runtime"
+}
+
+val wbyWave1FlightMods = listOf("create", "sable", "aeronautics")
+val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
+val wbyWave1ServerMods = listOf("ssrd")
+
+
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
 val waveC9Pins = Properties().apply {
     waveC9PinFile.asFile.inputStream().use(::load)
@@ -1916,6 +1939,25 @@ neoForge {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wave-c1-integrated").asFile
             systemProperty("skyforge.dev.waveC1Profile", "integrated")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        // WBY Wave 1 long-range visibility preflight. Keep shaders/cloud renderers out of this profile.
+        create("wbyWave1VisibilityClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            systemProperty("skyforge.dev.wbyWave1Profile", "visibility-client")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SSRD is BOTH-sided, but its Sodium dependency is explicitly CLIENT-only.
+        // The dedicated server therefore receives the retained flight substrate + SSRD only.
+        create("wbyWave1VisibilityServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.wbyWave1Profile", "visibility-server")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -5937,6 +5979,60 @@ tasks.register("waveC1ResolvePinnedMods") {
 }
 
 
+tasks.register("wbyWave1ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
+    inputs.file(wbyWave1PinFile)
+    inputs.file(waveC1PinFile)
+
+    doLast {
+        fun artifactToken(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return "${parts[1]}-${parts[2]}"
+        }
+
+        val clientFiles = configurations.getByName("wbyWave1VisibilityClientLegacyClasspath")
+            .files.map { it.name }.sorted()
+        val serverFiles = configurations.getByName("wbyWave1VisibilityServerLegacyClasspath")
+            .files.map { it.name }.sorted()
+
+        wbyWave1FlightMods.forEach { mod ->
+            val token = artifactToken(waveC1Pin(mod, "coordinate"))
+            check(clientFiles.any { it.contains(token) }) {
+                "WBY Wave 1 client missing retained $mod token '$token': $clientFiles"
+            }
+            check(serverFiles.any { it.contains(token) }) {
+                "WBY Wave 1 server missing retained $mod token '$token': $serverFiles"
+            }
+        }
+
+        wbyWave1ClientMods.forEach { mod ->
+            val token = artifactToken(wbyWave1Pin(mod, "coordinate"))
+            check(clientFiles.any { it.contains(token) }) {
+                "WBY Wave 1 client missing $mod token '$token': $clientFiles"
+            }
+        }
+
+        val ssrdToken = artifactToken(wbyWave1Pin("ssrd", "coordinate"))
+        check(serverFiles.any { it.contains(ssrdToken) }) {
+            "WBY Wave 1 server missing SSRD token '$ssrdToken': $serverFiles"
+        }
+        val sodiumToken = artifactToken(wbyWave1Pin("sodium", "coordinate"))
+        val dhToken = artifactToken(wbyWave1Pin("distanthorizons", "coordinate"))
+        check(serverFiles.none { it.contains(sodiumToken) || it.contains(dhToken) }) {
+            "WBY Wave 1 server leaked client-only/optional renderer artifacts: $serverFiles"
+        }
+
+        println("WBY Wave 1 client visibility classpath")
+        clientFiles.forEach { println("  client=$it") }
+        println("WBY Wave 1 server visibility classpath")
+        serverFiles.forEach { println("  server=$it") }
+        println("WBY WAVE 1 PIN RESOLUTION PASS")
+    }
+}
+
+
 tasks.register("waveC2ResolvePinnedMods") {
     group = "verification"
     description = "Resolve the exact optional-mod artifacts used by the Wave C2 mobility runs through ModDevGradle resolvable legacy classpaths."
@@ -6362,6 +6458,32 @@ dependencies {
                 waveC1Pin(mod, "coordinate"),
             )
         }
+    }
+
+
+    // WBY Wave 1 reuses the exact C1 flight substrate. The client adds Sodium + DH + SSRD;
+    // the server adds SSRD only because Sodium is a CLIENT-only loader dependency and DH is optional.
+    wbyWave1FlightMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityClientAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
+        add(
+            "wbyWave1VisibilityServerAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+    wbyWave1ClientMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityClientAdditionalRuntimeClasspath",
+            wbyWave1Pin(mod, "coordinate"),
+        )
+    }
+    wbyWave1ServerMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityServerAdditionalRuntimeClasspath",
+            wbyWave1Pin(mod, "coordinate"),
+        )
     }
 
 
