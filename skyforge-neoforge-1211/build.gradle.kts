@@ -2003,7 +2003,6 @@ neoForge {
 
         create("wbyWave1VisibilityClientAcceptance") {
             client()
-            sourceSet.set(wbyWave1VisibilityClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("wby-wave1-visibility-client")
@@ -6035,6 +6034,42 @@ tasks.register("waveC1ResolvePinnedMods") {
             println("  requested=" + mods.joinToString(", "))
             files.forEach { println("  resolved=$it") }
         }
+    }
+}
+
+
+tasks.register<Sync>("wbyWave1StageClientMods") {
+    group = "verification"
+    description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
+
+    val expectedTokens = (
+        wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+    ).toSet()
+
+    from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
+        include { details ->
+            expectedTokens.any { token -> details.file.name.contains(token) }
+        }
+    }
+    into(layout.projectDirectory.dir("run-wby-wave1-visibility-client/mods"))
+
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        expectedTokens.forEach { token ->
+            check(staged.any { it.contains(token) }) {
+                "WBY Wave 1 staged mods missing token '$token': $staged"
+            }
+        }
+        check(staged.size == expectedTokens.size) {
+            "WBY Wave 1 staged mods directory contains unexpected jars: expected=${expectedTokens.size} staged=$staged"
+        }
+        println("WBY WAVE 1 CLIENT MOD STAGING PASS")
+        staged.forEach { println("  staged=$it") }
     }
 }
 
