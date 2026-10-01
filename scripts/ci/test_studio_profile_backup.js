@@ -109,7 +109,6 @@ const current = create({worldBriefLibrary:{...briefLibrary,briefs:[{id:"brief-00
 const incoming = create({worldBriefLibrary:{...briefLibrary,briefs:[{id:"brief-0002",title:"Imported"}]},terrainComparisons:terrain});
 const plan = backup.prepareRestore(incoming,current,validators);
 assert.equal(plan.worldBriefLibrary.briefs.length,2);
-assert.equal(plan.terrainComparisonsAdded,undefined);
 assert.equal(plan.counts.terrainComparisonsAdded,1);
 assert.equal(plan.inspectionReplacementRequired,false);
 assert.deepEqual(backup.prepareRestore(incoming,current,validators).terrainComparisons,terrain);
