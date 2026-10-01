@@ -46,7 +46,76 @@ jobs:
           test -f "$result"
           grep -q '^status=PASS$' "$result"
           grep -q '^wbyWave1VisibilityWorldPrepared=true$' "$result"
-          grep -q '^preassembledDistantSableBodyPersisted=false$' "$result"
+          grep -q '^preassembledDistantSableBodyPersisted=false
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          mkdir -p "$run_dir"
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact Wave 1 jars like a real modpack client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+      - name: Qualify distant Sable rendering through SSRD and Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-wave1-actual-client.log"
+          timeout 300 xvfb-run -a ./gradlew             :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance             --no-configuration-cache 2>&1 | tee "$log"
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^clientSubLevelFinalized=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^beyondVanillaRenderDistance=true$' "$result"
+          grep -q '^ssrdRenderDataPresent=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^ssrdProjectionMatrixPresent=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["horizontalDistanceBlocks"]) > 96.0, p
+          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          assert int(p["stableQualifiedTicks"]) >= 20, p
+          print("WBY WAVE 1 ACTUAL CLIENT PASS", p)
+          PY
+
+      - name: Upload Wave 1 actual-client evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-actual-client
+          path: |
+            wby-wave1-actual-client.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+          if-no-files-found: warn
+ "$result"
+
+          # The server preparation run uses Minecraft's default save name. Fail here rather
+          # than letting Quick Play sit at the menu until the client acceptance timeout.
+          test -d "skyforge-neoforge-1211/run-wby-wave1-visibility-client/world"
 
       - name: Configure bounded unattended client
         shell: bash
