@@ -15,10 +15,12 @@
     "@electron-forge/maker-deb": "7.11.2",
     "@electron-forge/maker-dmg": "7.11.2",
     "@electron-forge/maker-squirrel": "7.11.2",
-    "electron": "44.5.1",
-    "electron-squirrel-startup": "1.0.1"
+    "electron": "44.5.1"
   },
   "config": {
     "forge": "./forge.config.js"
+  },
+  "dependencies": {
+    "electron-squirrel-startup": "1.0.1"
   }
 }
