@@ -367,6 +367,14 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
     }
 
     private static VramEvidence vramEvidence() {
+        String renderer = safeGlString(GL11.GL_RENDERER);
+        String rendererLower = renderer.toLowerCase(java.util.Locale.ROOT);
+        if (rendererLower.contains("llvmpipe")
+                || rendererLower.contains("softpipe")
+                || rendererLower.contains("software rasterizer")) {
+            return new VramEvidence(false, "unavailable-software-renderer", -1L, -1L, -1L);
+        }
+
         try {
             var caps = GL.getCapabilities();
             if (caps.GL_NVX_gpu_memory_info) {
