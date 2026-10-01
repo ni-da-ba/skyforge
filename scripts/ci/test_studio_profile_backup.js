@@ -59,12 +59,29 @@ function libraryApi() {
 }
 const terrainLibrary = libraryApi();
 const regionalLibrary = libraryApi();
+const regionalInventory = {
+  parseInventoryCsv(value) { return {value}; },
+  parseRankingCsv(value) { return {value}; },
+};
+const regionalComparison = {
+  validatePackageInputs(value, fileBytes, inventoryApi) {
+    const parsed = JSON.parse(value);
+    if (parsed.document_type !== "SKYFORGE_STUDIO_REGIONAL_COMPARISON_PACKAGE" ||
+        fileBytes !== new TextEncoder().encode(value).length ||
+        !inventoryApi.parseInventoryCsv) {
+      throw new Error("invalid regional comparison package");
+    }
+    return parsed;
+  },
+};
 const validators = {
   worldBrief: worldBrief,
   workspaceSession,
   workspacePackage,
   terrainLibrary,
   regionalLibrary,
+  regionalComparison,
+  regionalInventory,
   maximumBytes: 10_000,
 };
 function create(overrides = {}) {
@@ -104,6 +121,7 @@ assert.throws(() => backup.parse({...source, format_version:2}, validators), /un
 assert.throws(() => backup.parse({...source, extra:"credential"}, validators), /unsupported document shape/);
 assert.throws(() => backup.parse({...source, inspection_session:{...session,development_api_token:"secret"}}, validators), /unsupported saved inspection field/);
 assert.throws(() => create({terrainComparisons:[terrain[0],terrain[0]]}), /invalid or duplicate saved ID/);
+assert.throws(() => create({regionalComparisons:[{...regional[0],package_json:"{}"}]}), /invalid regional comparison package/);
 
 const current = create({worldBriefLibrary:{...briefLibrary,briefs:[{id:"brief-0001",title:"Existing"}]}});
 const incoming = create({worldBriefLibrary:{...briefLibrary,briefs:[{id:"brief-0002",title:"Imported"}]},terrainComparisons:terrain});
