@@ -462,6 +462,8 @@ jobs:
           cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
           echo "--- D2 semantic-corridor feasibility: key 287 ---"
           cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287-corridor-summary.txt
+          echo "--- key-700 component D2 refinement and ordinary-span outcomes ---"
+          cat skyforge-world/build/evidence/hydrology-key700-d2-component-test/key-700.txt
 
       - name: Dump generated hydrology evidence on failure
         if: failure()
