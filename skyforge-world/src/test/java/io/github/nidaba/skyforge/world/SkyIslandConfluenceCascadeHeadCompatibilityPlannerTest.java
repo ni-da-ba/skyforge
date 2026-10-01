@@ -19,6 +19,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         List<SkyIslandDescriptor> candidates = List.of(
                 descriptor(8L, 81L, 241L),
                 descriptor(8L, 81L, 632L),
+                descriptor(8L, 81L, 287L),
                 descriptor(8L, 81L, 649L),
                 descriptor(6L, 61L, 83L),
                 descriptor(6L, 61L, 77L),

@@ -24,7 +24,7 @@ F3H does not compose multiple CASCADE overlaps, a CASCADE spanning both semantic
 
 ## Regression evidence
 
-The deterministic regression probes the existing confluence corpus (islands 241, 632, 649, 83, 77, and 512) until it finds a supported solved overlap, then repeats that exact solve and compares reported variables and residuals. It checks shared-node bounds, non-negative authored-bounded CASCADE drop, and QP primal residual. Key 632 is expected to remain deferred because its CASCADE is terminal-ended. GitHub Actions is the only authority for this test and build.
+The deterministic regression probes the existing confluence corpus (islands 241, 632, 287, 649, 83, 77, and 512) until it finds a supported solved overlap, then repeats that exact solve and compares reported variables and residuals. It checks shared-node bounds, non-negative authored-bounded CASCADE drop, and QP primal residual. Key 632 is expected to remain deferred because its CASCADE is terminal-ended. GitHub Actions is the only authority for this test and build.
 
 ## Acceptance boundary
 
