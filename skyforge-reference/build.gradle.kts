@@ -243,3 +243,13 @@ tasks.register<JavaExec>("authorshipFluvialSpecimenSearch") {
     jvmArgs("-Dskyforge.version=${project.version}")
     args(layout.buildDirectory.dir("evidence/authorship-fluvial-specimen-search-v1").get().asFile.absolutePath)
 }
+
+
+tasks.register<JavaExec>("hydrologyNaturalTransitionCensus") {
+    group = "verification"
+    description = "Screens a fixed hydrology proving-ground grid for naturally supported confluence/CASCADE components."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.HydrologyNaturalTransitionCensusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hydrology-natural-transition-census-v1").get().asFile.absolutePath)
+}
