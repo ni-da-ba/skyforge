@@ -10,7 +10,7 @@
 | Sable | 2.0.5+mc1.21.1 | existing Wave C1 immutable pin |
 | Create Aeronautics | 1.3.2+mc1.21.1 bundled | existing Wave C1 immutable pin |
 | Sodium | 0.8.13 NeoForge 1.21.1 | CurseForge project 394468 / file 8756580 |
-| Distant Horizons | 3.3.3 for 1.21.1 neo/fabric | CurseForge project 508933; Modrinth project uCdwusMi |
+| Distant Horizons | 3.3.2 for 1.21.1 neo/fabric | Modrinth maven.modrinth:uCdwusMi:Ez3cx7Yd (version ID Ez3cx7Yd) |
 | SSRD | 1.8.7 | Modrinth version iZflRKdV; filename SSRD-1.8.7-1.21.1.jar; SHA-1 7da02fc5f783bedb55a29268e4c8ba7b0c3c9e6f |
 
 ## Compatibility note
