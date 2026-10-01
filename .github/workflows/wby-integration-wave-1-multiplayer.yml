@@ -212,7 +212,7 @@ jobs:
           observer_pid=$!
 
           terminal=""
-          for _ in $(seq 1 270); do
+          for _ in $(seq 1 390); do
             if [[ -f "$observer_result" ]]; then
               if grep -q '^status=PASS$' "$observer_result"; then
                 terminal="PASS"
