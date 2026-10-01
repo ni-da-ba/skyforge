@@ -1,6 +1,6 @@
 # Hydrology reset tranche F3I — joint transition assembly
 
-**Status:** machine validation pending  
+**Status:** implementation validated; final documentation head is being rechecked in PR #1366  
 **Governing authority:** issue #1084  
 **Depends on:** F3B/F3C/F3D/F3E and F3H  
 **Terrain and Minecraft mutation:** none
