@@ -75,6 +75,8 @@
   function parse(value, validators) {
     let document = value;
     if (typeof value === "string") {
+      const maximumBytes = validators?.maximumBytes || MAXIMUM_FILE_BYTES;
+      if (byteLength(value) > maximumBytes) throw new Error("Studio backup is larger than its supported file size");
       try { document = JSON.parse(value); }
       catch { throw new Error("Studio backup must contain valid JSON"); }
     }
