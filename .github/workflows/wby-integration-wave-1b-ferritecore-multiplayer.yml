@@ -333,10 +333,10 @@ jobs:
             skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/hs_err_pid*.log
           if-no-files-found: warn
  "$observer_result"
-          grep -Eq '\\(lithium\\)' "$observer_log"
-          grep -Eq '\\(ferritecore\\)' "$observer_log"
-          grep -Eq '\\(lithium\\)' "$near_log"
-          grep -Eq '\\(ferritecore\\)' "$near_log"
+          grep -Eq '\(lithium\)' "$observer_log"
+          grep -Eq '\(ferritecore\)' "$observer_log"
+          grep -Eq '\(lithium\)' "$near_log"
+          grep -Eq '\(ferritecore\)' "$near_log"
 
           grep -Fq "SSRD: Received range request from player WbyObserver: 128 chunks" "$server_log"
           for client_log in "$observer_log" "$near_log"; do
