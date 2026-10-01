@@ -43,20 +43,42 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
         diagnostic = Objects.requireNonNull(diagnostic, "diagnostic");
 
         if (status == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED) {
-            if (solve.isEmpty()
+            SkyIslandHydraulicTransitionBoundaryState cascadeAtConfluence =
+                    coupledLeg.nodeBoundary().role()
+                                    == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
+                            ? cascade.transitionSite().upstreamBoundary()
+                            : cascade.transitionSite().downstreamBoundary();
+            boolean touchesNode = sameLocation(cascadeAtConfluence, coupledLeg.nodeBoundary());
+            boolean touchesFinite = sameLocation(cascadeAtConfluence, coupledLeg.finiteBoundary());
+            if (touchesNode == touchesFinite
+                    || solve.isEmpty()
                     || solve.orElseThrow().status() != SkyIslandHydraulicQpStatus.SOLVED
                     || sharedNodeHeadWorldUnits.isEmpty()
                     || cascadeBoundaryHeadWorldUnits.isEmpty()
-                    || solvedDropWorldUnits.isEmpty()
-                    || ordinaryLegSolutions.size() != confluence.legs().size() - 1) {
+                    || solvedDropWorldUnits.isEmpty()) {
                 throw new IllegalArgumentException(
-                        "SOLVED joint outcome requires complete node, cascade, and ordinary-leg evidence");
+                        "SOLVED joint outcome requires a unique coupled boundary and complete head evidence");
             }
-            double measuredDrop = cascadeStartsAtNode(cascade, coupledLeg)
+            int expectedLegSolutions = confluence.legs().size() - (touchesNode ? 1 : 0);
+            if (ordinaryLegSolutions.size() != expectedLegSolutions
+                    || touchesFinite && ordinaryLegSolutions.stream()
+                            .noneMatch(value -> value.leg() == coupledLeg)) {
+                throw new IllegalArgumentException(
+                        "SOLVED joint outcome requires all uncoupled ordinary-leg head evidence");
+            }
+            double nearHead = touchesNode
                     ? sharedNodeHeadWorldUnits.orElseThrow()
-                            - cascadeBoundaryHeadWorldUnits.orElseThrow()
-                    : cascadeBoundaryHeadWorldUnits.orElseThrow()
-                            - sharedNodeHeadWorldUnits.orElseThrow();
+                    : ordinaryLegSolutions.stream()
+                            .filter(value -> value.leg() == coupledLeg)
+                            .mapToDouble(SkyIslandConfluenceLegHeadSolution::finiteBoundaryHeadWorldUnits)
+                            .findFirst()
+                            .orElseThrow();
+            double remoteHead = cascadeBoundaryHeadWorldUnits.orElseThrow();
+            boolean cascadeUpstreamAtConfluence = coupledLeg.nodeBoundary().role()
+                    == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING;
+            double measuredDrop = cascadeUpstreamAtConfluence
+                    ? nearHead - remoteHead
+                    : remoteHead - nearHead;
             if (Math.abs(measuredDrop - solvedDropWorldUnits.orElseThrow()) > 1.0e-9
                     || measuredDrop < -1.0e-9
                     || measuredDrop > authoredMaximumDropWorldUnits + 1.0e-9) {
@@ -71,11 +93,13 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
         }
     }
 
-    private static boolean cascadeStartsAtNode(
-            SkyIslandHydraulicCascadeGeometryCandidate cascade,
-            SkyIslandHydraulicTransitionLegGeometry leg) {
-        return cascade.transitionSite().firstProfileIndex() == 0
-                && leg.nodeBoundary().role() == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING;
+    private static boolean sameLocation(
+            SkyIslandHydraulicTransitionBoundaryState first,
+            SkyIslandHydraulicTransitionBoundaryState second) {
+        return Math.abs(first.stationFraction() - second.stationFraction()) <= 1.0e-9
+                && Math.abs(first.arcLength() - second.arcLength()) <= 1.0e-9
+                && Math.abs(first.position().x() - second.position().x()) <= 1.0e-9
+                && Math.abs(first.position().z() - second.position().z()) <= 1.0e-9;
     }
 
     private static void requireFinite(double value, String name) {
