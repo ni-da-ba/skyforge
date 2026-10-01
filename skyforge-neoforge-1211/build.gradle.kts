@@ -247,6 +247,10 @@ val wbyWave1BLithiumArtifact = configurations.create("wbyWave1BLithiumArtifact")
     isCanBeResolved = true
 }
 
+val wbyWave1BLithiumActive = providers.gradleProperty("skyforgeWbyWave1BLithium")
+    .map { it.equals("true", ignoreCase = true) }
+    .orElse(false)
+
 val wbyWave1BLithiumRunDirectories = listOf(
     "run-wby-wave1-visibility-client",
     "run-wby-wave1-visibility-server",
@@ -6988,12 +6992,23 @@ dependencies {
         )
     }
 
-    // W1-B optimizers remain outside both W1-A source-set runtimes. Candidate workflows copy the
-    // resolved artifact into disposable run directories so the W1-A baseline stays reproducible.
+    // Keep the accepted W1-A runtime untouched by default. Candidate invocations opt in explicitly
+    // so ModDev's dev-server launcher discovers Lithium from the run source-set classpath; ordinary
+    // modpack-style reload clients can still use wbyWave1BStageLithium.
     add(
         wbyWave1BLithiumArtifact.name,
         wbyWave1BPin("lithium", "coordinate"),
     )
+    if (wbyWave1BLithiumActive.get()) {
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            wbyWave1BPin("lithium", "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            wbyWave1BPin("lithium", "coordinate"),
+        )
+    }
 
 
     // Wave C2 optional dependencies remain run-scoped. The integrated comparison reuses only the
