@@ -219,6 +219,47 @@ val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyWave1ServerMods = listOf("ssrd")
 
 
+// W1-B optimizer candidates are deliberately isolated from the accepted W1-A baseline pins.
+// The current cumulative candidate contains Lithium only; later optimizers are admitted in the
+// issue-defined order after the retained stack passes focused correctness + telemetry gates.
+val wbyWave1BPinFile = layout.projectDirectory.file("wby-wave1b-mods.properties")
+val wbyWave1BPins = Properties().apply {
+    wbyWave1BPinFile.asFile.inputStream().use(::load)
+}
+
+fun wbyWave1BPin(mod: String, field: String): String =
+    requireNotNull(wbyWave1BPins.getProperty("$mod.$field")) {
+        "missing WBY Wave 1-B pin: $mod.$field in " + wbyWave1BPinFile.asFile
+    }
+
+check(wbyWave1BPin("minecraft", "version") == "1.21.1") {
+    "WBY Wave 1-B is defined only for Minecraft 1.21.1"
+}
+check(wbyWave1BPin("neoforge", "version") == "21.1.249") {
+    "WBY Wave 1-B NeoForge pin must match the adapter runtime"
+}
+check(wbyWave1BPin("lithium", "side") == "both") {
+    "WBY Wave 1-B Lithium must remain a both-sided client/server candidate"
+}
+
+val wbyWave1BLithiumArtifact = configurations.create("wbyWave1BLithiumArtifact") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+}
+
+val wbyWave1BLithiumRunDirectories = listOf(
+    "run-wby-wave1-visibility-client",
+    "run-wby-wave1-visibility-server",
+    "run-wby-wave1-rope-sanity",
+    "run-wby-wave1-persistence",
+    "run-wby-wave1-multiplayer-server",
+    "run-wby-wave1-multiplayer-observer",
+    "run-wby-wave1-multiplayer-near",
+    "run-wby-wave1-telemetry-server",
+    "run-wby-wave1-telemetry-client",
+)
+
+
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
 val waveC9Pins = Properties().apply {
     waveC9PinFile.asFile.inputStream().use(::load)
@@ -6384,6 +6425,60 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
 }
 
 
+tasks.register("wbyWave1BResolveLithium") {
+    group = "verification"
+    description = "Resolve the isolated WBY Wave 1-B Lithium candidate without changing W1-A."
+
+    inputs.file(wbyWave1BPinFile)
+    inputs.files(wbyWave1BLithiumArtifact)
+
+    doLast {
+        val files = wbyWave1BLithiumArtifact.files.map { it.name }.sorted()
+        check(files.size == 1) {
+            "WBY Wave 1-B Lithium resolution expected exactly one artifact: $files"
+        }
+        val coordinate = wbyWave1BPin("lithium", "coordinate")
+        val parts = coordinate.split(":")
+        check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+        val token = "${parts[1]}-${parts[2]}"
+        check(files.single().contains(token)) {
+            "WBY Wave 1-B Lithium artifact does not match immutable token '$token': $files"
+        }
+        println("WBY WAVE 1-B LITHIUM PIN RESOLUTION PASS")
+        files.forEach { println("  lithium=$it") }
+    }
+}
+
+tasks.register("wbyWave1BStageLithium") {
+    group = "verification"
+    description = "Add the W1-B Lithium candidate to disposable W1-A acceptance run directories."
+    dependsOn("wbyWave1BResolveLithium")
+    inputs.file(wbyWave1BPinFile)
+    inputs.files(wbyWave1BLithiumArtifact)
+
+    doLast {
+        val artifact = wbyWave1BLithiumArtifact.singleFile
+        wbyWave1BLithiumRunDirectories.forEach { runDirectory ->
+            val modsDirectory = layout.projectDirectory.dir("$runDirectory/mods").asFile
+            modsDirectory.mkdirs()
+            copy {
+                from(artifact)
+                into(modsDirectory)
+            }
+            val staged = modsDirectory.listFiles()
+                ?.filter { it.isFile && it.extension == "jar" && it.name.contains("DDUrRVCA") }
+                ?.map { it.name }
+                ?.sorted()
+                ?: emptyList()
+            check(staged.size == 1) {
+                "WBY Wave 1-B Lithium staging failed for $runDirectory: $staged"
+            }
+        }
+        println("WBY WAVE 1-B LITHIUM STAGING PASS")
+    }
+}
+
+
 tasks.register("wbyWave1ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
@@ -6892,6 +6987,13 @@ dependencies {
             wbyWave1Pin(mod, "coordinate"),
         )
     }
+
+    // W1-B optimizers remain outside both W1-A source-set runtimes. Candidate workflows copy the
+    // resolved artifact into disposable run directories so the W1-A baseline stays reproducible.
+    add(
+        wbyWave1BLithiumArtifact.name,
+        wbyWave1BPin("lithium", "coordinate"),
+    )
 
 
     // Wave C2 optional dependencies remain run-scoped. The integrated comparison reuses only the
