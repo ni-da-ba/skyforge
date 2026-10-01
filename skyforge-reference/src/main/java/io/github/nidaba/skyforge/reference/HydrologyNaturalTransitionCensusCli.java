@@ -29,7 +29,7 @@ public final class HydrologyNaturalTransitionCensusCli {
     public static final String EVIDENCE_ID = "hydrology-natural-transition-census-v1";
     private static final long SEED = 0x534B59464F524745L;
     private static final int FIRST_KEY = 1;
-    private static final int LAST_KEY = 1024;
+    private static final int LAST_KEY = 256;
     private static final Namespace[] NAMESPACES = {
         new Namespace(6L, 61L),
         new Namespace(8L, 81L)
@@ -151,7 +151,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                 Hydrology natural-transition census v1
 
                 Fixed sample: seed 0x534B59464F524745; namespaces 6/61 and 8/81;
-                island keys 1 through 1,024 in each namespace.
+                island keys 1 through 256 in each namespace.
                 The manifest records every identity. The deep F3H/F3I/F3E planners run only
                 when semantic topology contains both a confluence and a CASCADE profile.
                 A qualified component is still continuous mathematical evidence only:
