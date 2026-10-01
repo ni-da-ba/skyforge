@@ -90,6 +90,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgePlayerTrackingOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgeWbyWave1VisibilityWorldPrepareAcceptance.installFromSystemProperty();
         SkyforgeWbyWave1VisibilityLifecycleAcceptance.installFromSystemProperty();
+        // Boundary-sweep client acceptance shares the same server fixture lifecycle via an independent opt-in property.
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();
         SkyforgeWaveC12BellancaB0AssemblyAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
