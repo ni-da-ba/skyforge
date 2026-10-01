@@ -15,7 +15,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
 
     @Test
     void eligibleJointTransitionIsDeterministicAndBounded() {
-        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 241L);
+        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 512L);
         SkyIslandConfluenceCascadeHeadCompatibilityPlan generated =
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
         assertTrue(generated.outcomes().stream().noneMatch(outcome ->
@@ -85,7 +85,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                     SkyIslandHydraulicTransitionGeometryEvidencePlan source) {
         SkyIslandHydraulicConfluenceGeometryCandidate confluence =
                 source.confluences().stream()
-                        .filter(value -> value.transitionSite().nodeCellIndex() == 671)
+                        .filter(value -> value.transitionSite().nodeCellIndex() == 1729)
                         .findFirst()
                         .orElseThrow();
         SkyIslandHydraulicTransitionLegGeometry coupledLeg =
@@ -93,8 +93,8 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                         .filter(leg ->
                                 leg.nodeBoundary().role()
                                         == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
-                                        && leg.nodeBoundary().reachStartCellIndex() == 671
-                                        && leg.nodeBoundary().reachEndCellIndex() == 479)
+                                        && leg.nodeBoundary().reachStartCellIndex() == 1729
+                                        && leg.nodeBoundary().reachEndCellIndex() == 1969)
                         .findFirst()
                         .orElseThrow();
         SkyIslandHydraulicCascadeGeometryCandidate cascade =
@@ -103,7 +103,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                                 value.transitionSite().reachStartCellIndex() == 671
                                         && value.transitionSite().reachEndCellIndex() == 479
                                         && value.transitionSite().firstProfileIndex() == 1
-                                        && value.transitionSite().lastProfileIndexExclusive() == 4)
+                                        && value.transitionSite().lastProfileIndexExclusive() == 5)
                         .findFirst()
                         .orElseThrow();
         SkyIslandHydraulicReachSkeleton reach =
@@ -116,6 +116,17 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                         })
                         .findFirst()
                         .orElseThrow();
+
+        List<SkyIslandChannelProfile> semanticProfiles =
+                reach.geomorphicRoute().semanticReach().profiles();
+        assertTrue(cascade.transitionSite().firstProfileIndex() > 0);
+        assertTrue(cascade.transitionSite().lastProfileIndexExclusive() < semanticProfiles.size());
+        assertEquals(
+                SkyIslandChannelProfileKind.ORDINARY,
+                semanticProfiles.get(cascade.transitionSite().firstProfileIndex() - 1).kind());
+        assertEquals(
+                SkyIslandChannelProfileKind.ORDINARY,
+                semanticProfiles.get(cascade.transitionSite().lastProfileIndexExclusive()).kind());
 
         double finiteBoundaryFraction =
                 0.5 * (cascade.transitionSite().upstreamBoundary().stationFraction()
