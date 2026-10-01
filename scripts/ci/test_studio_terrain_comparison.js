@@ -1,7 +1,10 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const sceneApi = require("../orchestrator/studio/scene.js");
+global.window = {};
+require("../orchestrator/studio/scene.js");
+const sceneApi = global.window.SkyforgeStudioScene;
+delete global.window;
 const comparisonApi = require("../orchestrator/studio/terrain-comparison.js");
 
 function makeArtifact(grid, names, cells, version = 1) {
