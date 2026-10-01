@@ -103,7 +103,7 @@
       fileBytes: size,
     });
   }
-  const api = Object.freeze({compare,formatDelta,createPackage,parsePackage,packageType:PACKAGE_TYPE,packageVersion:PACKAGE_VERSION,maximumPackageBytes:MAX_PACKAGE_BYTES});
+  function validatePackageInputs(value, fileBytes, inventoryApi) {\n    if (!inventoryApi || typeof inventoryApi.parseInventoryCsv !== "function" ||\n        typeof inventoryApi.parseRankingCsv !== "function") throw new Error("AUTH-0094 validator is unavailable");\n    const report = parsePackage(value, fileBytes);\n    const left = inventoryApi.parseInventoryCsv(report.left.inventory_csv);\n    const right = inventoryApi.parseInventoryCsv(report.right.inventory_csv);\n    const leftRanking = report.left.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.left.ranking_csv, left);\n    const rightRanking = report.right.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.right.ranking_csv, right);\n    return {report,left,right,leftRanking,rightRanking};\n  }\n  const api = Object.freeze({compare,formatDelta,createPackage,parsePackage,validatePackageInputs,packageType:PACKAGE_TYPE,packageVersion:PACKAGE_VERSION,maximumPackageBytes:MAX_PACKAGE_BYTES});
   if (typeof module !== "undefined" && module.exports) module.exports=api;
   if (root) root.SkyforgeRegionalComparison=api;
   if (typeof document === "undefined") return;
