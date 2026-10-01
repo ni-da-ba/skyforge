@@ -176,6 +176,26 @@ val waveC13Runtime = sourceSets.create("waveC13Runtime") {
         development.output
 }
 
+// WBY Wave 1 external mods must be FML-discovered, not merely present on a legacy
+// AdditionalRuntimeClasspath. Keep client and server profiles isolated because Sodium and DH are
+// client-side while SSRD and the retained flight substrate participate on both sides.
+val wbyWave1VisibilityClientRuntime = sourceSets.create("wbyWave1VisibilityClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+val wbyWave1VisibilityServerRuntime = sourceSets.create("wbyWave1VisibilityServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
+
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
 val wbyWave1Pins = Properties().apply {
@@ -1946,6 +1966,7 @@ neoForge {
         // WBY Wave 1 long-range visibility preflight. Keep shaders/cloud renderers out of this profile.
         create("wbyWave1VisibilityClient") {
             client()
+            sourceSet.set(wbyWave1VisibilityClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
             systemProperty("skyforge.dev.wbyWave1Profile", "visibility-client")
             taskBefore(tasks.named(development.processResourcesTaskName))
@@ -1955,9 +1976,53 @@ neoForge {
         // The dedicated server therefore receives the retained flight substrate + SSRD only.
         create("wbyWave1VisibilityServer") {
             server()
+            sourceSet.set(wbyWave1VisibilityServerRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-server").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.wbyWave1Profile", "visibility-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
+        create("wbyWave1VisibilityClientWorldPrepareServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-visibility-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-visibility/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1VisibilityClientAcceptance") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            // The preparation server persists the dedicated acceptance save under this
+            // exact level name; Quick Play must target that same directory.
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-visibility/client.properties").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -3614,6 +3679,30 @@ tasks.named("runWaveC3AtmosphereEvidenceServerB").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC3AtmosphereEvidenceServerProperties)
+    }
+}
+
+
+val wbyWave1VisibilityClientServerProperties = """
+    level-name=wby-wave1-visibility-client
+    level-seed=671001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWbyWave1VisibilityClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(wbyWave1VisibilityClientServerProperties)
     }
 }
 
@@ -5979,6 +6068,42 @@ tasks.register("waveC1ResolvePinnedMods") {
 }
 
 
+tasks.register<Sync>("wbyWave1StageClientMods") {
+    group = "verification"
+    description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
+
+    val expectedTokens = (
+        wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+    ).toSet()
+
+    from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
+        include { details ->
+            expectedTokens.any { token -> details.file.name.contains(token) }
+        }
+    }
+    into(layout.projectDirectory.dir("run-wby-wave1-visibility-client/mods"))
+
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        expectedTokens.forEach { token ->
+            check(staged.any { it.contains(token) }) {
+                "WBY Wave 1 staged mods missing token '$token': $staged"
+            }
+        }
+        check(staged.size == expectedTokens.size) {
+            "WBY Wave 1 staged mods directory contains unexpected jars: expected=${expectedTokens.size} staged=$staged"
+        }
+        println("WBY WAVE 1 CLIENT MOD STAGING PASS")
+        staged.forEach { println("  staged=$it") }
+    }
+}
+
+
 tasks.register("wbyWave1ResolvePinnedMods") {
     group = "verification"
     description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
@@ -5992,10 +6117,10 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             return "${parts[1]}-${parts[2]}"
         }
 
-        val clientFiles = configurations.getByName("wbyWave1VisibilityClientLegacyClasspath")
-            .files.map { it.name }.sorted()
-        val serverFiles = configurations.getByName("wbyWave1VisibilityServerLegacyClasspath")
-            .files.map { it.name }.sorted()
+        val clientFiles = wbyWave1VisibilityClientRuntime.runtimeClasspath.files
+            .map { it.name }.sorted()
+        val serverFiles = wbyWave1VisibilityServerRuntime.runtimeClasspath.files
+            .map { it.name }.sorted()
 
         wbyWave1FlightMods.forEach { mod ->
             val token = artifactToken(waveC1Pin(mod, "coordinate"))
@@ -6024,9 +6149,9 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             "WBY Wave 1 server leaked client-only/optional renderer artifacts: $serverFiles"
         }
 
-        println("WBY Wave 1 client visibility classpath")
+        println("WBY Wave 1 FML-discoverable client visibility runtime")
         clientFiles.forEach { println("  client=$it") }
-        println("WBY Wave 1 server visibility classpath")
+        println("WBY Wave 1 FML-discoverable server visibility runtime")
         serverFiles.forEach { println("  server=$it") }
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
@@ -6461,27 +6586,29 @@ dependencies {
     }
 
 
-    // WBY Wave 1 reuses the exact C1 flight substrate. The client adds Sodium + DH + SSRD;
-    // the server adds SSRD only because Sodium is a CLIENT-only loader dependency and DH is optional.
+    // WBY Wave 1 uses isolated source-set runtimes because Minecraft 1.21.1 ModDev can place
+    // AdditionalRuntimeClasspath jars on a legacy library path without FML discovering them as mods.
+    // The failed first actual-client probe proved that distinction: the jars resolved but only
+    // Sodium appeared in the loaded-mod list.
     wbyWave1FlightMods.forEach { mod ->
         add(
-            "wbyWave1VisibilityClientAdditionalRuntimeClasspath",
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
             waveC1Pin(mod, "coordinate"),
         )
         add(
-            "wbyWave1VisibilityServerAdditionalRuntimeClasspath",
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             waveC1Pin(mod, "coordinate"),
         )
     }
     wbyWave1ClientMods.forEach { mod ->
         add(
-            "wbyWave1VisibilityClientAdditionalRuntimeClasspath",
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
             wbyWave1Pin(mod, "coordinate"),
         )
     }
     wbyWave1ServerMods.forEach { mod ->
         add(
-            "wbyWave1VisibilityServerAdditionalRuntimeClasspath",
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1Pin(mod, "coordinate"),
         )
     }

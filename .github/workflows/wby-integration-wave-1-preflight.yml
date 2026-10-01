@@ -76,7 +76,24 @@ jobs:
             exit 1
           fi
 
-          echo "WBY WAVE 1 SERVER BOOT PASS"
+          # Server boot is meaningful only if the BOTH-side mods were actually FML-discovered.
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+
+          # Sodium is CLIENT-only and Distant Horizons is optional CLIENT in SSRD metadata.
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "FAIL WBY Wave 1 server leaked client renderer mods"
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          echo "WBY WAVE 1 SERVER FML DISCOVERY PASS"
           kill -TERM -- "-$pid" 2>/dev/null || true
           sleep 2
           kill -KILL -- "-$pid" 2>/dev/null || true
