@@ -1962,6 +1962,43 @@ neoForge {
         }
 
 
+        create("wbyWave1VisibilityClientWorldPrepareServer") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-visibility-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "120")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-visibility/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1VisibilityClientAcceptance") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-visibility/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
         // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
         create("waveC2PersonalMobilityClient") {
@@ -6482,6 +6519,31 @@ dependencies {
     wbyWave1ServerMods.forEach { mod ->
         add(
             "wbyWave1VisibilityServerAdditionalRuntimeClasspath",
+            wbyWave1Pin(mod, "coordinate"),
+        )
+    }
+
+
+    // Actual-client WBY Wave 1 qualification reuses the same split dependency boundary.
+    wbyWave1FlightMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityClientWorldPrepareServerAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
+        add(
+            "wbyWave1VisibilityClientAcceptanceAdditionalRuntimeClasspath",
+            waveC1Pin(mod, "coordinate"),
+        )
+    }
+    wbyWave1ServerMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityClientWorldPrepareServerAdditionalRuntimeClasspath",
+            wbyWave1Pin(mod, "coordinate"),
+        )
+    }
+    wbyWave1ClientMods.forEach { mod ->
+        add(
+            "wbyWave1VisibilityClientAcceptanceAdditionalRuntimeClasspath",
             wbyWave1Pin(mod, "coordinate"),
         )
     }
