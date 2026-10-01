@@ -2970,7 +2970,10 @@
     const generation = shouldSaveCurrentInspection ? ++workspaceSessionGeneration : workspaceSessionGeneration;
     await workspaceSessionSaveChain.catch(() => {});
     if (!shouldSaveCurrentInspection) return;
-    await workspaceSessionController.save(serializedWorkspace);
+    const saved = await workspaceSessionController.save(serializedWorkspace);
+    if (!saved) {
+      throw new Error("remembered inspection is no longer enabled in browser storage; reload Studio before creating a backup");
+    }
     if (generation === workspaceSessionGeneration && workspaceSessionEnabled) {
       workspaceSessionHasSaved = true;
       setWorkspaceSessionStatus("Saved in this browser. Sources remain local diagnostics and are never uploaded.");
