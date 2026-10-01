@@ -107,7 +107,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                                         && value.transitionSite().lastProfileIndexExclusive() == 5)
                         .findFirst()
                         .orElseThrow();
-        SkyIslandHydraulicReachSkeleton reach =
+        SkyIslandHydraulicReachSkeleton originalReach =
                 source.topology().skeletonPlan().reaches().stream()
                         .filter(value -> {
                             SkyIslandSemanticChannelReach semantic =
@@ -118,33 +118,110 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                         .findFirst()
                         .orElseThrow();
 
-        List<SkyIslandChannelProfile> semanticProfiles =
-                reach.geomorphicRoute().semanticReach().profiles();
-        assertTrue(cascade.transitionSite().firstProfileIndex() > 0);
-        assertTrue(cascade.transitionSite().lastProfileIndexExclusive() < semanticProfiles.size());
-        assertNotEquals(
+        SkyIslandSemanticChannelReach originalSemantic =
+                originalReach.geomorphicRoute().semanticReach();
+        int cascadeProfileIndex = cascade.transitionSite().firstProfileIndex();
+        int ordinaryRemoteProfileIndex = cascadeProfileIndex + 1;
+        assertEquals(
                 SkyIslandChannelProfileKind.CASCADE,
-                semanticProfiles.get(cascade.transitionSite().firstProfileIndex() - 1).kind());
-        assertNotEquals(
+                originalSemantic.profiles().get(cascadeProfileIndex).kind());
+        assertEquals(
                 SkyIslandChannelProfileKind.CASCADE,
-                semanticProfiles.get(cascade.transitionSite().lastProfileIndexExclusive()).kind());
+                originalSemantic.profiles().get(ordinaryRemoteProfileIndex).kind());
 
-        double finiteBoundaryFraction =
-                0.5 * (cascade.transitionSite().upstreamBoundary().stationFraction()
-                        + cascade.transitionSite().downstreamBoundary().stationFraction());
+        List<SkyIslandChannelProfile> controlledProfiles =
+                new ArrayList<>(originalSemantic.profiles());
+        SkyIslandChannelProfile remoteProfile =
+                controlledProfiles.get(ordinaryRemoteProfileIndex);
+        controlledProfiles.set(
+                ordinaryRemoteProfileIndex,
+                new SkyIslandChannelProfile(
+                        remoteProfile.segment(),
+                        SkyIslandChannelProfileKind.ALLUVIAL,
+                        remoteProfile.gradientPotential(),
+                        remoteProfile.streamPowerPotential(),
+                        remoteProfile.bankfullWidthPotential(),
+                        remoteProfile.depthPotential(),
+                        remoteProfile.incisionPotential()));
+        SkyIslandSemanticChannelReach controlledSemantic =
+                new SkyIslandSemanticChannelReach(
+                        originalSemantic.startCellIndex(),
+                        originalSemantic.endCellIndex(),
+                        controlledProfiles);
+        SkyIslandGeomorphicReachRoute controlledRoute =
+                new SkyIslandGeomorphicReachRoute(
+                        controlledSemantic, originalReach.geomorphicRoute().route());
+        SkyIslandHydraulicReachSkeleton controlledReach =
+                new SkyIslandHydraulicReachSkeleton(
+                        controlledRoute,
+                        originalReach.centerline(),
+                        originalReach.samples(),
+                        originalReach.pathLength(),
+                        originalReach.maximumBankfullHalfWidth(),
+                        originalReach.maximumWaterDepthPotential());
+        List<SkyIslandHydraulicReachSkeleton> reaches =
+                source.topology().skeletonPlan().reaches().stream()
+                        .map(value -> value == originalReach ? controlledReach : value)
+                        .toList();
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
+                new SkyIslandHydraulicGeometrySkeletonPlan(
+                        descriptor,
+                        source.topology().skeletonPlan().geomorphicNetwork(),
+                        reaches);
+
+        double cascadeStartFraction =
+                cascade.transitionSite().upstreamBoundary().stationFraction();
+        double cascadeEndFraction =
+                cascadeStartFraction
+                        + (cascade.transitionSite().downstreamBoundary().stationFraction()
+                                        - cascadeStartFraction)
+                                / cascade.transitionSite().profileCount();
+        double overlapFraction = 0.5 * (cascadeStartFraction + cascadeEndFraction);
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandHydraulicTransitionBoundaryState cascadeUpstream =
+                SkyIslandHydraulicTransitionTopologyPlanner.sampleBoundaryState(
+                        descriptor,
+                        terrain,
+                        controlledReach,
+                        cascadeStartFraction,
+                        SkyIslandHydraulicTransitionBoundaryRole.INCOMING);
+        SkyIslandHydraulicTransitionBoundaryState cascadeDownstream =
+                SkyIslandHydraulicTransitionTopologyPlanner.sampleBoundaryState(
+                        descriptor,
+                        terrain,
+                        controlledReach,
+                        cascadeEndFraction,
+                        SkyIslandHydraulicTransitionBoundaryRole.OUTGOING);
+        SkyIslandChannelSegment cascadeSegment =
+                controlledSemantic.profiles().get(cascadeProfileIndex).segment();
+        SkyIslandHydraulicCascadeTransitionSite controlledCascadeSite =
+                new SkyIslandHydraulicCascadeTransitionSite(
+                        controlledSemantic.startCellIndex(),
+                        controlledSemantic.endCellIndex(),
+                        cascadeProfileIndex,
+                        cascadeProfileIndex + 1,
+                        cascadeSegment.sourceCellIndex(),
+                        cascadeSegment.downstreamCellIndex(),
+                        cascadeUpstream,
+                        cascadeDownstream);
+        SkyIslandHydraulicCascadeGeometryCandidate controlledCascade =
+                new SkyIslandHydraulicCascadeGeometryCandidate(
+                        controlledCascadeSite,
+                        List.of(cascadeUpstream.position(), cascadeDownstream.position()),
+                        cascadeDownstream.arcLength() - cascadeUpstream.arcLength());
+
         SkyIslandHydraulicTransitionBoundaryState finiteBoundary =
                 SkyIslandHydraulicTransitionTopologyPlanner.sampleBoundaryState(
                         descriptor,
-                        SkyIslandPreHydrologicTerrainField.create(descriptor),
-                        reach,
-                        finiteBoundaryFraction,
+                        terrain,
+                        controlledReach,
+                        overlapFraction,
                         SkyIslandHydraulicTransitionBoundaryRole.OUTGOING);
         SkyIslandHydraulicTransitionLegGeometry coupledLegWithOverlap =
                 new SkyIslandHydraulicTransitionLegGeometry(
                         coupledLeg.nodeBoundary(),
                         finiteBoundary,
                         finiteBoundary.arcLength() - coupledLeg.nodeBoundary().arcLength());
-
         List<SkyIslandHydraulicTransitionLegGeometry> legs = new ArrayList<>();
         for (SkyIslandHydraulicTransitionLegGeometry leg : confluence.legs()) {
             legs.add(leg == coupledLeg ? coupledLegWithOverlap : leg);
@@ -160,11 +237,29 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 source.confluences().stream()
                         .map(value -> value == confluence ? controlledConfluence : value)
                         .toList();
+        List<SkyIslandHydraulicCascadeGeometryCandidate> cascades =
+                source.cascades().stream()
+                        .map(value -> value == cascade ? controlledCascade : value)
+                        .toList();
+        List<SkyIslandHydraulicCascadeTransitionSite> cascadeSites =
+                source.topology().cascades().stream()
+                        .map(value -> value.equals(cascade.transitionSite())
+                                ? controlledCascadeSite
+                                : value)
+                        .toList();
+        SkyIslandHydraulicTransitionTopologyPlan topology =
+                new SkyIslandHydraulicTransitionTopologyPlan(
+                        descriptor,
+                        skeletonPlan,
+                        source.topology().confluences(),
+                        cascadeSites,
+                        source.topology().basins(),
+                        source.topology().unresolvedTerminals());
         return new SkyIslandHydraulicTransitionGeometryEvidencePlan(
                 descriptor,
-                source.topology(),
+                topology,
                 confluences,
-                source.cascades(),
+                cascades,
                 source.openWaterInterfaces(),
                 source.deferredWetlandInterfaces());
     }
