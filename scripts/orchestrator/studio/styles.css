@@ -34,6 +34,12 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 .studio-home-card .eyebrow{margin:0;color:#72bddc;font-size:.68rem;font-weight:700;letter-spacing:.11em}
 .home-action{margin-top:auto}
 .studio-home-note{margin:.1rem 0}
+.studio-backup-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8rem;border-color:#385064}
+.studio-backup-panel h3{margin:0 0 .3rem;font-size:.9rem}
+.studio-backup-panel p{margin:0;line-height:1.45}
+.studio-backup-actions{display:flex;flex-wrap:wrap;gap:.5rem}
+#studio-backup-status{grid-column:1/-1;min-height:1em}
+@media(max-width:700px){.studio-backup-panel{grid-template-columns:1fr}.studio-backup-actions{display:grid}.studio-backup-actions button{width:100%}}
 @media(max-width:700px){.studio-home-grid{grid-template-columns:1fr}.studio-home-card .home-action{width:100%}}
 .workspace-nav{display:flex;gap:.5rem;margin:0 0 1rem;padding:.25rem;border-bottom:1px solid #263140}
 .workspace-tab{background:transparent;border-color:transparent;color:#aebdca}
