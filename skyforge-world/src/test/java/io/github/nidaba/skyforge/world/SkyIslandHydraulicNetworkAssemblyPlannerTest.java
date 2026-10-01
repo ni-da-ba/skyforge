@@ -61,24 +61,33 @@ class SkyIslandHydraulicNetworkAssemblyPlannerTest {
     }
 
     @Test
-    void confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve() {
+    void confluence632EdgeOutletComponentQualifiesAfterTerminalCascadeSolve() {
         SkyIslandHydraulicNetworkAssemblyPlan plan =
                 SkyIslandHydraulicNetworkAssemblyPlanner.plan(
                         descriptor(8L, 81L, 632L));
 
-        assertTrue(plan.terminalComponents().stream()
-                .filter(component ->
-                        component.terminalFate().kind()
-                                == SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
-                .allMatch(component ->
-                        component.status()
-                                == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED));
-        assertTrue(plan.reachAssemblies().stream()
-                .filter(reach ->
-                        reach.semanticReach().endCellIndex() == 710)
-                .anyMatch(reach ->
-                        reach.status()
-                                == SkyIslandHydraulicAssemblyStatus.QUALIFIED));
+        SkyIslandHydraulicTerminalComponent component = plan.terminalComponents().stream()
+                .filter(value -> value.terminalFate().kind()
+                        == SkyIslandChannelTerminalFateKind.EDGE_OUTLET
+                        && value.terminalFate().channelTerminalCellIndex() == 225)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(
+                SkyIslandHydraulicAssemblyStatus.QUALIFIED,
+                component.status(),
+                () -> "generated edge-outlet component did not pass complete assembly: "
+                        + component.blockers());
+        assertTrue(component.blockers().isEmpty());
+
+        SkyIslandHydraulicReachAssembly outgoingCascade = plan.reachAssemblies().stream()
+                .filter(reach -> reach.semanticReach().startCellIndex() == 710
+                        && reach.semanticReach().endCellIndex() == 225)
+                .findFirst()
+                .orElseThrow();
+        assertEquals(
+                SkyIslandHydraulicAssemblyStatus.QUALIFIED,
+                outgoingCascade.status(),
+                () -> "terminal cascade remains unqualified: " + outgoingCascade.blockers());
     }
 
     @Test
