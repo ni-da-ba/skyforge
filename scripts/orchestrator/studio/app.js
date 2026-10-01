@@ -492,6 +492,7 @@
       summary.append(card);
     }
     $("terrain-comparison-results").hidden = false;
+    $("terrain-comparison-report-download").disabled = false;
     $("terrain-comparison-status").textContent =
       "Compared exact matching grids. No resampling was performed; both files remain unbound local diagnostics.";
     renderTerrainComparisonPage();
@@ -501,6 +502,8 @@
   async function loadTerrainComparisonFiles(referenceFile, candidateFile) {
     const status = $("terrain-comparison-status");
     const results = $("terrain-comparison-results");
+    $("terrain-comparison-report-download").disabled = true;
+    $("terrain-comparison-report-status").textContent = "Saved reports remain diagnostic and cannot satisfy a human review gate.";
     terrainSemanticComparison = null;
     terrainSelectedColumn = null;
     results.hidden = true;
@@ -549,6 +552,51 @@
     const reference = $("terrain-comparison-reference").files?.[0] || null;
     const candidate = $("terrain-comparison-candidate").files?.[0] || null;
     loadTerrainComparisonFiles(reference, candidate);
+  }
+
+  function downloadTerrainComparisonReport() {
+    if (!terrainSemanticComparison) return;
+    try {
+      const reportApi = window.SkyforgeStudioTerrainComparisonReport;
+      const report = reportApi.create(terrainSemanticComparison);
+      const blob = new Blob([reportApi.stringify(report)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = reportApi.filename(report);
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      $("terrain-comparison-report-status").textContent =
+        "Downloaded a diagnostic report with recorded, unverified source provenance.";
+    } catch (error) {
+      $("terrain-comparison-report-status").textContent =
+        "Could not save this terrain comparison: " + String(error.message || error);
+    }
+  }
+
+  async function loadTerrainComparisonReport(file) {
+    if (!file) return;
+    const status = $("terrain-comparison-status");
+    $("terrain-comparison-results").hidden = true;
+    $("terrain-comparison-report-download").disabled = true;
+    terrainSemanticComparison = null;
+    try {
+      const reader = window.SkyforgeStudioTerrainComparisonReportReader;
+      if (file.size > reader.maximumFileBytes) throw new Error("Terrain reports must be 32 MB or smaller.");
+      const parsed = reader.parse(await file.text(), file.size);
+      renderTerrainComparison(parsed.comparison);
+      status.textContent =
+        "Reopened a saved terrain comparison. Source digests are recorded provenance only and have not been verified.";
+      $("terrain-comparison-report-status").textContent = parsed.document.notice;
+      $("terrain-comparison-reference").value = "";
+      $("terrain-comparison-candidate").value = "";
+      $("terrain-comparison-report-file").value = "";
+    } catch (error) {
+      $("terrain-comparison-report-file").value = "";
+      terrainSemanticComparison = null;
+      $("terrain-comparison-results").hidden = true;
+      status.textContent = "Could not reopen this terrain comparison: " + String(error.message || error);
+    }
   }
   function fmt(value, digits = 3) {
     return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
@@ -3083,6 +3131,10 @@
 
   $("terrain-comparison-reference").addEventListener("change", handleTerrainComparisonFilesChanged);
   $("terrain-comparison-candidate").addEventListener("change", handleTerrainComparisonFilesChanged);
+  $("terrain-comparison-report-file").addEventListener("change", event => {
+    loadTerrainComparisonReport(event.currentTarget.files?.[0] || null);
+  });
+  $("terrain-comparison-report-download").addEventListener("click", downloadTerrainComparisonReport);
   $("terrain-comparison-previous").addEventListener("click", () => {
     if (terrainComparisonPage > 0) {
       terrainComparisonPage -= 1;

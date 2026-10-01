@@ -12,8 +12,10 @@ on:
       - studio/inspection-workspaces
       - studio/remember-inspector-session
       - studio/terrain-volume-comparison
+      - studio/terrain-comparison-report
     paths:
       - "scripts/orchestrator/studio/**"
+      - "scripts/ci/test_studio_terrain_comparison_report.js"
       - "scripts/ci/stage_evidence_review_bundle.py"
       - ".github/workflows/studio-pages-preview.yml"
 
