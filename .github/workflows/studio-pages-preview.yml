@@ -14,10 +14,12 @@ on:
       - studio/terrain-volume-comparison
       - studio/terrain-comparison-report
       - studio/terrain-comparison-walkthrough
+      - studio/terrain-comparison-library
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/test_studio_terrain_comparison_report.js"
       - "scripts/ci/test_studio_terrain_comparison_demo.js"
+      - "scripts/ci/test_studio_terrain_comparison_library.js"
       - "scripts/ci/stage_evidence_review_bundle.py"
       - ".github/workflows/studio-pages-preview.yml"
 

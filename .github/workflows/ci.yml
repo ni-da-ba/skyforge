@@ -50,6 +50,9 @@ jobs:
       - name: Test Studio terrain comparison walkthrough contract
         run: node scripts/ci/test_studio_terrain_comparison_demo.js
 
+      - name: Test Studio terrain comparison library contract
+        run: node scripts/ci/test_studio_terrain_comparison_library.js
+
       - name: Classify validation impact
         id: impact
         shell: bash

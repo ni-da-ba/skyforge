@@ -19,6 +19,7 @@
   <script src="terrain-comparison-demo.js" defer></script>
   <script src="terrain-comparison-report.js" defer></script>
   <script src="terrain-comparison-report-reader.js" defer></script>
+  <script src="terrain-comparison-library.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -223,6 +224,28 @@
           <button id="terrain-comparison-report-download" type="button" class="secondary" disabled>Download comparison report</button>
           <p id="terrain-comparison-report-status" class="small muted" aria-live="polite">Saved reports remain diagnostic and cannot satisfy a human review gate.</p>
         </div>
+        <section class="terrain-comparison-library" aria-labelledby="terrain-comparison-library-heading">
+          <div class="section-heading">
+            <div>
+              <h4 id="terrain-comparison-library-heading">Saved in this browser</h4>
+              <p class="small muted">This list stays in the current browser profile. It is not synced or uploaded; download a report to move or back it up.</p>
+            </div>
+          </div>
+          <label for="terrain-comparison-library-title">Name this comparison</label>
+          <div class="row">
+            <input id="terrain-comparison-library-title" type="text" maxlength="120" placeholder="For example, ridge pass · candidate 2">
+            <button id="terrain-comparison-library-save" type="button" class="secondary" disabled>Save in this browser</button>
+          </div>
+          <label for="terrain-comparison-library-select">Saved terrain comparisons</label>
+          <div class="row">
+            <select id="terrain-comparison-library-select" disabled>
+              <option value="">Loading browser library…</option>
+            </select>
+            <button id="terrain-comparison-library-open" type="button" class="secondary" disabled>Open saved comparison</button>
+            <button id="terrain-comparison-library-remove" type="button" class="secondary" disabled>Remove</button>
+          </div>
+          <p id="terrain-comparison-library-status" class="small muted" aria-live="polite">Loading browser-local comparison storage…</p>
+        </section>
         <div class="terrain-comparison-map-panel">
           <div class="section-heading">
             <div>
