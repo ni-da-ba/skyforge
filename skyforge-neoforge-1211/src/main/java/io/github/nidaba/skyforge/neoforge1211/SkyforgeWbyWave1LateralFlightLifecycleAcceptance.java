@@ -343,9 +343,7 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
         for (int x = bodyMin.getX(); x <= bodyMax.getX(); x++) {
             for (int y = bodyMin.getY(); y <= bodyMax.getY(); y++) {
                 for (int z = bodyMin.getZ(); z <= bodyMax.getZ(); z++) {
-                    BlockState state = y == bodyMax.getY()
-                            ? Blocks.GOLD_BLOCK.defaultBlockState()
-                            : Blocks.SLIME_BLOCK.defaultBlockState();
+                    BlockState state = Blocks.SLIME_BLOCK.defaultBlockState();
                     if (!level.setBlock(new BlockPos(x, y, z), state, 3)) {
                         throw new IllegalStateException("failed to place WBY lateral-flight body block");
                     }
