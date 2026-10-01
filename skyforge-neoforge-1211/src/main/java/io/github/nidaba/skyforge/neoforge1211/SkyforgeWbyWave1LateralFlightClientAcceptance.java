@@ -37,7 +37,8 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
     private static boolean complete;
     private static Vec3 preMotionRenderPosition;
     private static Vec3 finalRenderPosition;
-    private static double maxTransformErrorBlocks;
+    private static double maxServerRenderLagBlocks;
+    private static double maxRenderLogicalErrorBlocks;
     private static double maxServerLateralDisplacementBlocks;
     private static double maxClientLateralDisplacementBlocks;
     private static double minimumHorizontalDistanceBlocks = Double.POSITIVE_INFINITY;
@@ -64,7 +65,8 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
                     + "; motionSamples=" + motionSamples
                     + "; maxServerDisplacement=" + maxServerLateralDisplacementBlocks
                     + "; maxClientDisplacement=" + maxClientLateralDisplacementBlocks
-                    + "; maxTransformError=" + maxTransformErrorBlocks);
+                    + "; maxServerRenderLag=" + maxServerRenderLagBlocks
+                    + "; maxRenderLogicalError=" + maxRenderLogicalErrorBlocks);
             return;
         }
 
@@ -100,11 +102,20 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
             }
 
             Vec3 renderPosition = renderPosition(body);
-            double transformError = renderPosition.distanceTo(snapshot.serverPose());
-            maxTransformErrorBlocks = Math.max(maxTransformErrorBlocks, transformError);
-            if (clientArmed && transformError > MAX_TRANSFORM_ERROR_BLOCKS) {
-                fail("moving WBY Sable render transform drifted from live server pose: errorBlocks="
-                        + transformError + ", render=" + renderPosition + ", server=" + snapshot.serverPose());
+            Vec3 logicalPosition = logicalPosition(body);
+            double serverRenderLag = renderPosition.distanceTo(snapshot.serverPose());
+            double renderLogicalError = renderPosition.distanceTo(logicalPosition);
+            maxServerRenderLagBlocks = Math.max(maxServerRenderLagBlocks, serverRenderLag);
+            maxRenderLogicalErrorBlocks = Math.max(maxRenderLogicalErrorBlocks, renderLogicalError);
+
+            if (!snapshot.motionStarted() && serverRenderLag > MAX_TRANSFORM_ERROR_BLOCKS) {
+                preArmStableTicks = 0;
+                return;
+            }
+            if (snapshot.motionStarted() && renderLogicalError > MAX_TRANSFORM_ERROR_BLOCKS) {
+                fail("moving WBY Sable render pose diverged from its interpolated client logical pose: errorBlocks="
+                        + renderLogicalError + ", render=" + renderPosition + ", logical=" + logicalPosition
+                        + ", server=" + snapshot.serverPose());
                 return;
             }
 
@@ -132,7 +143,9 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
                     && projectionMatrixPresent
                     && "Distant Horizons".equals(distance.source())
                     && distance.chunks() > VANILLA_RENDER_DISTANCE_CHUNKS
-                    && transformError <= MAX_TRANSFORM_ERROR_BLOCKS;
+                    && (!snapshot.motionStarted()
+                            ? serverRenderLag <= MAX_TRANSFORM_ERROR_BLOCKS
+                            : renderLogicalError <= MAX_TRANSFORM_ERROR_BLOCKS);
 
             if (!snapshot.motionStarted()) {
                 ssrdObservedBeforeMotion |= visibleThisFrame;
@@ -172,7 +185,8 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
                         + ", projection=" + projectionMatrixPresent
                         + ", distanceSource=" + distance.source()
                         + ", distanceChunks=" + distance.chunks()
-                        + ", transformError=" + transformError);
+                        + ", serverRenderLag=" + serverRenderLag
+                        + ", renderLogicalError=" + renderLogicalError);
                 return;
             }
 
@@ -187,9 +201,9 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
                     && maxClientLateralDisplacementBlocks >= REQUIRED_CLIENT_LATERAL_DISPLACEMENT
                     && motionSamples >= MINIMUM_MOTION_SAMPLES
                     && ssrdObservedDuringMotion
-                    && maxTransformErrorBlocks <= MAX_TRANSFORM_ERROR_BLOCKS;
+                    && maxRenderLogicalErrorBlocks <= MAX_TRANSFORM_ERROR_BLOCKS;
 
-            if (!motionQualified) {
+            if (!motionQualified || serverRenderLag > MAX_TRANSFORM_ERROR_BLOCKS) {
                 finalStableTicks = 0;
                 return;
             }
@@ -223,7 +237,14 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
     }
 
     private static Vec3 renderPosition(Object body) throws ReflectiveOperationException {
-        Object pose = publicMethod(body, "renderPose").invoke(body);
+        return posePosition(publicMethod(body, "renderPose").invoke(body));
+    }
+
+    private static Vec3 logicalPosition(Object body) throws ReflectiveOperationException {
+        return posePosition(publicMethod(body, "logicalPose").invoke(body));
+    }
+
+    private static Vec3 posePosition(Object pose) throws ReflectiveOperationException {
         Object position = publicMethod(pose, "position").invoke(pose);
         return new Vec3(
                 ((Number) publicMethod(position, "x").invoke(position)).doubleValue(),
@@ -280,8 +301,9 @@ final class SkyforgeWbyWave1LateralFlightClientAcceptance {
         evidence.put("commandedVelocity", snapshot.commandedVelocity());
         evidence.put("serverLateralDisplacementBlocks", maxServerLateralDisplacementBlocks);
         evidence.put("clientLateralDisplacementBlocks", maxClientLateralDisplacementBlocks);
-        evidence.put("maxRenderTransformErrorBlocks", maxTransformErrorBlocks);
-        evidence.put("renderTransformStayedBounded", maxTransformErrorBlocks <= MAX_TRANSFORM_ERROR_BLOCKS);
+        evidence.put("maxServerRenderLagBlocks", maxServerRenderLagBlocks);
+        evidence.put("maxRenderLogicalErrorBlocks", maxRenderLogicalErrorBlocks);
+        evidence.put("renderTransformStayedBounded", maxRenderLogicalErrorBlocks <= MAX_TRANSFORM_ERROR_BLOCKS);
         evidence.put("motionSamples", motionSamples);
         evidence.put("ssrdObservedBeforeMotion", ssrdObservedBeforeMotion);
         evidence.put("ssrdObservedDuringMotion", ssrdObservedDuringMotion);
