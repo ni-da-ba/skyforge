@@ -2113,6 +2113,10 @@ neoForge {
             systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
             systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
             systemProperty("skyforge.dev.wbyWave1MultiplayerNearName", "WbyNear")
+            systemProperty(
+                "skyforge.dev.wbyWave1MultiplayerFixtureResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-multiplayer/fixture.properties").get().asFile.absolutePath,
+            )
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-multiplayer-server")
