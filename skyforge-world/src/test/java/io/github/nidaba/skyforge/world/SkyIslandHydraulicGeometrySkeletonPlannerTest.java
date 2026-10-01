@@ -51,6 +51,14 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             assertTrue(
                     d.finalLongitudinalHeadFeasibilityGap()
                             <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
+            if (route.semanticReach().startCellIndex() == 801
+                    && route.semanticReach().endCellIndex() == 1951) {
+                assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
+                assertTrue(
+                        d.finalLongitudinalHeadFeasibilityGap()
+                                < d.initialLongitudinalHeadFeasibilityGap(),
+                        "whole-route refinement must reduce the key-700 grade conflict");
+            }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
                     .append("->")
