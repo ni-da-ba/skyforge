@@ -1,0 +1,31 @@
+# Hydrology reset tranche F3H — joint confluence/CASCADE head compatibility
+
+**Status:** machine-evidence tranche; CI validation pending  
+**Governing authority:** issue #1084  
+**Depends on:** F3B confluence head compatibility, F3C CASCADE head compatibility, F3E terminal-component accounting  
+**Terrain mutation:** none  
+**Minecraft changes:** none
+
+## Purpose
+
+F3B correctly deferred confluence legs whose finite transition boundary is owned by an authored CASCADE. F3H adds a bounded joint solve for one eligible overlap: a single CASCADE run crosses an outgoing/incoming confluence finite boundary, while its opposite boundary is adjacent to an ordinary profile. The key-632 fixture does not exercise this case: its outgoing CASCADE ends at the semantic reach terminal, so F3H correctly leaves it deferred. The regression separately checks that the generated key-512 geometry remains fail-closed, then creates a controlled finite-boundary overlap within its authored CASCADE interval to exercise the supported joint solve.
+
+## Mathematical contract
+
+The solve uses one shared confluence head variable (h_n), one head variable for each remaining ordinary confluence leg, and one head at the ordinary-side CASCADE boundary. Every ordinary endpoint remains inside the same D2-derived pointwise envelope used by F3B/F3C. Ordinary confluence-leg head differences retain their directional maximum-grade bounds.
+
+For the CASCADE run, the downstream head may not exceed its upstream head, and the total drop is bounded by the exact authored watershed surface-potential drop multiplied by the existing relief budget. The bounded weighted least-squares problem is solved by the existing deterministic QP solver. The outcome constructor independently checks that the reported head difference equals the solved drop and remains within the authored bound.
+
+No D2 limit, corridor, profile, watershed, relief, terrain, basin, or backend contract is relaxed. The result is evidence only and is not consumed as terrain or Minecraft authority.
+
+## Fail-closed boundary
+
+F3H does not compose multiple CASCADE overlaps, a CASCADE spanning both semantic reach endpoints, missing ordinary-side endpoints, additional CASCADE ownership on another incident leg, or basin/terminal coupling. These cases remain explicitly deferred. Empty shared envelopes are reported infeasible; solver numerical failure is surfaced, never converted to success. Unsolved outcomes expose no partial solved heads.
+
+## Regression evidence
+
+The regression first verifies that key 512's generated terminal CASCADE remains fail-closed. To exercise the otherwise unrepresented bounded solve, it then builds a test-local one-profile CASCADE interval bracketed by ordinary profiles on the generated 1729→1969 confluence reach, adjusts the diagnostic confluence retreat boundary into that interval, and keeps the source descriptor, watershed, terrain, and D2 limits unchanged. The synthetic profile classification is confined to the test fixture; it is not claimed as an authored production specimen. The actual one-width generated geometry is separately observed to remain fail-closed when it contains no supported overlap. The controlled solve is repeated and compared for deterministic heads/residuals, shared-node bounds, non-negative authored-bounded CASCADE drop, and QP primal residual. This is solver evidence, not a claim that the production geometry currently emits this overlap or that the specimen is product-accepted. GitHub Actions is the only authority for this test and build.
+
+## Acceptance boundary
+
+Passing this tranche establishes only that the bounded joint head compatibility case is mathematically solved under existing F3B/F3C constraints. It does not admit the complete terminal component, authorize terrain changes, qualify a rendered specimen, or satisfy human visual review.
