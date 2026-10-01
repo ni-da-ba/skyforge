@@ -51,7 +51,7 @@ const reference = adapt(makeArtifact(grid, ["AIR", "LAND", "RIDGE"], [
   "AIR", "LAND", "AIR", "AIR",
   "AIR", "RIDGE", "AIR", "RIDGE",
 ]), "reference.json");
-const candidate = adapt(makeArtifact(grid, ["RIDGE", "AIR", "LAND"], [
+const candidate = adapt(makeArtifact(grid, ["AIR", "RIDGE", "LAND"], [
   "AIR", "LAND", "RIDGE", "AIR",
   "AIR", "AIR", "AIR", "RIDGE",
 ], 2), "candidate.json");
@@ -71,7 +71,7 @@ assert.deepEqual(comparison.semanticTransitions.map(item =>
   ["RIDGE", "AIR", 1],
 ]);
 assert.equal(comparison.semanticCounts.find(item => item.name === "RIDGE").reference, 2);
-assert.equal(comparison.semanticCounts.find(item => item.name === "RIDGE").candidate, 1);
+assert.equal(comparison.semanticCounts.find(item => item.name === "RIDGE").candidate, 2);
 assert.equal(comparison.changedColumnCount, 2);
 assert.equal(comparison.maximumAbsSurfaceDelta, 1);
 assert.equal(comparison.columns.find(item => item.x === 1 && item.z === 0).heightDelta, -1);
@@ -95,7 +95,7 @@ const sameByName = comparisonApi.compare(
 assert.equal(sameByName.changedCellCount, 2,
   "name-based comparison still detects the two actual transitions when ordinals differ");
 
-const sameCellsReordered = adapt(makeArtifact(grid, ["RIDGE", "AIR", "LAND"], [
+const sameCellsReordered = adapt(makeArtifact(grid, ["AIR", "RIDGE", "LAND"], [
   "AIR", "LAND", "AIR", "AIR", "AIR", "RIDGE", "AIR", "RIDGE",
 ]), "same-cells-reordered.json");
 const ordinalOnly = comparisonApi.compare(
