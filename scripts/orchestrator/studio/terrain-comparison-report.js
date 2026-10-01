@@ -2,8 +2,9 @@
   "use strict";
   const DOCUMENT_TYPE = "SKYFORGE_STUDIO_TERRAIN_COMPARISON_REPORT";
   const FORMAT_VERSION = 1;
-  const MAX_CHANGED_CELLS = 250000;
-  const MAX_COLUMNS = 250000;
+  const MAX_CHANGED_CELLS = 25000;
+  const MAX_COLUMNS = 50000;
+  const MAX_REPORT_BYTES = 32 * 1024 * 1024;
   const REPORT_PAGE_SIZE = 200;
 
   function isRecord(value) {
@@ -94,7 +95,11 @@
   }
 
   function stringify(document) {
-    return JSON.stringify(stableValue(document), null, 2) + "\n";
+    const text = JSON.stringify(stableValue(document), null, 2) + "\n";
+    if (new TextEncoder().encode(text).length > MAX_REPORT_BYTES) {
+      throw new Error("portable terrain reports must be 32 MB or smaller");
+    }
+    return text;
   }
 
   function slug(value) {
@@ -113,7 +118,7 @@
 
   root.SkyforgeStudioTerrainComparisonReport = Object.freeze({
     create, stringify, filename, documentType: DOCUMENT_TYPE, formatVersion: FORMAT_VERSION,
-    maximumChangedCells: MAX_CHANGED_CELLS, maximumColumns: MAX_COLUMNS, pageSize: REPORT_PAGE_SIZE,
+    maximumChangedCells: MAX_CHANGED_CELLS, maximumColumns: MAX_COLUMNS, maximumFileBytes: MAX_REPORT_BYTES, pageSize: REPORT_PAGE_SIZE,
   });
   if (typeof module !== "undefined" && module.exports) module.exports = root.SkyforgeStudioTerrainComparisonReport;
 })(typeof window !== "undefined" ? window : globalThis);
