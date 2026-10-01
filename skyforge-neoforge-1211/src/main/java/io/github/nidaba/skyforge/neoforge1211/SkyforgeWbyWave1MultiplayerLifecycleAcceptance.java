@@ -1,10 +1,16 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
@@ -38,6 +44,7 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.wbyWave1Multiplayer";
     static final String OBSERVER_NAME_PROPERTY = "skyforge.dev.wbyWave1MultiplayerObserverName";
     static final String NEAR_NAME_PROPERTY = "skyforge.dev.wbyWave1MultiplayerNearName";
+    static final String FIXTURE_RESULT_FILE_PROPERTY = "skyforge.dev.wbyWave1MultiplayerFixtureResultFile";
     static final int HORIZONTAL_OFFSET_BLOCKS = 128;
     static final double NEAR_PLAYER_OFFSET_BLOCKS = 6.0;
 
@@ -155,6 +162,7 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
             near.setNoGravity(true);
             fixtureReady = true;
             holdNearPlayer(near);
+            writeFixtureEvidence(observer, near);
 
             LOGGER.log(
                     System.Logger.Level.INFO,
@@ -163,7 +171,9 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
                             + ", near=" + near.getGameProfile().getName()
                             + ", bodyCenter=" + expectedBodyCenter
                             + ", observerHorizontalDistance="
-                            + horizontalDistance(observer.position(), expectedBodyCenter));
+                            + horizontalDistance(observer.position(), expectedBodyCenter)
+                            + ", nearPlayerDistance="
+                            + near.position().distanceTo(expectedBodyCenter));
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail(event, "WBY Wave 1 multiplayer fixture failed: " + failure);
         }
@@ -191,6 +201,47 @@ final class SkyforgeWbyWave1MultiplayerLifecycleAcceptance {
 
     private static double horizontalDistance(Vec3 a, Vec3 b) {
         return Math.hypot(a.x - b.x, a.z - b.z);
+    }
+
+    private static void writeFixtureEvidence(ServerPlayer observer, ServerPlayer near) {
+        String configured = System.getProperty(FIXTURE_RESULT_FILE_PROPERTY);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalStateException(
+                    "WBY multiplayer fixture requires system property " + FIXTURE_RESULT_FILE_PROPERTY);
+        }
+        Path path = Path.of(configured).toAbsolutePath().normalize();
+        Path parent = path.getParent();
+        if (parent == null) {
+            throw new IllegalStateException("WBY multiplayer fixture result has no parent: " + path);
+        }
+
+        Properties properties = new Properties();
+        properties.setProperty("status", "READY");
+        properties.setProperty("dedicatedServer", String.valueOf(!level.getServer().isSingleplayer()));
+        properties.setProperty("connectedPlayers", String.valueOf(level.getServer().getPlayerCount()));
+        properties.setProperty("observerPlayerName", observer.getGameProfile().getName());
+        properties.setProperty("nearPlayerName", near.getGameProfile().getName());
+        properties.setProperty("bodyId", String.valueOf(bodyId));
+        properties.setProperty(
+                "observerBodyHorizontalDistanceBlocks",
+                String.valueOf(horizontalDistance(observer.position(), expectedBodyCenter)));
+        properties.setProperty(
+                "nearPlayerBodyDistanceBlocks",
+                String.valueOf(near.position().distanceTo(expectedBodyCenter)));
+        properties.setProperty("nearPlayerPhysicallyPresent", "true");
+
+        try {
+            Files.createDirectories(parent);
+            try (OutputStream output = Files.newOutputStream(
+                    path,
+                    StandardOpenOption.CREATE,
+                    StandardOpenOption.TRUNCATE_EXISTING,
+                    StandardOpenOption.WRITE)) {
+                properties.store(output, "Skyforge WBY Wave 1 multiplayer fixture evidence");
+            }
+        } catch (IOException exception) {
+            throw new IllegalStateException("failed to write WBY multiplayer fixture evidence " + path, exception);
+        }
     }
 
     private static void requireRuntimePreconditions() {
