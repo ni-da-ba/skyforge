@@ -273,13 +273,14 @@
     $("studio-content").hidden = studioWorkspaceView !== "inspect";
     $("world-brief-view").hidden = studioWorkspaceView !== "brief";
     $("studio-regional-view").hidden = studioWorkspaceView !== "regional";
+    $("regional-comparison-view").hidden = studioWorkspaceView !== "regional-comparison";
     for (const button of document.querySelectorAll("[data-workspace-view]")) {
       button.setAttribute("aria-pressed", String(button.dataset.workspaceView === studioWorkspaceView));
     }
   }
 
   function selectWorkspaceView(view) {
-    if (view !== "inspect" && view !== "brief" && view !== "regional") return;
+    if (view !== "inspect" && view !== "brief" && view !== "regional" && view !== "regional-comparison") return;
     studioWorkspaceView = view;
     syncWorkspaceVisibility();
     if (view === "inspect") window.requestAnimationFrame(() => { resizeCanvas(); draw(); });

@@ -33,6 +33,9 @@ jobs:
             exit 1
           fi
 
+      - name: Test Studio regional comparison contract
+        run: node scripts/ci/test_studio_regional_inventory_comparison.js
+
       - name: Classify validation impact
         id: impact
         shell: bash

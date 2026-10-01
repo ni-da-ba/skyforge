@@ -11,6 +11,7 @@
   <script src="comparison-report.js" defer></script>
   <script src="comparison-report-reader.js" defer></script>
   <script src="regional-inventory.js" defer></script>
+  <script src="regional-comparison.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -46,6 +47,7 @@
       <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="true">Inspect semantics</button>
       <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
       <button type="button" class="workspace-tab" data-workspace-view="regional" aria-controls="studio-regional-view" aria-pressed="false">Regional geology</button>
+      <button type="button" class="workspace-tab" data-workspace-view="regional-comparison" aria-controls="regional-comparison-view" aria-pressed="false">Compare geology</button>
     </nav>
 
     <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
@@ -226,7 +228,9 @@
         </div>
       </section>
 
-      <section class="workspace">
+      
+
+    <section class="workspace">
         <aside class="panel layers">
           <div class="section-heading">
             <h2>Layers</h2>
@@ -488,6 +492,59 @@
         </aside>
       </section>
     </section>
+
+    <section id="regional-comparison-view" class="regional-view" aria-labelledby="regional-comparison-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">AUTH-0094 · SIDE-BY-SIDE DIAGNOSTIC</p>
+          <h2 id="regional-comparison-heading">Compare two regional inventories</h2>
+          <p class="muted">Compare the source evidence files directly. This view does not infer a world, deposit, reserve, or site selection.</p>
+        </div>
+        <span class="pill warn">Local diagnostic</span>
+      </div>
+      <div class="regional-compare-sides">
+        <section class="panel" aria-labelledby="regional-left-heading">
+          <h3 id="regional-left-heading">Left inventory</h3>
+          <label for="regional-left-inventory">inventory.csv</label>
+          <input id="regional-left-inventory" type="file" accept=".csv,text/csv">
+          <label for="regional-left-ranking">ranking.csv (optional)</label>
+          <input id="regional-left-ranking" type="file" accept=".csv,text/csv">
+          <p id="regional-left-status" class="small muted" aria-live="polite">Choose an inventory CSV.</p>
+        </section>
+        <section class="panel" aria-labelledby="regional-right-heading">
+          <h3 id="regional-right-heading">Right inventory</h3>
+          <label for="regional-right-inventory">inventory.csv</label>
+          <input id="regional-right-inventory" type="file" accept=".csv,text/csv">
+          <label for="regional-right-ranking">ranking.csv (optional)</label>
+          <input id="regional-right-ranking" type="file" accept=".csv,text/csv">
+          <p id="regional-right-status" class="small muted" aria-live="polite">Choose an inventory CSV.</p>
+        </section>
+      </div>
+      <div class="panel">
+        <div class="regional-import-actions">
+          <button id="regional-compare-load-sample" type="button" class="secondary">Load included evidence on the left</button>
+          <button id="regional-compare-clear" type="button" class="secondary">Clear both sides</button>
+        </div>
+        <p class="small muted">Load a second independent inventory on the right. Rankings are compared only when both sides include a validated ranking.csv.</p>
+        <div class="authority-warning">
+          <strong>UNBOUND LOCAL DIAGNOSTIC</strong>
+          <span>Rows remain source evidence. Deltas are right minus left; ranking changes report movement in the supplied files and never create or reorder ranks.</span>
+        </div>
+      </div>
+      <section id="regional-compare-output" class="panel regional-results" aria-labelledby="regional-compare-results-heading" hidden>
+        <div class="section-heading">
+          <div><h3 id="regional-compare-results-heading">Comparison results</h3><p id="regional-compare-summary" class="small muted"></p></div>
+          <span class="pill warn">Unbound</span>
+        </div>
+        <div id="regional-compare-counts" class="regional-summary"></div>
+        <h3>Association and metal rows</h3>
+        <p class="small muted">Rows follow left source order, followed by right-only rows. Opportunity deltas are right minus left.</p>
+        <div class="regional-table-wrap">
+          <table id="regional-compare-table" class="regional-table"></table>
+        </div>
+      </section>
+    </section>
+
   </main>
 </body>
 </html>
