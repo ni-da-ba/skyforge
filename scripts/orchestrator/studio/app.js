@@ -270,6 +270,22 @@
   let lastY = 0;
   let playback = null;
   let studioWorkspaceView = "inspect";
+  let workspaceSessionEnabled = false;
+  let workspaceSessionReady = false;
+  let workspaceSessionRestoring = false;
+  let workspaceSessionHasSaved = false;
+  let workspaceSessionSaveTimer = null;
+  let workspaceSessionGeneration = 0;
+  let workspaceSessionSaveChain = Promise.resolve();
+  const workspaceSessionApi = window.SkyforgeStudioWorkspaceSession;
+  const workspaceSessionController = workspaceSessionApi
+    ? workspaceSessionApi.createController(
+      workspaceSessionApi.createIndexedDbStore(
+        window.indexedDB,
+        window.SkyforgeStudioWorkspacePackage.maximumFileBytes
+      )
+    )
+    : null;
 
   const $ = (id) => document.getElementById(id);
   const canvas = $("viewport");
@@ -1354,6 +1370,7 @@
     if (isTerrain()) drawTerrain();
     else drawAtmosphere();
     renderInspector(selected);
+    scheduleWorkspaceSessionSave();
   }
 
   function resetView() {
@@ -1577,17 +1594,25 @@
     draw();
   }
 
-  function downloadInspectionWorkspace() {
+  function createInspectionWorkspace() {
     if (!workspaceSceneArtifact) {
       throw new Error("the current scene source is not available for workspace export");
     }
-    const workspace = window.SkyforgeStudioWorkspacePackage.create({
+    return window.SkyforgeStudioWorkspacePackage.create({
       scene: { title: workspaceSceneTitle, artifactJson: workspaceSceneJson },
       overlay: workspaceOverlayArtifact
         ? { title: workspaceOverlayTitle, artifactJson: workspaceOverlayJson }
         : null,
       view: captureInspectionView(),
     });
+  }
+
+  function serializeInspectionWorkspace() {
+    return JSON.stringify(createInspectionWorkspace());
+  }
+
+  function downloadInspectionWorkspace() {
+    const workspace = createInspectionWorkspace();
     const link = document.createElement("a");
     const url = URL.createObjectURL(new Blob(
       [JSON.stringify(workspace, null, 2) + "\n"], { type: "application/json" }
@@ -1601,26 +1626,145 @@
     $("inspection-workspace-status").className = "small muted";
   }
 
+  function prepareInspectionWorkspace(serializedWorkspace) {
+    const plan = window.SkyforgeStudioWorkspacePackage.prepare(serializedWorkspace, {
+      adaptScene: (artifact, source) => window.SkyforgeStudioScene.adaptArtifact(artifact, source),
+      adaptOverlay: (artifact, activeScene, source) =>
+        window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, activeScene, source),
+    });
+    assertInspectionViewFits(plan);
+    return plan;
+  }
+
+  function applyInspectionWorkspacePlan(plan, sourceStatus) {
+    setScene(plan.scene, plan.sceneArtifact, plan.sceneTitle, plan.sceneJson);
+    if (plan.overlay) setOverlay(plan.overlay, plan.overlayArtifact, plan.overlayTitle, plan.overlayJson);
+    applyInspectionView(plan.view);
+    $("source-status").textContent = sourceStatus;
+  }
+
+  function setWorkspaceSessionStatus(message, failed = false) {
+    const node = $("workspace-session-status");
+    node.textContent = message;
+    node.className = failed ? "small error" : "small muted";
+    $("workspace-session-forget").disabled = !workspaceSessionHasSaved;
+  }
+
+  function scheduleWorkspaceSessionSave() {
+    if (!workspaceSessionReady || !workspaceSessionEnabled || workspaceSessionRestoring ||
+        !workspaceSceneArtifact || !workspaceSessionController) return;
+    if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+    const generation = workspaceSessionGeneration;
+    workspaceSessionSaveTimer = window.setTimeout(() => {
+      workspaceSessionSaveTimer = null;
+      let serializedWorkspace;
+      try {
+        serializedWorkspace = serializeInspectionWorkspace();
+      } catch (error) {
+        setWorkspaceSessionStatus("Could not remember this inspection: " + String(error.message || error), true);
+        return;
+      }
+      workspaceSessionSaveChain = workspaceSessionSaveChain.catch(() => {}).then(async () => {
+        if (generation !== workspaceSessionGeneration || !workspaceSessionEnabled) return;
+        await workspaceSessionController.save(serializedWorkspace);
+        if (generation !== workspaceSessionGeneration || !workspaceSessionEnabled) return;
+        workspaceSessionHasSaved = true;
+        setWorkspaceSessionStatus("Saved in this browser. Sources remain local diagnostics and are never uploaded.");
+      }).catch(error => {
+        if (generation === workspaceSessionGeneration) {
+          setWorkspaceSessionStatus("Could not save this inspection in the browser: " +
+            String(error.message || error) + ". Your current view remains open.", true);
+        }
+      });
+    }, 450);
+  }
+
+  async function initializeWorkspaceSession() {
+    const content = $("studio-content");
+    content.inert = true;
+    content.setAttribute("aria-busy", "true");
+    setWorkspaceSessionStatus("Checking this browser for a saved inspection…");
+    try {
+      if (!workspaceSessionController) throw new Error("browser storage is unavailable");
+      const record = await workspaceSessionController.read();
+      if (record?.enabled) {
+        workspaceSessionEnabled = true;
+        $("remember-inspection").checked = true;
+        if (record.workspace_json !== null) {
+          workspaceSessionHasSaved = true;
+          workspaceSessionRestoring = true;
+          const plan = prepareInspectionWorkspace(record.workspace_json);
+          applyInspectionWorkspacePlan(plan,
+            "Resumed a saved inspection as local diagnostics; registered verification was not restored.");
+          setWorkspaceSessionStatus("Resumed the saved inspection from this browser. It remains an unbound local diagnostic.");
+        } else {
+          setWorkspaceSessionStatus("Remembering is on for this browser. Load a source to save the current inspection.");
+        }
+      } else {
+        setWorkspaceSessionStatus("Off by default. Turn this on to resume the current inspection after a reload.");
+      }
+    } catch (error) {
+      const message = String(error.message || error);
+      const invalidSaved = workspaceSessionEnabled;
+      setWorkspaceSessionStatus(
+        (invalidSaved ? "Could not restore the saved inspection: " : "Browser storage is unavailable: ") +
+        message + ". The inspector remains available in this tab.", true);
+    } finally {
+      workspaceSessionRestoring = false;
+      workspaceSessionReady = true;
+      content.inert = false;
+      content.removeAttribute("aria-busy");
+      if (workspaceSessionEnabled && workspaceSceneArtifact && !workspaceSessionHasSaved) {
+        scheduleWorkspaceSessionSave();
+      }
+    }
+  }
+
+  async function changeWorkspaceSessionPreference(enabled) {
+    if (!workspaceSessionController) throw new Error("browser storage is unavailable");
+    if (!enabled) {
+      workspaceSessionGeneration += 1;
+      if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+      workspaceSessionSaveTimer = null;
+      await workspaceSessionSaveChain.catch(() => {});
+      await workspaceSessionController.disable();
+      workspaceSessionEnabled = false;
+      workspaceSessionHasSaved = false;
+      setWorkspaceSessionStatus("Stopped remembering and removed the saved inspection from this browser.");
+      return;
+    }
+
+    const initialWorkspace = workspaceSceneArtifact ? serializeInspectionWorkspace() : null;
+    await workspaceSessionController.enable(initialWorkspace);
+    workspaceSessionGeneration += 1;
+    workspaceSessionEnabled = true;
+    workspaceSessionHasSaved = initialWorkspace !== null;
+    if (initialWorkspace !== null) {
+      setWorkspaceSessionStatus("Remembering this inspection in this browser. It remains a local diagnostic.");
+    } else {
+      setWorkspaceSessionStatus("Remembering is on. Load a source to save the current inspection.");
+    }
+  }
+
+  async function forgetRememberedWorkspace() {
+    if (!workspaceSessionController || !workspaceSessionEnabled) return;
+    workspaceSessionGeneration += 1;
+    if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+    workspaceSessionSaveTimer = null;
+    await workspaceSessionSaveChain.catch(() => {});
+    await workspaceSessionController.forgetWorkspace();
+    workspaceSessionHasSaved = false;
+    setWorkspaceSessionStatus("Forgot the saved inspection. Remembering stays on for the next loaded view.");
+  }
+
   async function openInspectionWorkspace(file) {
     const status = $("inspection-workspace-status");
     try {
       if (file.size > window.SkyforgeStudioWorkspacePackage.maximumFileBytes) {
         throw new Error("workspace files must be 25 MB or smaller");
       }
-      const plan = window.SkyforgeStudioWorkspacePackage.prepare(
-        await file.text(),
-        {
-          adaptScene: (artifact, source) => window.SkyforgeStudioScene.adaptArtifact(artifact, source),
-          adaptOverlay: (artifact, activeScene, source) =>
-            window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, activeScene, source),
-        }
-      );
-      assertInspectionViewFits(plan);
-
-      setScene(plan.scene, plan.sceneArtifact, plan.sceneTitle, plan.sceneJson);
-      if (plan.overlay) setOverlay(plan.overlay, plan.overlayArtifact, plan.overlayTitle, plan.overlayJson);
-      applyInspectionView(plan.view);
-      $("source-status").textContent = "Opened local inspection workspace; all sources are unbound diagnostics.";
+      const plan = prepareInspectionWorkspace(await file.text());
+      applyInspectionWorkspacePlan(plan, "Opened local inspection workspace; all sources are unbound diagnostics.");
       status.textContent = "Workspace reopened and all sources were revalidated as local diagnostics.";
       status.className = "small muted";
     } catch (error) {
@@ -1899,6 +2043,23 @@
     $("api-token").value = "";
     $("auth-error").textContent = "";
     showLocalMode();
+  });
+
+  $("remember-inspection").addEventListener("change", async event => {
+    const requested = event.target.checked;
+    try {
+      await changeWorkspaceSessionPreference(requested);
+    } catch (error) {
+      event.target.checked = workspaceSessionEnabled;
+      setWorkspaceSessionStatus("Could not update browser-local remembering: " +
+        String(error.message || error) + ". The current inspector remains open.", true);
+    }
+  });
+  $("workspace-session-forget").addEventListener("click", () => {
+    forgetRememberedWorkspace().catch(error => {
+      setWorkspaceSessionStatus("Could not forget the saved inspection: " +
+        String(error.message || error) + ". The current inspector remains open.", true);
+    });
   });
 
   $("download-inspection-workspace").addEventListener("click", () => {
@@ -2681,6 +2842,7 @@
   initializeWorldBrief();
   showLocalMode();
   configureBundledSample();
+  initializeWorkspaceSession();
   if (token) {
     $("api-token").value = token;
   }
