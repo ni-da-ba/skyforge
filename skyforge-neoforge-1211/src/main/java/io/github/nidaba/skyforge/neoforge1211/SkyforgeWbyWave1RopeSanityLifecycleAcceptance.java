@@ -299,7 +299,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                         ROPE_SANITY_TICKET,
                         chunk,
                         ROPE_SANITY_TICKET_DISTANCE,
-                        chunk);
+                        chunk,
+                        true);
                 level.getChunk(x, z);
             }
         }
@@ -571,7 +572,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                     ROPE_SANITY_TICKET,
                     chunk,
                     ROPE_SANITY_TICKET_DISTANCE,
-                    chunk);
+                    chunk,
+                    true);
         }
         fixtureTicketChunks.clear();
     }
