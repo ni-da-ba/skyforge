@@ -50,6 +50,7 @@ public final class HydrologyNaturalTransitionCensusCli {
         long solvedIdentityCount = 0;
         long qualifiedComponentCount = 0;
         long planningFailureCount = 0;
+        long constraintRejectedIdentityCount = 0;
 
         for (Namespace namespace : NAMESPACES) {
             for (int key = FIRST_KEY; key <= LAST_KEY; key++) {
@@ -71,78 +72,90 @@ public final class HydrologyNaturalTransitionCensusCli {
 
                     if (deepSolve) {
                         topologyCandidateCount++;
-                        var joint = SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
-                        Map<SkyIslandConfluenceCascadeHeadCompatibilityStatus, Integer> counts =
-                                new java.util.EnumMap<>(SkyIslandConfluenceCascadeHeadCompatibilityStatus.class);
-                        joint.outcomes().forEach(outcome ->
-                                counts.merge(outcome.status(), 1, Integer::sum));
-                        statusCounts = joint.outcomes().isEmpty()
-                                ? "NO_NATURAL_F3H_BOUNDARY_MATCH:1"
-                                : formatCounts(counts);
-                        var solvedOutcomes = joint.outcomes().stream()
-                                .filter(outcome -> outcome.status()
-                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED)
-                                .toList();
-                        if (!solvedOutcomes.isEmpty()) {
-                            solvedIdentityCount++;
-                            var assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
-                            StringJoiner outcomes = new StringJoiner("|");
-                            var qualifiedComponents = new java.util.HashSet<>();
-                            for (var solvedOutcome : solvedOutcomes) {
-                                int node = solvedOutcome.confluence().transitionSite().nodeCellIndex();
-                                var site = solvedOutcome.cascade().transitionSite();
-                                boolean admittedByF3I = assembly.ordinarySpanPlan().jointPlan().outcomes()
-                                        .stream()
-                                        .anyMatch(value -> value.status()
-                                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED
-                                                && value.confluence().transitionSite().nodeCellIndex() == node
-                                                && value.cascade().transitionSite().equals(site));
-                                if (!admittedByF3I) {
+                        try {
+                            var joint = SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
+                            Map<SkyIslandConfluenceCascadeHeadCompatibilityStatus, Integer> counts =
+                                    new java.util.EnumMap<>(SkyIslandConfluenceCascadeHeadCompatibilityStatus.class);
+                            joint.outcomes().forEach(outcome ->
+                                    counts.merge(outcome.status(), 1, Integer::sum));
+                            statusCounts = joint.outcomes().isEmpty()
+                                    ? "NO_NATURAL_F3H_BOUNDARY_MATCH:1"
+                                    : formatCounts(counts);
+                            var solvedOutcomes = joint.outcomes().stream()
+                                    .filter(outcome -> outcome.status()
+                                            == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED)
+                                    .toList();
+                            if (!solvedOutcomes.isEmpty()) {
+                                solvedIdentityCount++;
+                                var assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+                                StringJoiner outcomes = new StringJoiner("|");
+                                var qualifiedComponents = new java.util.HashSet<>();
+                                for (var solvedOutcome : solvedOutcomes) {
+                                    int node = solvedOutcome.confluence().transitionSite().nodeCellIndex();
+                                    var site = solvedOutcome.cascade().transitionSite();
+                                    boolean admittedByF3I = assembly.ordinarySpanPlan().jointPlan().outcomes()
+                                            .stream()
+                                            .anyMatch(value -> value.status()
+                                                            == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED
+                                                    && value.confluence().transitionSite().nodeCellIndex() == node
+                                                    && value.cascade().transitionSite().equals(site));
+                                    if (!admittedByF3I) {
+                                        outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
+                                                + site.reachEndCellIndex() + ":F3I_NOT_ADMITTED");
+                                        continue;
+                                    }
+                                    var owners = assembly.terminalComponents().stream()
+                                            .filter(component -> component.reaches().stream().anyMatch(reach ->
+                                                    reach.semanticReach().startCellIndex()
+                                                            == site.reachStartCellIndex()
+                                                            && reach.semanticReach().endCellIndex()
+                                                            == site.reachEndCellIndex()))
+                                            .toList();
+                                    if (owners.size() != 1) {
+                                        outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
+                                                + site.reachEndCellIndex() + ":COMPONENT_OWNERS="
+                                                + owners.size());
+                                        continue;
+                                    }
+                                    var owner = owners.getFirst();
                                     outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
-                                            + site.reachEndCellIndex() + ":F3I_NOT_ADMITTED");
-                                    continue;
+                                            + site.reachEndCellIndex() + ":" + owner.status().name()
+                                            + ":" + clean(String.join(" / ", owner.blockers())));
+                                    if (owner.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+                                        qualifiedComponents.add(owner);
+                                    }
                                 }
-                                var owners = assembly.terminalComponents().stream()
-                                        .filter(component -> component.reaches().stream().anyMatch(reach ->
-                                                reach.semanticReach().startCellIndex()
-                                                        == site.reachStartCellIndex()
-                                                        && reach.semanticReach().endCellIndex()
-                                                        == site.reachEndCellIndex()))
-                                        .toList();
-                                if (owners.size() != 1) {
-                                    outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
-                                            + site.reachEndCellIndex() + ":COMPONENT_OWNERS="
-                                            + owners.size());
-                                    continue;
-                                }
-                                var owner = owners.getFirst();
-                                outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
-                                        + site.reachEndCellIndex() + ":" + owner.status().name()
-                                        + ":" + clean(String.join(" / ", owner.blockers())));
-                                if (owner.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
-                                    qualifiedComponents.add(owner);
+                                qualifiedComponentsForIdentity = qualifiedComponents.size();
+                                qualifiedComponentCount += qualifiedComponentsForIdentity;
+                                componentOutcomes = outcomes.toString();
+                                diagnostics = solvedOutcomes.stream()
+                                        .map(outcome -> outcome.confluence().transitionSite().nodeCellIndex()
+                                                + "@" + outcome.cascade().transitionSite().reachStartCellIndex()
+                                                + "->" + outcome.cascade().transitionSite().reachEndCellIndex())
+                                        .distinct()
+                                        .sorted()
+                                        .collect(java.util.stream.Collectors.joining("|"));
+                            } else {
+                                diagnostics = joint.outcomes().stream()
+                                        .map(outcome -> outcome.status().name() + ":"
+                                                + clean(outcome.diagnostic().orElse("no F3H boundary match")))
+                                        .distinct()
+                                        .sorted()
+                                        .collect(java.util.stream.Collectors.joining("|"));
+                                if (joint.outcomes().isEmpty()) {
+                                    diagnostics = "no natural F3H boundary match";
                                 }
                             }
-                            qualifiedComponentsForIdentity = qualifiedComponents.size();
-                            qualifiedComponentCount += qualifiedComponentsForIdentity;
-                            componentOutcomes = outcomes.toString();
-                            diagnostics = solvedOutcomes.stream()
-                                    .map(outcome -> outcome.confluence().transitionSite().nodeCellIndex()
-                                            + "@" + outcome.cascade().transitionSite().reachStartCellIndex()
-                                            + "->" + outcome.cascade().transitionSite().reachEndCellIndex())
-                                    .distinct()
-                                    .sorted()
-                                    .collect(java.util.stream.Collectors.joining("|"));
-                        } else {
-                            diagnostics = joint.outcomes().stream()
-                                    .map(outcome -> outcome.status().name() + ":"
-                                            + clean(outcome.diagnostic().orElse("no F3H boundary match")))
-                                    .distinct()
-                                    .sorted()
-                                    .collect(java.util.stream.Collectors.joining("|"));
-                            if (joint.outcomes().isEmpty()) {
-                                diagnostics = "no natural F3H boundary match";
+                        } catch (IllegalStateException rejection) {
+                            if (!"relaxed centerline escaped semantic corridor"
+                                    .equals(rejection.getMessage())) {
+                                throw rejection;
                             }
+                            constraintRejectedIdentityCount++;
+                            statusCounts = "SEMANTIC_CORRIDOR_HARD_REJECTION:1";
+                            componentOutcomes = "F3H_NOT_SOLVED:semantic corridor hard constraint";
+                            diagnostics = clean(rejection.getClass().getSimpleName() + ": "
+                                    + rejection.getMessage());
                         }
                     }
 
@@ -176,7 +189,7 @@ public final class HydrologyNaturalTransitionCensusCli {
         }
 
         String summary = "seedHex,namespaceCount,keysPerNamespace,identityCount,topologyCandidateCount,"
-                + "solvedIdentityCount,qualifiedComponentCount,planningFailureCount\n"
+                + "solvedIdentityCount,qualifiedComponentCount,constraintRejectedIdentityCount,planningFailureCount\n"
                 + String.format(Locale.ROOT, "%016X", SEED) + ","
                 + NAMESPACES.length + ","
                 + (LAST_KEY - FIRST_KEY + 1) + ","
@@ -184,6 +197,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                 + topologyCandidateCount + ","
                 + solvedIdentityCount + ","
                 + qualifiedComponentCount + ","
+                + constraintRejectedIdentityCount + ","
                 + planningFailureCount + "\n";
         Files.writeString(out.resolve("identity-manifest.csv"), identities, StandardCharsets.UTF_8);
         Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
@@ -194,7 +208,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                 island keys 1 through 256 in each namespace.
                 The manifest records every identity. The deep F3H/F3I/F3E planners run only
                 when semantic topology contains both a confluence and a CASCADE profile.
-                A qualified component is still continuous mathematical evidence only:
+                Expected hard semantic-corridor rejections are recorded as candidate outcomes, not\n                census execution failures. Unexpected planner exceptions still fail the task.\n                A qualified component is still continuous mathematical evidence only:
                 it grants no terrain, water, voxel, Minecraft, or human-review authority.
                 No D2/E2 limits, corridors, terminal-CASCADE rules, or geometry were changed.
                 """, StandardCharsets.UTF_8);
