@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -52,6 +54,10 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static final double WORLD_ANCHOR_OFFSET = 12.0;
     private static final double ENDPOINT_TOLERANCE = 2.0;
     private static final int MAX_LOADED_CHUNK_DELTA = 64;
+    private static final TicketType<ChunkPos> ROPE_SANITY_TICKET = TicketType.create(
+            "skyforge_wby_wave1_rope_sanity",
+            Comparator.comparingLong(ChunkPos::toLong));
+    private static final int ROPE_SANITY_TICKET_DISTANCE = 3;
 
     private static ServerLevel level;
     private static Object container;
@@ -65,6 +71,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static Vector3d targetBodyPosition;
     private static ChunkPos initialBodyChunk;
     private static ChunkPos targetBodyChunk;
+    private static final Set<ChunkPos> fixtureTicketChunks = new LinkedHashSet<>();
     private static int loadedChunksBefore;
     private static int forcedChunksBefore;
     private static long firstTick = Long.MIN_VALUE;
@@ -184,6 +191,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         pipeline = publicMethod(physicsSystem, "getPipeline").invoke(physicsSystem);
         initialBodyPosition = bodyWorldPosition(body);
         initialBodyChunk = chunkAt(initialBodyPosition);
+        prepareTravelPlanAndTickets();
         loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
         forcedChunksBefore = level.getForcedChunks().size();
         assembled = true;
@@ -192,10 +200,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static void createAttachedRope() throws ReflectiveOperationException {
         Vector3dc localCenterOfMass = bodyLocalCenterOfMass(body);
         Vector3d bodyWorld = bodyWorldPosition(body);
-        worldAnchor = new Vector3d(
-                bodyWorld.x - WORLD_ANCHOR_OFFSET,
-                bodyWorld.y,
-                bodyWorld.z);
 
         List<Vector3d> points = new ArrayList<>(ROPE_POINTS);
         for (int i = 0; i < ROPE_POINTS; i++) {
@@ -230,15 +234,21 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         }
     }
 
-    private static void moveBodyAcrossChunkBoundary() throws ReflectiveOperationException {
-        Vector3d current = bodyWorldPosition(body);
+    private static void prepareTravelPlanAndTickets() {
+        worldAnchor = new Vector3d(
+                initialBodyPosition.x - WORLD_ANCHOR_OFFSET,
+                initialBodyPosition.y,
+                initialBodyPosition.z);
+
         int nextBoundaryX = (initialBodyChunk.x + 1) << 4;
         double targetX = nextBoundaryX + 3.0;
-        if (targetX - current.x < 4.0) {
+        if (targetX - initialBodyPosition.x < 4.0) {
             targetX += 16.0;
         }
-
-        targetBodyPosition = new Vector3d(targetX, current.y, current.z);
+        targetBodyPosition = new Vector3d(
+                targetX,
+                initialBodyPosition.y,
+                initialBodyPosition.z);
         targetBodyChunk = chunkAt(targetBodyPosition);
         if (targetBodyChunk.x == initialBodyChunk.x && targetBodyChunk.z == initialBodyChunk.z) {
             throw new IllegalStateException(
@@ -246,6 +256,26 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                             + initialBodyChunk + " -> " + targetBodyChunk);
         }
 
+        ChunkPos anchorChunk = chunkAt(worldAnchor);
+        int minX = Math.min(anchorChunk.x, Math.min(initialBodyChunk.x, targetBodyChunk.x));
+        int maxX = Math.max(anchorChunk.x, Math.max(initialBodyChunk.x, targetBodyChunk.x));
+        int minZ = Math.min(anchorChunk.z, Math.min(initialBodyChunk.z, targetBodyChunk.z));
+        int maxZ = Math.max(anchorChunk.z, Math.max(initialBodyChunk.z, targetBodyChunk.z));
+        for (int x = minX; x <= maxX; x++) {
+            for (int z = minZ; z <= maxZ; z++) {
+                ChunkPos chunk = new ChunkPos(x, z);
+                fixtureTicketChunks.add(chunk);
+                level.getChunkSource().addRegionTicket(
+                        ROPE_SANITY_TICKET,
+                        chunk,
+                        ROPE_SANITY_TICKET_DISTANCE,
+                        chunk);
+                level.getChunk(x, z);
+            }
+        }
+    }
+
+    private static void moveBodyAcrossChunkBoundary() throws ReflectiveOperationException {
         Object pose = publicMethod(body, "logicalPose").invoke(body);
         Quaterniondc orientation = (Quaterniondc) publicMethod(pose, "orientation").invoke(pose);
         Method teleport = methodByNameAndArity(pipeline, "teleport", 3);
@@ -333,6 +363,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("targetBodyChunk", targetBodyChunk.x + "," + targetBodyChunk.z);
         evidence.put("finalBodyChunk", finalBodyChunk.x + "," + finalBodyChunk.z);
         evidence.put("chunkBoundaryCrossed", true);
+        evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
         evidence.put("loadedChunkDelta", loadedDelta);
@@ -491,7 +522,22 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         }
     }
 
+    private static void releaseFixtureTickets() {
+        if (level == null) {
+            return;
+        }
+        for (ChunkPos chunk : fixtureTicketChunks) {
+            level.getChunkSource().removeRegionTicket(
+                    ROPE_SANITY_TICKET,
+                    chunk,
+                    ROPE_SANITY_TICKET_DISTANCE,
+                    chunk);
+        }
+        fixtureTicketChunks.clear();
+    }
+
     private static void fail(ServerTickEvent.Post event, String reason) {
+        releaseFixtureTickets();
         complete = true;
         SkyforgeAutomatedAcceptanceHarness.fail(event.getServer(), reason);
     }
