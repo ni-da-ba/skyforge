@@ -52,7 +52,8 @@ const mismatchedRanking=createPackage({...leftSource,ranking_csv:"invalid"},righ
 assert.throws(()=>applyPackage(JSON.stringify(mismatchedRanking)),/invalid ranking/);
 assert.equal(visibleState,"existing comparison");
 
-const {createRecord,parseRecord,normalizeRecords,upsertRecords,removeRecords,maximumItems,maximumPackageBytes,maximumLibraryBytes}=comparisonLibrary;
+const {createRecord,parseRecord,normalizeRecords,upsertRecords,removeRecords,maximumItems,maximumLibraryBytes}=comparisonLibrary;
+const maximumStoredRecordBytes=comparisonLibrary.maximumPackageBytes;
 const time1="2026-09-29T10:00:00.000Z",time2="2026-09-29T11:00:00.000Z";
 const makeRecord=(id,title,packageJson,created=time1,updated=time1)=>createRecord(id,title,packageJson,created,updated);
 const savedA=makeRecord("comparison-0001","  First comparison  ",JSON.stringify(packageDocument));
@@ -76,7 +77,7 @@ assert.deepEqual(removeRecords(updated,savedA.id),[]);
 const twentyFive=Array.from({length:maximumItems},(_,index)=>makeRecord("comparison-"+String(index).padStart(4,"0"),"Comparison "+index,"{}",time1,new Date(Date.parse(time1)+index*1000).toISOString()));
 assert.equal(normalizeRecords(twentyFive).length,maximumItems);
 assert.throws(()=>upsertRecords(twentyFive,makeRecord("comparison-9999","Too many","{}",time1,time2)),/library is full/);
-assert.throws(()=>createRecord("comparison-0004","Too large","x".repeat(maximumPackageBytes+1),time1,time1),/10 MB or smaller/);
+assert.throws(()=>createRecord("comparison-0004","Too large","x".repeat(maximumStoredRecordBytes+1),time1,time1),/10 MB or smaller/);
 assert.equal(maximumLibraryBytes,25*1024*1024);
 
 console.log("Studio regional inventory comparison contract passed.");
