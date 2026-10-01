@@ -14,6 +14,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.TicketType;
+import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
@@ -46,6 +47,14 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
     private static final ResourceLocation PHYSICS_ASSEMBLER =
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
+    private static final TicketType<ChunkPos> ROPE_FIXTURE_TICKET = TicketType.create(
+            "skyforge_wby_wave1_rope_fixture",
+            Comparator.comparingLong(ChunkPos::toLong));
+    private static final int ROPE_FIXTURE_TICKET_DISTANCE = 2;
+    private static final List<ChunkPos> FIXTURE_CHUNKS = List.of(
+            new ChunkPos(-1, 0),
+            new ChunkPos(0, 0),
+            new ChunkPos(1, 0));
     private static final int SETUP_TIMEOUT_TICKS = 360;
     private static final int PRE_MOVE_SETTLE_TICKS = 30;
     private static final int POST_MOVE_SETTLE_TICKS = 80;
@@ -137,6 +146,15 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     }
 
     private static void assembleBody() throws ReflectiveOperationException {
+        for (ChunkPos chunk : FIXTURE_CHUNKS) {
+            level.getChunkSource().addRegionTicket(
+                    ROPE_FIXTURE_TICKET,
+                    chunk,
+                    ROPE_FIXTURE_TICKET_DISTANCE,
+                    chunk);
+            level.getChunk(chunk.x, chunk.z);
+        }
+
         container = requireServerSubLevelContainer(level);
         Set<UUID> before = currentSubLevelIds(container);
 
@@ -370,6 +388,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("forcedChunksBefore", forcedChunksBefore);
         evidence.put("forcedChunksAfter", forcedChunksAfter);
         evidence.put("forcedChunkGrowth", forcedChunksAfter - forcedChunksBefore);
+        evidence.put("fixtureRegionTicketChunks", FIXTURE_CHUNKS.size());
         evidence.put("ropeChunkTransitionQualified", true);
 
         complete = true;
