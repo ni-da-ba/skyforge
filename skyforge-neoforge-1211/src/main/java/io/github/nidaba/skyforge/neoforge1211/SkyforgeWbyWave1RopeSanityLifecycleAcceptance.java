@@ -362,7 +362,9 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     }
 
     private static void resetBodyVelocity() throws ReflectiveOperationException {
-        methodByNameAndArity(pipeline, "resetVelocity", 1).invoke(pipeline, body);
+        Class<?> physicsPipelineBody =
+                Class.forName("dev.ryanhcode.sable.api.physics.PhysicsPipelineBody");
+        publicMethod(pipeline, "resetVelocity", physicsPipelineBody).invoke(pipeline, body);
     }
 
     private static void updateAndValidateRope() throws ReflectiveOperationException {
