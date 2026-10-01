@@ -2,6 +2,7 @@
   "use strict";
 
   const TOKEN_KEY = "skyforge-development-api-token";
+  const WORLD_BRIEF_LIBRARY_STORAGE_KEY = "skyforge-studio-world-brief-library-v1";
   const TERRAIN_COLORS = Object.freeze({
     AIR: "#f6f4ee",
     EDGE_SHELL: "#b18554",
@@ -2681,7 +2682,7 @@
   }
 
   function initializeWorldBrief() {
-    const storageKey = "skyforge-studio-world-brief-library-v1";
+    const storageKey = WORLD_BRIEF_LIBRARY_STORAGE_KEY;
     const titleInput = $("world-brief-title");
     const intentInput = $("world-brief-intent");
     const librarySelect = $("world-brief-library");
@@ -2936,6 +2937,14 @@
       }
     });
     readLibrary();
+    window.SkyforgeStudioWorldBriefWorkspace = Object.freeze({
+      flush: flushPendingSave,
+      refresh: () => {
+        if (!flushPendingSave()) return false;
+        readLibrary();
+        return storageAvailable;
+      },
+    });
   }
 
   function configureWorkspaceNavigation() {
