@@ -20,6 +20,29 @@ F3H_REPORTS = Path("skyforge-world/build/test-results/test")
 ROW = re.compile(r"^(ordinary-77(?:-weak)?|primary-287|confluence-632|lake-609)(?:,|-)|^(?:709,559|1742,1842)(?:,|$)")
 
 
+def print_f3h_order_context(f3h_report: Path) -> None:
+    reports = sorted(
+        F3H_REPORTS.glob("TEST-*.xml"),
+        key=lambda report: report.stat().st_mtime_ns,
+    )
+    try:
+        target_index = reports.index(f3h_report)
+    except ValueError:
+        return
+    start = max(0, target_index - 8)
+    end = min(len(reports), target_index + 3)
+    print("--- world test reports ordered by completion time around F3H ---")
+    for report in reports[start:end]:
+        suite = ET.parse(report).getroot()
+        print(
+            f"{report.stat().st_mtime_ns} "
+            f"{suite.attrib.get('name', report.stem)} "
+            f"tests={suite.attrib.get('tests', '?')} "
+            f"failures={suite.attrib.get('failures', '0')} "
+            f"errors={suite.attrib.get('errors', '0')}"
+        )
+
+
 def main() -> None:
     for report in REPORTS:
         if not report.is_file():
@@ -46,6 +69,7 @@ def main() -> None:
             if output is not None and output.text:
                 print(f"--- {tag} ---")
                 print(output.text.strip())
+        print_f3h_order_context(report)
 
 
 if __name__ == "__main__":
