@@ -171,6 +171,8 @@ jobs:
           grep -Eq '\(sable\)' "$server_log"
           grep -Eq '\(aeronautics\)' "$server_log"
           grep -Eq '\(ssrd\)' "$server_log"
+          grep -Eq '\(lithium\)' "$server_log"
+          grep -Eq '\(ferritecore\)' "$server_log"
           if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
             echo "multiplayer server leaked client-only renderer mods"
             cat "$server_log"
@@ -283,56 +285,7 @@ jobs:
           grep -q '^ssrdEffectiveMaxChunks=128$' "$observer_result"
           grep -q '^distantHorizonsLoaded=true$' "$observer_result"
           grep -q '^sodiumLoaded=true$' "$observer_result"
-          grep -q '^multiplayerRemoteCraftObserverQualified=true
-          grep -Fq "SSRD: Received range request from player WbyObserver: 128 chunks" "$server_log"
-          for client_log in "$observer_log" "$near_log"; do
-            if grep -Fq "Received a sub-level movement packet for a non-existent sub-level" "$client_log"; then
-              echo "Sable full-sync ordering regression detected in $client_log"
-              exit 1
-            fi
-          done
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          def load(path):
-              result = {}
-              for line in Path(path).read_text().splitlines():
-                  if "=" in line and not line.startswith("#"):
-                      key, value = line.split("=", 1)
-                      result[key] = value
-              return result
-
-          observer = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/observer.properties")
-          fixture = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/fixture.properties")
-          assert int(observer["distantSableStableTicks"]) >= 20, observer
-          assert 96.0 < float(observer["observerBodyHorizontalDistanceBlocks"]) < 192.0, observer
-          assert observer["ssrdDistanceSource"] == "Server", observer
-          assert int(observer["ssrdEffectiveMaxChunks"]) == 128, observer
-          assert int(fixture["connectedPlayers"]) >= 2, fixture
-          assert float(fixture["observerBodyHorizontalDistanceBlocks"]) > 96.0, fixture
-          assert float(fixture["nearPlayerBodyDistanceBlocks"]) <= 24.0, fixture
-          assert fixture["bodyId"] == observer["distantSableBodyId"], (fixture, observer)
-          print("WBY WAVE 1 MULTIPLAYER REMOTE CRAFT PASS", {"fixture": fixture, "observer": observer})
-          PY
-
-      - name: Upload Wave 1 multiplayer evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: wby-wave1b-ferritecore-multiplayer-admission
-          path: |
-            wby-wave1-multiplayer-server.log
-            wby-wave1-multiplayer-observer.log
-            wby-wave1-multiplayer-near.log
-            skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/*.properties
-            skyforge-neoforge-1211/run-wby-wave1-multiplayer-server/logs/latest.log
-            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/logs/latest.log
-            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/logs/latest.log
-            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/hs_err_pid*.log
-            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/hs_err_pid*.log
-          if-no-files-found: warn
- "$observer_result"
+          grep -q '^multiplayerRemoteCraftObserverQualified=true$' "$observer_result"
           grep -Eq '\(lithium\)' "$observer_log"
           grep -Eq '\(ferritecore\)' "$observer_log"
           grep -Eq '\(lithium\)' "$near_log"
