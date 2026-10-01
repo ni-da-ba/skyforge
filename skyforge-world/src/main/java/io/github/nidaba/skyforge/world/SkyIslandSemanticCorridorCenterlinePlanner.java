@@ -319,7 +319,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             }
                             Candidate candidate = evaluate(
                                     searchRoute, candidatePoints, headEnvelopeGap,
-                                    bankfullHalfWidthAtStation);
+                                    bankfullHalfWidthAtStation, longitudinalHeadFeasibility);
                             if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
                                 roundBest = candidate;
                             }
