@@ -249,6 +249,7 @@ jobs:
           server = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties")
 
           assert client["bodyId"] == server["bodyId"], (client, server)
+          assert int(client["qualifiedConnectedTicks"]) >= 320, client
           assert int(client["frameSamples"]) >= 240, client
           assert 0.0 < float(client["frameTimeMedianMs"]) <= float(client["frameTimeP95Ms"]), client
           assert float(client["frameTimeP95Ms"]) <= float(client["frameTimeMaxMs"]), client
