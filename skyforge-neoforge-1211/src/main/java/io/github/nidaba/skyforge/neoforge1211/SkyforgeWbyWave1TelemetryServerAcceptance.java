@@ -52,10 +52,6 @@ final class SkyforgeWbyWave1TelemetryServerAcceptance {
 
         MinecraftServer server = event.getServer();
         ServerLevel level = server.overworld();
-        if (server.getPlayerList().getPlayerCount() < 1) {
-            return;
-        }
-
         long now = level.getGameTime();
         if (fixtureReadyTick == Long.MIN_VALUE) {
             fixtureReadyTick = now;
