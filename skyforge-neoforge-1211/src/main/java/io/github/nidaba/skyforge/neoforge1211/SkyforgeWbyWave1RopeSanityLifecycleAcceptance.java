@@ -26,6 +26,8 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import org.joml.Quaterniond;
+import org.joml.Quaterniondc;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
@@ -46,7 +48,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static final int PRE_MOVE_SETTLE_TICKS = 30;
     private static final int POST_MOVE_SETTLE_TICKS = 20;
     private static final int TICKET_SETTLE_TICKS = 40;
-    private static final double BODY_TRAVEL_VELOCITY = 4.0;
     private static final int ROPE_POINTS = 32;
     private static final double ROPE_RADIUS = 0.125;
     private static final double WORLD_ANCHOR_OFFSET = 12.0;
@@ -75,7 +76,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static long firstTick = Long.MIN_VALUE;
     private static long ticketPlanReadyTick = Long.MIN_VALUE;
     private static long ropeCreatedTick = Long.MIN_VALUE;
-    private static long movedTick = Long.MIN_VALUE;
     private static long boundaryCrossedTick = Long.MIN_VALUE;
     private static double maxStartEndpointError;
     private static double maxEndEndpointError;
@@ -140,15 +140,12 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
             updateAndValidateRope();
 
             if (!moved && now - ropeCreatedTick >= PRE_MOVE_SETTLE_TICKS) {
-                beginBodyMotion();
+                relocateBodyAcrossChunkBoundary();
                 moved = true;
-                movedTick = now;
                 return;
             }
 
             if (moved) {
-                Object handle = requireCurrentPhysicsHandle();
-                enforceTargetVelocity(handle);
                 ChunkPos currentChunk = chunkAt(bodyWorldPosition(body));
                 boolean acrossBoundary =
                         currentChunk.x != initialBodyChunk.x || currentChunk.z != initialBodyChunk.z;
@@ -157,7 +154,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                         boundaryCrossedTick = now;
                     }
                     if (now - boundaryCrossedTick >= POST_MOVE_SETTLE_TICKS) {
-                        resetVelocity(handle);
                         complete(event);
                     }
                 } else {
@@ -309,42 +305,16 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         }
     }
 
-    private static void beginBodyMotion() throws ReflectiveOperationException {
-        Object handle = requireCurrentPhysicsHandle();
-        resetVelocity(handle);
-        enforceTargetVelocity(handle);
-    }
-
-    private static Object requireCurrentPhysicsHandle() throws ReflectiveOperationException {
-        Method getter = oneArgMethod(physicsSystem, "getPhysicsHandle", body);
-        Object handle = getter.invoke(physicsSystem, body);
-        if (handle == null || !Boolean.TRUE.equals(publicMethod(handle, "isValid").invoke(handle))) {
-            throw new IllegalStateException("Sable rope body does not have a valid current physics handle");
+    private static void relocateBodyAcrossChunkBoundary() throws ReflectiveOperationException {
+        Object pose = publicMethod(body, "logicalPose").invoke(body);
+        Object orientationValue = publicMethod(pose, "orientation").invoke(pose);
+        if (!(orientationValue instanceof Quaterniondc orientation)) {
+            throw new IllegalStateException(
+                    "Sable body logical orientation was not Quaterniondc: " + orientationValue);
         }
-        return handle;
-    }
 
-    private static void resetVelocity(Object handle) throws ReflectiveOperationException {
-        Vector3d linear = (Vector3d) publicMethod(handle, "getLinearVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d angular = (Vector3d) publicMethod(handle, "getAngularVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        linear.negate();
-        angular.negate();
-        twoArgMethod(handle, "addLinearAndAngularVelocity", linear, angular)
-                .invoke(handle, linear, angular);
-    }
-
-    private static void enforceTargetVelocity(Object handle) throws ReflectiveOperationException {
-        Vector3d currentLinear = (Vector3d) publicMethod(handle, "getLinearVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d currentAngular = (Vector3d) publicMethod(handle, "getAngularVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d correction =
-                new Vector3d(BODY_TRAVEL_VELOCITY, 0.0, 0.0).sub(currentLinear);
-        Vector3d angularCorrection = currentAngular.negate();
-        twoArgMethod(handle, "addLinearAndAngularVelocity", correction, angularCorrection)
-                .invoke(handle, correction, angularCorrection);
+        Method teleport = methodByNameAndArity(pipeline, "teleport", 3);
+        teleport.invoke(pipeline, body, targetBodyPosition, new Quaterniond(orientation));
     }
 
     private static void updateAndValidateRope() throws ReflectiveOperationException {
@@ -429,7 +399,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("finalBodyChunk", finalBodyChunk.x + "," + finalBodyChunk.z);
         evidence.put("chunkBoundaryCrossed", true);
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
-        evidence.put("bodyTravelVelocityBlocksPerSecond", BODY_TRAVEL_VELOCITY);
+        evidence.put("bodyRelocationMethod", "SablePhysicsPipeline.teleport");
+        evidence.put("targetBodyPosition", targetBodyPosition.x + "," + targetBodyPosition.y + "," + targetBodyPosition.z);
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
         evidence.put("ticketSettleTicks", TICKET_SETTLE_TICKS);
         evidence.put("loadedChunksBefore", loadedChunksBefore);
@@ -571,31 +542,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static Method publicMethod(Object target, String name, Class<?>... parameterTypes)
             throws NoSuchMethodException {
         return target.getClass().getMethod(name, parameterTypes);
-    }
-
-    private static Method oneArgMethod(Object target, String name, Object argument)
-            throws NoSuchMethodException {
-        for (Method method : target.getClass().getMethods()) {
-            if (method.getName().equals(name)
-                    && method.getParameterCount() == 1
-                    && method.getParameterTypes()[0].isAssignableFrom(argument.getClass())) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(1 arg)");
-    }
-
-    private static Method twoArgMethod(Object target, String name, Object first, Object second)
-            throws NoSuchMethodException {
-        for (Method method : target.getClass().getMethods()) {
-            if (method.getName().equals(name)
-                    && method.getParameterCount() == 2
-                    && method.getParameterTypes()[0].isAssignableFrom(first.getClass())
-                    && method.getParameterTypes()[1].isAssignableFrom(second.getClass())) {
-                return method;
-            }
-        }
-        throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(2 args)");
     }
 
     private static Method methodByNameAndArity(Object target, String name, int arity)
