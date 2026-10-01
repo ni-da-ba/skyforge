@@ -104,79 +104,95 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 reach.geomorphicRoute().semanticReach().profiles();
         boolean cascadeUpstreamAtConfluence = coupledLeg.nodeBoundary().role()
                 == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING;
-        SkyIslandHydraulicTransitionBoundaryState cascadeConfluenceBoundary =
+        SkyIslandHydraulicTransitionBoundaryState nearBoundary =
                 cascadeUpstreamAtConfluence ? site.upstreamBoundary() : site.downstreamBoundary();
-        boolean touchesNode = sameLocation(cascadeConfluenceBoundary, coupledLeg.nodeBoundary());
-        boolean touchesFinite = sameLocation(cascadeConfluenceBoundary, coupledLeg.finiteBoundary());
-        if (touchesNode == touchesFinite) {
+        SkyIslandHydraulicTransitionBoundaryState remoteBoundary =
+                cascadeUpstreamAtConfluence ? site.downstreamBoundary() : site.upstreamBoundary();
+        boolean touchesNode = sameLocation(nearBoundary, coupledLeg.nodeBoundary());
+        double nearLength = Math.abs(
+                nearBoundary.arcLength() - coupledLeg.nodeBoundary().arcLength());
+        if (!(nearLength >= 0.0) || !Double.isFinite(nearLength)) {
             return deferred(
-                    confluence,
-                    cascade,
-                    coupledLeg,
-                    "CASCADE boundary does not uniquely align with a confluence node or finite boundary");
+                    confluence, cascade, coupledLeg,
+                    "CASCADE/confluence overlap has invalid arc-length ordering");
         }
-        if (touchesNode
-                && (cascadeUpstreamAtConfluence
-                        ? site.firstProfileIndex() != 0
-                        : site.lastProfileIndexExclusive() != profiles.size())) {
+        if (cascadeUpstreamAtConfluence
+                        && remoteBoundary.arcLength()
+                                <= coupledLeg.finiteBoundary().arcLength() + EPSILON
+                || !cascadeUpstreamAtConfluence
+                        && remoteBoundary.arcLength()
+                                >= coupledLeg.finiteBoundary().arcLength() - EPSILON) {
             return deferred(
-                    confluence,
-                    cascade,
-                    coupledLeg,
-                    "CASCADE node contact is not at the corresponding semantic reach endpoint");
+                    confluence, cascade, coupledLeg,
+                    "CASCADE does not extend beyond the confluence finite transition leg");
         }
 
         List<SkyIslandHydraulicTransitionLegGeometry> ordinaryLegs =
                 confluence.legs().stream()
-                        .filter(leg -> !touchesNode || leg != coupledLeg)
+                        .filter(leg -> leg != coupledLeg)
                         .toList();
         if (ordinaryLegs.isEmpty()) {
             return deferred(
-                    confluence,
-                    cascade,
-                    coupledLeg,
+                    confluence, cascade, coupledLeg,
                     "joint confluence requires an ordinary incident leg to bound the shared node head");
         }
 
-        SkyIslandChannelProfileKind cascadeNearKind = null;
-        if (touchesFinite) {
-            int adjacentProfileIndex = cascadeUpstreamAtConfluence
-                    ? site.firstProfileIndex() - 1
-                    : site.lastProfileIndexExclusive();
-            if (adjacentProfileIndex < 0 || adjacentProfileIndex >= profiles.size()) {
-                return deferred(
-                        confluence,
-                        cascade,
-                        coupledLeg,
-                        "finite confluence/CASCADE boundary has no adjacent ordinary profile");
-            }
-            cascadeNearKind = profiles.get(adjacentProfileIndex).kind();
-            if (cascadeNearKind == SkyIslandChannelProfileKind.CASCADE) {
-                return deferred(
-                        confluence,
-                        cascade,
-                        coupledLeg,
-                        "finite confluence/CASCADE boundary is adjacent to another CASCADE interval");
-            }
-        }
-
+        int nearProfileIndex = cascadeUpstreamAtConfluence
+                ? site.firstProfileIndex() - 1
+                : site.lastProfileIndexExclusive();
         int remoteProfileIndex = cascadeUpstreamAtConfluence
                 ? site.lastProfileIndexExclusive()
                 : site.firstProfileIndex() - 1;
+        if (!touchesNode
+                && (nearProfileIndex < 0 || nearProfileIndex >= profiles.size())) {
+            return deferred(
+                    confluence, cascade, coupledLeg,
+                    "CASCADE near boundary has no adjacent ordinary profile");
+        }
         if (remoteProfileIndex < 0 || remoteProfileIndex >= profiles.size()) {
             return deferred(
-                    confluence,
-                    cascade,
-                    coupledLeg,
+                    confluence, cascade, coupledLeg,
                     "CASCADE remote boundary has no adjacent ordinary profile");
         }
+        SkyIslandChannelProfileKind nearKind = touchesNode
+                ? null
+                : profiles.get(nearProfileIndex).kind();
         SkyIslandChannelProfileKind remoteKind = profiles.get(remoteProfileIndex).kind();
-        if (remoteKind == SkyIslandChannelProfileKind.CASCADE) {
+        if (nearKind == SkyIslandChannelProfileKind.CASCADE
+                || remoteKind == SkyIslandChannelProfileKind.CASCADE) {
             return deferred(
-                    confluence,
-                    cascade,
-                    coupledLeg,
-                    "CASCADE remote boundary is adjacent to another CASCADE interval");
+                    confluence, cascade, coupledLeg,
+                    "joint boundary is adjacent to another authored CASCADE interval");
+        }
+
+        SkyIslandSemanticChannelReach coupledSemantic =
+                reach.geomorphicRoute().semanticReach();
+        SkyIslandHydraulicHeadEnvelope coupledNodeEnvelope = null;
+        if (!touchesNode) {
+            SkyIslandChannelProfileKind nodeKind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            coupledSemantic.profiles(),
+                            coupledLeg.nodeBoundary().stationFraction());
+            if (nodeKind == SkyIslandChannelProfileKind.CASCADE) {
+                return deferred(
+                        confluence, cascade, coupledLeg,
+                        "CASCADE overlaps the confluence node itself without an endpoint match");
+            }
+            coupledNodeEnvelope = evaluate(
+                    descriptor,
+                    coupledSemantic,
+                    coupledLeg.nodeBoundary(),
+                    direction(coupledLeg),
+                    terrain,
+                    policy);
+            if (!coupledNodeEnvelope.feasible(EPSILON)) {
+                return unsolved(
+                        confluence, cascade, coupledLeg,
+                        SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
+                        0.0, 0.0, authoredDrop(descriptor, profiles, site, cells),
+                        Optional.empty(),
+                        "coupled ordinary approach has an empty D2 envelope at the shared node");
+            }
         }
 
         double nodeLower = Double.NEGATIVE_INFINITY;
@@ -190,40 +206,26 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             SkyIslandChannelProfileKind nodeKind =
                     SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
                             semantic.profiles(), leg.nodeBoundary().stationFraction());
-            SkyIslandChannelProfileKind finiteKind;
-            if (touchesFinite && leg == coupledLeg) {
-                finiteKind = cascadeNearKind;
-            } else {
-                finiteKind = SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
-                        semantic.profiles(), leg.finiteBoundary().stationFraction());
-            }
+            SkyIslandChannelProfileKind finiteKind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            semantic.profiles(), leg.finiteBoundary().stationFraction());
             if (nodeKind == SkyIslandChannelProfileKind.CASCADE
                     || finiteKind == SkyIslandChannelProfileKind.CASCADE) {
                 return deferred(
-                        confluence,
-                        cascade,
-                        coupledLeg,
-                        "another incident confluence boundary is CASCADE-coupled");
+                        confluence, cascade, coupledLeg,
+                        "another incident confluence leg is CASCADE-coupled");
             }
 
             Direction direction = direction(leg);
             SkyIslandHydraulicHeadEnvelope atNode = evaluate(
                     descriptor, semantic, leg.nodeBoundary(), direction, terrain, policy);
-            SkyIslandHydraulicHeadEnvelope atFinite = touchesFinite && leg == coupledLeg
-                    ? evaluateForKind(
-                            descriptor, semantic, leg.finiteBoundary(), direction,
-                            finiteKind, terrain, policy)
-                    : evaluate(descriptor, semantic, leg.finiteBoundary(), direction, terrain, policy);
+            SkyIslandHydraulicHeadEnvelope atFinite = evaluate(
+                    descriptor, semantic, leg.finiteBoundary(), direction, terrain, policy);
             if (!atNode.feasible(EPSILON) || !atFinite.feasible(EPSILON)) {
                 return unsolved(
-                        confluence,
-                        cascade,
-                        coupledLeg,
+                        confluence, cascade, coupledLeg,
                         SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
-                        nodeLower,
-                        nodeUpper,
-                        0.0,
-                        Optional.empty(),
+                        nodeLower, nodeUpper, 0.0, Optional.empty(),
                         "ordinary incident D2-derived pointwise head envelope is empty");
             }
 
@@ -232,18 +234,20 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             nodeTargetWeighted += legWeight * atNode.targetHead();
             nodeLower = Math.max(nodeLower, normalizedLower(atNode));
             nodeUpper = Math.min(nodeUpper, normalizedUpper(atNode));
-            ordinaryEnvelopes.add(new HeadEnvelopePair(leg, atNode, atFinite));
+            ordinaryEnvelopes.add(new HeadEnvelopePair(leg, atFinite));
+        }
+        if (coupledNodeEnvelope != null) {
+            double coupledWeight = 0.5 * nearLength;
+            nodeWeight += coupledWeight;
+            nodeTargetWeighted += coupledWeight * coupledNodeEnvelope.targetHead();
+            nodeLower = Math.max(nodeLower, normalizedLower(coupledNodeEnvelope));
+            nodeUpper = Math.min(nodeUpper, normalizedUpper(coupledNodeEnvelope));
         }
         if (nodeLower > nodeUpper + EPSILON) {
             return unsolved(
-                    confluence,
-                    cascade,
-                    coupledLeg,
+                    confluence, cascade, coupledLeg,
                     SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
-                    nodeLower,
-                    nodeUpper,
-                    0.0,
-                    Optional.empty(),
+                    nodeLower, nodeUpper, 0.0, Optional.empty(),
                     "ordinary incident D2 envelopes have no shared confluence-head interval");
         }
         if (nodeLower > nodeUpper) {
@@ -255,41 +259,10 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             throw new IllegalStateException("joint confluence node weight must be positive");
         }
 
-        SkyIslandHydraulicTransitionBoundaryState remoteBoundary =
-                cascadeUpstreamAtConfluence ? site.downstreamBoundary() : site.upstreamBoundary();
-        Direction cascadeDirection = cascadeUpstreamAtConfluence
-                ? direction(
-                        cascade.centerlinePoints().get(cascade.centerlinePoints().size() - 2),
-                        cascade.centerlinePoints().getLast())
-                : direction(cascade.centerlinePoints().get(0), cascade.centerlinePoints().get(1));
-        SkyIslandHydraulicHeadEnvelope remoteEnvelope =
-                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
-                        descriptor,
-                        remoteKind,
-                        remoteBoundary.position(),
-                        remoteBoundary.bankfullHalfWidth(),
-                        remoteBoundary.waterDepthPotential(),
-                        remoteBoundary.terrainElevation(),
-                        -cascadeDirection.z(),
-                        cascadeDirection.x(),
-                        terrain,
-                        policy.limits(reach.geomorphicRoute().semanticReach()));
-        if (!remoteEnvelope.feasible(EPSILON)) {
-            return unsolved(
-                    confluence,
-                    cascade,
-                    coupledLeg,
-                    SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
-                    nodeLower,
-                    nodeUpper,
-                    authoredDrop(descriptor, profiles, site, cells),
-                    Optional.empty(),
-                    "D2 pointwise envelope is empty at the remote ordinary CASCADE boundary");
-        }
-
         double authoredMaximumDrop = authoredDrop(descriptor, profiles, site, cells);
-        int variableCount = ordinaryLegs.size() + 2;
-        int cascadeRemoteVariable = variableCount - 1;
+        int nearVariable = touchesNode ? 0 : ordinaryLegs.size() + 1;
+        int remoteVariable = ordinaryLegs.size() + (touchesNode ? 1 : 2);
+        int variableCount = remoteVariable + 1;
         double[] target = new double[variableCount];
         double[] weight = new double[variableCount];
         double[] lower = new double[variableCount];
@@ -299,7 +272,6 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
         lower[0] = nodeLower;
         upper[0] = nodeUpper;
         List<SkyIslandHydraulicDifferenceConstraint> differences = new ArrayList<>();
-        int cascadeNearVariable = touchesNode ? 0 : -1;
         for (int i = 0; i < ordinaryEnvelopes.size(); i++) {
             HeadEnvelopePair pair = ordinaryEnvelopes.get(i);
             SkyIslandHydraulicTransitionLegGeometry leg = pair.leg();
@@ -327,23 +299,79 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                                 + semantic.endCellIndex(),
                         0, variable, 0.0, maximumDrop));
             }
-            if (touchesFinite && leg == coupledLeg) {
-                cascadeNearVariable = variable;
+        }
+
+        if (!touchesNode) {
+            SkyIslandHydraulicHeadEnvelope nearEnvelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            nearKind,
+                            nearBoundary.position(),
+                            nearBoundary.bankfullHalfWidth(),
+                            nearBoundary.waterDepthPotential(),
+                            nearBoundary.terrainElevation(),
+                            -direction(coupledLeg).z(),
+                            direction(coupledLeg).x(),
+                            terrain,
+                            policy.limits(coupledSemantic));
+            if (!nearEnvelope.feasible(EPSILON)) {
+                return unsolved(
+                        confluence, cascade, coupledLeg,
+                        SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
+                        nodeLower, nodeUpper, authoredMaximumDrop, Optional.empty(),
+                        "ordinary-side D2 pointwise envelope is empty at the CASCADE near boundary");
+            }
+            target[nearVariable] = nearEnvelope.targetHead();
+            weight[nearVariable] = 0.5 * nearLength;
+            lower[nearVariable] = normalizedLower(nearEnvelope);
+            upper[nearVariable] = normalizedUpper(nearEnvelope);
+            double maximumDrop = policy.limits(coupledSemantic).maximumLongitudinalGrade()
+                    * nearLength;
+            if (cascadeUpstreamAtConfluence) {
+                differences.add(new SkyIslandHydraulicDifferenceConstraint(
+                        "joint-confluence-approach:" + confluence.transitionSite().nodeCellIndex(),
+                        0, nearVariable, 0.0, maximumDrop));
+            } else {
+                differences.add(new SkyIslandHydraulicDifferenceConstraint(
+                        "joint-confluence-approach:" + confluence.transitionSite().nodeCellIndex(),
+                        nearVariable, 0, 0.0, maximumDrop));
             }
         }
-        if (cascadeNearVariable < 0) {
-            throw new IllegalStateException("joint solve lost the confluence-side CASCADE head variable");
+
+        Direction cascadeDirection = cascadeUpstreamAtConfluence
+                ? direction(
+                        cascade.centerlinePoints().get(cascade.centerlinePoints().size() - 2),
+                        cascade.centerlinePoints().getLast())
+                : direction(cascade.centerlinePoints().get(0), cascade.centerlinePoints().get(1));
+        SkyIslandHydraulicHeadEnvelope remoteEnvelope =
+                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                        descriptor,
+                        remoteKind,
+                        remoteBoundary.position(),
+                        remoteBoundary.bankfullHalfWidth(),
+                        remoteBoundary.waterDepthPotential(),
+                        remoteBoundary.terrainElevation(),
+                        -cascadeDirection.z(),
+                        cascadeDirection.x(),
+                        terrain,
+                        policy.limits(coupledSemantic));
+        if (!remoteEnvelope.feasible(EPSILON)) {
+            return unsolved(
+                    confluence, cascade, coupledLeg,
+                    SkyIslandConfluenceCascadeHeadCompatibilityStatus.INFEASIBLE,
+                    nodeLower, nodeUpper, authoredMaximumDrop, Optional.empty(),
+                    "D2 pointwise envelope is empty at the remote ordinary CASCADE boundary");
         }
-        target[cascadeRemoteVariable] = remoteEnvelope.targetHead();
-        weight[cascadeRemoteVariable] = 0.5 * cascade.pathLength();
-        lower[cascadeRemoteVariable] = normalizedLower(remoteEnvelope);
-        upper[cascadeRemoteVariable] = normalizedUpper(remoteEnvelope);
+        target[remoteVariable] = remoteEnvelope.targetHead();
+        weight[remoteVariable] = 0.5 * cascade.pathLength();
+        lower[remoteVariable] = normalizedLower(remoteEnvelope);
+        upper[remoteVariable] = normalizedUpper(remoteEnvelope);
         int cascadeUpstreamVariable = cascadeUpstreamAtConfluence
-                ? cascadeNearVariable
-                : cascadeRemoteVariable;
+                ? nearVariable
+                : remoteVariable;
         int cascadeDownstreamVariable = cascadeUpstreamAtConfluence
-                ? cascadeRemoteVariable
-                : cascadeNearVariable;
+                ? remoteVariable
+                : nearVariable;
         differences.add(new SkyIslandHydraulicDifferenceConstraint(
                 "joint-cascade:" + site.reachStartCellIndex() + "->"
                         + site.reachEndCellIndex() + ":authored-drop",
@@ -376,10 +404,11 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             ordinarySolutions.add(new SkyIslandConfluenceLegHeadSolution(
                     ordinaryLegs.get(i), solution[i + 1]));
         }
-        double remoteHead = solution[cascadeRemoteVariable];
-        double nearHead = solution[cascadeNearVariable];
-        double sharedNodeHead = solution[0];
-        double drop = cascadeUpstreamAtConfluence ? nearHead - remoteHead : remoteHead - nearHead;
+        double nearHead = solution[nearVariable];
+        double remoteHead = solution[remoteVariable];
+        double drop = cascadeUpstreamAtConfluence
+                ? nearHead - remoteHead
+                : remoteHead - nearHead;
         return new SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
                 confluence,
                 cascade,
@@ -389,7 +418,8 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 nodeUpper,
                 authoredMaximumDrop,
                 Optional.of(qp),
-                Optional.of(sharedNodeHead),
+                Optional.of(solution[0]),
+                touchesNode ? Optional.empty() : Optional.of(nearHead),
                 Optional.of(remoteHead),
                 Optional.of(drop),
                 ordinarySolutions,
@@ -585,17 +615,20 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 || site.reachEndCellIndex() != node.reachEndCellIndex()) {
             return false;
         }
+
         if (node.role() == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING) {
-            boolean touchesConfluenceBoundary =
-                    sameLocation(site.upstreamBoundary(), node)
-                            || sameLocation(site.upstreamBoundary(), finite);
-            return touchesConfluenceBoundary
+            boolean crossesFiniteBoundary =
+                    site.upstreamBoundary().arcLength() <= finite.arcLength() + EPSILON
+                            && site.downstreamBoundary().arcLength() >= finite.arcLength() - EPSILON
+                            && site.downstreamBoundary().arcLength() > node.arcLength() + EPSILON;
+            return crossesFiniteBoundary
                     && site.lastProfileIndexExclusive() < reachProfileCount;
         }
-        boolean touchesConfluenceBoundary =
-                sameLocation(site.downstreamBoundary(), node)
-                        || sameLocation(site.downstreamBoundary(), finite);
-        return touchesConfluenceBoundary && site.firstProfileIndex() > 0;
+        boolean crossesFiniteBoundary =
+                site.upstreamBoundary().arcLength() <= finite.arcLength() + EPSILON
+                        && site.downstreamBoundary().arcLength() >= finite.arcLength() - EPSILON
+                        && site.upstreamBoundary().arcLength() < node.arcLength() - EPSILON;
+        return crossesFiniteBoundary && site.firstProfileIndex() > 0;
     }
 
     private static boolean sameLocation(
@@ -613,7 +646,6 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
 
     private record HeadEnvelopePair(
             SkyIslandHydraulicTransitionLegGeometry leg,
-            SkyIslandHydraulicHeadEnvelope node,
             SkyIslandHydraulicHeadEnvelope finite) {}
 
     private record Direction(double x, double z) {}
