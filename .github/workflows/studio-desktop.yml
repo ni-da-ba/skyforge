@@ -153,10 +153,16 @@ jobs:
               ;;
           esac
 
-          mapfile -t matches < <(find build/studio-desktop/out/make -type f -iname "$pattern" -print | LC_ALL=C sort)
+          matches=()
+          while IFS= read -r match; do
+            if [[ -n "$match" ]]; then
+              matches+=("$match")
+            fi
+          done < <(find build/studio-desktop/out/make -type f -iname "$pattern" -print | LC_ALL=C sort)
+
           if [[ ${#matches[@]} -ne 1 ]]; then
             echo "Expected exactly one $pattern installer; found ${#matches[@]}."
-            printf '%s\n' "${matches[@]}"
+            printf '%s\\n' "${matches[@]}"
             exit 1
           fi
 
