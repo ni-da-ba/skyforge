@@ -568,7 +568,7 @@
       status.textContent =
         "Synthetic demonstration loaded. These sample changes are not generated Skyforge output or project evidence.";
       $("terrain-comparison-report-status").textContent =
-        "Synthetic demonstration only; not project evidence. Source digests are recorded but unverified.";
+        "Synthetic demonstration only; not project evidence. No source digest is supplied.";
     } catch (error) {
       terrainSemanticComparison = null;
       $("terrain-comparison-results").hidden = true;
