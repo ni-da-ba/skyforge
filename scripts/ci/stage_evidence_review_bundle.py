@@ -135,6 +135,7 @@ STUDIO_APP_FILES = (
     Path('regional-comparison.js'),
     Path('workspace-package.js'),
     Path('workspace-session.js'),
+    Path('terrain-comparison.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
@@ -146,6 +147,8 @@ STUDIO_README = """Skyforge Studio — local S2 review
 Studio opens the exact packaged terrain + hydrology pair in one step. In Inspect semantics,
 use “Download inspection workspace” to save the current scene, optional reference overlay,
 and view settings in one portable JSON file. Use “Open inspection workspace” to restore it.
+
+In “Compare terrain”, load a reference and candidate terrain volume with identical grids to inspect surface-height changes and paged semantic-cell differences. The comparison rejects grid mismatches and never resamples.
 
 Reopened sources are UNBOUND LOCAL DIAGNOSTICS: no token is needed, and the package does
 not preserve registered-artifact verification or grant review authority. Comparison

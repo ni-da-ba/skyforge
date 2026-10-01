@@ -15,6 +15,7 @@
   <script src="regional-comparison.js" defer></script>
   <script src="workspace-package.js" defer></script>
   <script src="workspace-session.js" defer></script>
+  <script src="terrain-comparison.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -51,6 +52,7 @@
       <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
       <button type="button" class="workspace-tab" data-workspace-view="regional" aria-controls="studio-regional-view" aria-pressed="false">Regional geology</button>
       <button type="button" class="workspace-tab" data-workspace-view="regional-comparison" aria-controls="regional-comparison-view" aria-pressed="false">Compare geology</button>
+      <button type="button" class="workspace-tab" data-workspace-view="terrain-comparison" aria-controls="studio-terrain-comparison-view" aria-pressed="false">Compare terrain</button>
     </nav>
 
     <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
@@ -175,6 +177,72 @@
         </section>
       </section>
       <p id="regional-inventory-empty" class="panel muted">Load an AUTH-0094 inventory file to inspect exact association-level geological opportunity.</p>
+    </section>
+
+    <section id="studio-terrain-comparison-view" class="terrain-comparison-view" aria-labelledby="terrain-comparison-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">AUTHORSHIP · LOCAL DIAGNOSTIC</p>
+          <h2 id="terrain-comparison-heading">Compare terrain versions</h2>
+          <p class="muted">Load two terrain semantic volumes to see which authored cells changed. Studio compares exact world-grid coordinates and never resamples.</p>
+        </div>
+        <span class="pill warn">Unbound local sources</span>
+      </div>
+      <section class="panel terrain-comparison-loader" aria-labelledby="terrain-comparison-load-heading">
+        <div class="section-heading">
+          <div>
+            <h3 id="terrain-comparison-load-heading">Choose the two versions</h3>
+            <p class="small muted">Choose the earlier version as the reference and the later version as the candidate. Both remain local diagnostics.</p>
+          </div>
+        </div>
+        <label for="terrain-comparison-reference">Reference version · before</label>
+        <input id="terrain-comparison-reference" type="file" accept=".json,application/json">
+        <label for="terrain-comparison-candidate">Candidate version · after</label>
+        <input id="terrain-comparison-candidate" type="file" accept=".json,application/json">
+        <p class="small muted">The two files must have exactly the same grid dimensions, origin, and spacing. Different grids cannot be compared here.</p>
+        <p id="terrain-comparison-status" class="small muted" aria-live="polite">No terrain comparison loaded.</p>
+      </section>
+      <section id="terrain-comparison-results" class="panel terrain-comparison-results" hidden aria-labelledby="terrain-comparison-summary-heading">
+        <div class="section-heading">
+          <div>
+            <h3 id="terrain-comparison-summary-heading">Terrain change summary</h3>
+            <p id="terrain-comparison-sources" class="small muted"></p>
+          </div>
+          <span id="terrain-comparison-authority" class="pill warn">UNBOUND LOCAL</span>
+        </div>
+        <div id="terrain-comparison-summary" class="terrain-comparison-summary"></div>
+        <div class="terrain-comparison-map-panel">
+          <div class="section-heading">
+            <div>
+              <h4>Top surface height change</h4>
+              <p class="small muted">Plan view across X/Z columns. Purple = candidate lower; orange = candidate higher; teal = land added or removed.</p>
+            </div>
+          </div>
+          <canvas id="terrain-comparison-map" role="img" aria-label="Top surface height changes on the aligned terrain grid"></canvas>
+          <p class="small muted">A gold cell marks a semantic surface change with no height difference. Select a changed cell or choose a changed voxel below.</p>
+          <p id="terrain-comparison-column-detail" class="terrain-comparison-detail" aria-live="polite">Select a map cell to inspect its top surface values.</p>
+        </div>
+        <div class="terrain-comparison-tables">
+          <div>
+            <h4>Semantic totals</h4>
+            <div class="terrain-comparison-table-wrap">
+              <table id="terrain-comparison-semantic-counts" class="terrain-comparison-table"></table>
+            </div>
+          </div>
+          <div>
+            <h4>Changed voxels</h4>
+            <div class="terrain-comparison-table-wrap">
+              <table id="terrain-comparison-changes" class="terrain-comparison-table"></table>
+            </div>
+            <div class="terrain-comparison-page-actions">
+              <button id="terrain-comparison-previous" type="button" class="secondary" disabled>Previous</button>
+              <span id="terrain-comparison-page-status" class="small muted"></span>
+              <button id="terrain-comparison-next" type="button" class="secondary" disabled>Next</button>
+            </div>
+            <p id="terrain-comparison-cell-detail" class="terrain-comparison-detail" aria-live="polite">Select a changed voxel to inspect its exact world position and before/after semantic labels.</p>
+          </div>
+        </div>
+      </section>
     </section>
 
     <section id="studio-content">

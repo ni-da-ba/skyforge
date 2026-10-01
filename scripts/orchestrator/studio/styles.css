@@ -131,3 +131,14 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .workspace-session-controls p{flex-basis:100%;margin:.1rem 0}
 .workspace-session-toggle{display:flex;align-items:center;gap:.5rem;margin:0}
 .workspace-session-toggle input{width:auto}
+
+.terrain-comparison-view{display:grid;gap:1rem}.terrain-comparison-view[hidden]{display:none}
+.terrain-comparison-loader input[type=file]{display:block;width:100%;margin:.35rem 0 1rem;color:#cbd5e1}
+.terrain-comparison-results{min-width:0}.terrain-comparison-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.7rem;margin:1rem 0}
+.terrain-comparison-summary-card{min-width:0;padding:.8rem;border:1px solid #2e4054;border-radius:7px;background:#0d151e}.terrain-comparison-summary-card h4{margin:0 0 .5rem;color:#91a0b4;font-size:.76rem}.terrain-comparison-summary-card strong{color:#f3f4f6;font-size:1rem;overflow-wrap:anywhere}
+.terrain-comparison-map-panel{margin:1rem 0;padding:.9rem;border:1px solid #2e4054;border-radius:8px;background:#0d151e}.terrain-comparison-map-panel h4,.terrain-comparison-tables h4{margin:0 0 .35rem;font-size:.86rem}.terrain-comparison-map-panel .section-heading p{margin:0}
+#terrain-comparison-map{display:block;width:100%;height:420px;margin:.7rem 0;background:#0a0f15;border:1px solid #263140;border-radius:6px;cursor:crosshair;touch-action:manipulation}
+.terrain-comparison-detail{min-height:1.3em;margin:.55rem 0 0;padding:.65rem;border-radius:6px;background:#111923;color:#cbd5e1;font-size:.76rem;overflow-wrap:anywhere;line-height:1.45}
+.terrain-comparison-tables{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:1rem}.terrain-comparison-table-wrap{max-height:360px;overflow:auto;border:1px solid #263140;border-radius:6px}.terrain-comparison-table{width:100%;border-collapse:collapse;font-size:.74rem}.terrain-comparison-table th,.terrain-comparison-table td{padding:.45rem .5rem;border-bottom:1px solid #263140;text-align:left;vertical-align:top;overflow-wrap:anywhere}.terrain-comparison-table thead th{position:sticky;top:0;background:#17212c;color:#91a0b4}.terrain-comparison-page-actions{display:flex;align-items:center;justify-content:space-between;gap:.5rem;margin:.6rem 0}.terrain-comparison-page-actions span{text-align:center}
+@media(max-width:850px){.terrain-comparison-summary{grid-template-columns:1fr}.terrain-comparison-tables{grid-template-columns:1fr}}
+@media(max-width:650px){#terrain-comparison-map{height:300px}.terrain-comparison-page-actions{flex-wrap:wrap}.terrain-comparison-page-actions span{flex-basis:100%;order:-1}.terrain-comparison-page-actions button{flex:1}.workspace-nav{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}}
