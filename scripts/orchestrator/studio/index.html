@@ -524,8 +524,12 @@
         <div class="regional-import-actions">
           <button id="regional-compare-load-sample" type="button" class="secondary">Load included evidence on the left</button>
           <button id="regional-compare-clear" type="button" class="secondary">Clear both sides</button>
+          <button id="regional-compare-export-report" type="button" class="secondary" disabled>Save comparison package</button>
+          <button id="regional-compare-open-report" type="button" class="secondary">Open comparison package</button>
+          <input id="regional-compare-report-file" type="file" accept=".json,application/json" hidden>
         </div>
-        <p class="small muted">Load a second independent inventory on the right. Rankings are compared only when both sides include a validated ranking.csv.</p>
+        <p class="small muted">Load a second independent inventory on the right. Rankings are compared only when both sides include a validated ranking.csv. A package saves the original CSV inputs so Studio can validate them again when reopened.</p>
+        <p id="regional-compare-package-status" class="small muted" aria-live="polite"></p>
         <div class="authority-warning">
           <strong>UNBOUND LOCAL DIAGNOSTIC</strong>
           <span>Rows remain source evidence. Deltas are right minus left; ranking changes report movement in the supplied files and never create or reorder ranks.</span>
