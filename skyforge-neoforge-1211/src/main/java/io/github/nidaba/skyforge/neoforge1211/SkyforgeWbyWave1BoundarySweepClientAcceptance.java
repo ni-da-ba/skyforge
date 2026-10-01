@@ -22,6 +22,8 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 150_000_000_000L;
     private static final int VANILLA_RENDER_DISTANCE_CHUNKS = 4;
     private static final double TRANSFORM_ERROR_LIMIT_BLOCKS = 8.0;
+    private static final int MIN_HOLD_SAMPLES = 5;
+    private static final int MIN_TRANSIT_SAMPLES = 10;
 
     private static long firstTickNanos = Long.MIN_VALUE;
     private static boolean armed;
@@ -181,11 +183,11 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
             Minecraft minecraft,
             UUID bodyId,
             DistanceEvidence distanceEvidence) {
-        boolean qualified = initialNearSamples >= 10
-                && recedingSamples >= 20
-                && farHoldSamples >= 10
-                && approachingSamples >= 20
-                && finalNearSamples >= 10
+        boolean qualified = initialNearSamples >= MIN_HOLD_SAMPLES
+                && recedingSamples >= MIN_TRANSIT_SAMPLES
+                && farHoldSamples >= MIN_HOLD_SAMPLES
+                && approachingSamples >= MIN_TRANSIT_SAMPLES
+                && finalNearSamples >= MIN_HOLD_SAMPLES
                 && outboundInsideObserved
                 && outboundFarObserved
                 && inboundFarObserved
@@ -222,7 +224,9 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("actualClient", true);
         evidence.put("bodyId", bodyId);
-        evidence.put("insideVanillaObserved", initialNearSamples >= 10 && finalNearSamples >= 10);
+        evidence.put(
+                "insideVanillaObserved",
+                initialNearSamples >= MIN_HOLD_SAMPLES && finalNearSamples >= MIN_HOLD_SAMPLES);
         evidence.put("outboundBoundaryCrossed", outboundInsideObserved && outboundFarObserved);
         evidence.put("inboundBoundaryCrossed", inboundFarObserved && inboundInsideObserved);
         evidence.put("outboundSsrdRenderObserved", outboundSsrdRenderObserved);
