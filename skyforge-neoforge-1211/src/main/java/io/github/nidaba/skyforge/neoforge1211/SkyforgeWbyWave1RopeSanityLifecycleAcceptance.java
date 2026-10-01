@@ -23,9 +23,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.AABB;
-import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
-import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 import org.joml.Quaterniond;
 import org.joml.Quaterniondc;
@@ -40,7 +38,6 @@ import org.joml.Vector3dc;
  * while attached between the world and an assembled Sable body that crosses a vanilla chunk
  * boundary. The proof also records chunk counts and rejects forced-chunk growth.
  */
-@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.wbyWave1RopeSanity";
 
@@ -85,8 +82,14 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
     private SkyforgeWbyWave1RopeSanityLifecycleAcceptance() {}
 
-    @SubscribeEvent
-    static void onServerTickPost(ServerTickEvent.Post event) {
+    static void installFromSystemProperty() {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
+            return;
+        }
+        NeoForge.EVENT_BUS.addListener(SkyforgeWbyWave1RopeSanityLifecycleAcceptance::onServerTickPost);
+    }
+
+    private static void onServerTickPost(ServerTickEvent.Post event) {
         if (!Boolean.getBoolean(ENABLE_PROPERTY) || complete) {
             return;
         }
