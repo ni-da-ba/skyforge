@@ -144,7 +144,7 @@
       {inventory_file:state.leftSource.inventory.name,inventory_csv:state.leftSource.inventory.text,ranking_file:state.leftSource.ranking?.name??null,ranking_csv:state.leftSource.ranking?.text??null},
       {inventory_file:state.rightSource.inventory.name,inventory_csv:state.rightSource.inventory.text,ranking_file:state.rightSource.ranking?.name??null,ranking_csv:state.rightSource.ranking?.text??null}
     );
-    const text=JSON.stringify(report,null,2)+"\\n";
+    const text=JSON.stringify(report,null,2)+"\n";
     if(new TextEncoder().encode(text).length>MAX_PACKAGE_BYTES)throw new Error("Comparison package exceeds the 10 MB limit");
     return text;
   }
@@ -270,7 +270,8 @@
     $("regional-library-remove").addEventListener("click",async()=>{
       const record=state.libraryRecords.find(item=>item.id===$("regional-library-select").value);
       if(!record||!state.libraryRepository)return;
-      if(typeof root.confirm==="function"&&!root.confirm("Permanently remove “"+record.title+"” from this browser? Download a portable package first if you may need it later."))return;
+      if(typeof root.confirm!=="function")throw new Error("removal confirmation is unavailable");
+      if(!root.confirm("Permanently remove “"+record.title+"” from this browser? Download a portable package first if you may need it later."))return;
       state.libraryBusy=true;renderLibraryControls();
       try{
         await state.libraryRepository.remove(record.id);
