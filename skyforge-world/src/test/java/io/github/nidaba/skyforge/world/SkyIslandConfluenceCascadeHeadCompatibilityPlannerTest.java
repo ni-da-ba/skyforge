@@ -20,6 +20,10 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
         assertTrue(generated.outcomes().stream().noneMatch(outcome ->
                 outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
+        assertTrue(generated.outcomes().stream().noneMatch(outcome ->
+                outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
+                () -> "generated key-241 geometry unexpectedly solved an unsupported overlap: "
+                        + diagnostic(generated));
 
         SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
                 withFiniteBoundaryInsideAuthoredCascade(descriptor, generated.transitionGeometry());
@@ -157,7 +161,8 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         return plan.outcomes().stream()
                 .map(value -> value.confluence().transitionSite().nodeCellIndex()
                         + ":" + value.status() + ":" + value.diagnostic())
-                .toList();
+                .toList()
+                .toString();
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {
