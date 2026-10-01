@@ -128,6 +128,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double pathLength = cumulative[cumulative.length - 1];
         double reachableLower = Double.NaN;
         double reachableUpper = Double.NaN;
+        SkyIslandChannelProfileKind previousKind = null;
         double squaredConflict = 0.0;
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition position = points.get(i);
@@ -138,8 +139,14 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             if (kind == SkyIslandChannelProfileKind.CASCADE) {
                 reachableLower = Double.NaN;
                 reachableUpper = Double.NaN;
+                previousKind = null;
                 continue;
             }
+            if (previousKind != null && previousKind != kind) {
+                reachableLower = Double.NaN;
+                reachableUpper = Double.NaN;
+            }
+            previousKind = kind;
             SkyIslandGeomorphicQualificationClass qualificationClass =
                     qualificationClass(kind);
             SkyIslandGeomorphicProfileLimits limits =
