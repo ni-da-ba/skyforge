@@ -93,7 +93,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     SkyIslandHydraulicHeadEnvelope envelope =
                             SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
                                     descriptor,
-                                    ordinaryKind,
+                                    kind,
                                     position,
                                     halfWidth,
                                     SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
