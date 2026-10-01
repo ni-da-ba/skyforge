@@ -122,7 +122,7 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
                     && renderObserved
                     && projectionMatrixPresent
                     && candidate.horizontalDistanceBlocks() > vanillaChunks * 16.0 + 32.0
-                    && "Distant Horizons".equals(distanceEvidence.source())
+                    && "Server".equals(distanceEvidence.source())
                     && distanceEvidence.chunks() > vanillaChunks
                     && dhChunks >= distanceEvidence.chunks();
 
