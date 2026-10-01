@@ -30,9 +30,11 @@ For an internal maximal CASCADE run:
 - the current semantic-reach D2 limit set is retained, so F3C does not silently recalibrate mixed
   reaches.
 
-A CASCADE run touching the start or end of its semantic macro reach is `BOUNDARY_COUPLED`. Such a
-run may interact with source, confluence, terminal, or retained-basin ownership and is not solved
-locally.
+A CASCADE run touching the start of its semantic macro reach or a non-outlet semantic end is
+`BOUNDARY_COUPLED`. Such a run may interact with source, confluence, retained-basin, or unresolved
+terminal ownership and is not solved locally by F3C. The later F3H/F3I/F3J tranches handle only their
+explicitly supported shared-head cases; F3J permits a terminal CASCADE endpoint only when the
+terminal-fate authority identifies that exact reach end as `EDGE_OUTLET`.
 
 ## Discontinuity problem
 
@@ -124,7 +126,7 @@ F3C must preserve:
 3. the shared D2 pointwise head-envelope implementation;
 4. non-climbing hydraulic direction across the drop;
 5. solved drop no larger than authored CASCADE downhill-drop authority;
-6. explicit deferral of semantic-boundary CASCADE runs;
+6. explicit deferral of semantic-boundary CASCADE runs except for later narrowly admitted F3H/F3I/F3J joint cases;
 7. deterministic QP evidence;
 8. zero terrain delta;
 9. unchanged Minecraft behavior.
