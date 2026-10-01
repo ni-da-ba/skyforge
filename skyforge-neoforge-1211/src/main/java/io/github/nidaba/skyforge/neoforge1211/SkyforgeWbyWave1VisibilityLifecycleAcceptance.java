@@ -42,6 +42,7 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     private static final int SWEEP_FAR_DISTANCE_BLOCKS = 256;
     private static final int SWEEP_STEP_BLOCKS = 4;
     private static final int SWEEP_HOLD_TICKS = 30;
+    private static final int SWEEP_ENDPOINT_OBSERVATION_TICKS = 2;
 
     private static final ResourceLocation PHYSICS_ASSEMBLER =
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
@@ -261,7 +262,12 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
                 }
             }
             case APPROACHING -> {
-                if (distance <= SWEEP_NEAR_DISTANCE_BLOCKS) {
+                // Keep the endpoint in APPROACHING long enough for the client tick to observe
+                // the inbound vanilla-boundary crossing before the phase advances.
+                int travelTicks = (SWEEP_FAR_DISTANCE_BLOCKS - SWEEP_NEAR_DISTANCE_BLOCKS)
+                        / SWEEP_STEP_BLOCKS;
+                if (distance <= SWEEP_NEAR_DISTANCE_BLOCKS
+                        && sweepPhaseTick >= travelTicks + SWEEP_ENDPOINT_OBSERVATION_TICKS) {
                     transitionSweep(SweepPhase.FINAL_NEAR_HOLD);
                 }
             }
