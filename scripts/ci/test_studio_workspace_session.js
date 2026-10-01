@@ -3,6 +3,42 @@
 const assert = require("node:assert/strict");
 const session = require("../orchestrator/studio/workspace-session.js");
 
+
+const workspacePackage = require("../orchestrator/studio/workspace-package.js");
+const authorityWorkspace = workspacePackage.create({
+  scene: {
+    title: "scene.json",
+    artifactJson: JSON.stringify({
+      artifact_kind: "SKYFORGE_TERRAIN_SEMANTIC_VOLUME",
+      review_authority: true,
+    }),
+  },
+  overlay: null,
+  view: {
+    mode: "terrain",
+    camera: { yaw: 0, pitch: 0.5, zoom: 1 },
+    controls: {
+      semanticView: "top",
+      surface: "base",
+      sliceIndex: 0,
+      causeField: "none",
+      showFlowVectors: true,
+      showChannelWidth: true,
+      showHydrologyResponse: true,
+      showWaterIntent: true,
+    },
+  },
+});
+const prepared = workspacePackage.prepare(authorityWorkspace, {
+  adaptScene(_artifact, source) {
+    return { sceneKind: "TERRAIN_SEMANTIC_VOLUME", source };
+  },
+  adaptOverlay() { throw new Error("no overlay expected"); },
+});
+assert.equal(prepared.scene.source.binding, "UNBOUND_LOCAL");
+assert.equal(prepared.scene.source.reviewAuthority, false,
+  "reopened session sources keep local diagnostic authority");
+
 const records = new Map();
 const memoryStore = {
   async read() { return records.has("current") ? records.get("current") : null; },
