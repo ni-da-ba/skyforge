@@ -84,6 +84,25 @@ jobs:
           narrator:0
           EOF
 
+      - name: Stage exact Wave 1 jars into both real client mod directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+          source_mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          observer_mods="skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/mods"
+          near_mods="skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/mods"
+          rm -rf "$observer_mods" "$near_mods"
+          mkdir -p "$observer_mods" "$near_mods"
+          cp -a "$source_mods"/. "$observer_mods"/
+          cp -a "$source_mods"/. "$near_mods"/
+
+          test "$(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
+          test "$(find "$near_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
+          cmp <(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort) \
+              <(find "$near_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort)
+
       - name: Qualify remote craft with second multiplayer client nearby
         shell: bash
         run: |
