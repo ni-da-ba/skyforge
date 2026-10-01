@@ -187,7 +187,10 @@
           transaction.oncomplete = () => resolve(normalized);
           transaction.onerror = () => reject(transaction.error || new Error("could not restore saved comparisons"));
           transaction.onabort = () => reject(transaction.error || new Error("could not restore saved comparisons"));
-        } catch (error) { reject(error); }
+        } catch (error) {
+          try { transaction?.abort(); } catch {}
+          reject(error);
+        }
       });
     }
     return Object.freeze({list, save, remove, replaceAll});
