@@ -44,10 +44,22 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             var second = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
                     descriptor, network, route, terrain, interiority);
             assertEquals(first.centerline(), second.centerline());
+            assertEquals(first.diagnostics(), second.diagnostics());
             var d = first.diagnostics();
             assertTrue(
                     d.finalIntegratedSquaredHeadEnvelopeGap()
                             <= d.initialIntegratedSquaredHeadEnvelopeGap() + EPSILON);
+            assertTrue(
+                    d.finalLongitudinalHeadFeasibilityGap()
+                            <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
+            if (route.semanticReach().startCellIndex() == 801
+                    && route.semanticReach().endCellIndex() == 1951) {
+                assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
+                assertTrue(
+                        d.finalLongitudinalHeadFeasibilityGap()
+                                < d.initialLongitudinalHeadFeasibilityGap(),
+                        "whole-route refinement must reduce the key-700 grade conflict");
+            }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
                     .append("->")
@@ -58,6 +70,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialIntegratedSquaredHeadEnvelopeGap())
                     .append(" finalIntegratedGap=")
                     .append(d.finalIntegratedSquaredHeadEnvelopeGap())
+                    .append(" initialLongitudinalGap=")
+                    .append(d.initialLongitudinalHeadFeasibilityGap())
+                    .append(" finalLongitudinalGap=")
+                    .append(d.finalLongitudinalHeadFeasibilityGap())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
