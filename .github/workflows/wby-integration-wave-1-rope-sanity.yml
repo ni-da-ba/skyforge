@@ -105,7 +105,7 @@ jobs:
                   key, value = line.split("=", 1)
                   p[key] = value
 
-          assert int(p["ropePointCount"]) == 32, p
+          assert int(p["ropePointCount"]) == 12, p
           assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
           assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
           assert int(p["loadedChunkDelta"]) <= 64, p
