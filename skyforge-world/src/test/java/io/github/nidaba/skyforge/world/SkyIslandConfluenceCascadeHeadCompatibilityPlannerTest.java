@@ -7,7 +7,6 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
@@ -15,48 +14,32 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
     private static final double EPSILON = 1.0e-8;
 
     @Test
-    void eligibleJointTransitionInExistingConfluenceCorpusIsDeterministicAndBounded() {
-        List<SkyIslandDescriptor> candidates = List.of(
-                descriptor(8L, 81L, 241L),
-                descriptor(8L, 81L, 632L),
-                descriptor(8L, 81L, 287L),
-                descriptor(8L, 81L, 649L),
-                descriptor(6L, 61L, 83L),
-                descriptor(6L, 61L, 77L),
-                descriptor(6L, 61L, 512L));
-        List<String> attempted = new ArrayList<>();
-        SkyIslandDescriptor selectedDescriptor = null;
-        SkyIslandConfluenceCascadeHeadCompatibilityPlan first = null;
-
-        for (SkyIslandDescriptor candidate : candidates) {
-            SkyIslandConfluenceCascadeHeadCompatibilityPlan plan =
-                    SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(candidate);
-            String detail = "island=" + candidate.identity().islandKey() + ": " + diagnostic(plan);
-            attempted.add(detail);
-            System.out.println("F3H fixture probe " + detail);
-            assertTrue(plan.outcomes().stream().noneMatch(outcome ->
-                    outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
-            if (plan.outcomes().stream().anyMatch(outcome ->
-                    outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED)) {
-                selectedDescriptor = candidate;
-                first = plan;
-                break;
-            }
-        }
-
-        assertTrue(first != null,
-                () -> "no existing confluence-corpus fixture exercises the supported F3H solve; "
-                        + String.join(" | ", attempted));
-        SkyIslandDescriptor descriptor = Objects.requireNonNull(selectedDescriptor);
-        first = Objects.requireNonNull(first);
-        SkyIslandConfluenceCascadeHeadCompatibilityPlan second =
+    void eligibleJointTransitionIsDeterministicAndBounded() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 241L);
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan generated =
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
-        System.out.println("F3H selected fixture island=" + descriptor.identity().islandKey()
-                + ": " + diagnostic(first));
+        assertTrue(generated.outcomes().stream().noneMatch(outcome ->
+                outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
+
+        SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
+                withFiniteBoundaryInsideAuthoredCascade(descriptor, generated.transitionGeometry());
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan first =
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed);
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan second =
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed);
+        System.out.println("F3H controlled overlap: " + diagnostic(first));
 
         assertEquals(first.outcomes().size(), second.outcomes().size());
         assertTrue(first.outcomes().stream().anyMatch(outcome ->
-                outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED));
+                outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
+                () -> "controlled F3H overlap did not solve: " + diagnostic(first));
 
         for (int i = 0; i < first.outcomes().size(); i++) {
             SkyIslandConfluenceCascadeHeadCompatibilityOutcome a = first.outcomes().get(i);
@@ -84,6 +67,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 assertEquals(a.confluence().legs().size() - 1, a.ordinaryLegSolutions().size());
             } else {
                 assertTrue(a.sharedNodeHeadWorldUnits().isEmpty());
+                assertTrue(a.cascadeConfluenceSideHeadWorldUnits().isEmpty());
                 assertTrue(a.cascadeBoundaryHeadWorldUnits().isEmpty());
                 assertTrue(a.solvedDropWorldUnits().isEmpty());
                 assertTrue(a.ordinaryLegSolutions().isEmpty());
@@ -91,28 +75,89 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         }
     }
 
+    private static SkyIslandHydraulicTransitionGeometryEvidencePlan
+            withFiniteBoundaryInsideAuthoredCascade(
+                    SkyIslandDescriptor descriptor,
+                    SkyIslandHydraulicTransitionGeometryEvidencePlan source) {
+        SkyIslandHydraulicConfluenceGeometryCandidate confluence =
+                source.confluences().stream()
+                        .filter(value -> value.transitionSite().nodeCellIndex() == 671)
+                        .findFirst()
+                        .orElseThrow();
+        SkyIslandHydraulicTransitionLegGeometry coupledLeg =
+                confluence.legs().stream()
+                        .filter(leg ->
+                                leg.nodeBoundary().role()
+                                        == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
+                                        && leg.nodeBoundary().reachStartCellIndex() == 671
+                                        && leg.nodeBoundary().reachEndCellIndex() == 479)
+                        .findFirst()
+                        .orElseThrow();
+        SkyIslandHydraulicCascadeGeometryCandidate cascade =
+                source.cascades().stream()
+                        .filter(value ->
+                                value.transitionSite().reachStartCellIndex() == 671
+                                        && value.transitionSite().reachEndCellIndex() == 479
+                                        && value.transitionSite().firstProfileIndex() == 1
+                                        && value.transitionSite().lastProfileIndexExclusive() == 4)
+                        .findFirst()
+                        .orElseThrow();
+        SkyIslandHydraulicReachSkeleton reach =
+                source.topology().skeletonPlan().reaches().stream()
+                        .filter(value -> {
+                            SkyIslandSemanticChannelReach semantic =
+                                    value.geomorphicRoute().semanticReach();
+                            return semantic.startCellIndex() == 671
+                                    && semantic.endCellIndex() == 479;
+                        })
+                        .findFirst()
+                        .orElseThrow();
+
+        double finiteBoundaryFraction =
+                0.5 * (cascade.transitionSite().upstreamBoundary().stationFraction()
+                        + cascade.transitionSite().downstreamBoundary().stationFraction());
+        SkyIslandHydraulicTransitionBoundaryState finiteBoundary =
+                SkyIslandHydraulicTransitionTopologyPlanner.sampleBoundaryState(
+                        descriptor,
+                        SkyIslandPreHydrologicTerrainField.create(descriptor),
+                        reach,
+                        finiteBoundaryFraction,
+                        SkyIslandHydraulicTransitionBoundaryRole.OUTGOING);
+        SkyIslandHydraulicTransitionLegGeometry coupledLegWithOverlap =
+                new SkyIslandHydraulicTransitionLegGeometry(
+                        coupledLeg.nodeBoundary(),
+                        finiteBoundary,
+                        finiteBoundary.arcLength() - coupledLeg.nodeBoundary().arcLength());
+
+        List<SkyIslandHydraulicTransitionLegGeometry> legs = new ArrayList<>();
+        for (SkyIslandHydraulicTransitionLegGeometry leg : confluence.legs()) {
+            legs.add(leg == coupledLeg ? coupledLegWithOverlap : leg);
+        }
+        double maximumRetreat = legs.stream()
+                .mapToDouble(SkyIslandHydraulicTransitionLegGeometry::retreatLength)
+                .max()
+                .orElseThrow();
+        SkyIslandHydraulicConfluenceGeometryCandidate controlledConfluence =
+                new SkyIslandHydraulicConfluenceGeometryCandidate(
+                        confluence.transitionSite(), legs, maximumRetreat);
+        List<SkyIslandHydraulicConfluenceGeometryCandidate> confluences =
+                source.confluences().stream()
+                        .map(value -> value == confluence ? controlledConfluence : value)
+                        .toList();
+        return new SkyIslandHydraulicTransitionGeometryEvidencePlan(
+                descriptor,
+                source.topology(),
+                confluences,
+                source.cascades(),
+                source.openWaterInterfaces(),
+                source.deferredWetlandInterfaces());
+    }
+
     private static String diagnostic(SkyIslandConfluenceCascadeHeadCompatibilityPlan plan) {
-        var geometry = plan.transitionGeometry();
-        var confluences = geometry.confluences().stream()
-                .map(value -> value.transitionSite().nodeCellIndex() + ":"
-                        + value.legs().stream()
-                                .map(leg -> leg.nodeBoundary().reachStartCellIndex() + "->"
-                                        + leg.nodeBoundary().reachEndCellIndex() + "/"
-                                        + leg.nodeBoundary().role())
-                                .toList())
-                .toList();
-        var cascades = geometry.cascades().stream()
-                .map(value -> value.transitionSite().reachStartCellIndex() + "->"
-                        + value.transitionSite().reachEndCellIndex() + "/profiles="
-                        + value.transitionSite().firstProfileIndex() + ".."
-                        + value.transitionSite().lastProfileIndexExclusive())
-                .toList();
-        return "outcomes=" + plan.outcomes().stream()
+        return plan.outcomes().stream()
                 .map(value -> value.confluence().transitionSite().nodeCellIndex()
                         + ":" + value.status() + ":" + value.diagnostic())
-                .toList()
-                + ", confluences=" + confluences
-                + ", cascades=" + cascades;
+                .toList();
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {

@@ -24,7 +24,7 @@ F3H does not compose multiple CASCADE overlaps, a CASCADE spanning both semantic
 
 ## Regression evidence
 
-The deterministic regression probes the existing confluence corpus (islands 241, 632, 287, 649, 83, 77, and 512) until it finds a supported solved overlap, then repeats that exact solve and compares reported variables and residuals. It checks shared-node bounds, non-negative authored-bounded CASCADE drop, and QP primal residual. Key 632 is expected to remain deferred because its CASCADE is terminal-ended. GitHub Actions is the only authority for this test and build.
+The regression uses key 241's generated confluence, accepted reach, and authored CASCADE run, then constructs a controlled finite-boundary overlap inside that existing CASCADE interval. Only the diagnostic confluence retreat boundary is adjusted; semantic profiles, watershed drop authority, D2 envelopes, and terrain remain unchanged. The actual one-width generated geometry is separately observed to remain fail-closed when it contains no supported overlap. The controlled solve is repeated and compared for deterministic heads/residuals, shared-node bounds, non-negative authored-bounded CASCADE drop, and QP primal residual. This is solver evidence, not a claim that the production geometry currently emits this overlap or that the specimen is product-accepted. GitHub Actions is the only authority for this test and build.
 
 ## Acceptance boundary
 
