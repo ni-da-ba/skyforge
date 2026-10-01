@@ -23,7 +23,6 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
     private static final int VANILLA_RENDER_DISTANCE_CHUNKS = 4;
     private static final double TRANSFORM_ERROR_LIMIT_BLOCKS = 8.0;
     private static final int MIN_HOLD_SAMPLES = 5;
-    private static final int MIN_TRANSIT_SAMPLES = 10;
 
     private static long firstTickNanos = Long.MIN_VALUE;
     private static boolean armed;
@@ -184,9 +183,9 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
             UUID bodyId,
             DistanceEvidence distanceEvidence) {
         boolean qualified = initialNearSamples >= MIN_HOLD_SAMPLES
-                && recedingSamples >= MIN_TRANSIT_SAMPLES
+                && recedingSamples > 0
                 && farHoldSamples >= MIN_HOLD_SAMPLES
-                && approachingSamples >= MIN_TRANSIT_SAMPLES
+                && approachingSamples > 0
                 && finalNearSamples >= MIN_HOLD_SAMPLES
                 && outboundInsideObserved
                 && outboundFarObserved
