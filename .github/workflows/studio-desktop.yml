@@ -53,6 +53,9 @@ jobs:
         with:
           node-version: 24
 
+      - name: Test desktop native-save-dialog contract
+        run: node scripts/ci/test_studio_desktop_downloads.js
+
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
@@ -71,6 +74,7 @@ jobs:
           cp -R build/ci-evidence-review/studio-app build/studio-desktop/studio-app
           cp scripts/orchestrator/studio-desktop/package.json build/studio-desktop/
           cp scripts/orchestrator/studio-desktop/main.cjs build/studio-desktop/
+          cp scripts/orchestrator/studio-desktop/downloads.cjs build/studio-desktop/
           cp scripts/orchestrator/studio-desktop/forge.config.js build/studio-desktop/
           cp scripts/orchestrator/studio-desktop/README.md build/studio-desktop/
           cd build/studio-desktop
@@ -162,7 +166,7 @@ jobs:
 
           if [[ ${#matches[@]} -ne 1 ]]; then
             echo "Expected exactly one $pattern installer; found ${#matches[@]}."
-            printf '%s\\n' "${matches[@]}"
+            printf '%s\n' "${matches[@]}"
             exit 1
           fi
 

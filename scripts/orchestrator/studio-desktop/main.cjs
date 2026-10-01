@@ -3,6 +3,7 @@
 const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, protocol } = require("electron");
+const { registerDownloadSaveDialogs } = require("./downloads.cjs");
 
 app.setAppUserModelId("com.squirrel.SkyforgeStudio.skyforge-studio");
 
@@ -34,6 +35,7 @@ const CSP = [
 
 let mainWindow = null;
 let protocolRegistered = false;
+let downloadDialogsRegistered = false;
 
 function staticRoot() {
   return path.join(app.getAppPath(), "studio-app");
@@ -127,6 +129,17 @@ function registerApplicationProtocol() {
   protocolRegistered = true;
 }
 
+function registerDesktopDownloads() {
+  if (downloadDialogsRegistered || !mainWindow) return;
+  registerDownloadSaveDialogs(
+    mainWindow.webContents.session,
+    () => mainWindow,
+    app,
+    path,
+  );
+  downloadDialogsRegistered = true;
+}
+
 function createMainWindow() {
   mainWindow = new BrowserWindow({
     title: "Skyforge Studio",
@@ -169,26 +182,29 @@ if (require("electron-squirrel-startup")) {
   app.quit();
 } else {
   const hasSingleInstanceLock = app.requestSingleInstanceLock();
-if (!hasSingleInstanceLock) {
-  app.quit();
-} else {
-  app.on("second-instance", () => {
-    if (!mainWindow) createMainWindow();
-    if (mainWindow && mainWindow.isMinimized()) mainWindow.restore();
-    if (mainWindow) mainWindow.focus();
-  });
-
-  app.whenReady().then(() => {
-    registerApplicationProtocol();
-    createMainWindow();
-    app.on("activate", () => {
-      if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
+  if (!hasSingleInstanceLock) {
+    app.quit();
+  } else {
+    app.on("second-instance", () => {
+      if (!mainWindow) createMainWindow();
+      if (mainWindow && mainWindow.isMinimized()) mainWindow.restore();
+      if (mainWindow) mainWindow.focus();
     });
-  });
 
-  app.on("window-all-closed", () => {
-    if (process.platform !== "darwin") app.quit();
-  });
-}
+    app.whenReady().then(() => {
+      registerApplicationProtocol();
+      createMainWindow();
+      registerDesktopDownloads();
+      app.on("activate", () => {
+        if (BrowserWindow.getAllWindows().length === 0) {
+          createMainWindow();
+          registerDesktopDownloads();
+        }
+      });
+    });
 
+    app.on("window-all-closed", () => {
+      if (process.platform !== "darwin") app.quit();
+    });
+  }
 }
