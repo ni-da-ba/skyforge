@@ -81,6 +81,51 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
     }
 
     @Test
+    void generatedEdgeOutletCascadeCouplesConfluenceAndTerminalHeads() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 632L);
+        SkyIslandOrdinarySpanPlan spans =
+                SkyIslandOrdinarySpanPlanner.plan(descriptor);
+        SkyIslandConfluenceCascadeHeadCompatibilityOutcome joint =
+                spans.jointPlan().outcomes().stream()
+                        .filter(value ->
+                                value.confluence().transitionSite().nodeCellIndex() == 710
+                                        && value.cascade().transitionSite()
+                                                .reachStartCellIndex() == 710
+                                        && value.cascade().transitionSite()
+                                                .reachEndCellIndex() == 225)
+                        .findFirst()
+                        .orElseThrow();
+
+        assertEquals(
+                SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED,
+                joint.status(),
+                () -> "edge-outlet CASCADE remains coupled: " + joint.diagnostic());
+        assertTrue(joint.solvedDropWorldUnits().orElseThrow() >= -EPSILON);
+        assertTrue(joint.solvedDropWorldUnits().orElseThrow()
+                <= joint.authoredMaximumDropWorldUnits() + EPSILON);
+        assertTrue(joint.solve().orElseThrow().primalResidual() <= 1.0e-7);
+
+        SkyIslandJointTransitionAdmissions admissions =
+                SkyIslandJointTransitionAdmissions.from(
+                        spans.confluencePlan(), spans.cascadePlan(), spans.jointPlan());
+        assertTrue(admissions.forNode(710).isPresent());
+        assertTrue(admissions.forCascade(
+                joint.cascade().transitionSite()).isPresent());
+
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor, spans);
+        SkyIslandHydraulicReachAssembly reach = assembly.reachAssemblies().stream()
+                .filter(value -> value.semanticReach().startCellIndex() == 710
+                        && value.semanticReach().endCellIndex() == 225)
+                .findFirst()
+                .orElseThrow();
+        assertNotEquals(
+                SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED,
+                reach.status(),
+                () -> "joint edge-outlet heads were not consumed: " + reach.blockers());
+    }
+
+    @Test
     void controlledJointOverlapFeedsSpanAndNetworkEvidenceWithoutRelaxingD2() {
         SkyIslandDescriptor descriptor = descriptor(6L, 61L, 512L);
         SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
