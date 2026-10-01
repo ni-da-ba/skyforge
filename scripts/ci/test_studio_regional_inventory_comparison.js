@@ -1,6 +1,7 @@
 "use strict";
 const assert=require("node:assert/strict");
 const {compare,formatDelta}=require("../orchestrator/studio/regional-comparison.js");
+const comparisonLibrary=require("../orchestrator/studio/regional-comparison-library.js");
 const row=(association,metal,volumeId,eligible,mean,peak)=>({association,metal,volumeId,eligible,mean,peak,meanText:String(mean),peakText:String(peak)});
 const inventory=entries=>({entries,associationCount:new Set(entries.map(x=>x.association)).size});
 const left=inventory([row("a","IRON","v1",true,4,8),row("a","COPPER","v1",false,0,0),row("b","IRON","v2",true,2,3)]);
@@ -50,4 +51,32 @@ assert.equal(visibleState,"existing comparison","validation failure leaves the p
 const mismatchedRanking=createPackage({...leftSource,ranking_csv:"invalid"},rightSource);
 assert.throws(()=>applyPackage(JSON.stringify(mismatchedRanking)),/invalid ranking/);
 assert.equal(visibleState,"existing comparison");
+
+const {createRecord,parseRecord,normalizeRecords,upsertRecords,removeRecords,maximumItems,maximumPackageBytes,maximumLibraryBytes}=comparisonLibrary;
+const time1="2026-09-29T10:00:00.000Z",time2="2026-09-29T11:00:00.000Z";
+const makeRecord=(id,title,packageJson,created=time1,updated=time1)=>createRecord(id,title,packageJson,created,updated);
+const savedA=makeRecord("comparison-0001","  First comparison  ",JSON.stringify(packageDocument));
+assert.equal(savedA.title,"First comparison");
+assert.equal(savedA.package_bytes,new TextEncoder().encode(savedA.package_json).length);
+assert.equal(parseRecord(savedA).id,savedA.id);
+assert.throws(()=>createRecord("bad","Name","{}",time1,time1),/id is invalid/);
+assert.throws(()=>createRecord("comparison-0002","  ","{}",time1,time1),/name must be/);
+assert.throws(()=>createRecord("comparison-0003","Name","{}",time1,"2026-09-29T11:00:00Z"),/canonical UTC timestamp/);
+assert.throws(()=>parseRecord({...savedA,package_bytes:0}),/does not match/);
+assert.throws(()=>parseRecord({...savedA,extra:true}),/invalid shape/);
+assert.deepEqual(normalizeRecords([savedA,makeRecord("comparison-0002","Second","{}",time1,time2)]).map(x=>x.id),["comparison-0002","comparison-0001"]);
+assert.throws(()=>normalizeRecords([savedA,savedA]),/duplicate ids/);
+assert.throws(()=>normalizeRecords([{}]),/invalid shape/);
+const revised=makeRecord(savedA.id,"Renamed comparison","{\"updated\":true}",time2,time2);
+const updated=upsertRecords([savedA],revised);
+assert.equal(updated.length,1);
+assert.equal(updated[0].created_at,time1,"updating a saved comparison preserves its creation time");
+assert.equal(updated[0].title,"Renamed comparison");
+assert.deepEqual(removeRecords(updated,savedA.id),[]);
+const twentyFive=Array.from({length:maximumItems},(_,index)=>makeRecord("comparison-"+String(index).padStart(4,"0"),"Comparison "+index,"{}",time1,new Date(Date.parse(time1)+index*1000).toISOString()));
+assert.equal(normalizeRecords(twentyFive).length,maximumItems);
+assert.throws(()=>upsertRecords(twentyFive,makeRecord("comparison-9999","Too many","{}",time1,time2)),/library is full/);
+assert.throws(()=>createRecord("comparison-0004","Too large","x".repeat(maximumPackageBytes+1),time1,time1),/10 MB or smaller/);
+assert.equal(maximumLibraryBytes,25*1024*1024);
+
 console.log("Studio regional inventory comparison contract passed.");
