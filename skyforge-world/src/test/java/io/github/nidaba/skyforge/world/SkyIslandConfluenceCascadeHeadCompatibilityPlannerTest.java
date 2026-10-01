@@ -195,18 +195,22 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
 
         List<SkyIslandChannelProfile> controlledProfiles =
                 new ArrayList<>(originalSemantic.profiles());
-        SkyIslandChannelProfile remoteProfile =
-                controlledProfiles.get(ordinaryRemoteProfileIndex);
-        controlledProfiles.set(
-                ordinaryRemoteProfileIndex,
-                new SkyIslandChannelProfile(
-                        remoteProfile.segment(),
-                        SkyIslandChannelProfileKind.ALLUVIAL,
-                        remoteProfile.gradientPotential(),
-                        remoteProfile.streamPowerPotential(),
-                        remoteProfile.bankfullWidthPotential(),
-                        remoteProfile.depthPotential(),
-                        remoteProfile.incisionPotential()));
+        for (int index = ordinaryRemoteProfileIndex;
+                index < cascade.transitionSite().lastProfileIndexExclusive();
+                index++) {
+            SkyIslandChannelProfile remoteProfile = controlledProfiles.get(index);
+            assertEquals(SkyIslandChannelProfileKind.CASCADE, remoteProfile.kind());
+            controlledProfiles.set(
+                    index,
+                    new SkyIslandChannelProfile(
+                            remoteProfile.segment(),
+                            SkyIslandChannelProfileKind.ALLUVIAL,
+                            remoteProfile.gradientPotential(),
+                            remoteProfile.streamPowerPotential(),
+                            remoteProfile.bankfullWidthPotential(),
+                            remoteProfile.depthPotential(),
+                            remoteProfile.incisionPotential()));
+        }
         SkyIslandSemanticChannelReach controlledSemantic =
                 new SkyIslandSemanticChannelReach(
                         originalSemantic.startCellIndex(),
