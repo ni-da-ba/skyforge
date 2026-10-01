@@ -22,6 +22,8 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 150_000_000_000L;
     private static final int VANILLA_RENDER_DISTANCE_CHUNKS = 4;
     private static final double TRANSFORM_ERROR_LIMIT_BLOCKS = 8.0;
+    private static final double FAR_OBSERVATION_DISTANCE_BLOCKS = 224.0;
+    private static final double FAR_TARGET_DISTANCE_BLOCKS = 240.0;
     private static final int MIN_HOLD_SAMPLES = 5;
 
     private static long firstTickNanos = Long.MIN_VALUE;
@@ -125,6 +127,14 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
             DistanceEvidence distanceEvidence = ssrdDistanceEvidence(VANILLA_RENDER_DISTANCE_CHUNKS);
             boolean insideVanilla = horizontalDistance <= VANILLA_RENDER_DISTANCE_CHUNKS * 16.0;
             boolean beyondBoundary = horizontalDistance > VANILLA_RENDER_DISTANCE_CHUNKS * 16.0 + 32.0;
+            boolean atFarEndpoint = horizontalDistance >= FAR_OBSERVATION_DISTANCE_BLOCKS
+                    && snapshot.targetDistanceBlocks() >= FAR_TARGET_DISTANCE_BLOCKS;
+            if (atFarEndpoint) {
+                // The server intentionally dwells at 256 blocks both at the tail of RECEDING
+                // and in FAR_HOLD. Under heavily lagged software rendering the client can skip
+                // the literal FAR_HOLD label while still observing the real far-end dwell.
+                farHoldSamples++;
+            }
             if (beyondBoundary
                     && (!"Distant Horizons".equals(distanceEvidence.source())
                             || distanceEvidence.chunks() <= VANILLA_RENDER_DISTANCE_CHUNKS)) {
@@ -147,7 +157,6 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
                 }
                 case "FAR_HOLD" -> {
                     if (beyondBoundary) {
-                        farHoldSamples++;
                         outboundSsrdRenderObserved |= ssrdVisibleThisFrame;
                     }
                 }
