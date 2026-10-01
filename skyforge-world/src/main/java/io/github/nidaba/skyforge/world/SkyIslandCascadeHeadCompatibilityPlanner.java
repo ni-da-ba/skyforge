@@ -17,8 +17,9 @@ import java.util.Optional;
  * non-climbing and may not exceed the accumulated authored downhill drop carried by the owned
  * CASCADE profiles.
  *
- * <p>CASCADE runs touching a semantic reach boundary remain explicitly coupled to source,
- * confluence, terminal, or basin transition ownership and are not solved locally here.
+ * <p>CASCADE runs touching a source, confluence, or retained/unresolved terminal remain coupled
+ * to that transition owner. A terminal-ending run may be solved locally only for an explicit
+ * EDGE_OUTLET, using the cascade profile's D2 envelope at the free outlet endpoint.
  */
 public final class SkyIslandCascadeHeadCompatibilityPlanner {
     private static final double EPSILON = 1.0e-10;
@@ -61,6 +62,14 @@ public final class SkyIslandCascadeHeadCompatibilityPlanner {
             cells.put(cell.index(), cell);
         }
 
+        Map<Integer, SkyIslandChannelTerminalFate> terminalFates = new HashMap<>();
+        for (SkyIslandChannelTerminalFate fate :
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor,
+                        geometry.topology().skeletonPlan().geomorphicNetwork())) {
+            terminalFates.put(fate.channelTerminalCellIndex(), fate);
+        }
+
         List<SkyIslandCascadeHeadCompatibilityOutcome> outcomes =
                 new ArrayList<>(geometry.cascades().size());
         for (SkyIslandHydraulicCascadeGeometryCandidate cascade : geometry.cascades()) {
@@ -69,6 +78,7 @@ public final class SkyIslandCascadeHeadCompatibilityPlanner {
                     cascade,
                     requireReach(reaches, cascade.transitionSite()),
                     cells,
+                    terminalFates,
                     terrain,
                     policy));
         }
@@ -82,6 +92,7 @@ public final class SkyIslandCascadeHeadCompatibilityPlanner {
             SkyIslandHydraulicCascadeGeometryCandidate geometry,
             SkyIslandHydraulicReachSkeleton reach,
             Map<Integer, SkyIslandWatershedCell> cells,
+            Map<Integer, SkyIslandChannelTerminalFate> terminalFates,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicQualificationPolicy policy) {
         SkyIslandHydraulicCascadeTransitionSite site = geometry.transitionSite();
@@ -93,8 +104,21 @@ public final class SkyIslandCascadeHeadCompatibilityPlanner {
                 authoredCascadeDropWorldUnits(
                         descriptor, profiles, site, cells);
 
+        boolean terminalEdgeOutlet =
+                site.lastProfileIndexExclusive() == profiles.size()
+                        && site.firstProfileIndex() > 0
+                        && terminalFates.get(semantic.endCellIndex()) != null
+                        && terminalFates.get(semantic.endCellIndex()).kind()
+                                == SkyIslandChannelTerminalFateKind.EDGE_OUTLET;
         if (site.firstProfileIndex() == 0
-                || site.lastProfileIndexExclusive() == profiles.size()) {
+                || site.lastProfileIndexExclusive() == profiles.size()
+                        && !terminalEdgeOutlet) {
+            SkyIslandChannelTerminalFate fate =
+                    terminalFates.get(semantic.endCellIndex());
+            String reason = site.firstProfileIndex() == 0
+                    ? "CASCADE reaches the source/confluence side and requires combined transition ownership"
+                    : "terminal CASCADE requires an explicit EDGE_OUTLET; fate="
+                            + (fate == null ? "MISSING" : fate.kind().name());
             return new SkyIslandCascadeHeadCompatibilityOutcome(
                     geometry,
                     SkyIslandCascadeHeadCompatibilityStatus.BOUNDARY_COUPLED,
@@ -103,16 +127,17 @@ public final class SkyIslandCascadeHeadCompatibilityPlanner {
                     Optional.empty(),
                     Optional.empty(),
                     Optional.empty(),
-                    Optional.of(
-                            "CASCADE run touches semantic reach boundary and requires combined transition ownership"));
+                    Optional.of(reason));
         }
 
         SkyIslandChannelProfileKind upstreamKind =
                 profiles.get(site.firstProfileIndex() - 1).kind();
-        SkyIslandChannelProfileKind downstreamKind =
-                profiles.get(site.lastProfileIndexExclusive()).kind();
+        SkyIslandChannelProfileKind downstreamKind = terminalEdgeOutlet
+                ? SkyIslandChannelProfileKind.CASCADE
+                : profiles.get(site.lastProfileIndexExclusive()).kind();
         if (upstreamKind == SkyIslandChannelProfileKind.CASCADE
-                || downstreamKind == SkyIslandChannelProfileKind.CASCADE) {
+                || !terminalEdgeOutlet
+                        && downstreamKind == SkyIslandChannelProfileKind.CASCADE) {
             throw new IllegalStateException(
                     "maximal CASCADE run must be bounded by ordinary profiles");
         }
