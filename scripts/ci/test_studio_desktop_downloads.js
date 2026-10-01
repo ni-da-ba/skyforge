@@ -10,6 +10,7 @@ const {
 assert.equal(safeSuggestedFilename("terrain-report.json"), "terrain-report.json");
 assert.equal(safeSuggestedFilename("../reports/terrain:report?.json"), "terrain_report_.json");
 assert.equal(safeSuggestedFilename(""), "studio-export");
+assert.equal(safeSuggestedFilename("bad\u0001name.json"), "bad_name.json");
 assert.equal(safeSuggestedFilename("x".repeat(300)).length, 180);
 
 let listenerName = null;

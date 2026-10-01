@@ -94,7 +94,7 @@ async function handleAppRequest(request) {
   }
 
   const segments = decodedPath.split(/[\\/]+/).filter((segment) => segment && segment !== ".");
-  if (segments.some((segment) => segment === ".." || segment.includes("\\0"))) {
+  if (segments.some((segment) => segment === ".." || segment.includes("\0"))) {
     return response(400, "Invalid application path");
   }
   if (segments.length === 0) segments.push("index.html");
