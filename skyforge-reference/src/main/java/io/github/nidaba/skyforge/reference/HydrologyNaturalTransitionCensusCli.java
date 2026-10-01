@@ -76,26 +76,54 @@ public final class HydrologyNaturalTransitionCensusCli {
                                 new java.util.EnumMap<>(SkyIslandConfluenceCascadeHeadCompatibilityStatus.class);
                         joint.outcomes().forEach(outcome ->
                                 counts.merge(outcome.status(), 1, Integer::sum));
-                        statusCounts = formatCounts(counts);
-                        boolean solved = joint.outcomes().stream().anyMatch(outcome ->
-                                outcome.status()
-                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED);
-                        if (solved) {
+                        statusCounts = joint.outcomes().isEmpty()
+                                ? "NO_NATURAL_F3H_BOUNDARY_MATCH:1"
+                                : formatCounts(counts);
+                        var solvedOutcomes = joint.outcomes().stream()
+                                .filter(outcome -> outcome.status()
+                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED)
+                                .toList();
+                        if (!solvedOutcomes.isEmpty()) {
                             solvedIdentityCount++;
                             var assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
                             StringJoiner outcomes = new StringJoiner("|");
-                            for (var component : assembly.terminalComponents()) {
-                                outcomes.add(component.terminalFate().channelTerminalCellIndex()
-                                        + ":" + component.status().name()
-                                        + ":" + clean(String.join(" / ", component.blockers())));
-                                if (component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+                            for (var solvedOutcome : solvedOutcomes) {
+                                int node = solvedOutcome.confluence().transitionSite().nodeCellIndex();
+                                var site = solvedOutcome.cascade().transitionSite();
+                                boolean admittedByF3I = assembly.ordinarySpanPlan().jointPlan().outcomes()
+                                        .stream()
+                                        .anyMatch(value -> value.status()
+                                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED
+                                                && value.confluence().transitionSite().nodeCellIndex() == node
+                                                && value.cascade().transitionSite().equals(site));
+                                if (!admittedByF3I) {
+                                    outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
+                                            + site.reachEndCellIndex() + ":F3I_NOT_ADMITTED");
+                                    continue;
+                                }
+                                var owners = assembly.terminalComponents().stream()
+                                        .filter(component -> component.reaches().stream().anyMatch(reach ->
+                                                reach.semanticReach().startCellIndex()
+                                                        == site.reachStartCellIndex()
+                                                        && reach.semanticReach().endCellIndex()
+                                                        == site.reachEndCellIndex()))
+                                        .toList();
+                                if (owners.size() != 1) {
+                                    outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
+                                            + site.reachEndCellIndex() + ":COMPONENT_OWNERS="
+                                            + owners.size());
+                                    continue;
+                                }
+                                var owner = owners.getFirst();
+                                outcomes.add(node + "@" + site.reachStartCellIndex() + "->"
+                                        + site.reachEndCellIndex() + ":" + owner.status().name()
+                                        + ":" + clean(String.join(" / ", owner.blockers())));
+                                if (owner.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
                                     qualifiedComponentCount++;
                                 }
                             }
                             componentOutcomes = outcomes.toString();
-                            diagnostics = joint.outcomes().stream()
-                                    .filter(outcome -> outcome.status()
-                                            == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED)
+                            diagnostics = solvedOutcomes.stream()
                                     .map(outcome -> outcome.confluence().transitionSite().nodeCellIndex()
                                             + "@" + outcome.cascade().transitionSite().reachStartCellIndex()
                                             + "->" + outcome.cascade().transitionSite().reachEndCellIndex())
@@ -109,6 +137,9 @@ public final class HydrologyNaturalTransitionCensusCli {
                                     .distinct()
                                     .sorted()
                                     .collect(java.util.stream.Collectors.joining("|"));
+                            if (joint.outcomes().isEmpty()) {
+                                diagnostics = "no natural F3H boundary match";
+                            }
                         }
                     }
 
@@ -159,6 +190,11 @@ public final class HydrologyNaturalTransitionCensusCli {
                 No D2/E2 limits, corridors, terminal-CASCADE rules, or geometry were changed.
                 """, StandardCharsets.UTF_8);
         System.out.println(summary);
+        if (planningFailureCount > 0) {
+            throw new IllegalStateException(
+                    "natural transition census encountered " + planningFailureCount
+                            + " planning failures; inspect identity-manifest.csv");
+        }
     }
 
     private static int countConfluences(java.util.List<SkyIslandSemanticChannelReach> reaches) {
