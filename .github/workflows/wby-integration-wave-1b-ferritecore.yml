@@ -3,18 +3,31 @@ name: WBY Integration Wave 1B FerriteCore Screen
 on:
   pull_request:
     paths:
+      - ".github/workflows/wby-integration-wave-1b-ferritecore-multiplayer.yml"
+      - ".github/workflows/wby-integration-wave-1b-ferritecore-save-reload.yml"
+      - ".github/workflows/wby-integration-wave-1b-ferritecore-train.yml"
       - ".github/workflows/wby-integration-wave-1b-ferritecore.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSableFullSyncOrderingGuard.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceReloadClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryServerAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TrainSanityClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TrainSanityLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityWorldPrepareAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeSableSubLevelTrackingOrderingMixin.java"
+      - "skyforge-neoforge-1211/src/main/resources/skyforge.mixins.json"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSableFullSyncOrderingGuardTest.java"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityWorldPrepareAcceptance.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityLifecycleAcceptance.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryServerAcceptance.java"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryClientAcceptance.java"
   workflow_dispatch:
 
 permissions:
@@ -344,4 +357,644 @@ jobs:
             skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-wave1-telemetry-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-wave1-telemetry-client/logs/latest.log
+          if-no-files-found: warn
+
+  train-sanity:
+    needs: ferritecore-screen
+    runs-on: ubuntu-24.04
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: ferritecore
+    timeout-minutes: 30
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Prepare disposable quick-play world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          rm -rf "$run_dir"
+          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^wbyWave1VisibilityWorldPrepared=true$' "$result"
+          grep -q '^preassembledDistantSableBodyPersisted=false$' "$result"
+
+          mapfile -t level_files < <(find "$run_dir" -maxdepth 4 -type f -name level.dat -print)
+          if [[ "${#level_files[@]}" -ne 1 ]]; then
+            echo "expected exactly one prepared level.dat, found ${#level_files[@]}"
+            printf '  %s\n' "${level_files[@]}"
+            find "$run_dir" -maxdepth 4 -mindepth 1 -print | sort
+            exit 1
+          fi
+
+          source_world="$(dirname "${level_files[0]}")"
+          client_world="$run_dir/saves/wby-wave1-visibility-client"
+          if [[ "$source_world" != "$client_world" ]]; then
+            rm -rf "$client_world"
+            mkdir -p "$run_dir/saves"
+            cp -a "$source_world" "$client_world"
+          fi
+          test -f "$client_world/level.dat"
+
+      - name: Configure bounded unattended client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact Wave 1 jars like a real modpack client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+      - name: Qualify Create train coexistence with distant Sable
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-wave1-train-sanity.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-train-sanity/client.properties"
+          rm -f "$result"
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TrainSanityClientAcceptance --no-configuration-cache >"$log" 2>&1 &
+          runner_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 270); do
+            if [[ -f "$result" ]]; then
+              if grep -q '^status=PASS$' "$result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              wait "$runner_pid" || rc=$?
+              rc=${rc:-0}
+              echo "train-sanity client exited before terminal evidence (rc=$rc)"
+              cat "$log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ -z "$terminal" ]]; then
+            echo "train-sanity client produced no terminal evidence within 270 seconds"
+            cat "$log"
+            kill -TERM -- "-$runner_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$runner_pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          kill -TERM -- "-$runner_pid" 2>/dev/null || true
+          for _ in $(seq 1 10); do
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          kill -KILL -- "-$runner_pid" 2>/dev/null || true
+          wait "$runner_pid" 2>/dev/null || true
+          cat "$log"
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY train-sanity acceptance reported FAIL"
+            cat "$result"
+            exit 1
+          fi
+
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^trainRailwayRecordObserved=true$' "$result"
+          grep -q '^trainRendererObserved=true$' "$result"
+          grep -q '^sableTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+          grep -q '^trainAndDistantSableCoexisted=true$' "$result"
+          grep -Eq '\(lithium\)' "$log"
+          grep -Eq '\(ferritecore\)' "$log"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-train-sanity/client.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert int(p["trainStableTicks"]) >= 12, p
+          assert float(p["trainHorizontalDistanceBlocks"]) < 64.0, p
+          assert int(p["distantSableStableTicks"]) >= 20, p
+          assert float(p["sableHorizontalDistanceBlocks"]) > 96.0, p
+          assert float(p["sableTransformErrorBlocks"]) <= 8.0, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          assert p["trainRendererClass"].endswith("CarriageContraptionEntityRenderer"), p
+          print("WBY WAVE 1 TRAIN SANITY PASS", p)
+          PY
+
+      - name: Upload Wave 1 train-sanity evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-ferritecore-train-admission
+          path: |
+            wby-wave1-train-sanity.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-train-sanity/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+          if-no-files-found: warn
+
+  save-reload:
+    needs: ferritecore-screen
+    runs-on: ubuntu-24.04
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: ferritecore
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Boot A — persist the distant Sable body and locator
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 240 ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistencePrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/prepare.properties"
+          game_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^persistencePrepared=true$' "$result"
+          grep -q '^saveSuccess=true$' "$result"
+          grep -q '^fixtureLivenessReleased=true$' "$result"
+          test -f "$game_dir/wby-wave1-persistence.identity"
+          test -f "$game_dir/saves/wby-wave1-persistence/level.dat"
+
+      - name: Configure bounded unattended reload client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact Wave 1 jars like a real modpack client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StagePersistenceClientMods --no-configuration-cache
+
+      - name: Boot B — reopen the save and qualify the same UUID through DH and SSRD
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-wave1-save-reload.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties"
+          rm -f "$result"
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistenceReloadClientAcceptance --no-configuration-cache >"$log" 2>&1 &
+          runner_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 270); do
+            if [[ -f "$result" ]]; then
+              if grep -q '^status=PASS$' "$result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              wait "$runner_pid" || rc=$?
+              rc=${rc:-0}
+              echo "save/reload client exited before terminal evidence (rc=$rc)"
+              cat "$log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ -z "$terminal" ]]; then
+            echo "save/reload client produced no terminal evidence within 270 seconds"
+            cat "$log"
+            kill -TERM -- "-$runner_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$runner_pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          kill -TERM -- "-$runner_pid" 2>/dev/null || true
+          for _ in $(seq 1 10); do
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          kill -KILL -- "-$runner_pid" 2>/dev/null || true
+          wait "$runner_pid" 2>/dev/null || true
+          cat "$log"
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY save/reload acceptance reported FAIL"
+            cat "$result"
+            exit 1
+          fi
+
+          grep -q '^reloaded=true$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^samePersistentUuid=true$' "$result"
+          grep -q '^persistencePointerVerified=true$' "$result"
+          grep -q '^currentPhysicsHandleValid=true$' "$result"
+          grep -q '^clientSubLevelFinalized=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^beyondVanillaRenderDistance=true$' "$result"
+          grep -q '^ssrdRenderDataPresent=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^ssrdProjectionMatrixPresent=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+          grep -Eq '\(lithium\)' "$log"
+          grep -Eq '\(ferritecore\)' "$log"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["serverReloadTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["horizontalDistanceBlocks"]) > 96.0, p
+          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          assert int(p["stableQualifiedTicks"]) >= 20, p
+          print("WBY WAVE 1 SAVE RELOAD PASS", p)
+          PY
+
+      - name: Upload Wave 1 save/reload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-ferritecore-save-reload-admission
+          path: |
+            wby-wave1-save-reload.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-persistence/wby-wave1-persistence.identity
+            skyforge-neoforge-1211/run-wby-wave1-persistence/logs/latest.log
+          if-no-files-found: warn
+
+  multiplayer-remote-craft:
+    needs: ferritecore-screen
+    runs-on: ubuntu-24.04
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: ferritecore
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile multiplayer acceptance
+        run: ./gradlew :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Configure dedicated server and two clients
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-server"
+          observer_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer"
+          near_dir="skyforge-neoforge-1211/run-wby-wave1-multiplayer-near"
+          rm -rf "$server_dir" "$observer_dir" "$near_dir"
+          mkdir -p "$server_dir" "$observer_dir" "$near_dir"
+
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          cat > "$server_dir/server.properties" <<'EOF'
+          level-name=wby-wave1-multiplayer
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=4
+          server-port=25567
+          EOF
+
+          cat > "$observer_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+          cat > "$near_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:2
+          simulationDistance:4
+          entityDistanceScaling:0.5
+          particles:0
+          narrator:0
+          maxFps:10
+          mipmapLevels:0
+          EOF
+
+      - name: Stage exact Wave 1 jars into both real client mod directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+          source_mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          observer_mods="skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/mods"
+          near_mods="skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/mods"
+          rm -rf "$observer_mods" "$near_mods"
+          mkdir -p "$observer_mods" "$near_mods"
+          cp -a "$source_mods"/. "$observer_mods"/
+          cp -a "$source_mods"/. "$near_mods"/
+
+          test "$(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 8
+          test "$(find "$near_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 8
+          cmp <(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort) \
+              <(find "$near_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort)
+
+      - name: Qualify remote craft with second multiplayer client nearby
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_log="wby-wave1-multiplayer-server.log"
+          observer_log="wby-wave1-multiplayer-observer.log"
+          near_log="wby-wave1-multiplayer-near.log"
+          observer_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/observer.properties"
+          fixture_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/fixture.properties"
+          server_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/server.properties"
+          rm -f "$observer_result" "$fixture_result" "$server_result"
+
+          server_pid=""
+          observer_pid=""
+          near_pid=""
+          cleanup() {
+            set +e
+            for pid in "$observer_pid" "$near_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+              fi
+            done
+            sleep 2
+            for pid in "$observer_pid" "$near_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerServerAcceptance --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before ready"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "multiplayer server did not become ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          grep -Eq '\(create\)' "$server_log"
+          grep -Eq '\(sable\)' "$server_log"
+          grep -Eq '\(aeronautics\)' "$server_log"
+          grep -Eq '\(ssrd\)' "$server_log"
+          grep -Eq '\(lithium\)' "$server_log"
+          grep -Eq '\(ferritecore\)' "$server_log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
+            echo "multiplayer server leaked client-only renderer mods"
+            cat "$server_log"
+            exit 1
+          fi
+
+          # Start the inexpensive near-craft client first and let its NeoForge/GL stack
+          # finish initialization before launching the observer. Two simultaneous cold client
+          # startups have produced native loader SIGBUS failures on hosted software-GL runners;
+          # the actual multiplayer proof still runs with both real clients connected concurrently.
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerNearClient --no-configuration-cache >"$near_log" 2>&1 &
+          near_pid=$!
+
+          near_joined=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "WbyNear joined the game" "$server_log" 2>/dev/null; then
+              near_joined=1
+              break
+            fi
+            if ! kill -0 "$near_pid" 2>/dev/null; then
+              echo "near client exited before joining the multiplayer server"
+              cat "$near_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before near client joined"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$near_joined" -ne 1 ]]; then
+            echo "near client did not join the multiplayer server"
+            cat "$server_log"
+            cat "$near_log"
+            exit 1
+          fi
+
+          # Give the already-joined client a short steady-state window before initializing the
+          # second software-GL process. It remains connected for the entire observer proof.
+          sleep 8
+
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1MultiplayerObserverClientAcceptance --no-configuration-cache >"$observer_log" 2>&1 &
+          observer_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 390); do
+            if [[ -f "$observer_result" ]]; then
+              if grep -q '^status=PASS$' "$observer_result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$observer_result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+            if [[ -f "$server_result" ]] && grep -q '^status=FAIL$' "$server_result"; then
+              echo "multiplayer server acceptance reported FAIL"
+              cat "$server_result"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "multiplayer server exited before observer qualification"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$near_pid" 2>/dev/null; then
+              echo "near client exited before observer qualification"
+              cat "$near_log"
+              exit 1
+            fi
+            if ! kill -0 "$observer_pid" 2>/dev/null; then
+              echo "observer client exited before terminal evidence"
+              cat "$observer_log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY multiplayer observer failed or timed out"
+            [[ -f "$observer_result" ]] && cat "$observer_result"
+            cat "$server_log"
+            cat "$observer_log"
+            cat "$near_log"
+            exit 1
+          fi
+
+          cat "$observer_result"
+          test -f "$fixture_result"
+          cat "$fixture_result"
+
+          grep -q '^status=READY$' "$fixture_result"
+          grep -q '^dedicatedServer=true$' "$fixture_result"
+          grep -q '^observerPlayerName=WbyObserver$' "$fixture_result"
+          grep -q '^nearPlayerName=WbyNear$' "$fixture_result"
+          grep -q '^nearPlayerPhysicallyPresent=true$' "$fixture_result"
+
+          grep -q '^actualClient=true$' "$observer_result"
+          grep -q '^actualMultiplayer=true$' "$observer_result"
+          grep -q '^observerPlayerName=WbyObserver$' "$observer_result"
+          grep -q '^sableRenderDataPresent=true$' "$observer_result"
+          grep -q '^sableFinalized=true$' "$observer_result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$observer_result"
+          grep -q '^ssrdDistanceSource=Server$' "$observer_result"
+          grep -q '^ssrdEffectiveMaxChunks=128$' "$observer_result"
+          grep -q '^distantHorizonsLoaded=true$' "$observer_result"
+          grep -q '^sodiumLoaded=true$' "$observer_result"
+          grep -q '^multiplayerRemoteCraftObserverQualified=true$' "$observer_result"
+          grep -Eq '\(lithium\)' "$observer_log"
+          grep -Eq '\(ferritecore\)' "$observer_log"
+          grep -Eq '\(lithium\)' "$near_log"
+          grep -Eq '\(ferritecore\)' "$near_log"
+
+          grep -Fq "SSRD: Received range request from player WbyObserver: 128 chunks" "$server_log"
+          for client_log in "$observer_log" "$near_log"; do
+            if grep -Fq "Received a sub-level movement packet for a non-existent sub-level" "$client_log"; then
+              echo "Sable full-sync ordering regression detected in $client_log"
+              exit 1
+            fi
+          done
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def load(path):
+              result = {}
+              for line in Path(path).read_text().splitlines():
+                  if "=" in line and not line.startswith("#"):
+                      key, value = line.split("=", 1)
+                      result[key] = value
+              return result
+
+          observer = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/observer.properties")
+          fixture = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/fixture.properties")
+          assert int(observer["distantSableStableTicks"]) >= 20, observer
+          assert 96.0 < float(observer["observerBodyHorizontalDistanceBlocks"]) < 192.0, observer
+          assert observer["ssrdDistanceSource"] == "Server", observer
+          assert int(observer["ssrdEffectiveMaxChunks"]) == 128, observer
+          assert int(fixture["connectedPlayers"]) >= 2, fixture
+          assert float(fixture["observerBodyHorizontalDistanceBlocks"]) > 96.0, fixture
+          assert float(fixture["nearPlayerBodyDistanceBlocks"]) <= 24.0, fixture
+          assert fixture["bodyId"] == observer["distantSableBodyId"], (fixture, observer)
+          print("WBY WAVE 1 MULTIPLAYER REMOTE CRAFT PASS", {"fixture": fixture, "observer": observer})
+          PY
+
+      - name: Upload Wave 1 multiplayer evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-ferritecore-multiplayer-admission
+          path: |
+            wby-wave1-multiplayer-server.log
+            wby-wave1-multiplayer-observer.log
+            wby-wave1-multiplayer-near.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-multiplayer/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-observer/hs_err_pid*.log
+            skyforge-neoforge-1211/run-wby-wave1-multiplayer-near/hs_err_pid*.log
           if-no-files-found: warn
