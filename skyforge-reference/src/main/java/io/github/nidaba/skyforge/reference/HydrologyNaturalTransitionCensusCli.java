@@ -159,11 +159,17 @@ public final class HydrologyNaturalTransitionCensusCli {
                             .append(clean(diagnostics)).append('\n');
                 } catch (RuntimeException failure) {
                     planningFailureCount++;
+                    String diagnostic = failure.getClass().getSimpleName() + ": " + failure.getMessage();
+                    System.err.println(
+                            "NATURAL_TRANSITION_CENSUS_PLANNING_FAILURE namespace="
+                                    + namespace.province() + "/" + namespace.cluster()
+                                    + " key=" + key + " " + clean(diagnostic));
+                    failure.printStackTrace(System.err);
                     identities.append(namespace.province()).append(',')
                             .append(namespace.cluster()).append(',')
                             .append(key).append(',')
                             .append("0,0,0,false,,0,PLANNING_FAILURE,")
-                            .append(clean(failure.getClass().getSimpleName() + ": " + failure.getMessage()))
+                            .append(clean(diagnostic))
                             .append('\n');
                 }
             }
