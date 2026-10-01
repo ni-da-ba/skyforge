@@ -1,0 +1,214 @@
+name: WBY Integration Wave 1 Telemetry
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1-telemetry.yml"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryServerAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1-telemetry-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  telemetry:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile telemetry acceptance
+        run: ./gradlew :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Capture dedicated-server telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          result="$PWD/skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties"
+          log="wby-wave1-telemetry-server.log"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir" "$(dirname "$result")"
+          rm -f "$result"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-wave1-telemetry-server
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25569
+          EOF
+
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} \
+            -Dskyforge.dev.wbyWave1TelemetryServer=true \
+            -Dskyforge.dev.acceptanceHarness=true \
+            -Dskyforge.dev.acceptanceMode=server \
+            -Dskyforge.dev.acceptanceCase=wby-wave1-telemetry-server \
+            -Dskyforge.dev.acceptanceRadius=0 \
+            -Dskyforge.dev.acceptanceTimeoutSeconds=240 \
+            -Dskyforge.dev.performanceMetrics=true \
+            -Dskyforge.dev.acceptanceResultFile=$result"
+
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache 2>&1 | tee "$log"
+
+          test -f "$result"
+          cat "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^dedicatedServer=true$' "$result"
+          grep -q '^serverTelemetryQualified=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+
+          assert int(p["sampleTicks"]) >= 300, p
+          assert float(p["serverMsptMedian"]) >= 0.0, p
+          assert float(p["serverMsptP95"]) >= float(p["serverMsptMedian"]), p
+          assert int(p["loadedChunksMax"]) >= 1, p
+          assert int(p["forcedChunksMax"]) >= 0, p
+          assert int(p["sableSublevelsMax"]) >= 1, p
+          print("WBY WAVE 1 SERVER TELEMETRY PASS", p)
+          PY
+
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "telemetry server leaked client-only renderer mods"
+            exit 1
+          fi
+
+      - name: Prepare disposable client telemetry world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          rm -rf "$run_dir"
+          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^wbyWave1VisibilityWorldPrepared=true$' "$result"
+
+          mapfile -t level_files < <(find "$run_dir" -maxdepth 4 -type f -name level.dat -print)
+          if [[ "${#level_files[@]}" -ne 1 ]]; then
+            echo "expected exactly one prepared level.dat, found ${#level_files[@]}"
+            printf '  %s\n' "${level_files[@]}"
+            exit 1
+          fi
+
+          source_world="$(dirname "${level_files[0]}")"
+          client_world="$run_dir/saves/wby-wave1-visibility-client"
+          if [[ "$source_world" != "$client_world" ]]; then
+            rm -rf "$client_world"
+            mkdir -p "$run_dir/saves"
+            cp -a "$source_world" "$client_world"
+          fi
+          test -f "$client_world/level.dat"
+
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact Wave 1 jars like a real client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+      - name: Capture real-client frame and memory telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          result="$PWD/skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties"
+          log="wby-wave1-telemetry-client.log"
+          rm -f "$result"
+
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} \
+            -Dskyforge.dev.wbyWave1Visibility=true \
+            -Dskyforge.dev.wbyWave1TelemetryClient=true \
+            -Dskyforge.dev.wbyWave1TelemetryClientResultFile=$result \
+            -Dskyforge.dev.performanceMetrics=true"
+
+          timeout 300 xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runWbyWave1VisibilityClient \
+            --args="--quickPlaySingleplayer wby-wave1-visibility-client --username WbyTelemetry" \
+            --no-configuration-cache 2>&1 | tee "$log"
+
+          test -f "$result"
+          cat "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^clientTelemetryQualified=true$' "$result"
+          grep -q '^ssrdRenderObserved=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^vramTelemetryAttempted=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+
+          assert int(p["frameTimeSamples"]) >= 180, p
+          assert float(p["frameTimeMedianMs"]) > 0.0, p
+          assert float(p["frameTimeP95Ms"]) >= float(p["frameTimeMedianMs"]), p
+          assert int(p["visibleSableSublevelsMax"]) >= 1, p
+          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
+          assert int(p["distantHorizonsDistanceChunks"]) >= int(p["ssrdEffectiveMaxChunks"]), p
+          assert int(p["ssrdEffectiveMaxChunks"]) > int(p["vanillaRenderDistanceChunks"]), p
+          if p["vramMeasurementSupported"] == "true":
+              assert int(p["vramTotalBytes"]) > 0, p
+              assert int(p["vramUsedMaxBytes"]) >= 0, p
+          print("WBY WAVE 1 CLIENT TELEMETRY PASS", p)
+          PY
+
+      - name: Upload Wave 1 telemetry evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-telemetry
+          path: |
+            wby-wave1-telemetry-server.log
+            wby-wave1-telemetry-client.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+          if-no-files-found: warn
