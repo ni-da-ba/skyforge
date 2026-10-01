@@ -522,7 +522,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
             throw new IllegalStateException("Sable rope body attachment was not initialized");
         }
         Object pose = publicMethod(body, "logicalPose").invoke(body);
-        Method transform = methodByNameAndArity(pose, "transformPosition", 1);
+        Method transform = pose.getClass().getMethod("transformPosition", Vector3d.class);
         Object transformed = transform.invoke(pose, new Vector3d(bodyAttachmentLocal));
         if (!(transformed instanceof Vector3dc vector)) {
             throw new IllegalStateException(
