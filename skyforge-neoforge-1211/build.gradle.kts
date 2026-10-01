@@ -2084,6 +2084,27 @@ neoForge {
         }
 
 
+        create("wbyWave1TrainSanityClientAcceptance") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1TrainSanity", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-train-sanity")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-train-sanity/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         create("wbyWave1PersistencePrepareServer") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
