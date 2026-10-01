@@ -2105,6 +2105,60 @@ neoForge {
         }
 
 
+        create("wbyWave1MultiplayerServerAcceptance") {
+            server()
+            sourceSet.set(wbyWave1VisibilityServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-multiplayer-server").asFile
+            programArgument("--nogui")
+            systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerNearName", "WbyNear")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-multiplayer-server")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-multiplayer/server.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1MultiplayerObserverClientAcceptance") {
+            client()
+            sourceSet.set(wbyWave1VisibilityClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-multiplayer-observer").asFile
+            programArguments.addAll("--server", "127.0.0.1", "--port", "25567", "--username", "WbyObserver")
+            systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerRole", "observer")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerNearName", "WbyNear")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-multiplayer-observer")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-multiplayer/observer.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1MultiplayerNearClient") {
+            client()
+            sourceSet.set(wbyWave1VisibilityClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-multiplayer-near").asFile
+            programArguments.addAll("--server", "127.0.0.1", "--port", "25567", "--username", "WbyNear")
+            systemProperty("skyforge.dev.wbyWave1Multiplayer", "true")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerRole", "near")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerObserverName", "WbyObserver")
+            systemProperty("skyforge.dev.wbyWave1MultiplayerNearName", "WbyNear")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         create("wbyWave1PersistencePrepareServer") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
