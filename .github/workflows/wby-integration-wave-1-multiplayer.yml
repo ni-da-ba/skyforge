@@ -10,6 +10,10 @@ on:
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerLifecycleAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1MultiplayerClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeSableFullSyncOrderingGuard.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeSableSubLevelTrackingOrderingMixin.java"
+      - "skyforge-neoforge-1211/src/main/resources/skyforge.mixins.json"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeSableFullSyncOrderingGuardTest.java"
   workflow_dispatch:
 
 permissions:
