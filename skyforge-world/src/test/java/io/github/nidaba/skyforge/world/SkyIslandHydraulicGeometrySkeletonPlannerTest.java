@@ -17,6 +17,44 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     private static final double EPSILON = 1.0e-12;
 
     @Test
+    void mixedOrdinaryProfilesUseTheirLocalD2EnvelopeOnNaturalKey700() {
+        SkyIslandDescriptor descriptor = descriptor(700L);
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        List<SkyIslandGeomorphicReachRoute> mixedOrdinaryRoutes = network.routes().stream()
+                .filter(route -> route.semanticReach().profiles().stream()
+                        .map(SkyIslandChannelProfile::kind)
+                        .filter(kind -> kind != SkyIslandChannelProfileKind.CASCADE)
+                        .distinct()
+                        .count() > 1)
+                .toList();
+
+        assertTrue(!mixedOrdinaryRoutes.isEmpty(),
+                "key 700 must retain a mixed-profile natural confluence approach");
+        for (SkyIslandGeomorphicReachRoute route : mixedOrdinaryRoutes) {
+            var first = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                    descriptor, network, route, terrain, interiority);
+            var second = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
+                    descriptor, network, route, terrain, interiority);
+            var diagnostics = first.diagnostics();
+            assertEquals(first.centerline(), second.centerline());
+            assertTrue(
+                    diagnostics.initialMaximumHeadEnvelopeGap() > EPSILON,
+                    "mixed ordinary profiles must contribute their local D2 envelope gap");
+            assertTrue(
+                    diagnostics.finalIntegratedSquaredHeadEnvelopeGap()
+                            <= diagnostics.initialIntegratedSquaredHeadEnvelopeGap() + EPSILON,
+                    "D2-directed refinement must not worsen the integrated envelope objective");
+            assertEquals(route.route().points().getFirst(), first.centerline().points().getFirst());
+            assertEquals(route.route().points().getLast(), first.centerline().points().getLast());
+        }
+    }
+
+    @Test
     void skeletonIsDeterministicAcrossFixedCorpus() {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
