@@ -118,12 +118,12 @@
   function cell(row,value,heading){const n=document.createElement(heading?"th":"td");if(heading)n.scope="col";n.textContent=String(value);row.appendChild(n);}
   function render() {
     const out=$("regional-compare-output");
+    $("regional-compare-export-report").disabled = !state.leftSource || !state.rightSource;
     if (!state.left || !state.right) {out.hidden=true; $("regional-compare-table").replaceChildren(); $("regional-compare-counts").replaceChildren(); return;}
     let result;
     try { result=compare(state.left,state.right,state.leftRanking,state.rightRanking); }
     catch(error) {out.hidden=true;status("right","Comparison unavailable: "+error.message,true);return;}
     out.hidden=false;
-    $("regional-compare-export-report").disabled = !state.leftSource || !state.rightSource;
     $("regional-compare-summary").textContent=state.left.associationCount+" left associations · "+state.right.associationCount+" right associations · "+result.rows.length+" exact association/metal keys";
     const counts=$("regional-compare-counts");counts.replaceChildren();
     for(const item of result.counts){const card=document.createElement("article");card.className="regional-compare-count";const h=document.createElement("h4");h.textContent=item.metal;const p=document.createElement("p");p.textContent="Eligible associations";const value=document.createElement("strong");value.textContent=item.left+" → "+item.right+" (Δ "+(item.delta>0?"+":"")+item.delta+")";card.append(h,p,value);counts.appendChild(card);}
@@ -138,8 +138,8 @@
     table.replaceChildren(head,body);
   }
   async function fileText(file){if(!file)throw new Error("Choose a CSV file first");if(file.size>2*1024*1024)throw new Error("CSV files must be 2 MB or smaller");return file.text();}
-  async function loadInventory(side,file){try{const invApi=root.SkyforgeRegionalInventory;if(!invApi)throw new Error("AUTH-0094 validator is unavailable");const text=await fileText(file);const parsed=invApi.parseInventoryCsv(text);state[side]=parsed;state[side+"Ranking"]=null;state[side+"Source"]={inventory:{name:safeName(file),text},ranking:null};state[side+"Names"]={inventory:safeName(file),ranking:""};$( "regional-"+side+"-ranking").value="";status(side,"Validated "+file.name+" ("+parsed.associationCount+" associations).",false);render();}catch(e){state[side]=null;state[side+"Ranking"]=null;status(side,"Could not load inventory: "+String(e.message||e),true);render();}}
-  async function loadRanking(side,file){try{if(!state[side])throw new Error("Load and validate this side's inventory first");const text=await fileText(file);state[side+"Ranking"]=root.SkyforgeRegionalInventory.parseRankingCsv(text,state[side]);state[side+"Source"].ranking={name:safeName(file),text};state[side+"Names"].ranking=safeName(file);status(side,"Validated "+file.name+" against this side's inventory.",false);render();}catch(e){state[side+"Ranking"]=null;status(side,"Could not load ranking: "+String(e.message||e),true);render();}}
+  async function loadInventory(side,file){try{const invApi=root.SkyforgeRegionalInventory;if(!invApi)throw new Error("AUTH-0094 validator is unavailable");const text=await fileText(file);const parsed=invApi.parseInventoryCsv(text);state[side]=parsed;state[side+"Ranking"]=null;state[side+"Source"]={inventory:{name:safeName(file),text},ranking:null};state[side+"Names"]={inventory:safeName(file),ranking:""};$( "regional-"+side+"-ranking").value="";status(side,"Validated "+file.name+" ("+parsed.associationCount+" associations).",false);render();}catch(e){state[side]=null;state[side+"Ranking"]=null;state[side+"Source"]=null;state[side+"Names"]={};status(side,"Could not load inventory: "+String(e.message||e),true);render();}}
+  async function loadRanking(side,file){try{if(!state[side])throw new Error("Load and validate this side's inventory first");const text=await fileText(file);state[side+"Ranking"]=root.SkyforgeRegionalInventory.parseRankingCsv(text,state[side]);state[side+"Source"].ranking={name:safeName(file),text};state[side+"Names"].ranking=safeName(file);status(side,"Validated "+file.name+" against this side's inventory.",false);render();}catch(e){state[side+"Ranking"]=null;if(state[side+"Source"])state[side+"Source"].ranking=null;if(state[side+"Names"])state[side+"Names"].ranking="";status(side,"Could not load ranking: "+String(e.message||e),true);render();}}
   function clear(){for(const side of ["left","right"]){state[side]=null;state[side+"Ranking"]=null;state[side+"Source"]=null;state[side+"Names"]={};$("regional-"+side+"-inventory").value="";$("regional-"+side+"-ranking").value="";status(side,"Choose an inventory CSV.",false);}render();}
   function init(){
     for(const side of ["left","right"]){
@@ -157,7 +157,7 @@
         const text=JSON.stringify(report,null,2)+"\n";
         if(new TextEncoder().encode(text).length>MAX_PACKAGE_BYTES)throw new Error("Comparison package exceeds the 10 MB limit");
         const link=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
-        link.href=url;link.download="skyforge-regional-comparison.json";link.click();URL.revokeObjectURL(url);
+        link.href=url;link.download="skyforge-regional-comparison.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),0);
         $("regional-compare-package-status").textContent="Downloaded a portable, unbound diagnostic package with the original CSV inputs.";
         $("regional-compare-package-status").className="small muted";
       }catch(e){$("regional-compare-package-status").textContent="Could not export comparison: "+String(e.message||e);$("regional-compare-package-status").className="small error";}
