@@ -36,7 +36,8 @@
 
   function requiredValidators(validators) {
     if (!validators || !validators.worldBrief || !validators.workspaceSession ||
-        !validators.workspacePackage || !validators.terrainLibrary || !validators.regionalLibrary) {
+        !validators.workspacePackage || !validators.terrainLibrary || !validators.regionalLibrary ||
+        !validators.regionalComparison || !validators.regionalInventory) {
       throw new Error("Studio backup validators are unavailable");
     }
     return validators;
@@ -52,6 +53,16 @@
     return record;
   }
 
+  function validateRegionalRecords(records, validators) {
+    const normalized = validators.regionalLibrary.normalizeRecords(records);
+    for (const record of normalized) {
+      validators.regionalComparison.validatePackageInputs(
+        record.package_json, record.package_bytes, validators.regionalInventory
+      );
+    }
+    return normalized;
+  }
+
   function create(input, validators) {
     requiredValidators(validators);
     if (!exactKeys(input, INPUT_KEYS)) throw new Error("Studio backup input has an invalid shape");
@@ -62,7 +73,7 @@
       world_brief_library: validators.worldBrief.parseLibrary(input.worldBriefLibrary),
       inspection_session: validateInspectionSession(input.inspectionSession, validators),
       terrain_comparisons: validators.terrainLibrary.normalizeRecords(input.terrainComparisons),
-      regional_comparisons: validators.regionalLibrary.normalizeRecords(input.regionalComparisons),
+      regional_comparisons: validateRegionalRecords(input.regionalComparisons, validators),
     };
     const serialized = JSON.stringify(document);
     const maximumBytes = validators.maximumBytes || MAXIMUM_FILE_BYTES;
@@ -125,7 +136,9 @@
     );
     const regional = mergeRecords(
       current.regional_comparisons, imported.regional_comparisons,
-      validators.regionalLibrary, "regional comparison"
+      {
+        normalizeRecords: records => validateRegionalRecords(records, validators),
+      }, "regional comparison"
     );
     const incomingSession = imported.inspection_session;
     const currentSession = current.inspection_session;
