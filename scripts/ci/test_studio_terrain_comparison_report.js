@@ -68,7 +68,7 @@ assert.equal(parsed.sourceProvenanceVerified, false);
 assert.equal(parsed.comparison.reviewAuthority, false);
 assert.equal(parsed.comparison.changedCellCount, 2);
 assert.equal(parsed.comparison.pageChangedCells(0, 1).items.length, 1);
-assert.deepEqual(parsed.comparison.pageChangedCells(1, 1).items[0].gridIndex, [1, 1, 0]);
+assert.deepEqual(parsed.comparison.pageChangedCells(1, 1).items[0].gridIndex, [0, 0, 1]);
 assert.equal(parsed.comparison.columns.find(column => column.x === 1 && column.z === 0).heightDelta, -1);
 
 const claimsAuthority = JSON.parse(bytes);
@@ -82,6 +82,14 @@ assert.throws(() => readerApi.parse(JSON.stringify(boundSource)), /source must b
 const inconsistent = JSON.parse(bytes);
 inconsistent.changed_cells.pop();
 assert.throws(() => readerApi.parse(JSON.stringify(inconsistent)), /summary does not match/);
+
+const wrongWorldPosition = JSON.parse(bytes);
+wrongWorldPosition.changed_cells[0].position[0] += 1;
+assert.throws(() => readerApi.parse(JSON.stringify(wrongWorldPosition)), /world position does not match its grid/);
+
+const wrongColumnSummary = JSON.parse(bytes);
+wrongColumnSummary.summary.changedColumnCount += 1;
+assert.throws(() => readerApi.parse(JSON.stringify(wrongColumnSummary)), /surface summary does not match/);
 
 assert.throws(() => readerApi.parse(bytes, readerApi.maximumFileBytes + 1), /32 MB or smaller/);
 assert.throws(() => reportApi.create({ ...comparison, changedCellCount: reportApi.maximumChangedCells + 1 }),
