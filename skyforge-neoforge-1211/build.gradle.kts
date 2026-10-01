@@ -238,7 +238,7 @@ check(wbyWave1BPin("neoforge", "version") == "21.1.249") {
     "WBY Wave 1B NeoForge pin must match the adapter runtime"
 }
 
-val wbyWave1BSupportedOptimizers = setOf("lithium", "ferritecore", "immediatelyfast")
+val wbyWave1BSupportedOptimizers = setOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
 val wbyWave1BOptimizer = providers.gradleProperty("wbyWave1BOptimizer")
     .orNull
     ?.trim()
@@ -256,6 +256,7 @@ val wbyWave1BOptimizerMods = when (wbyWave1BOptimizer) {
     "lithium" -> listOf("lithium")
     "ferritecore" -> listOf("lithium", "ferritecore")
     "immediatelyfast" -> listOf("lithium", "ferritecore", "immediatelyfast")
+    "dynamicfps" -> listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
     else -> error("unreachable WBY Wave 1B optimizer '$wbyWave1BOptimizer'")
 }
 
