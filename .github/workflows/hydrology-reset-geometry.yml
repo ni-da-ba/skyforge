@@ -273,58 +273,59 @@ jobs:
 
       - name: Run reset geometry tests
         run: |
-          ./gradlew \
-            :skyforge-world:test --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
-            :skyforge-world:test --tests '*SkyIslandSemanticChannelReachPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandTerrainAwareRouteSolverTest' \
-            :skyforge-world:test --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandChannelTerminalFatePlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandOrdinarySpanPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyOrdinarySpanCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyNetworkAssemblyCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyComponentTerrainCandidateCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest' \
-            :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandFluvialVoxelQuantizationPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyVoxelQuantizationCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest' \
-            :skyforge-reference:test --tests '*HydrologyWorldWaterProjectionCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandWorldWaterHeadRefinementPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyWorldHeadRefinementCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandWorldHeadRefinedTerrainPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyLateralRefinementCorpusTest' \
-            :skyforge-reference:test --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' \
-            :skyforge-neoforge-1211:test --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
-            :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' \
-            :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' \
-            :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
-            :skyforge-world:test --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
-            :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
-            :skyforge-world:test --tests '*SkyIslandContinuousWaterbodyQualificationEvaluatorTest' \
-            :skyforge-world:test --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest' \
-            :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' \
+            :skyforge-world:test \
+            --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
+            --tests '*SkyIslandSemanticChannelReachPlannerTest' \
+            --tests '*SkyIslandTerrainAwareRouteSolverTest' \
+            --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
+            --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
+            --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
+            --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
+            --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
+            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
+            --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
+            --tests '*SkyIslandChannelTerminalFatePlannerTest' \
+            --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
+            --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
+            --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
+            --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
+            --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
+            --tests '*SkyIslandOrdinarySpanPlannerTest' \
+            --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest' \
+            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest' \
+            --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest' \
+            --tests '*SkyIslandFluvialVoxelQuantizationPlannerTest' \
+            --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest' \
+            --tests '*SkyIslandWorldWaterHeadRefinementPlannerTest' \
+            --tests '*SkyIslandWorldHeadRefinedTerrainPlannerTest' \
+            --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
+            --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
+            --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
+            --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
+            --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
+            --tests '*SkyIslandContinuousWaterbodyQualificationEvaluatorTest' \
+            --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest' \
+            :skyforge-reference:test \
+            --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
+            --tests '*HydrologyCascadeCompatibilityCorpusTest' \
+            --tests '*HydrologyOrdinarySpanCorpusTest' \
+            --tests '*HydrologyNetworkAssemblyCorpusTest' \
+            --tests '*HydrologyComponentTerrainCandidateCorpusTest' \
+            --tests '*HydrologyWorldSurfaceProjectionCorpusTest' \
+            --tests '*HydrologyVoxelQuantizationCorpusTest' \
+            --tests '*HydrologyWorldWaterProjectionCorpusTest' \
+            --tests '*HydrologyWorldHeadRefinementCorpusTest' \
+            --tests '*HydrologyLateralRefinementCorpusTest' \
+            --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' \
+            --tests '*HydrologyBoundedProfileCorpusTest' \
+            --tests '*HydrologyRouteResolutionCorpusTest' \
+            --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
+            --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
+            --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
+            --tests '*HydrologyGeomorphicQualificationCorpusTest' \
+            :skyforge-neoforge-1211:test \
+            --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
             --no-configuration-cache
-
       - name: Print F3H regression diagnostic
         if: success()
         run: |
