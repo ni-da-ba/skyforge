@@ -1,0 +1,186 @@
+name: Studio Desktop Review Builds
+
+on:
+  pull_request:
+    paths:
+      - "scripts/orchestrator/studio/**"
+      - "scripts/orchestrator/studio-desktop/**"
+      - "scripts/ci/stage_evidence_review_bundle.py"
+      - "config/ci/evidence-entry-points.json"
+      - "skyforge-*/src/**"
+      - "skyforge-*/build.gradle.kts"
+      - "skyforge-*/**/build.gradle.kts"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - ".github/workflows/studio-desktop.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/orchestrator/studio/**"
+      - "scripts/orchestrator/studio-desktop/**"
+      - "scripts/ci/stage_evidence_review_bundle.py"
+      - "config/ci/evidence-entry-points.json"
+      - "skyforge-*/src/**"
+      - "skyforge-*/build.gradle.kts"
+      - "skyforge-*/**/build.gradle.kts"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - ".github/workflows/studio-desktop.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-desktop-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  stage:
+    name: Stage canonical Studio app and specimens
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Build and generate the bound S2 specimen
+        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence :skyforge-reference:studioBoundHydrologySemanticCorpus
+
+      - name: Verify evidence review entry points
+        run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files
+
+      - name: Stage Studio and generate a locked desktop package
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/stage_evidence_review_bundle.py --stage
+          mkdir -p build/studio-desktop
+          cp -R build/ci-evidence-review/studio-app build/studio-desktop/studio-app
+          cp scripts/orchestrator/studio-desktop/package.json build/studio-desktop/
+          cp scripts/orchestrator/studio-desktop/main.cjs build/studio-desktop/
+          cp scripts/orchestrator/studio-desktop/forge.config.js build/studio-desktop/
+          cp scripts/orchestrator/studio-desktop/README.md build/studio-desktop/
+          cd build/studio-desktop
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      - name: Upload staged desktop source
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: studio-desktop-source
+          path: build/studio-desktop
+          retention-days: 1
+
+  make:
+    name: Make ${{ matrix.platform }} app
+    needs: stage
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            runner: windows-latest
+          - platform: macos
+            runner: macos-15
+          - platform: linux-x64
+            runner: ubuntu-24.04
+    steps:
+      - name: Download staged desktop source
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
+        with:
+          name: studio-desktop-source
+          path: build/studio-desktop
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: build/studio-desktop/package-lock.json
+
+      - name: Install locked desktop dependencies
+        working-directory: build/studio-desktop
+        run: npm ci --no-audit --no-fund
+
+      - name: Install Debian packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends fakeroot dpkg
+
+      - name: Build installer
+        working-directory: build/studio-desktop
+        run: npm run make
+
+      - name: Prepare a simple installer handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          out_dir=build/studio-desktop/review-installers
+          mkdir -p "$out_dir"
+
+          case "${{ matrix.platform }}" in
+            windows-x64)
+              pattern='*setup.exe'
+              installer='Skyforge-Studio-Windows-Setup.exe'
+              instructions='Run Skyforge-Studio-Windows-Setup.exe to install the preview.'
+              ;;
+            macos)
+              pattern='*.dmg'
+              installer='Skyforge-Studio-macOS.dmg'
+              instructions='Open Skyforge-Studio-macOS.dmg and move the app to Applications.'
+              ;;
+            linux-x64)
+              pattern='*.deb'
+              installer='Skyforge-Studio-Linux.deb'
+              instructions='Open Skyforge-Studio-Linux.deb with your distribution package installer.'
+              ;;
+            *)
+              echo "Unsupported installer platform: ${{ matrix.platform }}"
+              exit 2
+              ;;
+          esac
+
+          matches=()
+          while IFS= read -r match; do
+            if [[ -n "$match" ]]; then
+              matches+=("$match")
+            fi
+          done < <(find build/studio-desktop/out/make -type f -iname "$pattern" -print | LC_ALL=C sort)
+
+          if [[ ${#matches[@]} -ne 1 ]]; then
+            echo "Expected exactly one $pattern installer; found ${#matches[@]}."
+            printf '%s\\n' "${matches[@]}"
+            exit 1
+          fi
+
+          cp -- "${matches[0]}" "$out_dir/$installer"
+          {
+            echo 'Skyforge Studio desktop preview'
+            echo
+            echo "$instructions"
+            echo
+            echo 'This unsigned review build keeps drafts, workspaces, and saved comparisons on this device.'
+            echo 'It has no connected world generator or registered-artifact service.'
+            echo 'Windows and macOS may show an operating-system warning because this preview is unsigned.'
+          } > "$out_dir/README.txt"
+
+      - name: Upload installable review artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: studio-desktop-${{ matrix.platform }}
+          path: build/studio-desktop/review-installers
+          if-no-files-found: error
+          retention-days: 14

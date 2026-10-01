@@ -1,0 +1,23 @@
+# Skyforge Studio desktop preview
+
+This is an unsigned desktop preview of the existing local-first Studio. It opens in its own app window and bundles the exact Studio web assets and sample evidence produced by the repository's review-package staging script.
+
+## Use
+
+- Windows: run the SkyforgeStudioSetup.exe installer.
+- macOS: open the .dmg, then move Skyforge Studio to Applications.
+- Linux: install the .deb with your distribution's package installer.
+
+The first preview is unsigned. Windows and macOS may show an operating-system warning until a code-signing identity is configured for a later release.
+
+## Local data and network use
+
+World briefs, inspection workspaces, and saved comparisons remain in this app's local browser storage on this device. Nothing uploads unless a future connected backend is explicitly configured. The packaged app does not provide a world generator or registered-artifact API; those connected features remain unavailable.
+
+The window uses a stable private skyforge://studio origin so local browser storage survives app restarts. The renderer cannot access Node.js APIs or navigate to external websites. The app serves only its packaged static files through Electron's custom protocol handler.
+
+The included S2 and regional specimens are project review examples. Reopened diagnostics remain local/unbound and do not gain registered-artifact verification or review authority.
+
+## Development
+
+From this folder, place the staged Studio review package in studio-app/, install dependencies with npm, then run npm start. GitHub Actions stages the package and produces platform-specific review artifacts.
