@@ -2004,8 +2004,10 @@ neoForge {
         create("wbyWave1VisibilityClientAcceptance") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            // The preparation server creates the default save directory "world" in this
+            // disposable game directory. Quick Play must target that exact persisted save.
             programArgument("--quickPlaySingleplayer")
-            programArgument("wby-wave1-visibility-client")
+            programArgument("world")
             systemProperty("skyforge.dev.wbyWave1Visibility", "true")
             systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
