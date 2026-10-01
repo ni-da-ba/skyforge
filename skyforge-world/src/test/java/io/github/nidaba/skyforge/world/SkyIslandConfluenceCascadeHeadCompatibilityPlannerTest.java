@@ -19,6 +19,9 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         SkyIslandConfluenceCascadeHeadCompatibilityPlan second =
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
 
+        System.out.println("F3H fixture diagnostic: first=" + diagnostic(first)
+                + "; second=" + diagnostic(second));
+
         assertEquals(first.outcomes().size(), second.outcomes().size());
         var confluence710 = first.outcomes().stream()
                 .filter(outcome -> outcome.confluence().transitionSite().nodeCellIndex() == 710)

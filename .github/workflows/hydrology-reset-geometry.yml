@@ -325,6 +325,23 @@ jobs:
             :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' \
             --no-configuration-cache
 
+      - name: Print F3H regression diagnostic
+        if: success()
+        run: |
+          python3 - <<'PY'
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+
+          report = Path("skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest.xml")
+          if not report.is_file():
+              raise SystemExit(f"missing F3H test report: {report}")
+          root = ET.parse(report).getroot()
+          output = root.find("system-out")
+          if output is None or not output.text:
+              raise SystemExit("F3H test report has no captured diagnostic output")
+          print(output.text.strip())
+          PY
+
       - name: Print hydrology diagnostic calibration manifests
         if: success()
         run: |
