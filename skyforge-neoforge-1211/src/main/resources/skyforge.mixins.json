@@ -24,7 +24,8 @@
     "SkyforgePortableEngineBlockEntityMixin",
     "SkyforgePortableEngineBlockMixin",
     "SkyforgeDieselPumpjackOilAuthorityMixin",
-    "SkyforgeDieselNativeOilSuppressionMixin"
+    "SkyforgeDieselNativeOilSuppressionMixin",
+    "SkyforgeSableSubLevelTrackingOrderingMixin"
   ],
   "injectors": {
     "defaultRequire": 1
