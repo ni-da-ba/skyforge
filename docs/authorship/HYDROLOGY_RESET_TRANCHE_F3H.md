@@ -8,7 +8,7 @@
 
 ## Purpose
 
-F3B correctly deferred confluence legs whose finite transition boundary is owned by an authored CASCADE. F3H adds a bounded joint solve for one eligible overlap: a single CASCADE run crosses an outgoing/incoming confluence finite boundary, while its opposite boundary is adjacent to an ordinary profile. The key-632 fixture does not exercise this case: its outgoing CASCADE ends at the semantic reach terminal, so F3H correctly leaves it deferred. The regression searches the existing confluence corpus in stable order for a genuine supported case and fails if none exists.
+F3B correctly deferred confluence legs whose finite transition boundary is owned by an authored CASCADE. F3H adds a bounded joint solve for one eligible overlap: a single CASCADE run crosses an outgoing/incoming confluence finite boundary, while its opposite boundary is adjacent to an ordinary profile. The key-632 fixture does not exercise this case: its outgoing CASCADE ends at the semantic reach terminal, so F3H correctly leaves it deferred. The regression separately checks that the generated key-512 geometry remains fail-closed, then creates a controlled finite-boundary overlap within its authored CASCADE interval to exercise the supported joint solve.
 
 ## Mathematical contract
 

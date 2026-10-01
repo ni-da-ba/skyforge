@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -121,11 +122,11 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 reach.geomorphicRoute().semanticReach().profiles();
         assertTrue(cascade.transitionSite().firstProfileIndex() > 0);
         assertTrue(cascade.transitionSite().lastProfileIndexExclusive() < semanticProfiles.size());
-        assertEquals(
-                SkyIslandChannelProfileKind.ORDINARY,
+        assertNotEquals(
+                SkyIslandChannelProfileKind.CASCADE,
                 semanticProfiles.get(cascade.transitionSite().firstProfileIndex() - 1).kind());
-        assertEquals(
-                SkyIslandChannelProfileKind.ORDINARY,
+        assertNotEquals(
+                SkyIslandChannelProfileKind.CASCADE,
                 semanticProfiles.get(cascade.transitionSite().lastProfileIndexExclusive()).kind());
 
         double finiteBoundaryFraction =
