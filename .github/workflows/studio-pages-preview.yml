@@ -15,6 +15,7 @@ on:
       - studio/terrain-comparison-report
       - studio/terrain-comparison-walkthrough
       - studio/terrain-comparison-library
+      - studio/saved-terrain-comparisons-empty-state
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/test_studio_terrain_comparison_report.js"
