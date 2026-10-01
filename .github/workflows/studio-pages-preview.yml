@@ -10,6 +10,7 @@ on:
       - studio/regional-comparison-package
       - studio/regional-comparison-library
       - studio/inspection-workspaces
+      - studio/remember-inspector-session
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"

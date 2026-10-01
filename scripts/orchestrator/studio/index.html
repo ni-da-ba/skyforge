@@ -14,6 +14,7 @@
   <script src="regional-comparison-library.js" defer></script>
   <script src="regional-comparison.js" defer></script>
   <script src="workspace-package.js" defer></script>
+  <script src="workspace-session.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -224,6 +225,12 @@
           </div>
           <p class="small muted">A workspace carries the scene, optional reference overlay, and view controls. Comparison candidates and reports stay separate; reopened sources are local diagnostics with no registered verification or development access.</p>
           <p id="inspection-workspace-status" class="small muted" aria-live="polite"></p>
+        </div>
+        <div class="workspace-session-controls">
+          <label class="workspace-session-toggle"><input id="remember-inspection" type="checkbox"> Remember this inspection in this browser</label>
+          <button id="workspace-session-forget" type="button" class="secondary" disabled>Forget saved inspection</button>
+          <p id="workspace-session-status" class="small muted" aria-live="polite">Off by default. Your sources are never uploaded.</p>
+          <p class="small muted">Only the current scene, optional hydrology overlay, and view controls are saved. Comparison candidates, reports, and development access are never included.</p>
         </div>
         <div class="trace-import-controls">
           <button id="open-sample-trace" type="button" class="secondary">Open sample trace JSON</button>

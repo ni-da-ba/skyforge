@@ -39,6 +39,9 @@ jobs:
       - name: Test Studio inspection workspace package contract
         run: node scripts/ci/test_studio_workspace_package.js
 
+      - name: Test Studio inspection workspace session contract
+        run: node scripts/ci/test_studio_workspace_session.js
+
       - name: Classify validation impact
         id: impact
         shell: bash
