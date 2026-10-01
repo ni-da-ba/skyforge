@@ -75,6 +75,9 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
             }
 
             Vec3 renderPosition = renderPosition(body);
+            Vec3 expectedBodyCenter = snapshot.expectedBodyCenter();
+            double renderTransformErrorBlocks = renderPosition.distanceTo(expectedBodyCenter);
+            boolean renderTransformMatchesExpected = renderTransformErrorBlocks <= 8.0;
             lookAt(player, renderPosition);
             double horizontalDistance = Math.hypot(
                     renderPosition.x - player.getX(),
@@ -98,6 +101,7 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
             sampleFps(minecraft);
 
             boolean qualified = beyondVanilla
+                    && renderTransformMatchesExpected
                     && renderDataPresent
                     && renderObserved
                     && projectionMatrixPresent
@@ -116,6 +120,8 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
                         snapshot.bodyId(),
                         finalized,
                         renderPosition,
+                        expectedBodyCenter,
+                        renderTransformErrorBlocks,
                         horizontalDistance,
                         vanillaChunks,
                         renderDataPresent,
@@ -210,6 +216,8 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
             UUID bodyId,
             boolean finalized,
             Vec3 renderPosition,
+            Vec3 expectedBodyCenter,
+            double renderTransformErrorBlocks,
             double horizontalDistance,
             int vanillaChunks,
             boolean renderDataPresent,
@@ -226,6 +234,9 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
         evidence.put("bodyId", bodyId);
         evidence.put("clientSubLevelFinalized", finalized);
         evidence.put("renderPosition", renderPosition);
+        evidence.put("expectedBodyCenter", expectedBodyCenter);
+        evidence.put("renderTransformErrorBlocks", renderTransformErrorBlocks);
+        evidence.put("renderTransformMatchesExpected", renderTransformErrorBlocks <= 8.0);
         evidence.put("horizontalDistanceBlocks", horizontalDistance);
         evidence.put("vanillaRenderDistanceChunks", vanillaChunks);
         evidence.put("beyondVanillaRenderDistance", true);
