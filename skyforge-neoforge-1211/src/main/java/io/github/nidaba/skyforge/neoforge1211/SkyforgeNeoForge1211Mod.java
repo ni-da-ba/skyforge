@@ -94,6 +94,7 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeWbyWave1LateralFlightLifecycleAcceptance.installFromSystemProperty();
         SkyforgeWbyWave1TrainSanityLifecycleAcceptance.installFromSystemProperty();
         SkyforgeWbyWave1MultiplayerLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeWbyWave1TelemetryServerAcceptance.installFromSystemProperty();
         SkyforgeWbyWave1PersistenceAcceptance.installFromSystemProperty();
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();
         SkyforgeWaveC12BellancaB0AssemblyAcceptance.installFromSystemProperty();
