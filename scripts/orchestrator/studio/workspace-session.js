@@ -119,7 +119,6 @@
         return transact("readonly", "read the saved inspection", (store, setResult) => {
           const request = store.get(RECORD_KEY);
           request.onsuccess = () => setResult(request.result ?? null);
-          request.onerror = () => { throw request.error || new Error("read request failed"); };
         });
       },
       write(value) {
