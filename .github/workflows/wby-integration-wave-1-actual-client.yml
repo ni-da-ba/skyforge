@@ -48,7 +48,7 @@ jobs:
           grep -q '^status=PASS$' "$result"
           grep -q '^wbyWave1VisibilityWorldPrepared=true$' "$result"
           grep -q '^preassembledDistantSableBodyPersisted=false$' "$result"
-          test -d "$run_dir/world"
+          test -d "$run_dir/wby-wave1-visibility-client"
 
       - name: Configure bounded unattended client
         shell: bash
