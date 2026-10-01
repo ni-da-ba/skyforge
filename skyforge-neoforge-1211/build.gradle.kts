@@ -218,6 +218,39 @@ val wbyWave1FlightMods = listOf("create", "sable", "aeronautics")
 val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyWave1ServerMods = listOf("ssrd")
 
+// W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
+// resolve or stage any optimizer unless the qualification invocation explicitly supplies
+// -PwbyWave1BOptimizer=<candidate>.
+val wbyWave1BPinFile = layout.projectDirectory.file("wby-wave1b-optimizer-mods.properties")
+val wbyWave1BPins = Properties().apply {
+    wbyWave1BPinFile.asFile.inputStream().use(::load)
+}
+
+fun wbyWave1BPin(mod: String, field: String): String =
+    requireNotNull(wbyWave1BPins.getProperty("$mod.$field")) {
+        "missing WBY Wave 1B pin: $mod.$field in " + wbyWave1BPinFile.asFile
+    }
+
+check(wbyWave1BPin("minecraft", "version") == "1.21.1") {
+    "WBY Wave 1B is defined only for Minecraft 1.21.1"
+}
+check(wbyWave1BPin("neoforge", "version") == "21.1.249") {
+    "WBY Wave 1B NeoForge pin must match the adapter runtime"
+}
+
+val wbyWave1BSupportedOptimizers = setOf("lithium")
+val wbyWave1BOptimizer = providers.gradleProperty("wbyWave1BOptimizer")
+    .orNull
+    ?.trim()
+    ?.lowercase()
+    ?.takeIf { it.isNotEmpty() }
+
+check(wbyWave1BOptimizer == null || wbyWave1BOptimizer in wbyWave1BSupportedOptimizers) {
+    "unsupported WBY Wave 1B optimizer '$wbyWave1BOptimizer'; expected one of $wbyWave1BSupportedOptimizers"
+}
+
+val wbyWave1BOptimizerMods = listOfNotNull(wbyWave1BOptimizer)
+
 
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
 val waveC9Pins = Properties().apply {
@@ -6319,7 +6352,8 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
 
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1BOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6355,7 +6389,8 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
 
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1BOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6389,6 +6424,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
     description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
     inputs.file(wbyWave1PinFile)
     inputs.file(waveC1PinFile)
+    inputs.file(wbyWave1BPinFile)
 
     doLast {
         fun artifactToken(coordinate: String): String {
@@ -6429,10 +6465,21 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             "WBY Wave 1 server leaked client-only/optional renderer artifacts: $serverFiles"
         }
 
+        wbyWave1BOptimizerMods.forEach { mod ->
+            val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
+            check(clientFiles.any { it.contains(token) }) {
+                "WBY Wave 1B client missing optimizer $mod token '$token': $clientFiles"
+            }
+            check(serverFiles.any { it.contains(token) }) {
+                "WBY Wave 1B server missing optimizer $mod token '$token': $serverFiles"
+            }
+        }
+
         println("WBY Wave 1 FML-discoverable client visibility runtime")
         clientFiles.forEach { println("  client=$it") }
         println("WBY Wave 1 FML-discoverable server visibility runtime")
         serverFiles.forEach { println("  server=$it") }
+        println("WBY Wave 1B optimizer=" + (wbyWave1BOptimizer ?: "none"))
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
 }
@@ -6890,6 +6937,16 @@ dependencies {
         add(
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1Pin(mod, "coordinate"),
+        )
+    }
+    wbyWave1BOptimizerMods.forEach { mod ->
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            wbyWave1BPin(mod, "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            wbyWave1BPin(mod, "coordinate"),
         )
     }
 
