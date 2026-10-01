@@ -20,9 +20,13 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
 
         assertEquals(first.outcomes().size(), second.outcomes().size());
+        boolean hasConfluence710 = first.outcomes().stream().anyMatch(outcome ->
+                outcome.confluence().transitionSite().nodeCellIndex() == 710);
+        if (!hasConfluence710) {
+            System.err.println("F3H expected confluence-710 joint outcome; observed " + first.outcomes());
+        }
         assertTrue(
-                first.outcomes().stream().anyMatch(outcome ->
-                        outcome.confluence().transitionSite().nodeCellIndex() == 710),
+                hasConfluence710,
                 () -> "expected a confluence-710 joint outcome; observed " + first.outcomes());
         assertTrue(first.outcomes().stream().anyMatch(outcome ->
                         outcome.confluence().transitionSite().nodeCellIndex() == 710
