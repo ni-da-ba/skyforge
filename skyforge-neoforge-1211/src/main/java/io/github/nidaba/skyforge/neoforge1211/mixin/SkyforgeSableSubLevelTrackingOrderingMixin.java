@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211.mixin;
 
+import io.github.nidaba.skyforge.neoforge1211.SkyforgeSableFullSyncOrderingGuard;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
