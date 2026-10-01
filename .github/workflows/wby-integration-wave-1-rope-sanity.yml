@@ -1,0 +1,125 @@
+name: WBY Integration Wave 1 Rope Sanity
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1-rope-sanity.yml"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1-rope-sanity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rope-sanity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile rope sanity acceptance
+        run: ./gradlew :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Configure bounded dedicated-server fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-wave1-rope-sanity
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25568
+          EOF
+
+      - name: Qualify Sable rope attachment across chunk transition
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-wave1-rope-sanity.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties"
+          rm -f "$result"
+
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} \
+            -Dskyforge.dev.wbyWave1RopeSanity=true \
+            -Dskyforge.dev.acceptanceHarness=true \
+            -Dskyforge.dev.acceptanceMode=server \
+            -Dskyforge.dev.acceptanceCase=wby-wave1-rope-sanity \
+            -Dskyforge.dev.acceptanceRadius=0 \
+            -Dskyforge.dev.acceptanceTimeoutSeconds=180 \
+            -Dskyforge.dev.acceptanceResultFile=$PWD/$result"
+
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache 2>&1 | tee "$log"
+
+          test -f "$result"
+          cat "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^ropeApiAvailable=true$' "$result"
+          grep -q '^ropeActive=true$' "$result"
+          grep -q '^worldAttachmentStable=true$' "$result"
+          grep -q '^sableAttachmentStable=true$' "$result"
+          grep -q '^chunkBoundaryCrossed=true$' "$result"
+          grep -q '^forcedChunkGrowth=0$' "$result"
+          grep -q '^ropeChunkTransitionQualified=true$' "$result"
+
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "rope server leaked client-only renderer mods"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  key, value = line.split("=", 1)
+                  p[key] = value
+
+          assert int(p["ropePointCount"]) == 32, p
+          assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
+          assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
+          assert int(p["loadedChunkDelta"]) <= 64, p
+          assert p["initialBodyChunk"] != p["finalBodyChunk"], p
+          print("WBY WAVE 1 ROPE SANITY PASS", p)
+          PY
+
+      - name: Upload Wave 1 rope evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-rope-sanity
+          path: |
+            wby-wave1-rope-sanity.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+          if-no-files-found: warn
