@@ -37,6 +37,7 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
 
     private static final long CLIENT_TIMEOUT_NANOS = 180_000_000_000L;
     private static final int WARMUP_QUALIFIED_TICKS = 40;
+    private static final int MIN_CONNECTED_QUALIFIED_TICKS = 320;
     private static final int REQUIRED_FRAME_SAMPLES = 240;
     private static final int DEFAULT_VANILLA_RENDER_DISTANCE_CHUNKS = 4;
 
@@ -147,7 +148,8 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
                         vanillaChunks,
                         distanceEvidence.chunks()));
 
-                if (FRAME_MS.size() >= REQUIRED_FRAME_SAMPLES) {
+                if (qualifiedTicks >= MIN_CONNECTED_QUALIFIED_TICKS
+                        && FRAME_MS.size() >= REQUIRED_FRAME_SAMPLES) {
                     complete(minecraft);
                 }
             }
@@ -333,6 +335,7 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
         evidence.put("bodyId", selectedBodyId);
         evidence.put("renderPosition", selectedRenderPosition);
         evidence.put("horizontalDistanceBlocks", selectedHorizontalDistance);
+        evidence.put("qualifiedConnectedTicks", qualifiedTicks);
         evidence.put("frameSamples", FRAME_MS.size());
         evidence.put("frameTimeMedianMs", percentile(FRAME_MS, 0.50));
         evidence.put("frameTimeP95Ms", percentile(FRAME_MS, 0.95));
