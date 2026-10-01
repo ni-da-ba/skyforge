@@ -60,19 +60,22 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
                         "SOLVED joint outcome requires a unique coupled boundary and complete head evidence");
             }
             int expectedLegSolutions = confluence.legs().size() - (touchesNode ? 1 : 0);
+            boolean coupledLegIncluded = false;
+            double coupledFiniteHead = Double.NaN;
+            for (SkyIslandConfluenceLegHeadSolution legSolution : ordinaryLegSolutions) {
+                if (legSolution.leg() == coupledLeg) {
+                    coupledLegIncluded = true;
+                    coupledFiniteHead = legSolution.finiteBoundaryHeadWorldUnits();
+                }
+            }
             if (ordinaryLegSolutions.size() != expectedLegSolutions
-                    || touchesFinite && ordinaryLegSolutions.stream()
-                            .noneMatch(value -> value.leg() == coupledLeg)) {
+                    || touchesFinite && !coupledLegIncluded) {
                 throw new IllegalArgumentException(
                         "SOLVED joint outcome requires all uncoupled ordinary-leg head evidence");
             }
             double nearHead = touchesNode
                     ? sharedNodeHeadWorldUnits.orElseThrow()
-                    : ordinaryLegSolutions.stream()
-                            .filter(value -> value.leg() == coupledLeg)
-                            .mapToDouble(SkyIslandConfluenceLegHeadSolution::finiteBoundaryHeadWorldUnits)
-                            .findFirst()
-                            .orElseThrow();
+                    : coupledFiniteHead;
             double remoteHead = cascadeBoundaryHeadWorldUnits.orElseThrow();
             boolean cascadeUpstreamAtConfluence = coupledLeg.nodeBoundary().role()
                     == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING;
