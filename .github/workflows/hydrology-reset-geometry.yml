@@ -109,6 +109,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3H.md"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3I.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandJointTransitionAdmissions.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandProjectedFluvialWaterSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandComponentFluvialWorldWaterProjection.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWorldWaterQualificationViolation.java"
