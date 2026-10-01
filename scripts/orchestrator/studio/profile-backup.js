@@ -36,7 +36,7 @@
 
   function requiredValidators(validators) {
     if (!validators || !validators.worldBrief || !validators.workspaceSession ||
-        !validators.workspacePackage || !validators.terrainLibrary || !validators.regionalLibrary ||
+        !validators.workspacePackage || !validators.terrainLibrary || !validators.terrainReportReader || !validators.regionalLibrary ||
         !validators.regionalComparison || !validators.regionalInventory) {
       throw new Error("Studio backup validators are unavailable");
     }
@@ -51,6 +51,14 @@
     const record = validators.workspaceSession.validateRecord(value);
     if (record.workspace_json !== null) validators.workspacePackage.parse(record.workspace_json);
     return record;
+  }
+
+  function validateTerrainRecords(records, validators) {
+    const normalized = validators.terrainLibrary.normalizeRecords(records);
+    for (const record of normalized) {
+      validators.terrainReportReader.parse(record.report_json, record.report_bytes);
+    }
+    return normalized;
   }
 
   function validateRegionalRecords(records, validators) {
@@ -72,7 +80,7 @@
       created_at: timestamp(input.createdAt, "backup creation time"),
       world_brief_library: validators.worldBrief.parseLibrary(input.worldBriefLibrary),
       inspection_session: validateInspectionSession(input.inspectionSession, validators),
-      terrain_comparisons: validators.terrainLibrary.normalizeRecords(input.terrainComparisons),
+      terrain_comparisons: validateTerrainRecords(input.terrainComparisons, validators),
       regional_comparisons: validateRegionalRecords(input.regionalComparisons, validators),
     };
     const serialized = JSON.stringify(document);
@@ -132,7 +140,9 @@
     );
     const terrain = mergeRecords(
       current.terrain_comparisons, imported.terrain_comparisons,
-      validators.terrainLibrary, "terrain comparison"
+      {
+        normalizeRecords: records => validateTerrainRecords(records, validators),
+      }, "terrain comparison"
     );
     const regional = mergeRecords(
       current.regional_comparisons, imported.regional_comparisons,
