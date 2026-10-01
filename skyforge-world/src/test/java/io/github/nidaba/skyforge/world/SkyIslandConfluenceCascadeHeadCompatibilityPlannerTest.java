@@ -80,6 +80,70 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         }
     }
 
+    @Test
+    void controlledJointOverlapFeedsSpanAndNetworkEvidenceWithoutRelaxingD2() {
+        SkyIslandDescriptor descriptor = descriptor(6L, 61L, 512L);
+        SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
+                withFiniteBoundaryInsideAuthoredCascade(
+                        descriptor,
+                        SkyIslandHydraulicTransitionGeometryEvidencePlanner.plan(descriptor));
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
+        SkyIslandConfluenceHeadCompatibilityPlan confluence =
+                SkyIslandConfluenceHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy);
+        SkyIslandCascadeHeadCompatibilityPlan cascade =
+                SkyIslandCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed);
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan joint =
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed);
+        SkyIslandJointTransitionAdmissions admissions =
+                SkyIslandJointTransitionAdmissions.from(confluence, cascade, joint);
+        SkyIslandConfluenceCascadeHeadCompatibilityOutcome admitted =
+                admissions.forNode(1729).orElseThrow();
+        assertEquals(
+                SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED,
+                admitted.status());
+        assertTrue(admissions.forCascade(admitted.cascade().transitionSite()).isPresent());
+
+        SkyIslandOrdinarySpanPlan spans = SkyIslandOrdinarySpanPlanner.plan(
+                descriptor, confluence, cascade, joint, terrain, policy);
+        assertEquals(joint, spans.jointPlan());
+        List<SkyIslandOrdinarySpanOutcome> coupledSpans = spans.outcomes().stream()
+                .filter(value -> value.span().parentReachStartCellIndex() == 1729
+                        && value.span().parentReachEndCellIndex() == 1969)
+                .toList();
+        assertTrue(!coupledSpans.isEmpty());
+        assertTrue(coupledSpans.stream().noneMatch(value ->
+                value.status() == SkyIslandOrdinarySpanStatus.BOUNDARY_DEFERRED),
+                () -> "joint heads did not close ordinary boundaries: "
+                        + coupledSpans.stream().map(SkyIslandOrdinarySpanOutcome::status).toList());
+
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor, spans);
+        SkyIslandHydraulicReachAssembly coupledReach = assembly.reachAssemblies().stream()
+                .filter(value -> value.semanticReach().startCellIndex() == 1729
+                        && value.semanticReach().endCellIndex() == 1969)
+                .findFirst()
+                .orElseThrow();
+        assertTrue(coupledReach.blockers().stream()
+                .noneMatch(value -> value.contains("CASCADE profiles 1..2")
+                        || value.contains("confluence 1729 CASCADE_COUPLED")),
+                () -> "admitted overlap still deferred: " + coupledReach.blockers());
+        assertTrue(assembly.terminalComponents().stream()
+                .allMatch(value -> value.status() != SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                        || value.blockers().isEmpty()));
+
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan ambiguous =
+                new SkyIslandConfluenceCascadeHeadCompatibilityPlan(
+                        descriptor, geometry, List.of(admitted, admitted));
+        assertTrue(SkyIslandJointTransitionAdmissions.from(
+                confluence, cascade, ambiguous).forNode(1729).isEmpty());
+    }
+
     private static SkyIslandHydraulicTransitionGeometryEvidencePlan
             withFiniteBoundaryInsideAuthoredCascade(
                     SkyIslandDescriptor descriptor,
