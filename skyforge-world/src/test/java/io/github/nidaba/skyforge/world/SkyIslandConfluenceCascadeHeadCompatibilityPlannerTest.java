@@ -22,7 +22,7 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
         assertTrue(generated.outcomes().stream().noneMatch(outcome ->
                 outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
-                () -> "generated key-241 geometry unexpectedly solved an unsupported overlap: "
+                () -> "generated key-512 geometry unexpectedly solved an unsupported overlap: "
                         + diagnostic(generated));
 
         SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
@@ -100,8 +100,8 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
         SkyIslandHydraulicCascadeGeometryCandidate cascade =
                 source.cascades().stream()
                         .filter(value ->
-                                value.transitionSite().reachStartCellIndex() == 671
-                                        && value.transitionSite().reachEndCellIndex() == 479
+                                value.transitionSite().reachStartCellIndex() == 1729
+                                        && value.transitionSite().reachEndCellIndex() == 1969
                                         && value.transitionSite().firstProfileIndex() == 1
                                         && value.transitionSite().lastProfileIndexExclusive() == 5)
                         .findFirst()
@@ -111,8 +111,8 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                         .filter(value -> {
                             SkyIslandSemanticChannelReach semantic =
                                     value.geomorphicRoute().semanticReach();
-                            return semantic.startCellIndex() == 671
-                                    && semantic.endCellIndex() == 479;
+                            return semantic.startCellIndex() == 1729
+                                    && semantic.endCellIndex() == 1969;
                         })
                         .findFirst()
                         .orElseThrow();
