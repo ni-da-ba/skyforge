@@ -57,6 +57,14 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             cells.put(cell.index(), cell);
         }
 
+        Map<Integer, SkyIslandChannelTerminalFate> terminalFates = new HashMap<>();
+        for (SkyIslandChannelTerminalFate fate :
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor,
+                        geometry.topology().skeletonPlan().geomorphicNetwork())) {
+            terminalFates.put(fate.channelTerminalCellIndex(), fate);
+        }
+
         List<SkyIslandConfluenceCascadeHeadCompatibilityOutcome> outcomes =
                 new ArrayList<>();
         for (SkyIslandHydraulicConfluenceGeometryCandidate confluence :
@@ -66,7 +74,15 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                     SkyIslandHydraulicReachSkeleton reach =
                             requireReach(reaches, leg.nodeBoundary());
                     int profileCount = reach.geomorphicRoute().semanticReach().profiles().size();
-                    if (matchesBoundary(cascade, leg, profileCount)) {
+                    SkyIslandChannelTerminalFate terminalFate =
+                            terminalFates.get(
+                                    cascade.transitionSite().reachEndCellIndex());
+                    boolean terminalEdgeOutlet =
+                            terminalFate != null
+                                    && terminalFate.kind()
+                                            == SkyIslandChannelTerminalFateKind.EDGE_OUTLET;
+                    if (matchesBoundary(
+                            cascade, leg, profileCount, terminalEdgeOutlet)) {
                         outcomes.add(solve(
                                 descriptor,
                                 confluence,
@@ -75,6 +91,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                                 reaches,
                                 reach,
                                 cells,
+                                terminalEdgeOutlet,
                                 terrain,
                                 policy));
                     }
@@ -99,6 +116,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             Map<Long, SkyIslandHydraulicReachSkeleton> reaches,
             SkyIslandHydraulicReachSkeleton reach,
             Map<Integer, SkyIslandWatershedCell> cells,
+            boolean terminalEdgeOutlet,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicQualificationPolicy policy) {
         SkyIslandHydraulicCascadeTransitionSite site = cascade.transitionSite();
@@ -154,15 +172,19 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                     confluence, cascade, coupledLeg,
                     "CASCADE near boundary has no adjacent ordinary profile");
         }
-        if (remoteProfileIndex < 0 || remoteProfileIndex >= profiles.size()) {
+        if (remoteProfileIndex < 0
+                || remoteProfileIndex >= profiles.size() && !terminalEdgeOutlet) {
             return deferred(
                     confluence, cascade, coupledLeg,
-                    "CASCADE remote boundary has no adjacent ordinary profile");
+                    "CASCADE remote boundary has no adjacent ordinary profile or explicit edge outlet");
         }
         SkyIslandChannelProfileKind nearKind = touchesNode
                 ? null
                 : profiles.get(nearProfileIndex).kind();
-        SkyIslandChannelProfileKind remoteKind = profiles.get(remoteProfileIndex).kind();
+        SkyIslandChannelProfileKind remoteKind = terminalEdgeOutlet
+                && remoteProfileIndex == profiles.size()
+                ? SkyIslandChannelProfileKind.CASCADE
+                : profiles.get(remoteProfileIndex).kind();
         if (nearKind == SkyIslandChannelProfileKind.CASCADE
                 || remoteKind == SkyIslandChannelProfileKind.CASCADE) {
             return deferred(
@@ -613,7 +635,8 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
     private static boolean matchesBoundary(
             SkyIslandHydraulicCascadeGeometryCandidate cascade,
             SkyIslandHydraulicTransitionLegGeometry leg,
-            int reachProfileCount) {
+            int reachProfileCount,
+            boolean terminalEdgeOutlet) {
         SkyIslandHydraulicCascadeTransitionSite site = cascade.transitionSite();
         SkyIslandHydraulicTransitionBoundaryState node = leg.nodeBoundary();
         SkyIslandHydraulicTransitionBoundaryState finite = leg.finiteBoundary();
@@ -628,7 +651,9 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                             && site.downstreamBoundary().arcLength() >= finite.arcLength() - EPSILON
                             && site.downstreamBoundary().arcLength() > node.arcLength() + EPSILON;
             return crossesFiniteBoundary
-                    && site.lastProfileIndexExclusive() < reachProfileCount;
+                    && (site.lastProfileIndexExclusive() < reachProfileCount
+                            || terminalEdgeOutlet
+                                    && site.lastProfileIndexExclusive() == reachProfileCount);
         }
         boolean crossesFiniteBoundary =
                 site.upstreamBoundary().arcLength() <= finite.arcLength() + EPSILON
