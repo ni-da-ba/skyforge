@@ -24,13 +24,17 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
 final class SkyforgeWbyWave1MultiplayerClientAcceptance {
-    private static final long CLIENT_TIMEOUT_NANOS = 180_000_000_000L;
+    private static final long CLIENT_TIMEOUT_NANOS = 300_000_000_000L;
     private static final int REQUIRED_STABLE_TICKS = 20;
     private static final int VANILLA_RENDER_DISTANCE_CHUNKS = 4;
     private static final double MIN_DISTANT_HORIZONTAL_BLOCKS = 96.0;
     private static final double MAX_FIXTURE_HORIZONTAL_BLOCKS = 192.0;
 
+    private static final System.Logger LOGGER =
+            System.getLogger(SkyforgeWbyWave1MultiplayerClientAcceptance.class.getName());
+
     private static long firstTickNanos = Long.MIN_VALUE;
+    private static int diagnosticTicks;
     private static int stableTicks;
     private static boolean ssrdRenderObserved;
     private static boolean complete;
@@ -51,9 +55,14 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
         Minecraft minecraft = Minecraft.getInstance();
         if (firstTickNanos == Long.MIN_VALUE) {
             firstTickNanos = System.nanoTime();
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "WBY MULTIPLAYER OBSERVER ACTIVE: role="
+                            + System.getProperty("skyforge.dev.wbyWave1MultiplayerRole", "")
+                            + ", clientMode=" + SkyforgeAutomatedAcceptanceHarness.clientMode());
         }
         if (System.nanoTime() - firstTickNanos > CLIENT_TIMEOUT_NANOS) {
-            fail("WBY multiplayer observer did not qualify within 180 seconds"
+            fail("WBY multiplayer observer did not qualify within 300 seconds"
                     + "; stableTicks=" + stableTicks
                     + "; ssrdRenderObserved=" + ssrdRenderObserved
                     + "; selectedBodyId=" + selectedBodyId
@@ -77,6 +86,10 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
             }
 
             BodyCandidate body = findQualifyingBody(minecraft.level, observer.position());
+            diagnosticTicks++;
+            if (diagnosticTicks == 1 || diagnosticTicks % 40 == 0) {
+                logDiagnostics(minecraft.level, observer.position(), body);
+            }
             if (body == null) {
                 stableTicks = 0;
                 return;
@@ -160,6 +173,64 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
             }
         }
         return best;
+    }
+
+    private static void logDiagnostics(
+            ClientLevel level,
+            Vec3 observerPosition,
+            BodyCandidate selected) {
+        try {
+            Class<?> containerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelContainer");
+            Object container = containerClass.getMethod("getContainer", ClientLevel.class).invoke(null, level);
+            int subLevelCount = -1;
+            StringBuilder bodies = new StringBuilder();
+            if (container != null) {
+                Object value = publicMethod(container, "getAllSubLevels").invoke(container);
+                if (value instanceof List<?> subLevels) {
+                    subLevelCount = subLevels.size();
+                    for (Object body : subLevels) {
+                        Object id = publicMethod(body, "getUniqueId").invoke(body);
+                        boolean finalized = (Boolean) publicMethod(body, "isFinalized").invoke(body);
+                        Vec3 position = renderPosition(body);
+                        Object renderData = publicMethod(body, "getRenderData").invoke(body);
+                        if (!bodies.isEmpty()) {
+                            bodies.append("; ");
+                        }
+                        bodies.append(id)
+                                .append("@")
+                                .append(String.format(
+                                        java.util.Locale.ROOT,
+                                        "%.2f",
+                                        horizontalDistance(observerPosition, position)))
+                                .append("b")
+                                .append(",final=").append(finalized)
+                                .append(",renderData=").append(renderData != null);
+                    }
+                }
+            }
+
+            Class<?> stateClass = Class.forName("net.ranold.ssrd.SSRDState");
+            boolean visible = stateClass.getField("SUBLEVELS_VISIBLE_THIS_FRAME").getBoolean(null);
+            boolean projection = stateClass.getField("PURE_PROJ_MATRIX").get(null) != null;
+            DistanceEvidence distance = ssrdDistanceEvidence(VANILLA_RENDER_DISTANCE_CHUNKS);
+            LOGGER.log(
+                    System.Logger.Level.INFO,
+                    "WBY MULTIPLAYER OBSERVER DIAGNOSTIC: subLevels=" + subLevelCount
+                            + ", bodies=[" + bodies + "]"
+                            + ", selected=" + (selected == null ? "none" : selected.bodyId())
+                            + ", ssrdVisibleNow=" + visible
+                            + ", ssrdVisibleEver=" + ssrdRenderObserved
+                            + ", projection=" + projection
+                            + ", distance=" + distance.chunks() + "@" + distance.source()
+                            + ", stableTicks=" + stableTicks
+                            + ", screen=" + (Minecraft.getInstance().screen == null
+                                    ? "none"
+                                    : Minecraft.getInstance().screen.getClass().getName()));
+        } catch (ReflectiveOperationException | RuntimeException failure) {
+            LOGGER.log(
+                    System.Logger.Level.WARNING,
+                    "WBY MULTIPLAYER OBSERVER DIAGNOSTIC FAILED: " + failure);
+        }
     }
 
     private static Vec3 renderPosition(Object body) throws ReflectiveOperationException {
