@@ -174,8 +174,8 @@ jobs:
             skyforge-neoforge-1211/run-wby-wave1-persistence/logs/latest.log
           if-no-files-found: warn
  "$result"
-          grep -Eq '\\(lithium\\)' "$log"
-          grep -Eq '\\(ferritecore\\)' "$log"
+          grep -Eq '\(lithium\)' "$log"
+          grep -Eq '\(ferritecore\)' "$log"
 
           python3 - <<'PY'
           from pathlib import Path
