@@ -2027,6 +2027,25 @@ neoForge {
         }
 
 
+        create("wbyWave1BoundarySweepClientAcceptance") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-wave1-visibility-client")
+            systemProperty("skyforge.dev.wbyWave1BoundarySweep", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-boundary-sweep")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "210")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-boundary-sweep/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
         // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
         create("waveC2PersonalMobilityClient") {
