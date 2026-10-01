@@ -16,8 +16,11 @@ import net.neoforged.fml.common.EventBusSubscriber;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 
 /**
- * Actual-client proof that a distant Sable body remains visible while a second real multiplayer
- * client is physically near that body.
+ * Actual-client half of the WBY-INT-0002 multiplayer remote-craft proof.
+ *
+ * <p>The dedicated-server fixture independently proves that a second real client is physically
+ * beside the body. This observer deliberately does not require that remote player's vanilla entity
+ * to be tracked at long range; it tests only the WBY Sable/SSRD/DH visibility contract.
  */
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
 final class SkyforgeWbyWave1MultiplayerClientAcceptance {
@@ -25,16 +28,14 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
     private static final int REQUIRED_STABLE_TICKS = 20;
     private static final int VANILLA_RENDER_DISTANCE_CHUNKS = 4;
     private static final double MIN_DISTANT_HORIZONTAL_BLOCKS = 96.0;
-    private static final double MAX_NEAR_PLAYER_BODY_DISTANCE_BLOCKS = 24.0;
+    private static final double MAX_FIXTURE_HORIZONTAL_BLOCKS = 192.0;
 
     private static long firstTickNanos = Long.MIN_VALUE;
     private static int stableTicks;
     private static boolean ssrdRenderObserved;
-    private static boolean remotePlayerObserved;
     private static boolean complete;
     private static UUID selectedBodyId;
     private static double observerBodyDistanceBlocks = Double.NaN;
-    private static double remotePlayerBodyDistanceBlocks = Double.NaN;
 
     private SkyforgeWbyWave1MultiplayerClientAcceptance() {}
 
@@ -54,11 +55,9 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
         if (System.nanoTime() - firstTickNanos > CLIENT_TIMEOUT_NANOS) {
             fail("WBY multiplayer observer did not qualify within 180 seconds"
                     + "; stableTicks=" + stableTicks
-                    + "; remotePlayerObserved=" + remotePlayerObserved
                     + "; ssrdRenderObserved=" + ssrdRenderObserved
                     + "; selectedBodyId=" + selectedBodyId
-                    + "; observerBodyDistanceBlocks=" + observerBodyDistanceBlocks
-                    + "; remotePlayerBodyDistanceBlocks=" + remotePlayerBodyDistanceBlocks);
+                    + "; observerBodyDistanceBlocks=" + observerBodyDistanceBlocks);
             return;
         }
 
@@ -77,21 +76,7 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
                 return;
             }
 
-            String nearName = System.getProperty(
-                    SkyforgeWbyWave1MultiplayerLifecycleAcceptance.NEAR_NAME_PROPERTY,
-                    "WbyNear");
-            var nearPlayer = minecraft.level.players().stream()
-                    .filter(candidate -> candidate != observer)
-                    .filter(candidate -> candidate.getGameProfile().getName().equals(nearName))
-                    .findFirst()
-                    .orElse(null);
-            if (nearPlayer == null) {
-                stableTicks = 0;
-                return;
-            }
-            remotePlayerObserved = true;
-
-            BodyCandidate body = findQualifyingBody(minecraft.level, observer.position(), nearPlayer.position());
+            BodyCandidate body = findQualifyingBody(minecraft.level, observer.position());
             if (body == null) {
                 stableTicks = 0;
                 return;
@@ -99,7 +84,6 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
 
             selectedBodyId = body.bodyId();
             observerBodyDistanceBlocks = body.observerHorizontalDistanceBlocks();
-            remotePlayerBodyDistanceBlocks = body.remotePlayerDistanceBlocks();
             lookAt(observer, body.renderPosition());
 
             Class<?> stateClass = Class.forName("net.ranold.ssrd.SSRDState");
@@ -111,7 +95,7 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
             boolean qualified = body.renderDataPresent()
                     && body.finalized()
                     && observerBodyDistanceBlocks > MIN_DISTANT_HORIZONTAL_BLOCKS
-                    && remotePlayerBodyDistanceBlocks <= MAX_NEAR_PLAYER_BODY_DISTANCE_BLOCKS
+                    && observerBodyDistanceBlocks < MAX_FIXTURE_HORIZONTAL_BLOCKS
                     && ssrdRenderObserved
                     && projectionMatrixPresent
                     && "Distant Horizons".equals(distance.source())
@@ -124,17 +108,15 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
 
             stableTicks++;
             if (stableTicks >= REQUIRED_STABLE_TICKS) {
-                complete(minecraft, observer, nearPlayer.getGameProfile().getName(), body, distance);
+                complete(minecraft, observer, body, distance);
             }
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail("WBY Wave 1 multiplayer observer proof failed: " + failure);
         }
     }
 
-    private static BodyCandidate findQualifyingBody(
-            ClientLevel level,
-            Vec3 observerPosition,
-            Vec3 remotePlayerPosition) throws ReflectiveOperationException {
+    private static BodyCandidate findQualifyingBody(ClientLevel level, Vec3 observerPosition)
+            throws ReflectiveOperationException {
         Class<?> containerClass = Class.forName("dev.ryanhcode.sable.api.sublevel.SubLevelContainer");
         Object container = containerClass.getMethod("getContainer", ClientLevel.class).invoke(null, level);
         if (container == null) {
@@ -159,20 +141,21 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
 
             Vec3 renderPosition = renderPosition(body);
             double observerDistance = horizontalDistance(observerPosition, renderPosition);
-            double remoteDistance = renderPosition.distanceTo(remotePlayerPosition);
+            if (observerDistance <= MIN_DISTANT_HORIZONTAL_BLOCKS
+                    || observerDistance >= MAX_FIXTURE_HORIZONTAL_BLOCKS) {
+                continue;
+            }
+
             Object renderData = publicMethod(body, "getRenderData").invoke(body);
             BodyCandidate candidate = new BodyCandidate(
                     bodyId,
                     renderPosition,
                     observerDistance,
-                    remoteDistance,
                     true,
                     renderData != null);
-            if (observerDistance <= MIN_DISTANT_HORIZONTAL_BLOCKS
-                    || remoteDistance > MAX_NEAR_PLAYER_BODY_DISTANCE_BLOCKS) {
-                continue;
-            }
-            if (best == null || candidate.remotePlayerDistanceBlocks() < best.remotePlayerDistanceBlocks()) {
+            if (best == null
+                    || candidate.observerHorizontalDistanceBlocks()
+                            < best.observerHorizontalDistanceBlocks()) {
                 best = candidate;
             }
         }
@@ -230,7 +213,6 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
     private static void complete(
             Minecraft minecraft,
             LocalPlayer observer,
-            String remotePlayerName,
             BodyCandidate body,
             DistanceEvidence distance) {
         if (complete) {
@@ -242,14 +224,9 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
         evidence.put("actualClient", true);
         evidence.put("actualMultiplayer", !minecraft.hasSingleplayerServer());
         evidence.put("observerPlayerName", observer.getGameProfile().getName());
-        evidence.put("remotePlayerName", remotePlayerName);
-        evidence.put("remotePlayerObserved", remotePlayerObserved);
         evidence.put("distantSableBodyId", body.bodyId());
         evidence.put("distantSableStableTicks", stableTicks);
         evidence.put("observerBodyHorizontalDistanceBlocks", body.observerHorizontalDistanceBlocks());
-        evidence.put("remotePlayerBodyDistanceBlocks", body.remotePlayerDistanceBlocks());
-        evidence.put("remotePlayerNearSable",
-                body.remotePlayerDistanceBlocks() <= MAX_NEAR_PLAYER_BODY_DISTANCE_BLOCKS);
         evidence.put("sableRenderDataPresent", body.renderDataPresent());
         evidence.put("sableFinalized", body.finalized());
         evidence.put("ssrdSublevelRenderObserved", ssrdRenderObserved);
@@ -257,7 +234,7 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
         evidence.put("ssrdDistanceSource", distance.source());
         evidence.put("distantHorizonsLoaded", ModList.get().isLoaded("distanthorizons"));
         evidence.put("sodiumLoaded", ModList.get().isLoaded("sodium"));
-        evidence.put("multiplayerRemoteCraftQualified", true);
+        evidence.put("multiplayerRemoteCraftObserverQualified", true);
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
         minecraft.stop();
     }
@@ -275,7 +252,6 @@ final class SkyforgeWbyWave1MultiplayerClientAcceptance {
             UUID bodyId,
             Vec3 renderPosition,
             double observerHorizontalDistanceBlocks,
-            double remotePlayerDistanceBlocks,
             boolean finalized,
             boolean renderDataPresent) {}
 
