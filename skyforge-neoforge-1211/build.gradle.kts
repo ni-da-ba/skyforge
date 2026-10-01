@@ -2046,6 +2046,47 @@ neoForge {
         }
 
 
+        create("wbyWave1PersistencePrepareServer") {
+            server()
+            sourceSet.set(wbyWave1VisibilityServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-persistence").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-wave1-persistence")
+            systemProperty("skyforge.dev.wbyWave1Persistence", "prepare")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-persistence-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-persistence/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyWave1PersistenceReloadClientAcceptance") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-persistence").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-wave1-persistence")
+            systemProperty("skyforge.dev.wbyWave1Persistence", "reload")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-persistence-reload")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-persistence/reload.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         // Wave C2 personal-mobility specimen: the early glider plus server-side Elytra rocket
         // suppression, with no Create/Aeronautics stack present. This isolates personal traversal.
         create("waveC2PersonalMobilityClient") {
@@ -3722,6 +3763,30 @@ tasks.named("runWbyWave1VisibilityClientWorldPrepareServer").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(wbyWave1VisibilityClientServerProperties)
+    }
+}
+
+
+val wbyWave1PersistenceServerProperties = """
+    level-name=wby-wave1-persistence
+    level-seed=671002
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWbyWave1PersistencePrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wby-wave1-persistence").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(wbyWave1PersistenceServerProperties)
     }
 }
 
@@ -6119,6 +6184,41 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
         }
         println("WBY WAVE 1 CLIENT MOD STAGING PASS")
         staged.forEach { println("  staged=$it") }
+    }
+}
+
+
+tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
+    group = "verification"
+    description = "Stage the exact WBY Wave 1 external mods into the save/reload client's ordinary mods directory."
+
+    val expectedTokens = (
+        wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+    ).toSet()
+
+    from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
+        include { details ->
+            expectedTokens.any { token -> details.file.name.contains(token) }
+        }
+    }
+    into(layout.projectDirectory.dir("run-wby-wave1-persistence/mods"))
+
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        expectedTokens.forEach { token ->
+            check(staged.any { it.contains(token) }) {
+                "WBY Wave 1 persistence staged mods missing token '$token': $staged"
+            }
+        }
+        check(staged.size == expectedTokens.size) {
+            "WBY Wave 1 persistence mods directory contains unexpected jars: expected=${expectedTokens.size} staged=$staged"
+        }
+        println("WBY WAVE 1 PERSISTENCE CLIENT MOD STAGING PASS")
     }
 }
 
