@@ -494,6 +494,11 @@ jobs:
           else
             echo "Natural-transition census summary was not produced."
           fi
+          manifest=skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/identity-manifest.csv
+          if [ -f "$manifest" ]; then
+            echo "Natural-transition census candidate outcomes:"
+            awk -F, 'NR == 1 || $7 == "true" { print }' "$manifest"
+          fi
 
       - name: Upload natural-transition census evidence
         if: always()
