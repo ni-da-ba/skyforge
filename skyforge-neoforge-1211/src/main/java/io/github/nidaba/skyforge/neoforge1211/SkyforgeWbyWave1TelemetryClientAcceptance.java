@@ -200,7 +200,9 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
     private static void sampleVram() {
         vramTelemetryAttempted = true;
         try {
-            if (!GL.getCapabilities().GL_NVX_gpu_memory_info) {
+            Object capabilities = GL.getCapabilities();
+            Field extension = capabilities.getClass().getField("GL_NVX_gpu_memory_info");
+            if (!extension.getBoolean(capabilities)) {
                 return;
             }
             long total = Math.max(
@@ -222,7 +224,7 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
             vramUsedBytes.add(used);
             SkyforgeRuntimePerformanceMetrics.recordDistributionSample(
                     "wbyWave1.clientVramUsedBytes", used);
-        } catch (RuntimeException ignored) {
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
             // Software CI renderers commonly do not expose vendor VRAM accounting.
         }
     }
@@ -357,6 +359,8 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
             p.setProperty("vramUsedMaxBytes", String.valueOf(maximum(vramUsedBytes)));
         }
         p.setProperty("clientTelemetryQualified", "true");
+        SkyforgeRuntimePerformanceMetrics.evidence().forEach(
+                (key, value) -> p.setProperty(key, String.valueOf(value)));
         writeResult(p);
         SkyforgeWbyWave1VisibilityLifecycleAcceptance.markClientComplete();
         minecraft.stop();
