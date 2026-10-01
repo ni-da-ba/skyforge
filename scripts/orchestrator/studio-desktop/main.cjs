@@ -4,6 +4,8 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, protocol } = require("electron");
 
+app.setAppUserModelId("com.squirrel.SkyforgeStudio.SkyforgeStudio");
+
 protocol.registerSchemesAsPrivileged([
   {
     scheme: "skyforge",
