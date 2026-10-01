@@ -4,10 +4,8 @@ on:
   pull_request:
     paths:
       - ".github/workflows/wby-integration-wave-1-rope-sanity.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1-mods.properties"
-      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
   workflow_dispatch:
 
@@ -41,7 +39,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          run_dir="skyforge-neoforge-1211/run-wby-wave1-rope-sanity"
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
           rm -rf "$run_dir"
           mkdir -p "$run_dir"
           printf 'eula=true\n' > "$run_dir/eula.txt"
@@ -67,7 +65,16 @@ jobs:
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties"
           rm -f "$result"
 
-          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1RopeSanityServerAcceptance --no-configuration-cache 2>&1 | tee "$log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} \
+            -Dskyforge.dev.wbyWave1RopeSanity=true \
+            -Dskyforge.dev.acceptanceHarness=true \
+            -Dskyforge.dev.acceptanceMode=server \
+            -Dskyforge.dev.acceptanceCase=wby-wave1-rope-sanity \
+            -Dskyforge.dev.acceptanceRadius=0 \
+            -Dskyforge.dev.acceptanceTimeoutSeconds=180 \
+            -Dskyforge.dev.acceptanceResultFile=$PWD/$result"
+
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache 2>&1 | tee "$log"
 
           test -f "$result"
           cat "$result"
@@ -113,5 +120,5 @@ jobs:
           path: |
             wby-wave1-rope-sanity.log
             skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/*.properties
-            skyforge-neoforge-1211/run-wby-wave1-rope-sanity/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
           if-no-files-found: warn
