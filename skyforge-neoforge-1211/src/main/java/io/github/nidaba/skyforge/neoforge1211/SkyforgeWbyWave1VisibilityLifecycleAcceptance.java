@@ -64,6 +64,7 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     private static long firstPlayerTick = Long.MIN_VALUE;
     private static volatile SweepPhase sweepPhase = SweepPhase.DISABLED;
     private static volatile double sweepTargetDistanceBlocks = Double.NaN;
+    private static volatile boolean boundaryClientReady;
     private static int sweepPhaseTick;
     private static double sweepPlayerY;
     private static ServerPlayer sweepPlayer;
@@ -115,6 +116,10 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
                         sweepPhase.name(),
                         sweepTargetDistanceBlocks)
                 : null;
+    }
+
+    static void markBoundaryClientReady() {
+        boundaryClientReady = true;
     }
 
     static void markClientComplete() {
@@ -243,6 +248,14 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
         player.setDeltaMovement(Vec3.ZERO);
 
         if (sweepPhase == SweepPhase.COMPLETE) {
+            return;
+        }
+
+        // Do not let the integrated server consume the finite sweep before the actual client
+        // has loaded, finalized, and sampled the near-end fixture. CI software rendering can
+        // otherwise start observing only after the server has already reached COMPLETE.
+        if (sweepPhase == SweepPhase.NEAR_HOLD && !boundaryClientReady) {
+            sweepPhaseTick = 0;
             return;
         }
 
