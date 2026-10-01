@@ -217,6 +217,7 @@ check(wbyWave1Pin("neoforge", "version") == "21.1.249") {
 val wbyWave1FlightMods = listOf("create", "sable", "aeronautics")
 val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyWave1ServerMods = listOf("ssrd")
+val wbyWave1SharedOptimizerMods = listOf("lithium")
 
 
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
@@ -6319,7 +6320,8 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
 
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1SharedOptimizerMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6355,7 +6357,8 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
 
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        wbyWave1SharedOptimizerMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6386,7 +6389,7 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
 
 tasks.register("wbyWave1ResolvePinnedMods") {
     group = "verification"
-    description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
+    description = "Resolve and assert the WBY Wave 1 visibility stack plus admitted conservative optimizers."
     inputs.file(wbyWave1PinFile)
     inputs.file(waveC1PinFile)
 
@@ -6416,6 +6419,16 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             val token = artifactToken(wbyWave1Pin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
                 "WBY Wave 1 client missing $mod token '$token': $clientFiles"
+            }
+        }
+
+        wbyWave1SharedOptimizerMods.forEach { mod ->
+            val token = artifactToken(wbyWave1Pin(mod, "coordinate"))
+            check(clientFiles.any { it.contains(token) }) {
+                "WBY Wave 1 client missing shared optimizer $mod token '$token': $clientFiles"
+            }
+            check(serverFiles.any { it.contains(token) }) {
+                "WBY Wave 1 server missing shared optimizer $mod token '$token': $serverFiles"
             }
         }
 
@@ -6887,6 +6900,17 @@ dependencies {
         )
     }
     wbyWave1ServerMods.forEach { mod ->
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            wbyWave1Pin(mod, "coordinate"),
+        )
+    }
+
+    wbyWave1SharedOptimizerMods.forEach { mod ->
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            wbyWave1Pin(mod, "coordinate"),
+        )
         add(
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1Pin(mod, "coordinate"),
