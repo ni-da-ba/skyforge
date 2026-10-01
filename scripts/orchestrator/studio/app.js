@@ -1430,7 +1430,7 @@
     scene = nextScene;
     $("download-inspection-workspace").disabled = !sourceArtifact;
     workspaceSceneArtifact = sourceArtifact;
-    workspaceSceneTitle = sourceTitle || nextScene.source.artifactTitle || nextScene.source.artifactId || "semantic-artifact.json";
+    workspaceSceneTitle = String(sourceTitle || nextScene.source.artifactTitle || nextScene.source.artifactId || "semantic-artifact.json").slice(0, 200);
     workspaceSceneJson = sourceArtifact ? (typeof sourceJson === "string" ? sourceJson : JSON.stringify(sourceArtifact)) : "";
     workspaceOverlayArtifact = null;
     workspaceOverlayTitle = "";
@@ -1478,7 +1478,7 @@
         camera,
         controls: {
           semanticView: $("terrain-view").value,
-          surface: $("terrain-surface").value,
+          surface: overlay ? $("terrain-surface").value : "base",
           sliceIndex: Number($("terrain-slice").value),
           causeField: $("hydrology-potential").value,
           showFlowVectors: $("show-flow-vectors").checked,
@@ -1717,7 +1717,7 @@
   function setOverlay(nextOverlay, sourceArtifact = null, sourceTitle = "", sourceJson = null) {
     overlay = nextOverlay;
     workspaceOverlayArtifact = sourceArtifact;
-    workspaceOverlayTitle = sourceTitle || nextOverlay.source.artifactTitle || nextOverlay.source.artifactId || "hydrology-overlay.json";
+    workspaceOverlayTitle = String(sourceTitle || nextOverlay.source.artifactTitle || nextOverlay.source.artifactId || "hydrology-overlay.json").slice(0, 200);
     workspaceOverlayJson = sourceArtifact ? (typeof sourceJson === "string" ? sourceJson : JSON.stringify(sourceArtifact)) : "";
     hydrologyComparison = null;
     $("comparison-mode").value = "causes";

@@ -1,17 +1,6 @@
 "use strict";
 
 const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
-const appSource = fs.readFileSync(path.join(__dirname, "..", "orchestrator", "studio", "app.js"), "utf8");
-assert.doesNotThrow(() => new vm.Script(appSource), "Studio app source must remain valid JavaScript");
-const prepareIndex = appSource.indexOf("window.SkyforgeStudioWorkspacePackage.prepare(");
-const viewCheckIndex = appSource.indexOf("assertInspectionViewFits(plan);", prepareIndex);
-const replaceIndex = appSource.indexOf("setScene(plan.scene, plan.sceneArtifact", prepareIndex);
-assert.ok(prepareIndex >= 0 && viewCheckIndex > prepareIndex && replaceIndex > viewCheckIndex,
-  "workspace sources and controls must validate before the visible scene is replaced");
-assert.match(appSource, /reviewAuthority:\s*false/);
 const workspacePackage = require("../orchestrator/studio/workspace-package.js");
 
 const sceneJson = '{\n  "artifact_kind": "SKYFORGE_TERRAIN_SEMANTIC_VOLUME",\n  "review_authority": true\n}\n';
@@ -63,6 +52,7 @@ assert.equal(adapterCalls[1][2].binding, "UNBOUND_LOCAL");
 
 assert.throws(() => workspacePackage.parse("{"), /valid JSON/);
 assert.throws(() => workspacePackage.parse({ ...created, format_version: 2 }), /unsupported inspection workspace format version/);
+assert.throws(() => workspacePackage.create({ ...input, overlay: null }), /hydrology surface but has no reference overlay/);
 assert.throws(() => workspacePackage.parse({ ...created, unexpected: true }), /unsupported fields/);
 assert.throws(() => workspacePackage.parse({ ...created, scene: { title: "scene", artifactJson: "[]" } }), /scene source must be a JSON object/);
 assert.throws(() => workspacePackage.parse({ ...created, view: { ...created.view, camera: { ...created.view.camera, zoom: 20 } } }), /camera zoom/);

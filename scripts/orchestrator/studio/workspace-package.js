@@ -158,6 +158,9 @@
     const scene = validateSource(value.scene, "scene");
     const overlay = value.overlay === null ? null : validateSource(value.overlay, "overlay");
     const view = validateView(value.view);
+    if (view.mode === "terrain" && view.controls.surface === "hydrology" && !overlay) {
+      throw new Error("workspace selects the hydrology surface but has no reference overlay");
+    }
     const normalized = {
       document_type: DOCUMENT_TYPE,
       format_version: FORMAT_VERSION,
