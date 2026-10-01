@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.io.IOException;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -19,15 +18,12 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.util.Unit;
-import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.Property;
-import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
@@ -179,7 +175,6 @@ final class SkyforgeWbyWave1PersistenceAcceptance {
         addChunkTicket(new ChunkPos(BODY_MIN));
         beforeIds = currentSubLevelIds();
         prepareFixture();
-        addFixtureGlue(BODY_MIN, new BlockPos(BODY_MAX.getX(), ASSEMBLER_POS.getY(), BODY_MAX.getZ()));
 
         BlockEntity assembler = level.getBlockEntity(ASSEMBLER_POS);
         if (assembler == null || !assembler.getClass().getName().endsWith("PhysicsAssemblerBlockEntity")) {
@@ -421,9 +416,10 @@ final class SkyforgeWbyWave1PersistenceAcceptance {
         for (int x = BODY_MIN.getX(); x <= BODY_MAX.getX(); x++) {
             for (int y = BODY_MIN.getY(); y <= BODY_MAX.getY(); y++) {
                 for (int z = BODY_MIN.getZ(); z <= BODY_MAX.getZ(); z++) {
-                    BlockState state = y == BODY_MAX.getY()
-                            ? Blocks.GOLD_BLOCK.defaultBlockState()
-                            : Blocks.RED_WOOL.defaultBlockState();
+                    // Use Sable-native sticky connectivity for the persistence fixture.
+                    // PLATFORM-010 established this as the accepted transfer authority;
+                    // Create Super Glue is not a substitute for Sable source transfer.
+                    BlockState state = Blocks.SLIME_BLOCK.defaultBlockState();
                     if (!level.setBlock(new BlockPos(x, y, z), state, 3)) {
                         throw new IllegalStateException("failed to place WBY persistence body block");
                     }
@@ -434,16 +430,6 @@ final class SkyforgeWbyWave1PersistenceAcceptance {
                 withProperty(requireBlock(PHYSICS_ASSEMBLER).defaultBlockState(), "face", "floor");
         if (!level.setBlock(ASSEMBLER_POS, assemblerState, 3)) {
             throw new IllegalStateException("failed to place WBY persistence Physics Assembler");
-        }
-    }
-
-    private static void addFixtureGlue(BlockPos from, BlockPos to) throws ReflectiveOperationException {
-        Class<?> glueClass = Class.forName("com.simibubi.create.content.contraptions.glue.SuperGlueEntity");
-        AABB box = (AABB) glueClass.getMethod("span", BlockPos.class, BlockPos.class).invoke(null, from, to);
-        Constructor<?> constructor = glueClass.getConstructor(Level.class, AABB.class);
-        Entity glue = (Entity) constructor.newInstance(level, box);
-        if (!level.addFreshEntity(glue)) {
-            throw new IllegalStateException("failed to add WBY persistence Super Glue fixture");
         }
     }
 
