@@ -41,7 +41,9 @@ three-resolution evidence, followed by F3/F4 qualification and restricted realiz
 advanced through F4K. C3 was merged as PR #1240 at
 `daf568ee0cc6554da56548fc3eafe5e26375e159`; its 4/8/16 physical route objective and regenerated
 post-C3 qualification/confluence corpus passed the exact-head geometry gate plus CI, DR-40, and DR-50.
-The key-287 case remains rejected under the unchanged D2 policy.
+The key-287 case remains rejected under the unchanged D2 policy, per owner decision on 2026-10-01. Preserve the current semantic corridor and hard D2 contract; continue only on other eligible cases.
+
+Owner accepted the Studio S2 semantic review on 2026-10-01. This accepts the backend-neutral semantic overlay only, not voxel/Minecraft realization or DR-70. The terminal CASCADE edge-outlet case remains fail-closed: no free-outfall head/boundary contract is authorized, and ordinary D2 constraints are not substituted or relaxed.
 
 F2C terminal fate is resolved through the watershed graph: only an explicit edge outlet is a free
 ordinary terminal. Retained open water, retained wetland, and unresolved terminal fate remain
@@ -53,7 +55,8 @@ runaway water. This is not aesthetic/product approval or the final DR-70 gate. M
 binds its hydrology overlay to the exact terrain semantic SHA and AUTH-0046 association.
 PR #1253 adds an interactive top-down view of causes, flow, accepted reaches, terrain response, and
 F4E water intent. This is backend-neutral semantic projection, not voxel/Minecraft realization;
-owner review remains pending. The meaningful DR-70 human review remains
+the owner accepted this semantic review on 2026-10-01. This is not voxel/Minecraft or DR-70
+acceptance. The meaningful DR-70 human review remains
 downstream of Minecraft discretization and must use the key-287 product-review specimen. See the F4K
 runbook for its scoped check and launch command.
 
