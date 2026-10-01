@@ -273,6 +273,7 @@ jobs:
 
       - name: Run reset geometry tests
         run: |
+          ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
             --tests '*SkyIslandSemanticChannelReachPlannerTest' \
