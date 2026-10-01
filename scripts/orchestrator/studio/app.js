@@ -270,6 +270,10 @@
   let lastY = 0;
   let playback = null;
   let studioWorkspaceView = "inspect";
+  let terrainSemanticComparison = null;
+  let terrainComparisonPage = 0;
+  let terrainComparisonPlot = null;
+  let terrainSelectedColumn = null;
   let workspaceSessionEnabled = false;
   let workspaceSessionReady = false;
   let workspaceSessionRestoring = false;
@@ -296,16 +300,240 @@
     $("world-brief-view").hidden = studioWorkspaceView !== "brief";
     $("studio-regional-view").hidden = studioWorkspaceView !== "regional";
     $("regional-comparison-view").hidden = studioWorkspaceView !== "regional-comparison";
+    $("studio-terrain-comparison-view").hidden = studioWorkspaceView !== "terrain-comparison";
     for (const button of document.querySelectorAll("[data-workspace-view]")) {
       button.setAttribute("aria-pressed", String(button.dataset.workspaceView === studioWorkspaceView));
     }
   }
 
   function selectWorkspaceView(view) {
-    if (view !== "inspect" && view !== "brief" && view !== "regional" && view !== "regional-comparison") return;
+    if (view !== "inspect" && view !== "brief" && view !== "regional" && view !== "regional-comparison" && view !== "terrain-comparison") return;
     studioWorkspaceView = view;
     syncWorkspaceVisibility();
     if (view === "inspect") window.requestAnimationFrame(() => { resizeCanvas(); draw(); });
+    if (view === "terrain-comparison") window.requestAnimationFrame(drawTerrainComparisonMap);
+  }
+
+  const TERRAIN_COMPARISON_PAGE_SIZE = 30;
+
+  function terrainComparisonColor(delta, scale, status) {
+    if (status === "REFERENCE_ONLY" || status === "CANDIDATE_ONLY") return "#42a7bb";
+    if (delta === 0 && status === "SEMANTIC_ONLY") return "#d9a847";
+    if (!Number.isFinite(delta)) return "#263140";
+    const amount = Math.max(0, Math.min(1, Math.abs(delta) / (scale || 1)));
+    const start = [190, 193, 199];
+    const end = delta < 0 ? [112, 95, 186] : [210, 83, 67];
+    return "rgb(" + start.map((channel, i) => Math.round(channel + (end[i] - channel) * amount)).join(",") + ")";
+  }
+
+  function drawTerrainComparisonMap() {
+    const plot = $("terrain-comparison-map");
+    if (!plot || !terrainSemanticComparison) return;
+    const width = Math.max(1, Math.floor(plot.clientWidth));
+    const height = Math.max(1, Math.floor(plot.clientHeight || 420));
+    const ratio = window.devicePixelRatio || 1;
+    plot.width = Math.floor(width * ratio);
+    plot.height = Math.floor(height * ratio);
+    const context = plot.getContext("2d");
+    context.setTransform(ratio, 0, 0, ratio, 0, 0);
+    context.clearRect(0, 0, width, height);
+    const grid = terrainSemanticComparison.grid;
+    const margin = { left: 40, right: 18, top: 18, bottom: 32 };
+    const mapWidth = Math.max(1, width - margin.left - margin.right);
+    const mapHeight = Math.max(1, height - margin.top - margin.bottom);
+    const cellWidth = mapWidth / grid.xSamples;
+    const cellHeight = mapHeight / grid.zSamples;
+    context.fillStyle = "#0a0f15";
+    context.fillRect(0, 0, width, height);
+    for (const column of terrainSemanticComparison.columns) {
+      const x = margin.left + column.x * cellWidth;
+      const y = margin.top + column.z * cellHeight;
+      const selected = terrainSelectedColumn &&
+        terrainSelectedColumn.x === column.x && terrainSelectedColumn.z === column.z;
+      context.fillStyle = terrainComparisonColor(
+        column.heightDelta,
+        terrainSemanticComparison.maximumAbsSurfaceDelta,
+        column.status
+      );
+      context.fillRect(x, y, Math.max(1, cellWidth - 1), Math.max(1, cellHeight - 1));
+      if (selected) {
+        context.strokeStyle = "#ffffff";
+        context.lineWidth = 2;
+        context.strokeRect(x + 1, y + 1, Math.max(1, cellWidth - 3), Math.max(1, cellHeight - 3));
+      }
+    }
+    context.strokeStyle = "#526070";
+    context.lineWidth = 1;
+    context.strokeRect(margin.left, margin.top, mapWidth, mapHeight);
+    context.fillStyle = "#aebdca";
+    context.font = "12px system-ui, sans-serif";
+    context.fillText("X", 12, margin.top + mapHeight / 2);
+    context.fillText("Z", margin.left + mapWidth / 2, height - 8);
+    terrainComparisonPlot = { left: margin.left, top: margin.top, mapWidth, mapHeight, cellWidth, cellHeight };
+  }
+
+  function selectTerrainComparisonColumn(column) {
+    terrainSelectedColumn = { x: column.x, z: column.z };
+    const reference = column.referenceTop;
+    const candidate = column.candidateTop;
+    const delta = Number.isFinite(column.heightDelta) ? fmt(column.heightDelta, 3) : "n/a (land added or removed)";
+    $("terrain-comparison-column-detail").textContent =
+      "Grid X/Z " + column.x + ", " + column.z +
+      " · world X/Z " + fmt(column.worldX, 3) + ", " + fmt(column.worldZ, 3) +
+      " · reference top " + (reference ? reference.semanticName + " at Y=" + fmt(reference.position[1], 3) : "no land") +
+      " · candidate top " + (candidate ? candidate.semanticName + " at Y=" + fmt(candidate.position[1], 3) : "no land") +
+      " · candidate − reference Y " + delta + ".";
+    drawTerrainComparisonMap();
+  }
+
+  function renderTerrainComparisonPage() {
+    if (!terrainSemanticComparison) return;
+    const comparison = terrainSemanticComparison;
+    const countTable = $("terrain-comparison-semantic-counts");
+    countTable.replaceChildren();
+    const countHead = document.createElement("thead");
+    const countHeader = document.createElement("tr");
+    for (const label of ["Semantic", "Reference", "Candidate", "Change"]) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      countHeader.append(cell);
+    }
+    countHead.append(countHeader);
+    countTable.append(countHead);
+    const countBody = document.createElement("tbody");
+    for (const item of comparison.semanticCounts) {
+      const row = document.createElement("tr");
+      for (const value of [item.name, item.reference, item.candidate, item.candidate - item.reference]) {
+        const cell = document.createElement("td");
+        cell.textContent = String(value);
+        row.append(cell);
+      }
+      countBody.append(row);
+    }
+    countTable.append(countBody);
+
+    const page = comparison.pageChangedCells(terrainComparisonPage, TERRAIN_COMPARISON_PAGE_SIZE);
+    const changes = $("terrain-comparison-changes");
+    changes.replaceChildren();
+    const changeHead = document.createElement("thead");
+    const changeHeader = document.createElement("tr");
+    for (const label of ["Grid X/Y/Z", "World X/Y/Z", "Reference", "Candidate", "Inspect"]) {
+      const cell = document.createElement("th");
+      cell.textContent = label;
+      changeHeader.append(cell);
+    }
+    changeHead.append(changeHeader);
+    changes.append(changeHead);
+    const changeBody = document.createElement("tbody");
+    for (const change of page.items) {
+      const row = document.createElement("tr");
+      for (const value of [
+        change.gridIndex.join(", "),
+        change.position.map(value => fmt(value, 3)).join(", "),
+        change.referenceName,
+        change.candidateName,
+      ]) {
+        const cell = document.createElement("td");
+        cell.textContent = value;
+        row.append(cell);
+      }
+      const actionCell = document.createElement("td");
+      const action = document.createElement("button");
+      action.type = "button";
+      action.className = "secondary";
+      action.textContent = "Inspect";
+      action.addEventListener("click", () => {
+        $("terrain-comparison-cell-detail").textContent =
+          "Grid X/Y/Z " + change.gridIndex.join(", ") +
+          " · world X/Y/Z " + change.position.map(value => fmt(value, 3)).join(", ") +
+          " · " + change.referenceName + " → " + change.candidateName +
+          ". Source labels and digests are unverified local provenance.";
+      });
+      actionCell.append(action);
+      row.append(actionCell);
+      changeBody.append(row);
+    }
+    changes.append(changeBody);
+    $("terrain-comparison-page-status").textContent = page.total === 0
+      ? "No changed semantic cells."
+      : "Changed cells " + page.firstIndex + "–" + page.lastIndex + " of " + page.total +
+        " · page " + (page.pageIndex + 1) + " of " + page.pageCount;
+    $("terrain-comparison-previous").disabled = page.pageIndex === 0;
+    $("terrain-comparison-next").disabled = page.pageIndex + 1 >= page.pageCount;
+  }
+
+  function renderTerrainComparison(comparison) {
+    terrainSemanticComparison = comparison;
+    terrainComparisonPage = 0;
+    terrainComparisonPlot = null;
+    terrainSelectedColumn = null;
+    const changedPercent = comparison.changedPercent.toFixed(2);
+    $("terrain-comparison-sources").textContent =
+      "Reference: " + comparison.referenceTitle + " · Candidate: " + comparison.candidateTitle +
+      " · both unbound local diagnostics";
+    const summary = $("terrain-comparison-summary");
+    summary.replaceChildren();
+    const cards = [
+      ["Changed semantic cells", comparison.changedCellCount + " / " + comparison.grid.sampleCount +
+        " (" + changedPercent + "%)"],
+      ["Changed top-surface columns", comparison.changedColumnCount + " / " +
+        comparison.columns.length],
+      ["World-grid match", comparison.grid.xSamples + " × " + comparison.grid.ySamples + " × " +
+        comparison.grid.zSamples + " at exact coordinates"],
+    ];
+    for (const [title, value] of cards) {
+      const card = document.createElement("div");
+      card.className = "terrain-comparison-summary-card";
+      const heading = document.createElement("h4");
+      heading.textContent = title;
+      const strong = document.createElement("strong");
+      strong.textContent = value;
+      card.append(heading, strong);
+      summary.append(card);
+    }
+    $("terrain-comparison-results").hidden = false;
+    $("terrain-comparison-status").textContent =
+      "Compared exact matching grids. No resampling was performed; both files remain unbound local diagnostics.";
+    renderTerrainComparisonPage();
+    drawTerrainComparisonMap();
+  }
+
+  async function loadTerrainComparisonFiles(files) {
+    const status = $("terrain-comparison-status");
+    try {
+      if (files.length !== 2) throw new Error("Choose exactly two terrain semantic volume JSON files.");
+      const maximumBytes = window.SkyforgeStudioWorkspacePackage.maximumFileBytes;
+      for (const file of files) {
+        if (file.size > maximumBytes) throw new Error("Each terrain file must be 25 MB or smaller.");
+      }
+      const parsed = await Promise.all(files.map(async file => ({
+        title: file.name,
+        json: await file.text(),
+      })));
+      const scenes = parsed.map(source => {
+        const artifact = JSON.parse(source.json);
+        const adapted = window.SkyforgeStudioScene.adaptArtifact(artifact, {
+          binding: "UNBOUND_LOCAL",
+          artifactTitle: source.title,
+          reviewAuthority: false,
+        });
+        if (adapted.source?.binding !== "UNBOUND_LOCAL" || adapted.source.reviewAuthority !== false) {
+          throw new Error("A terrain source did not remain an unbound local diagnostic.");
+        }
+        return adapted;
+      });
+      const comparison = window.SkyforgeStudioTerrainComparison.compare(
+        { scene: scenes[0], title: parsed[0].title },
+        { scene: scenes[1], title: parsed[1].title }
+      );
+      renderTerrainComparison(comparison);
+    } catch (error) {
+      terrainSemanticComparison = null;
+      $("terrain-comparison-results").hidden = true;
+      status.textContent = "Could not compare terrain volumes: " + String(error.message || error);
+    } finally {
+      $("terrain-comparison-files").value = "";
+    }
   }
 
   function fmt(value, digits = 3) {
@@ -2837,6 +3065,36 @@
     }
   });
   window.addEventListener("resize", draw);
+  window.addEventListener("resize", drawTerrainComparisonMap);
+
+  $("terrain-comparison-files").addEventListener("change", event => {
+    loadTerrainComparisonFiles(Array.from(event.target.files || []));
+  });
+  $("terrain-comparison-previous").addEventListener("click", () => {
+    if (terrainComparisonPage > 0) {
+      terrainComparisonPage -= 1;
+      renderTerrainComparisonPage();
+    }
+  });
+  $("terrain-comparison-next").addEventListener("click", () => {
+    if (!terrainSemanticComparison) return;
+    const next = terrainSemanticComparison.pageChangedCells(
+      terrainComparisonPage + 1, TERRAIN_COMPARISON_PAGE_SIZE);
+    if (next.items.length) {
+      terrainComparisonPage += 1;
+      renderTerrainComparisonPage();
+    }
+  });
+  $("terrain-comparison-map").addEventListener("click", event => {
+    if (!terrainSemanticComparison || !terrainComparisonPlot?.cellWidth) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.floor((event.clientX - rect.left - terrainComparisonPlot.left) /
+      terrainComparisonPlot.cellWidth);
+    const z = Math.floor((event.clientY - rect.top - terrainComparisonPlot.top) /
+      terrainComparisonPlot.cellHeight);
+    const column = terrainSemanticComparison.columns.find(item => item.x === x && item.z === z);
+    if (column) selectTerrainComparisonColumn(column);
+  });
 
   configureWorkspaceNavigation();
   initializeWorldBrief();
