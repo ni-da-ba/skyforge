@@ -44,6 +44,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             var second = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
                     descriptor, network, route, terrain, interiority);
             assertEquals(first.centerline(), second.centerline());
+            assertEquals(first.diagnostics(), second.diagnostics());
             var d = first.diagnostics();
             assertTrue(
                     d.finalIntegratedSquaredHeadEnvelopeGap()
