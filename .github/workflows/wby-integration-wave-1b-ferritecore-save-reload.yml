@@ -1,0 +1,206 @@
+name: WBY Integration Wave 1B FerriteCore Save Reload Admission
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1-save-reload.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceReloadClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1b-ferritecore-save-reload-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  save-reload:
+    runs-on: ubuntu-24.04
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: ferritecore
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Boot A — persist the distant Sable body and locator
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 240 ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistencePrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/prepare.properties"
+          game_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^persistencePrepared=true$' "$result"
+          grep -q '^saveSuccess=true$' "$result"
+          grep -q '^fixtureLivenessReleased=true$' "$result"
+          test -f "$game_dir/wby-wave1-persistence.identity"
+          test -f "$game_dir/saves/wby-wave1-persistence/level.dat"
+
+      - name: Configure bounded unattended reload client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact Wave 1 jars like a real modpack client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StagePersistenceClientMods --no-configuration-cache
+
+      - name: Boot B — reopen the save and qualify the same UUID through DH and SSRD
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-wave1-save-reload.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties"
+          rm -f "$result"
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistenceReloadClientAcceptance --no-configuration-cache >"$log" 2>&1 &
+          runner_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 270); do
+            if [[ -f "$result" ]]; then
+              if grep -q '^status=PASS$' "$result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              wait "$runner_pid" || rc=$?
+              rc=${rc:-0}
+              echo "save/reload client exited before terminal evidence (rc=$rc)"
+              cat "$log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ -z "$terminal" ]]; then
+            echo "save/reload client produced no terminal evidence within 270 seconds"
+            cat "$log"
+            kill -TERM -- "-$runner_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$runner_pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          kill -TERM -- "-$runner_pid" 2>/dev/null || true
+          for _ in $(seq 1 10); do
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          kill -KILL -- "-$runner_pid" 2>/dev/null || true
+          wait "$runner_pid" 2>/dev/null || true
+          cat "$log"
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY save/reload acceptance reported FAIL"
+            cat "$result"
+            exit 1
+          fi
+
+          grep -q '^reloaded=true$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^samePersistentUuid=true$' "$result"
+          grep -q '^persistencePointerVerified=true$' "$result"
+          grep -q '^currentPhysicsHandleValid=true$' "$result"
+          grep -q '^clientSubLevelFinalized=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^beyondVanillaRenderDistance=true$' "$result"
+          grep -q '^ssrdRenderDataPresent=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^ssrdProjectionMatrixPresent=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["serverReloadTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["horizontalDistanceBlocks"]) > 96.0, p
+          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          assert int(p["stableQualifiedTicks"]) >= 20, p
+          print("WBY WAVE 1 SAVE RELOAD PASS", p)
+          PY
+
+      - name: Upload Wave 1 save/reload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-ferritecore-save-reload-admission
+          path: |
+            wby-wave1-save-reload.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-persistence/wby-wave1-persistence.identity
+            skyforge-neoforge-1211/run-wby-wave1-persistence/logs/latest.log
+          if-no-files-found: warn
+ "$result"
+          grep -Eq '\\(lithium\\)' "$log"
+          grep -Eq '\\(ferritecore\\)' "$log"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["serverReloadTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["horizontalDistanceBlocks"]) > 96.0, p
+          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
+          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
+          assert int(p["stableQualifiedTicks"]) >= 20, p
+          print("WBY WAVE 1 SAVE RELOAD PASS", p)
+          PY
+
+      - name: Upload Wave 1 save/reload evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-ferritecore-save-reload-admission
+          path: |
+            wby-wave1-save-reload.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-persistence/wby-wave1-persistence.identity
+            skyforge-neoforge-1211/run-wby-wave1-persistence/logs/latest.log
+          if-no-files-found: warn
