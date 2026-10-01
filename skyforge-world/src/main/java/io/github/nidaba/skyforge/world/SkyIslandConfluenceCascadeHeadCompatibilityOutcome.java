@@ -15,6 +15,7 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
         double authoredMaximumDropWorldUnits,
         Optional<SkyIslandHydraulicQpResult> solve,
         Optional<Double> sharedNodeHeadWorldUnits,
+        Optional<Double> cascadeConfluenceSideHeadWorldUnits,
         Optional<Double> cascadeBoundaryHeadWorldUnits,
         Optional<Double> solvedDropWorldUnits,
         List<SkyIslandConfluenceLegHeadSolution> ordinaryLegSolutions,
@@ -35,6 +36,8 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
         solve = Objects.requireNonNull(solve, "solve");
         sharedNodeHeadWorldUnits = Objects.requireNonNull(
                 sharedNodeHeadWorldUnits, "sharedNodeHeadWorldUnits");
+        cascadeConfluenceSideHeadWorldUnits = Objects.requireNonNull(
+                cascadeConfluenceSideHeadWorldUnits, "cascadeConfluenceSideHeadWorldUnits");
         cascadeBoundaryHeadWorldUnits = Objects.requireNonNull(
                 cascadeBoundaryHeadWorldUnits, "cascadeBoundaryHeadWorldUnits");
         solvedDropWorldUnits = Objects.requireNonNull(solvedDropWorldUnits, "solvedDropWorldUnits");
@@ -49,33 +52,28 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
                             ? cascade.transitionSite().upstreamBoundary()
                             : cascade.transitionSite().downstreamBoundary();
             boolean touchesNode = sameLocation(cascadeAtConfluence, coupledLeg.nodeBoundary());
-            boolean touchesFinite = sameLocation(cascadeAtConfluence, coupledLeg.finiteBoundary());
-            if (touchesNode == touchesFinite
-                    || solve.isEmpty()
+            boolean crossesFiniteBoundary =
+                    cascade.transitionSite().upstreamBoundary().arcLength()
+                                    <= coupledLeg.finiteBoundary().arcLength() + 1.0e-9
+                            && cascade.transitionSite().downstreamBoundary().arcLength()
+                                    >= coupledLeg.finiteBoundary().arcLength() - 1.0e-9;
+            if (solve.isEmpty()
                     || solve.orElseThrow().status() != SkyIslandHydraulicQpStatus.SOLVED
                     || sharedNodeHeadWorldUnits.isEmpty()
+                    || cascadeConfluenceSideHeadWorldUnits.isPresent() == touchesNode
                     || cascadeBoundaryHeadWorldUnits.isEmpty()
-                    || solvedDropWorldUnits.isEmpty()) {
+                    || solvedDropWorldUnits.isEmpty()
+                    || !crossesFiniteBoundary) {
                 throw new IllegalArgumentException(
-                        "SOLVED joint outcome requires a unique coupled boundary and complete head evidence");
+                        "SOLVED joint outcome requires crossing geometry and complete head evidence");
             }
-            int expectedLegSolutions = confluence.legs().size() - (touchesNode ? 1 : 0);
-            boolean coupledLegIncluded = false;
-            double coupledFiniteHead = Double.NaN;
-            for (SkyIslandConfluenceLegHeadSolution legSolution : ordinaryLegSolutions) {
-                if (legSolution.leg() == coupledLeg) {
-                    coupledLegIncluded = true;
-                    coupledFiniteHead = legSolution.finiteBoundaryHeadWorldUnits();
-                }
-            }
-            if (ordinaryLegSolutions.size() != expectedLegSolutions
-                    || touchesFinite && !coupledLegIncluded) {
+            if (ordinaryLegSolutions.size() != confluence.legs().size() - 1) {
                 throw new IllegalArgumentException(
                         "SOLVED joint outcome requires all uncoupled ordinary-leg head evidence");
             }
             double nearHead = touchesNode
                     ? sharedNodeHeadWorldUnits.orElseThrow()
-                    : coupledFiniteHead;
+                    : cascadeConfluenceSideHeadWorldUnits.orElseThrow();
             double remoteHead = cascadeBoundaryHeadWorldUnits.orElseThrow();
             boolean cascadeUpstreamAtConfluence = coupledLeg.nodeBoundary().role()
                     == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING;
@@ -89,6 +87,7 @@ public record SkyIslandConfluenceCascadeHeadCompatibilityOutcome(
                         "joint CASCADE drop escaped its authored boundary");
             }
         } else if (sharedNodeHeadWorldUnits.isPresent()
+                || cascadeConfluenceSideHeadWorldUnits.isPresent()
                 || cascadeBoundaryHeadWorldUnits.isPresent()
                 || solvedDropWorldUnits.isPresent()
                 || !ordinaryLegSolutions.isEmpty()) {
