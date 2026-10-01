@@ -548,6 +548,34 @@
     }
   }
 
+  function loadTerrainComparisonDemo() {
+    const status = $("terrain-comparison-status");
+    $("terrain-comparison-reference").value = "";
+    $("terrain-comparison-candidate").value = "";
+    $("terrain-comparison-report-file").value = "";
+    try {
+      const inputs = window.SkyforgeStudioTerrainComparisonDemo.createInputs();
+      const scenes = inputs.map(input => window.SkyforgeStudioScene.adaptArtifact(input.artifact, {
+        binding: "UNBOUND_LOCAL",
+        artifactTitle: input.title,
+        reviewAuthority: false,
+      }));
+      const comparison = window.SkyforgeStudioTerrainComparison.compare(
+        { scene: scenes[0], title: inputs[0].title },
+        { scene: scenes[1], title: inputs[1].title }
+      );
+      renderTerrainComparison(comparison);
+      status.textContent =
+        "Synthetic demonstration loaded. These sample changes are not generated Skyforge output or project evidence.";
+      $("terrain-comparison-report-status").textContent =
+        "Synthetic demonstration only; not project evidence. No source digest is supplied.";
+    } catch (error) {
+      terrainSemanticComparison = null;
+      $("terrain-comparison-results").hidden = true;
+      status.textContent = "Could not load the synthetic terrain example: " + String(error.message || error);
+    }
+  }
+
   function handleTerrainComparisonFilesChanged() {
     const reference = $("terrain-comparison-reference").files?.[0] || null;
     const candidate = $("terrain-comparison-candidate").files?.[0] || null;
@@ -3129,6 +3157,7 @@
   window.addEventListener("resize", draw);
   window.addEventListener("resize", drawTerrainComparisonMap);
 
+  $("terrain-comparison-demo").addEventListener("click", loadTerrainComparisonDemo);
   $("terrain-comparison-reference").addEventListener("change", handleTerrainComparisonFilesChanged);
   $("terrain-comparison-candidate").addEventListener("change", handleTerrainComparisonFilesChanged);
   $("terrain-comparison-report-file").addEventListener("change", event => {

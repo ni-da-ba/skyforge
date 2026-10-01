@@ -16,6 +16,7 @@
   <script src="workspace-package.js" defer></script>
   <script src="workspace-session.js" defer></script>
   <script src="terrain-comparison.js" defer></script>
+  <script src="terrain-comparison-demo.js" defer></script>
   <script src="terrain-comparison-report.js" defer></script>
   <script src="terrain-comparison-report-reader.js" defer></script>
   <script src="app.js" defer></script>
@@ -197,6 +198,8 @@
             <p class="small muted">Choose the earlier version as the reference and the later version as the candidate. Both remain local diagnostics.</p>
           </div>
         </div>
+        <button id="terrain-comparison-demo" type="button" class="secondary">Load synthetic example</button>
+        <p class="small muted">A small made-up example shows the comparison and report workflow. It is not generated Skyforge output or project evidence.</p>
         <label for="terrain-comparison-reference">Reference version · before</label>
         <input id="terrain-comparison-reference" type="file" accept=".json,application/json">
         <label for="terrain-comparison-candidate">Candidate version · after</label>
