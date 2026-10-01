@@ -1,0 +1,491 @@
+name: WBY Integration Wave 1-B Lithium
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1b-lithium.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1PersistenceReloadClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryServerAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1b-lithium-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve baseline and Lithium pins
+        run: |
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BResolveLithium --no-configuration-cache
+
+      - name: Prove both-sided Lithium server boot
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-wave1b-lithium-preflight
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          server-port=0
+          EOF
+
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
+
+          log="wby-wave1b-lithium-server-boot.log"
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          cleanup() {
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+
+          ready=0
+          for _ in $(seq 1 150); do
+            if grep -Fq "Done (" "$log" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "W1-B Lithium server boot failed"
+            cat "$log"
+            exit 1
+          fi
+
+          grep -Eq '\(create\)' "$log"
+          grep -Eq '\(sable\)' "$log"
+          grep -Eq '\(aeronautics\)' "$log"
+          grep -Eq '\(ssrd\)' "$log"
+          grep -Eq '\(lithium\)' "$log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
+            echo "W1-B Lithium server leaked client renderer mods"
+            cat "$log"
+            exit 1
+          fi
+          echo "WBY WAVE 1-B LITHIUM PREFLIGHT PASS"
+
+      - name: Upload preflight diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-lithium-preflight
+          path: wby-wave1b-lithium-server-boot.log
+          if-no-files-found: warn
+
+  rope:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve and compile
+        run: |
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods :skyforge-neoforge-1211:wbyWave1BResolveLithium :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Qualify rope with Lithium
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-wave1b-lithium-rope
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25568
+          EOF
+
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
+
+          log="wby-wave1b-lithium-rope.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties"
+          rm -f "$result"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} \
+            -Dskyforge.dev.wbyWave1RopeSanity=true \
+            -Dskyforge.dev.acceptanceHarness=true \
+            -Dskyforge.dev.acceptanceMode=server \
+            -Dskyforge.dev.acceptanceCase=wby-wave1-rope-sanity \
+            -Dskyforge.dev.acceptanceRadius=0 \
+            -Dskyforge.dev.acceptanceTimeoutSeconds=180 \
+            -Dskyforge.dev.acceptanceResultFile=$PWD/$result"
+
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache 2>&1 | tee "$log"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^ropeActive=true$' "$result"
+          grep -q '^chunkBoundaryCrossed=true$' "$result"
+          grep -q '^forcedChunkGrowth=0$' "$result"
+          grep -q '^ropeChunkTransitionQualified=true$' "$result"
+          grep -Eq '\(lithium\)' "$log"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["maxWorldAttachmentErrorBlocks"]) <= 2.0, p
+          assert float(p["maxSableAttachmentErrorBlocks"]) <= 2.0, p
+          assert int(p["postCrossingAttachmentStableTicks"]) >= 20, p
+          assert int(p["forcedChunkGrowth"]) == 0, p
+          assert int(p["loadedChunkDelta"]) <= 64, p
+          print("WBY WAVE 1-B LITHIUM ROPE PASS", p)
+          PY
+
+      - name: Upload rope evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-lithium-rope
+          path: |
+            wby-wave1b-lithium-rope.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/*.properties
+          if-no-files-found: warn
+
+  persistence:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve W1-A and Lithium
+        run: |
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods :skyforge-neoforge-1211:wbyWave1BResolveLithium --no-configuration-cache
+
+      - name: Boot A with Lithium and persist distant Sable body
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
+
+          log="wby-wave1b-lithium-persistence-prepare.log"
+          timeout 240 ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistencePrepareServer --no-configuration-cache 2>&1 | tee "$log"
+          grep -Eq '\(lithium\)' "$log"
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^persistencePrepared=true$' "$result"
+          grep -q '^saveSuccess=true$' "$result"
+
+      - name: Boot B with Lithium and requalify same UUID
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-persistence"
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StagePersistenceClientMods --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
+          test "$(find "$run_dir/mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
+
+          log="wby-wave1b-lithium-save-reload.log"
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties"
+          rm -f "$result"
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistenceReloadClientAcceptance --no-configuration-cache >"$log" 2>&1 &
+          runner_pid=$!
+          terminal=""
+          for _ in $(seq 1 270); do
+            if [[ -f "$result" ]]; then
+              if grep -q '^status=PASS$' "$result"; then terminal="PASS"; break; fi
+              if grep -q '^status=FAIL$' "$result"; then terminal="FAIL"; break; fi
+            fi
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              wait "$runner_pid" || rc=$?
+              rc=${rc:-0}
+              echo "save/reload client exited before evidence (rc=$rc)"
+              cat "$log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          kill -TERM -- "-$runner_pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$runner_pid" 2>/dev/null || true
+          wait "$runner_pid" 2>/dev/null || true
+
+          [[ "$terminal" == "PASS" ]]
+          grep -Eq '\(lithium\)' "$log"
+          grep -q '^samePersistentUuid=true$' "$result"
+          grep -q '^persistencePointerVerified=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["serverReloadTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
+          assert int(p["stableQualifiedTicks"]) >= 20, p
+          print("WBY WAVE 1-B LITHIUM SAVE RELOAD PASS", p)
+          PY
+
+      - name: Upload persistence evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-lithium-persistence
+          path: |
+            wby-wave1b-lithium-persistence-prepare.log
+            wby-wave1b-lithium-save-reload.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/*.properties
+          if-no-files-found: warn
+
+  telemetry:
+    needs: preflight
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve and compile
+        run: |
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods :skyforge-neoforge-1211:wbyWave1BResolveLithium :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Configure dedicated server and benchmark client
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="skyforge-neoforge-1211/run-wby-wave1-telemetry-server"
+          client_dir="skyforge-neoforge-1211/run-wby-wave1-telemetry-client"
+          rm -rf "$server_dir" "$client_dir"
+          mkdir -p "$server_dir" "$client_dir"
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          cat > "$server_dir/server.properties" <<'EOF'
+          level-name=wby-wave1b-lithium-telemetry
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=2
+          server-port=25569
+          EOF
+          cat > "$client_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          maxFps:120
+          EOF
+
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+          source_mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          target_mods="$client_dir/mods"
+          rm -rf "$target_mods"
+          mkdir -p "$target_mods"
+          cp -a "$source_mods"/. "$target_mods"/
+          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
+          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
+
+      - name: Capture Lithium telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_log="wby-wave1b-lithium-telemetry-server.log"
+          client_log="wby-wave1b-lithium-telemetry-client.log"
+          server_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties"
+          server_fixture_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server-fixture.properties"
+          client_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties"
+          rm -f "$server_result" "$server_fixture_result" "$client_result"
+
+          server_pid=""
+          client_pid=""
+          cleanup() {
+            set +e
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then kill -TERM -- "-$pid" 2>/dev/null || true; fi
+            done
+            sleep 2
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryServerAcceptance --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+          ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          [[ "$ready" -eq 1 ]]
+          grep -Eq '\(lithium\)' "$server_log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
+            echo "Lithium telemetry server leaked client renderer mods"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance --no-configuration-cache >"$client_log" 2>&1 &
+          client_pid=$!
+          terminal=""
+          for _ in $(seq 1 240); do
+            if [[ -f "$client_result" ]]; then
+              if grep -q '^status=PASS$' "$client_result"; then terminal="PASS"; break; fi
+              if grep -q '^status=FAIL$' "$client_result"; then terminal="FAIL"; break; fi
+            fi
+            if [[ -f "$server_fixture_result" ]] && grep -q '^status=FAIL$' "$server_fixture_result"; then
+              cat "$server_fixture_result"
+              exit 1
+            fi
+            kill -0 "$server_pid" 2>/dev/null
+            kill -0 "$client_pid" 2>/dev/null
+            sleep 1
+          done
+          [[ "$terminal" == "PASS" ]]
+
+          server_done=0
+          for _ in $(seq 1 120); do
+            if [[ -f "$server_result" ]] && grep -q '^status=PASS$' "$server_result"; then server_done=1; break; fi
+            kill -0 "$server_pid" 2>/dev/null
+            sleep 1
+          done
+          [[ "$server_done" -eq 1 ]]
+
+          grep -Eq '\(lithium\)' "$client_log"
+          grep -q '^actualMultiplayer=true$' "$client_result"
+          grep -q '^ssrdDistanceSource=Server$' "$client_result"
+          grep -q '^ssrdEffectiveMaxChunks=128$' "$client_result"
+          grep -q '^telemetryBaselineQualified=true$' "$client_result"
+          if grep -Fq "Received a sub-level movement packet for a non-existent sub-level" "$client_log"; then
+            echo "Sable full-sync ordering regression detected"
+            exit 1
+          fi
+
+          python3 - <<'PY'
+          from pathlib import Path
+          def load(path):
+              out = {}
+              for line in Path(path).read_text().splitlines():
+                  if "=" in line and not line.startswith("#"):
+                      k, v = line.split("=", 1)
+                      out[k] = v
+              return out
+          client = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties")
+          server = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties")
+          assert client["bodyId"] == server["bodyId"], (client, server)
+          assert int(client["frameSamples"]) >= 240, client
+          assert int(client["visibleSableSublevelsMedian"]) >= 1, client
+          assert int(client["ssrdEffectiveMaxChunks"]) == 128, client
+          assert int(server["serverMsptSamples"]) >= 200, server
+          assert int(server["forcedChunksMax"]) == 0, server
+          if "llvmpipe" in client["glRenderer"].lower() or "softpipe" in client["glRenderer"].lower():
+              assert client["vramTelemetryAvailable"] == "false", client
+              assert client["vramTelemetrySource"] == "unavailable-software-renderer", client
+          print("WBY WAVE 1-B LITHIUM TELEMETRY PASS", {"client": client, "server": server})
+          PY
+          cat "$client_result"
+          cat "$server_result"
+
+      - name: Upload Lithium telemetry
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1b-lithium-telemetry
+          path: |
+            wby-wave1b-lithium-telemetry-server.log
+            wby-wave1b-lithium-telemetry-client.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/*.properties
+          if-no-files-found: warn
