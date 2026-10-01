@@ -58,6 +58,9 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
     private static UUID bodyId;
     private static Set<UUID> beforeIds = Set.of();
     private static ChunkPos sourceChunk;
+    private static BlockPos fixtureBodyMin;
+    private static BlockPos fixtureBodyMax;
+    private static BlockPos fixtureAssemblerPos;
     private static boolean sourceChunkTicketAdded;
     private static boolean forceLoadTicketAdded;
     private static boolean physicsStateCaptured;
@@ -179,6 +182,9 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
                 viewer.blockPosition().getZ());
         BlockPos bodyMax = bodyMin.offset(3, 2, 3);
         BlockPos assemblerPos = bodyMin.offset(1, 3, 1);
+        fixtureBodyMin = bodyMin;
+        fixtureBodyMax = bodyMax;
+        fixtureAssemblerPos = assemblerPos;
 
         sourceChunk = new ChunkPos(bodyMin);
         level.getChunkSource().addRegionTicket(
@@ -354,20 +360,14 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
     }
 
     private static int sourceNonAirBlocks() {
-        if (sourceChunk == null) {
+        if (fixtureBodyMin == null || fixtureBodyMax == null || fixtureAssemblerPos == null) {
             return -1;
         }
-        int centerX = sourceChunk.getMinBlockX();
-        // The fixture always starts at x = viewer + 240, so discover the exact local occupied
-        // region around the assembler/body rather than treating the whole source chunk as fixture.
-        int count = 0;
-        for (int x = centerX - 2; x <= centerX + 17; x++) {
-            for (int y = BODY_Y - 2; y <= BODY_Y + 5; y++) {
-                for (int z = sourceChunk.getMinBlockZ() - 2; z <= sourceChunk.getMaxBlockZ() + 2; z++) {
-                    BlockState state = level.getBlockState(new BlockPos(x, y, z));
-                    if (state.is(Blocks.SLIME_BLOCK)
-                            || state.is(Blocks.GOLD_BLOCK)
-                            || BuiltInRegistries.BLOCK.getKey(state.getBlock()).equals(PHYSICS_ASSEMBLER)) {
+        int count = level.getBlockState(fixtureAssemblerPos).isAir() ? 0 : 1;
+        for (int x = fixtureBodyMin.getX(); x <= fixtureBodyMax.getX(); x++) {
+            for (int y = fixtureBodyMin.getY(); y <= fixtureBodyMax.getY(); y++) {
+                for (int z = fixtureBodyMin.getZ(); z <= fixtureBodyMax.getZ(); z++) {
+                    if (!level.getBlockState(new BlockPos(x, y, z)).isAir()) {
                         count++;
                     }
                 }
