@@ -13,6 +13,7 @@
   <script src="regional-inventory.js" defer></script>
   <script src="regional-comparison-library.js" defer></script>
   <script src="regional-comparison.js" defer></script>
+  <script src="workspace-package.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -215,6 +216,15 @@
           </div>
         </div>
         <p id="source-status" class="small muted" aria-live="polite"></p>
+        <div class="workspace-package-controls">
+          <div class="workspace-package-actions">
+            <button id="download-inspection-workspace" type="button" disabled>Download inspection workspace</button>
+            <button id="open-inspection-workspace" type="button" class="secondary">Open inspection workspace</button>
+            <input id="inspection-workspace-file" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p class="small muted">A workspace carries the scene, optional reference overlay, and view controls. Comparison candidates and reports stay separate; reopened sources are local diagnostics with no registered verification or development access.</p>
+          <p id="inspection-workspace-status" class="small muted" aria-live="polite"></p>
+        </div>
         <div class="trace-import-controls">
           <button id="open-sample-trace" type="button" class="secondary">Open sample trace JSON</button>
           <input id="sample-trace-file" type="file" accept=".json,application/json" hidden>

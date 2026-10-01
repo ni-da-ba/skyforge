@@ -9,6 +9,7 @@ on:
       - studio/provenance-inspector
       - studio/regional-comparison-package
       - studio/regional-comparison-library
+      - studio/inspection-workspaces
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"

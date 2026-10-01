@@ -133,6 +133,8 @@ STUDIO_APP_FILES = (
     Path('regional-inventory.js'),
     Path('regional-comparison-library.js'),
     Path('regional-comparison.js'),
+    Path('workspace-package.js'),
+    Path('workspace-package.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
@@ -141,9 +143,13 @@ STUDIO_README = """Skyforge Studio — local S2 review
 1. Open index.html in a browser.
 2. Click “Open included S2 specimen”.
 
-Studio opens the exact packaged terrain + hydrology pair in one step. The view is an
-UNBOUND LOCAL DIAGNOSTIC: no token is needed, and it does not count as formal visual
-approval or change artifact authority. The original JSON files remain in sample/ for
+Studio opens the exact packaged terrain + hydrology pair in one step. In Inspect semantics,
+use “Download inspection workspace” to save the current scene, optional reference overlay,
+and view settings in one portable JSON file. Use “Open inspection workspace” to restore it.
+
+Reopened sources are UNBOUND LOCAL DIAGNOSTICS: no token is needed, and the package does
+not preserve registered-artifact verification or grant review authority. Comparison
+candidates and reports remain separate. The original JSON files remain in sample/ for
 inspection or manual import.
 """
 

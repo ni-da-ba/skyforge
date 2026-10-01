@@ -120,3 +120,9 @@ button:disabled{cursor:not-allowed;opacity:.5}
 .regional-library-save-row input:focus,.regional-library-open-row select:focus{outline:2px solid #75a9ff;outline-offset:1px}
 #regional-library-status{min-height:1.2em;margin:.65rem 0 0;overflow-wrap:anywhere}
 @media(max-width:650px){.regional-library-save-row,.regional-library-open-row{display:grid;grid-template-columns:1fr}.regional-library-save-row button,.regional-library-open-row button{width:100%}}
+
+
+.workspace-package-controls{margin-top:1rem;padding:1rem;border:1px solid #2e4054;border-radius:8px;background:#0d151e}
+.workspace-package-actions{display:flex;flex-wrap:wrap;gap:.6rem}
+#inspection-workspace-status{min-height:1.2em;margin:.65rem 0 0;overflow-wrap:anywhere}
+@media(max-width:650px){.workspace-package-actions{display:grid;grid-template-columns:1fr}.workspace-package-actions button{width:100%}}
