@@ -23,6 +23,7 @@ const scenes = inputs.map(input => sceneApi.adaptArtifact(input.artifact, {
 }));
 assert.ok(scenes.every(scene => scene.source.binding === "UNBOUND_LOCAL"));
 assert.ok(scenes.every(scene => scene.source.reviewAuthority === false));
+assert.ok(scenes.every(scene => scene.source.artifactDigest === ""));
 const comparison = comparisonApi.compare(
   { scene: scenes[0], title: inputs[0].title },
   { scene: scenes[1], title: inputs[1].title }
@@ -36,6 +37,8 @@ const report = reportApi.create(comparison);
 assert.equal(report.human_review_evidence, false);
 assert.equal(report.review_authority, false);
 assert.equal(report.provenance_verified, false);
+assert.equal(report.sources.reference.artifactDigest, "");
+assert.equal(report.sources.candidate.artifactDigest, "");
 assert.match(report.sources.referenceTitle, /Synthetic example/);
 assert.match(report.sources.candidateTitle, /Synthetic example/);
 const reopened = readerApi.parse(reportApi.stringify(report));
