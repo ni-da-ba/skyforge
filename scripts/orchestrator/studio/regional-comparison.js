@@ -297,5 +297,9 @@
       libraryStatus("Browser-local storage is unavailable or cannot be read: "+String(e.message||e)+". Portable package download and open remain available.",true);
     }
   }
+  root.addEventListener("skyforge-studio-backup-restored",()=>{
+    if(!state.libraryRepository)return;
+    refreshLibrary().catch(e=>libraryStatus("Saved comparisons were restored, but this view could not refresh: "+String(e.message||e),true));
+  });
   document.addEventListener("DOMContentLoaded",init);
 })(typeof window!=="undefined"?window:globalThis);
