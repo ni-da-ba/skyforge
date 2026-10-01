@@ -145,35 +145,7 @@ jobs:
           grep -q '^ssrdProjectionMatrixPresent=true$' "$result"
           grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
           grep -q '^distantHorizonsLoaded=true$' "$result"
-          grep -q '^sodiumLoaded=true
-          python3 - <<'PY'
-          from pathlib import Path
-          p = {}
-          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/reload.properties").read_text().splitlines():
-              if "=" in line and not line.startswith("#"):
-                  k, v = line.split("=", 1)
-                  p[k] = v
-          assert float(p["serverReloadTransformErrorBlocks"]) <= 8.0, p
-          assert float(p["renderTransformErrorBlocks"]) <= 8.0, p
-          assert float(p["horizontalDistanceBlocks"]) > 96.0, p
-          assert int(p["vanillaRenderDistanceChunks"]) == 4, p
-          assert int(p["ssrdEffectiveMaxChunks"]) > 4, p
-          assert int(p["stableQualifiedTicks"]) >= 20, p
-          print("WBY WAVE 1 SAVE RELOAD PASS", p)
-          PY
-
-      - name: Upload Wave 1 save/reload evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: wby-wave1b-ferritecore-save-reload-admission
-          path: |
-            wby-wave1-save-reload.log
-            skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/*.properties
-            skyforge-neoforge-1211/run-wby-wave1-persistence/wby-wave1-persistence.identity
-            skyforge-neoforge-1211/run-wby-wave1-persistence/logs/latest.log
-          if-no-files-found: warn
- "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
           grep -Eq '\(lithium\)' "$log"
           grep -Eq '\(ferritecore\)' "$log"
 
