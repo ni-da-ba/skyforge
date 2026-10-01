@@ -218,6 +218,14 @@ val wbyWave1FlightMods = listOf("create", "sable", "aeronautics")
 val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyWave1ServerMods = listOf("ssrd")
 
+// PT-02 is the first post-W1 capability overlay. It reuses the already accepted C2 Reliable
+// Gliders pin and C3 A4MC authority pin without contaminating the ordinary W1 baseline.
+val wbyPt02Glider = providers.gradleProperty("wbyPt02Glider")
+    .orNull
+    ?.trim()
+    ?.equals("true", ignoreCase = true)
+    ?: false
+
 // W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
 // resolve or stage any optimizer unless the qualification invocation explicitly supplies
 // -PwbyWave1BOptimizer=<candidate>.
@@ -6375,7 +6383,15 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        if (wbyPt02Glider) {
+            listOf(
+                waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+                waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
+        }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6412,7 +6428,15 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
     val expectedTokens = (
         wbyWave1FlightMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
-        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } }
+        wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
+        if (wbyPt02Glider) {
+            listOf(
+                waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+                waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
+        }
     ).toSet()
 
     from(wbyWave1VisibilityClientRuntime.runtimeClasspath) {
@@ -6487,6 +6511,23 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             "WBY Wave 1 server leaked client-only/optional renderer artifacts: $serverFiles"
         }
 
+        if (wbyPt02Glider) {
+            val reliableGlidersToken = artifactToken(waveC2Pin("reliablegliders", "coordinate"))
+            val a4mcToken = artifactToken(waveC3Pin("aerodynamics4mcCore", "coordinate"))
+            val noElytraBoostToken = artifactToken(waveC2Pin("noelytraboost", "coordinate"))
+            listOf("client" to clientFiles, "server" to serverFiles).forEach { (side, files) ->
+                check(files.any { it.contains(reliableGlidersToken) }) {
+                    "WBY PT-02 $side missing Reliable Gliders token '$reliableGlidersToken': $files"
+                }
+                check(files.any { it.contains(a4mcToken) }) {
+                    "WBY PT-02 $side missing A4MC core token '$a4mcToken': $files"
+                }
+                check(files.none { it.contains(noElytraBoostToken) }) {
+                    "WBY PT-02A must not admit No More Elytra Boosting yet: $files"
+                }
+            }
+        }
+
         wbyWave1BClientOptimizerMods.forEach { mod ->
             val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
@@ -6511,6 +6552,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
         println("WBY Wave 1 FML-discoverable server visibility runtime")
         serverFiles.forEach { println("  server=$it") }
         println("WBY Wave 1B optimizer=" + (wbyWave1BOptimizer ?: "none"))
+        println("WBY PT-02 glider overlay=" + if (wbyPt02Glider) "enabled" else "disabled")
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
 }
@@ -6980,6 +7022,27 @@ dependencies {
         add(
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1BPin(mod, "coordinate"),
+        )
+    }
+
+    // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
+    // No More Elytra Boosting remains a separate policy gate and is intentionally absent here.
+    if (wbyPt02Glider) {
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            waveC2Pin("reliablegliders", "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            waveC2Pin("reliablegliders", "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            files(waveC3AeroCoreArtifact),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            files(waveC3AeroCoreArtifact),
         )
     }
 
