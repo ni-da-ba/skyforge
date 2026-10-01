@@ -62,10 +62,8 @@ jobs:
           server-port=0
           EOF
 
-          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
-
           log="wby-wave1b-lithium-server-boot.log"
-          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache >"$log" 2>&1 &
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer -PskyforgeWbyWave1BLithium=true --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           cleanup() {
             kill -TERM -- "-$pid" 2>/dev/null || true
@@ -151,8 +149,6 @@ jobs:
           server-port=25568
           EOF
 
-          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
-
           log="wby-wave1b-lithium-rope.log"
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-rope-sanity/server.properties"
           rm -f "$result"
@@ -165,7 +161,7 @@ jobs:
             -Dskyforge.dev.acceptanceTimeoutSeconds=180 \
             -Dskyforge.dev.acceptanceResultFile=$PWD/$result"
 
-          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache 2>&1 | tee "$log"
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer -PskyforgeWbyWave1BLithium=true --no-configuration-cache 2>&1 | tee "$log"
           test -f "$result"
           grep -q '^status=PASS$' "$result"
           grep -q '^ropeActive=true$' "$result"
@@ -224,10 +220,8 @@ jobs:
           rm -rf "$run_dir"
           mkdir -p "$run_dir"
           printf 'eula=true\n' > "$run_dir/eula.txt"
-          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
-
           log="wby-wave1b-lithium-persistence-prepare.log"
-          timeout 240 ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistencePrepareServer --no-configuration-cache 2>&1 | tee "$log"
+          timeout 240 ./gradlew :skyforge-neoforge-1211:runWbyWave1PersistencePrepareServer -PskyforgeWbyWave1BLithium=true --no-configuration-cache 2>&1 | tee "$log"
           grep -Eq '\(lithium\)' "$log"
 
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-persistence/prepare.properties"
@@ -369,8 +363,7 @@ jobs:
           rm -rf "$target_mods"
           mkdir -p "$target_mods"
           cp -a "$source_mods"/. "$target_mods"/
-          ./gradlew :skyforge-neoforge-1211:wbyWave1BStageLithium --no-configuration-cache
-          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
+          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
 
       - name: Capture Lithium telemetry
         shell: bash
@@ -400,7 +393,7 @@ jobs:
           }
           trap cleanup EXIT
 
-          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryServerAcceptance --no-configuration-cache >"$server_log" 2>&1 &
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryServerAcceptance -PskyforgeWbyWave1BLithium=true --no-configuration-cache >"$server_log" 2>&1 &
           server_pid=$!
           ready=0
           for _ in $(seq 1 180); do
@@ -418,7 +411,7 @@ jobs:
             exit 1
           fi
 
-          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance --no-configuration-cache >"$client_log" 2>&1 &
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance -PskyforgeWbyWave1BLithium=true --no-configuration-cache >"$client_log" 2>&1 &
           client_pid=$!
           terminal=""
           for _ in $(seq 1 240); do
