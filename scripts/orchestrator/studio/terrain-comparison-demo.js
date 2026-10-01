@@ -18,7 +18,7 @@
     return {
       schema_version: 1,
       artifact_kind: "SKYFORGE_TERRAIN_SEMANTIC_VOLUME",
-      semantic_sha256: "synthetic-demo-" + version,
+      semantic_sha256: "",
       skyforge_version: "Studio synthetic walkthrough",
       grid: { ...GRID },
       semantic_legend: NAMES.map((name, ordinal) => ({
