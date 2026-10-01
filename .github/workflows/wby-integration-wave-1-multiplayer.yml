@@ -104,8 +104,8 @@ jobs:
           cp -a "$source_mods"/. "$observer_mods"/
           cp -a "$source_mods"/. "$near_mods"/
 
-          test "$(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
-          test "$(find "$near_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
+          test "$(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
+          test "$(find "$near_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
           cmp <(find "$observer_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort) \
               <(find "$near_mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort)
 
@@ -168,6 +168,7 @@ jobs:
           grep -Eq '\(sable\)' "$server_log"
           grep -Eq '\(aeronautics\)' "$server_log"
           grep -Eq '\(ssrd\)' "$server_log"
+          grep -Eq '\(lithium\)' "$server_log"
           if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
             echo "multiplayer server leaked client-only renderer mods"
             cat "$server_log"
