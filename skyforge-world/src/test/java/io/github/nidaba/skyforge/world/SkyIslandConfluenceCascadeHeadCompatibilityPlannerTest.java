@@ -35,6 +35,9 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
             SkyIslandConfluenceCascadeHeadCompatibilityOutcome b = second.outcomes().get(i);
             assertEquals(a.status(), b.status());
             assertEquals(a.sharedNodeHeadWorldUnits(), b.sharedNodeHeadWorldUnits());
+            assertEquals(
+                    a.cascadeConfluenceSideHeadWorldUnits(),
+                    b.cascadeConfluenceSideHeadWorldUnits());
             assertEquals(a.cascadeBoundaryHeadWorldUnits(), b.cascadeBoundaryHeadWorldUnits());
             assertEquals(a.solvedDropWorldUnits(), b.solvedDropWorldUnits());
             assertEquals(a.ordinaryLegSolutions(), b.ordinaryLegSolutions());
