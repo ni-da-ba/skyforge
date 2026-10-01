@@ -92,8 +92,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(outcome.span().downstreamBoundary().status())
                     .append(":")
                     .append(outcome.span().downstreamBoundary().fixedHeadWorldUnits().orElse(Double.NaN))
-                    .append(" gradePath=")
-                    .append(gradeFeasibilityLocus(descriptor, outcome.span(), terrain))
+                    .append(" selectedHeadGradePath=")
+                    .append(gradeFeasibilityLocus(descriptor, outcome.span(), terrain, true))
+                    .append(" freeTransitionHeadGradePath=")
+                    .append(gradeFeasibilityLocus(descriptor, outcome.span(), terrain, false))
                     .append(System.lineSeparator());
         }
 
@@ -1219,7 +1221,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     private static String gradeFeasibilityLocus(
             SkyIslandDescriptor descriptor,
             SkyIslandOrdinaryHydraulicSpan span,
-            SkyIslandSemanticField terrain) {
+            SkyIslandSemanticField terrain,
+            boolean preserveSelectedTransitionHeads) {
         SkyIslandGeomorphicProfileLimits limits =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
                         .limits(span.qualificationClass());
@@ -1251,14 +1254,14 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             limits);
             double localLower = envelope.lowerHead();
             double localUpper = envelope.upperHead();
-            if (i == 0) {
+            if (preserveSelectedTransitionHeads && i == 0) {
                 var fixed = span.upstreamBoundary().fixedHeadWorldUnits();
                 if (fixed.isPresent()) {
                     localLower = Math.max(localLower, fixed.orElseThrow());
                     localUpper = Math.min(localUpper, fixed.orElseThrow());
                 }
             }
-            if (i == samples.size() - 1) {
+            if (preserveSelectedTransitionHeads && i == samples.size() - 1) {
                 var fixed = span.downstreamBoundary().fixedHeadWorldUnits();
                 if (fixed.isPresent()) {
                     localLower = Math.max(localLower, fixed.orElseThrow());
