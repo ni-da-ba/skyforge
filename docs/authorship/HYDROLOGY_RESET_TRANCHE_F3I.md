@@ -1,9 +1,13 @@
 # Hydrology reset tranche F3I — joint transition assembly
 
-**Status:** implementation validated; final documentation head is being rechecked in PR #1366  
+**Status:** accepted machine-evidence tranche; PR #1366 merged  
 **Governing authority:** issue #1084  
 **Depends on:** F3B/F3C/F3D/F3E and F3H  
 **Terrain and Minecraft mutation:** none
+
+## Acceptance evidence
+
+PR [#1366](https://github.com/ni-da-ba/skyforge/pull/1366) merged at `d7a6b0a4425656b92ada75407738acae7b6eede1`. Hydrology Reset Geometry run [#535](https://github.com/ni-da-ba/skyforge/actions/runs/36905849699), full CI [#5150](https://github.com/ni-da-ba/skyforge/actions/runs/36905849680), DR-40 [#1251](https://github.com/ni-da-ba/skyforge/actions/runs/36905849735), and DR-50 [#1210](https://github.com/ni-da-ba/skyforge/actions/runs/36905849722) passed on head `afe44b867f5715b13440678a6672f46ed3b90416`.
 
 ## Purpose
 
