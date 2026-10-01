@@ -3,8 +3,8 @@
   const DOCUMENT_TYPE = "SKYFORGE_STUDIO_TERRAIN_COMPARISON_REPORT";
   const FORMAT_VERSION = 1;
   const MAX_FILE_BYTES = 32 * 1024 * 1024;
-  const MAX_CHANGED_CELLS = 250000;
-  const MAX_COLUMNS = 250000;
+  const MAX_CHANGED_CELLS = 25000;
+  const MAX_COLUMNS = 50000;
   const PAGE_SIZE = 50;
   const GRID_FIELDS = ["minimumX", "minimumY", "minimumZ", "spacingX", "spacingY", "spacingZ",
     "xSamples", "ySamples", "zSamples", "sampleCount"];
