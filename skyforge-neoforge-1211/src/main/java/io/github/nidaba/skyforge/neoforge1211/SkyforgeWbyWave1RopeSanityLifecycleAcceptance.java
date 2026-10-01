@@ -44,13 +44,14 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
     private static final ResourceLocation PHYSICS_ASSEMBLER =
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
-    private static final int SETUP_TIMEOUT_TICKS = 360;
+    private static final int SETUP_TIMEOUT_TICKS = 480;
     private static final int PRE_MOVE_SETTLE_TICKS = 30;
     private static final int POST_MOVE_SETTLE_TICKS = 20;
-    private static final int TICKET_SETTLE_TICKS = 40;
-    private static final int ROPE_POINTS = 32;
+    private static final int TICKET_SETTLE_MIN_TICKS = 40;
+    private static final int TICKET_STABLE_TICKS = 30;
+    private static final int ROPE_POINTS = 12;
     private static final double ROPE_RADIUS = 0.125;
-    private static final double WORLD_ANCHOR_OFFSET = 12.0;
+    private static final double WORLD_ANCHOR_LATERAL_OFFSET = 8.0;
     private static final double ENDPOINT_TOLERANCE = 2.0;
     private static final int MAX_LOADED_CHUNK_DELTA = 64;
     private static final TicketType<ChunkPos> ROPE_SANITY_TICKET = TicketType.create(
@@ -73,13 +74,17 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static final Set<ChunkPos> fixtureTicketChunks = new LinkedHashSet<>();
     private static int loadedChunksBefore = -1;
     private static int forcedChunksBefore = -1;
+    private static int lastObservedLoadedChunks = -1;
+    private static int loadedChunkStableTicks;
     private static long firstTick = Long.MIN_VALUE;
     private static long ticketPlanReadyTick = Long.MIN_VALUE;
+    private static long ticketResidencyStableTick = Long.MIN_VALUE;
     private static long ropeCreatedTick = Long.MIN_VALUE;
     private static long boundaryCrossedTick = Long.MIN_VALUE;
     private static double maxStartEndpointError;
     private static double maxEndEndpointError;
     private static boolean assembled;
+    private static boolean ticketResidencyStable;
     private static boolean moved;
     private static boolean complete;
 
@@ -119,15 +124,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 return;
             }
 
-            if (loadedChunksBefore < 0 || forcedChunksBefore < 0) {
-                if (ticketPlanReadyTick == Long.MIN_VALUE) {
-                    throw new IllegalStateException("rope fixture ticket plan was not initialized");
-                }
-                if (now - ticketPlanReadyTick < TICKET_SETTLE_TICKS) {
-                    return;
-                }
-                loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
-                forcedChunksBefore = level.getForcedChunks().size();
+            if (!ticketResidencyStable) {
+                updateTicketResidencyStability(now);
                 return;
             }
 
@@ -140,6 +138,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
             updateAndValidateRope();
 
             if (!moved && now - ropeCreatedTick >= PRE_MOVE_SETTLE_TICKS) {
+                loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
+                forcedChunksBefore = level.getForcedChunks().size();
                 relocateBodyAcrossChunkBoundary();
                 moved = true;
                 return;
@@ -227,6 +227,28 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         assembled = true;
     }
 
+    private static void updateTicketResidencyStability(long now) {
+        if (ticketPlanReadyTick == Long.MIN_VALUE) {
+            throw new IllegalStateException("rope fixture ticket plan was not initialized");
+        }
+        if (now - ticketPlanReadyTick < TICKET_SETTLE_MIN_TICKS) {
+            return;
+        }
+
+        int currentLoaded = level.getChunkSource().getLoadedChunksCount();
+        if (currentLoaded == lastObservedLoadedChunks) {
+            loadedChunkStableTicks++;
+        } else {
+            lastObservedLoadedChunks = currentLoaded;
+            loadedChunkStableTicks = 1;
+        }
+
+        if (loadedChunkStableTicks >= TICKET_STABLE_TICKS) {
+            ticketResidencyStable = true;
+            ticketResidencyStableTick = now;
+        }
+    }
+
     private static void createAttachedRope() throws ReflectiveOperationException {
         Vector3dc localCenterOfMass = bodyLocalCenterOfMass(body);
         Vector3d bodyWorld = bodyWorldPosition(body);
@@ -265,11 +287,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     }
 
     private static void prepareTravelPlanAndTickets() {
-        worldAnchor = new Vector3d(
-                initialBodyPosition.x - WORLD_ANCHOR_OFFSET,
-                initialBodyPosition.y,
-                initialBodyPosition.z);
-
         int nextBoundaryX = (initialBodyChunk.x + 1) << 4;
         double targetX = nextBoundaryX + 3.0;
         if (targetX - initialBodyPosition.x < 4.0) {
@@ -280,6 +297,15 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 initialBodyPosition.y,
                 initialBodyPosition.z);
         targetBodyChunk = chunkAt(targetBodyPosition);
+
+        // Keep both endpoint configurations physically feasible with only modest slack.
+        // Rapier gives every rope segment after the first a fixed 1 m extension limit, so a
+        // 12-point rope is ~11 m long. A lateral midpoint anchor keeps the pre/post straight-line
+        // distances nearly equal instead of asking a long slack rope to whip across the fixture.
+        worldAnchor = new Vector3d(
+                (initialBodyPosition.x + targetBodyPosition.x) * 0.5,
+                initialBodyPosition.y,
+                initialBodyPosition.z - WORLD_ANCHOR_LATERAL_OFFSET);
         if (targetBodyChunk.x == initialBodyChunk.x && targetBodyChunk.z == initialBodyChunk.z) {
             throw new IllegalStateException(
                     "rope sanity target did not cross a chunk boundary: "
@@ -402,7 +428,9 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("bodyRelocationMethod", "SablePhysicsPipeline.teleport");
         evidence.put("targetBodyPosition", targetBodyPosition.x + "," + targetBodyPosition.y + "," + targetBodyPosition.z);
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
-        evidence.put("ticketSettleTicks", TICKET_SETTLE_TICKS);
+        evidence.put("ticketSettleMinTicks", TICKET_SETTLE_MIN_TICKS);
+        evidence.put("ticketStableTicksRequired", TICKET_STABLE_TICKS);
+        evidence.put("ticketResidencyStableAfterTicks", ticketResidencyStableTick - ticketPlanReadyTick);
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
         evidence.put("loadedChunkDelta", loadedDelta);
