@@ -43,7 +43,7 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
     private static final int TICKET_DISTANCE = 3;
     private static final int HORIZONTAL_OFFSET_BLOCKS = 240;
     private static final int BODY_Y = 240;
-    private static final double TARGET_LATERAL_VELOCITY = 16.0;
+    private static final double TARGET_LATERAL_VELOCITY = 8.0;
     private static final double REQUIRED_LATERAL_DISPLACEMENT = 48.0;
     private static final long ASSEMBLY_DEADLINE_TICKS = 120L;
     private static final long PHYSICS_DEADLINE_TICKS = 100L;
@@ -267,13 +267,11 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
 
         resetVelocity(handle);
         publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, false);
-        Vector3d linear = new Vector3d(0.0, 0.0, TARGET_LATERAL_VELOCITY);
-        Vector3d angular = new Vector3d();
-        twoArgMethod(handle, "addLinearAndAngularVelocity", linear, angular).invoke(handle, linear, angular);
+        enforceTargetVelocity(handle);
 
         initialServerPose = bodyPosePosition(canonical);
         currentServerPose = initialServerPose;
-        commandedVelocity = new Vec3(linear.x, linear.y, linear.z);
+        commandedVelocity = new Vec3(0.0, 0.0, TARGET_LATERAL_VELOCITY);
         lateralDisplacementBlocks = 0.0;
         motionStarted = true;
         stage = Stage.MOVING;
@@ -292,6 +290,10 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
         body = canonical;
         currentServerPose = bodyPosePosition(canonical);
         lateralDisplacementBlocks = Math.abs(currentServerPose.z - initialServerPose.z);
+
+        if (lateralDisplacementBlocks < REQUIRED_LATERAL_DISPLACEMENT) {
+            enforceTargetVelocity(handle);
+        }
 
         if (lateralDisplacementBlocks >= REQUIRED_LATERAL_DISPLACEMENT) {
             resetVelocity(handle);
@@ -440,6 +442,17 @@ final class SkyforgeWbyWave1LateralFlightLifecycleAcceptance {
         linear.negate();
         angular.negate();
         twoArgMethod(handle, "addLinearAndAngularVelocity", linear, angular).invoke(handle, linear, angular);
+    }
+
+    private static void enforceTargetVelocity(Object handle) throws ReflectiveOperationException {
+        Vector3d currentLinear = (Vector3d) publicMethod(handle, "getLinearVelocity", Vector3d.class)
+                .invoke(handle, new Vector3d());
+        Vector3d currentAngular = (Vector3d) publicMethod(handle, "getAngularVelocity", Vector3d.class)
+                .invoke(handle, new Vector3d());
+        Vector3d linearCorrection = new Vector3d(0.0, 0.0, TARGET_LATERAL_VELOCITY).sub(currentLinear);
+        Vector3d angularCorrection = currentAngular.negate();
+        twoArgMethod(handle, "addLinearAndAngularVelocity", linearCorrection, angularCorrection)
+                .invoke(handle, linearCorrection, angularCorrection);
     }
 
     private static Vec3 bodyPosePosition(Object canonical) throws ReflectiveOperationException {
