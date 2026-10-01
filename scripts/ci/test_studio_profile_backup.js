@@ -143,7 +143,7 @@ assert.equal(plan.counts.terrainComparisonsAdded,1);
 assert.equal(plan.inspectionReplacementRequired,false);
 assert.deepEqual(backup.prepareRestore(incoming,current,validators).terrainComparisons,terrain);
 
-const inspectionCurrent = create({inspectionSession:{...session,workspace_json:"{\"local\":\"different\"}"}});
+const inspectionCurrent = create({inspectionSession:{...session,workspace_json:JSON.stringify({document_type:"SKYFORGE_STUDIO_INSPECTION_WORKSPACE",format_version:1,local:"different"})}});
 const inspectionIncoming = create({inspectionSession:session});
 const keep = backup.prepareRestore(inspectionIncoming,inspectionCurrent,validators);
 assert.equal(keep.inspectionReplacementRequired,true);
