@@ -16,6 +16,8 @@
   <script src="workspace-package.js" defer></script>
   <script src="workspace-session.js" defer></script>
   <script src="terrain-comparison.js" defer></script>
+  <script src="terrain-comparison-report.js" defer></script>
+  <script src="terrain-comparison-report-reader.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -200,6 +202,9 @@
         <label for="terrain-comparison-candidate">Candidate version · after</label>
         <input id="terrain-comparison-candidate" type="file" accept=".json,application/json">
         <p class="small muted">The two files must have exactly the same grid dimensions, origin, and spacing. Different grids cannot be compared here.</p>
+        <label for="terrain-comparison-report-file">Reopen a saved terrain comparison</label>
+        <input id="terrain-comparison-report-file" type="file" accept=".json,application/json">
+        <p class="small muted">Reports can be shared or reopened without the original volumes. Saved source digests remain unverified diagnostics.</p>
         <p id="terrain-comparison-status" class="small muted" aria-live="polite">No terrain comparison loaded.</p>
       </section>
       <section id="terrain-comparison-results" class="panel terrain-comparison-results" hidden aria-labelledby="terrain-comparison-summary-heading">
@@ -211,6 +216,10 @@
           <span id="terrain-comparison-authority" class="pill warn">UNBOUND LOCAL</span>
         </div>
         <div id="terrain-comparison-summary" class="terrain-comparison-summary"></div>
+        <div class="row terrain-comparison-report-actions">
+          <button id="terrain-comparison-report-download" type="button" class="secondary" disabled>Download comparison report</button>
+          <p id="terrain-comparison-report-status" class="small muted" aria-live="polite">Saved reports remain diagnostic and cannot satisfy a human review gate.</p>
+        </div>
         <div class="terrain-comparison-map-panel">
           <div class="section-heading">
             <div>
