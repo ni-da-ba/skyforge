@@ -127,7 +127,7 @@ jobs:
           onboardAccessibility:false
           pauseOnLostFocus:false
           renderDistance:4
-          simulationDistance:4
+          simulationDistance:5
           entityDistanceScaling:1.0
           particles:0
           narrator:0
