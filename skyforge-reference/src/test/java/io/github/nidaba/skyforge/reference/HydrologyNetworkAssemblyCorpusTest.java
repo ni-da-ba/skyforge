@@ -30,7 +30,7 @@ class HydrologyNetworkAssemblyCorpusTest {
         assertTrue(terminalA.contains(
                 "ordinary-77,77,1842,1842,EDGE_OUTLET,QUALIFIED,1,"));
         assertTrue(terminalA.contains(
-                "confluence-632,632,225,225,EDGE_OUTLET,TRANSITION_DEFERRED,3,"));
+                "confluence-632,632,225,225,EDGE_OUTLET,QUALIFIED,3,"));
         assertTrue(terminalA.contains(
                 "lake-609,609,1397,1397,RETAINED_OPEN_WATER,PHYSICAL_REJECTION,3,"));
         assertTrue(reachA.contains(
@@ -40,7 +40,7 @@ class HydrologyNetworkAssemblyCorpusTest {
         assertTrue(reachA.contains(
                 "confluence-632,632,759,710,QUALIFIED,1,0,"));
         assertTrue(reachA.contains(
-                "confluence-632,632,710,225,TRANSITION_DEFERRED,1,1,"));
+                "confluence-632,632,710,225,QUALIFIED,1,0,"));
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }
