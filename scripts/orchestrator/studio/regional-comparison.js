@@ -103,7 +103,17 @@
       fileBytes: size,
     });
   }
-  function validatePackageInputs(value, fileBytes, inventoryApi) {\n    if (!inventoryApi || typeof inventoryApi.parseInventoryCsv !== "function" ||\n        typeof inventoryApi.parseRankingCsv !== "function") throw new Error("AUTH-0094 validator is unavailable");\n    const report = parsePackage(value, fileBytes);\n    const left = inventoryApi.parseInventoryCsv(report.left.inventory_csv);\n    const right = inventoryApi.parseInventoryCsv(report.right.inventory_csv);\n    const leftRanking = report.left.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.left.ranking_csv, left);\n    const rightRanking = report.right.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.right.ranking_csv, right);\n    return {report,left,right,leftRanking,rightRanking};\n  }\n  const api = Object.freeze({compare,formatDelta,createPackage,parsePackage,validatePackageInputs,packageType:PACKAGE_TYPE,packageVersion:PACKAGE_VERSION,maximumPackageBytes:MAX_PACKAGE_BYTES});
+  function validatePackageInputs(value, fileBytes, inventoryApi) {
+    if (!inventoryApi || typeof inventoryApi.parseInventoryCsv !== "function" ||
+        typeof inventoryApi.parseRankingCsv !== "function") throw new Error("AUTH-0094 validator is unavailable");
+    const report = parsePackage(value, fileBytes);
+    const left = inventoryApi.parseInventoryCsv(report.left.inventory_csv);
+    const right = inventoryApi.parseInventoryCsv(report.right.inventory_csv);
+    const leftRanking = report.left.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.left.ranking_csv, left);
+    const rightRanking = report.right.ranking_csv === null ? null : inventoryApi.parseRankingCsv(report.right.ranking_csv, right);
+    return {report,left,right,leftRanking,rightRanking};
+  }
+  const api = Object.freeze({compare,formatDelta,createPackage,parsePackage,validatePackageInputs,packageType:PACKAGE_TYPE,packageVersion:PACKAGE_VERSION,maximumPackageBytes:MAX_PACKAGE_BYTES});
   if (typeof module !== "undefined" && module.exports) module.exports=api;
   if (root) root.SkyforgeRegionalComparison=api;
   if (typeof document === "undefined") return;
@@ -167,11 +177,8 @@
       const file=e.target.files?.[0];e.target.value="";if(!file)return;
       try{
         if(file.size>MAX_PACKAGE_BYTES)throw new Error("Comparison package files must be 10 MB or smaller");
-        const report=parsePackage(await file.text(),file.size),api=root.SkyforgeRegionalInventory;
-        const left=api.parseInventoryCsv(report.left.inventory_csv),right=api.parseInventoryCsv(report.right.inventory_csv);
-        const leftRanking=report.left.ranking_csv===null?null:api.parseRankingCsv(report.left.ranking_csv,left);
-        const rightRanking=report.right.ranking_csv===null?null:api.parseRankingCsv(report.right.ranking_csv,right);
-        state.left=left;state.right=right;state.leftRanking=leftRanking;state.rightRanking=rightRanking;
+        const loaded=validatePackageInputs(await file.text(),file.size,root.SkyforgeRegionalInventory),report=loaded.report;
+        state.left=loaded.left;state.right=loaded.right;state.leftRanking=loaded.leftRanking;state.rightRanking=loaded.rightRanking;
         state.leftSource={inventory:{name:report.left.inventory_file,text:report.left.inventory_csv},ranking:report.left.ranking_csv===null?null:{name:report.left.ranking_file,text:report.left.ranking_csv}};
         state.rightSource={inventory:{name:report.right.inventory_file,text:report.right.inventory_csv},ranking:report.right.ranking_csv===null?null:{name:report.right.ranking_file,text:report.right.ranking_csv}};
         state.leftNames={inventory:report.left.inventory_file,ranking:report.left.ranking_file||""};state.rightNames={inventory:report.right.inventory_file,ranking:report.right.ranking_file||""};
