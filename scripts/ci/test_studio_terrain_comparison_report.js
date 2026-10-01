@@ -61,6 +61,7 @@ assert.equal(report.provenance_verified, false);
 assert.equal(report.sources.reference.artifactDigest, reference.source.artifactDigest);
 assert.equal(report.changed_cells.length, comparison.changedCellCount);
 assert.equal(report.columns.length, grid.xSamples * grid.zSamples);
+assert.ok(new TextEncoder().encode(bytes).length <= reportApi.maximumFileBytes);
 assert.match(reportApi.filename(report), /^skyforge-terrain-comparison-reference-json-to-candidate-json\.json$/);
 
 const parsed = readerApi.parse(bytes);
