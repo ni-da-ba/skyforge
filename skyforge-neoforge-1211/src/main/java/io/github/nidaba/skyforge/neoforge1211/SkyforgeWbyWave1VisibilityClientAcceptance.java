@@ -47,7 +47,14 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
             firstClientTickNanos = System.nanoTime();
         }
         if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
-            fail("WBY Wave 1 actual-client visibility did not qualify within 120 seconds");
+            fail("WBY Wave 1 actual-client visibility did not qualify within 120 seconds"
+                    + "; level=" + (minecraft.level != null)
+                    + "; player=" + (minecraft.player != null)
+                    + "; gameMode=" + (minecraft.gameMode != null)
+                    + "; screen=" + (minecraft.screen == null ? "none" : minecraft.screen.getClass().getName())
+                    + "; fixtureReady=" + SkyforgeWbyWave1VisibilityLifecycleAcceptance.fixtureReady()
+                    + "; stableTicks=" + stableTicks
+                    + "; renderObserved=" + renderObserved);
             return;
         }
         if (minecraft.level == null || player == null || minecraft.gameMode == null || minecraft.screen != null) {
