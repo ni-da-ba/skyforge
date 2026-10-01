@@ -88,6 +88,8 @@ public final class SkyforgeNeoForge1211Mod {
         SkyforgeSeatPassengerOnSableLifecycleAcceptance.installFromSystemProperty();
         SkyforgePlayerTrackingClientWorldPrepareAcceptance.installFromSystemProperty();
         SkyforgePlayerTrackingOnSableLifecycleAcceptance.installFromSystemProperty();
+        SkyforgeWbyWave1VisibilityWorldPrepareAcceptance.installFromSystemProperty();
+        SkyforgeWbyWave1VisibilityLifecycleAcceptance.installFromSystemProperty();
         SkyforgeAircraftPowertrainRuntimeAcceptance.installFromSystemProperty();
         SkyforgeWaveC12BellancaB0AssemblyAcceptance.installFromSystemProperty();
         SkyforgeWaveC13ElytraBypassAcceptance.installFromSystemProperty();
