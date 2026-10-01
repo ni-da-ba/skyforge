@@ -80,7 +80,53 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(System.lineSeparator());
         }
 
-        SkyIslandOrdinarySpanPlan spans = SkyIslandOrdinarySpanPlanner.plan(descriptor);
+        SkyIslandHydraulicTransitionGeometryEvidencePlan transitionGeometry =
+                SkyIslandHydraulicTransitionGeometryEvidencePlanner.plan(descriptor);
+        SkyIslandSemanticField transitionTerrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandGeomorphicQualificationPolicy transitionPolicy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        SkyIslandWatershedPlan transitionWatershed =
+                SkyIslandWatershedPlanner.plan(descriptor);
+        SkyIslandConfluenceHeadCompatibilityPlan confluenceHeads =
+                SkyIslandConfluenceHeadCompatibilityPlanner.plan(
+                        descriptor, transitionGeometry, transitionTerrain, transitionPolicy);
+        SkyIslandCascadeHeadCompatibilityPlan cascadeHeads =
+                SkyIslandCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, transitionGeometry, transitionTerrain,
+                        transitionPolicy, transitionWatershed);
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan jointHeads =
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, transitionGeometry, transitionTerrain,
+                        transitionPolicy, transitionWatershed);
+        SkyIslandOrdinarySpanPlan spans = SkyIslandOrdinarySpanPlanner.plan(
+                descriptor, confluenceHeads, cascadeHeads, jointHeads,
+                transitionTerrain, transitionPolicy);
+        for (SkyIslandConfluenceCascadeHeadCompatibilityOutcome joint : jointHeads.outcomes()) {
+            if (joint.confluence().transitionSite().nodeCellIndex() == 801
+                    && joint.cascade().transitionSite().reachStartCellIndex() == 801
+                    && joint.cascade().transitionSite().reachEndCellIndex() == 1951) {
+                double nearHead = joint.cascadeConfluenceSideHeadWorldUnits()
+                        .orElseGet(() -> joint.sharedNodeHeadWorldUnits().orElse(Double.NaN));
+                report.append("JOINT 801@801->1951 status=")
+                        .append(joint.status())
+                        .append(" role=").append(joint.coupledLeg().nodeBoundary().role())
+                        .append(" nodeArc=").append(joint.coupledLeg().nodeBoundary().arcLength())
+                        .append(" confluenceFiniteArc=")
+                        .append(joint.coupledLeg().finiteBoundary().arcLength())
+                        .append(" cascadeNearArc=")
+                        .append(joint.coupledLeg().nodeBoundary().role()
+                                        == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
+                                ? joint.cascade().transitionSite().upstreamBoundary().arcLength()
+                                : joint.cascade().transitionSite().downstreamBoundary().arcLength())
+                        .append(" nodeHead=")
+                        .append(joint.sharedNodeHeadWorldUnits().orElse(Double.NaN))
+                        .append(" cascadeNearHead=").append(nearHead)
+                        .append(" cascadeRemoteHead=")
+                        .append(joint.cascadeBoundaryHeadWorldUnits().orElse(Double.NaN))
+                        .append(System.lineSeparator());
+            }
+        }
         List<SkyIslandOrdinarySpanOutcome> incidentSpans = spans.outcomes().stream()
                 .filter(outcome -> incidentReachIds.contains(
                         outcome.span().parentReachStartCellIndex()
@@ -103,10 +149,18 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(" upstreamBoundary=")
                     .append(outcome.span().upstreamBoundary().status())
                     .append(":")
+                    .append(outcome.span().upstreamBoundary().state().role())
+                    .append("@")
+                    .append(outcome.span().upstreamBoundary().state().stationFraction())
+                    .append("=")
                     .append(outcome.span().upstreamBoundary().fixedHeadWorldUnits().orElse(Double.NaN))
                     .append(" downstreamBoundary=")
                     .append(outcome.span().downstreamBoundary().status())
                     .append(":")
+                    .append(outcome.span().downstreamBoundary().state().role())
+                    .append("@")
+                    .append(outcome.span().downstreamBoundary().state().stationFraction())
+                    .append("=")
                     .append(outcome.span().downstreamBoundary().fixedHeadWorldUnits().orElse(Double.NaN))
                     .append(" selectedHeadGradePath=")
                     .append(gradeFeasibilityLocus(descriptor, outcome.span(), terrain, true))
