@@ -20,6 +20,7 @@
   <script src="terrain-comparison-report.js" defer></script>
   <script src="terrain-comparison-report-reader.js" defer></script>
   <script src="terrain-comparison-library.js" defer></script>
+  <script src="profile-backup.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -93,6 +94,18 @@
           <button type="button" class="home-action" data-open-workspace="regional-comparison">Open geology comparison</button>
         </article>
       </div>
+      <section class="panel studio-backup-panel" aria-labelledby="studio-backup-heading">
+        <div>
+          <h3 id="studio-backup-heading">Move your saved work</h3>
+          <p class="small muted">Create one backup file for your briefs, remembered inspection, and saved comparisons. Open it in desktop Studio to continue there.</p>
+        </div>
+        <div class="studio-backup-actions">
+          <button id="studio-backup-export" type="button" class="secondary">Save a Studio backup</button>
+          <button id="studio-backup-import" type="button" class="secondary">Open a Studio backup</button>
+          <input id="studio-backup-file" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p id="studio-backup-status" class="small muted" aria-live="polite"></p>
+      </section>
       <p class="small muted studio-home-note">Studio is a local authoring and inspection workspace. Saving a brief does not generate or evaluate a world.</p>
     </section>
 
