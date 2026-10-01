@@ -498,15 +498,26 @@
     drawTerrainComparisonMap();
   }
 
-  async function loadTerrainComparisonFiles(files) {
+  async function loadTerrainComparisonFiles(referenceFile, candidateFile) {
     const status = $("terrain-comparison-status");
+    const results = $("terrain-comparison-results");
+    terrainSemanticComparison = null;
+    terrainSelectedColumn = null;
+    results.hidden = true;
+    if (!referenceFile || !candidateFile) {
+      status.textContent = referenceFile
+        ? "Reference selected. Choose a candidate terrain file to compare."
+        : candidateFile
+          ? "Candidate selected. Choose a reference terrain file to compare."
+          : "Choose one reference and one candidate terrain file.";
+      return;
+    }
     try {
-      if (files.length !== 2) throw new Error("Choose exactly two terrain semantic volume JSON files.");
       const maximumBytes = window.SkyforgeStudioWorkspacePackage.maximumFileBytes;
-      for (const file of files) {
+      for (const file of [referenceFile, candidateFile]) {
         if (file.size > maximumBytes) throw new Error("Each terrain file must be 25 MB or smaller.");
       }
-      const parsed = await Promise.all(files.map(async file => ({
+      const parsed = await Promise.all([referenceFile, candidateFile].map(async file => ({
         title: file.name,
         json: await file.text(),
       })));
@@ -529,13 +540,16 @@
       renderTerrainComparison(comparison);
     } catch (error) {
       terrainSemanticComparison = null;
-      $("terrain-comparison-results").hidden = true;
+      results.hidden = true;
       status.textContent = "Could not compare terrain volumes: " + String(error.message || error);
-    } finally {
-      $("terrain-comparison-files").value = "";
     }
   }
 
+  function handleTerrainComparisonFilesChanged() {
+    const reference = $("terrain-comparison-reference").files?.[0] || null;
+    const candidate = $("terrain-comparison-candidate").files?.[0] || null;
+    loadTerrainComparisonFiles(reference, candidate);
+  }
   function fmt(value, digits = 3) {
     return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
   }
@@ -3067,9 +3081,8 @@
   window.addEventListener("resize", draw);
   window.addEventListener("resize", drawTerrainComparisonMap);
 
-  $("terrain-comparison-files").addEventListener("change", event => {
-    loadTerrainComparisonFiles(Array.from(event.target.files || []));
-  });
+  $("terrain-comparison-reference").addEventListener("change", handleTerrainComparisonFilesChanged);
+  $("terrain-comparison-candidate").addEventListener("change", handleTerrainComparisonFilesChanged);
   $("terrain-comparison-previous").addEventListener("click", () => {
     if (terrainComparisonPage > 0) {
       terrainComparisonPage -= 1;
