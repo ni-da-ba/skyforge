@@ -12,7 +12,7 @@
     return x + GRID.x_samples * (z + GRID.z_samples * y);
   }
 
-  function artifact(version, cells) {
+  function artifact(cells) {
     const ordinals = new Map(NAMES.map((name, ordinal) => [name, ordinal]));
     const semantics = Uint8Array.from(cells.map(name => ordinals.get(name)));
     return {
@@ -50,11 +50,11 @@
     return Object.freeze([
       Object.freeze({
         title: "Synthetic example · reference",
-        artifact: artifact("reference", reference),
+        artifact: artifact(reference),
       }),
       Object.freeze({
         title: "Synthetic example · candidate",
-        artifact: artifact("candidate", candidate),
+        artifact: artifact(candidate),
       }),
     ]);
   }
