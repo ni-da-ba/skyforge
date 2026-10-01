@@ -45,6 +45,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static final int SETUP_TIMEOUT_TICKS = 360;
     private static final int PRE_MOVE_SETTLE_TICKS = 30;
     private static final int POST_MOVE_SETTLE_TICKS = 20;
+    private static final int TICKET_SETTLE_TICKS = 40;
     private static final double BODY_TRAVEL_VELOCITY = 4.0;
     private static final int ROPE_POINTS = 32;
     private static final double ROPE_RADIUS = 0.125;
@@ -69,9 +70,10 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static ChunkPos initialBodyChunk;
     private static ChunkPos targetBodyChunk;
     private static final Set<ChunkPos> fixtureTicketChunks = new LinkedHashSet<>();
-    private static int loadedChunksBefore;
-    private static int forcedChunksBefore;
+    private static int loadedChunksBefore = -1;
+    private static int forcedChunksBefore = -1;
     private static long firstTick = Long.MIN_VALUE;
+    private static long ticketPlanReadyTick = Long.MIN_VALUE;
     private static long ropeCreatedTick = Long.MIN_VALUE;
     private static long movedTick = Long.MIN_VALUE;
     private static long boundaryCrossedTick = Long.MIN_VALUE;
@@ -114,6 +116,18 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
             if (!assembled) {
                 assembleBody();
+                return;
+            }
+
+            if (loadedChunksBefore < 0 || forcedChunksBefore < 0) {
+                if (ticketPlanReadyTick == Long.MIN_VALUE) {
+                    throw new IllegalStateException("rope fixture ticket plan was not initialized");
+                }
+                if (now - ticketPlanReadyTick < TICKET_SETTLE_TICKS) {
+                    return;
+                }
+                loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
+                forcedChunksBefore = level.getForcedChunks().size();
                 return;
             }
 
@@ -211,8 +225,9 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         initialBodyPosition = bodyWorldPosition(body);
         initialBodyChunk = chunkAt(initialBodyPosition);
         prepareTravelPlanAndTickets();
-        loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
-        forcedChunksBefore = level.getForcedChunks().size();
+        ticketPlanReadyTick = level.getGameTime();
+        loadedChunksBefore = -1;
+        forcedChunksBefore = -1;
         assembled = true;
     }
 
@@ -416,6 +431,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
         evidence.put("bodyTravelVelocityBlocksPerSecond", BODY_TRAVEL_VELOCITY);
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
+        evidence.put("ticketSettleTicks", TICKET_SETTLE_TICKS);
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
         evidence.put("loadedChunkDelta", loadedDelta);
