@@ -86,7 +86,7 @@ jobs:
           rm -rf "$target_mods"
           mkdir -p "$target_mods"
           cp -a "$source_mods"/. "$target_mods"/
-          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
+          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
 
       - name: Capture W1-A baseline telemetry
         shell: bash
@@ -145,6 +145,7 @@ jobs:
           grep -Eq '\(sable\)' "$server_log"
           grep -Eq '\(aeronautics\)' "$server_log"
           grep -Eq '\(ssrd\)' "$server_log"
+          grep -Eq '\(lithium\)' "$server_log"
           if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
             echo "telemetry server leaked client-only renderer mods"
             cat "$server_log"
