@@ -38,6 +38,10 @@ import org.joml.Vector3dc;
  * fixture therefore proves the relevant contract directly: a real rope stays active and finite
  * while attached between the world and an assembled Sable body that crosses a vanilla chunk
  * boundary. The proof also records chunk counts and rejects forced-chunk growth.
+ *
+ * <p>The synthetic strand is intentionally short and nearly symmetric around its fixed world
+ * anchor so this acceptance measures attachment continuity rather than uncontrolled slack-rope
+ * excursions into unrelated chunks.
  */
 final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.wbyWave1RopeSanity";
