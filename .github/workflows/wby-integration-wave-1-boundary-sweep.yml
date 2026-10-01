@@ -86,9 +86,139 @@ jobs:
         run: |
           set -euo pipefail
           log="wby-wave1-boundary-sweep.log"
-          timeout 300 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1BoundarySweepClientAcceptance --no-configuration-cache 2>&1 | tee "$log"
-
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/client.properties"
+          rm -f "$result"
+
+          # The acceptance client writes its terminal evidence before Minecraft/DH finish
+          # shutting down. Under Actions, DH database close can outlive the useful test by
+          # several minutes, so treat the result file as the test boundary and terminate the
+          # disposable process group once PASS/FAIL is durable.
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1BoundarySweepClientAcceptance --no-configuration-cache >"$log" 2>&1 &
+          runner_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 240); do
+            if [[ -f "$result" ]]; then
+              if grep -q '^status=PASS          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^insideVanillaObserved=true$' "$result"
+          grep -q '^outboundBoundaryCrossed=true$' "$result"
+          grep -q '^inboundBoundaryCrossed=true$' "$result"
+          grep -q '^outboundSsrdRenderObserved=true$' "$result"
+          grep -q '^inboundSsrdRenderObserved=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/client.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["maxRenderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["minDistanceBlocks"]) <= 64.0, p
+          assert float(p["maxDistanceBlocks"]) > 96.0, p
+          assert int(p["initialNearSamples"]) >= 5, p
+          assert int(p["farHoldSamples"]) >= 5, p
+          assert int(p["finalNearSamples"]) >= 5, p
+          print("WBY WAVE 1 BOUNDARY SWEEP PASS", p)
+          PY
+
+      - name: Upload Wave 1 boundary-sweep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-boundary-sweep
+          path: |
+            wby-wave1-boundary-sweep.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+          if-no-files-found: warn
+ "$result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^insideVanillaObserved=true$' "$result"
+          grep -q '^outboundBoundaryCrossed=true$' "$result"
+          grep -q '^inboundBoundaryCrossed=true$' "$result"
+          grep -q '^outboundSsrdRenderObserved=true$' "$result"
+          grep -q '^inboundSsrdRenderObserved=true$' "$result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+          p = {}
+          for line in Path("skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/client.properties").read_text().splitlines():
+              if "=" in line and not line.startswith("#"):
+                  k, v = line.split("=", 1)
+                  p[k] = v
+          assert float(p["maxRenderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["minDistanceBlocks"]) <= 64.0, p
+          assert float(p["maxDistanceBlocks"]) > 96.0, p
+          assert int(p["initialNearSamples"]) >= 5, p
+          assert int(p["farHoldSamples"]) >= 5, p
+          assert int(p["finalNearSamples"]) >= 5, p
+          print("WBY WAVE 1 BOUNDARY SWEEP PASS", p)
+          PY
+
+      - name: Upload Wave 1 boundary-sweep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-boundary-sweep
+          path: |
+            wby-wave1-boundary-sweep.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+          if-no-files-found: warn
+ "$result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              wait "$runner_pid" || rc=$?
+              rc=${rc:-0}
+              echo "boundary-sweep client exited before terminal evidence (rc=$rc)"
+              cat "$log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ -z "$terminal" ]]; then
+            echo "boundary-sweep client produced no terminal evidence within 240 seconds"
+            cat "$log"
+            kill -TERM -- "-$runner_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$runner_pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          kill -TERM -- "-$runner_pid" 2>/dev/null || true
+          for _ in $(seq 1 10); do
+            if ! kill -0 "$runner_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          kill -KILL -- "-$runner_pid" 2>/dev/null || true
+          wait "$runner_pid" 2>/dev/null || true
+          cat "$log"
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "boundary-sweep acceptance reported FAIL"
+            cat "$result"
+            exit 1
+          fi
+
           test -f "$result"
           grep -q '^status=PASS$' "$result"
           grep -q '^actualClient=true$' "$result"
