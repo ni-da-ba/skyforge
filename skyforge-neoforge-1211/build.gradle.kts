@@ -1988,6 +1988,10 @@ neoForge {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
             programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-wave1-visibility-client")
             systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
@@ -3675,6 +3679,30 @@ tasks.named("runWaveC3AtmosphereEvidenceServerB").configure {
         directory.mkdirs()
         directory.resolve("eula.txt").writeText("eula=true\n")
         directory.resolve("server.properties").writeText(waveC3AtmosphereEvidenceServerProperties)
+    }
+}
+
+
+val wbyWave1VisibilityClientServerProperties = """
+    level-name=wby-wave1-visibility-client
+    level-seed=671001
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=5
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+tasks.named("runWbyWave1VisibilityClientWorldPrepareServer").configure {
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
+        delete(directory)
+        directory.mkdirs()
+        directory.resolve("eula.txt").writeText("eula=true\n")
+        directory.resolve("server.properties").writeText(wbyWave1VisibilityClientServerProperties)
     }
 }
 
