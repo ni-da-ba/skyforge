@@ -48,6 +48,9 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             assertTrue(
                     d.finalIntegratedSquaredHeadEnvelopeGap()
                             <= d.initialIntegratedSquaredHeadEnvelopeGap() + EPSILON);
+            assertTrue(
+                    d.finalLongitudinalHeadFeasibilityGap()
+                            <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
                     .append("->")
@@ -58,6 +61,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialIntegratedSquaredHeadEnvelopeGap())
                     .append(" finalIntegratedGap=")
                     .append(d.finalIntegratedSquaredHeadEnvelopeGap())
+                    .append(" initialLongitudinalGap=")
+                    .append(d.initialLongitudinalHeadFeasibilityGap())
+                    .append(" finalLongitudinalGap=")
+                    .append(d.finalLongitudinalHeadFeasibilityGap())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
