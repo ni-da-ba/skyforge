@@ -58,6 +58,14 @@ function libraryApi() {
   };
 }
 const terrainLibrary = libraryApi();
+const terrainReportReader = {
+  parse(value, fileBytes) {
+    const parsed = JSON.parse(value);
+    if (parsed.document_type !== "SKYFORGE_STUDIO_TERRAIN_COMPARISON_REPORT" ||
+        fileBytes !== new TextEncoder().encode(value).length) throw new Error("invalid terrain comparison report");
+    return parsed;
+  },
+};
 const regionalLibrary = libraryApi();
 const regionalInventory = {
   parseInventoryCsv(value) { return {value}; },
@@ -79,6 +87,7 @@ const validators = {
   workspaceSession,
   workspacePackage,
   terrainLibrary,
+  terrainReportReader,
   regionalLibrary,
   regionalComparison,
   regionalInventory,
@@ -106,7 +115,8 @@ const session = {
     view: {mode:"terrain",camera:{},controls:{}},
   }),
 };
-const terrain = [{id:"terrain-0001",report_json:"{\"document_type\":\"diagnostic\"}"}];
+const terrainReport = JSON.stringify({document_type:"SKYFORGE_STUDIO_TERRAIN_COMPARISON_REPORT"});
+const terrain = [{id:"terrain-0001",report_json:terrainReport,report_bytes:new TextEncoder().encode(terrainReport).length}];
 const regionalPackage = JSON.stringify({document_type:"SKYFORGE_STUDIO_REGIONAL_COMPARISON_PACKAGE"});
 const regional = [{id:"regional-0001",package_json:regionalPackage,package_bytes:new TextEncoder().encode(regionalPackage).length}];
 const source = create({
@@ -122,6 +132,7 @@ assert.throws(() => backup.parse({...source, format_version:2}, validators), /un
 assert.throws(() => backup.parse({...source, extra:"credential"}, validators), /unsupported document shape/);
 assert.throws(() => backup.parse({...source, inspection_session:{...session,development_api_token:"secret"}}, validators), /unsupported saved inspection field/);
 assert.throws(() => create({terrainComparisons:[terrain[0],terrain[0]]}), /invalid or duplicate saved ID/);
+assert.throws(() => create({terrainComparisons:[{...terrain[0],report_json:"{}"}]}), /invalid terrain comparison report/);
 assert.throws(() => create({regionalComparisons:[{...regional[0],package_json:"{}"}]}), /invalid regional comparison package/);
 
 const current = create({worldBriefLibrary:{...briefLibrary,briefs:[{id:"brief-0001",title:"Existing"}]}});
