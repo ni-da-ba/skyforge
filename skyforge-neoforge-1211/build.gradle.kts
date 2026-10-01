@@ -2008,10 +2008,10 @@ neoForge {
         create("wbyWave1VisibilityClientAcceptance") {
             client()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
-            // The preparation server creates the default save directory "world" in this
-            // disposable game directory. Quick Play must target that exact persisted save.
+            // The preparation server persists the dedicated acceptance save under this
+            // exact level name; Quick Play must target that same directory.
             programArgument("--quickPlaySingleplayer")
-            programArgument("world")
+            programArgument("wby-wave1-visibility-client")
             systemProperty("skyforge.dev.wbyWave1Visibility", "true")
             systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
