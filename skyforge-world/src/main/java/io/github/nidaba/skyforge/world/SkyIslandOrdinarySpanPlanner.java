@@ -181,7 +181,7 @@ public final class SkyIslandOrdinarySpanPlanner {
         }
 
         return new SkyIslandOrdinarySpanPlan(
-                descriptor, confluencePlan, cascadePlan, outcomes);
+                descriptor, confluencePlan, cascadePlan, jointPlan, outcomes);
     }
 
     private static void addSpanIfPositive(
