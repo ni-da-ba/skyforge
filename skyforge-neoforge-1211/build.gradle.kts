@@ -2105,6 +2105,29 @@ neoForge {
         }
 
 
+        create("wbyWave1RopeSanityServerAcceptance") {
+            server()
+            sourceSet.set(wbyWave1VisibilityServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-wave1-rope-sanity").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-wave1-rope-sanity")
+            systemProperty("skyforge.dev.wbyWave1RopeSanity", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-rope-sanity")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-wave1-rope-sanity/server.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+
         create("wbyWave1PersistencePrepareServer") {
             server()
             sourceSet.set(wbyWave1VisibilityServerRuntime)
