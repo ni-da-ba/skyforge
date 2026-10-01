@@ -56,7 +56,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static final TicketType<ChunkPos> ROPE_SANITY_TICKET = TicketType.create(
             "skyforge_wby_wave1_rope_sanity",
             Comparator.comparingLong(ChunkPos::toLong));
-    private static final int ROPE_SANITY_TICKET_DISTANCE = 3;
+    private static final int ROPE_SANITY_TICKET_DISTANCE = 1;
 
     private static ServerLevel level;
     private static Object container;
