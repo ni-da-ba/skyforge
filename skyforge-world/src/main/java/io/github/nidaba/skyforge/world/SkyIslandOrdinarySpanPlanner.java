@@ -22,12 +22,23 @@ public final class SkyIslandOrdinarySpanPlanner {
 
     public static SkyIslandOrdinarySpanPlan plan(SkyIslandDescriptor descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
+        SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
+                SkyIslandHydraulicTransitionGeometryEvidencePlanner.plan(descriptor);
+        SkyIslandSemanticField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
         return plan(
                 descriptor,
-                SkyIslandConfluenceHeadCompatibilityPlanner.plan(descriptor),
-                SkyIslandCascadeHeadCompatibilityPlanner.plan(descriptor),
-                SkyIslandPreHydrologicTerrainField.create(descriptor),
-                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
+                SkyIslandConfluenceHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy),
+                SkyIslandCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed),
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor, geometry, terrain, policy, watershed),
+                terrain,
+                policy);
     }
 
     static SkyIslandOrdinarySpanPlan plan(
@@ -36,13 +47,36 @@ public final class SkyIslandOrdinarySpanPlanner {
             SkyIslandCascadeHeadCompatibilityPlan cascadePlan,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicQualificationPolicy policy) {
+        return plan(
+                descriptor,
+                confluencePlan,
+                cascadePlan,
+                SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(
+                        descriptor,
+                        cascadePlan.transitionGeometry(),
+                        terrain,
+                        policy,
+                        SkyIslandWatershedPlanner.plan(descriptor)),
+                terrain,
+                policy);
+    }
+
+    static SkyIslandOrdinarySpanPlan plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandConfluenceHeadCompatibilityPlan confluencePlan,
+            SkyIslandCascadeHeadCompatibilityPlan cascadePlan,
+            SkyIslandConfluenceCascadeHeadCompatibilityPlan jointPlan,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(confluencePlan, "confluencePlan");
         Objects.requireNonNull(cascadePlan, "cascadePlan");
+        Objects.requireNonNull(jointPlan, "jointPlan");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(policy, "policy");
         if (!descriptor.equals(confluencePlan.descriptor())
-                || !descriptor.equals(cascadePlan.descriptor())) {
+                || !descriptor.equals(cascadePlan.descriptor())
+                || !descriptor.equals(jointPlan.descriptor())) {
             throw new IllegalArgumentException(
                     "transition plans must match ordinary-span descriptor");
         }
@@ -52,8 +86,11 @@ public final class SkyIslandOrdinarySpanPlanner {
         SkyIslandGeomorphicChannelNetworkPlan network = skeletonPlan.geomorphicNetwork();
         double planningSpacing = network.planningSpacing();
 
+        SkyIslandJointTransitionAdmissions admissions =
+                SkyIslandJointTransitionAdmissions.from(
+                        confluencePlan, cascadePlan, jointPlan);
         Map<BoundaryKey, SkyIslandOrdinarySpanBoundary> confluenceBoundaries =
-                confluenceBoundaries(confluencePlan);
+                confluenceBoundaries(confluencePlan, admissions);
         Map<Long, List<SkyIslandCascadeHeadCompatibilityOutcome>> cascadesByReach =
                 cascadesByReach(cascadePlan);
         Map<Integer, SkyIslandChannelTerminalFate> terminalFates =
@@ -93,8 +130,9 @@ public final class SkyIslandOrdinarySpanPlanner {
                         cursorArc = terminalArc;
                         break;
                     }
-                    cursor =
-                            SkyIslandOrdinarySpanBoundary.deferred(
+                    cursor = admissions.forCascade(site).isPresent()
+                            ? cascadeDownstreamBoundary(cascade, admissions)
+                            : SkyIslandOrdinarySpanBoundary.deferred(
                                     site.downstreamBoundary(),
                                     "overlapping upstream transition ownership requires combined solve");
                     cursorArc = endArc;
@@ -104,10 +142,12 @@ public final class SkyIslandOrdinarySpanPlanner {
                 boolean overlapsDownstreamTransition = endArc > terminalArc - EPSILON;
                 SkyIslandOrdinarySpanBoundary cascadeUp =
                         overlapsDownstreamTransition
-                                ? SkyIslandOrdinarySpanBoundary.deferred(
-                                        site.upstreamBoundary(),
-                                        "overlapping downstream transition ownership requires combined solve")
-                                : cascadeUpstreamBoundary(cascade);
+                                ? admissions.forCascade(site).isPresent()
+                                        ? cascadeUpstreamBoundary(cascade, admissions)
+                                        : SkyIslandOrdinarySpanBoundary.deferred(
+                                                site.upstreamBoundary(),
+                                                "overlapping downstream transition ownership requires combined solve")
+                                : cascadeUpstreamBoundary(cascade, admissions);
                 addSpanIfPositive(
                         descriptor,
                         reach,
@@ -123,7 +163,7 @@ public final class SkyIslandOrdinarySpanPlanner {
                     break;
                 }
 
-                cursor = cascadeDownstreamBoundary(cascade);
+                cursor = cascadeDownstreamBoundary(cascade, admissions);
                 cursorArc = endArc;
             }
 
@@ -141,7 +181,7 @@ public final class SkyIslandOrdinarySpanPlanner {
         }
 
         return new SkyIslandOrdinarySpanPlan(
-                descriptor, confluencePlan, cascadePlan, outcomes);
+                descriptor, confluencePlan, cascadePlan, jointPlan, outcomes);
     }
 
     private static void addSpanIfPositive(
@@ -586,7 +626,8 @@ public final class SkyIslandOrdinarySpanPlanner {
     }
 
     private static Map<BoundaryKey, SkyIslandOrdinarySpanBoundary> confluenceBoundaries(
-            SkyIslandConfluenceHeadCompatibilityPlan plan) {
+            SkyIslandConfluenceHeadCompatibilityPlan plan,
+            SkyIslandJointTransitionAdmissions admissions) {
         Map<BoundaryKey, SkyIslandOrdinarySpanBoundary> result = new HashMap<>();
         for (SkyIslandConfluenceHeadCompatibilityOutcome outcome : plan.outcomes()) {
             Map<SkyIslandHydraulicTransitionLegGeometry, Double> solvedHeads = new HashMap<>();
@@ -621,6 +662,34 @@ public final class SkyIslandOrdinarySpanPlanner {
                     throw new IllegalStateException(
                             "duplicate confluence boundary for incident reach");
                 }
+            }
+        }
+        for (SkyIslandConfluenceCascadeHeadCompatibilityOutcome joint
+                : admissions.outcomes()) {
+            SkyIslandHydraulicTransitionLegGeometry coupled = joint.coupledLeg();
+            SkyIslandHydraulicTransitionBoundaryState node = coupled.nodeBoundary();
+            BoundaryKey key = new BoundaryKey(
+                    reachIdentity(node.reachStartCellIndex(), node.reachEndCellIndex()),
+                    node.role());
+            if (!result.containsKey(key)) {
+                throw new IllegalStateException("joint confluence lacks F3B coupled leg");
+            }
+            result.put(key, SkyIslandOrdinarySpanBoundary.fixed(
+                    node, joint.sharedNodeHeadWorldUnits().orElseThrow()));
+            for (SkyIslandConfluenceLegHeadSolution solution
+                    : joint.ordinaryLegSolutions()) {
+                SkyIslandHydraulicTransitionBoundaryState finite =
+                        solution.leg().finiteBoundary();
+                BoundaryKey ordinaryKey = new BoundaryKey(
+                        reachIdentity(
+                                finite.reachStartCellIndex(),
+                                finite.reachEndCellIndex()),
+                        finite.role());
+                if (!result.containsKey(ordinaryKey)) {
+                    throw new IllegalStateException("joint confluence lacks F3B ordinary leg");
+                }
+                result.put(ordinaryKey, SkyIslandOrdinarySpanBoundary.fixed(
+                        finite, solution.finiteBoundaryHeadWorldUnits()));
             }
         }
         return Map.copyOf(result);
@@ -743,9 +812,23 @@ public final class SkyIslandOrdinarySpanPlanner {
     }
 
     private static SkyIslandOrdinarySpanBoundary cascadeUpstreamBoundary(
-            SkyIslandCascadeHeadCompatibilityOutcome outcome) {
+            SkyIslandCascadeHeadCompatibilityOutcome outcome,
+            SkyIslandJointTransitionAdmissions admissions) {
+        SkyIslandHydraulicCascadeTransitionSite site =
+                outcome.geometry().transitionSite();
         SkyIslandHydraulicTransitionBoundaryState state =
-                outcome.geometry().transitionSite().upstreamBoundary();
+                site.upstreamBoundary();
+        var joint = admissions.forCascade(site);
+        if (joint.isPresent()) {
+            SkyIslandConfluenceCascadeHeadCompatibilityOutcome value =
+                    joint.orElseThrow();
+            double head = value.coupledLeg().nodeBoundary().role()
+                            == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
+                    ? value.cascadeConfluenceSideHeadWorldUnits()
+                            .orElseGet(() -> value.sharedNodeHeadWorldUnits().orElseThrow())
+                    : value.cascadeBoundaryHeadWorldUnits().orElseThrow();
+            return SkyIslandOrdinarySpanBoundary.fixed(state, head);
+        }
         if (outcome.status() == SkyIslandCascadeHeadCompatibilityStatus.SOLVED) {
             return SkyIslandOrdinarySpanBoundary.fixed(
                     state, outcome.upstreamHeadWorldUnits().orElseThrow());
@@ -758,9 +841,23 @@ public final class SkyIslandOrdinarySpanPlanner {
     }
 
     private static SkyIslandOrdinarySpanBoundary cascadeDownstreamBoundary(
-            SkyIslandCascadeHeadCompatibilityOutcome outcome) {
+            SkyIslandCascadeHeadCompatibilityOutcome outcome,
+            SkyIslandJointTransitionAdmissions admissions) {
+        SkyIslandHydraulicCascadeTransitionSite site =
+                outcome.geometry().transitionSite();
         SkyIslandHydraulicTransitionBoundaryState state =
-                outcome.geometry().transitionSite().downstreamBoundary();
+                site.downstreamBoundary();
+        var joint = admissions.forCascade(site);
+        if (joint.isPresent()) {
+            SkyIslandConfluenceCascadeHeadCompatibilityOutcome value =
+                    joint.orElseThrow();
+            double head = value.coupledLeg().nodeBoundary().role()
+                            == SkyIslandHydraulicTransitionBoundaryRole.OUTGOING
+                    ? value.cascadeBoundaryHeadWorldUnits().orElseThrow()
+                    : value.cascadeConfluenceSideHeadWorldUnits()
+                            .orElseGet(() -> value.sharedNodeHeadWorldUnits().orElseThrow());
+            return SkyIslandOrdinarySpanBoundary.fixed(state, head);
+        }
         if (outcome.status() == SkyIslandCascadeHeadCompatibilityStatus.SOLVED) {
             return SkyIslandOrdinarySpanBoundary.fixed(
                     state, outcome.downstreamHeadWorldUnits().orElseThrow());

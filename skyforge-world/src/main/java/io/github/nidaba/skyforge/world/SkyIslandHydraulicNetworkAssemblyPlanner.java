@@ -12,7 +12,7 @@ import java.util.Objects;
 import java.util.Set;
 
 /**
- * Assembles F3D ordinary spans, F3C drops, F3B confluences, and terminal fate into complete
+ * Assembles F3D ordinary spans, F3C drops, F3B/F3H confluences, and terminal fate into complete
  * source-to-terminal admission evidence.
  *
  * <p>F3E grants no terrain authority. A QUALIFIED terminal component only means that every known
@@ -52,6 +52,11 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                 groupCascades(ordinarySpanPlan.cascadePlan().outcomes());
         Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> confluences =
                 confluencesByNode(ordinarySpanPlan.confluencePlan().outcomes());
+        SkyIslandJointTransitionAdmissions admissions =
+                SkyIslandJointTransitionAdmissions.from(
+                        ordinarySpanPlan.confluencePlan(),
+                        ordinarySpanPlan.cascadePlan(),
+                        ordinarySpanPlan.jointPlan());
 
         List<SkyIslandHydraulicReachAssembly> reachAssemblies =
                 new ArrayList<>(skeleton.reaches().size());
@@ -66,7 +71,8 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                             network,
                             spansByReach.getOrDefault(identity, List.of()),
                             cascadesByReach.getOrDefault(identity, List.of()),
-                            confluences);
+                            confluences,
+                            admissions);
             reachAssemblies.add(assembly);
             if (reachByIdentity.put(identity, assembly) != null) {
                 throw new IllegalStateException(
@@ -162,7 +168,8 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
             SkyIslandGeomorphicChannelNetworkPlan network,
             List<SkyIslandOrdinarySpanOutcome> spans,
             List<SkyIslandCascadeHeadCompatibilityOutcome> cascades,
-            Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> confluences) {
+            Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> confluences,
+            SkyIslandJointTransitionAdmissions admissions) {
         List<String> blockers = new ArrayList<>();
         SkyIslandHydraulicAssemblyStatus status =
                 SkyIslandHydraulicAssemblyStatus.QUALIFIED;
@@ -210,7 +217,9 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
 
         for (SkyIslandCascadeHeadCompatibilityOutcome cascade : cascades) {
             SkyIslandHydraulicAssemblyStatus cascadeStatus =
-                    switch (cascade.status()) {
+                    admissions.forCascade(cascade.geometry().transitionSite()).isPresent()
+                            ? SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                            : switch (cascade.status()) {
                         case SOLVED -> SkyIslandHydraulicAssemblyStatus.QUALIFIED;
                         case INFEASIBLE ->
                                 SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
@@ -240,11 +249,11 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                 network.requireNode(semantic.endCellIndex());
         if (start.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
             status = combineConfluence(
-                    status, blockers, start.cellIndex(), confluences);
+                    status, blockers, start.cellIndex(), confluences, admissions);
         }
         if (end.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
             status = combineConfluence(
-                    status, blockers, end.cellIndex(), confluences);
+                    status, blockers, end.cellIndex(), confluences, admissions);
         }
 
         return new SkyIslandHydraulicReachAssembly(
@@ -259,7 +268,8 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
             SkyIslandHydraulicAssemblyStatus current,
             List<String> blockers,
             int nodeCellIndex,
-            Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> confluences) {
+            Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> confluences,
+            SkyIslandJointTransitionAdmissions admissions) {
         SkyIslandConfluenceHeadCompatibilityOutcome outcome =
                 confluences.get(nodeCellIndex);
         if (outcome == null) {
@@ -267,7 +277,9 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                     "missing F3B outcome for confluence " + nodeCellIndex);
         }
         SkyIslandHydraulicAssemblyStatus confluenceStatus =
-                switch (outcome.status()) {
+                admissions.forNode(nodeCellIndex).isPresent()
+                        ? SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                        : switch (outcome.status()) {
                     case SOLVED -> SkyIslandHydraulicAssemblyStatus.QUALIFIED;
                     case INFEASIBLE ->
                             SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
