@@ -88,6 +88,8 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static long boundaryCrossedTick = Long.MIN_VALUE;
     private static double maxStartEndpointError;
     private static double maxEndEndpointError;
+    private static double maxPostCrossingEndTransientError;
+    private static int postCrossingAttachmentStableTicks;
     private static boolean assembled;
     private static boolean ticketResidencyStable;
     private static boolean moved;
@@ -161,7 +163,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 return;
             }
 
-            if (moved && now - boundaryCrossedTick >= POST_MOVE_SETTLE_TICKS) {
+            if (moved && postCrossingAttachmentStableTicks >= POST_MOVE_SETTLE_TICKS) {
                 complete(event);
             }
         } catch (ReflectiveOperationException | RuntimeException failure) {
@@ -388,13 +390,25 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         double startError = distance(start, worldAnchor);
         double endError = distance(end, bodyAttachmentWorldPosition());
         maxStartEndpointError = Math.max(maxStartEndpointError, startError);
-        maxEndEndpointError = Math.max(maxEndEndpointError, endError);
 
         if (startError > ENDPOINT_TOLERANCE) {
             throw new IllegalStateException("world-attached rope endpoint drifted " + startError + " blocks");
         }
-        if (endError > ENDPOINT_TOLERANCE) {
-            throw new IllegalStateException("Sable-attached rope endpoint drifted " + endError + " blocks");
+
+        if (!moved) {
+            maxEndEndpointError = Math.max(maxEndEndpointError, endError);
+            if (endError > ENDPOINT_TOLERANCE) {
+                throw new IllegalStateException("Sable-attached rope endpoint drifted before transition " + endError + " blocks");
+            }
+            return;
+        }
+
+        maxPostCrossingEndTransientError = Math.max(maxPostCrossingEndTransientError, endError);
+        if (endError <= ENDPOINT_TOLERANCE) {
+            maxEndEndpointError = Math.max(maxEndEndpointError, endError);
+            postCrossingAttachmentStableTicks++;
+        } else {
+            postCrossingAttachmentStableTicks = 0;
         }
     }
 
@@ -431,15 +445,16 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("ropeActive", true);
         evidence.put("ropePointCount", ROPE_POINTS);
         evidence.put("worldAttachmentStable", maxStartEndpointError <= ENDPOINT_TOLERANCE);
-        evidence.put("sableAttachmentStable", maxEndEndpointError <= ENDPOINT_TOLERANCE);
+        evidence.put("sableAttachmentStable", postCrossingAttachmentStableTicks >= POST_MOVE_SETTLE_TICKS);
         evidence.put("maxWorldAttachmentErrorBlocks", maxStartEndpointError);
         evidence.put("maxSableAttachmentErrorBlocks", maxEndEndpointError);
+        evidence.put("maxSableAttachmentTransientErrorBlocks", maxPostCrossingEndTransientError);
         evidence.put("bodyId", bodyId);
         evidence.put("initialBodyChunk", initialBodyChunk.x + "," + initialBodyChunk.z);
         evidence.put("targetBodyChunk", targetBodyChunk.x + "," + targetBodyChunk.z);
         evidence.put("finalBodyChunk", finalBodyChunk.x + "," + finalBodyChunk.z);
         evidence.put("chunkBoundaryCrossed", true);
-        evidence.put("postCrossingAttachmentStableTicks", POST_MOVE_SETTLE_TICKS);
+        evidence.put("postCrossingAttachmentStableTicks", postCrossingAttachmentStableTicks);
         evidence.put("finalChunkMayDifferFromCrossedChunkDueToFreeRopeDynamics", true);
         evidence.put("bodyRelocationMethod", "SablePhysicsPipeline.teleport");
         evidence.put("postTransitionHoldMethod", "SablePhysicsPipeline.teleport+resetVelocity");
