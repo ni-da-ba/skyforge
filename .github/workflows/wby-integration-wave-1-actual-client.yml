@@ -64,6 +64,9 @@ jobs:
           narrator:0
           EOF
 
+      - name: Stage exact Wave 1 jars like a real modpack client
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
       - name: Qualify distant Sable rendering through SSRD and Distant Horizons
         shell: bash
         run: |
