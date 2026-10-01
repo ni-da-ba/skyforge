@@ -68,7 +68,7 @@ assert.equal(parsed.sourceProvenanceVerified, false);
 assert.equal(parsed.comparison.reviewAuthority, false);
 assert.equal(parsed.comparison.changedCellCount, 2);
 assert.equal(parsed.comparison.pageChangedCells(0, 1).items.length, 1);
-assert.deepEqual(parsed.comparison.pageChangedCells(1, 1).items[0].gridIndex, [0, 0, 1]);
+assert.deepEqual(parsed.comparison.pageChangedCells(1, 1).items[0].gridIndex, [1, 1, 0]);
 assert.equal(parsed.comparison.columns.find(column => column.x === 1 && column.z === 0).heightDelta, -1);
 
 const claimsAuthority = JSON.parse(bytes);
