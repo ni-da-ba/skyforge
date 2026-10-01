@@ -25,7 +25,8 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 .toList();
         assertTrue(
                 !confluence710.isEmpty(),
-                () -> "expected a confluence-710 joint outcome; observed " + first.outcomes());
+                () -> "expected a confluence-710 joint outcome; first="
+                        + diagnostic(first) + "; second=" + diagnostic(second));
         assertTrue(
                 confluence710.stream().anyMatch(outcome ->
                         outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
@@ -65,6 +66,46 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 assertTrue(a.ordinaryLegSolutions().isEmpty());
             }
         }
+    }
+
+    private static String diagnostic(SkyIslandConfluenceCascadeHeadCompatibilityPlan plan) {
+        var geometry = plan.transitionGeometry();
+        var reaches = geometry.topology().skeletonPlan().reaches().stream()
+                .map(reach -> reach.geomorphicRoute().semanticReach())
+                .filter(reach -> reach.startCellIndex() == 710 || reach.endCellIndex() == 710)
+                .map(reach -> reach.startCellIndex() + "->" + reach.endCellIndex()
+                        + "/profiles=" + reach.profiles().size())
+                .toList();
+        var confluenceLegs = geometry.confluences().stream()
+                .filter(value -> value.transitionSite().nodeCellIndex() == 710)
+                .flatMap(value -> value.legs().stream())
+                .map(leg -> leg.nodeBoundary().reachStartCellIndex() + "->"
+                        + leg.nodeBoundary().reachEndCellIndex() + "/"
+                        + leg.nodeBoundary().role())
+                .toList();
+        var cascades = geometry.cascades().stream()
+                .filter(value -> reaches.stream().anyMatch(reach -> {
+                    var site = value.transitionSite();
+                    return reach.startsWith(site.reachStartCellIndex() + "->"
+                                    + site.reachEndCellIndex() + "/");
+                }))
+                .map(value -> value.transitionSite().reachStartCellIndex() + "->"
+                        + value.transitionSite().reachEndCellIndex() + "/profiles="
+                        + value.transitionSite().firstProfileIndex() + ".."
+                        + value.transitionSite().lastProfileIndexExclusive())
+                .toList();
+        var nodeKinds = geometry.topology().skeletonPlan().geomorphicNetwork().nodes().stream()
+                .filter(node -> node.cellIndex() == 710)
+                .map(SkyIslandGeomorphicNetworkNode::kind)
+                .toList();
+        return "outcomes=" + plan.outcomes().stream()
+                .map(value -> value.confluence().transitionSite().nodeCellIndex()
+                        + ":" + value.status() + ":" + value.diagnostic())
+                .toList()
+                + ", nodeKinds=" + nodeKinds
+                + ", incidentReaches=" + reaches
+                + ", confluenceLegs=" + confluenceLegs
+                + ", cascades=" + cascades;
     }
 
     private static SkyIslandDescriptor descriptor(long province, long cluster, long island) {
