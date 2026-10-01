@@ -134,7 +134,6 @@ STUDIO_APP_FILES = (
     Path('regional-comparison-library.js'),
     Path('regional-comparison.js'),
     Path('workspace-package.js'),
-    Path('workspace-package.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
