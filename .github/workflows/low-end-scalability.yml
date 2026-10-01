@@ -1,0 +1,276 @@
+name: Low-End Hardware Scalability
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "perf/**"
+    paths:
+      - ".github/workflows/low-end-scalability.yml"
+      - ".github/scripts/verify-sf-imp-0072-performance.py"
+      - "skyforge-neoforge-1211/src/main/java/**"
+      - "skyforge-neoforge-1211/src/test/java/**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: low-end-scalability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  headless-scaling:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Record runner identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/low-end-benchmark
+          {
+            echo "uname=$(uname -a)"
+            echo "nproc=$(nproc)"
+            echo "memory_kib=$(awk '/MemTotal/ {print $2}' /proc/meminfo)"
+            echo "java=$(java -version 2>&1 | head -n 1)"
+            echo "--- lscpu ---"
+            lscpu
+            echo "--- free ---"
+            free -h
+          } | tee build/low-end-benchmark/runner.txt
+
+      - name: Compile benchmark code outside timed region
+        timeout-minutes: 10
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:testClasses --stacktrace --no-daemon --no-configuration-cache
+
+      - name: Run controlled CPU and heap scaling profiles
+        shell: bash
+        timeout-minutes: 35
+        run: |
+          set -euo pipefail
+
+          benchmark_root="$PWD/build/low-end-benchmark"
+          result_dir="$PWD/skyforge-neoforge-1211/build/acceptance/sf-imp-0070"
+          run_dir="$PWD/skyforge-neoforge-1211/run-sf-imp-0070-performance-stacked"
+          verifier="$PWD/.github/scripts/verify-sf-imp-0072-performance.py"
+
+          run_profile() {
+            local name="$1"
+            local active_cpus="$2"
+            local heap_gib="$3"
+            local cpuset="$4"
+            local out="$benchmark_root/$name"
+
+            rm -rf "$result_dir" "$run_dir"
+            mkdir -p "$out"
+
+            {
+              echo "profile=$name"
+              echo "active_cpus=$active_cpus"
+              echo "heap_gib=$heap_gib"
+              echo "cpuset=$cpuset"
+            } > "$out/profile.properties"
+
+            echo "=== $name: ${active_cpus} CPU(s), ${heap_gib} GiB max heap, cpuset ${cpuset} ==="
+            set +e
+            /usr/bin/time -v -o "$out/time.txt" \
+              env JAVA_TOOL_OPTIONS="-XX:ActiveProcessorCount=${active_cpus} -Xmx${heap_gib}g -Xlog:gc*,safepoint:file=${out}/jvm-%p.log:time,uptime,level,tags" \
+              taskset -c "$cpuset" \
+              ./gradlew :skyforge-neoforge-1211:runPerformanceCharacterizationStacked \
+                --stacktrace --no-daemon --no-configuration-cache \
+              2>&1 | tee "$out/gradle.log"
+            local gradle_status=${PIPESTATUS[0]}
+            set -e
+
+            local status="$gradle_status"
+            if [[ "$gradle_status" -eq 0 ]]; then
+              if [[ -f "$result_dir/stacked.properties" ]]; then
+                set +e
+                python3 "$verifier" "$result_dir/stacked.properties" \
+                  --active-cpus "$active_cpus" \
+                  --max-preparation-columns 32 \
+                  2>&1 | tee "$out/verifier.log"
+                local verifier_status=${PIPESTATUS[0]}
+                set -e
+                if [[ "$verifier_status" -ne 0 ]]; then
+                  status="$verifier_status"
+                fi
+              else
+                echo "missing benchmark properties after successful fixture run" | tee "$out/verifier.log"
+                status=1
+              fi
+            fi
+
+            echo "$status" > "$out/exit-status.txt"
+            if [[ -f "$result_dir/stacked.properties" ]]; then
+              cp "$result_dir/stacked.properties" "$out/stacked.properties"
+            fi
+            if [[ -f "$run_dir/logs/latest.log" ]]; then
+              cp "$run_dir/logs/latest.log" "$out/latest.log"
+            fi
+            return "$status"
+          }
+
+          aggregate_status=0
+          run_profile reference-4cpu-8g 4 8 0-3 || aggregate_status=1
+          run_profile constrained-2cpu-6g 2 6 0-1 || aggregate_status=1
+          run_profile low-1cpu-4g 1 4 0 || aggregate_status=1
+          exit "$aggregate_status"
+
+      - name: Build comparison summary
+        if: always()
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import csv
+          import re
+
+          root = Path("build/low-end-benchmark")
+          profiles = [
+              ("reference-4cpu-8g", 4, 8),
+              ("constrained-2cpu-6g", 2, 6),
+              ("low-1cpu-4g", 1, 4),
+          ]
+
+          timers = {
+              "process_s": "perf.processElapsedNanos",
+              "warmup_s": "perf.acceptance.warmOriginFootprint.totalNanos",
+              "admission_s": "perf.admission.nativeOccupancySurvey.totalNanos",
+              "deferred_s": "perf.terrain.realizeDeferredPacket.totalNanos",
+              "materialize_s": "perf.terrain.deferred.materialize.totalNanos",
+              "write_s": "perf.terrain.deferred.writePacket.totalNanos",
+              "terrain_pump_s": "perf.catchup.terrainPump.totalNanos",
+              "surface_s": "perf.surfacePopulation.coordinator.totalNanos",
+              "vegetation_s": "perf.surfacePopulation.phase.VEGETAL_DECORATION.totalNanos",
+              "underground_decoration_s": "perf.interior.UNDERGROUND_DECORATION.totalNanos",
+              "ores_s": "perf.interior.UNDERGROUND_ORES.totalNanos",
+              "cave_pump_s": "perf.catchup.composedCavePump.totalNanos",
+          }
+          scalar_nanos = {
+              "prep_p50_ms": "perf.terrain.deferred.materializeSliceWallNanos.p50",
+              "prep_p95_ms": "perf.terrain.deferred.materializeSliceWallNanos.p95",
+              "prep_p99_ms": "perf.terrain.deferred.materializeSliceWallNanos.p99",
+              "prep_max_ms": "perf.terrain.deferred.materializeSliceWallNanos.max",
+              "quantum_p99_ms": "perf.terrain.deferred.quantumWallNanos.p99",
+              "quantum_max_ms": "perf.terrain.deferred.quantumWallNanos.max",
+              "packet_p99_ms": "perf.terrain.deferred.packetWallNanos.p99",
+              "packet_max_ms": "perf.terrain.deferred.packetWallNanos.max",
+              "packet_cpu_max_ms": "perf.terrain.deferred.packetCpuNanos.max",
+          }
+
+          def read_props(path):
+              data = {}
+              if not path.exists():
+                  return data
+              for raw in path.read_text(errors="replace").splitlines():
+                  if not raw or raw.startswith("#") or "=" not in raw:
+                      continue
+                  key, value = raw.split("=", 1)
+                  data[key] = value
+              return data
+
+          def seconds(props, key):
+              value = props.get(key)
+              return None if value is None else int(value) / 1_000_000_000
+
+          def millis(props, key):
+              value = props.get(key)
+              return None if value is None else int(value) / 1_000_000
+
+          def integer(props, key):
+              value = props.get(key)
+              return None if value is None else int(value)
+
+          def time_metrics(path):
+              if not path.exists():
+                  return (None, None)
+              text = path.read_text(errors="replace")
+              rss = re.search(r"Maximum resident set size \(kbytes\):\s*(\d+)", text)
+              cpu = re.search(r"Percent of CPU this job got:\s*([^\n]+)", text)
+              return (
+                  None if rss is None else int(rss.group(1)) / 1024,
+                  None if cpu is None else cpu.group(1).strip(),
+              )
+
+          rows = []
+          for name, cpus, heap in profiles:
+              props = read_props(root / name / "stacked.properties")
+              rss_mib, cpu_pct = time_metrics(root / name / "time.txt")
+              row = {
+                  "profile": name,
+                  "cpus": cpus,
+                  "heap_gib": heap,
+                  "status": props.get("status", "MISSING"),
+                  "verifier_status": (root / name / "exit-status.txt").read_text().strip()
+                      if (root / name / "exit-status.txt").exists() else "MISSING",
+                  "rss_mib": rss_mib,
+                  "cpu_pct": cpu_pct,
+                  "prep_slices": integer(props, "perf.terrain.deferred.materializeSliceWallNanos.samples"),
+                  "deferred_quanta": integer(props, "perf.terrain.realizeDeferredPacket.calls"),
+              }
+              for out_key, prop_key in timers.items():
+                  row[out_key] = seconds(props, prop_key)
+              for out_key, prop_key in scalar_nanos.items():
+                  row[out_key] = millis(props, prop_key)
+              rows.append(row)
+
+          reference = rows[0].get("process_s")
+          for row in rows:
+              process = row.get("process_s")
+              row["slowdown"] = None if not reference or not process else process / reference
+
+          columns = [
+              "profile", "cpus", "heap_gib", "status", "verifier_status", "process_s", "slowdown",
+              "rss_mib", "cpu_pct", "prep_slices", "deferred_quanta",
+          ] + list(timers.keys())[1:] + list(scalar_nanos.keys())
+          with (root / "summary.csv").open("w", newline="") as handle:
+              writer = csv.DictWriter(handle, fieldnames=columns)
+              writer.writeheader()
+              for row in rows:
+                  writer.writerow({key: row.get(key) for key in columns})
+
+          def fmt(value, digits=2):
+              if value is None:
+                  return "n/a"
+              if isinstance(value, float):
+                  return f"{value:.{digits}f}"
+              return str(value)
+
+          lines = [
+              "# Low-End Hardware Scalability Summary",
+              "",
+              "Same SF-IMP-0070 stacked production workload; CPU affinity and JVM-reported CPU count are constrained per profile. Compilation/setup is outside the timed fixture. SF-IMP-0072 preparation and SF-IMP-0071 deterministic packet gates are verified after each fixture run.",
+              "",
+              "| Profile | CPU | PASS | Verify | Production (s) | Slowdown | Prep slices | Prep p99 (ms) | Prep max (ms) | Quantum p99 (ms) | Packet p99 (ms) | Packet raw max (ms) | Packet CPU max (ms) |",
+              "| --- | ---: | :---: | :---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+          ]
+          for row in rows:
+              lines.append(
+                  f"| {row['profile']} | {row['cpus']} | {row['status']} | {row['verifier_status']} | "
+                  f"{fmt(row.get('process_s'))} | {fmt(row.get('slowdown'))}x | {fmt(row.get('prep_slices'), 0)} | "
+                  f"{fmt(row.get('prep_p99_ms'), 3)} | {fmt(row.get('prep_max_ms'), 3)} | "
+                  f"{fmt(row.get('quantum_p99_ms'), 3)} | {fmt(row.get('packet_p99_ms'), 3)} | "
+                  f"{fmt(row.get('packet_max_ms'), 3)} | {fmt(row.get('packet_cpu_max_ms'), 3)} |"
+              )
+
+          (root / "summary.md").write_text("\n".join(lines) + "\n")
+          print((root / "summary.md").read_text())
+          PY
+
+      - name: Publish benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: low-end-hardware-scalability-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 14
+          path: build/low-end-benchmark/

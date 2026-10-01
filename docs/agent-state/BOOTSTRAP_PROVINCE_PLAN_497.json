@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "contract_id": "CONTENT-BOOTSTRAP-PROVINCE-497-001",
+  "issue": 497,
+  "lane": "CONTENT",
+  "status": "CONSUMABLE_BY_IMPLEMENTATION",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "authority": {
+    "parent_issue": 224,
+    "civilization_issue": 466,
+    "runtime_issue": 467,
+    "production_lock": "docs/agent-state/DR00_SPECIMEN_LOCK.json",
+    "iron_closure": "docs/agent-state/DR10_MATERIALS_EVIDENCE.json",
+    "guild_policy": "io.github.nidaba.skyforge.world.content.BootstrapGuildDestinationPolicy",
+    "freight_contract": "io.github.nidaba.skyforge.world.content.BootstrapFreightOpportunity",
+    "freight_site_policy": "io.github.nidaba.skyforge.world.content.FreightTransferEdgeSitePolicy"
+  },
+  "canonical_start": {
+    "candidate_id": "auth-0030-v1-6001989086914692933-8-81-1471/sf-imp-0068-production-composed-cave",
+    "authored_identity": {
+      "world_seed_unsigned": "6001989086914692933",
+      "province_key": 8,
+      "cluster_key": 81,
+      "island_key": 1471
+    },
+    "realized_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+    "roles": ["CRASH_STARTING_ISLAND", "SURVIVAL_WORKSHOP_SUPPORT", "STARTING_GROUP_ANCHOR", "STARTING_CLUSTER_ANCHOR"],
+    "witness": "DR00_SPECIMEN_LOCK exact published authored-realization identity plus #224 ordinary-survival/basic-Create Bootstrap requirement",
+    "non_authority": "Role binding does not add buildability, walkability, distance, timing, morphology, structure-layout, or backend geometry thresholds."
+  },
+  "roles": {
+    "iron_closure": {
+      "scope": "STARTING_CLUSTER",
+      "metal": "IRON",
+      "first_flight_critical": true,
+      "eligibility": "AUTH-0093 peakOpportunity(IRON) > 0",
+      "selected_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+      "witness": "DR10_MATERIALS_EVIDENCE.json",
+      "failure": "REPLAN_REQUIRED"
+    },
+    "local_personal_crossing_and_verticality": {
+      "scope": "STARTING_GROUP",
+      "semantic_capability": "LOCAL_PERSONAL_CROSSING",
+      "selected_realization": "GLIDER_OR_OTHER_ACCEPTED_LOW_TIER_TRAVERSAL",
+      "atmosphere_authority": "CONTENT-BOOTSTRAP-ATMOSPHERE-001",
+      "required_relationships": ["directed pre-flight edge", "return/recovery path", "shared authoritative lift when gliding is realized"],
+      "witness": "#224 plus bootstrap-region-recipe-v0.1 and early-glider-mobility-contract-v0.1; exact geometry remains an Implementation/human-play proof",
+      "failure": "REPLAN_REQUIRED"
+    },
+    "first_flight_resource_closure": {
+      "scope": "STARTING_CLUSTER",
+      "required": ["IRON", "ORDINARY_SURVIVAL_INPUTS", "BASIC_CREATE_WORKSHOP_INPUTS", "SELECTED_FIRST_AIRCRAFT_INPUTS"],
+      "forbidden_prerequisites": ["COPPER", "ZINC", "PETROLEUM", "COMPUTING"],
+      "rule": "No selected first-flight transitive closure may introduce a forbidden prerequisite; Copper/Zinc remain POST_FLIGHT_PROVINCE and Petroleum remains R3_MATURE_INDUSTRY.",
+      "failure": "FAIL_CLOSED_FIRST_FLIGHT_CLOSURE_REQUIRED"
+    },
+    "post_flight_specialization": {
+      "scope": "STARTING_PROVINCE",
+      "resources": ["COPPER", "ZINC"],
+      "eligibility": "accepted AUTH-0094/AUTH-0093 nonzero geological opportunity only",
+      "selection_rule": "bind only an eligible authored association; geological ranking may describe eligible candidates but cannot silently choose a gameplay role",
+      "failure": "REPLAN_REQUIRED"
+    },
+    "guild_destination": {
+      "scope": "STARTING_PROVINCE",
+      "required_capabilities": ["ACCOUNT_ACCESS", "BELLANCA_CLAIM_AND_RESTITUTION", "BASIC_MARKET", "BASIC_CONTRACT_ACCESS", "BASIC_ROUTE_AND_SETTLEMENT_INFORMATION", "CARGO_TRANSFER"],
+      "site_witness": "AUTH-0096 physical surface support plus AUTH-0097 observed-open ray",
+      "reachability": "explicit route-planner assertion; never inferred from raw site evidence",
+      "selection_rule": "first explicitly reachable canonical BootstrapGuildDestinationPolicy candidate",
+      "failure": "REPLAN_REQUIRED"
+    },
+    "first_freight_opportunity": {
+      "scope": "STARTING_PROVINCE_POST_TUTORIAL",
+      "contract_id": "bootstrap-copper-freight-01",
+      "producer_settlement_id": "bootstrap-copper-producer",
+      "producer_specialization": "COPPER_EXTRACTION",
+      "consumer_settlement_id": "bootstrap-guild-consumer",
+      "consumer_need": "ENGINEERING_COPPER_INPUT",
+      "consumer_capability": "CARGO_TRANSFER",
+      "commodity": "COPPER",
+      "physical_cargo_required": true,
+      "mandatory_tutorial_chore": false,
+      "witness": "BootstrapFreightOpportunity.firstOpportunity plus an eligible post-flight Copper association and an operational #467 cargo-transfer anchor",
+      "failure": "REPLAN_REQUIRED"
+    }
+  },
+  "determinism": {
+    "assignment_order": ["CRASH_STARTING_ISLAND", "SURVIVAL_WORKSHOP_SUPPORT", "IRON_CLOSURE", "LOCAL_PERSONAL_CROSSING_AND_VERTICALITY", "FIRST_FLIGHT_RESOURCE_CLOSURE", "POST_FLIGHT_COPPER_ZINC", "GUILD_DESTINATION", "FIRST_FREIGHT_OPPORTUNITY"],
+    "tie_break": "Use only an accepted canonical order after capability eligibility has been established; source order is never suitability evidence.",
+    "replan": "If a required capability witness is absent, reject the affected plan/scope and request replan; never inject resources or fabricate geometry/capability.",
+    "fail_closed": "If first-flight transitive inputs, exact provenance, or a required accepted capability witness cannot be established, output FAIL_CLOSED_* rather than a guaranteed role."
+  },
+  "forbidden_embedded_authority": ["Minecraft block geometry", "walkability threshold", "buildability threshold", "runway threshold", "dock threshold", "final distance", "travel time", "tutorial pacing", "navigation cue strength", "settlement aesthetics", "Guild Hall architecture", "aircraft handling", "atmospheric simulation", "human play acceptance"],
+  "product_invariant": "PERSONAL MOBILITY IS CHEAP. LOGISTICS ARE NOT."
+}

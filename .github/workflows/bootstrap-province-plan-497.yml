@@ -1,0 +1,25 @@
+name: Bootstrap Province Plan 497
+
+on:
+  pull_request:
+    paths:
+      - 'docs/agent-state/BOOTSTRAP_PROVINCE_PLAN_497.json'
+      - 'docs/agent-state/DR00_SPECIMEN_LOCK.json'
+      - 'docs/agent-state/DR10_MATERIALS_EVIDENCE.json'
+      - 'scripts/verify-bootstrap-province-plan-497.py'
+      - '.github/workflows/bootstrap-province-plan-497.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify deterministic Bootstrap Province plan contract
+        run: python3 scripts/verify-bootstrap-province-plan-497.py

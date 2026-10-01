@@ -1,0 +1,26 @@
+%% PRES-0005 — How Skyforge works
+%% Presentation source. Current capability boundary: Minecraft/NeoForge is the first accepted production backend.
+flowchart LR
+    A["SEMANTIC DESCRIPTORS<br/>What kind of place is this?"]
+    B["VERSIONED RECIPES<br/>How should that intent be constructed?"]
+    C["IMMUTABLE PROCEDURAL GRAPH<br/>Explicit evaluable structure"]
+    D["DETERMINISTIC SCALAR FIELDS<br/>Reproducible world functions"]
+    E["EXACT FINITE 3-D VOLUMES<br/>Upper surface + underside + interior"]
+    F["RUNTIME BACKEND<br/>Minecraft / NeoForge first"]
+
+    C --> G["CANONICAL EVIDENCE<br/>serialization • fixed seeds • diagnostics"]
+    D --> G
+    E --> G
+    G --> H["ACCEPTANCE<br/>reproducibility • review • regression"]
+
+    A --> B --> C --> D --> E --> F
+
+    classDef meaning fill:#e8eef7,stroke:#526b8d,color:#111;
+    classDef neutral fill:#eef4ed,stroke:#587356,color:#111;
+    classDef runtime fill:#f8efe2,stroke:#8e6b3f,color:#111;
+    classDef evidence fill:#f2eef8,stroke:#6f5b8f,color:#111;
+
+    class A,B meaning;
+    class C,D,E neutral;
+    class F runtime;
+    class G,H evidence;

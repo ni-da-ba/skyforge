@@ -1,0 +1,95 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "case_id": "legacy-exact-head-machine-green",
+      "source": "test_skyforge_control_replay_runtime.py::ControlReplayRuntimeTests::test_safe_auto_merge_uses_exact_head_compare_and_swap",
+      "snapshot": {
+        "pr_class": "DELIVERY",
+        "active_pr": true,
+        "current_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reviewed_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accepted_task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci_state": "PASS",
+        "human_gate_pending": false,
+        "pending_worker": false,
+        "review_required": false
+      },
+      "expected_kind": "MERGE_ELIGIBLE"
+    },
+    {
+      "case_id": "legacy-unexpected-head-movement",
+      "source": "test_skyforge_control_replay_runtime.py::ControlReplayRuntimeTests::test_auto_merge_rejects_unexpected_head_movement",
+      "snapshot": {
+        "pr_class": "DELIVERY",
+        "active_pr": true,
+        "current_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "reviewed_sha": "cccccccccccccccccccccccccccccccccccccccc",
+        "task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accepted_task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci_state": "PASS",
+        "human_gate_pending": false,
+        "pending_worker": false,
+        "review_required": false
+      },
+      "expected_kind": "INVALIDATE_EVIDENCE"
+    },
+    {
+      "case_id": "legacy-ineligible-becomes-human-gate",
+      "source": "test_skyforge_control_replay_runtime.py::ControlReplayRuntimeTests::test_ineligible_managed_pr_becomes_human_gate_not_merge",
+      "snapshot": {
+        "pr_class": "HUMAN_GATE",
+        "active_pr": true,
+        "current_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reviewed_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accepted_task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci_state": "PASS",
+        "human_gate_pending": true,
+        "pending_worker": false,
+        "review_required": false
+      },
+      "expected_kind": "HUMAN_GATE"
+    },
+    {
+      "case_id": "legacy-visual-review-never-auto-merge",
+      "source": "test_skyforge_control_replay_runtime.py::ControlReplayRuntimeTests::test_human_or_visual_gate_is_never_auto_merge_candidate",
+      "snapshot": {
+        "pr_class": "HUMAN_GATE",
+        "active_pr": true,
+        "current_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reviewed_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accepted_task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci_state": "PASS",
+        "human_gate_pending": true,
+        "pending_worker": false,
+        "review_required": true
+      },
+      "expected_kind": "HUMAN_GATE"
+    },
+    {
+      "case_id": "legacy-pending-worker-blocks-merge",
+      "source": "skyforge_control_replay_base.py::_merge_managed pending_worker hard guard",
+      "snapshot": {
+        "pr_class": "DELIVERY",
+        "active_pr": true,
+        "current_head_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "evidence_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "reviewed_sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "accepted_task_spec_hash": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "ci_state": "PASS",
+        "human_gate_pending": false,
+        "pending_worker": true,
+        "review_required": false
+      },
+      "expected_kind": "WAIT"
+    }
+  ]
+}

@@ -1,0 +1,128 @@
+# Hydrology reset tranche F4C — removal-only voxel quantization
+
+**Status:** backend-neutral integer-column discretization evidence under issue #1084  
+**Depends on:** F4B compiled world-surface projection  
+**Minecraft mutation authority:** none
+
+## Purpose
+
+F4B defines an already-qualified continuous world-space upper-surface target. F4C asks only how to
+represent that target on an integer voxel lattice without reintroducing terrain reconciliation.
+
+The quantizer is deliberately one-sided:
+
+```text
+quantizedUpperBoundary = ceil(F4B.targetUpperWorld)
+targetMaximumSolidY    = quantizedUpperBoundary - 1
+```
+
+This choice guarantees:
+
+```text
+F4B.targetUpperWorld
+    <= quantizedUpperBoundary
+    < F4B.targetUpperWorld + 1
+```
+
+The backend may therefore leave less than one block of qualified cut unrealized, but it may never
+excavate below the qualified continuous target.
+
+## Exact compiled support
+
+F4C measures the exact original integer solid interval for every F4A-authorized X/Z column using the
+same strict-between-surfaces occupancy convention as current compiled terrain materialization.
+
+A quantized target is admissible only when:
+
+- the original compiled column contains exact solid support;
+- the target maximum solid Y remains at or above the exact minimum solid Y;
+- the target maximum never exceeds the original maximum;
+- the retained target top is exact compiled solid;
+- every voxel in the surface removal band from the target top through the original top is exact
+  compiled solid.
+
+Internal AIR below the retained target surface is permitted. F4C does not treat an unrelated cave as
+a discontinuous surface column and does not fill or otherwise modify that cave.
+
+Failure rejects the quantization plan. F4C does not add blocks, lower the underside, move the water
+datum, or search for a nearby carrier.
+
+## Authority mask
+
+Only columns whose F4A terrain sample is not `UNAFFECTED` enter the F4C plan.
+
+Rejected or deferred F3E/F4A components therefore produce exactly zero authorized and zero mutated
+columns. A column inside a conservative scan envelope but outside F4A terrain authority is ignored.
+
+## No reconciliation excavation
+
+For each admitted column:
+
+- removed blocks are exactly `originalMaximumSolidY - targetMaximumSolidY`;
+- `removedSolidBlocks >= 0`;
+- the discrete upper boundary is never below the continuous F4B target;
+- quantization residual is in `[0, 1)` world units.
+
+There is no additional carrier cut, isotonic backend solve, bank fill, or geometry rescue budget.
+
+The archived H6 allowance of up to 16 blocks of carrier reconciliation has no analogue in F4C.
+
+## First evidence target
+
+The accepted 8/81/77 F4B envelope contains 8,969 authorized integer columns. F4C must:
+
+- retain those same 8,969 columns as its authority envelope;
+- mutate only a subset that actually crosses an integer surface boundary;
+- report the total and per-column removal counts;
+- prove maximum residual is strictly below one block;
+- prove extra excavation below the qualified continuous target is exactly zero;
+- keep primary-287, confluence-632, and lake-609 at zero voxel authority.
+
+## First fixed-corpus result
+
+The production 8/81/77 association admits both F4A/F4B terminal components:
+
+- qualified components: `2`;
+- rejected components: `0`;
+- authorized integer columns: `8,969`;
+- columns that actually cross an integer boundary: `4,911`;
+- total exact solid voxels removed by the quantized plan: `15,849`;
+- maximum removed voxels in one column: `7`;
+- maximum ceiling residual above the qualified continuous target: `0.999999918` block;
+- minimum nonnegative residual: `0.000407162` block;
+- extra excavation below the qualified continuous target: `0.000000000`.
+
+The deliberately weak 8/81/77 physical association rejects both terminal components atomically:
+
+- qualified components: `0`;
+- rejected components: `2`;
+- authorized columns: `0`;
+- mutated columns: `0`.
+
+Primary-287, confluence-632, and lake-609 likewise retain zero F4C authority because upstream F4A
+grants them no terrain candidate.
+
+The fact that maximum per-column removal is seven voxels does **not** represent a seven-block backend
+repair allowance. That removal is the discretized form of the already-qualified F4B continuous cut
+(which reaches roughly 6.94 world units in the full envelope). The backend-specific error is only the
+ceiling residual above the continuous target, and it remains strictly below one block. F4C permits
+zero excavation below that target.
+
+## Failure semantics
+
+Admission is atomic per complete F3E/F4A terminal component.
+
+A physically unsupported authorized column rejects its entire terminal component. Every column from
+that rejected component is discarded from voxel authority; no local omission is permitted. An
+independent qualified terminal component may remain admitted. This preserves F3E component-level
+admission without turning one unrelated physical mismatch into a global hydrology veto.
+
+## Next boundary
+
+Once F4C fixed evidence is green, the implementation lane may consume its quantized removal plan in
+the Minecraft adapter.
+
+That adapter must be a literal consumer of the F4C column plan. It may not recompute hydraulic grade,
+deepen a channel for connectivity, fill banks, reroute, or otherwise repair the accepted geometry.
+
+A human visual gate becomes meaningful only after that literal consumer exists.

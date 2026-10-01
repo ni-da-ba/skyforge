@@ -1,0 +1,68 @@
+name: Aircraft Powertrain Runtime 128 RPM
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/aircraft-powertrain-runtime-128.yml"
+      - "docs/agent-state/AIRCRAFT_COMPILER_STATE.md"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "scripts/compiler-integration/run-exact-stack-fixture.sh"
+      - "skyforge-model/src/main/java/io/github/nidaba/skyforge/model/aircraft/**"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAircraft*.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationDiagnostic.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationFailure.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCompilerIntegrationPhase.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/AircraftPowertrainRuntimeResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aircraft-powertrain-runtime-128-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Verify production compiler and runtime boundary contracts
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*AircraftPowertrainRuntimeResourceTest'
+          --tests '*SkyforgeAircraftPowertrainLowererTest'
+          --no-configuration-cache
+
+  l2-exact-stack:
+    needs: l1-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Resolve exact accepted Create/Sable/Aeronautics stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+      - name: Qualify production v0.12 aircraft powertrain at 128 RPM
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runAircraftPowertrainRuntime128Server
+          aircraft-powertrain-runtime-128.log
+          'AIRCRAFT_V012_POWERTRAIN_128_RUNTIME START'
+          'AIRCRAFT_V012_POWERTRAIN_128_RUNTIME PASS'
+          'AIRCRAFT_V012_POWERTRAIN_128_RUNTIME FAIL'
+          120
+          240

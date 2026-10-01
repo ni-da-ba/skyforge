@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "contract_id": "CONTENT-DR30-ROLE-SITE-001",
+  "milestone": "DR-30",
+  "lane": "CONTENT",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "status": "CONSUMABLE_BY_IMPLEMENTATION",
+  "role": {
+    "id": "FREIGHT_TRANSFER_EDGE",
+    "source": "C24",
+    "meaning": "A generic infrastructure edge that can exchange freight with a planned route.",
+    "not_authorized": [
+      "runway",
+      "dock",
+      "vehicle_corridor",
+      "settlement_layout",
+      "route_geometry",
+      "petroleum_progression"
+    ]
+  },
+  "requirement_envelope": {
+    "required_observables": [
+      "AUTH-0096 physical surface support",
+      "AUTH-0097 observed-open directional sample"
+    ],
+    "thresholds": [],
+    "geometry": "IMPLEMENTATION_REQUIRED",
+    "access_clearance": "IMPLEMENTATION_REQUIRED",
+    "route_plan": "CONTENT_REQUIRED"
+  },
+  "candidate_policy": {
+    "input": "C24 FREIGHT_TRANSFER_EDGE candidates for the exact published association",
+    "eligible": "AUTH-0096 physical surface support AND at least one AUTH-0097 observed-open ray",
+    "selection": "first eligible candidate in unchanged AUTH-0097 canonical anchor order, then unchanged AUTH-0097 direction order",
+    "tie_break": "canonical source order only",
+    "forbidden_policy": [
+      "C24 source order as suitability beyond deterministic tie-breaking",
+      "geological rank",
+      "arbitrary intuition",
+      "new numeric footprint, flatness, grade, or approach threshold"
+    ]
+  },
+  "outcomes": {
+    "selected": "HANDOFF_SELECTED_CANDIDATE",
+    "no_eligible_candidate": "REPLAN_REQUIRED",
+    "missing_required_association_or_observable": "FAIL_CLOSED_CONTENT_ROLE_REQUIRED",
+    "implementation_rejection": "REPLAN_REQUIRED"
+  },
+  "provenance": [
+    { "id": "C24", "role": "coarse role and candidate predicate", "accepted_reference": "PR-373" },
+    { "id": "AUTH-0096", "role": "physical surface support observable", "accepted_reference": "PR-318" },
+    { "id": "AUTH-0097", "role": "directional observed-open observable and canonical order", "accepted_reference": "PR-328" },
+    { "id": "P2_DRESSED_REGION_A", "role": "locked DR-00 specimen identity", "accepted_reference": "DR00_SPECIMEN_LOCK.json" }
+  ],
+  "authorship_reopen_rule": "Reopen Authorship only when a concrete requirement in this envelope cannot be evaluated from AUTH-0096/AUTH-0097; do not add thresholds by intuition.",
+  "implementation_handoff": "Consume the selected semantic role and candidate provenance; retain ownership of exact geometry, orientation, support/clearance, accommodation, mutation, persistence, and lifecycle."
+}

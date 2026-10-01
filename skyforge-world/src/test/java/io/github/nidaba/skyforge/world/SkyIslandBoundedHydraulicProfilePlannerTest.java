@@ -1,0 +1,291 @@
+package io.github.nidaba.skyforge.world;
+
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.List;
+import org.junit.jupiter.api.Test;
+
+class SkyIslandBoundedHydraulicProfilePlannerTest {
+    private static final long SEED = 0x534B59464F524745L;
+    private static final double EPSILON = 1.0e-8;
+
+    @Test
+    void fixedCorpusIsDeterministic() {
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandBoundedHydraulicProfilePlan first =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+            SkyIslandBoundedHydraulicProfilePlan second =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+
+            assertEquals(first.outcomes().size(), second.outcomes().size());
+            for (int i = 0; i < first.outcomes().size(); i++) {
+                SkyIslandBoundedHydraulicReachOutcome a = first.outcomes().get(i);
+                SkyIslandBoundedHydraulicReachOutcome b = second.outcomes().get(i);
+                assertEquals(a.skeleton(), b.skeleton());
+                assertEquals(a.status(), b.status());
+                assertEquals(a.deferralReasons(), b.deferralReasons());
+                assertEquals(a.diagnostic(), b.diagnostic());
+                assertEquals(a.hydraulicReach(), b.hydraulicReach());
+                assertEquals(a.qualification(), b.qualification());
+                if (a.solverResult().isPresent()) {
+                    assertTrue(b.solverResult().isPresent());
+                    SkyIslandHydraulicQpResult ar = a.solverResult().orElseThrow();
+                    SkyIslandHydraulicQpResult br = b.solverResult().orElseThrow();
+                    assertEquals(ar.status(), br.status());
+                    assertArrayEquals(ar.solution(), br.solution(), EPSILON);
+                    assertEquals(ar.objective(), br.objective(), EPSILON);
+                    assertEquals(ar.primalResidual(), br.primalResidual(), EPSILON);
+                    assertEquals(ar.stationarityResidual(), br.stationarityResidual(), EPSILON);
+                    assertEquals(ar.dualFeasibilityResidual(), br.dualFeasibilityResidual(), EPSILON);
+                    assertEquals(ar.complementarityResidual(), br.complementarityResidual(), EPSILON);
+                } else {
+                    assertTrue(b.solverResult().isEmpty());
+                }
+            }
+        }
+    }
+
+    @Test
+    void confluenceOwnedReachesRemainExplicitlyDeferred() {
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(632L));
+
+        assertTrue(plan.outcomes().stream()
+                .anyMatch(outcome -> outcome.deferralReasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason.CONFLUENCE_TRANSITION_REQUIRED)));
+        assertDeferredOutcomesAreUnsolved(plan);
+    }
+
+    @Test
+    void cascadeOwnedReachesRemainExplicitlyDeferred() {
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(512L));
+
+        assertTrue(plan.outcomes().stream()
+                .anyMatch(outcome -> outcome.deferralReasons().contains(
+                        SkyIslandQualifiedFluvialDeferralReason.CASCADE_TRANSITION_REQUIRED)));
+        assertDeferredOutcomesAreUnsolved(plan);
+    }
+
+    @Test
+    void terminalFatePolicyFailsClosedExceptAtExplicitEdgeOutlet() {
+        assertTrue(SkyIslandChannelTerminalFatePolicy
+                .deferralReason(SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+                .isEmpty());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.RETAINED_WATER_TRANSITION_REQUIRED,
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
+                                SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
+                        .orElseThrow());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.WETLAND_TRANSITION_REQUIRED,
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
+                                SkyIslandChannelTerminalFateKind.RETAINED_WETLAND)
+                        .orElseThrow());
+        assertEquals(
+                SkyIslandQualifiedFluvialDeferralReason.UNRESOLVED_TERMINAL_FATE,
+                SkyIslandChannelTerminalFatePolicy
+                        .deferralReason(
+                                SkyIslandChannelTerminalFateKind.UNRESOLVED)
+                        .orElseThrow());
+    }
+
+    @Test
+    void retainedOpenWaterTerminalUsesExplicitWatershedFateAndIsDeferred() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 609L);
+        SkyIslandBoundedHydraulicProfilePlan plan =
+                SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
+        List<SkyIslandChannelTerminalFate> fates =
+                SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, plan.skeleton().geomorphicNetwork());
+
+        List<SkyIslandChannelTerminalFate> openWater = fates.stream()
+                .filter(fate -> fate.kind() == SkyIslandChannelTerminalFateKind.RETAINED_OPEN_WATER)
+                .toList();
+        assertTrue(
+                !openWater.isEmpty(),
+                "lake-609 must exercise retained-open-water terminal fate");
+
+        for (SkyIslandChannelTerminalFate fate : openWater) {
+            SkyIslandBoundedHydraulicReachOutcome terminalReach =
+                    plan.outcomes().stream()
+                            .filter(outcome ->
+                                    outcome.skeleton()
+                                                    .geomorphicRoute()
+                                                    .semanticReach()
+                                                    .endCellIndex()
+                                            == fate.channelTerminalCellIndex())
+                            .findFirst()
+                            .orElseThrow(() -> new AssertionError(
+                                    "retained-open-water fate must map to a semantic terminal reach"));
+            assertEquals(
+                    SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED,
+                    terminalReach.status());
+            assertTrue(terminalReach.deferralReasons().contains(
+                    SkyIslandQualifiedFluvialDeferralReason
+                            .RETAINED_WATER_TRANSITION_REQUIRED));
+            assertEquals(
+                    fate.channelTerminalCellIndex(),
+                    fate.watershedPath().getFirst());
+            assertEquals(
+                    fate.watershedTerminalCellIndex(),
+                    fate.watershedPath().getLast());
+        }
+    }
+
+    @Test
+    void solvedOrdinaryProfilesAreNonClimbingAndRespectD2GradeLimit() {
+        int solvedCount = 0;
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandBoundedHydraulicProfilePlan plan =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+                if (outcome.hydraulicReach().isEmpty()) {
+                    continue;
+                }
+                solvedCount++;
+                SkyIslandHydraulicReachGeometry reach = outcome.hydraulicReach().orElseThrow();
+                SkyIslandGeomorphicProfileLimits limits =
+                        SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
+                                .limits(reach.geomorphicRoute().semanticReach());
+
+                for (int i = 0; i + 1 < reach.samples().size(); i++) {
+                    SkyIslandHydraulicGeometrySample a = reach.samples().get(i);
+                    SkyIslandHydraulicGeometrySample b = reach.samples().get(i + 1);
+                    double ds = Math.hypot(
+                            b.position().x() - a.position().x(),
+                            b.position().z() - a.position().z());
+                    double worldDrop =
+                            (a.waterSurfacePotential() - b.waterSurfacePotential())
+                                    * plan.descriptor().reliefBudget();
+                    assertTrue(worldDrop >= -EPSILON);
+                    assertTrue(
+                            worldDrop / ds
+                                    <= limits.maximumLongitudinalGrade() + EPSILON);
+                }
+
+                SkyIslandHydraulicQpResult solve = outcome.solverResult().orElseThrow();
+                assertEquals(SkyIslandHydraulicQpStatus.SOLVED, solve.status());
+                assertTrue(solve.primalResidual() < 1.0e-6);
+                assertTrue(solve.stationarityResidual() < 1.0e-6);
+                assertTrue(solve.dualFeasibilityResidual() < 1.0e-6);
+                assertTrue(solve.complementarityResidual() < 1.0e-6);
+            }
+        }
+        assertTrue(solvedCount > 0, "fixed corpus must exercise at least one ordinary F2C solve");
+    }
+
+    @Test
+    void qpEncodedD2MetricsCannotFailAfterSolvedProfile() {
+        List<SkyIslandGeomorphicQualificationViolation> encoded = List.of(
+                SkyIslandGeomorphicQualificationViolation.CENTERLINE_LOWERING,
+                SkyIslandGeomorphicQualificationViolation.LATERAL_RECOVERY_GRADE,
+                SkyIslandGeomorphicQualificationViolation.BANK_CONTAINMENT,
+                SkyIslandGeomorphicQualificationViolation.RELIEF_TO_VALLEY_WIDTH,
+                SkyIslandGeomorphicQualificationViolation.LONGITUDINAL_GRADE);
+
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandBoundedHydraulicProfilePlan plan =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+                if (outcome.qualification().isEmpty()) {
+                    continue;
+                }
+                for (SkyIslandGeomorphicQualificationViolation violation : encoded) {
+                    assertFalse(
+                            outcome.qualification().orElseThrow().violations().contains(violation),
+                            "QP-encoded D2 constraint failed after solved profile: " + violation);
+                }
+            }
+        }
+    }
+
+    @Test
+    void solvedOutcomeNeverBypassesPostSolveD2Qualification() {
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            SkyIslandBoundedHydraulicProfilePlan plan =
+                    SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor(key));
+            for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+                if (outcome.hydraulicReach().isEmpty()) {
+                    continue;
+                }
+                SkyIslandGeomorphicReachQualification qualification =
+                        outcome.qualification().orElseThrow();
+                assertEquals(
+                        qualification.accepted(),
+                        outcome.status()
+                                == SkyIslandBoundedHydraulicReachStatus.SOLVED_QUALIFIED);
+                assertEquals(
+                        !qualification.accepted(),
+                        outcome.status()
+                                == SkyIslandBoundedHydraulicReachStatus.SOLVED_REJECTED);
+            }
+        }
+    }
+
+    @Test
+    void midpointRefinementPreservesHeadDependentD2Classification() {
+        int diagnosticCount = 0;
+        for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 811L}) {
+            List<SkyIslandBoundedHydraulicConvergenceDiagnostics> diagnostics =
+                    SkyIslandBoundedHydraulicConvergencePlanner.measure(descriptor(key));
+            diagnosticCount += diagnostics.size();
+            assertEquals(
+                    diagnostics,
+                    SkyIslandBoundedHydraulicConvergencePlanner.measure(descriptor(key)));
+            for (SkyIslandBoundedHydraulicConvergenceDiagnostics d : diagnostics) {
+                assertEquals(2 * d.coarseSampleCount() - 1, d.mediumSampleCount());
+                assertEquals(2 * d.mediumSampleCount() - 1, d.fineSampleCount());
+                assertTrue(
+                        d.headDependentClassificationStable(),
+                        "collocation refinement must not change head-dependent D2 classification");
+            }
+        }
+        assertTrue(diagnosticCount > 0, "fixed corpus must exercise F2C convergence diagnostics");
+    }
+
+    @Test
+    void f2cDoesNotMutateThePreHydrologicTerrainField() {
+        SkyIslandDescriptor descriptor = descriptor(118L);
+        SkyIslandPreHydrologicTerrainField original =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        List<SkyIslandLocalPosition> probes = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(12.0, -8.0),
+                new SkyIslandLocalPosition(-18.0, 21.0));
+        double[] before = probes.stream().mapToDouble(original::sample).toArray();
+
+        SkyIslandBoundedHydraulicProfilePlanner.plan(descriptor);
+
+        double[] after = probes.stream().mapToDouble(original::sample).toArray();
+        assertArrayEquals(before, after, 0.0);
+    }
+
+    private static void assertDeferredOutcomesAreUnsolved(
+            SkyIslandBoundedHydraulicProfilePlan plan) {
+        for (SkyIslandBoundedHydraulicReachOutcome outcome : plan.outcomes()) {
+            if (outcome.status() == SkyIslandBoundedHydraulicReachStatus.TRANSITION_DEFERRED) {
+                assertTrue(outcome.solverResult().isEmpty());
+                assertTrue(outcome.hydraulicReach().isEmpty());
+                assertTrue(outcome.qualification().isEmpty());
+                assertFalse(outcome.deferralReasons().isEmpty());
+            }
+        }
+    }
+
+    private static SkyIslandDescriptor descriptor(long key) {
+        return descriptor(8L, 81L, key);
+    }
+
+    private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
+        return SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, province, cluster, key));
+    }
+}

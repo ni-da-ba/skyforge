@@ -1,0 +1,779 @@
+# Skyforge Lightweight Agent Orchestration Protocol
+
+**Status:** Canonical operating protocol for low-usage autonomous orchestration  
+**Goal:** maximize useful autonomous progress while minimizing repeated reconstruction, idle polling,
+agentic-credit burn, and unnecessary parallel workers.
+
+## 1. Operating model
+
+Skyforge should not run one always-awake Codex worker per lane.
+
+Preferred architecture:
+
+```text
+ordinary hourly Audit / human observation
+             |
+             v
+       GitHub durable state
+             |
+             v
+lightweight Codex orchestrator thread
+       (scheduled heartbeat)
+             |
+      only when actionable
+        /          \
+       v            v
+ bounded worker  bounded worker
+ / worktree      / worktree
+       \            /
+        v          v
+             GitHub
+               |
+               v
+              CI
+               |
+       next orchestrator wake
+```
+
+The orchestrator is a **dispatcher and gate detector**, not the default implementation worker.
+
+One orchestrator thread is preferred to four continuously scheduled lane threads because each scheduled
+wake, reconstruction, tool call, and subagent consumes agentic usage.
+
+## 2. Product capability assumptions
+
+Codex thread automations may return to an existing thread on a schedule and preserve its thread
+context. Where the Codex surface supports multi-agent/worktree delegation, the orchestrator may
+delegate bounded worker tasks inside the run.
+
+Do not assume a general ability to inject prompts into arbitrary existing ChatGPT conversations.
+GitHub is the cross-execution handoff channel.
+
+If the active Codex surface cannot spawn a separate worker, the orchestrator may execute **one**
+highest-priority bounded task itself, then stop at the same gates defined below.
+
+## 3. Progressive-disclosure read strategy
+
+### Orchestrator fast path
+
+On a normal wake, read only enough state to decide whether work should run:
+
+1. `AGENTS.md` (normally injected automatically by Codex);
+2. `docs/agent-state/AUDIT_STATE.md`;
+3. current open PRs/issues and recent main movement relevant to active lanes.
+
+Do **not** fully read all lane histories, contracts, source and tests merely to discover that every lane
+is waiting.
+
+### Worker deep path
+
+Only after dispatching a lane does that worker perform the full lane reconstruction in `AGENTS.md`.
+
+This deliberately moves expensive context acquisition from:
+
+```text
+every orchestrator wake x every lane
+```
+
+to:
+
+```text
+only the lane that actually has work
+```
+
+## 4. Lane states understood by the orchestrator
+
+Classify each lane as one of:
+
+- **RUN** — bounded, technically prudent work exists now and no healthy producer is already executing it.
+- **RUNNING_EXTERNAL** — an ordinary ChatGPT/manual/Codex producer is already making
+  information-bearing repository or Actions progress; do not dispatch a duplicate worker.
+- **WAIT_CI** — useful work is blocked on already-running evidence; do not poll in a loop.
+- **HUMAN_GATE** — human judgment/strategy/permission is required.
+- **DORMANT** — no retained consumer or next prudent milestone exists.
+- **WATCH** — possible process/session issue; inspect liveness before dispatch.
+- **RESTART** — prior producer execution is dead/stale; launch fresh reconstruction rather than
+  continuing conversational history.
+
+A failed machine check on a controller-managed PR is not, by itself, a HUMAN_GATE. After the exact
+head is quiescent, route a repository-local repair back to the managed producer lane when no explicit
+human/product/permission boundary applies. Prefer scoped Luna for narrow text/config/build-script or
+syntax repairs and Terra for substantive source/runtime/debugging repair. Preserve the failed workflow
+name/conclusion as reusable evidence so the repair is driven by the new machine result rather than by
+broad reconstruction.
+
+A lane may be healthy while DORMANT.
+
+## 5. Wake algorithm
+
+On each orchestrator heartbeat:
+
+1. Read the fast-path state.
+2. Identify changes since the previous useful wake:
+   - merges;
+   - new/updated producer PR heads;
+   - newly completed/failed relevant CI;
+   - Audit interventions;
+   - human decisions now required.
+3. Classify each lane. Recent information-bearing commits, PR updates, or progressing Actions from an
+   existing producer classify the lane as **RUNNING_EXTERNAL** and suppress duplicate dispatch.
+4. If any **HUMAN_GATE** exists, report it and do not silently choose for the project owner.
+5. If any **RESTART** exists, reconstruct a fresh worker from GitHub.
+6. Select at most **two** RUN lanes in one wake; default to **one** when either task is expensive.
+7. Give each selected worker one bounded objective and explicit stop conditions.
+8. When the worker returns:
+   - persist meaningful progress in GitHub;
+   - merge only if its existing acceptance policy permits;
+   - otherwise leave a precise PR/issue handoff.
+9. If only RUNNING_EXTERNAL/WAIT_CI/DORMANT lanes remain, stop the run immediately.
+10. Actionable webhook transitions are debounced and classified as one durable batch, not one model call per event. A successful classifier decision owns exactly the event keys captured by that batch until the decision is completed or explicitly invalidated. New webhook events queue behind the owned batch; they do not erase the cached decision merely because they arrived later. In addition, semantic classifier input (policy + event keys + current main/open-PR/run state) is fingerprinted; an identical previously successful input restores its cached decision without another Luna call. Wall-clock timestamps and telemetry counters are excluded from that fingerprint. This prevents normal PR lifecycle bursts, replay, or bookkeeping defects from repeatedly paying Luna to rediscover the same decision.
+11. Cached DISPATCH decisions must be revalidated before execution. If current main or the source PR head/state no longer matches the decision-time identity, invalidate the cached decision once and reclassify the combined durable queue. NOOP/HUMAN_GATE decisions may retire only their captured keys while later events remain queued; MERGE retains its existing current-state checks.
+12. If a multi-event batch dispatches a worker that produces no repository handoff and no newer event is already queued, preserve exactly one synthetic reconciliation event so a second independent runnable objective cannot be stranded. A single-event follow-up must never recursively create another follow-up.
+13. Repeated classifier transport/SDK/format failures must fail closed before exhausting the daily Luna budget. Persist a non-secret failure summary and consecutive-failure streak; after three consecutive classifier failures, safety-pause with the durable event batch retained until the failure is inspected and a trusted operator resumes.
+14. Timer callbacks are advisory wakeups, not durable event snapshots. A callback must acquire the single dispatch lock before reading the current durable pending-event batch; callbacks that waited behind another dispatch must re-read state and return if that earlier dispatch already retired the work.
+15. A successful classifier decision survives controller/process restart with its captured event ownership intact. Startup reconciliation may append newer durable work behind that decision, but restart alone must not erase it and spend Luna again. A cached DISPATCH still undergoes the normal current-main/source-PR identity revalidation before execution.
+16. Before the first classification of a batch, require visible Actions quiescence for every represented event head that has a SHA, not only `workflow_run` events. This prevents a main push or PR-lifecycle event from being classified while the same head is still materially changing through CI.
+17. Do not spend agentic usage repeatedly polling for the same CI state.
+18. Hosted transport must not depend exclusively on inbound webhooks. While hosted, run a model-free
+    repository reconciliation every 15 minutes by default. Checkpoint the exact repository projection
+    already presented to a successful classifier decision; do not perform a fresh post-dispatch read
+    that could acknowledge a later unseen transition. A periodic observation that matches the
+    classifier checkpoint is a zero-model NOOP. A changed quiescent observation journals one synthetic
+    `reconcile` event, allowing orchestration to continue if webhook/Caddy/TLS delivery silently
+    fails while the host remains up. The same poll must paginate issue/PR comments from its prior scan
+    boundary and recover new trusted Audit signals and `/skyforge-*` controls through the normal
+    deterministic classifiers. First-upgrade historical comments are seeded without replay, while
+    comments created during/after the upgraded process starts remain actionable.
+19. Authentication blocks and classifier-failure circuit pauses must be surfaced durably when GitHub
+    comment authority remains available. A safe silent stop is still an unattended-operation failure.
+
+## 6. Dispatch priority
+
+Default priority:
+
+1. unblock a merge-ready or nearly accepted milestone;
+2. repair a material regression/process blocker;
+3. execute the next integration risk already authorized by roadmap/contracts;
+4. narrow or checkpoint an overgrown mixed-scope branch;
+5. producer-local cleanup needed for acceptance;
+6. speculative or future work only when explicitly authorized.
+
+Do not prioritize activity for its own sake.
+
+## 7. Worker prompt contract
+
+Each dispatched worker receives:
+
+```text
+You are the Skyforge [LANE] worker for ni-da-ba/skyforge.
+
+Reconstruct from current GitHub state using AGENTS.md and the canonical lane documents.
+Do not rely on prior conversational history.
+
+Bounded objective:
+[ONE OBJECTIVE]
+
+Acceptance / stop boundary:
+[EXACT ACCEPTANCE OR HANDOFF CONDITION]
+
+Existing evidence that may be reused:
+[PORTABLE EVIDENCE OR N/A]
+
+Do not:
+- expand into unrelated work;
+- rerun expensive evidence without a new uncertainty;
+- change another lane's accepted contract;
+- continue past a human/strategy gate.
+
+Persist useful state in GitHub before ending.
+```
+
+The orchestrator should fill these fields from repository evidence, not from memory.
+
+## 8. Usage economy
+
+### Hard defaults
+
+- **One orchestrator automation**, not one scheduled automation per producer lane.
+- Use the lowest-capability/cost model that can reliably perform the role:
+  - **Luna** for the orchestration heartbeat, classification, lightweight GitHub inspection, and prompt construction;
+  - **Terra** for routine bounded implementation/recomposition/testing work;
+  - **Sol** only when the task demonstrates a need for frontier reasoning, difficult debugging, architecture,
+    or a cheaper worker has failed to make information-bearing progress.
+- Where the active Codex surface does not support model routing for delegated work, apply the same rule
+  by choosing the appropriate model for the thread/task before dispatch rather than assuming Sol everywhere.
+- **No idle worker wakeups.**
+- **No CI polling loops.**
+- **Maximum two worker dispatches per orchestrator wake.**
+- Prefer one worker for expensive Minecraft/NeoForge characterization.
+- Reuse a live thread when it remains coherent; reconstruct from GitHub when stale.
+- Use ordinary ChatGPT/Audit for broad reasoning, reporting, and human decision preparation.
+- Reserve Codex worker execution for concrete repository work where its coding harness creates leverage.
+
+### Cadence
+
+**Preferred pilot:** event-driven local dispatch under Section 15. In that mode, there is no periodic
+Codex heartbeat while the controller is running; filtered GitHub events wake the persistent Luna
+classifier only when repository state may be actionable. Hosted mode may perform the Section 5
+model-free reconciliation poll as a transport fallback; that poll is not a Codex heartbeat and spends
+no model turn when repository state matches the last classifier observation.
+
+**Fallback:** if the local event receiver is unavailable, use a single Codex heartbeat roughly every
+two hours during active development. Reduce/pause it when lanes are dormant/human-gated.
+
+Do not combine a two-hour Codex heartbeat with the event-driven controller unless deliberately testing
+fallback behavior; that would pay twice for the same orchestration.
+
+## 9. Liveness
+
+A visually frozen producer plus continuing information-bearing GitHub/Actions movement is ACTIVE.
+
+A visually frozen producer plus repository/Actions silence is WATCH; if silence persists across the
+next reasonable observation interval, classify RESTART.
+
+Unchanged reruns, conflict churn and bookkeeping-only motion do not establish healthy progress.
+
+A replacement worker starts from GitHub; it does not attempt to recover the dead conversation.
+
+## 10. Gate conditions that terminate autonomous continuation
+
+The orchestrator must stop and notify the project owner when:
+
+- a manual Minecraft visual/play gate is ready;
+- a Music listening/source-recovery gate requires human judgment;
+- a HUMAN_STRATEGY_ROADMAP trigger is met;
+- two lanes require a new contract that current policy does not resolve;
+- a proposed validation reduction would materially lower the accepted correctness bar;
+- credentials, external approvals, purchases, or destructive operations are required;
+- the only remaining work is speculative product direction;
+- usage limits prevent a safe continuation.
+
+At a gate, provide:
+- what changed;
+- the exact decision required;
+- recommended default;
+- consequences of the alternatives.
+
+## 11. Merge policy
+
+Autonomy should aim for **short-lived coherent PRs**.
+
+An orchestrated worker may merge when:
+
+- lane policy already authorizes autonomous merge;
+- exact required machine evidence is green;
+- no human gate remains;
+- no unresolved relevant contract drift exists;
+- the PR head/evidence is current or portable under `VALIDATION_POLICY.md`.
+
+Do not hold independently useful generic fixes on a long branch solely because an unrelated human or
+sampled-failure gate remains.
+
+## 12. Human role
+
+The project owner remains responsible for:
+
+- product direction;
+- qualitative world/terrain/game/audio judgment;
+- exceptional cross-lane tradeoffs;
+- approval/permission gates;
+- deciding when to spend additional agentic credits.
+
+The orchestrator should convert routine supervision from:
+
+```text
+continue?
+are you stuck?
+merge and proceed
+what happened?
+```
+
+into:
+
+```text
+repository changed -> bounded worker runs
+CI changed        -> next useful action runs
+human gate        -> owner is asked once
+no work           -> system stays quiet
+```
+
+## 13. Initial rollout
+
+Do not immediately move every Skyforge lane to autonomous Codex execution.
+
+Pilot:
+
+1. install this repository harness;
+2. run the event-driven local SDK/App-Server pilot in Section 15; use the two-hour thread heartbeat
+   only as fallback when that receiver is unavailable;
+3. run the orchestration classifier on Luna at low effort where available;
+4. allow at most one bounded worker dispatch per event batch initially, routing tightly scoped
+   docs/state/evidence reconciliation to Luna and substantive source/runtime/debugging work to Terra;
+   escalate beyond Terra only when justified;
+5. keep hourly Audit reporting as an independent liveness/negative-space supervisor;
+6. compare for several milestones:
+   - manual prompts/restarts required;
+   - agentic usage consumed;
+   - median time from actionable state to next commit/PR;
+   - redundant CI/runtime runs;
+   - dead-session recovery latency;
+7. expand to two-worker dispatch only if the usage/progress ratio is favorable.
+
+Success means fewer manual continuation/restart prompts and faster accepted milestones **without**
+increasing regressions or exhausting the shared agentic allowance.
+
+
+## 14. Ready-to-paste Codex thread-automation prompt
+
+Use this as the instruction for the single lightweight orchestrator thread automation.
+
+~~~text
+You are the Skyforge lightweight orchestrator for ni-da-ba/skyforge.
+
+This is a recurring heartbeat, not a request to manufacture work.
+
+On every wake:
+
+1. Treat AGENTS.md as the map.
+2. Read docs/agent-state/AUDIT_STATE.md.
+3. Inspect current main, open producer PRs/issues, and only the recent repository/Actions movement
+   necessary to determine what changed since the last useful wake.
+4. Classify Authorship, Implementation, Content, Music/Audio, Presentation, and Audit as:
+   RUN, RUNNING_EXTERNAL, WAIT_CI, HUMAN_GATE, DORMANT, WATCH, or RESTART.
+   If a healthy ordinary ChatGPT/manual producer is already producing information-bearing commits,
+   PR changes, or Actions movement for a lane, classify RUNNING_EXTERNAL and DO NOT dispatch a
+   competing Codex worker.
+
+Usage discipline:
+- Run this orchestrator on Luna/low-cost settings where available.
+- Prefer a scoped Luna worker for docs/state/evidence reconciliation and similarly bounded low-risk work.
+- Use Terra for substantive source implementation, runtime/debugging, and complex integration.
+- Escalate beyond Terra only for genuinely difficult reasoning/debugging/architecture or after a cheaper
+  worker fails to produce information-bearing progress.
+- Do not fully reconstruct every lane merely to classify it.
+- Do not poll unchanged CI.
+- Do not wake idle producer lanes.
+- Default to at most ONE worker task per wake during the pilot.
+- Use a second worker only when the first task is cheap and independent and the repository evidence
+  clearly justifies parallelism.
+- Prefer Implementation or Content when they own the current critical integration path.
+- Do not spend Codex usage on broad program reasoning that ordinary Audit/ChatGPT can handle.
+
+If a HUMAN_GATE is ready:
+- do not dispatch work past it;
+- report the exact decision required, the evidence, your recommended default, and consequences;
+- end the run.
+
+If a RESTART is required:
+- start a fresh bounded worker from current GitHub state rather than continuing a dead conversational
+  execution.
+
+If one or more RUN lanes exist:
+- choose the highest-value bounded objective using ORCHESTRATION_PROTOCOL.md;
+- where multi-agent/worktree delegation is available, dispatch one bounded worker;
+- otherwise execute that one bounded task yourself;
+- require the worker to reconstruct its lane from AGENTS.md and canonical repository state;
+- give it an exact objective, acceptance/stop boundary, and reusable evidence;
+- prevent unrelated scope expansion;
+- persist meaningful work in GitHub before ending.
+
+If the only remaining states are RUNNING_EXTERNAL, WAIT_CI, or DORMANT:
+- do not poll or invent work;
+- end the run promptly.
+
+If CI or a remote job must finish before useful work can continue:
+- record the precise waiting condition;
+- end the current run;
+- let the next scheduled heartbeat inspect the completed result.
+
+Autonomous work may continue through ordinary machine-verifiable acceptance and merge boundaries already
+authorized by repository policy.
+
+Stop and surface to Nicholas when:
+- manual Minecraft visual/play judgment is ready;
+- Music listening/source recovery needs human judgment;
+- HUMAN_STRATEGY_ROADMAP has reached a trigger;
+- a new cross-lane/product contract must be chosen;
+- a validation reduction would materially lower the accepted correctness bar;
+- credentials, purchases, destructive actions, or new permissions are required;
+- no information-bearing technically prudent next step exists;
+- usage limits make continuation unsafe.
+
+Repository state, current main, tests and merged history are authoritative.
+Conversation/thread memory is a convenience only.
+
+At the end of each useful wake, leave a concise summary:
+- lane classified/selected;
+- objective executed or waiting condition;
+- commits/PR/workflow evidence created;
+- gate reached, if any;
+- recommended next wake condition.
+
+Do not produce a long general project summary unless a human gate or serious process failure requires it.
+~~~
+
+### Suggested fallback schedule
+
+Use the heartbeat prompt only when the event-driven local controller is unavailable. In that fallback
+mode, start around every **2 hours** during active development and pause/reduce it when all producer
+lanes are DORMANT/HUMAN_GATE.
+
+The ordinary hourly Audit report remains the visibility/liveness layer; Codex is reserved for
+dispatching repository work.
+
+
+## 15. Event-driven local SDK/App-Server pilot
+
+### Rationale
+
+The two-hour heartbeat is intentionally conservative but still spends a Codex turn to discover that
+nothing changed. The preferred pilot is event-driven:
+
+~~~text
+GitHub event
+    -> deterministic local filter/debounce
+    -> no call if irrelevant
+    -> persistent Luna classifier if potentially actionable
+    -> fresh bounded Luna worker for scoped low-risk reconciliation
+       OR fresh bounded Terra worker for substantive implementation/debugging
+    -> controller-owned git/gh handoff
+    -> CI
+    -> next completion event
+~~~
+
+OpenAI's Python Codex SDK is the automation surface. It controls the local Codex runtime/App Server
+and exposes explicit thread start/resume. Skyforge therefore does not implement App Server JSON-RPC
+directly.
+
+### Security and authority split
+
+The model is not given unattended GitHub/network authority in the pilot.
+
+- Luna classifier: read-only local classification.
+- Luna worker: workspace-write only for controller-scoped low-risk docs/state/evidence reconciliation.
+- Terra worker: workspace-write for one bounded substantive source/runtime/debugging objective.
+- outer deterministic controller: fetch/sync/worktree/commit/non-force-push/draft-PR operations.
+
+This avoids depending on sandbox-network behavior and creates a narrow audit boundary around external
+writes.
+
+Auto-merge is disabled initially. If later enabled, it applies only to PRs recorded as
+controller-managed in ignored local state and only after visible checks are terminal/green. No force
+push, history rewrite, branch deletion, secret management, repository administration, purchase, or
+credential action belongs in autonomous pilot scope.
+
+### Event allowlist
+
+Potential wakes:
+
+- push to `main`;
+- internal-repository PR closed/reopened/ready-for-review/draft transition;
+- internal-repository workflow-run completion after all runs for the exact head are quiescent;
+- Audit/restart/loop-risk/human-gate comments from an explicitly trusted GitHub actor;
+- manual `/skyforge-orchestrate` from an explicitly trusted GitHub actor.
+
+The default trusted issue-comment actor is `ni-da-ba`; hosted configuration may enumerate additional
+actors explicitly. A valid GitHub webhook signature authenticates GitHub as the sender, not the human
+authority behind a comment. Fork/external PR and workflow payloads are therefore treated as untrusted
+input and filtered before Codex startup.
+
+Ignored before Codex startup:
+
+- non-main pushes;
+- PR synchronize;
+- ordinary comments;
+- PR opened before first CI completion;
+- non-completed workflow notifications;
+- controller-authored comments;
+- orchestration/Audit command text from untrusted commenters;
+- fork/external PR and workflow payloads.
+
+Trusted `/skyforge-pause`, `/skyforge-resume`, `/skyforge-status`,
+`/skyforge-reset-budget`, `/skyforge-refresh-runtime`, and
+`/skyforge-discard-worker` comments are deterministic control commands, not Codex wakes. Pause
+persists across restart, retains newly actionable events in the durable journal, and starts no new
+classifier/worker dispatch. Resume schedules the retained batch. Status posts a controller-marked,
+non-secret live snapshot to the command's issue/PR, including loaded runtime and checkout heads,
+pause/breaker state, queued event summaries, cached-decision ownership, worker state, and daily
+model-call state plus the last safe classifier/completion/recovery metadata. Budget reset is an explicit
+operator override for the controller's **local** daily Luna/Terra counters only: it requires the
+controller to already be paused, refuses to run while a worker is pending, preserves the durable
+queue/decision/gate state, and does not alter provider-side account usage or quota. Runtime refresh is
+paused-only and model-free: it synchronizes the clean stable controller checkout to current `main`
+even while an isolated worker is pending, then lets the existing systemd self-refresh contract reload
+changed controller Python. Worker discard is paused-only and may remove only an isolated worker with
+no managed PR and no commits ahead of `origin/main`; it preserves the durable event batch and
+classifier decision so work can be safely reconstructed. Controller-authored status comments are
+filtered from orchestration input and cannot recurse. A worker already in its bounded handoff is not
+destructively interrupted merely because pause arrived unless the trusted owner explicitly uses that
+bounded discard control.
+
+Events are debounced and subject to a minimum dispatch interval.
+
+### Watchdog relationship
+
+The event-driven controller and hourly Audit watchdog are deliberately **not replacements for one
+another**.
+
+~~~text
+positive activity / state change
+    -> webhook controller
+
+negative space / silence / dead producer
+    -> hourly Audit watchdog
+~~~
+
+A webhook cannot fire because a producer stopped doing anything. The watchdog therefore retains
+liveness detection, evidence-saturation supervision, hourly human-facing summaries, and human-gate
+escalation.
+
+When Audit posts a material GitHub comment such as RESTART RECOMMENDED or LOOP RISK, that comment
+becomes an actionable webhook and can wake Codex immediately. The controller preserves the trusted
+directive text, signal kind, source comment identity, and signal timestamp as structured classifier
+evidence rather than collapsing it to a generic wake. Thus Audit diagnoses; the event controller may
+execute the bounded recovery.
+
+For `RESTART RECOMMENDED`, Audit has already adjudicated the prior producer stale/dead at the signal
+time. The classifier must not reinterpret PR/issue `updatedAt`, draft/open state, the Audit comment
+itself, bookkeeping-only motion, or unchanged reruns as producer recovery. NOOP is valid only if
+information-bearing evidence strictly after the signal proves recovery (for example a new producer
+head/commit, genuinely attributable Actions progress, or an already controller-managed replacement).
+Otherwise the bounded fresh-worker objective is dispatched. This prevents the watchdog comment that
+declares a producer stale from accidentally making that same producer look recently active.
+
+The controller additionally guards trusted restart NOOPs against immutable target state. If the target
+PR remains open at the signal-time head, the first NOOP receives one constrained reclassification that
+must choose bounded DISPATCH or a real HUMAN_GATE. A second unsupported NOOP becomes a HUMAN_GATE
+instead of clearing the durable restart event as if recovery had been proven. Classifier-policy changes
+rotate the persistent Luna parent thread automatically so superseded liveness policy cannot survive a
+control-plane deployment as conversational inertia.
+
+If Codex reaches a human gate, it posts a controller-marked GitHub gate comment and stops. The
+owned event/decision is terminal only after that visibility handoff succeeds (or an equivalent
+controller gate is already visible); a GitHub posting failure preserves the owned batch and enters a
+bounded retry instead of consuming it. With auto-merge OFF, a classifier MERGE decision likewise
+becomes a once-per-current-head manual-merge HUMAN_GATE rather than a silent no-op; the controller
+does not merge autonomously. Before reusing any locally recorded controller-managed branch, verify its
+PR is still OPEN at that branch. A manually merged/closed PR retires the stale local managed record so
+the next worker cannot be pinned to a completed branch. Human gates are surfaced once per current
+target-PR head by default:
+durable local gate records suppress
+repeat notifications, and on first observation the controller may seed suppression from an existing
+controller gate comment posted after the current PR head commit. A genuinely new PR head may resurface
+the gate. This implements the "owner is asked once" contract without making the controller infer
+semantic equivalence from message wording. The controller ignores its own comments to prevent recursive
+wakeups; Audit remains responsible for bringing the gate to the project owner and for detecting a new
+human decision when repository state itself has not changed.
+
+### Local and hosted transports
+
+The controller implementation lives under `scripts/orchestrator/` and continues to bind localhost by
+default. GitHub CLI webhook forwarding remains a development/test transport.
+
+AUDIT-0010 adds the bounded always-on transport without changing dispatch policy:
+
+```text
+GitHub repository webhook
+    -> trusted HTTPS reverse proxy
+    -> HMAC-SHA256 verification of the exact request body
+    -> persistent GitHub delivery de-duplication
+    -> existing deterministic filter/debounce
+```
+
+Hosted mode must reject unsigned or invalidly signed deliveries before event classification. The
+webhook secret belongs only in host configuration, never Git or model prompts. The public reverse
+proxy terminates trusted TLS; the controller itself remains localhost-only.
+
+The controller requires a **dedicated clone** in both modes. Local state and its virtualenv live under
+the ignored `.skyforge-orchestrator/` directory. The hosted service must restart on boot and preserve
+that directory across process restarts. Durable controller state is written atomically to both
+`state.json` and a same-directory mirror `state.json.bak`. If the primary becomes unreadable, the
+controller may recover from the valid mirror and must report that recovery. If neither copy is
+readable, startup fails closed rather than silently reconstructing empty state.
+
+Hosted installation must run as a dedicated **non-root** sudo-capable service user. The installer
+fails closed when invoked as root. The hosted Codex runtime is the repository-pinned Python SDK; its
+ChatGPT device-code authentication is stored for that service user. No API-key billing fallback is
+introduced.
+
+Before hosted activation, server-side GitHub protection for `main` must be verifiably active:
+pull requests and status checks are required, force-push and branch deletion are blocked, and the
+protection applies to administrators so owner-authenticated host credentials cannot bypass `main`.
+The installer verifies applicable rulesets or classic branch protection and refuses activation if
+this invariant cannot be established.
+
+Because a powered-off host cannot receive webhooks, each hosted startup compares a compact current
+GitHub fingerprint (main head, open PR state, recent Actions state) with the prior startup baseline.
+A changed fingerprint produces exactly one synthetic `reconcile` wake so the classifier reasons from
+current repository truth rather than attempting to replay every missed delivery. First startup only
+establishes the baseline. If that model-free GitHub reconciliation fails transiently, record the
+degraded state and keep retrying it on a bounded timer until it succeeds; do not wait indefinitely for
+another webhook and do not spend a model turn merely to retry repository observation.
+
+### Usage accounting
+
+Ignored events cost no Codex turn because `openai_codex` is imported lazily only after deterministic
+filtering and CI-quiescence checks.
+
+A useful work event normally costs:
+- one low-cost Luna classification turn;
+- zero worker turns for NOOP/HUMAN_GATE;
+- one scoped Luna worker turn for low-risk reconciliation **or** one Terra turn for substantive DISPATCH.
+
+The classifier and Luna worker share one conservative Luna-call ceiling so cheaper routing does not
+silently increase total Luna usage. Terra retains its separate worker ceiling.
+
+This should be materially more usage-efficient than scheduled polling when repository activity is
+bursty.
+
+### Durable failure / quota semantics
+
+An actionable webhook is not considered consumed merely because the in-memory dispatcher received it.
+The local controller must journal the event batch before acknowledging it and clear that journal only
+after the corresponding orchestration decision reaches a terminal handoff.
+
+Pending-event capacity is a **soft durability bound**, never a silent-loss boundary. Trusted
+Audit/manual signals and event keys already owned by a cached classifier decision are never evicted.
+When ordinary repository-transition history exceeds the configured soft limit, the controller first
+coalesces superseded transitions by semantic subject. If ordinary history still exceeds available
+slots, it retains the newest bounded sample and inserts one durable synthetic
+`reconcile | queue_compaction` event so the next classifier reconstructs current repository truth.
+If protected authority alone exceeds the soft limit, preserve it even above the limit and expose that
+pressure in model-free telemetry rather than dropping it.
+
+The recovery invariant is:
+
+```text
+repository event
+    -> durable local journal
+    -> classifier decision
+    -> optional durable worker branch
+    -> terminal NOOP / gate / PR handoff / managed merge
+    -> clear only the consumed event keys
+```
+
+If Codex is unavailable because of account allowance, rate/capacity, authentication, or a transient
+SDK/App-Server failure, the controller fails closed: preserve the event/decision/worker state, open a
+bounded local circuit breaker, and accept/coalesce later events without starting more Codex turns.
+When the breaker expires, reconstruct from current repository truth before continuation. An interrupted
+worker with partial local changes is resumed on its recorded branch rather than discarded.
+
+Worker completion and GitHub handoff are separate durable phases. Once the worker returns, persist a
+`handoff` stage and summary before commit/push/PR operations. Handoff retries must be idempotent:
+reuse an existing local commit, remote branch, or open PR rather than rerunning the worker or creating
+duplicate pull requests.
+
+A successful classifier decision owns exactly the durable event keys it captured until that decision
+reaches its terminal handoff or, for DISPATCH, fails the required current-main/source-PR identity
+revalidation. That ownership also survives controller/process restart. Later webhook events and
+startup-reconciliation events queue behind the owned batch and do **not** invalidate it merely because
+they arrived later. When the owned batch completes, only its captured keys are retired and the
+later queue is classified next. A genuinely in-flight worker decision remains stable until its bounded
+handoff completes.
+
+### Local cost ceiling and telemetry
+
+The pilot has conservative controller-side call ceilings in addition to whatever account-level Codex
+allowance applies. The first hosted evaluation defaults are **24 total Luna calls** per UTC day
+(classifier + scoped Luna worker combined) and **4 Terra worker attempts** per UTC day; both ceilings
+are environment-overridable. Raise them only after issue #378 shows that useful work is being left
+queued at favorable yield. Reaching the local ceiling is a normal blocked
+state, not a reason to discard work.
+
+Persist counters sufficient to evaluate issue #349 by accepted-progress economics, including at least:
+events seen/filtered/actionable, classifier attempts/NOOPs, Luna-worker attempts, Terra-worker attempts,
+aggregate worker attempts/handoffs/resumes, retry/Codex blocks, restart replays, managed merges,
+pause/resume commands, human-gate posts/duplicate suppressions, controller runtime-refresh
+requests/completions, protected-path rejections, bounded-scope rejections, and safety pauses.
+
+Worker status must also expose model-free concrete-progress evidence rather than treating `stage=editing`
+as proof of useful work. Sample the isolated worktree fingerprint and diff summary during health/status
+reads. Report `ACTIVE` only after a recent durable worktree mutation, `IN_FLIGHT` when a provider-admitted
+turn is recent but no durable mutation has yet been observed, and `STALLED` once neither condition is
+recent. The default concrete-progress freshness window is 15 minutes and is environment-overridable.
+Status should include the last progress timestamp/kind, fingerprint, dirty-file count, diff additions/
+deletions, bounded changed-path sample, model-turn count, and stalled duration. This probe must not start
+a model turn or mutate the worker worktree.
+
+A bounded worker may edit lane-owned source/tests/docs but may not autonomously rewrite the control
+plane that defines its own authority. The one narrow governance exception is
+`docs/agent-state/AUDIT_STATE.md`: an **Audit-lane** worker may update that lane-owned durable handoff
+only when the classifier explicitly includes that exact path in its allowed scope. Other lanes may not
+edit it, an unscoped Audit worker may not edit it, and authority-defining program/validation/
+orchestration/cross-lane documents remain protected. The hosted controller checkout remains a stable
+`main` checkout;
+each bounded worker runs in a separate ignored Git linked worktree under the controller state directory.
+This separation is a reliability boundary: a dirty, interrupted, or safety-paused worker must not pin
+the service process to stale worker-branch control-plane code.
+
+The running hosted process must also not remain indefinitely on stale in-memory controller Python after
+`main` advances. After `sync_main()`, if the synchronized range changes
+`scripts/orchestrator/skyforge_orchestrator.py`, the controller records a durable runtime-refresh request and exits with a
+failure status so the existing systemd `Restart=on-failure` contract reloads the new Python. The
+pending-event journal is preserved and replayed by the replacement process. Documentation-only movement
+does not require a process recycle. Changes to pinned dependencies/installer semantics remain an
+explicit deployment boundary; the controller does not autonomously install packages.
+
+A classifier-selected narrow edit scope is also enforced by the controller at handoff; a worker cannot
+broaden its own allowlist. Before controller handoff, reject worker changes under
+`scripts/orchestrator/**`, `deploy/orchestrator/**`, `.github/**`, private orchestrator state,
+`AGENTS.md`, or canonical program/validation/orchestration/human-strategy/cross-lane/Audit governance
+documents. Such a change requires manual/Audit inspection rather than an autonomous commit. The
+controller enters a durable safety pause and posts a human-gate record before returning the handoff
+error, preventing a retry loop from repeatedly attempting the same unsafe commit. Preserve a dirty
+worker worktree across that pause. After a successful or no-change handoff, clear the durable consumed
+event/pending-worker state before retiring the linked worktree so crash recovery remains replayable.
+
+Do not interpret these counters as token or dollar accounting unless the SDK exposes authoritative
+usage fields. Their purpose is to detect runaway wakeups, low-value dispatch, and poor accepted-progress
+yield before the pilot is expanded.
+
+### Hosted value-accounting contract
+
+Continuous hosting must be judged against accepted-progress economics rather than uptime alone.
+AUDIT-0011 requires one model-free daily report that persists a machine-readable local snapshot and
+posts a controller-marked GitHub summary without waking Codex.
+
+The report must distinguish:
+
+- overall Skyforge repository activity from controller-owned `codex/*` PR activity;
+- manual `/skyforge-orchestrate` wakes from Audit/watchdog wakes;
+- classifier attempts/NOOPs, scoped Luna-worker attempts, Terra-worker attempts, and aggregate worker handoffs/no-change outcomes;
+- actionable-event-to-classifier latency;
+- ordinary human gates from controller/reliability failures;
+- quota/rate/authentication blocking from useful worker throughput;
+- overnight hosted contribution from daytime/manual progress;
+- actual configured host-hour cost from model-call counters;
+- host CPU-load, available-memory, and disk-utilization snapshots for right-sizing evidence.
+
+A trailing keep/rework/cancel advisory may be computed deterministically, but it is never authority to
+destroy infrastructure or cross a project gate. A quiet project interval is insufficient evidence for
+cancellation by itself; compare controller yield with overall project activity.
+
+Hosted cancellation is a two-boundary operation:
+
+```text
+host-side decommission
+    -> attempt final value report
+       -> if GitHub posting fails, preserve local failure evidence and CONTINUE teardown
+    -> delete repository webhook
+    -> disable report timer/controller/HTTPS proxy
+
+provider control plane
+    -> destroy Droplet
+    -> verify no separately billable pilot resource remains
+```
+
+Telemetry or GitHub cleanup integrity must never trap continuing infrastructure cost. Missing local
+reporting prerequisites, final-report posting failure, hostname-discovery failure, or webhook
+lookup/deletion failure are warnings/evidence gaps; they must be recorded where possible while local
+services still stop unconditionally. Provider destruction and an external webhook/billable-resource
+verification remain the terminal cancellation boundary.
+
+Do not grant the hosted worker provider credentials merely so it can self-destruct. Provider deletion
+remains an explicit external action. Powering off a VM is not equivalent to cancellation.
+
+### Rollback
+
+Stopping the local process disables the entire event-driven layer. GitHub state, ordinary producer
+chats, CI, validation policy, and hourly Audit continue unchanged.

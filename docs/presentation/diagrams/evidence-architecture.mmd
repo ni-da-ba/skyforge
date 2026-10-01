@@ -1,0 +1,22 @@
+%% PRES-0005 — Evidence is part of the architecture
+flowchart TB
+    A["CHEAP / BROAD<br/><b>Deterministic evidence</b><br/>canonical serialization • fixed seeds • exact ownership<br/>numerical diagnostics • deterministic identities"]
+    B["EXPENSIVE / REPRESENTATIVE<br/><b>Runtime evidence</b><br/>Minecraft lifecycle • deferred generation<br/>save / reload • actual-client reopen"]
+    C["HUMAN GATES<br/><b>Qualitative questions</b><br/>morphology quality • ecology legibility<br/>visual plausibility"]
+
+    A -->|"select risk-equivalent representatives"| B
+    B -->|"only where metrics cannot settle the claim"| C
+
+    D["PRINCIPLE<br/>Evidence width decreases as execution cost rises.<br/>Screenshots complement — never replace — structural proof."]
+    A --- D
+    B --- D
+    C --- D
+
+    classDef broad fill:#eef4ed,stroke:#587356,color:#111;
+    classDef runtime fill:#f8efe2,stroke:#8e6b3f,color:#111;
+    classDef human fill:#f2eef8,stroke:#6f5b8f,color:#111;
+    classDef rule fill:#e8eef7,stroke:#526b8d,color:#111;
+    class A broad;
+    class B runtime;
+    class C human;
+    class D rule;

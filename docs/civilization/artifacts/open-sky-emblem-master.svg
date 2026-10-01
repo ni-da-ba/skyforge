@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Skyfarer's Guild Open Sky emblem — current locked concept vector</title>
+  <desc id="desc">An open circular sky field, central navigation star, paired upward-opening stylized wings, and open lower horizon/cradle. This is a review vector, not a final production asset or frozen color specification.</desc>
+  <rect width="512" height="512" fill="#0b1f33"/>
+  <g fill="none" stroke="#d7b77a" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <!-- Open circular sky field with deliberate lower opening. -->
+    <path d="M128 365 A178 178 0 1 1 384 365"/>
+    <!-- Paired upward-opening heraldic wing forms. -->
+    <path d="M116 300 C166 304 203 272 232 220 C205 290 170 331 116 344"/>
+    <path d="M396 300 C346 304 309 272 280 220 C307 290 342 331 396 344"/>
+    <!-- Open lower horizon / cradle gesture. -->
+    <path d="M168 366 Q256 430 344 366"/>
+  </g>
+  <!-- Navigation star / beacon. -->
+  <path d="M256 112 L273 198 L332 216 L273 234 L256 320 L239 234 L180 216 L239 198 Z" fill="#f2dfad"/>
+  <circle cx="256" cy="216" r="10" fill="#0b1f33"/>
+</svg>

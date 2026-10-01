@@ -1,0 +1,79 @@
+{
+  "schema_version": 2,
+  "milestone": "DR-50",
+  "issue": 496,
+  "state": "ACCEPTED",
+  "specimen_id": "P2_DRESSED_REGION_A",
+  "canonical_volume_id": "6001989086914692933/sf-imp-0068-production-composed-cave/0/0/680068",
+  "authored_identity": {
+    "world_seed": 6001989086914692933,
+    "province_key": 8,
+    "cluster_key": 81,
+    "island_key": 1471
+  },
+  "acceptance_config": {
+    "minecraft_level_seed": 493030,
+    "world_type": "skyforge:development",
+    "runtime": "SkyforgeNeoForge1211ProductionComposedCaveDevRuntime + SkyforgeDr50IntegratedRegionEvidence",
+    "gradle_task": ":skyforge-neoforge-1211:dr50IntegratedRegionAcceptance"
+  },
+  "consumed_authority": [
+    "DR-00 canonical production specimen",
+    "DR-10 C20 starting-cluster Iron realization",
+    "DR-20 authored visible hydrology",
+    "SF-IMP-0068 composed cave lifecycle",
+    "SF-IMP-0069 post-cave native interior lifecycle",
+    "DR-30 generic native structure realization",
+    "DR-40 production ecology composition"
+  ],
+  "machine_rejection": [
+    "disconnected_or_malformed_terrain",
+    "escaped_generated_fluid",
+    "overwritten_authored_hydrology",
+    "overwritten_structure_support",
+    "impossible_deposit_placement",
+    "material_hydrology_collision",
+    "material_structure_collision",
+    "native_population_replay",
+    "interior_population_replay",
+    "foreign_volume_write_or_identity",
+    "save_reload_or_actual_client_drift"
+  ],
+  "required_invariants": {
+    "fresh_a_equals_fresh_b": true,
+    "server_and_actual_client_reload": true,
+    "exact_volume_isolation": true,
+    "stacked_volume_isolation": true,
+    "authored_hydrology_survives_final_composition": true,
+    "starting_cluster_iron_persists": true,
+    "generic_structure_runtime_composes_without_forcing_content": true,
+    "generic_structure_realization_and_persistence_reuse_dr30_exact_head_gate": true,
+    "production_ecology_persists": true,
+    "post_cave_interior_population_completes": true,
+    "aesthetic_tuning_authorized": false
+  },
+  "completion_boundary": "Machine acceptance is complete. Human visual/product judgment remains DR-60 / Phase-2 dressed-region review authority; ACCEPTED does not authorize aesthetic tuning.",
+  "acceptance": {
+    "status": "ACCEPTED",
+    "issue": 496,
+    "implementation_pr": 743,
+    "accepted_head": "c9b5692587b3cb80fd7874e9a3a6bd4dc14cd53b",
+    "merge_commit": "8119c50209a184b5a0f42dc44d2d3e0726860593",
+    "accepted_at": "2026-09-17T00:08:14Z",
+    "issue_closed_at": "2026-09-17T00:08:19Z",
+    "github_actions": {
+      "workflow": "DR-50 Integrated Dressed Region Acceptance",
+      "run_id": 35163438331,
+      "conclusion": "success",
+      "same_head_repeat_artifact_id": 10474981110
+    },
+    "machine_evidence": [
+      "fresh generation A and B agree on authoritative integrated population and region digests",
+      "server reload and actual-client reload pass on the accepted repair head",
+      "exact-volume and stacked-volume isolation pass",
+      "authored hydrology and starting-cluster Iron survive final composition",
+      "composed cave and native interior lifecycle settle without replay",
+      "accepted repair stabilizes deferred native carver noise context without weakening determinism gates"
+    ]
+  }
+}

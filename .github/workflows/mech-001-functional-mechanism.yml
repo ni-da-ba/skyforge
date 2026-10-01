@@ -1,0 +1,117 @@
+name: MECH-001 Functional Mechanism
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/mech-001-functional-mechanism.yml"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "docs/agent-state/STRUCTURE_COMPILER_STATE.md"
+      - "scripts/compiler-integration/run-exact-stack-fixture.sh"
+      - "tools/asset_compiler/functional_mechanism.py"
+      - "tools/asset_compiler/functional_mechanism_structure.py"
+      - "tools/asset_compiler/compile_mechanism.py"
+      - "tools/asset_compiler/specimens/mech_001_airflow_bench.json"
+      - "tools/asset_compiler/tests/test_functional_mechanism.py"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeCreateKineticNetworkLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeMech001FunctionalMechanismAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_001_airflow_bench.json"
+      - "skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_001_airflow_bench.nbt"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/Mech001FunctionalMechanismResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mech-001-functional-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-static-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Verify deterministic mechanism compiler
+        run: >-
+          PYTHONPATH=tools/asset_compiler
+          python3 -m unittest discover
+          -s tools/asset_compiler/tests
+          -p 'test_functional_mechanism.py'
+
+      - name: Compile canonical mechanism plan
+        run: >-
+          python3 tools/asset_compiler/compile_mechanism.py
+          tools/asset_compiler/specimens/mech_001_airflow_bench.json
+          --out build/mech-001
+
+      - name: Verify runtime consumes exact compiler artifact
+        run: >-
+          cmp build/mech-001/resolved.json
+          skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_001_airflow_bench.json
+
+      - name: Verify human-gate structure is exact compiler output
+        run: >-
+          cmp build/mech-001/mech_001_airflow_bench.nbt
+          skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_001_airflow_bench.nbt
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Verify runtime resource contract
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*Mech001FunctionalMechanismResourceTest'
+          --no-configuration-cache
+
+  l3-exact-stack:
+    needs: l1-static-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Recompile exact mechanism plan
+        run: >-
+          python3 tools/asset_compiler/compile_mechanism.py
+          tools/asset_compiler/specimens/mech_001_airflow_bench.json
+          --out build/mech-001
+
+      - name: Verify exact plan identity
+        run: >-
+          cmp build/mech-001/resolved.json
+          skyforge-neoforge-1211/src/main/resources/data/skyforge/mechanisms/mech_001_airflow_bench.json
+
+      - name: Verify exact structure identity
+        run: >-
+          cmp build/mech-001/mech_001_airflow_bench.nbt
+          skyforge-neoforge-1211/src/development/resources/data/skyforge/structure/mech_001_airflow_bench.nbt
+
+      - name: Resolve exact accepted Create stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+
+      - name: Prove compiled fixed-world mechanism lifecycle
+        env:
+          JAVA_TOOL_OPTIONS: -Dskyforge.dev.mech001FunctionalMechanism=true
+        run: >-
+          scripts/compiler-integration/run-exact-stack-fixture.sh
+          :skyforge-neoforge-1211:runCompilerPlatformCreateKineticNetworkLifecycleServer
+          mech-001-functional-mechanism.log
+          'MECH_001_FIXED_WORLD_UTILITY START'
+          'MECH_001_FIXED_WORLD_UTILITY PASS'
+          'MECH_001_FIXED_WORLD_UTILITY FAIL'
+          120
+          120

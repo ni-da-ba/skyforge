@@ -1,0 +1,45 @@
+name: SF-IMP-0070 Performance Characterization
+
+on:
+  schedule:
+    - cron: "17 8 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0070-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  characterization:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Compile and unit-test instrumentation
+        timeout-minutes: 8
+        run: ./gradlew :skyforge-neoforge-1211:compileJava :skyforge-neoforge-1211:test --stacktrace --no-configuration-cache
+
+      - name: Characterize accepted stacked production path
+        timeout-minutes: 35
+        run: ./gradlew :skyforge-neoforge-1211:sfImp0070PerformanceVerify --stacktrace --no-configuration-cache
+
+      - name: Publish performance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0070-performance-${{ github.sha }}
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0070/*.properties
+            skyforge-neoforge-1211/run-sf-imp-0070-performance-stacked/logs/*.log

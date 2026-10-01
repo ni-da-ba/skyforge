@@ -1,0 +1,859 @@
+package io.github.nidaba.skyforge.neoforge1211;
+
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.TreeSet;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.ModList;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
+
+/**
+ * Bounded real-provider atmosphere evidence fixture for Bootstrap issue #495.
+ *
+ * <p>The probe deliberately samples only through {@link SkyforgeAtmosphereView}. It does not read
+ * A4MC grids, solver buffers, diagnostics files, or client-local atmosphere state. A real external
+ * client supplies the ServerPlayer anchor required by pinned A4MC 0.2.1; all measurements are made
+ * by a dedicated server against ServerLevel on the authoritative server thread.
+ */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
+final class SkyforgeAtmosphereProbeVolumeAcceptance {
+    static final String ENABLE_PROPERTY = "skyforge.dev.atmosphereProbeVolume";
+    static final String OUTPUT_PROPERTY = "skyforge.dev.atmosphereProbeOutput";
+    static final String SURFACE_RELATIVE_PROPERTY = "skyforge.dev.atmosphereProbeSurfaceRelative";
+    static final String CENTER_X_PROPERTY = "skyforge.dev.atmosphereProbeCenterX";
+    static final String CENTER_Z_PROPERTY = "skyforge.dev.atmosphereProbeCenterZ";
+
+    private static final int[] XZ_OFFSETS = {-128, -64, 0, 64, 128};
+    private static final int[] Y_LEVELS = {80, 120, 160, 220};
+    private static final int[] SURFACE_Y_OFFSETS = {16, 48, 96, 160};
+    private static final int[] TEMPORAL_SURFACE_Y_OFFSETS = {32, 32, 32, 80};
+    private static final int[] OPPORTUNITY_SURFACE_Y_OFFSETS = {32, 80};
+    private static final long MIN_SETTLE_TICKS = 80L;
+    private static final long MAX_WAIT_TICKS = 1200L;
+    private static final long SKYFORGE_DIAGNOSTIC_MAX_WAIT_TICKS = 3600L;
+    private static final int EXPECTED_SAMPLE_COUNT =
+            XZ_OFFSETS.length * XZ_OFFSETS.length * Y_LEVELS.length;
+    private static final long TEMPORAL_PERIOD_TICKS = 20L;
+    private static final int TEMPORAL_FRAME_COUNT = 31;
+    private static final Vec3[] TEMPORAL_RELATIVE_POINTS = {
+        new Vec3(0.0, 120.0, 0.0),
+        new Vec3(64.0, 120.0, 0.0),
+        new Vec3(0.0, 120.0, 64.0),
+        new Vec3(0.0, 160.0, 0.0)
+    };
+    private static final int[] OPPORTUNITY_XZ_OFFSETS =
+            {-256, -192, -128, -64, 0, 64, 128, 192, 256};
+    private static final int[] OPPORTUNITY_Y_LEVELS = {120, 160};
+    private static final int OPPORTUNITY_SAMPLE_COUNT =
+            OPPORTUNITY_XZ_OFFSETS.length
+                    * OPPORTUNITY_XZ_OFFSETS.length
+                    * OPPORTUNITY_Y_LEVELS.length;
+
+    private static long firstPlayerTick = Long.MIN_VALUE;
+    private static SkyforgeAtmosphereView atmosphere;
+    private static volatile boolean proofComplete;
+    private static long temporalStartTick = Long.MIN_VALUE;
+    private static long nextTemporalTick = Long.MIN_VALUE;
+    private static double temporalCenterX;
+    private static double temporalCenterZ;
+    private static ServerPlayer temporalAnchor;
+    private static List<ProbeRecord> spatialProbes;
+    private static String spatialDigest;
+    private static int spatialTrustedCount;
+    private static TreeSet<String> spatialSourceLevels;
+    private static TreeSet<String> spatialAuthorities;
+    private static long spatialAggregateNanos;
+    private static long spatialMaxNanos;
+    private static final ArrayList<TemporalFrame> temporalFrames = new ArrayList<>();
+    private static final ArrayList<TemporalFrame> opportunityFrames = new ArrayList<>();
+    private static double surfaceReferenceY = Double.NaN;
+    private static long providerTrustWaitTicks = Long.MIN_VALUE;
+
+    private SkyforgeAtmosphereProbeVolumeAcceptance() {}
+
+    @SubscribeEvent
+    static void onServerTickPost(ServerTickEvent.Post event) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)
+                || !SkyforgeAutomatedAcceptanceHarness.serverMode()
+                || proofComplete) {
+            return;
+        }
+
+        ServerLevel level = event.getServer().overworld();
+        List<ServerPlayer> players = level.players();
+        if (players.isEmpty()) {
+            return;
+        }
+
+        long gameTick = level.getGameTime();
+        if (firstPlayerTick == Long.MIN_VALUE) {
+            firstPlayerTick = gameTick;
+        }
+        long age = gameTick - firstPlayerTick;
+        if (age < MIN_SETTLE_TICKS) {
+            return;
+        }
+
+        if (atmosphere == null) {
+            try {
+                atmosphere = SkyforgeA4mcAtmosphereBridge.create();
+            } catch (ReflectiveOperationException failure) {
+                fail(event.getServer(), "pinned A4MC gameplay API binding failed: " + failure);
+                return;
+            }
+        }
+
+        ServerPlayer anchor = players.get(0);
+        double centerX = configuredCenter(
+                CENTER_X_PROPERTY,
+                Math.floor(anchor.getX() / 64.0) * 64.0 + 32.0);
+        double centerZ = configuredCenter(
+                CENTER_Z_PROPERTY,
+                Math.floor(anchor.getZ() / 64.0) * 64.0 + 32.0);
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY) && !Double.isFinite(surfaceReferenceY)) {
+            surfaceReferenceY = level.getHeight(
+                    Heightmap.Types.WORLD_SURFACE,
+                    (int) Math.floor(centerX),
+                    (int) Math.floor(centerZ));
+        }
+        double readinessY = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                ? surfaceReferenceY + OPPORTUNITY_SURFACE_Y_OFFSETS[0]
+                : 120.0;
+        SkyforgeAtmosphereView.Sample readiness =
+                atmosphere.sample(level, new Vec3(centerX, readinessY, centerZ));
+        if (!readiness.trustedForGameplay() || "NONE".equals(readiness.sourceLevel())) {
+            long maxWaitTicks = maxWaitTicks();
+            if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    && (age == MAX_WAIT_TICKS || age == MAX_WAIT_TICKS * 2L)) {
+                emitProviderDiagnostics(event.getServer());
+            }
+            if (age >= maxWaitTicks) {
+                emitProviderDiagnostics(event.getServer());
+                fail(event.getServer(), "real A4MC server atmosphere never became gameplay-trusted within "
+                        + maxWaitTicks
+                        + " ticks; last="
+                        + readiness);
+            }
+            return;
+        }
+        providerTrustWaitTicks = age;
+
+        try {
+            if (temporalStartTick == Long.MIN_VALUE) {
+                acquireSpatial(level, anchor, centerX, centerZ);
+                temporalStartTick = gameTick;
+                nextTemporalTick = gameTick;
+                temporalCenterX = centerX;
+                temporalCenterZ = centerZ;
+                temporalAnchor = anchor;
+            }
+            if (gameTick >= nextTemporalTick && temporalFrames.size() < TEMPORAL_FRAME_COUNT) {
+                temporalFrames.add(captureTemporalFrame(level, temporalCenterX, temporalCenterZ, gameTick));
+                opportunityFrames.add(
+                        captureOpportunityFrame(level, temporalCenterX, temporalCenterZ, gameTick));
+                nextTemporalTick += TEMPORAL_PERIOD_TICKS;
+            }
+            if (temporalFrames.size() == TEMPORAL_FRAME_COUNT) {
+                finish(level, temporalAnchor);
+            }
+        } catch (RuntimeException | IOException failure) {
+            fail(event.getServer(), "atmosphere probe acquisition failed: " + failure);
+        }
+    }
+
+    private static double configuredCenter(String property, double fallback) {
+        String configured = System.getProperty(property);
+        if (configured == null || configured.isBlank()) {
+            return fallback;
+        }
+        double value = Double.parseDouble(configured);
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(property + " must be finite");
+        }
+        return value;
+    }
+
+    private static void acquireSpatial(
+            ServerLevel level,
+            ServerPlayer anchor,
+            double centerX,
+            double centerZ) {
+        Pass first = capturePass(level, centerX, centerZ);
+        Pass replay = capturePass(level, centerX, centerZ);
+
+        if (first.probes().size() != EXPECTED_SAMPLE_COUNT
+                || replay.probes().size() != EXPECTED_SAMPLE_COUNT) {
+            throw new IllegalStateException(
+                    "unexpected probe count first="
+                            + first.probes().size()
+                            + " replay="
+                            + replay.probes().size());
+        }
+
+        int trustedCount = 0;
+        TreeSet<String> sourceLevels = new TreeSet<>();
+        TreeSet<String> authorities = new TreeSet<>();
+        for (int index = 0; index < EXPECTED_SAMPLE_COUNT; index++) {
+            ProbeRecord left = first.probes().get(index);
+            ProbeRecord right = replay.probes().get(index);
+            if (!left.sameQuery(right) || !left.sample().equals(right.sample())) {
+                throw new IllegalStateException(
+                        "same-tick atmosphere replay diverged at index "
+                                + index
+                                + " first="
+                                + left
+                                + " replay="
+                                + right);
+            }
+            SkyforgeAtmosphereView.Sample sample = left.sample();
+            if (!sample.trustedForGameplay()) {
+                throw new IllegalStateException(
+                        "canonical probe returned untrusted gameplay atmosphere at " + left.position());
+            }
+            if ("NONE".equals(sample.sourceLevel()) || "NONE".equals(sample.authority())) {
+                throw new IllegalStateException(
+                        "trusted canonical probe lost source provenance at " + left.position());
+            }
+            trustedCount++;
+            sourceLevels.add(sample.sourceLevel());
+            authorities.add(sample.authority());
+        }
+
+        String digest = orderedDigest(first.probes());
+        long aggregateNanos = first.aggregateNanos() + replay.aggregateNanos();
+        long maxNanos = Math.max(first.maxNanos(), replay.maxNanos());
+        int totalQueries = EXPECTED_SAMPLE_COUNT * 2;
+
+        spatialProbes = first.probes();
+        spatialDigest = digest;
+        spatialTrustedCount = trustedCount;
+        spatialSourceLevels = sourceLevels;
+        spatialAuthorities = authorities;
+        spatialAggregateNanos = aggregateNanos;
+        spatialMaxNanos = maxNanos;
+    }
+
+    private static TemporalFrame captureTemporalFrame(
+            ServerLevel level, double centerX, double centerZ, long gameTick) {
+        ArrayList<ProbeRecord> probes = new ArrayList<>(TEMPORAL_RELATIVE_POINTS.length);
+        for (int index = 0; index < TEMPORAL_RELATIVE_POINTS.length; index++) {
+            Vec3 relative = TEMPORAL_RELATIVE_POINTS[index];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + TEMPORAL_SURFACE_Y_OFFSETS[index]
+                    : relative.y;
+            Vec3 position = new Vec3(centerX + relative.x, y, centerZ + relative.z);
+            long started = System.nanoTime();
+            SkyforgeAtmosphereView.Sample sample = atmosphere.sample(level, position);
+            probes.add(new ProbeRecord(position, sample, Math.max(0L, System.nanoTime() - started)));
+        }
+        return new TemporalFrame(gameTick, List.copyOf(probes));
+    }
+
+    private static TemporalFrame captureOpportunityFrame(
+            ServerLevel level, double centerX, double centerZ, long gameTick) {
+        ArrayList<ProbeRecord> probes = new ArrayList<>(OPPORTUNITY_SAMPLE_COUNT);
+        for (int levelIndex = 0; levelIndex < OPPORTUNITY_Y_LEVELS.length; levelIndex++) {
+            int nominalY = OPPORTUNITY_Y_LEVELS[levelIndex];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + OPPORTUNITY_SURFACE_Y_OFFSETS[levelIndex]
+                    : nominalY;
+            for (int zOffset : OPPORTUNITY_XZ_OFFSETS) {
+                for (int xOffset : OPPORTUNITY_XZ_OFFSETS) {
+                    Vec3 position = new Vec3(centerX + xOffset, y, centerZ + zOffset);
+                    long started = System.nanoTime();
+                    SkyforgeAtmosphereView.Sample sample = atmosphere.sample(level, position);
+                    probes.add(new ProbeRecord(
+                            position, sample, Math.max(0L, System.nanoTime() - started)));
+                }
+            }
+        }
+        return new TemporalFrame(gameTick, List.copyOf(probes));
+    }
+
+    private static void finish(ServerLevel level, ServerPlayer anchor) throws IOException {
+        for (TemporalFrame frame : temporalFrames) {
+            for (ProbeRecord probe : frame.probes()) {
+                if (!probe.sample().trustedForGameplay()) {
+                    throw new IllegalStateException("temporal probe lost gameplay trust at tick "
+                            + frame.gameTick() + " position=" + probe.position());
+                }
+            }
+        }
+        if (opportunityFrames.size() != TEMPORAL_FRAME_COUNT) {
+            throw new IllegalStateException(
+                    "opportunity frame count mismatch " + opportunityFrames.size());
+        }
+        for (TemporalFrame frame : opportunityFrames) {
+            if (frame.probes().size() != OPPORTUNITY_SAMPLE_COUNT) {
+                throw new IllegalStateException(
+                        "opportunity sample count mismatch tick="
+                                + frame.gameTick()
+                                + " count="
+                                + frame.probes().size());
+            }
+            for (ProbeRecord probe : frame.probes()) {
+                if (!probe.sample().trustedForGameplay()) {
+                    throw new IllegalStateException(
+                            "opportunity probe lost gameplay trust at tick "
+                                    + frame.gameTick()
+                                    + " position="
+                                    + probe.position());
+                }
+            }
+        }
+
+        SkyforgeA4mcTerrainBridge.Diagnostics terrainDiagnostics =
+                SkyforgeA4mcTerrainBridge.diagnostics();
+        TerrainSeamEvidence terrainSeamEvidence = null;
+        if (Boolean.getBoolean(SkyforgeA4mcTerrainBridge.ENABLE_PROPERTY)) {
+            terrainSeamEvidence = terrainSeamEvidence(level, temporalCenterX, temporalCenterZ);
+            if (!terrainDiagnostics.registered() || terrainDiagnostics.claims() <= 0L) {
+                throw new IllegalStateException(
+                        "A4MC terrain-provider seam enabled without semantic claims: "
+                                + terrainDiagnostics);
+            }
+            if (terrainSeamEvidence.maxHeightDeltaBlocks() < 64) {
+                throw new IllegalStateException(
+                        "Skyforge terrain seam did not differ materially from base world: "
+                                + terrainSeamEvidence);
+            }
+        }
+
+        int temporalQueries = TEMPORAL_FRAME_COUNT * TEMPORAL_RELATIVE_POINTS.length;
+        int opportunityQueries = TEMPORAL_FRAME_COUNT * OPPORTUNITY_SAMPLE_COUNT;
+        int totalQueries = EXPECTED_SAMPLE_COUNT * 2 + temporalQueries + opportunityQueries;
+        long totalAggregateNanos =
+                spatialAggregateNanos
+                        + aggregateFrameNanos(temporalFrames)
+                        + aggregateFrameNanos(opportunityFrames);
+        long totalMaxNanos =
+                Math.max(
+                        spatialMaxNanos,
+                        Math.max(maxFrameNanos(temporalFrames), maxFrameNanos(opportunityFrames)));
+        Path output = outputPath();
+        Files.createDirectories(output.getParent());
+        Files.writeString(
+                output,
+                encodeArtifact(
+                        level, anchor, temporalCenterX, temporalCenterZ, temporalStartTick,
+                        spatialProbes, spatialDigest, spatialTrustedCount, spatialSourceLevels,
+                        spatialAuthorities, totalQueries,
+                        totalAggregateNanos, totalMaxNanos, temporalFrames, opportunityFrames,
+                        terrainDiagnostics, terrainSeamEvidence),
+                StandardCharsets.UTF_8);
+
+        proofComplete = true;
+        LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("actualClientPlayerAnchor", true);
+        evidence.put("serverWorldSampling", true);
+        evidence.put("realA4mcGameplayProvider", true);
+        evidence.put("sampleCount", EXPECTED_SAMPLE_COUNT);
+        evidence.put("providerTrustWaitTicks", providerTrustWaitTicks);
+        evidence.put("trustedSampleCount", spatialTrustedCount);
+        evidence.put("sameTickReplayExact", true);
+        evidence.put("queryCount", totalQueries);
+        evidence.put("temporalFrameCount", TEMPORAL_FRAME_COUNT);
+        evidence.put("opportunityFrameCount", TEMPORAL_FRAME_COUNT);
+        evidence.put("opportunitySamplesPerFrame", OPPORTUNITY_SAMPLE_COUNT);
+        evidence.put("orderedSampleDigest", spatialDigest);
+        evidence.put("a4mcTerrainProviderRegistered", terrainDiagnostics.registered());
+        evidence.put("a4mcTerrainProviderQueries", terrainDiagnostics.queries());
+        evidence.put("a4mcTerrainProviderClaims", terrainDiagnostics.claims());
+        evidence.put("a4mcTerrainProviderDeclines", terrainDiagnostics.declines());
+        if (terrainSeamEvidence != null) {
+            evidence.put("terrainSemanticBaseMaxDeltaBlocks", terrainSeamEvidence.maxHeightDeltaBlocks());
+        }
+        evidence.put("skyforgeAtmospherePersistence", false);
+        evidence.put("artifactPath", output);
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(level.getServer(), evidence);
+        System.getLogger(SkyforgeAtmosphereProbeVolumeAcceptance.class.getName())
+                .log(System.Logger.Level.INFO,
+                        "SKYFORGE_ATMOSPHERE_PROBE_VOLUME PASS samples=" + EXPECTED_SAMPLE_COUNT
+                                + " queries=" + totalQueries
+                                + " temporalFrames=" + TEMPORAL_FRAME_COUNT
+                                + " opportunitySamplesPerFrame=" + OPPORTUNITY_SAMPLE_COUNT
+                                + " digest=" + spatialDigest
+                                + " sources=" + spatialSourceLevels
+                                + " authorities=" + spatialAuthorities);
+    }
+
+    private static TerrainSeamEvidence terrainSeamEvidence(
+            ServerLevel level, double centerX, double centerZ) {
+        int comparedColumns = 0;
+        TerrainSeamEvidence best = null;
+        var generator = level.getChunkSource().getGenerator();
+        var randomState = level.getChunkSource().randomState();
+        for (int zOffset : XZ_OFFSETS) {
+            for (int xOffset : XZ_OFFSETS) {
+                int x = (int) Math.floor(centerX + xOffset);
+                int z = (int) Math.floor(centerZ + zOffset);
+                var semantic = SkyforgeAtmosphereTerrainAuthority.sample(
+                        x,
+                        z,
+                        level.getMinBuildHeight(),
+                        level.getHeight());
+                if (semantic.isEmpty()) {
+                    continue;
+                }
+                var sample = semantic.orElseThrow();
+                int baseWorldHeight = generator.getBaseHeight(
+                        x,
+                        z,
+                        Heightmap.Types.WORLD_SURFACE_WG,
+                        level,
+                        randomState);
+                int delta = sample.firstFreeHeight() - baseWorldHeight;
+                comparedColumns++;
+                TerrainSeamEvidence candidate = new TerrainSeamEvidence(
+                        comparedColumns,
+                        x,
+                        z,
+                        sample.firstFreeHeight(),
+                        baseWorldHeight,
+                        delta,
+                        sample.volumeId().path());
+                if (best == null || delta > best.maxHeightDeltaBlocks()) {
+                    best = candidate;
+                }
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException(
+                    "no uniquely owned Skyforge semantic surface found in terrain-seam comparison lattice");
+        }
+        return new TerrainSeamEvidence(
+                comparedColumns,
+                best.x(),
+                best.z(),
+                best.semanticHeight(),
+                best.baseWorldHeight(),
+                best.maxHeightDeltaBlocks(),
+                best.volumePath());
+    }
+
+    private static long aggregateFrameNanos(List<TemporalFrame> frames) {
+        long total = 0L;
+        for (TemporalFrame frame : frames) {
+            for (ProbeRecord probe : frame.probes()) {
+                total += probe.queryNanos();
+            }
+        }
+        return total;
+    }
+
+    private static long maxFrameNanos(List<TemporalFrame> frames) {
+        long max = 0L;
+        for (TemporalFrame frame : frames) {
+            for (ProbeRecord probe : frame.probes()) {
+                max = Math.max(max, probe.queryNanos());
+            }
+        }
+        return max;
+    }
+
+    private static Pass capturePass(ServerLevel level, double centerX, double centerZ) {
+        ArrayList<ProbeRecord> probes = new ArrayList<>(EXPECTED_SAMPLE_COUNT);
+        long aggregateNanos = 0L;
+        long maxNanos = 0L;
+        for (int levelIndex = 0; levelIndex < Y_LEVELS.length; levelIndex++) {
+            int nominalY = Y_LEVELS[levelIndex];
+            double y = Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                    ? surfaceReferenceY + SURFACE_Y_OFFSETS[levelIndex]
+                    : nominalY;
+            for (int zOffset : XZ_OFFSETS) {
+                for (int xOffset : XZ_OFFSETS) {
+                    Vec3 position = new Vec3(centerX + xOffset, y, centerZ + zOffset);
+                    long started = System.nanoTime();
+                    SkyforgeAtmosphereView.Sample sample = atmosphere.sample(level, position);
+                    long elapsed = Math.max(0L, System.nanoTime() - started);
+                    aggregateNanos += elapsed;
+                    maxNanos = Math.max(maxNanos, elapsed);
+                    probes.add(new ProbeRecord(position, sample, elapsed));
+                }
+            }
+        }
+        return new Pass(List.copyOf(probes), aggregateNanos, maxNanos);
+    }
+
+    private static String orderedDigest(List<ProbeRecord> probes) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            for (ProbeRecord probe : probes) {
+                SkyforgeAtmosphereView.Sample sample = probe.sample();
+                String canonical = hex(probe.position().x)
+                        + ","
+                        + hex(probe.position().y)
+                        + ","
+                        + hex(probe.position().z)
+                        + "|"
+                        + sample.trustedForGameplay()
+                        + "|"
+                        + hex(sample.meanX())
+                        + ","
+                        + hex(sample.meanY())
+                        + ","
+                        + hex(sample.meanZ())
+                        + "|"
+                        + hex(sample.gustX())
+                        + ","
+                        + hex(sample.gustY())
+                        + ","
+                        + hex(sample.gustZ())
+                        + "|"
+                        + hex(sample.pressure())
+                        + "|"
+                        + hex(sample.turbulenceIntensity())
+                        + "|"
+                        + hex(sample.updraftMetersPerSecond())
+                        + "|"
+                        + hex(sample.windShearMagnitudePerBlock())
+                        + "|"
+                        + hex(sample.confidence())
+                        + "|"
+                        + sample.sourceLevel()
+                        + "|"
+                        + sample.authority()
+                        + "|"
+                        + sample.l1Epoch()
+                        + ","
+                        + sample.worldDeltaEpoch()
+                        + ","
+                        + sample.l2Epoch()
+                        + "\n";
+                digest.update(canonical.getBytes(StandardCharsets.UTF_8));
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (NoSuchAlgorithmException impossible) {
+            throw new IllegalStateException("SHA-256 unavailable", impossible);
+        }
+    }
+
+    private static String encodeArtifact(
+            ServerLevel level,
+            ServerPlayer anchor,
+            double centerX,
+            double centerZ,
+            long gameTick,
+            List<ProbeRecord> probes,
+            String digest,
+            int trustedCount,
+            TreeSet<String> sourceLevels,
+            TreeSet<String> authorities,
+            int totalQueries,
+            long aggregateNanos,
+            long maxNanos,
+            List<TemporalFrame> temporalFrames,
+            List<TemporalFrame> opportunityFrames,
+            SkyforgeA4mcTerrainBridge.Diagnostics terrainDiagnostics,
+            TerrainSeamEvidence terrainSeamEvidence) {
+        StringBuilder json = new StringBuilder(64_000);
+        json.append("{\n");
+        json.append("  \"schema_version\": 1,\n");
+        json.append("  \"artifact_kind\": \"SKYFORGE_ATMOSPHERE_PROBE_VOLUME\",\n");
+        json.append("  \"provider_identity\": {\n");
+        json.append("    \"mod_id\": \"aerodynamics4mc\",\n");
+        json.append("    \"version\": ").append(quote(providerVersion())).append(",\n");
+        json.append("    \"api\": \"AeroMinecraftWindApi.sampleGameplay(ServerLevel, Vec3)\"\n");
+        json.append("  },\n");
+        json.append("  \"skyforge_source_sha\": ").append(quote(sourceSha())).append(",\n");
+        json.append("  \"specimen\": {\n");
+        json.append("    \"world_seed\": ").append(level.getSeed()).append(",\n");
+        json.append("    \"dimension\": ").append(quote(level.dimension().toString())).append(",\n");
+        json.append("    \"acquisition_game_tick\": ").append(gameTick).append(",\n");
+        json.append("    \"provider_trust_wait_ticks\": ").append(providerTrustWaitTicks).append(",\n");
+        json.append("    \"anchor_player\": ").append(quote(anchor.getGameProfile().getName())).append(",\n");
+        json.append("    \"anchor_position\": [")
+                .append(number(anchor.getX())).append(", ")
+                .append(number(anchor.getY())).append(", ")
+                .append(number(anchor.getZ())).append("],\n");
+        json.append("    \"lattice\": {\n");
+        json.append("      \"center_x\": ").append(number(centerX)).append(",\n");
+        json.append("      \"center_z\": ").append(number(centerZ)).append(",\n");
+        json.append("      \"x_offsets\": [-128, -64, 0, 64, 128],\n");
+        json.append("      \"z_offsets\": [-128, -64, 0, 64, 128],\n");
+        json.append("      \"vertical_mode\": ")
+                .append(quote(Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                        ? "surface_relative"
+                        : "absolute"))
+                .append(",\n");
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)) {
+            json.append("      \"surface_reference_y\": ").append(number(surfaceReferenceY)).append(",\n");
+            json.append("      \"surface_offsets\": [16, 48, 96, 160],\n");
+            json.append("      \"y_levels\": [")
+                    .append(number(surfaceReferenceY + 16.0)).append(", ")
+                    .append(number(surfaceReferenceY + 48.0)).append(", ")
+                    .append(number(surfaceReferenceY + 96.0)).append(", ")
+                    .append(number(surfaceReferenceY + 160.0)).append("],\n");
+        } else {
+            json.append("      \"y_levels\": [80, 120, 160, 220],\n");
+        }
+        json.append("      \"sample_count\": ").append(EXPECTED_SAMPLE_COUNT).append("\n");
+        json.append("    }\n");
+        json.append("  },\n");
+        json.append("  \"samples\": [\n");
+        for (int index = 0; index < probes.size(); index++) {
+            appendProbe(json, probes.get(index), index + 1 < probes.size());
+        }
+        json.append("  ],\n");
+        json.append("  \"ordered_sample_digest\": ").append(quote(digest)).append(",\n");
+        json.append("  \"same_tick_replay\": {\n");
+        json.append("    \"sample_count\": ").append(EXPECTED_SAMPLE_COUNT).append(",\n");
+        json.append("    \"exact_equal\": true\n");
+        json.append("  },\n");
+        json.append("  \"temporal\": {\n");
+        json.append("    \"period_ticks\": ").append(TEMPORAL_PERIOD_TICKS).append(",\n");
+        json.append("    \"frame_count\": ").append(temporalFrames.size()).append(",\n");
+        json.append("    \"frames\": [\n");
+        for (int frameIndex = 0; frameIndex < temporalFrames.size(); frameIndex++) {
+            TemporalFrame frame = temporalFrames.get(frameIndex);
+            json.append("      {\"game_tick\": ").append(frame.gameTick()).append(", \"samples\": [\n");
+            for (int probeIndex = 0; probeIndex < frame.probes().size(); probeIndex++) {
+                appendProbe(json, frame.probes().get(probeIndex), probeIndex + 1 < frame.probes().size());
+            }
+            json.append("      ]}").append(frameIndex + 1 < temporalFrames.size() ? "," : "").append("\n");
+        }
+        json.append("    ]\n");
+        json.append("  },\n");
+        json.append("  \"opportunity_scan\": {\n");
+        json.append("    \"x_offsets\": [-256, -192, -128, -64, 0, 64, 128, 192, 256],\n");
+        if (Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)) {
+            json.append("    \"vertical_mode\": \"surface_relative\",\n");
+            json.append("    \"surface_reference_y\": ").append(number(surfaceReferenceY)).append(",\n");
+            json.append("    \"surface_offsets\": [32, 80],\n");
+            json.append("    \"y_levels\": [")
+                    .append(number(surfaceReferenceY + 32.0)).append(", ")
+                    .append(number(surfaceReferenceY + 80.0)).append("],\n");
+        } else {
+            json.append("    \"vertical_mode\": \"absolute\",\n");
+            json.append("    \"y_levels\": [120, 160],\n");
+        }
+        json.append("    \"period_ticks\": ").append(TEMPORAL_PERIOD_TICKS).append(",\n");
+        json.append("    \"frame_count\": ").append(opportunityFrames.size()).append(",\n");
+        json.append("    \"samples_per_frame\": ").append(OPPORTUNITY_SAMPLE_COUNT).append(",\n");
+        json.append("    \"frames\": [\n");
+        for (int frameIndex = 0; frameIndex < opportunityFrames.size(); frameIndex++) {
+            TemporalFrame frame = opportunityFrames.get(frameIndex);
+            json.append("      {\"game_tick\": ").append(frame.gameTick()).append(", \"samples\": [\n");
+            for (int probeIndex = 0; probeIndex < frame.probes().size(); probeIndex++) {
+                appendProbe(
+                        json,
+                        frame.probes().get(probeIndex),
+                        probeIndex + 1 < frame.probes().size());
+            }
+            json.append("      ]}")
+                    .append(frameIndex + 1 < opportunityFrames.size() ? "," : "")
+                    .append("\n");
+        }
+        json.append("    ]\n");
+        json.append("  },\n");
+        json.append("  \"terrain_provider_bridge\": {\n");
+        json.append("    \"enabled\": ")
+                .append(Boolean.getBoolean(SkyforgeA4mcTerrainBridge.ENABLE_PROPERTY))
+                .append(",\n");
+        json.append("    \"registered\": ").append(terrainDiagnostics.registered()).append(",\n");
+        json.append("    \"queries\": ").append(terrainDiagnostics.queries()).append(",\n");
+        json.append("    \"claims\": ").append(terrainDiagnostics.claims()).append(",\n");
+        json.append("    \"declines\": ").append(terrainDiagnostics.declines()).append(",\n");
+        json.append("    \"aggregate_nanos\": ").append(terrainDiagnostics.aggregateNanos()).append(",\n");
+        json.append("    \"mean_nanos\": ").append(number(terrainDiagnostics.meanNanos())).append(",\n");
+        json.append("    \"max_nanos\": ").append(terrainDiagnostics.maxNanos()).append(",\n");
+        if (terrainSeamEvidence == null) {
+            json.append("    \"semantic_vs_base_world\": null\n");
+        } else {
+            json.append("    \"semantic_vs_base_world\": {\n");
+            json.append("      \"compared_columns\": ").append(terrainSeamEvidence.comparedColumns()).append(",\n");
+            json.append("      \"representative_x\": ").append(terrainSeamEvidence.x()).append(",\n");
+            json.append("      \"representative_z\": ").append(terrainSeamEvidence.z()).append(",\n");
+            json.append("      \"semantic_height\": ").append(terrainSeamEvidence.semanticHeight()).append(",\n");
+            json.append("      \"base_world_height\": ").append(terrainSeamEvidence.baseWorldHeight()).append(",\n");
+            json.append("      \"max_height_delta_blocks\": ").append(terrainSeamEvidence.maxHeightDeltaBlocks()).append(",\n");
+            json.append("      \"volume_path\": ").append(quote(terrainSeamEvidence.volumePath())).append("\n");
+            json.append("    }\n");
+        }
+        json.append("  },\n");
+        json.append("  \"authority_summary\": {\n");
+        json.append("    \"sample_count\": ").append(EXPECTED_SAMPLE_COUNT).append(",\n");
+        json.append("    \"trusted_sample_count\": ").append(trustedCount).append(",\n");
+        json.append("    \"source_levels\": ").append(stringArray(sourceLevels)).append(",\n");
+        json.append("    \"authorities\": ").append(stringArray(authorities)).append("\n");
+        json.append("  },\n");
+        json.append("  \"cost\": {\n");
+        json.append("    \"query_count\": ").append(totalQueries).append(",\n");
+        json.append("    \"aggregate_nanos\": ").append(aggregateNanos).append(",\n");
+        json.append("    \"mean_nanos\": ").append(number(aggregateNanos / (double) totalQueries)).append(",\n");
+        json.append("    \"max_nanos\": ").append(maxNanos).append("\n");
+        json.append("  },\n");
+        json.append("  \"ownership\": {\n");
+        json.append("    \"server_world_sampling\": true,\n");
+        json.append("    \"skyforge_persists_atmosphere\": false,\n");
+        json.append("    \"provider_persistence_owner\": \"aerodynamics4mc\",\n");
+        json.append("    \"rendering_backend_dependency\": false\n");
+        json.append("  }\n");
+        json.append("}\n");
+        return json.toString();
+    }
+
+    private static void appendProbe(StringBuilder json, ProbeRecord probe, boolean trailingComma) {
+        SkyforgeAtmosphereView.Sample sample = probe.sample();
+        json.append("    {\n");
+        json.append("      \"position\": [")
+                .append(number(probe.position().x)).append(", ")
+                .append(number(probe.position().y)).append(", ")
+                .append(number(probe.position().z)).append("],\n");
+        json.append("      \"mean\": [")
+                .append(number(sample.meanX())).append(", ")
+                .append(number(sample.meanY())).append(", ")
+                .append(number(sample.meanZ())).append("],\n");
+        json.append("      \"gust\": [")
+                .append(number(sample.gustX())).append(", ")
+                .append(number(sample.gustY())).append(", ")
+                .append(number(sample.gustZ())).append("],\n");
+        json.append("      \"effective\": [")
+                .append(number(sample.effectiveX())).append(", ")
+                .append(number(sample.effectiveY())).append(", ")
+                .append(number(sample.effectiveZ())).append("],\n");
+        json.append("      \"signed_vertical_air\": ")
+                .append(number(sample.updraftMetersPerSecond())).append(",\n");
+        json.append("      \"turbulence\": ").append(number(sample.turbulenceIntensity())).append(",\n");
+        json.append("      \"shear\": ").append(number(sample.windShearMagnitudePerBlock())).append(",\n");
+        json.append("      \"pressure_proxy\": ").append(number(sample.pressure())).append(",\n");
+        json.append("      \"confidence\": ").append(number(sample.confidence())).append(",\n");
+        json.append("      \"trusted_for_gameplay\": ").append(sample.trustedForGameplay()).append(",\n");
+        json.append("      \"source_level\": ").append(quote(sample.sourceLevel())).append(",\n");
+        json.append("      \"authority\": ").append(quote(sample.authority())).append(",\n");
+        json.append("      \"epochs\": {")
+                .append("\"l1\": ").append(sample.l1Epoch()).append(", ")
+                .append("\"world_delta\": ").append(sample.worldDeltaEpoch()).append(", ")
+                .append("\"l2\": ").append(sample.l2Epoch()).append("},\n");
+        json.append("      \"query_nanos\": ").append(probe.queryNanos()).append("\n");
+        json.append("    }").append(trailingComma ? "," : "").append("\n");
+    }
+
+    private static String providerVersion() {
+        return ModList.get()
+                .getModContainerById("aerodynamics4mc")
+                .map(container -> container.getModInfo().getVersion().toString())
+                .orElse("unknown");
+    }
+
+    private static Path outputPath() {
+        String configured = System.getProperty(OUTPUT_PROPERTY);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalStateException("missing system property " + OUTPUT_PROPERTY);
+        }
+        Path output = Path.of(configured).toAbsolutePath().normalize();
+        if (output.getParent() == null) {
+            throw new IllegalStateException("atmosphere probe output has no parent: " + output);
+        }
+        return output;
+    }
+
+    private static String sourceSha() {
+        String value = System.getenv("GITHUB_SHA");
+        return value == null || value.isBlank() ? "unknown" : value;
+    }
+
+    private static String number(double value) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalStateException("non-finite artifact value " + value);
+        }
+        return String.format(Locale.ROOT, "%.17g", value);
+    }
+
+    private static String hex(double value) {
+        return Double.toHexString(value);
+    }
+
+    private static String stringArray(Iterable<String> values) {
+        StringBuilder builder = new StringBuilder("[");
+        boolean first = true;
+        for (String value : values) {
+            if (!first) {
+                builder.append(", ");
+            }
+            first = false;
+            builder.append(quote(value));
+        }
+        return builder.append(']').toString();
+    }
+
+    private static String quote(String value) {
+        String escaped = value
+                .replace("\\", "\\\\")
+                .replace("\"", "\\\"")
+                .replace("\n", "\\n")
+                .replace("\r", "\\r");
+        return "\"" + escaped + "\"";
+    }
+
+    /**
+     * Failure-only upstream diagnostics. These commands inspect A4MC's own runtime to explain why
+     * its public gameplay API stayed unavailable; their output is never admitted as Skyforge
+     * atmosphere evidence and never substitutes for {@link SkyforgeAtmosphereView}.
+     */
+    private static long maxWaitTicks() {
+        return Boolean.getBoolean(SURFACE_RELATIVE_PROPERTY)
+                ? SKYFORGE_DIAGNOSTIC_MAX_WAIT_TICKS
+                : MAX_WAIT_TICKS;
+    }
+
+    private static void emitProviderDiagnostics(net.minecraft.server.MinecraftServer server) {
+        try {
+            var source = server.createCommandSourceStack().withSuppressedOutput();
+            // Run once with ordinary console feedback as well so CI retains the provider state.
+            server.getCommands().performPrefixedCommand(server.createCommandSourceStack(), "aero status");
+            server.getCommands().performPrefixedCommand(source, "aero dumpdata");
+        } catch (RuntimeException diagnosticFailure) {
+            System.getLogger(SkyforgeAtmosphereProbeVolumeAcceptance.class.getName())
+                    .log(
+                            System.Logger.Level.WARNING,
+                            "A4MC failure diagnostics could not be emitted: " + diagnosticFailure);
+        }
+    }
+
+    private static void fail(net.minecraft.server.MinecraftServer server, String reason) {
+        proofComplete = true;
+        SkyforgeAutomatedAcceptanceHarness.fail(server, reason);
+    }
+
+    static boolean proofComplete() {
+        return proofComplete;
+    }
+
+    private record ProbeRecord(
+            Vec3 position,
+            SkyforgeAtmosphereView.Sample sample,
+            long queryNanos) {
+        boolean sameQuery(ProbeRecord other) {
+            return position.equals(other.position);
+        }
+    }
+
+    private record Pass(List<ProbeRecord> probes, long aggregateNanos, long maxNanos) {}
+
+    private record TemporalFrame(long gameTick, List<ProbeRecord> probes) {}
+
+    private record TerrainSeamEvidence(
+            int comparedColumns,
+            int x,
+            int z,
+            int semanticHeight,
+            int baseWorldHeight,
+            int maxHeightDeltaBlocks,
+            String volumePath) {}
+
+}

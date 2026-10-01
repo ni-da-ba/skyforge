@@ -1,0 +1,75 @@
+name: AUTH-0105 Fluvial Landforms
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/auth-0105-fluvial-landforms.yml"
+      - ".github/actions/run-authorship-evidence/action.yml"
+      - "docs/authorship/AUTH-0105-fluvial-landform-realization.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialReachGeometry.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainField.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandFluvialTerrainFieldTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchTest.java"
+      - "skyforge-reference/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-0105-fluvial-landforms-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Authorship evidence contract
+        uses: ./.github/actions/run-authorship-evidence
+        with:
+          gradle_command: |
+            ./gradlew \
+              :skyforge-world:test --tests '*SkyIslandFluvialTerrainFieldTest' \
+              :skyforge-reference:test --tests '*AuthorshipFluvialLandformCorpusTest' \
+              :skyforge-reference:test --tests '*AuthorshipFluvialSpecimenSearchTest' \
+              :skyforge-reference:authorshipFluvialLandformCorpus \
+              --no-configuration-cache
+          verify_command: |
+            DIR=skyforge-reference/build/evidence/authorship-fluvial-landforms-v1
+            test -f "$DIR/index.html"
+            test -f "$DIR/atlas.png"
+            test -f "$DIR/manifest.csv"
+            test "$(wc -l < "$DIR/manifest.csv")" -eq 8
+            grep -q '^dr70-1471,' "$DIR/manifest.csv"
+            grep -q '^key-83-retained-basin,' "$DIR/manifest.csv"
+            awk -F, 'NR > 1 && $12 > 0.01 {found=1} END {exit(found ? 0 : 1)}' "$DIR/manifest.csv"
+            SEARCH=skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1
+            test -f "$SEARCH/index.html"
+            test -f "$SEARCH/atlas.png"
+            test -f "$SEARCH/candidates.csv"
+            test "$(wc -l < "$SEARCH/candidates.csv")" -eq 9
+          artifact_name: auth-0105-fluvial-landforms
+          artifact_path: |
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/index.html
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/manifest.csv
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/dr70-1471.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-77.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-118.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-241.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-83-retained-basin.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-512-stress.png
+            skyforge-reference/build/evidence/authorship-fluvial-landforms-v1/key-811-stress.png
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/index.html
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/candidates.csv
+            skyforge-reference/build/evidence/authorship-fluvial-specimen-search-v1/rank-*.png

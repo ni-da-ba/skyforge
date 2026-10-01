@@ -1,0 +1,157 @@
+{
+  "schema_version": 1,
+  "roadmap_id": "skyforge-dressed-region-convergence-v3",
+  "enabled": true,
+  "max_auto_claims_per_utc_day": 6,
+  "notes": [
+    "This machine-readable manifest implements the project-owner-authorized docs/agent-state/DRESSED_REGION_CONVERGENCE_ROADMAP.md directive on main.",
+    "The original DR path advanced DR-00 -> DR-10 -> DR-20 -> DR-30 -> DR-40 -> DR-50 -> DR-60 -> HUMAN REVIEW. That human review returned CHANGES REQUIRED and now authorizes exactly one bounded DR-70 repair tranche followed by another human gate.",
+    "DR-00 selection authority is deterministic and non-aesthetic: among current-main candidates that already satisfy accepted morphology and production-geography machine constraints, order by stable specimen/member ID and choose the first eligible candidate; if it fails an objective DR-00 machine invariant, advance to the next candidate in the same ordering. This is an integration fixture only, not aesthetic acceptance or issue #214 closure.",
+    "Execution authority is defined by docs/agent-state/EXECUTION_BOUNDARIES.md: the DigitalOcean host may run the lightweight classifier and one bounded Codex editing worker, but all automated project builds/tests/evidence run in GitHub Actions and all manual/interactive judgment runs on Nicholas' local workstation.",
+    "Hosted workers are editors only. They must not run Gradle/Java/NeoForge/Minecraft builds, tests, benchmarks, generators, or provision project toolchains; machine verification belongs to GitHub Actions.",
+    "DR-10 must not redispatch accepted Iron/Copper/Zinc physical realization. It owns only the remaining Content C20 STARTING_CLUSTER guarantee/scope proof and may close #491 after that proof is accepted.",
+    "Every task remains issue-backed and fail-closed on missing authority, human/product judgment, unavailable accepted semantics, or unavailable GitHub Actions validation.",
+    "No autonomous node may modify or advance #488/#489 or machine-optimize aesthetics, density, pacing, beauty, or final Skyforge visual identity.",
+    "Do not seed unrelated Bootstrap, AAL, computing, polish, or speculative capability expansion while this convergence manifest is active.",
+    "DR-70 originally repaired the DR-60 canopy/hydrology/fluid defects and later proved real channel geomorphology. The 2026-09-20 key-2885 owner review still returned CHANGES REQUIRED because the ocean-biome/presentation context, visible water/material dressing, and tiny review specimen were not an acceptable integrated showcase. After the accepted pre-Bootstrap platform gate, #754 resumes only from those persisted findings; preserve the proven channel and earlier canopy/cave/exterior-fluid fixes."
+  ],
+  "nodes": [
+    {
+      "id": "dr-00-canonical-specimen-lock",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 533,
+      "priority": 200,
+      "max_runs": 1,
+      "prerequisites": [],
+      "objective_hint": "Lock exactly one deterministic production-geography specimen. Consider only current-main candidates already satisfying accepted morphology and production-geography machine constraints; sort eligible candidates by stable specimen/member ID and choose the first. If that candidate fails an objective DR-00 machine invariant, advance to the next candidate using the same stable ordering. Persist stable specimen ID, seed/config, exact volume/bounds, accepted provenance, regeneration procedure and launch/test entry point as the machine-readable DR-00 lock for every downstream milestone. This is an integration fixture, not aesthetic acceptance. A hosted Codex worker may produce the bounded repository edits, but all automated compiler/Gradle verification runs in GitHub Actions.",
+      "stop_boundary": "Do not rank candidates by beauty or any subjective quality, invent new Authorship/Content semantics, change the selected fixture because another candidate looks better, claim issue #214 aesthetic acceptance/closure, or touch #488/#489. Human aesthetic/exploration judgment remains deferred to DR-60. Stop for a genuinely missing machine authority/invariant or unavailable GitHub Actions validation rather than moving project verification to the orchestration host."
+    },
+    {
+      "id": "dr-10-starting-cluster-closure",
+      "kind": "task",
+      "lane": "Content",
+      "issue_number": 534,
+      "priority": 190,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-00-canonical-specimen-lock"
+      ],
+      "objective_hint": "Consume the DR-00 specimen and resolve only the remaining C20 STARTING_CLUSTER guarantee/scope-selection proof identified on #491. Reuse accepted Iron/Copper/Zinc/Create-Zinc realization and produce machine-readable DR-10 materials evidence. A bounded hosted worker may edit repository files; automated verification belongs in GitHub Actions.",
+      "stop_boundary": "Do not alter or redispatch deposit realization, identities, quantity/grade/accessibility policy, progression, rarity, trade, reserve policy, petroleum scope or Authorship semantics. If C20 lacks sufficient authority, stop rather than inventing policy."
+    },
+    {
+      "id": "dr-20-visible-hydrology",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 492,
+      "priority": 180,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-10-starting-cluster-closure"
+      ],
+      "objective_hint": "Realize accepted authored visible hydrology on the same canonical specimen, covering a coherent channel, retained waterbody, vertical discharge/cascade and boundary/edge-discharge behavior with deterministic/idempotent persistence and lifecycle evidence. Continue through one bounded hosted Codex editing worker and a controller-managed GitHub PR; run Gradle/NeoForge automated verification only in GitHub Actions. The preserved recovery branch may be consulted as reference material but is not accepted authority by itself.",
+      "stop_boundary": "Do not invent watershed, water-availability, biome, gameplay or aesthetic policy; do not misclassify native/vanilla springs as authored hydrology; do not touch #488/#489. Do not run project builds/tests/benchmarks/generators or provision a project toolchain on the DigitalOcean host."
+    },
+    {
+      "id": "dr-30-structure-reintegration",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 493,
+      "priority": 170,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-20-visible-hydrology"
+      ],
+      "objective_hint": "Reintegrate generic structures on the canonical specimen using accepted site/support/access and Content role authority, covering only distinct physical-placement risks and proving support, clearance, deterministic accommodation, persistence, player-mutation preservation and volume isolation. A bounded hosted worker may produce edits; all automated verification runs through GitHub Actions.",
+      "stop_boundary": "Do not author final architecture, settlement layout, civilization role, route meaning or aesthetic policy. If no accepted Content role exists, stop with the explicit role-authority gap. Do not touch #488/#489. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-40-production-ecology",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 494,
+      "priority": 160,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-30-structure-reintegration"
+      ],
+      "objective_hint": "Compose production ecology on the canonical specimen from accepted ecology opportunity so terrain, substrate, hydrology/moisture, altitude/isolation and authored opportunity drive deterministic persistent population with exact-volume provenance and diagnostic counts. A bounded hosted worker may produce edits; automated validation runs through GitHub Actions only.",
+      "stop_boundary": "Do not set final density, carrying capacity, predator pressure, population rhythm or biome aesthetics, and do not create new Authorship ecological dimensions without a demonstrated downstream gap. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-50-integrated-dressed-region",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 496,
+      "priority": 150,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-40-production-ecology"
+      ],
+      "objective_hint": "Integrate the same canonical specimen across production geography, base materials/deposits, authored hydrology, caves/interiors, structures and ecology. Reject lifecycle/ownership/order/reload/stacked-volume conflicts and prove fresh A == fresh B == save/reload A for authoritative region state. A bounded hosted worker may produce edits; automated validation runs through GitHub Actions only.",
+      "stop_boundary": "Stop once objective integration is green. Do not tune aesthetics, terrain-family balance, ecology density, structure beauty or player pacing. Do not touch #488/#489. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-60-exploration-review-packet",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 535,
+      "priority": 140,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-50-integrated-dressed-region"
+      ],
+      "objective_hint": "Package the exact DR-50 canonical specimen for project-owner inspection with specimen identity, seed/main SHA/config/provenance, Windows/PowerShell launch procedure, exact entry point/player mode, feature-presence-derived inspection route, passed invariants, known limitations and unresolved human questions. A bounded hosted worker may edit the packet; machine-complete evidence must come from GitHub Actions and the actual exploration/review belongs on Nicholas' local workstation.",
+      "stop_boundary": "Do not tune the specimen or claim aesthetic quality. Coordinates may be selected only because required systems are present. Stop after the exact review packet is machine-complete. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-human-exploration-review",
+      "kind": "gate",
+      "lane": "Implementation",
+      "priority": 130,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-60-exploration-review-packet"
+      ],
+      "human_message": "DR-60 project-owner flight review completed with CHANGES REQUIRED. Preserve the positive finding that the island surface and caves/interiors are coherent and interesting. Authorized corrections are limited to tall-jungle-canopy headroom/clipping, physically legible authored hydrology beyond token water presence, and strong suppression of commonplace incidental water/lava edge discharge while retaining deliberate justified waterfalls/cascades. The accepted DR-50 specimen contains no completed canonical structure, so structure grounding/architecture remains unassessed."
+    },
+    {
+      "id": "dr-65-canonical-hydrology-authorship",
+      "kind": "task",
+      "lane": "Authorship",
+      "issue_number": 756,
+      "priority": 127,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-60-exploration-review-packet"
+      ],
+      "objective_hint": "Convert the explicit DR-60 human product direction into the smallest deterministic backend-neutral canonical-instance hydrology authority. Keep the exact locked specimen identity/seed, but ensure it authors at least one multi-position coherent retained-water footprint and/or naturalized channel path; preserve explicit drop/outlet provenance; preserve AUTH-0085 fail-closed molten semantics so no lava-discharge authority appears without accepted geothermal semantics. Automated validation belongs in GitHub Actions.",
+      "stop_boundary": "Do not relock the specimen, retune general terrain/caves/ecology/beauty, invent a new hydrology feature class when accepted retained/channel/drop vocabulary suffices, or add geothermal/lava semantics merely to preserve incidental leakage. Do not run project validation on the DigitalOcean host."
+    },
+    {
+      "id": "dr-70-human-review-repair",
+      "kind": "task",
+      "lane": "Implementation",
+      "issue_number": 754,
+      "priority": 125,
+      "max_runs": 2,
+      "prerequisites": [
+        "dr-65-canonical-hydrology-authorship"
+      ],
+      "objective_hint": "Resume #754 from the project-owner key-2885 DR-70 review recorded in comment 5752994015. Preserve the proven real channel geomorphology and the accepted canopy, cave/interior, exterior-fluid, determinism, and exact-volume improvements. Repair only the remaining review failures: resolve the unacceptable ocean-biome/presentation context for intended island hydrology using already-accepted world semantics; improve the visible water realization and surrounding bank/substrate/material dressing so the authored channel reads coherently in-world; and qualify a deterministic representative review specimen large and legible enough to demonstrate the integrated system. The key-2885 specimen is evidence, not a sacred lock: select another deterministic specimen only when current accepted semantics naturally exercise the system better. Produce a new qualified artifact and concrete material delta for human review. Automated validation belongs in GitHub Actions.",
+      "stop_boundary": "Do not fabricate hydrology for the review, invent new watershed/biome/aesthetic policy, or broadly retune terrain morphology, caves, ecology density, pacing, final visual identity, or structure architecture. Preserve the positive real-channel result and previously accepted canopy/cave/exterior-fluid fixes. If accepted Authorship/Content/Presentation semantics cannot resolve the biome/presentation context or provide a representative specimen, stop at that precise dependency. Do not touch #488/#489, run project validation on the DigitalOcean host, or machine-pass the product gate."
+    },
+    {
+      "id": "dr-human-exploration-rereview",
+      "kind": "gate",
+      "lane": "Implementation",
+      "priority": 120,
+      "max_runs": 1,
+      "prerequisites": [
+        "dr-70-human-review-repair"
+      ],
+      "human_message": "Post-platform DR-70 repair evidence is machine-complete. On Nicholas' local workstation, inspect the newly qualified artifact and verify that the hydrology is presented in an appropriate island context rather than the failed ocean-biome presentation; the water, channel banks/substrate, and surrounding material dressing read coherently; the specimen is representative enough to demonstrate the integrated system; the previously proven real channel geomorphology remains legible; tall vegetation no longer clips at the upper boundary; and the accepted cave/interior, exterior-fluid, determinism, and exact-volume improvements have not regressed. Machines must not self-pass this re-review."
+    }
+  ]
+}

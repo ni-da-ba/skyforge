@@ -1,0 +1,58 @@
+name: AUTH-0096 Surface Site Capability
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/auth-0096-surface-site-capability.yml"
+      - ".github/actions/run-authorship-evidence/action.yml"
+      - "docs/authorship/AUTH-0096-local-surface-site-capability.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityCell.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfile.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfiler.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfilerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipSurfaceSiteCapabilityCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipSurfaceSiteCapabilityCorpusTest.java"
+      - "skyforge-reference/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-0096-surface-site-capability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Authorship evidence contract
+        uses: ./.github/actions/run-authorship-evidence
+        with:
+          gradle_command: |
+            ./gradlew \
+              :skyforge-world:test --tests '*SkyIslandSurfaceSiteCapabilityProfilerTest' \
+              :skyforge-reference:test --tests '*AuthorshipSurfaceSiteCapabilityCorpusTest' \
+              :skyforge-reference:authorshipSurfaceSiteCapabilityCorpus \
+              --no-configuration-cache
+          verify_command: |
+            DIR=skyforge-reference/build/evidence/authorship-surface-site-capability-v1
+            test -f "$DIR/index.html"
+            test -f "$DIR/atlas.png"
+            test -f "$DIR/manifest.csv"
+            test -f "$DIR/cells.csv"
+            test "$(wc -l < "$DIR/manifest.csv")" -eq 7
+            test "$(grep -c ',true$' "$DIR/manifest.csv")" -eq 6
+            test "$(wc -l < "$DIR/cells.csv")" -gt 100
+          artifact_name: auth-0096-surface-site-capability
+          artifact_path: |
+            skyforge-reference/build/evidence/authorship-surface-site-capability-v1/index.html
+            skyforge-reference/build/evidence/authorship-surface-site-capability-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-surface-site-capability-v1/manifest.csv
+            skyforge-reference/build/evidence/authorship-surface-site-capability-v1/cells.csv

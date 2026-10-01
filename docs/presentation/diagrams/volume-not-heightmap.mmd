@@ -1,0 +1,44 @@
+%% PRES-0005 — An island is a volume, not a heightmap
+flowchart LR
+    subgraph H["HEIGHTMAP MODEL"]
+      direction TB
+      H1["one X/Z coordinate"] --> H2["one terrain Y value"]
+      H2 --> H3["surface-centric representation"]
+    end
+
+    subgraph S["SKYFORGE MODEL"]
+      direction TB
+      S1["exact 3-D owned volume"]
+      S2["upper surface"]
+      S3["interior / caves"]
+      S4["underside"]
+      S5["explicit outer boundary"]
+      S1 --> S2
+      S1 --> S3
+      S1 --> S4
+      S1 --> S5
+    end
+
+    H -->|"not equivalent"| S
+
+    subgraph STACK["VERTICAL OWNERSHIP"]
+      direction TB
+      V1["upper island<br/>owns (x,y,z) only inside its volume"]
+      GAP["air / base-world domain"]
+      V2["lower island<br/>may share the same X/Z footprint"]
+      V1 --> GAP --> V2
+    end
+
+    S --> STACK
+
+    NOTE["Same X/Z does not mean same terrain column.<br/><b>Ownership is three-dimensional.</b>"]
+    STACK --- NOTE
+
+    classDef weak fill:#f7f7f7,stroke:#999,color:#222;
+    classDef strong fill:#eef4ed,stroke:#587356,color:#111;
+    classDef note fill:#e8eef7,stroke:#526b8d,color:#111;
+
+    class H1,H2,H3 weak;
+    class S1,S2,S3,S4,S5,V1,V2 strong;
+    class GAP weak;
+    class NOTE note;

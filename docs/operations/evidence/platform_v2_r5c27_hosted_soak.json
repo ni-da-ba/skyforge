@@ -1,0 +1,117 @@
+{
+  "disposition": "PASS",
+  "evidence_digest": "8facc71b9d3e451d2ae2b3d9fdad873e1e6621effe4948f013098aa5d72acee0",
+  "operational_observation": {
+    "accepted_deliveries": 4,
+    "completion_records": 3,
+    "driver_final_disposition": "IDLE",
+    "driver_final_running": false
+  },
+  "provider_failure": {
+    "classifier_budget_delta": 1,
+    "classifier_calls": 1,
+    "durable_status": "FAILED",
+    "evidence_digest": "f5da73a30607260753386ba2cdd6da44bf076a0dc0c1bd306f978046bce22064",
+    "remote_effect_count": 0,
+    "worker_calls": 0
+  },
+  "schema_version": 1,
+  "stable_evidence": {
+    "base_sha": "0521e443868c95cbcf119acba60acd11deed6ff6",
+    "budget_after_task1": {
+      "classifier_calls": 3,
+      "luna_worker_calls": 2,
+      "terra_worker_calls": 1
+    },
+    "budget_day1_final": {
+      "classifier_calls": 5,
+      "luna_worker_calls": 4,
+      "terra_worker_calls": 1
+    },
+    "budget_rollover": {
+      "classifier_calls": 0,
+      "day": "2026-09-19",
+      "luna_worker_calls": 0,
+      "seeded_from_legacy": false,
+      "terra_worker_calls": 0
+    },
+    "budget_seed": {
+      "classifier_calls": 2,
+      "luna_worker_calls": 1,
+      "seeded_from_legacy": true,
+      "terra_worker_calls": 1
+    },
+    "dr70_consumed_or_passed": false,
+    "duplicate_delivery_suppressed": 1,
+    "effect_ids": [
+      "0b84f99ace3cc97310ef630f6c0dfc38069f3eb5189e883ab65f8e57ce1fa4a7",
+      "0f581c8d98f699515bdfe8b9b42dd5223ed5f2f62eacb948929463dbe55591ec",
+      "34373f74bddd576dab249e799855dffd6a9167ceb6d07647a403e26488bc0ef8",
+      "44fd163de97cd0ae34aa60ac5001ef8a070409b3cbeb2e70ba45afaac9ece202",
+      "5e36dd72a180a209819bf64da0946386d71910ee1f184808ceb88d00409f4d63",
+      "7e5153cdcddb86c89899424fb66f6ec384d9bcec3c2605a5d8739b796e0d6274",
+      "831a83b599631a095818b2b43dd5776f7d46ad7eaaff4979f5160995900ec7e7",
+      "a2fcd34faaa43af83c5205fd4b711cc7af8fcb8cab97ab2cec8a9c6490f5a387",
+      "c5f8eed19a0f18eea7ff923fa1f169077c5854340eb2128bc8cef4ba95d74168",
+      "d52882812d40a6098ef6d06fc9aeebba788ccfaaf00fc117336b8ae571ed64d8",
+      "d5b2ddf8851c12de45b45c3b019462e04df84b72b0770ebab3d2492454b5795a",
+      "efc686ecd01cc19848bd21ed572825c11e7e6ef805832f5eadac66e50436daa0"
+    ],
+    "final_active_plan": false,
+    "final_pending_event_count": 0,
+    "fixture_kind": "NONPRODUCTION_DISPOSABLE",
+    "lifecycle_execute_counts": {
+      "merge": 3,
+      "ready": 3
+    },
+    "ordinary_effect_execute_counts": [
+      1,
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "production_caddy_touched": false,
+    "production_systemd_touched": false,
+    "production_writer_authority_touched": false,
+    "provider_calls": {
+      "classifier": 3,
+      "worker": 3
+    },
+    "restart_count": 2,
+    "semantic_replay_suppressed": 1,
+    "tasks": [
+      {
+        "attempt_id": "1c0a3c78dc485b36882dc0bb8f99ca07c9f080ed35017f56f14b9ea56baa084c",
+        "changed_paths": [
+          "docs/operations/r5c27-task-9101.txt"
+        ],
+        "event_id": "sha256:d2e7f97c010e24127769d924f151c9c5de7512497c63477856d0181538c84306",
+        "handoff_digest": "1314e252e083291af81eb69d3d5c22c940aeb93ea5829ee85d6528bc222630c0",
+        "issue_number": 9101,
+        "status": "CLEANED"
+      },
+      {
+        "attempt_id": "0f2d8206e5a9a886aae72b94874c3ad2c20ddf0ce050761126c118b7d9e1fc50",
+        "changed_paths": [
+          "docs/operations/r5c27-task-9102.txt"
+        ],
+        "event_id": "sha256:4b258fe2fa8d116b35ca16cabe748d33da1534aa031e50c9c226159259b0f1b3",
+        "handoff_digest": "54b014cf6f519eda8cc40ce1117308e42ae268f197ce8b174c7eaa4fe58dc961",
+        "issue_number": 9102,
+        "status": "CLEANED"
+      },
+      {
+        "attempt_id": "57640c4d519478a104cdcc0f12c81c8ad03b990d775e26d0877f3c4c71142f1b",
+        "changed_paths": [
+          "docs/operations/r5c27-task-9103.txt"
+        ],
+        "event_id": "sha256:3d099ff31f7f8b9c72924924b348d3592ad79ec98634f69122f988a655624b0f",
+        "handoff_digest": "5e678dc4bd6c15ac80307ee1785f43eb75cba74347f0e93774548ba0d9802b52",
+        "issue_number": 9103,
+        "status": "CLEANED"
+      }
+    ]
+  }
+}

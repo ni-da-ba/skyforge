@@ -1,0 +1,245 @@
+import org.gradle.api.tasks.testing.Test
+
+plugins {
+    application
+}
+
+dependencies {
+    implementation(project(":skyforge-kernel"))
+    implementation(project(":skyforge-model"))
+    implementation(project(":skyforge-recipes"))
+    implementation(project(":skyforge-world"))
+
+    testImplementation(platform("org.junit:junit-bom:5.14.4"))
+    testImplementation("org.junit.jupiter:junit-jupiter")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+application {
+    mainClass.set("io.github.nidaba.skyforge.reference.EvidenceCli")
+    applicationDefaultJvmArgs = listOf("-Dskyforge.version=${project.version}")
+}
+
+tasks.withType<Test>().configureEach {
+    // Reference-corpus tests intentionally materialize build/evidence/** review packages as part of
+    // their assertions. Those files are not standard Test task outputs, so restoring the Test task
+    // FROM-CACHE can suppress the evidence side effects while CI still expects the review entry
+    // points to exist. Execute these tests rather than caching an incomplete task contract.
+    outputs.doNotCacheIf("reference tests materialize review evidence outside standard Test outputs") { true }
+
+    systemProperty("junit.jupiter.execution.parallel.enabled", "true")
+    systemProperty("junit.jupiter.execution.parallel.mode.default", "same_thread")
+    systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
+    systemProperty("junit.jupiter.execution.parallel.config.fixed.parallelism", "2")
+}
+
+tasks.register<JavaExec>("fixedSeedCorpus") {
+    group = "verification"
+    description = "Regenerates and verifies the complete v0.1 fixed-seed evidence corpus."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.FixedSeedCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/fixed-seed-island-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("suspendedVolumeEvidence") {
+    group = "verification"
+    description = "Generates the canonical signal-free suspended-volume evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SuspendedVolumeEvidenceCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/signal-free-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("seededSuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates six-seed SF-IMP-0016 suspended-volume visual evidence."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SeededSuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/seeded-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("secondaryMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates six-seed SF-IMP-0017 structured-morphology visual evidence."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SecondaryMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/secondary-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("morphologyFamilySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the fifteen-member SF-IMP-0018 primary morphology-family review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.MorphologyFamilySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/morphology-family-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("composedMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the fifteen-member SF-IMP-0019 composed morphology-family review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ComposedMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/composed-morphology-family-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("familyAwareMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the fifteen-member SF-IMP-0020 family-aware morphology review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.FamilyAwareMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/family-aware-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("hybridMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the thirty-member SF-IMP-0022 pairwise hybrid progression atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.HybridMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hybrid-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("enrichedHybridMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the thirty-member SF-IMP-0023 enriched hybrid progression atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.EnrichedHybridMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/enriched-hybrid-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("providerMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the sixteen-member SF-IMP-0024 custom-provider and provider-hybrid review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProviderMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/provider-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("enrichedProviderMorphologySuspendedVolumeCorpus") {
+    group = "verification"
+    description = "Generates the sixteen-member SF-IMP-0025 enriched custom-provider review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.EnrichedProviderMorphologySuspendedVolumeCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/enriched-provider-morphology-suspended-volume-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("productionMorphologyVisualReviewCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0083 41-member production morphology visual-quality atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProductionMorphologyVisualReviewCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/production-morphology-visual-review-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("productionMorphologyRegionalReviewCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0084 sparse/chain/cluster/Hub/Arc regional morphology atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.ProductionMorphologyRegionalReviewCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/production-morphology-regional-review-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("multiIslandGroupCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0026 mixed-provider chain and cluster group-scale atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandGroupCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/multi-island-group-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("hierarchicalArchipelagoCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0027 hierarchical Hub and Arc regional-scale atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandArchipelagoCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hierarchical-archipelago-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("terrainSemanticCorpus") {
+    group = "verification"
+    description = "Generates the SF-IMP-0029 backend-neutral terrain-semantic review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.SkyIslandTerrainSemanticCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/terrain-semantics-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("studioBoundHydrologySemanticCorpus") {
+    group = "verification"
+    description = "Generates the Studio S2 exact bound terrain/hydrology semantic review package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.StudioBoundHydrologySemanticCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/studio-bound-hydrology-semantic-v1").get().asFile.absolutePath)
+}
+
+
+tasks.register<JavaExec>("authorshipSurfaceSiteCapabilityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0096 local surface-site capability evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipSurfaceSiteCapabilityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-surface-site-capability-v1").get().asFile.absolutePath)
+}
+
+
+tasks.register<JavaExec>("authorshipDirectionalSurfaceAccessCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0097 directional surface-access evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipDirectionalSurfaceAccessCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-directional-surface-access-v1").get().asFile.absolutePath)
+}
+
+
+tasks.register<JavaExec>("authorshipPetroleumSystemOpportunityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0098 petroleum-system geological-opportunity evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipPetroleumSystemOpportunityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-petroleum-system-opportunity-v1").get().asFile.absolutePath)
+}
+
+
+tasks.register<JavaExec>("authorshipRegionalPetroleumSystemOpportunityCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0100 regional petroleum-system opportunity inventory evidence package."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipRegionalPetroleumSystemOpportunityCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-regional-petroleum-system-opportunity-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("authorshipFluvialLandformCorpus") {
+    group = "verification"
+    description = "Generates the AUTH-0105 dry fluvial-landform and water-overlay review atlas."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipFluvialLandformCorpusCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-fluvial-landforms-v1").get().asFile.absolutePath)
+}
+
+tasks.register<JavaExec>("authorshipFluvialSpecimenSearch") {
+    group = "verification"
+    description = "Searches deterministic AUTH-0105 islands for strong DR-70 hydrology review specimens."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.reference.AuthorshipFluvialSpecimenSearchCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/authorship-fluvial-specimen-search-v1").get().asFile.absolutePath)
+}

@@ -1,0 +1,640 @@
+package io.github.nidaba.skyforge.neoforge1211;
+
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
+import io.github.nidaba.skyforge.world.SkyIslandSurfaceFoundationEvaluator;
+import io.github.nidaba.skyforge.world.SkyIslandSurfaceSupportEvaluator;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainBoxObserver;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainInterpreter;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
+import io.github.nidaba.skyforge.world.SkyIslandTerrainSemantic;
+import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
+import io.github.nidaba.skyforge.world.SurfaceFoundationAssessment;
+import io.github.nidaba.skyforge.world.SurfaceFoundationRequirements;
+import io.github.nidaba.skyforge.world.SurfaceSupportAssessment;
+import io.github.nidaba.skyforge.world.SurfaceSupportRequirements;
+import io.github.nidaba.skyforge.world.TerrainBoxObservation;
+import io.github.nidaba.skyforge.world.TerrainBoxObservationRequirements;
+import io.github.nidaba.skyforge.world.WorldBounds;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.OptionalInt;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import net.minecraft.core.BlockPos;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.ChunkPos;
+
+/**
+ * First concrete Minecraft-facing Skyforge realization seam.
+ *
+ * <p>The adapter queries the accepted world catalog once per chunk interval, evaluates only the
+ * returned independently compiled island volumes, classifies the accepted terrain semantic at
+ * each Minecraft block coordinate, then projects that semantic to a concrete vanilla block key.
+ * It does not rerun composition planning or define backend-only morphology.
+ */
+public final class SkyforgeNeoForge1211ChunkAdapter {
+    private static final int CHUNK_WIDTH = 16;
+    private static final int CHUNK_AREA = CHUNK_WIDTH * CHUNK_WIDTH;
+
+    private final SkyIslandWorldCatalog catalog;
+    private final SkyIslandTerrainProfile terrainProfile;
+    private final SkyforgeMinecraftBlockPalette palette;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter> interpretersByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, WorldBounds> boundsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId;
+    private final Map<SkyIslandWorldVolumeId, Set<Long>> authoredHydrologyPositionsByVolumeId =
+            new ConcurrentHashMap<>();
+
+    public SkyforgeNeoForge1211ChunkAdapter(
+            SkyIslandWorldCatalog catalog,
+            SkyIslandTerrainProfile terrainProfile,
+            SkyforgeMinecraftBlockPalette palette) {
+        this(catalog, terrainProfile, palette, Map.of());
+    }
+
+    public SkyforgeNeoForge1211ChunkAdapter(
+            SkyIslandWorldCatalog catalog,
+            SkyIslandTerrainProfile terrainProfile,
+            SkyforgeMinecraftBlockPalette palette,
+            Map<SkyIslandWorldVolumeId, SkyIslandDescriptor> authoredDescriptorsByVolumeId) {
+        this.catalog = Objects.requireNonNull(catalog, "catalog");
+        this.terrainProfile = Objects.requireNonNull(terrainProfile, "terrainProfile");
+        this.palette = Objects.requireNonNull(palette, "palette");
+        this.authoredDescriptorsByVolumeId = Map.copyOf(
+                Objects.requireNonNull(authoredDescriptorsByVolumeId, "authoredDescriptorsByVolumeId"));
+
+        var cachedInterpreters = new LinkedHashMap<SkyIslandWorldVolumeId, SkyIslandTerrainInterpreter>();
+        var cachedBounds = new LinkedHashMap<SkyIslandWorldVolumeId, WorldBounds>();
+        for (var volume : catalog.volumes()) {
+            SkyIslandTerrainInterpreter previous = cachedInterpreters.put(
+                    volume.id(),
+                    new SkyIslandTerrainInterpreter(volume.compiledVolume(), terrainProfile));
+            WorldBounds previousBounds = cachedBounds.put(volume.id(), volume.bounds());
+            if (previous != null || previousBounds != null) {
+                throw new IllegalArgumentException(
+                        "world catalog contains duplicate exact volume id: " + volume.id().path());
+            }
+        }
+        this.interpretersByVolumeId = Map.copyOf(cachedInterpreters);
+        this.boundsByVolumeId = Map.copyOf(cachedBounds);
+    }
+
+    /** Returns authored provenance when this runtime was explicitly bound to it. */
+    Optional<SkyIslandDescriptor> authoredDescriptor(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(authoredDescriptorsByVolumeId.get(volumeId));
+    }
+
+    /** Returns the exact catalog volume for binding-time authorization validation. */
+    Optional<SkyIslandWorldVolume> worldVolume(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return catalog.volumes().stream()
+                .filter(volume -> volume.id().equals(volumeId))
+                .findFirst();
+    }
+
+    /**
+     * Returns whether one exact runtime position belongs to accepted authored visible hydrology.
+     *
+     * <p>The result is derived only from the immutable authored descriptor and exact physical volume.
+     * Cached positions therefore survive ordinary save/reload without introducing a second fluid
+     * topology or mutable backend policy.
+     */
+    boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
+        Objects.requireNonNull(position, "position");
+        for (var entry : authoredDescriptorsByVolumeId.entrySet()) {
+            SkyIslandWorldVolumeId volumeId = entry.getKey();
+            WorldBounds bounds = boundsByVolumeId.get(volumeId);
+            if (bounds == null || !bounds.contains(position.getX(), position.getY(), position.getZ())) {
+                continue;
+            }
+            Set<Long> positions = authoredHydrologyPositionsByVolumeId.computeIfAbsent(
+                    volumeId,
+                    this::deriveAuthoredHydrologyPositions);
+            if (positions.contains(position.asLong())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Set<Long> deriveAuthoredHydrologyPositions(SkyIslandWorldVolumeId volumeId) {
+        SkyIslandDescriptor descriptor = authoredDescriptorsByVolumeId.get(volumeId);
+        if (descriptor == null) {
+            return Set.of();
+        }
+        SkyIslandWorldVolume volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "authored hydrology references unknown runtime volume " + volumeId.path()));
+        return SkyforgeAuthoredVisibleHydrologyAdapter.plan(descriptor, volume, this).stream()
+                .flatMap(deployment -> deployment.positions().stream())
+                .map(BlockPos::asLong)
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+    }
+
+    /** Returns whether the supplied Minecraft chunk interval intersects any planned Skyforge volume. */
+    boolean hasCandidateVolume(ChunkPos chunkPos, int minimumY, int height) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
+        return !catalog.query(chunkBounds.worldBounds()).isEmpty();
+    }
+
+    /**
+     * Returns only catalog volumes already intersecting this available chunk interval.
+     *
+     * <p>This is intentionally a query over the supplied chunk, not a request for neighboring
+     * chunks. Consumers such as authored visible hydrology can therefore remain exact-volume and
+     * non-forcing while sharing the normal realization lifecycle.
+     */
+    List<SkyIslandWorldVolume> candidateVolumes(net.minecraft.world.level.chunk.ChunkAccess chunk) {
+        Objects.requireNonNull(chunk, "chunk");
+        return catalog.query(new MinecraftChunkBounds(
+                        chunk.getPos(), chunk.getMinBuildHeight(), chunk.getHeight())
+                .worldBounds());
+    }
+
+    /** Materializes one Minecraft chunk's composite Skyforge contribution for the supplied span. */
+    public MinecraftChunkMaterialization materialize(ChunkPos chunkPos, int minimumY, int height) {
+        MinecraftChunkBounds chunkBounds = new MinecraftChunkBounds(chunkPos, minimumY, height);
+        var candidates = catalog.query(chunkBounds.worldBounds());
+        List<SkyIslandTerrainInterpreter> interpreters = candidates.stream()
+                .map(candidate -> requireInterpreter(candidate.id()))
+                .toList();
+        return materialize(chunkPos, minimumY, height, interpreters, candidates.size());
+    }
+
+    /**
+     * Deterministically rematerializes one exact independently compiled volume in one chunk.
+     *
+     * <p>This is the deferred-realization seam used after whole-volume physical admission. It never
+     * consults another Skyforge volume and therefore allows a pending catch-up key to contain only
+     * {@code (volumeId, chunkPos)} rather than retaining mutable generation-region state.
+     *
+     * <p>The exact-volume path starts from the already-authoritative discrete column support bridge.
+     * Positions outside that support are proven AIR and therefore do not require 3-D density/material
+     * classification. Every Y inside the exact support range is still classified normally, preserving
+     * authoritative material roles and any internal AIR exactly.
+     */
+    public MinecraftChunkMaterialization materialize(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+
+        int voxelCount = Math.multiplyExact(CHUNK_AREA, height);
+        ResourceLocation[] blockKeys = new ResourceLocation[voxelCount];
+        Arrays.fill(blockKeys, SkyforgeMinecraftBlockPalette.AIR);
+        ExactColumnAdvance advance = materializeExactColumns(
+                volumeId,
+                chunkPos,
+                minimumY,
+                height,
+                0,
+                CHUNK_AREA,
+                blockKeys);
+        if (!advance.complete()) {
+            throw new IllegalStateException("whole exact-volume materialization did not cover every chunk column");
+        }
+        recordExactMaterializationAccounting(advance.classifiedVoxels(), advance.provenAirSkippedVoxels(), voxelCount);
+
+        return new MinecraftChunkMaterialization(
+                chunkPos,
+                minimumY,
+                height,
+                blockKeys,
+                1);
+    }
+
+    /**
+     * Advances an exact-volume projection through a bounded contiguous run of chunk columns.
+     *
+     * <p>Columns are addressed in the historical local-Z -> local-X order. The caller owns the
+     * pre-sized, AIR-initialized destination buffer and may resume with the returned next column on a
+     * later server-thread quantum. This method is pure with respect to mutable Minecraft world state.
+     */
+    ExactColumnAdvance materializeExactColumns(
+            SkyIslandWorldVolumeId volumeId,
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            int firstColumn,
+            int maximumColumns,
+            ResourceLocation[] blockKeys) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(blockKeys, "blockKeys");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        if (firstColumn < 0 || firstColumn >= CHUNK_AREA) {
+            throw new IllegalArgumentException("firstColumn must address an unfinished chunk column");
+        }
+        if (maximumColumns <= 0) {
+            throw new IllegalArgumentException("maximumColumns must be positive");
+        }
+        int voxelCount = Math.multiplyExact(CHUNK_AREA, height);
+        if (blockKeys.length != voxelCount) {
+            throw new IllegalArgumentException("exact-volume destination size does not match requested chunk interval");
+        }
+
+        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
+        int minimumX = chunkPos.getMinBlockX();
+        int minimumZ = chunkPos.getMinBlockZ();
+        int maximumYExclusive = Math.addExact(minimumY, height);
+        int preparedColumns = Math.min(maximumColumns, CHUNK_AREA - firstColumn);
+        int maximumColumnExclusive = Math.addExact(firstColumn, preparedColumns);
+        long classifiedVoxels = 0L;
+        long provenAirSkippedVoxels = 0L;
+
+        for (int columnIndex = firstColumn; columnIndex < maximumColumnExclusive; columnIndex++) {
+            int localZ = columnIndex / CHUNK_WIDTH;
+            int localX = columnIndex % CHUNK_WIDTH;
+            int worldZ = Math.addExact(minimumZ, localZ);
+            int worldX = Math.addExact(minimumX, localX);
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                    SkyforgeExactVoxelSupportBounds.integerSolidRange(interpreter, worldX, worldZ);
+            if (range.isEmpty()) {
+                provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                continue;
+            }
+
+            var solidRange = range.orElseThrow();
+            int classifiedMinimumY = Math.max(minimumY, solidRange.minimumY());
+            int classifiedMaximumYExclusive = (int) Math.min(
+                    (long) maximumYExclusive,
+                    Math.addExact((long) solidRange.maximumY(), 1L));
+            if (classifiedMaximumYExclusive <= classifiedMinimumY) {
+                provenAirSkippedVoxels = Math.addExact(provenAirSkippedVoxels, height);
+                continue;
+            }
+
+            int classifiedCount = classifiedMaximumYExclusive - classifiedMinimumY;
+            classifiedVoxels = Math.addExact(classifiedVoxels, classifiedCount);
+            provenAirSkippedVoxels = Math.addExact(
+                    provenAirSkippedVoxels,
+                    height - classifiedCount);
+
+            SkyIslandTerrainInterpreter.ColumnInterpreter column = interpreter.column(worldX, worldZ);
+            for (int worldY = classifiedMinimumY; worldY < classifiedMaximumYExclusive; worldY++) {
+                SkyIslandTerrainSemantic semantic = column.classify(worldY);
+                ResourceLocation blockKey = palette.blockKey(semantic);
+                if (!palette.preservesOccupancy(semantic, blockKey)) {
+                    throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
+                }
+                int localY = worldY - minimumY;
+                blockKeys[linearIndex(localX, localY, localZ)] = blockKey;
+            }
+        }
+
+        return new ExactColumnAdvance(
+                firstColumn,
+                preparedColumns,
+                classifiedVoxels,
+                provenAirSkippedVoxels,
+                maximumColumnExclusive == CHUNK_AREA);
+    }
+
+    private static void recordExactMaterializationAccounting(
+            long classifiedVoxels,
+            long provenAirSkippedVoxels,
+            int voxelCount) {
+        if (Math.addExact(classifiedVoxels, provenAirSkippedVoxels) != voxelCount) {
+            throw new IllegalStateException(
+                    "exact-volume materialization accounting does not cover the requested chunk interval");
+        }
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.classifiedVoxels",
+                classifiedVoxels);
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.exactMaterialization.provenAirSkippedVoxels",
+                provenAirSkippedVoxels);
+    }
+
+    record ExactColumnAdvance(
+            int firstColumn,
+            int preparedColumns,
+            long classifiedVoxels,
+            long provenAirSkippedVoxels,
+            boolean complete) {
+        ExactColumnAdvance {
+            if (firstColumn < 0 || firstColumn >= CHUNK_AREA) {
+                throw new IllegalArgumentException("firstColumn must address a chunk column");
+            }
+            if (preparedColumns <= 0 || firstColumn + preparedColumns > CHUNK_AREA) {
+                throw new IllegalArgumentException("preparedColumns exceed the chunk column interval");
+            }
+            if (classifiedVoxels < 0L || provenAirSkippedVoxels < 0L) {
+                throw new IllegalArgumentException("exact materialization accounting must be nonnegative");
+            }
+            if (complete != (firstColumn + preparedColumns == CHUNK_AREA)) {
+                throw new IllegalArgumentException("exact column completion disagrees with cursor extent");
+            }
+        }
+
+        int nextColumn() {
+            return firstColumn + preparedColumns;
+        }
+    }
+
+    private MinecraftChunkMaterialization materialize(
+            ChunkPos chunkPos,
+            int minimumY,
+            int height,
+            List<SkyIslandTerrainInterpreter> interpreters,
+            int candidateVolumeReferences) {
+        Objects.requireNonNull(chunkPos, "chunkPos");
+        Objects.requireNonNull(interpreters, "interpreters");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+
+        ResourceLocation[] blockKeys = new ResourceLocation[Math.multiplyExact(
+                Math.multiplyExact(CHUNK_WIDTH, CHUNK_WIDTH), height)];
+        int minimumX = chunkPos.getMinBlockX();
+        int minimumZ = chunkPos.getMinBlockZ();
+
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = Math.addExact(minimumZ, localZ);
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = Math.addExact(minimumX, localX);
+                SkyIslandTerrainInterpreter.ColumnInterpreter[] columns =
+                        new SkyIslandTerrainInterpreter.ColumnInterpreter[interpreters.size()];
+                for (int index = 0; index < interpreters.size(); index++) {
+                    columns[index] = interpreters.get(index).column(worldX, worldZ);
+                }
+
+                for (int localY = 0; localY < height; localY++) {
+                    int worldY = Math.addExact(minimumY, localY);
+                    SkyIslandTerrainSemantic semantic = classify(columns, worldY);
+                    ResourceLocation blockKey = palette.blockKey(semantic);
+                    if (!palette.preservesOccupancy(semantic, blockKey)) {
+                        throw new IllegalStateException("Minecraft palette changed authoritative Skyforge occupancy");
+                    }
+                    blockKeys[linearIndex(localX, localY, localZ)] = blockKey;
+                }
+            }
+        }
+
+        return new MinecraftChunkMaterialization(
+                chunkPos,
+                minimumY,
+                height,
+                blockKeys,
+                candidateVolumeReferences);
+    }
+
+    /**
+     * Returns the highest exact Skyforge-owned solid surface at one world X/Z column.
+     *
+     * <p>This is a read-only runtime query over the already-compiled catalog. It does not
+     * materialize a chunk, inspect live chunk state, or acquire generation tickets. Vertically
+     * stacked volumes remain independent while the atmosphere receives only the uppermost exposed
+     * boundary. An exact top-height tie between different volumes fails closed as ambiguous.
+     */
+    Optional<AtmosphereTopSurface> atmosphereTopSurface(
+            int worldX,
+            int worldZ,
+            Predicate<SkyIslandWorldVolumeId> allowedOwner) {
+        Objects.requireNonNull(allowedOwner, "allowedOwner");
+        AtmosphereTopSurface best = null;
+        for (SkyIslandWorldVolume volume : catalog.volumes()) {
+            if (!allowedOwner.test(volume.id())) {
+                continue;
+            }
+            WorldBounds bounds = boundsByVolumeId.get(volume.id());
+            if (bounds == null
+                    || worldX < bounds.minimumX()
+                    || worldX > bounds.maximumX()
+                    || worldZ < bounds.minimumZ()
+                    || worldZ > bounds.maximumZ()) {
+                continue;
+            }
+            Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> range =
+                    SkyforgeExactVoxelSupportBounds.integerSolidRange(
+                            requireInterpreter(volume.id()), worldX, worldZ);
+            if (range.isEmpty()) {
+                continue;
+            }
+            int firstFreeY = Math.addExact(range.orElseThrow().maximumY(), 1);
+            if (best == null || firstFreeY > best.firstFreeY()) {
+                best = new AtmosphereTopSurface(firstFreeY, volume.id());
+                continue;
+            }
+            if (firstFreeY == best.firstFreeY() && !volume.id().equals(best.volumeId())) {
+                return Optional.empty();
+            }
+        }
+        return Optional.ofNullable(best);
+    }
+
+    record AtmosphereTopSurface(int firstFreeY, SkyIslandWorldVolumeId volumeId) {
+        AtmosphereTopSurface {
+            Objects.requireNonNull(volumeId, "volumeId");
+        }
+    }
+
+    /** Returns the backend-neutral bounds of one exact compiled world volume. */
+    Optional<WorldBounds> volumeBounds(SkyIslandWorldVolumeId volumeId) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return Optional.ofNullable(boundsByVolumeId.get(volumeId));
+    }
+
+    /**
+     * Returns the exact discrete solid Y interval for one compiled island column.
+     *
+     * <p>This reuses the same accepted discrete-support bridge that derives tight Minecraft voxel
+     * bounds. The returned interval is authoritative for physical occupancy and avoids repeatedly
+     * re-evaluating full terrain semantics at every Y in a known continuous solid column.
+     */
+    Optional<SkyforgeExactVoxelSupportBounds.ColumnRange> integerSolidRange(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return SkyforgeExactVoxelSupportBounds.integerSolidRange(
+                requireInterpreter(volumeId),
+                worldX,
+                worldZ);
+    }
+
+    /**
+     * Returns the independently compiled island volumes that actually own a solid Skyforge sample.
+     *
+     * <p>This is a provenance query for the Minecraft adapter only. It does not merge vertically
+     * stacked islands and therefore preserves the world catalog's independent-volume semantics.
+     */
+    List<SkyIslandWorldVolumeId> claimingVolumeIds(int worldX, int worldY, int worldZ) {
+        WorldBounds pointBounds = pointBounds(worldX, worldY, worldZ);
+        return catalog.query(pointBounds).stream()
+                .filter(candidate -> requireInterpreter(candidate.id())
+                        .classify(worldX, worldY, worldZ)
+                        .isSolid())
+                .map(candidate -> candidate.id())
+                .toList();
+    }
+
+    /** Returns whether one exact compiled island owns a solid sample at the supplied coordinate. */
+    boolean isSolidOwnedBy(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
+        return interpreter != null
+                && interpreter.classify(worldX, worldY, worldZ).isSolid();
+    }
+
+    /** Returns whether any different exact compiled volume owns this solid sample. */
+    boolean isSolidOwnedByOtherVolume(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldY,
+            int worldZ) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (interpretersByVolumeId.size() <= 1) {
+            return false;
+        }
+        return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
+                .filter(candidate -> !candidate.id().equals(volumeId))
+                .anyMatch(candidate -> requireInterpreter(candidate.id())
+                        .classify(worldX, worldY, worldZ)
+                        .isSolid());
+    }
+
+    /**
+     * Returns the first-free Minecraft Y for one exact island volume in the requested build span.
+     *
+     * <p>This intentionally ignores vanilla terrain and every other Skyforge volume. A missing solid
+     * column yields an empty result rather than falling through to another terrain owner.
+     */
+    OptionalInt firstFreeHeight(
+            SkyIslandWorldVolumeId volumeId,
+            int worldX,
+            int worldZ,
+            int minimumY,
+            int height) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        if (height <= 0) {
+            throw new IllegalArgumentException("height must be positive");
+        }
+        SkyIslandTerrainInterpreter interpreter = requireInterpreter(volumeId);
+        WorldBounds volumeBounds = requireBounds(volumeId);
+
+        int requestedMaximumYExclusive = Math.addExact(minimumY, height);
+        int boundedMinimumY = Math.max(minimumY, floorToInt(volumeBounds.minimumY()));
+        long volumeMaximumYExclusive = Math.addExact((long) floorToInt(volumeBounds.maximumY()), 1L);
+        int boundedMaximumYExclusive = (int) Math.min(
+                (long) requestedMaximumYExclusive,
+                volumeMaximumYExclusive);
+        if (boundedMaximumYExclusive <= boundedMinimumY) {
+            return OptionalInt.empty();
+        }
+
+        SkyforgeRuntimePerformanceMetrics.recordSample(
+                "terrain.firstFreeHeightVerticalSamples",
+                boundedMaximumYExclusive - boundedMinimumY);
+        for (int worldY = boundedMaximumYExclusive - 1; worldY >= boundedMinimumY; worldY--) {
+            if (interpreter.classify(worldX, worldY, worldZ).isSolid()) {
+                return OptionalInt.of(worldY + 1);
+            }
+        }
+        return OptionalInt.empty();
+    }
+
+    private WorldBounds requireBounds(SkyIslandWorldVolumeId volumeId) {
+        WorldBounds bounds = boundsByVolumeId.get(volumeId);
+        if (bounds == null) {
+            throw new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path());
+        }
+        return bounds;
+    }
+
+    private static int floorToInt(double value) {
+        double floored = Math.floor(value);
+        if (floored < Integer.MIN_VALUE || floored > Integer.MAX_VALUE) {
+            throw new IllegalArgumentException("world bound exceeds Minecraft integer coordinates: " + value);
+        }
+        return (int) floored;
+    }
+
+    private SkyIslandTerrainInterpreter requireInterpreter(SkyIslandWorldVolumeId volumeId) {
+        SkyIslandTerrainInterpreter interpreter = interpretersByVolumeId.get(volumeId);
+        if (interpreter == null) {
+            throw new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path());
+        }
+        return interpreter;
+    }
+
+    /** Delegates structure-sized support assessment to the accepted backend-neutral evaluator. */
+    List<SurfaceSupportAssessment> assessSurfaceSupport(SurfaceSupportRequirements requirements) {
+        return new SkyIslandSurfaceSupportEvaluator().assess(catalog, requirements);
+    }
+
+    /** Delegates bounded fill-only accommodation assessment to the backend-neutral evaluator. */
+    List<SurfaceFoundationAssessment> assessSurfaceFoundation(SurfaceFoundationRequirements requirements) {
+        return new SkyIslandSurfaceFoundationEvaluator().assess(catalog, requirements);
+    }
+
+    /**
+     * Observes one finite 3-D box against one exact compiled Skyforge volume without deriving policy.
+     *
+     * <p>The exact identity lookup intentionally does not spatially prefilter the requested box: a
+     * future caller may need evidence that native geometry lies wholly above or below the admitted
+     * volume's own surface envelope.
+     */
+    TerrainBoxObservation observeTerrainBox(
+            SkyIslandWorldVolumeId volumeId,
+            TerrainBoxObservationRequirements requirements) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        Objects.requireNonNull(requirements, "requirements");
+        var volume = catalog.volumes().stream()
+                .filter(candidate -> candidate.id().equals(volumeId))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("unknown Skyforge world volume: " + volumeId.path()));
+        return new SkyIslandTerrainBoxObserver().observe(volume, terrainProfile, requirements);
+    }
+
+    private static WorldBounds pointBounds(int worldX, int worldY, int worldZ) {
+        return new WorldBounds(
+                worldX,
+                worldX,
+                worldY,
+                worldY,
+                worldZ,
+                worldZ);
+    }
+
+    private static SkyIslandTerrainSemantic classify(
+            SkyIslandTerrainInterpreter.ColumnInterpreter[] columns,
+            double y) {
+        for (SkyIslandTerrainInterpreter.ColumnInterpreter column : columns) {
+            SkyIslandTerrainSemantic semantic = column.classify(y);
+            if (semantic.isSolid()) {
+                return semantic;
+            }
+        }
+        return SkyIslandTerrainSemantic.AIR;
+    }
+
+    private static int linearIndex(int localX, int localY, int localZ) {
+        return localX + CHUNK_WIDTH * (localZ + CHUNK_WIDTH * localY);
+    }
+}

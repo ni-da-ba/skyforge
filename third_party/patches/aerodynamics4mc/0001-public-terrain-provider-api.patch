@@ -1,0 +1,219 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Skyforge R&D <skyforge-rd@example.invalid>
+Date: Fri, 25 Sep 2026 22:00:00 -0500
+Subject: [PATCH] API: expose deterministic coarse-terrain provider seam
+
+---
+ .../aerodynamics4mc/api/AeroTerrainApi.java        | 67 ++++++++++++++++++++++
+ .../aerodynamics4mc/api/AeroTerrainProvider.java   |  8 +++
+ .../aerodynamics4mc/api/AeroTerrainSample.java     | 37 ++++++++++++
+ .../api/AeroTerrainSurfaceClass.java               | 10 ++++
+ .../runtime/WorldgenSeedTerrainProvider.java       | 35 +++++++++++
+ 5 files changed, 157 insertions(+)
+
+diff --git a/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainApi.java b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainApi.java
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainApi.java
+@@ -0,0 +1,70 @@
++package com.aerodynamics4mc.api;
++
++import java.util.Map;
++import java.util.Objects;
++import java.util.concurrent.ConcurrentSkipListMap;
++
++/**
++ * Optional platform-neutral terrain input for the server-authoritative L0/L1 atmosphere.
++ *
++ * <p>Providers should claim only columns whose terrain authority they own. Unclaimed columns
++ * continue through Aerodynamics4MC's normal worldgen terrain provider. Overlapping claims are
++ * rejected rather than resolved by registration order.
++ */
++public final class AeroTerrainApi {
++    private static final ConcurrentSkipListMap<String, Registration> PROVIDERS =
++            new ConcurrentSkipListMap<>();
++
++    private AeroTerrainApi() {
++    }
++
++    /**
++     * Registers one terrain authority under a stable integration identifier.
++     *
++     * @return a handle that removes exactly this registration when closed
++     */
++    public static AutoCloseable registerProvider(A4mcId providerId, AeroTerrainProvider provider) {
++        Objects.requireNonNull(providerId, "providerId");
++        Objects.requireNonNull(provider, "provider");
++        String key = providerId.toString();
++        Registration registration = new Registration(providerId, provider);
++        Registration previous = PROVIDERS.putIfAbsent(key, registration);
++        if (previous != null) {
++            throw new IllegalStateException("terrain provider already registered: " + providerId);
++        }
++        return () -> PROVIDERS.remove(key, registration);
++    }
++
++    /**
++     * Returns the unique claimed terrain sample, or {@link AeroTerrainSample#UNAVAILABLE}.
++     *
++     * <p>Provider exceptions are intentionally not swallowed. A broken terrain authority must not
++     * silently turn into different weather.
++     */
++    public static AeroTerrainSample sample(A4mcWorldRef world, int blockX, int blockZ) {
++        Objects.requireNonNull(world, "world");
++        AeroTerrainSample claimed = AeroTerrainSample.UNAVAILABLE;
++        A4mcId claimedBy = null;
++        for (Map.Entry<String, Registration> entry : PROVIDERS.entrySet()) {
++            Registration registration = entry.getValue();
++            AeroTerrainSample candidate = Objects.requireNonNull(
++                    registration.provider().sample(world, blockX, blockZ),
++                    () -> "terrain provider returned null: " + registration.providerId());
++            if (!candidate.available()) {
++                continue;
++            }
++            if (claimed.available()) {
++                throw new IllegalStateException(
++                        "multiple terrain providers claimed column "
++                                + blockX + "," + blockZ
++                                + ": " + claimedBy + " and " + registration.providerId());
++            }
++            claimed = candidate;
++            claimedBy = registration.providerId();
++        }
++        return claimed;
++    }
++
++    private record Registration(A4mcId providerId, AeroTerrainProvider provider) {
++    }
++}
+diff --git a/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainProvider.java b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainProvider.java
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainProvider.java
+@@ -0,0 +1,7 @@
++package com.aerodynamics4mc.api;
++
++/** Supplies authoritative coarse terrain only for columns owned by an integration. */
++@FunctionalInterface
++public interface AeroTerrainProvider {
++    AeroTerrainSample sample(A4mcWorldRef world, int blockX, int blockZ);
++}
+diff --git a/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSample.java b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSample.java
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSample.java
+@@ -0,0 +1,40 @@
++package com.aerodynamics4mc.api;
++
++import java.util.Objects;
++
++/** Platform-neutral terrain forcing consumed by Aerodynamics4MC's coarse atmosphere. */
++public record AeroTerrainSample(
++        boolean available,
++        float terrainHeightBlocks,
++        float biomeTemperature,
++        float roughnessLengthMeters,
++        AeroTerrainSurfaceClass surfaceClass) {
++    public static final AeroTerrainSample UNAVAILABLE =
++            new AeroTerrainSample(false, 0.0f, 0.0f, 0.0f, AeroTerrainSurfaceClass.UNKNOWN);
++
++    public AeroTerrainSample {
++        Objects.requireNonNull(surfaceClass, "surfaceClass");
++        if (available) {
++            if (!Float.isFinite(terrainHeightBlocks)
++                    || !Float.isFinite(biomeTemperature)
++                    || !Float.isFinite(roughnessLengthMeters)) {
++                throw new IllegalArgumentException("available terrain samples must be finite");
++            }
++            if (roughnessLengthMeters < 0.0f) {
++                throw new IllegalArgumentException("roughnessLengthMeters must be non-negative");
++            }
++            if (surfaceClass == AeroTerrainSurfaceClass.UNKNOWN) {
++                throw new IllegalArgumentException("available terrain samples require a surface class");
++            }
++        }
++    }
++
++    public static AeroTerrainSample available(
++            float terrainHeightBlocks,
++            float biomeTemperature,
++            float roughnessLengthMeters,
++            AeroTerrainSurfaceClass surfaceClass) {
++        return new AeroTerrainSample(
++                true, terrainHeightBlocks, biomeTemperature, roughnessLengthMeters, surfaceClass);
++    }
++}
+diff --git a/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSurfaceClass.java b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSurfaceClass.java
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/api/src/main/java/com/aerodynamics4mc/api/AeroTerrainSurfaceClass.java
+@@ -0,0 +1,11 @@
++package com.aerodynamics4mc.api;
++
++/** Stable coarse surface classes used by L0/L1 roughness and thermal forcing. */
++public enum AeroTerrainSurfaceClass {
++    UNKNOWN,
++    WATER,
++    PLAINS,
++    FOREST,
++    ROCK,
++    SNOW
++}
+diff --git a/src/main/java/com/aerodynamics4mc/runtime/WorldgenSeedTerrainProvider.java b/src/main/java/com/aerodynamics4mc/runtime/WorldgenSeedTerrainProvider.java
+index b2110fe..5555555 100644
+--- a/src/main/java/com/aerodynamics4mc/runtime/WorldgenSeedTerrainProvider.java
++++ b/src/main/java/com/aerodynamics4mc/runtime/WorldgenSeedTerrainProvider.java
+@@ -1,5 +1,9 @@
+ package com.aerodynamics4mc.runtime;
+ 
++import com.aerodynamics4mc.api.A4mcId;
++import com.aerodynamics4mc.api.A4mcWorldRef;
++import com.aerodynamics4mc.api.AeroTerrainApi;
++import com.aerodynamics4mc.api.AeroTerrainSample;
+ import net.minecraft.core.Holder;
+ import net.minecraft.server.level.ServerChunkCache;
+ import net.minecraft.server.level.ServerLevel;
+@@ -17,6 +21,20 @@ final class WorldgenSeedTerrainProvider implements SeedTerrainProvider {
+ 
+     @Override
+     public TerrainSample sample(ServerLevel world, int blockX, int blockZ) {
++        var dimensionId = world.dimension().identifier();
++        AeroTerrainSample integrationSample = AeroTerrainApi.sample(
++                A4mcWorldRef.server(
++                        A4mcId.of(dimensionId.getNamespace(), dimensionId.getPath()),
++                        world),
++                blockX,
++                blockZ);
++        if (integrationSample.available()) {
++            return new TerrainSample(
++                    integrationSample.terrainHeightBlocks(),
++                    integrationSample.biomeTemperature(),
++                    integrationSample.roughnessLengthMeters(),
++                    surfaceClass(integrationSample));
++        }
+         try {
+             ServerChunkCache chunkManager = world.getChunkSource();
+             ChunkGenerator generator = chunkManager.getGenerator();
+@@ -66,4 +84,16 @@ final class WorldgenSeedTerrainProvider implements SeedTerrainProvider {
+             return fallback.sample(world, blockX, blockZ);
+         }
+     }
++
++    private static byte surfaceClass(AeroTerrainSample sample) {
++        return switch (sample.surfaceClass()) {
++            case WATER -> HashedSeedTerrainProvider.SURFACE_CLASS_WATER;
++            case PLAINS -> HashedSeedTerrainProvider.SURFACE_CLASS_PLAINS;
++            case FOREST -> HashedSeedTerrainProvider.SURFACE_CLASS_FOREST;
++            case ROCK -> HashedSeedTerrainProvider.SURFACE_CLASS_ROCK;
++            case SNOW -> HashedSeedTerrainProvider.SURFACE_CLASS_SNOW;
++            case UNKNOWN -> throw new IllegalArgumentException(
++                    "available terrain integration sample has UNKNOWN surface class");
++        };
++    }
+ }
+-- 
+2.45.2

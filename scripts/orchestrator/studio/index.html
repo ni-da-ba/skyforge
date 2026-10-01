@@ -1,0 +1,594 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Skyforge Studio</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="scene.js" defer></script>
+  <script src="sample-data.js" defer></script>
+  <script src="trace-viewer.js" defer></script>
+  <script src="comparison-report.js" defer></script>
+  <script src="comparison-report-reader.js" defer></script>
+  <script src="regional-inventory.js" defer></script>
+  <script src="regional-comparison-library.js" defer></script>
+  <script src="regional-comparison.js" defer></script>
+  <script src="workspace-package.js" defer></script>
+  <script src="workspace-session.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>Skyforge Studio</h1>
+      <p>Create local world briefs. Inspect semantic artifacts.</p>
+    </div>
+    <div class="top-actions">
+      <a id="console-link" class="secondary-link" href="/console" hidden>Operations Console</a>
+      <div id="connection" class="pill muted">Disconnected</div>
+    </div>
+  </header>
+
+  <main>
+    <section id="auth-panel" class="panel auth-panel">
+      <div>
+        <h2>Studio access</h2>
+        <p>World briefs and local JSON diagnostics work without connecting. Connect to browse registered artifacts.</p>
+      </div>
+      <form id="auth-form">
+        <label for="api-token">Development API token</label>
+        <div class="auth-row">
+          <input id="api-token" type="password" autocomplete="off" spellcheck="false" required>
+          <button type="submit">Connect</button>
+          <button id="forget-token" type="button" class="secondary">Forget</button>
+        </div>
+      </form>
+      <p id="auth-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <nav class="workspace-nav" aria-label="Studio workspace">
+      <button type="button" class="workspace-tab" data-workspace-view="inspect" aria-controls="studio-content" aria-pressed="true">Inspect semantics</button>
+      <button type="button" class="workspace-tab" data-workspace-view="brief" aria-controls="world-brief-view" aria-pressed="false">Create a world brief</button>
+      <button type="button" class="workspace-tab" data-workspace-view="regional" aria-controls="studio-regional-view" aria-pressed="false">Regional geology</button>
+      <button type="button" class="workspace-tab" data-workspace-view="regional-comparison" aria-controls="regional-comparison-view" aria-pressed="false">Compare geology</button>
+    </nav>
+
+    <section id="world-brief-view" class="world-brief-view" aria-labelledby="world-brief-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">WORLD INTENT · LOCAL DRAFT</p>
+          <h2 id="world-brief-heading">Start with the world you imagine</h2>
+          <p class="muted">Describe it in your own words. Studio keeps drafts in this browser while generation services are being connected.</p>
+        </div>
+        <span class="pill warn">Not evaluated</span>
+      </div>
+
+      <div class="brief-layout">
+        <form id="world-brief-form" class="panel brief-editor">
+          <div class="section-heading">
+            <h3>Your world brief</h3>
+            <span id="world-brief-state" class="pill warn">Local draft</span>
+          </div>
+          <label for="world-brief-library">Your saved briefs</label>
+          <div class="row">
+            <select id="world-brief-library" aria-label="Choose a saved world brief"></select>
+            <button id="world-brief-new" type="button" class="secondary">New brief</button>
+          </div>
+
+          <label for="world-brief-title">World name</label>
+          <input id="world-brief-title" name="title" maxlength="120" value="Untitled world" autocomplete="off" required>
+
+          <label for="world-brief-intent">Describe the world you want</label>
+          <textarea id="world-brief-intent" name="intent" maxlength="8000" rows="12" placeholder="For example: a chain of wind-carved islands above a deep cloud sea, with cold high ridges and sheltered green valleys."></textarea>
+          <p class="small muted">Use any words that matter to you. This is a starting brief, not a fixed world schema.</p>
+
+          <div class="brief-actions">
+            <button type="submit">Save draft now</button>
+            <button id="world-brief-download" type="button" class="secondary">Download this brief</button>
+            <button id="world-brief-library-download" type="button" class="secondary">Back up all saved briefs</button>
+            <button id="world-brief-import-button" type="button" class="secondary">Import a brief or backup</button>
+            <button id="world-brief-delete" type="button" class="secondary" disabled>Delete saved brief</button>
+            <input id="world-brief-import-file" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p class="small muted">“Download this brief” saves the open draft. “Back up all saved briefs” makes one portable copy of your library.</p>
+          <p id="world-brief-status" class="small muted" aria-live="polite"></p>
+          <p id="world-brief-count" class="small muted"></p>
+        </form>
+
+        <aside class="panel backend-status" aria-labelledby="generation-status-heading">
+          <p class="eyebrow">BACKEND CONNECTION</p>
+          <div class="section-heading">
+            <h3 id="generation-status-heading">World generation</h3>
+            <span class="pill warn">Not connected</span>
+          </div>
+          <p class="muted">This Studio preview has no generator connected. Your brief stays in this browser; it is not sent to a service, evaluated, or turned into a world.</p>
+          <button type="button" class="full-button" disabled aria-describedby="generation-disabled-reason">Generate world</button>
+          <p id="generation-disabled-reason" class="small muted">Generation will be enabled when a semantic evaluator and a realization backend are connected.</p>
+          <div class="backend-next">
+            <h4>What comes next</h4>
+            <ol>
+              <li>Connect a world-semantics evaluator.</li>
+              <li>Review its exact semantic artifacts in the inspection workspace.</li>
+              <li>Choose an available realization backend when one is ready.</li>
+            </ol>
+          </div>
+          <p class="small muted">Local briefs are Studio workspace documents, not semantic artifacts or human-review evidence.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="studio-regional-view" class="regional-view" aria-labelledby="regional-inventory-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">AUTH-0094 · REGIONAL GEOLOGICAL EVIDENCE</p>
+          <h2 id="regional-inventory-heading">Inspect a regional inventory</h2>
+          <p class="muted">Open the included Actions-generated AUTH-0094 specimen, or load your own inventory.csv and ranking.csv.</p>
+        </div>
+        <span class="pill warn">Local diagnostic</span>
+      </div>
+
+      <section class="panel regional-import-panel" aria-labelledby="regional-import-heading">
+        <div class="section-heading">
+          <div>
+            <h3 id="regional-import-heading">Load evidence files</h3>
+            <p class="small muted">Files stay in this browser session. Studio reads their recorded values and does not profile the geology.</p>
+          </div>
+        </div>
+        <div class="regional-import-actions">
+          <button id="regional-inventory-open-sample" type="button">Open included evidence</button>
+          <button id="regional-inventory-import" type="button">Open inventory.csv</button>
+          <button id="regional-ranking-import" type="button" class="secondary">Add ranking.csv</button>
+          <button id="regional-inventory-clear" type="button" class="secondary">Clear files</button>
+          <input id="regional-inventory-file" type="file" accept=".csv,text/csv" hidden>
+          <input id="regional-ranking-file" type="file" accept=".csv,text/csv" hidden>
+        </div>
+        <p id="regional-inventory-status" class="small muted" aria-live="polite">Choose inventory.csv to begin.</p>
+        <div class="authority-warning">
+          <strong>Unbound diagnostic data — not review authority</strong>
+          <span>A local CSV does not prove artifact registration or verify its source. Geological opportunity is not a deposit, reserve, site selection, accessibility, or a resource guarantee.</span>
+        </div>
+      </section>
+
+      <section id="regional-inventory-output" class="panel regional-results" aria-labelledby="regional-summary-heading" hidden>
+        <div class="section-heading">
+          <div>
+            <h3 id="regional-summary-heading">Inventory summary</h3>
+            <p class="small muted">Source file: <span id="regional-inventory-source">—</span></p>
+          </div>
+          <span class="pill warn">Source values</span>
+        </div>
+        <div id="regional-inventory-summary" class="regional-summary"></div>
+        <h3>Association entries</h3>
+        <div class="regional-table-wrap">
+          <table id="regional-inventory-table" class="regional-table"></table>
+        </div>
+        <section id="regional-ranking-panel" class="regional-ranking-panel" hidden aria-labelledby="regional-ranking-heading">
+          <div class="section-heading">
+            <div>
+              <h3 id="regional-ranking-heading">Source-provided ranking</h3>
+              <p class="small muted">Source file: <span id="regional-ranking-source">—</span></p>
+            </div>
+          </div>
+          <div class="regional-table-wrap">
+            <table id="regional-ranking-table" class="regional-table"></table>
+          </div>
+        </section>
+      </section>
+      <p id="regional-inventory-empty" class="panel muted">Load an AUTH-0094 inventory file to inspect exact association-level geological opportunity.</p>
+    </section>
+
+    <section id="studio-content">
+      <section class="panel source-panel">
+        <div class="section-heading">
+          <div>
+            <h2>Backend-neutral semantic inspection</h2>
+            <p class="muted small">Registered artifacts retain exact review provenance. Local imports are diagnostic only.</p>
+          </div>
+          <span id="binding-pill" class="pill warn">No specimen</span>
+        </div>
+
+        <div id="bundled-sample-callout" class="bundled-sample-callout" hidden>
+          <div>
+            <strong>Start with the included S2 specimen</strong>
+            <p class="small muted">Open the terrain and its authored hydrology together. This local view stays unbound.</p>
+            <p class="small muted">The comparison walkthrough uses the included specimen as both sides, so values match and deltas are zero.</p>
+          </div>
+          <div class="bundled-sample-actions">
+            <button id="open-bundled-sample" type="button">Open included S2 specimen</button>
+            <button id="preview-bundled-comparison" type="button" class="secondary">Try comparison inspector</button>
+          </div>
+        </div>
+        <div class="source-grid">
+          <div id="registered-artifact-source" hidden>
+            <label for="artifact-select">Registered artifact</label>
+            <div class="row">
+              <select id="artifact-select"></select>
+              <button id="load-artifact" type="button">Open artifact</button>
+            </div>
+          </div>
+          <div>
+            <label for="local-file">Local JSON diagnostic</label>
+            <input id="local-file" type="file" accept=".json,application/json">
+          </div>
+          <div>
+            <label for="local-pair-files">Terrain + hydrology pair</label>
+            <input id="local-pair-files" type="file" accept=".json,application/json" multiple>
+            <p class="small muted">Select both JSON files together to see this specimen in Studio. Local diagnostics only.</p>
+          </div>
+        </div>
+        <p id="source-status" class="small muted" aria-live="polite"></p>
+        <div class="workspace-package-controls">
+          <div class="workspace-package-actions">
+            <button id="download-inspection-workspace" type="button" disabled>Download inspection workspace</button>
+            <button id="open-inspection-workspace" type="button" class="secondary">Open inspection workspace</button>
+            <input id="inspection-workspace-file" type="file" accept=".json,application/json" hidden>
+          </div>
+          <p class="small muted">A workspace carries the scene, optional reference overlay, and view controls. Comparison candidates and reports stay separate; reopened sources are local diagnostics with no registered verification or development access.</p>
+          <p id="inspection-workspace-status" class="small muted" aria-live="polite"></p>
+        </div>
+        <div class="workspace-session-controls">
+          <label class="workspace-session-toggle"><input id="remember-inspection" type="checkbox"> Remember this inspection in this browser</label>
+          <button id="workspace-session-forget" type="button" class="secondary" disabled>Forget saved inspection</button>
+          <p id="workspace-session-status" class="small muted" aria-live="polite">Off by default. Your sources are never uploaded.</p>
+          <p class="small muted">Only the current scene, optional hydrology overlay, and view controls are saved. Comparison candidates, reports, and development access are never included.</p>
+        </div>
+        <div class="trace-import-controls">
+          <button id="open-sample-trace" type="button" class="secondary">Open sample trace JSON</button>
+          <input id="sample-trace-file" type="file" accept=".json,application/json" hidden>
+          <p class="small muted">Choose a JSON exported from the Inspector with “Download sample trace JSON.” Studio shows that sample and its recorded context only; it does not restore the scene or grant review authority.</p>
+          <p id="sample-trace-import-status" class="small muted" aria-live="polite"></p>
+        </div>
+        <div class="comparison-report-import-controls">
+          <button id="open-comparison-report" type="button" class="secondary">Open comparison report JSON</button>
+          <input id="comparison-report-file" type="file" accept=".json,application/json" hidden>
+          <p class="small muted">Reopen a saved comparison to inspect its recorded values. Imported provenance is not verified.</p>
+          <p id="comparison-report-import-status" class="small muted" aria-live="polite"></p>
+        </div>
+      </section>
+
+      
+
+    <section class="workspace">
+        <aside class="panel layers">
+          <div class="section-heading">
+            <h2>Layers</h2>
+            <span id="scene-kind" class="pill"></span>
+          </div>
+
+          <div id="atmosphere-controls">
+            <label for="dataset">Dataset</label>
+            <select id="dataset">
+              <option value="snapshot">Spatial snapshot</option>
+              <option value="opportunity">Opportunity scan</option>
+            </select>
+
+            <label for="vector-mode">Vector field</label>
+            <select id="vector-mode">
+              <option value="effective">Effective wind</option>
+              <option value="mean">Mean wind</option>
+              <option value="gust">Gust contribution</option>
+            </select>
+
+            <label for="color-mode">Color</label>
+            <select id="color-mode">
+              <option value="verticalAir">Signed vertical air</option>
+              <option value="turbulence">Turbulence</option>
+              <option value="shear">Shear</option>
+              <option value="speed">Vector speed</option>
+            </select>
+
+            <label for="altitude">Altitude</label>
+            <select id="altitude">
+              <option value="all">All levels</option>
+            </select>
+
+            <label for="arrow-scale">Arrow scale <span id="arrow-scale-value">1.25×</span></label>
+            <input id="arrow-scale" type="range" min="0.25" max="4" step="0.05" value="1.25">
+
+            <div id="time-controls" hidden>
+              <label for="frame">Frame <span id="frame-value">0</span></label>
+              <input id="frame" type="range" min="0" max="0" step="1" value="0">
+              <button id="play" type="button" class="full-button">Play</button>
+            </div>
+          </div>
+
+          <div id="terrain-controls" hidden>
+            <label for="terrain-view">Semantic view</label>
+            <select id="terrain-view">
+              <option value="top">Top surface</option>
+              <option value="underside">Underside</option>
+              <option value="both">Top + underside</option>
+              <option value="slice">Horizontal slice</option>
+            </select>
+
+            <div id="terrain-surface-control" hidden>
+              <label for="terrain-surface">Surface</label>
+              <select id="terrain-surface">
+                <option value="base">Base terrain</option>
+                <option value="hydrology">F4B target surface</option>
+              </select>
+            </div>
+
+            <div id="hydrology-visual-controls" class="hydrology-visual-controls" hidden>
+              <h3>Authored hydrology</h3>
+              <div id="cause-field-control">
+                <label for="hydrology-potential">Cause field</label>
+                <select id="hydrology-potential">
+                  <option value="none">No cause coloring</option>
+                  <option value="runoffPotential">Runoff potential</option>
+                  <option value="retentionPotential">Retention potential</option>
+                  <option value="drainagePotential">Drainage potential</option>
+                  <option value="outflowPotential">Outflow potential</option>
+                </select>
+              </div>
+              <label class="check-row"><input id="show-flow-vectors" type="checkbox" checked> Flow vectors</label>
+              <label class="check-row"><input id="show-channel-width" type="checkbox" checked> F4B bankfull envelope</label>
+              <label class="check-row"><input id="show-hydrology-response" type="checkbox" checked> F4B terrain response</label>
+              <label class="check-row"><input id="show-water-intent" type="checkbox" checked> F4E water intent</label>
+              <p class="small muted">Cause values and projected channels are authored data attached to this exact terrain digest.</p>
+            </div>
+
+            <div id="terrain-slice-control" hidden>
+              <label for="terrain-slice">Slice Y <span id="terrain-slice-value">—</span></label>
+              <input id="terrain-slice" type="range" min="0" max="0" step="1" value="0">
+            </div>
+
+            <div id="terrain-legend" class="terrain-legend"></div>
+
+            <div class="overlay-controls">
+              <h3>Semantic overlay</h3>
+              <div id="registered-overlay-source" hidden>
+              <label for="overlay-artifact-select">Reference hydrology artifact</label>
+              <select id="overlay-artifact-select"></select>
+              <button id="load-overlay" type="button" class="full-button">Attach as reference</button>
+              </div>
+              <div id="comparison-controls" class="comparison-controls" hidden>
+                <div id="registered-comparison-source" hidden>
+                  <label for="comparison-artifact-select">Registered candidate hydrology artifact</label>
+                  <select id="comparison-artifact-select"></select>
+                  <button id="load-comparison-overlay" type="button" class="full-button">Compare registered candidate</button>
+                </div>
+                <label for="local-comparison-file">Local candidate hydrology JSON</label>
+                <input id="local-comparison-file" type="file" accept=".json,application/json">
+                <button id="load-local-comparison" type="button" class="secondary full-button">Compare local candidate</button>
+                <label for="comparison-mode">Compare field</label>
+                <select id="comparison-mode" disabled>
+                  <option value="causes">Cause potentials</option>
+                  <option value="surface">Target surface elevation</option>
+                  <option value="water-surface">Water surface elevation</option>
+                  <option value="water-depth">Water depth</option>
+                </select>
+                <label class="check-row"><input id="show-hydrology-delta" type="checkbox" disabled> Show candidate − reference</label>
+                <button id="clear-hydrology-comparison" type="button" class="secondary full-button" disabled>Clear comparison</button>
+                <button id="download-comparison-report" type="button" class="secondary full-button" disabled>Download comparison report</button>
+                <p id="comparison-report-status" class="small muted" aria-live="polite"></p>
+                <p id="comparison-status" class="small muted">Attach a reference hydrology artifact first.</p>
+              </div>
+              <label for="local-overlay-file">Local reference overlay diagnostic</label>
+              <input id="local-overlay-file" type="file" accept=".json,application/json">
+              <button id="clear-overlay" type="button" class="secondary full-button">Clear overlay</button>
+              <p id="overlay-status" class="small muted"></p>
+            </div>
+          </div>
+
+          <button id="reset-view" type="button" class="secondary full-button">Reset view</button>
+        </aside>
+
+        <section class="panel viewport-panel">
+          <div class="viewport-heading">
+            <div>
+              <h2 id="viewport-title">No semantic specimen loaded</h2>
+              <p id="viewport-subtitle" class="muted small">Open an exact registered artifact or import a local diagnostic JSON.</p>
+            </div>
+            <div id="frame-summary" class="small muted"></div>
+          </div>
+          <canvas id="viewport" aria-label="Skyforge semantic three-dimensional viewport"></canvas>
+          <div id="hydrology-legend" class="viewport-legend" role="note" aria-label="Authored hydrology legend" hidden>
+            <strong>Authored hydrology</strong>
+            <div id="legend-channel" class="viewport-legend-row"><span class="legend-mark legend-channel"></span><span>Channel reach</span></div>
+            <div id="legend-channel-width" class="viewport-legend-row"><span class="legend-mark legend-envelope"></span><span>Bankfull envelope</span></div>
+            <div id="legend-water-intent" class="viewport-legend-row"><span class="legend-mark legend-water"></span><span>Water intent</span></div>
+            <div id="legend-flow" class="viewport-legend-row"><span class="legend-mark legend-flow"></span><span>Flow direction</span></div>
+            <div id="legend-response" class="viewport-legend-row"><span class="legend-mark legend-response"><i></i><i></i></span><span>Hydrology response samples</span></div>
+            <div id="legend-potential" class="viewport-legend-row"><span class="legend-mark legend-potential"></span><span id="legend-potential-label">Selected cause field</span></div>
+            <div id="legend-delta" class="viewport-legend-row" hidden><span class="legend-mark legend-delta"></span><span id="legend-delta-label">Candidate − reference: purple − / gray 0 / orange +</span></div>
+            <p id="legend-water-note">Blue marks authored water intent; it does not represent a realized surface.</p>
+            <p id="legend-delta-note" hidden>Only the selected cause field is compared; channel, flow, response, and water layers show the reference.</p>
+          </div>
+          <div class="viewport-help">Drag to rotate · wheel to zoom · click a sample to inspect</div>
+        </section>
+
+        <aside class="panel inspector">
+          <h2>Inspector</h2>
+          <dl class="kv">
+            <dt>Binding</dt><dd id="inspect-binding">—</dd>
+            <dt>Artifact</dt><dd id="inspect-artifact">—</dd>
+            <dt>Overlay</dt><dd id="inspect-overlay">none</dd>
+            <dt>Source SHA</dt><dd id="inspect-sha">—</dd>
+            <dt>Provider</dt><dd id="inspect-provider">—</dd>
+            <dt>Position</dt><dd id="inspect-position">click a sample</dd>
+            <dt>Semantic</dt><dd id="inspect-semantic">—</dd>
+            <dt>Vector</dt><dd id="inspect-vector">—</dd>
+            <dt>Vertical air</dt><dd id="inspect-updraft">—</dd>
+            <dt>Turbulence</dt><dd id="inspect-turbulence">—</dd>
+            <dt>Shear</dt><dd id="inspect-shear">—</dd>
+            <dt>Confidence</dt><dd id="inspect-confidence">—</dd>
+            <dt>Authority</dt><dd id="inspect-authority">—</dd>
+          </dl>
+
+          <section id="comparison-value-inspector" class="comparison-value-inspector" aria-live="polite" hidden>
+            <h3>Selected comparison values</h3>
+            <p id="comparison-value-context" class="small muted"></p>
+            <div class="comparison-table-wrap">
+              <table>
+                <thead>
+                  <tr><th scope="col">Field</th><th scope="col">Reference</th><th scope="col">Candidate</th><th scope="col">Δ</th></tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <th id="comparison-value-field" scope="row"></th>
+                    <td id="comparison-reference-value">—</td>
+                    <td id="comparison-candidate-value">—</td>
+                    <td id="comparison-delta-value">—</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section id="sample-provenance" class="sample-provenance" aria-live="polite" hidden>
+            <h3>Trace this sample</h3>
+            <p id="provenance-note" class="small muted"></p>
+            <dl id="provenance-fields" class="kv compact"></dl>
+            <div class="sample-trace-actions">
+              <button id="download-sample-trace" type="button" class="secondary full-button" aria-describedby="sample-export-status">Download sample trace JSON</button>
+              <p id="sample-export-status" class="small muted" aria-live="polite"></p>
+            </div>
+          </section>
+
+          <section id="imported-sample-trace" class="imported-sample-trace" aria-live="polite" hidden>
+            <div class="section-heading">
+              <h3>Imported sample trace</h3>
+              <button id="clear-imported-sample-trace" type="button" class="secondary">Close</button>
+            </div>
+            <p id="imported-sample-trace-note" class="small muted"></p>
+            <dl id="imported-sample-trace-fields" class="kv compact"></dl>
+            <details>
+              <summary>Recorded provenance and context</summary>
+              <pre id="imported-sample-trace-context"></pre>
+            </details>
+            <details open>
+              <summary>Selected sample values</summary>
+              <pre id="imported-sample-trace-sample"></pre>
+            </details>
+          </section>
+
+          <section id="imported-comparison-report" class="imported-comparison-report" aria-live="polite" hidden>
+            <div class="section-heading">
+              <h3>Saved hydrology comparison</h3>
+              <button id="close-comparison-report" type="button" class="secondary">Close</button>
+            </div>
+            <p id="imported-comparison-report-note" class="small muted"></p>
+            <dl id="imported-comparison-report-summary" class="kv compact"></dl>
+            <details>
+              <summary>Recorded source and binding data</summary>
+              <pre id="imported-comparison-report-metadata"></pre>
+            </details>
+            <label for="comparison-report-sample-set">Recorded samples</label>
+            <select id="comparison-report-sample-set">
+              <option value="causes">Cause-grid samples</option>
+              <option value="projected-fields">Projected-field samples</option>
+            </select>
+            <p id="comparison-report-page-status" class="small muted" aria-live="polite"></p>
+            <div class="comparison-report-table-wrap">
+              <table>
+                <thead>
+                  <tr><th scope="col">Grid</th><th scope="col">Coverage</th><th scope="col">Reference</th><th scope="col">Candidate</th><th scope="col">Recorded changes</th></tr>
+                </thead>
+                <tbody id="comparison-report-samples"></tbody>
+              </table>
+            </div>
+            <div class="comparison-report-page-actions">
+              <button id="comparison-report-previous" type="button" class="secondary">Previous 50</button>
+              <button id="comparison-report-next" type="button" class="secondary">Next 50</button>
+            </div>
+          </section>
+
+          <div id="review-warning" class="authority-warning" hidden>
+            <strong>UNBOUND LOCAL DIAGNOSTIC</strong>
+            <span>This view cannot satisfy an artifact-bound human gate.</span>
+          </div>
+
+          <details>
+            <summary>Semantic ownership</summary>
+            <dl class="kv compact">
+              <dt>Semantic owner</dt><dd id="owner-semantic">—</dd>
+              <dt>Persistence</dt><dd id="owner-persistence">—</dd>
+              <dt>Backend-neutral</dt><dd id="owner-backend-neutral">—</dd>
+            </dl>
+          </details>
+        </aside>
+      </section>
+    </section>
+
+    <section id="regional-comparison-view" class="regional-view" aria-labelledby="regional-comparison-heading" hidden>
+      <div class="panel brief-intro">
+        <div>
+          <p class="eyebrow">AUTH-0094 · SIDE-BY-SIDE DIAGNOSTIC</p>
+          <h2 id="regional-comparison-heading">Compare two regional inventories</h2>
+          <p class="muted">Compare the source evidence files directly. This view does not infer a world, deposit, reserve, or site selection.</p>
+        </div>
+        <span class="pill warn">Local diagnostic</span>
+      </div>
+      <div class="regional-compare-sides">
+        <section class="panel" aria-labelledby="regional-left-heading">
+          <h3 id="regional-left-heading">Left inventory</h3>
+          <label for="regional-left-inventory">inventory.csv</label>
+          <input id="regional-left-inventory" type="file" accept=".csv,text/csv">
+          <label for="regional-left-ranking">ranking.csv (optional)</label>
+          <input id="regional-left-ranking" type="file" accept=".csv,text/csv">
+          <p id="regional-left-status" class="small muted" aria-live="polite">Choose an inventory CSV.</p>
+        </section>
+        <section class="panel" aria-labelledby="regional-right-heading">
+          <h3 id="regional-right-heading">Right inventory</h3>
+          <label for="regional-right-inventory">inventory.csv</label>
+          <input id="regional-right-inventory" type="file" accept=".csv,text/csv">
+          <label for="regional-right-ranking">ranking.csv (optional)</label>
+          <input id="regional-right-ranking" type="file" accept=".csv,text/csv">
+          <p id="regional-right-status" class="small muted" aria-live="polite">Choose an inventory CSV.</p>
+        </section>
+      </div>
+      <div class="panel">
+        <div class="regional-import-actions">
+          <button id="regional-compare-load-sample" type="button" class="secondary">Load included evidence on the left</button>
+          <button id="regional-compare-clear" type="button" class="secondary">Clear both sides</button>
+        </div>
+        <p class="small muted">Load a second independent inventory on the right. Rankings are compared only when both sides include a validated ranking.csv. Portable packages include the original CSV inputs so Studio can validate them again when reopened.</p>
+        <section class="regional-library" aria-labelledby="regional-library-heading">
+          <div>
+            <h3 id="regional-library-heading">Saved in this browser</h3>
+            <p class="small muted">Save named comparisons on this device. Nothing is uploaded. Use a portable package to move a comparison to another browser.</p>
+          </div>
+          <label for="regional-library-title">Name this comparison</label>
+          <div class="regional-library-save-row">
+            <input id="regional-library-title" type="text" maxlength="120" autocomplete="off" placeholder="For example: North basin — draft 2">
+            <button id="regional-library-save" type="button" disabled>Save in this browser</button>
+          </div>
+          <label for="regional-library-select">Saved comparisons</label>
+          <div class="regional-library-open-row">
+            <select id="regional-library-select" aria-label="Choose a saved comparison" disabled>
+              <option value="">No saved comparisons</option>
+            </select>
+            <button id="regional-library-open" type="button" class="secondary" disabled>Open saved</button>
+            <button id="regional-library-remove" type="button" class="secondary" disabled>Remove saved</button>
+          </div>
+          <p id="regional-library-status" class="small muted" aria-live="polite">Checking browser-local storage…</p>
+        </section>
+        <div class="regional-import-actions">
+          <button id="regional-compare-export-report" type="button" class="secondary" disabled>Download portable package</button>
+          <button id="regional-compare-open-report" type="button" class="secondary">Open portable package</button>
+          <input id="regional-compare-report-file" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p id="regional-compare-package-status" class="small muted" aria-live="polite"></p>
+        <div class="authority-warning">
+          <strong>UNBOUND LOCAL DIAGNOSTIC</strong>
+          <span>Rows remain source evidence. Deltas are right minus left; ranking changes report movement in the supplied files and never create or reorder ranks.</span>
+        </div>
+      </div>
+      <section id="regional-compare-output" class="panel regional-results" aria-labelledby="regional-compare-results-heading" hidden>
+        <div class="section-heading">
+          <div><h3 id="regional-compare-results-heading">Comparison results</h3><p id="regional-compare-summary" class="small muted"></p></div>
+          <span class="pill warn">Unbound</span>
+        </div>
+        <div id="regional-compare-counts" class="regional-summary"></div>
+        <h3>Association and metal rows</h3>
+        <p class="small muted">Rows follow left source order, followed by right-only rows. Opportunity deltas are right minus left.</p>
+        <div class="regional-table-wrap">
+          <table id="regional-compare-table" class="regional-table"></table>
+        </div>
+      </section>
+    </section>
+
+  </main>
+</body>
+</html>

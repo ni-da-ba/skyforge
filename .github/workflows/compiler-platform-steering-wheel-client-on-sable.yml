@@ -1,0 +1,109 @@
+name: Compiler Platform Steering Wheel Client On Sable
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/compiler-platform-steering-wheel-client-on-sable.yml"
+      - "docs/agent-state/COMPILER_INTEGRATION_CAPABILITIES.json"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientOnSableBridge.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientWorldPrepareAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientOnSableLifecycleAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeSteeringWheelClientOnSableClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/SteeringWheelClientOnSableLifecycleResourceTest.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compiler-platform-steering-wheel-client-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  l1-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Verify bounded platform contracts
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*CompilerIntegrationDiagnosticTest'
+          --tests '*SteeringWheelClientOnSableLifecycleResourceTest'
+          --no-configuration-cache
+
+  l2-exact-stack-actual-client:
+    needs: l1-contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Resolve exact accepted Create/Sable/Aeronautics stack
+        run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
+      - name: Prepare disposable quick-play world
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 180 ./gradlew \
+            :skyforge-neoforge-1211:runCompilerPlatformSteeringWheelClientWorldPrepareServer \
+            --no-configuration-cache
+          result="skyforge-neoforge-1211/build/acceptance/compiler-platform-steering-wheel-client/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^steeringWheelClientWorldPrepared=true$' "$result"
+          grep -q '^preassembledPlatformFixturePersisted=false$' "$result"
+      - name: Configure unattended client
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-compiler-platform-steering-wheel-client"
+          mkdir -p "$run_dir"
+          printf '%s\n' \
+            'onboardAccessibility:false' \
+            'pauseOnLostFocus:false' \
+            > "$run_dir/options.txt"
+      - name: Qualify actual-client Steering Wheel lifecycle on live Sable body
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="compiler-platform-steering-wheel-client-on-sable.log"
+          timeout 300 xvfb-run -a ./gradlew \
+            :skyforge-neoforge-1211:runCompilerPlatformSteeringWheelClient \
+            --no-configuration-cache 2>&1 | tee "$log"
+          result="skyforge-neoforge-1211/build/acceptance/compiler-platform-steering-wheel-client/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^clientSableSubLevelReady=true$' "$result"
+          grep -q '^clientGameplayReady=true$' "$result"
+          grep -q '^clientServerPoseConverged=true$' "$result"
+          grep -q '^clientShapeQualifiedAim=true$' "$result"
+          grep -q '^steeringHoldAcquired=true$' "$result"
+          grep -q '^activePacketRoundTrip=true$' "$result"
+          grep -q '^activeResponseSettled=true$' "$result"
+          grep -q '^releasePacketRoundTrip=true$' "$result"
+          grep -q '^fixtureLivenessTicketReleased=true$' "$result"
+          grep -q '^playerSableTrackingQualified=false$' "$result"
+          grep -q 'COMPILER_PLATFORM_STEERING_WHEEL_CLIENT_ON_SABLE_LIFECYCLE PASS' "$log"
+      - name: Upload exact-stack client diagnostics
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: compiler-platform-steering-wheel-client-on-sable
+          path: |
+            compiler-platform-steering-wheel-client-on-sable.log
+            skyforge-neoforge-1211/build/acceptance/compiler-platform-steering-wheel-client/*.properties
+          if-no-files-found: warn

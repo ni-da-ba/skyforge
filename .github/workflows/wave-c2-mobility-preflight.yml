@@ -1,0 +1,42 @@
+name: Wave C2 Mobility Preflight
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wave-c2-mobility-preflight.yml"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/src/development/resources/data/reliable_gliders/**"
+      - "skyforge-neoforge-1211/src/development/wave-c2-*/**"
+      - "skyforge-neoforge-1211/src/test/java/io/github/nidaba/skyforge/neoforge1211/WaveC2DevelopmentResourceTest.java"
+  push:
+    branches: [main]
+    paths:
+      - "skyforge-neoforge-1211/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wave-c2-mobility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve immutable Wave C2 artifacts
+        run: ./gradlew :skyforge-neoforge-1211:waveC2ResolvePinnedMods --no-configuration-cache
+
+      - name: Verify Wave C2 mobility resources
+        run: ./gradlew :skyforge-neoforge-1211:test --tests '*WaveC2DevelopmentResourceTest' --no-configuration-cache

@@ -1,0 +1,64 @@
+name: AUTH-0097 Directional Surface Access
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/auth-0097-directional-surface-access.yml"
+      - ".github/actions/run-authorship-evidence/action.yml"
+      - "docs/authorship/AUTH-0097-directional-surface-access-evidence.md"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWatershedPhysicalSurfaceGrid.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfiler.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessDirection.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessRay.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessCapabilityCell.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessCapabilityProfile.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessCapabilityProfiler.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfilerTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessCapabilityProfilerTest.java"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipDirectionalSurfaceAccessCorpusCli.java"
+      - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipDirectionalSurfaceAccessCorpusTest.java"
+      - "skyforge-reference/build.gradle.kts"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: auth-0097-directional-surface-access-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Run Authorship evidence contract
+        uses: ./.github/actions/run-authorship-evidence
+        with:
+          gradle_command: |
+            ./gradlew \
+              :skyforge-world:test --tests '*SkyIslandSurfaceSiteCapabilityProfilerTest' \
+              :skyforge-world:test --tests '*SkyIslandSurfaceAccessCapabilityProfilerTest' \
+              :skyforge-reference:test --tests '*AuthorshipDirectionalSurfaceAccessCorpusTest' \
+              :skyforge-reference:authorshipDirectionalSurfaceAccessCorpus \
+              --no-configuration-cache
+          verify_command: |
+            DIR=skyforge-reference/build/evidence/authorship-directional-surface-access-v1
+            test -f "$DIR/index.html"
+            test -f "$DIR/atlas.png"
+            test -f "$DIR/manifest.csv"
+            test -f "$DIR/rays.csv"
+            test "$(wc -l < "$DIR/manifest.csv")" -eq 7
+            test "$(grep -c ',true$' "$DIR/manifest.csv")" -eq 6
+            test "$(wc -l < "$DIR/rays.csv")" -gt 100
+          artifact_name: auth-0097-directional-surface-access
+          artifact_path: |
+            skyforge-reference/build/evidence/authorship-directional-surface-access-v1/index.html
+            skyforge-reference/build/evidence/authorship-directional-surface-access-v1/atlas.png
+            skyforge-reference/build/evidence/authorship-directional-surface-access-v1/manifest.csv
+            skyforge-reference/build/evidence/authorship-directional-surface-access-v1/rays.csv
