@@ -129,13 +129,16 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double reachableLower = Double.NaN;
         double reachableUpper = Double.NaN;
         SkyIslandChannelProfileKind previousKind = null;
-        double squaredConflict = 0.0;
+        SkyIslandChannelProfileKind[] kinds =
+                new SkyIslandChannelProfileKind[points.size()];
+        double[] squaredConflicts = new double[points.size()];
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition position = points.get(i);
             double station = cumulative[i] / pathLength;
             SkyIslandChannelProfileKind kind =
                     SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
                             semantic.profiles(), station);
+            kinds[i] = kind;
             if (kind == SkyIslandChannelProfileKind.CASCADE) {
                 reachableLower = Double.NaN;
                 reachableUpper = Double.NaN;
@@ -180,7 +183,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double localUpper = envelope.upperHead();
             double localConflict = Math.max(0.0, localLower - localUpper);
             if (localConflict > 0.0) {
-                squaredConflict += localConflict * localConflict;
+                squaredConflicts[i] += localConflict * localConflict;
                 double midpoint = 0.5 * (localLower + localUpper);
                 localLower = midpoint;
                 localUpper = midpoint;
@@ -196,7 +199,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double nextUpper = Math.min(localUpper, reachableUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
             if (conflict > 0.0) {
-                squaredConflict += conflict * conflict;
+                squaredConflicts[i] += conflict * conflict;
                 // Continue scoring downstream from the nearest admissible local interval. This
                 // keeps the objective informative without pretending the violated path is feasible.
                 double midpoint = 0.5 * (nextLower + nextUpper);
@@ -206,7 +209,22 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             reachableLower = nextLower;
             reachableUpper = nextUpper;
         }
-        return squaredConflict;
+        double integratedSquaredConflict = 0.0;
+        double ordinaryLength = 0.0;
+        for (int i = 0; i + 1 < points.size(); i++) {
+            if (kinds[i] == SkyIslandChannelProfileKind.CASCADE
+                    || kinds[i + 1] == SkyIslandChannelProfileKind.CASCADE
+                    || kinds[i] != kinds[i + 1]) {
+                continue;
+            }
+            double ds = cumulative[i + 1] - cumulative[i];
+            integratedSquaredConflict +=
+                    0.5 * (squaredConflicts[i] + squaredConflicts[i + 1]) * ds;
+            ordinaryLength += ds;
+        }
+        return ordinaryLength > 0.0
+                ? integratedSquaredConflict / ordinaryLength
+                : 0.0;
     }
 
     record CenterlineRefinement(
