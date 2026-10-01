@@ -89,13 +89,12 @@ jobs:
           result="skyforge-neoforge-1211/build/acceptance/wby-wave1-boundary-sweep/client.properties"
           rm -f "$result"
 
-          # Acceptance evidence is authoritative. DH can keep shutdown/database threads alive
-          # after Minecraft.stop(), so terminate this disposable process group once PASS/FAIL
-          # is durable instead of making semantic success depend on shutdown latency.
+          # Acceptance writes PASS/FAIL before Minecraft/DH can finish shutdown.
+          # Monitor that durable evidence, then terminate this disposable process group.
           setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1BoundarySweepClientAcceptance --no-configuration-cache >"$log" 2>&1 &
           runner_pid=$!
-
           terminal=""
+
           for _ in $(seq 1 240); do
             if [[ -f "$result" ]]; then
               if grep -q '^status=PASS$' "$result"; then
@@ -109,10 +108,8 @@ jobs:
             fi
 
             if ! kill -0 "$runner_pid" 2>/dev/null; then
-              set +e
-              wait "$runner_pid"
-              rc=$?
-              set -e
+              rc=0
+              wait "$runner_pid" || rc=$?
               echo "boundary-sweep client exited before terminal evidence (rc=$rc)"
               cat "$log"
               exit 1
@@ -126,6 +123,7 @@ jobs:
             kill -TERM -- "-$runner_pid" 2>/dev/null || true
             sleep 2
             kill -KILL -- "-$runner_pid" 2>/dev/null || true
+            wait "$runner_pid" 2>/dev/null || true
             exit 1
           fi
 
@@ -146,6 +144,7 @@ jobs:
             exit 1
           fi
 
+          test -f "$result"
           grep -q '^status=PASS$' "$result"
           grep -q '^actualClient=true$' "$result"
           grep -q '^insideVanillaObserved=true$' "$result"
@@ -172,7 +171,6 @@ jobs:
           assert int(p["finalNearSamples"]) >= 5, p
           print("WBY WAVE 1 BOUNDARY SWEEP PASS", p)
           PY
-
       - name: Upload Wave 1 boundary-sweep evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
