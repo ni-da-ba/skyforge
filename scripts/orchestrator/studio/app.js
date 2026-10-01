@@ -271,6 +271,9 @@
   let playback = null;
   let studioWorkspaceView = "inspect";
   let terrainSemanticComparison = null;
+  let terrainComparisonLibraryRepository = null;
+  let terrainComparisonLibraryRecords = [];
+  let terrainComparisonLibraryBusy = false;
   let terrainComparisonPage = 0;
   let terrainComparisonPlot = null;
   let terrainSelectedColumn = null;
@@ -493,6 +496,7 @@
     }
     $("terrain-comparison-results").hidden = false;
     $("terrain-comparison-report-download").disabled = false;
+    renderTerrainComparisonLibraryControls();
     $("terrain-comparison-status").textContent =
       "Compared exact matching grids. No resampling was performed; both files remain unbound local diagnostics.";
     renderTerrainComparisonPage();
@@ -605,9 +609,6 @@
   async function loadTerrainComparisonReport(file) {
     if (!file) return;
     const status = $("terrain-comparison-status");
-    $("terrain-comparison-results").hidden = true;
-    $("terrain-comparison-report-download").disabled = true;
-    terrainSemanticComparison = null;
     try {
       const reader = window.SkyforgeStudioTerrainComparisonReportReader;
       if (file.size > reader.maximumFileBytes) throw new Error("Terrain reports must be 32 MB or smaller.");
@@ -621,11 +622,145 @@
       $("terrain-comparison-report-file").value = "";
     } catch (error) {
       $("terrain-comparison-report-file").value = "";
-      terrainSemanticComparison = null;
-      $("terrain-comparison-results").hidden = true;
-      status.textContent = "Could not reopen this terrain comparison: " + String(error.message || error);
+      status.textContent = "Could not reopen this terrain comparison; the current comparison remains visible: " +
+        String(error.message || error);
     }
   }
+
+  function terrainComparisonLibraryStatus(message, isError = false) {
+    const status = $("terrain-comparison-library-status");
+    status.textContent = message;
+    status.className = isError ? "small error" : "small muted";
+  }
+
+  function renderTerrainComparisonLibraryControls() {
+    const select = $("terrain-comparison-library-select");
+    if (!select) return;
+    const selectedId = select.value;
+    select.replaceChildren();
+    const placeholder = document.createElement("option");
+    placeholder.value = "";
+    placeholder.textContent = terrainComparisonLibraryRecords.length
+      ? "Choose a saved comparison"
+      : "No saved comparisons in this browser";
+    select.append(placeholder);
+    for (const record of terrainComparisonLibraryRecords) {
+      const option = document.createElement("option");
+      option.value = record.id;
+      option.textContent = record.title + " · " + new Date(record.updated_at).toLocaleString();
+      select.append(option);
+    }
+    if (terrainComparisonLibraryRecords.some(record => record.id === selectedId)) {
+      select.value = selectedId;
+    }
+    const selected = terrainComparisonLibraryRecords.some(record => record.id === select.value);
+    select.disabled = terrainComparisonLibraryBusy || !terrainComparisonLibraryRecords.length;
+    $("terrain-comparison-library-open").disabled = terrainComparisonLibraryBusy || !selected;
+    $("terrain-comparison-library-remove").disabled = terrainComparisonLibraryBusy || !selected;
+    $("terrain-comparison-library-save").disabled = terrainComparisonLibraryBusy ||
+      !terrainComparisonLibraryRepository || !terrainSemanticComparison;
+  }
+
+  async function refreshTerrainComparisonLibrary() {
+    if (!terrainComparisonLibraryRepository) return;
+    terrainComparisonLibraryRecords = await terrainComparisonLibraryRepository.list();
+    renderTerrainComparisonLibraryControls();
+  }
+
+  function newTerrainComparisonId() {
+    if (window.crypto && typeof window.crypto.randomUUID === "function") return window.crypto.randomUUID();
+    return "terrain-" + Date.now() + "-" + Math.random().toString(16).slice(2);
+  }
+
+  async function saveTerrainComparisonToBrowser() {
+    if (!terrainSemanticComparison || !terrainComparisonLibraryRepository || terrainComparisonLibraryBusy) return;
+    const api = window.SkyforgeStudioTerrainComparisonLibrary;
+    terrainComparisonLibraryBusy = true;
+    renderTerrainComparisonLibraryControls();
+    try {
+      const reportApi = window.SkyforgeStudioTerrainComparisonReport;
+      const reportJson = reportApi.stringify(reportApi.create(terrainSemanticComparison));
+      const now = new Date().toISOString();
+      const title = $("terrain-comparison-library-title").value;
+      const record = api.createRecord(newTerrainComparisonId(), title, reportJson, now, now);
+      await terrainComparisonLibraryRepository.save(record);
+      await refreshTerrainComparisonLibrary();
+      $("terrain-comparison-library-select").value = record.id;
+      $("terrain-comparison-library-title").value = "";
+      terrainComparisonLibraryStatus(
+        "Saved in this browser profile only. It is not synced, uploaded, or registered.", false);
+    } catch (error) {
+      terrainComparisonLibraryStatus(
+        "Could not save this comparison: " + String(error.message || error) +
+        ". You can still download a portable report.", true);
+    } finally {
+      terrainComparisonLibraryBusy = false;
+      renderTerrainComparisonLibraryControls();
+    }
+  }
+
+  function openTerrainComparisonFromBrowser() {
+    if (terrainComparisonLibraryBusy) return;
+    try {
+      const record = terrainComparisonLibraryRecords.find(item =>
+        item.id === $("terrain-comparison-library-select").value);
+      if (!record) throw new Error("Choose a saved comparison first");
+      const reader = window.SkyforgeStudioTerrainComparisonReportReader;
+      const parsed = reader.parse(record.report_json, record.report_bytes);
+      renderTerrainComparison(parsed.comparison);
+      $("terrain-comparison-status").textContent =
+        "Reopened a comparison from this browser. Its saved source provenance remains unverified.";
+      $("terrain-comparison-report-status").textContent = parsed.document.notice;
+      $("terrain-comparison-reference").value = "";
+      $("terrain-comparison-candidate").value = "";
+      $("terrain-comparison-report-file").value = "";
+      terrainComparisonLibraryStatus("Opened “" + record.title + "” and validated its diagnostic report.", false);
+    } catch (error) {
+      terrainComparisonLibraryStatus(
+        "Could not open the saved comparison; the current result is unchanged: " +
+        String(error.message || error), true);
+    }
+  }
+
+  async function removeTerrainComparisonFromBrowser() {
+    if (terrainComparisonLibraryBusy || !terrainComparisonLibraryRepository) return;
+    const record = terrainComparisonLibraryRecords.find(item =>
+      item.id === $("terrain-comparison-library-select").value);
+    if (!record) return;
+    if (typeof window.confirm !== "function" ||
+        !window.confirm("Remove “" + record.title +
+          "” from this browser? This cannot be undone here. Download a portable report first if you may need it later.")) return;
+    terrainComparisonLibraryBusy = true;
+    renderTerrainComparisonLibraryControls();
+    try {
+      await terrainComparisonLibraryRepository.remove(record.id);
+      await refreshTerrainComparisonLibrary();
+      terrainComparisonLibraryStatus("Removed “" + record.title + "” from this browser.", false);
+    } catch (error) {
+      terrainComparisonLibraryStatus("Could not remove the saved comparison: " + String(error.message || error), true);
+    } finally {
+      terrainComparisonLibraryBusy = false;
+      renderTerrainComparisonLibraryControls();
+    }
+  }
+
+  async function initializeTerrainComparisonLibrary() {
+    try {
+      const api = window.SkyforgeStudioTerrainComparisonLibrary;
+      if (!api) throw new Error("browser-local storage support is unavailable");
+      terrainComparisonLibraryRepository = api.createRepository();
+      await refreshTerrainComparisonLibrary();
+      terrainComparisonLibraryStatus(
+        "Saved items stay in this browser profile. Use Download comparison report to move or back them up.", false);
+    } catch (error) {
+      terrainComparisonLibraryRepository = null;
+      renderTerrainComparisonLibraryControls();
+      terrainComparisonLibraryStatus(
+        "This browser cannot open local comparison storage: " + String(error.message || error) +
+        ". Download and file-based reopen still work.", true);
+    }
+  }
+
   function fmt(value, digits = 3) {
     return Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : "—";
   }
@@ -3164,6 +3299,11 @@
     loadTerrainComparisonReport(event.currentTarget.files?.[0] || null);
   });
   $("terrain-comparison-report-download").addEventListener("click", downloadTerrainComparisonReport);
+  $("terrain-comparison-library-title").addEventListener("input", renderTerrainComparisonLibraryControls);
+  $("terrain-comparison-library-select").addEventListener("change", renderTerrainComparisonLibraryControls);
+  $("terrain-comparison-library-save").addEventListener("click", saveTerrainComparisonToBrowser);
+  $("terrain-comparison-library-open").addEventListener("click", openTerrainComparisonFromBrowser);
+  $("terrain-comparison-library-remove").addEventListener("click", removeTerrainComparisonFromBrowser);
   $("terrain-comparison-previous").addEventListener("click", () => {
     if (terrainComparisonPage > 0) {
       terrainComparisonPage -= 1;
@@ -3195,6 +3335,7 @@
   showLocalMode();
   configureBundledSample();
   initializeWorkspaceSession();
+  initializeTerrainComparisonLibrary();
   if (token) {
     $("api-token").value = token;
   }
