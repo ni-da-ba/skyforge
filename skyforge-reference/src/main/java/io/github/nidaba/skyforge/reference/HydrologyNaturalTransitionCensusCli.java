@@ -5,7 +5,6 @@ import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import io.github.nidaba.skyforge.world.SkyIslandConfluenceCascadeHeadCompatibilityPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandConfluenceCascadeHeadCompatibilityStatus;
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
-import io.github.nidaba.skyforge.world.SkyIslandGeomorphicQualificationPolicy;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicAssemblyStatus;
 import io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlanner;
 import io.github.nidaba.skyforge.world.SkyIslandSemanticChannelReach;
@@ -68,6 +67,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                     String statusCounts = "";
                     String componentOutcomes = "";
                     String diagnostics = "";
+                    int qualifiedComponentsForIdentity = 0;
 
                     if (deepSolve) {
                         topologyCandidateCount++;
@@ -87,6 +87,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                             solvedIdentityCount++;
                             var assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
                             StringJoiner outcomes = new StringJoiner("|");
+                            var qualifiedComponents = new java.util.HashSet<>();
                             for (var solvedOutcome : solvedOutcomes) {
                                 int node = solvedOutcome.confluence().transitionSite().nodeCellIndex();
                                 var site = solvedOutcome.cascade().transitionSite();
@@ -119,9 +120,11 @@ public final class HydrologyNaturalTransitionCensusCli {
                                         + site.reachEndCellIndex() + ":" + owner.status().name()
                                         + ":" + clean(String.join(" / ", owner.blockers())));
                                 if (owner.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
-                                    qualifiedComponentCount++;
+                                    qualifiedComponents.add(owner);
                                 }
                             }
+                            qualifiedComponentsForIdentity = qualifiedComponents.size();
+                            qualifiedComponentCount += qualifiedComponentsForIdentity;
                             componentOutcomes = outcomes.toString();
                             diagnostics = solvedOutcomes.stream()
                                     .map(outcome -> outcome.confluence().transitionSite().nodeCellIndex()
@@ -151,7 +154,7 @@ public final class HydrologyNaturalTransitionCensusCli {
                             .append(cascadeProfiles).append(',')
                             .append(deepSolve).append(',')
                             .append(clean(statusCounts)).append(',')
-                            .append(countQualified(componentOutcomes)).append(',')
+                            .append(qualifiedComponentsForIdentity).append(',')
                             .append(clean(componentOutcomes)).append(',')
                             .append(clean(diagnostics)).append('\n');
                 } catch (RuntimeException failure) {
@@ -199,18 +202,10 @@ public final class HydrologyNaturalTransitionCensusCli {
 
     private static int countConfluences(java.util.List<SkyIslandSemanticChannelReach> reaches) {
         Map<Integer, Integer> incoming = new HashMap<>();
-        Map<Integer, Integer> outgoing = new HashMap<>();
         for (SkyIslandSemanticChannelReach reach : reaches) {
-            outgoing.merge(reach.startCellIndex(), 1, Integer::sum);
             incoming.merge(reach.endCellIndex(), 1, Integer::sum);
-            incoming.putIfAbsent(reach.startCellIndex(), 0);
-            outgoing.putIfAbsent(reach.endCellIndex(), 0);
         }
-        return (int) java.util.stream.Stream.concat(incoming.keySet().stream(), outgoing.keySet().stream())
-                .distinct()
-                .filter(node -> incoming.getOrDefault(node, 0) > 1
-                        || outgoing.getOrDefault(node, 0) > 1)
-                .count();
+        return (int) incoming.values().stream().filter(count -> count > 1).count();
     }
 
     private static String formatCounts(
@@ -220,15 +215,6 @@ public final class HydrologyNaturalTransitionCensusCli {
                 .sorted(Map.Entry.comparingByKey())
                 .forEach(entry -> result.add(entry.getKey().name() + ":" + entry.getValue()));
         return result.toString();
-    }
-
-    private static int countQualified(String outcomes) {
-        if (outcomes.isBlank()) {
-            return 0;
-        }
-        return (int) java.util.Arrays.stream(outcomes.split("\\|"))
-                .filter(value -> value.contains(":QUALIFIED:"))
-                .count();
     }
 
     private static String clean(String value) {
