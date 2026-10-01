@@ -260,7 +260,10 @@ jobs:
           assert int(client["ssrdEffectiveMaxChunks"]) == 128, client
           assert int(client["dhRenderDistanceChunks"]) >= int(client["ssrdEffectiveMaxChunks"]), client
           assert client["vramTelemetryAvailable"] in {"true", "false"}, client
-          if client["vramTelemetryAvailable"] == "true":
+          if "llvmpipe" in client["glRenderer"].lower() or "softpipe" in client["glRenderer"].lower():
+              assert client["vramTelemetryAvailable"] == "false", client
+              assert client["vramTelemetrySource"] == "unavailable-software-renderer", client
+          elif client["vramTelemetryAvailable"] == "true":
               assert client["vramTelemetrySource"] != "unavailable", client
           assert int(server["serverMsptSamples"]) >= 200, server
           assert 0.0 < float(server["serverMsptMedian"]) <= float(server["serverMsptP95"]) <= float(server["serverMsptMax"]), server
