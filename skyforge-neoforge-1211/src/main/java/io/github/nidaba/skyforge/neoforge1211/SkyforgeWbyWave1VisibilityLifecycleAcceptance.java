@@ -42,7 +42,7 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     private static final int SWEEP_FAR_DISTANCE_BLOCKS = 256;
     private static final int SWEEP_STEP_BLOCKS = 4;
     private static final int SWEEP_HOLD_TICKS = 30;
-    private static final int SWEEP_ENDPOINT_OBSERVATION_TICKS = 2;
+    private static final int SWEEP_ENDPOINT_OBSERVATION_TICKS = 20;
 
     private static final ResourceLocation PHYSICS_ASSEMBLER =
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
@@ -226,7 +226,9 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
             case DISABLED, NEAR_HOLD, FINAL_NEAR_HOLD, COMPLETE -> SWEEP_NEAR_DISTANCE_BLOCKS;
             case RECEDING -> Math.min(
                     SWEEP_FAR_DISTANCE_BLOCKS,
-                    SWEEP_NEAR_DISTANCE_BLOCKS + sweepPhaseTick * SWEEP_STEP_BLOCKS);
+                    SWEEP_NEAR_DISTANCE_BLOCKS
+                            + Math.max(0, sweepPhaseTick - SWEEP_ENDPOINT_OBSERVATION_TICKS)
+                                    * SWEEP_STEP_BLOCKS);
             case FAR_HOLD -> SWEEP_FAR_DISTANCE_BLOCKS;
             case APPROACHING -> Math.max(
                     SWEEP_NEAR_DISTANCE_BLOCKS,
@@ -252,7 +254,10 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
                 }
             }
             case RECEDING -> {
-                if (distance >= SWEEP_FAR_DISTANCE_BLOCKS) {
+                int travelTicks = (SWEEP_FAR_DISTANCE_BLOCKS - SWEEP_NEAR_DISTANCE_BLOCKS)
+                        / SWEEP_STEP_BLOCKS;
+                if (distance >= SWEEP_FAR_DISTANCE_BLOCKS
+                        && sweepPhaseTick >= travelTicks + SWEEP_ENDPOINT_OBSERVATION_TICKS + 1) {
                     transitionSweep(SweepPhase.FAR_HOLD);
                 }
             }
