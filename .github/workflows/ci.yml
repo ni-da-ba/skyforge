@@ -125,6 +125,17 @@ jobs:
         if: failure() && steps.impact.outputs.full == 'true'
         run: python3 scripts/ci/dump_hydrology_failure_evidence.py
 
+      - name: Dump F3H JUnit failure report
+        if: failure() && steps.impact.outputs.full == 'true'
+        shell: bash
+        run: |
+          report='skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest.xml'
+          if [[ -f "${report}" ]]; then
+            cat "${report}"
+          else
+            echo "F3H JUnit report not found: ${report}"
+          fi
+
       - name: Verify evidence review entry points
         if: steps.impact.outputs.full == 'true'
         run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files

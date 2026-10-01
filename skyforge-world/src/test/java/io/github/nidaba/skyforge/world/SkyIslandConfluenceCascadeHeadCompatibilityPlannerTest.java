@@ -20,8 +20,10 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
 
         assertEquals(first.outcomes().size(), second.outcomes().size());
-        assertTrue(first.outcomes().stream().anyMatch(outcome ->
-                outcome.confluence().transitionSite().nodeCellIndex() == 710));
+        assertTrue(
+                first.outcomes().stream().anyMatch(outcome ->
+                        outcome.confluence().transitionSite().nodeCellIndex() == 710),
+                () -> "expected a confluence-710 joint outcome; observed " + first.outcomes());
         assertTrue(first.outcomes().stream().anyMatch(outcome ->
                         outcome.confluence().transitionSite().nodeCellIndex() == 710
                                 && outcome.status()
