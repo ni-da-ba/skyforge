@@ -374,6 +374,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
         evidence.put("transitionMethod", "sable-pipeline-teleport");
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
+        evidence.put("fixtureTicketDistance", ROPE_SANITY_TICKET_DISTANCE);
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
         evidence.put("loadedChunkDelta", loadedDelta);
