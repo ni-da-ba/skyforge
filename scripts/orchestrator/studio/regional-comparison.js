@@ -118,10 +118,68 @@
   if (root) root.SkyforgeRegionalComparison=api;
   if (typeof document === "undefined") return;
 
-  const state = {left:null,right:null,leftRanking:null,rightRanking:null,leftNames:{},rightNames:{},leftSource:null,rightSource:null};
+  const state = {left:null,right:null,leftRanking:null,rightRanking:null,leftNames:{},rightNames:{},leftSource:null,rightSource:null,libraryRepository:null,libraryRecords:[],libraryAvailable:false,libraryBusy:false};
   const $ = id => document.getElementById(id);
   function status(side, message, error) {
     const el=$("regional-"+side+"-status"); el.textContent=message; el.className=error?"small error":"small muted";
+  }
+  function libraryStatus(message,error) {
+    const el=$("regional-library-status");
+    el.textContent=message;
+    el.className=error?"small error":"small muted";
+  }
+  function renderLibraryControls() {
+    const hasSources=Boolean(state.leftSource&&state.rightSource);
+    const selected=$("regional-library-select").value;
+    $("regional-library-title").disabled=!state.libraryAvailable||state.libraryBusy;
+    $("regional-library-save").disabled=!state.libraryAvailable||!hasSources||!$("regional-library-title").value.trim()||state.libraryBusy;
+    $("regional-library-select").disabled=!state.libraryAvailable||state.libraryRecords.length===0||state.libraryBusy;
+    const hasSelection=state.libraryRecords.some(item=>item.id===selected);
+    $("regional-library-open").disabled=!state.libraryAvailable||!hasSelection||state.libraryBusy;
+    $("regional-library-remove").disabled=!state.libraryAvailable||!hasSelection||state.libraryBusy;
+  }
+  function packageTextFromCurrentSources() {
+    if(!state.leftSource||!state.rightSource)throw new Error("Load and validate both inventories first");
+    const report=createPackage(
+      {inventory_file:state.leftSource.inventory.name,inventory_csv:state.leftSource.inventory.text,ranking_file:state.leftSource.ranking?.name??null,ranking_csv:state.leftSource.ranking?.text??null},
+      {inventory_file:state.rightSource.inventory.name,inventory_csv:state.rightSource.inventory.text,ranking_file:state.rightSource.ranking?.name??null,ranking_csv:state.rightSource.ranking?.text??null}
+    );
+    const text=JSON.stringify(report,null,2)+"\\n";
+    if(new TextEncoder().encode(text).length>MAX_PACKAGE_BYTES)throw new Error("Comparison package exceeds the 10 MB limit");
+    return text;
+  }
+  function applyLoadedPackage(loaded) {
+    const report=loaded.report;
+    state.left=loaded.left;state.right=loaded.right;state.leftRanking=loaded.leftRanking;state.rightRanking=loaded.rightRanking;
+    state.leftSource={inventory:{name:report.left.inventory_file,text:report.left.inventory_csv},ranking:report.left.ranking_csv===null?null:{name:report.left.ranking_file,text:report.left.ranking_csv}};
+    state.rightSource={inventory:{name:report.right.inventory_file,text:report.right.inventory_csv},ranking:report.right.ranking_csv===null?null:{name:report.right.ranking_file,text:report.right.ranking_csv}};
+    state.leftNames={inventory:report.left.inventory_file,ranking:report.left.ranking_file||""};state.rightNames={inventory:report.right.inventory_file,ranking:report.right.ranking_file||""};
+    status("left","Reopened and revalidated "+report.left.inventory_file+".",false);
+    status("right","Reopened and revalidated "+report.right.inventory_file+".",false);
+    render();
+  }
+  function newRecordId() {
+    if(root.crypto&&typeof root.crypto.randomUUID==="function")return root.crypto.randomUUID();
+    return "comparison-"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,14);
+  }
+  async function refreshLibrary() {
+    const selected=$("regional-library-select").value;
+    const records=await state.libraryRepository.list();
+    state.libraryRecords=records;
+    const select=$("regional-library-select");
+    select.replaceChildren();
+    if(records.length===0) {
+      const option=document.createElement("option");option.value="";option.textContent="No saved comparisons";select.appendChild(option);
+    } else {
+      for(const record of records) {
+        const option=document.createElement("option");
+        option.value=record.id;
+        option.textContent=record.title+" · "+new Date(record.updated_at).toLocaleString();
+        select.appendChild(option);
+      }
+      select.value=records.some(record=>record.id===selected)?selected:records[0].id;
+    }
+    renderLibraryControls();
   }
   function safeName(file){return file ? file.name : "";}
   const delta = formatDelta;
@@ -129,6 +187,7 @@
   function render() {
     const out=$("regional-compare-output");
     $("regional-compare-export-report").disabled = !state.leftSource || !state.rightSource;
+    renderLibraryControls();
     if (!state.left || !state.right) {out.hidden=true; $("regional-compare-table").replaceChildren(); $("regional-compare-counts").replaceChildren(); return;}
     let result;
     try { result=compare(state.left,state.right,state.leftRanking,state.rightRanking); }
@@ -151,7 +210,7 @@
   async function loadInventory(side,file){try{const invApi=root.SkyforgeRegionalInventory;if(!invApi)throw new Error("AUTH-0094 validator is unavailable");const text=await fileText(file);const parsed=invApi.parseInventoryCsv(text);state[side]=parsed;state[side+"Ranking"]=null;state[side+"Source"]={inventory:{name:safeName(file),text},ranking:null};state[side+"Names"]={inventory:safeName(file),ranking:""};$( "regional-"+side+"-ranking").value="";status(side,"Validated "+file.name+" ("+parsed.associationCount+" associations).",false);render();}catch(e){state[side]=null;state[side+"Ranking"]=null;state[side+"Source"]=null;state[side+"Names"]={};status(side,"Could not load inventory: "+String(e.message||e),true);render();}}
   async function loadRanking(side,file){try{if(!state[side])throw new Error("Load and validate this side's inventory first");const text=await fileText(file);state[side+"Ranking"]=root.SkyforgeRegionalInventory.parseRankingCsv(text,state[side]);state[side+"Source"].ranking={name:safeName(file),text};state[side+"Names"].ranking=safeName(file);status(side,"Validated "+file.name+" against this side's inventory.",false);render();}catch(e){state[side+"Ranking"]=null;if(state[side+"Source"])state[side+"Source"].ranking=null;if(state[side+"Names"])state[side+"Names"].ranking="";status(side,"Could not load ranking: "+String(e.message||e),true);render();}}
   function clear(){for(const side of ["left","right"]){state[side]=null;state[side+"Ranking"]=null;state[side+"Source"]=null;state[side+"Names"]={};$("regional-"+side+"-inventory").value="";$("regional-"+side+"-ranking").value="";status(side,"Choose an inventory CSV.",false);}render();}
-  function init(){
+  async function init(){
     for(const side of ["left","right"]){
       $("regional-"+side+"-inventory").addEventListener("change",e=>{const f=e.target.files?.[0];if(f)loadInventory(side,f);e.target.value="";});
       $("regional-"+side+"-ranking").addEventListener("change",e=>{const f=e.target.files?.[0];if(f)loadRanking(side,f);e.target.value="";});
@@ -159,13 +218,7 @@
     $("regional-compare-clear").addEventListener("click",clear);
     $("regional-compare-export-report").addEventListener("click",()=>{
       try{
-        if(!state.leftSource||!state.rightSource)throw new Error("Load and validate both inventories first");
-        const report=createPackage(
-          {inventory_file:state.leftSource.inventory.name,inventory_csv:state.leftSource.inventory.text,ranking_file:state.leftSource.ranking?.name??null,ranking_csv:state.leftSource.ranking?.text??null},
-          {inventory_file:state.rightSource.inventory.name,inventory_csv:state.rightSource.inventory.text,ranking_file:state.rightSource.ranking?.name??null,ranking_csv:state.rightSource.ranking?.text??null}
-        );
-        const text=JSON.stringify(report,null,2)+"\n";
-        if(new TextEncoder().encode(text).length>MAX_PACKAGE_BYTES)throw new Error("Comparison package exceeds the 10 MB limit");
+        const text=packageTextFromCurrentSources();
         const link=document.createElement("a"),url=URL.createObjectURL(new Blob([text],{type:"application/json"}));
         link.href=url;link.download="skyforge-regional-comparison.json";link.click();setTimeout(()=>URL.revokeObjectURL(url),0);
         $("regional-compare-package-status").textContent="Downloaded a portable, unbound diagnostic package with the original CSV inputs.";
@@ -177,20 +230,71 @@
       const file=e.target.files?.[0];e.target.value="";if(!file)return;
       try{
         if(file.size>MAX_PACKAGE_BYTES)throw new Error("Comparison package files must be 10 MB or smaller");
-        const loaded=validatePackageInputs(await file.text(),file.size,root.SkyforgeRegionalInventory),report=loaded.report;
-        state.left=loaded.left;state.right=loaded.right;state.leftRanking=loaded.leftRanking;state.rightRanking=loaded.rightRanking;
-        state.leftSource={inventory:{name:report.left.inventory_file,text:report.left.inventory_csv},ranking:report.left.ranking_csv===null?null:{name:report.left.ranking_file,text:report.left.ranking_csv}};
-        state.rightSource={inventory:{name:report.right.inventory_file,text:report.right.inventory_csv},ranking:report.right.ranking_csv===null?null:{name:report.right.ranking_file,text:report.right.ranking_csv}};
-        state.leftNames={inventory:report.left.inventory_file,ranking:report.left.ranking_file||""};state.rightNames={inventory:report.right.inventory_file,ranking:report.right.ranking_file||""};
-        status("left","Reopened and revalidated "+report.left.inventory_file+".",false);status("right","Reopened and revalidated "+report.right.inventory_file+".",false);render();
+        const loaded=validatePackageInputs(await file.text(),file.size,root.SkyforgeRegionalInventory);
+        applyLoadedPackage(loaded);
         $("regional-compare-package-status").textContent="Package reopened; both inventories and any supplied rankings passed validation.";
         $("regional-compare-package-status").className="small muted";
       }catch(e){$("regional-compare-package-status").textContent="Could not open comparison package: "+String(e.message||e);$("regional-compare-package-status").className="small error";}
+    });
+    $("regional-library-title").addEventListener("input",renderLibraryControls);
+    $("regional-library-select").addEventListener("change",renderLibraryControls);
+    $("regional-library-save").addEventListener("click",async()=>{
+      if(!state.libraryRepository)return;
+      state.libraryBusy=true;renderLibraryControls();
+      try{
+        const text=packageTextFromCurrentSources();
+        const now=new Date().toISOString();
+        const library=root.SkyforgeRegionalComparisonLibrary;
+        if(!library)throw new Error("browser-local comparison library is unavailable");
+        const record=library.createRecord(newRecordId(),$("regional-library-title").value,text,now,now);
+        await state.libraryRepository.save(record);
+        await refreshLibrary();
+        $("regional-library-select").value=record.id;
+        $("regional-library-title").value="";
+        renderLibraryControls();
+        libraryStatus("Saved in this browser. It remains on this device and profile until removed or browser data is cleared.",false);
+      }catch(e){libraryStatus("Could not save comparison: "+String(e.message||e)+". You can still download a portable package.",true);}
+      finally{state.libraryBusy=false;renderLibraryControls();}
+    });
+    $("regional-library-open").addEventListener("click",()=>{
+      try{
+        const record=state.libraryRecords.find(item=>item.id===$("regional-library-select").value);
+        if(!record)throw new Error("Choose a saved comparison first");
+        const loaded=validatePackageInputs(record.package_json,record.package_bytes,root.SkyforgeRegionalInventory);
+        applyLoadedPackage(loaded);
+        $("regional-compare-package-status").textContent="Saved comparison reopened; both inventories and any supplied rankings passed validation.";
+        $("regional-compare-package-status").className="small muted";
+        libraryStatus("Opened “"+record.title+"” and revalidated its saved CSV inputs.",false);
+      }catch(e){libraryStatus("Could not open saved comparison: "+String(e.message||e)+". The current comparison is unchanged.",true);}
+    });
+    $("regional-library-remove").addEventListener("click",async()=>{
+      const record=state.libraryRecords.find(item=>item.id===$("regional-library-select").value);
+      if(!record||!state.libraryRepository)return;
+      if(typeof root.confirm==="function"&&!root.confirm("Permanently remove “"+record.title+"” from this browser? Download a portable package first if you may need it later."))return;
+      state.libraryBusy=true;renderLibraryControls();
+      try{
+        await state.libraryRepository.remove(record.id);
+        await refreshLibrary();
+        libraryStatus("Removed “"+record.title+"” from this browser.",false);
+      }catch(e){libraryStatus("Could not remove saved comparison: "+String(e.message||e),true);}
+      finally{state.libraryBusy=false;renderLibraryControls();}
     });
     $("regional-compare-load-sample").addEventListener("click",async()=>{
       try{const base="sample/regional/";const [ir,rr]=await Promise.all([fetch(base+"auth-0094-inventory.csv",{cache:"no-store"}),fetch(base+"auth-0094-ranking.csv",{cache:"no-store"})]);if(!ir.ok||!rr.ok)throw new Error("Included AUTH-0094 files are unavailable in this preview.");const [it,rt]=await Promise.all([ir.text(),rr.text()]);state.left=root.SkyforgeRegionalInventory.parseInventoryCsv(it);state.leftRanking=root.SkyforgeRegionalInventory.parseRankingCsv(rt,state.left);state.leftSource={inventory:{name:"Included AUTH-0094 evidence",text:it},ranking:{name:"Included AUTH-0094 ranking",text:rt}};state.leftNames={inventory:"Included AUTH-0094 evidence",ranking:"Included AUTH-0094 ranking"};status("left","Loaded included AUTH-0094 evidence and its supplied ranking.",false);render();}catch(e){state.left=null;state.leftRanking=null;status("left","Could not load sample: "+String(e.message||e),true);render();}
     });
     clear();
+    try{
+      const library=root.SkyforgeRegionalComparisonLibrary;
+      if(!library)throw new Error("browser-local comparison library is unavailable");
+      state.libraryRepository=library.createRepository();
+      state.libraryAvailable=true;
+      await refreshLibrary();
+      libraryStatus("Saved items stay in this browser profile. Portable packages are for moving or backing up comparisons.",false);
+    }catch(e){
+      state.libraryAvailable=false;
+      renderLibraryControls();
+      libraryStatus("Browser-local storage is unavailable or cannot be read: "+String(e.message||e)+". Portable package download and open remain available.",true);
+    }
   }
   document.addEventListener("DOMContentLoaded",init);
 })(typeof window!=="undefined"?window:globalThis);
