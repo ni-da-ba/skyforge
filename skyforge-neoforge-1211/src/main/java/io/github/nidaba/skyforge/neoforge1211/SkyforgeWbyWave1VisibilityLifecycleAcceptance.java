@@ -113,7 +113,7 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
             BlockPos bodyMax = new BlockPos(baseX + 3, baseY + 2, baseZ + 3);
             BlockPos assemblerPos = new BlockPos(baseX + 1, baseY + 3, baseZ + 1);
             BlockPos glueMin = bodyMin;
-            BlockPos glueMax = assemblerPos;
+            BlockPos glueMax = new BlockPos(bodyMax.getX(), assemblerPos.getY(), bodyMax.getZ());
 
             targetChunk = new ChunkPos(bodyMin);
             level.getChunkSource().addRegionTicket(
