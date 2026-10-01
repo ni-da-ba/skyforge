@@ -126,6 +126,9 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 if (now - ticketPlanReadyTick < TICKET_SETTLE_TICKS) {
                     return;
                 }
+                if (!fixtureTicketChunksLoadedEnough()) {
+                    return;
+                }
                 loadedChunksBefore = level.getChunkSource().getLoadedChunksCount();
                 forcedChunksBefore = level.getForcedChunks().size();
                 return;
@@ -305,6 +308,19 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         }
     }
 
+    private static boolean fixtureTicketChunksLoadedEnough() throws ReflectiveOperationException {
+        Class<?> ticketManagerClass =
+                Class.forName("dev.ryanhcode.sable.sublevel.system.ticket.PhysicsChunkTicketManager");
+        Method isLoadedEnough =
+                ticketManagerClass.getMethod("isChunkLoadedEnough", ServerLevel.class, int.class, int.class);
+        for (ChunkPos chunk : fixtureTicketChunks) {
+            if (!(Boolean) isLoadedEnough.invoke(null, level, chunk.x, chunk.z)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static void relocateBodyAcrossChunkBoundary() throws ReflectiveOperationException {
         Object pose = publicMethod(body, "logicalPose").invoke(body);
         Object orientationValue = publicMethod(pose, "orientation").invoke(pose);
@@ -403,6 +419,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("targetBodyPosition", targetBodyPosition.x + "," + targetBodyPosition.y + "," + targetBodyPosition.z);
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
         evidence.put("ticketSettleTicks", TICKET_SETTLE_TICKS);
+        evidence.put("fixtureTicketChunksLoadedEnough", true);
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
         evidence.put("loadedChunkDelta", loadedDelta);
