@@ -12,6 +12,7 @@ on:
       - studio/inspection-workspaces
       - studio/remember-inspector-session
       - studio/terrain-volume-comparison
+      - studio/terrain-comparison-report
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"
