@@ -191,12 +191,14 @@
       <section class="panel terrain-comparison-loader" aria-labelledby="terrain-comparison-load-heading">
         <div class="section-heading">
           <div>
-            <h3 id="terrain-comparison-load-heading">Choose two terrain files</h3>
-            <p class="small muted">Select a reference version and a candidate version together. Both remain local diagnostics.</p>
+            <h3 id="terrain-comparison-load-heading">Choose the two versions</h3>
+            <p class="small muted">Choose the earlier version as the reference and the later version as the candidate. Both remain local diagnostics.</p>
           </div>
         </div>
-        <label for="terrain-comparison-files">Reference and candidate terrain semantic volume JSON</label>
-        <input id="terrain-comparison-files" type="file" accept=".json,application/json" multiple>
+        <label for="terrain-comparison-reference">Reference version · before</label>
+        <input id="terrain-comparison-reference" type="file" accept=".json,application/json">
+        <label for="terrain-comparison-candidate">Candidate version · after</label>
+        <input id="terrain-comparison-candidate" type="file" accept=".json,application/json">
         <p class="small muted">The two files must have exactly the same grid dimensions, origin, and spacing. Different grids cannot be compared here.</p>
         <p id="terrain-comparison-status" class="small muted" aria-live="polite">No terrain comparison loaded.</p>
       </section>
