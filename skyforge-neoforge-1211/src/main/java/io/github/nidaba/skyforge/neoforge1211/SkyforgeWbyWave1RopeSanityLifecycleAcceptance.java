@@ -139,6 +139,9 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 return;
             }
 
+            if (moved) {
+                holdBodyAtTarget();
+            }
             updateAndValidateRope();
 
             if (!moved && now - ropeCreatedTick >= PRE_MOVE_SETTLE_TICKS) {
@@ -337,6 +340,16 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     }
 
     private static void relocateBodyAcrossChunkBoundary() throws ReflectiveOperationException {
+        teleportBodyToTarget();
+        resetBodyVelocity();
+    }
+
+    private static void holdBodyAtTarget() throws ReflectiveOperationException {
+        teleportBodyToTarget();
+        resetBodyVelocity();
+    }
+
+    private static void teleportBodyToTarget() throws ReflectiveOperationException {
         Object pose = publicMethod(body, "logicalPose").invoke(body);
         Object orientationValue = publicMethod(pose, "orientation").invoke(pose);
         if (!(orientationValue instanceof Quaterniondc orientation)) {
@@ -346,6 +359,10 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
         Method teleport = methodByNameAndArity(pipeline, "teleport", 3);
         teleport.invoke(pipeline, body, targetBodyPosition, new Quaterniond(orientation));
+    }
+
+    private static void resetBodyVelocity() throws ReflectiveOperationException {
+        methodByNameAndArity(pipeline, "resetVelocity", 1).invoke(pipeline, body);
     }
 
     private static void updateAndValidateRope() throws ReflectiveOperationException {
@@ -431,6 +448,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("chunkBoundaryCrossed", true);
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
         evidence.put("bodyRelocationMethod", "SablePhysicsPipeline.teleport");
+        evidence.put("postTransitionHoldMethod", "SablePhysicsPipeline.teleport+resetVelocity");
         evidence.put("targetBodyPosition", targetBodyPosition.x + "," + targetBodyPosition.y + "," + targetBodyPosition.z);
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
         evidence.put("ticketSettleMinTicks", TICKET_SETTLE_MIN_TICKS);
