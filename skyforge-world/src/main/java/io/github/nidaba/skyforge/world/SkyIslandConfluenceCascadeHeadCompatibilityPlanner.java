@@ -72,6 +72,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                                 confluence,
                                 cascade,
                                 leg,
+                                reaches,
                                 reach,
                                 cells,
                                 terrain,
@@ -95,6 +96,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             SkyIslandHydraulicConfluenceGeometryCandidate confluence,
             SkyIslandHydraulicCascadeGeometryCandidate cascade,
             SkyIslandHydraulicTransitionLegGeometry coupledLeg,
+            Map<Long, SkyIslandHydraulicReachSkeleton> reaches,
             SkyIslandHydraulicReachSkeleton reach,
             Map<Integer, SkyIslandWatershedCell> cells,
             SkyIslandSemanticField terrain,
@@ -204,7 +206,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
         double nodeWeight = 0.0;
         List<HeadEnvelopePair> ordinaryEnvelopes = new ArrayList<>();
         for (SkyIslandHydraulicTransitionLegGeometry leg : ordinaryLegs) {
-            SkyIslandSemanticChannelReach semantic = requireReach(reach, leg)
+            SkyIslandSemanticChannelReach semantic = requireReach(reaches, leg.nodeBoundary())
                     .geomorphicRoute().semanticReach();
             SkyIslandChannelProfileKind nodeKind =
                     SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
@@ -279,7 +281,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
             HeadEnvelopePair pair = ordinaryEnvelopes.get(i);
             SkyIslandHydraulicTransitionLegGeometry leg = pair.leg();
             SkyIslandSemanticChannelReach semantic =
-                    requireReach(reach, leg).geomorphicRoute().semanticReach();
+                    requireReach(reaches, leg.nodeBoundary()).geomorphicRoute().semanticReach();
             int variable = i + 1;
             SkyIslandHydraulicHeadEnvelope finite = pair.finite();
             target[variable] = finite.targetHead();
