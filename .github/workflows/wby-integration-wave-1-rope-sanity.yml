@@ -1,6 +1,14 @@
 name: WBY Integration Wave 1 Rope Sanity
 
 on:
+  push:
+    branches:
+      - "wby/int-0002-rope-sanity"
+    paths:
+      - ".github/workflows/wby-integration-wave-1-rope-sanity.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1RopeSanityLifecycleAcceptance.java"
   pull_request:
     paths:
       - ".github/workflows/wby-integration-wave-1-rope-sanity.yml"
