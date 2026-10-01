@@ -40,10 +40,14 @@ assert.equal(validated.left.source,leftSource.inventory_csv);
 assert.equal(validated.leftRanking.source,leftSource.ranking_csv);
 assert.equal(validated.rightRanking,null);
 let visibleState="existing comparison";
+function applyPackage(json) {
+  const loaded=validatePackageInputs(json,undefined,fakeInventoryApi);
+  visibleState=loaded;
+}
 const invalidPackage=createPackage({...leftSource,inventory_csv:"invalid"},rightSource);
-assert.throws(()=>validatePackageInputs(JSON.stringify(invalidPackage),undefined,fakeInventoryApi),/invalid inventory/);
-assert.equal(visibleState,"existing comparison","invalid input does not mutate the visible comparison");
+assert.throws(()=>applyPackage(JSON.stringify(invalidPackage)),/invalid inventory/);
+assert.equal(visibleState,"existing comparison","validation failure leaves the previously visible comparison untouched");
 const mismatchedRanking=createPackage({...leftSource,ranking_csv:"invalid"},rightSource);
-assert.throws(()=>validatePackageInputs(JSON.stringify(mismatchedRanking),undefined,fakeInventoryApi),/invalid ranking/);
+assert.throws(()=>applyPackage(JSON.stringify(mismatchedRanking)),/invalid ranking/);
 assert.equal(visibleState,"existing comparison");
 console.log("Studio regional inventory comparison contract passed.");
