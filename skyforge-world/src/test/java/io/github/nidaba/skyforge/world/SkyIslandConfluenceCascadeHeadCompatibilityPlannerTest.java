@@ -20,19 +20,17 @@ class SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest {
                 SkyIslandConfluenceCascadeHeadCompatibilityPlanner.plan(descriptor);
 
         assertEquals(first.outcomes().size(), second.outcomes().size());
-        boolean hasConfluence710 = first.outcomes().stream().anyMatch(outcome ->
-                outcome.confluence().transitionSite().nodeCellIndex() == 710);
-        if (!hasConfluence710) {
-            System.err.println("F3H expected confluence-710 joint outcome; observed " + first.outcomes());
-        }
+        var confluence710 = first.outcomes().stream()
+                .filter(outcome -> outcome.confluence().transitionSite().nodeCellIndex() == 710)
+                .toList();
         assertTrue(
-                hasConfluence710,
+                !confluence710.isEmpty(),
                 () -> "expected a confluence-710 joint outcome; observed " + first.outcomes());
-        assertTrue(first.outcomes().stream().anyMatch(outcome ->
-                        outcome.confluence().transitionSite().nodeCellIndex() == 710
-                                && outcome.status()
-                                        == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
-                "the eligible confluence-710/CASCADE overlap should solve jointly");
+        assertTrue(
+                confluence710.stream().anyMatch(outcome ->
+                        outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED),
+                () -> "the eligible confluence-710/CASCADE overlap should solve jointly; observed "
+                        + confluence710);
         assertTrue(first.outcomes().stream().noneMatch(outcome ->
                 outcome.status() == SkyIslandConfluenceCascadeHeadCompatibilityStatus.NUMERICAL_FAILURE));
 
