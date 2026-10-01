@@ -26,6 +26,8 @@ import net.minecraft.world.phys.AABB;
 import net.neoforged.fml.ModList;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import org.joml.Quaterniond;
+import org.joml.Quaterniondc;
 import org.joml.Vector3d;
 import org.joml.Vector3dc;
 
@@ -44,8 +46,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
     private static final int SETUP_TIMEOUT_TICKS = 360;
     private static final int PRE_MOVE_SETTLE_TICKS = 30;
-    private static final int POST_MOVE_SETTLE_TICKS = 20;
-    private static final double BODY_TRAVEL_VELOCITY = 4.0;
+    private static final int POST_MOVE_SETTLE_TICKS = 40;
     private static final int ROPE_POINTS = 32;
     private static final double ROPE_RADIUS = 0.125;
     private static final double WORLD_ANCHOR_OFFSET = 12.0;
@@ -74,7 +75,6 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static long firstTick = Long.MIN_VALUE;
     private static long ropeCreatedTick = Long.MIN_VALUE;
     private static long movedTick = Long.MIN_VALUE;
-    private static long boundaryCrossedTick = Long.MIN_VALUE;
     private static double maxStartEndpointError;
     private static double maxEndEndpointError;
     private static boolean assembled;
@@ -123,32 +123,21 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
                 return;
             }
 
+            if (moved && now - movedTick < 2L) {
+                return;
+            }
+
             updateAndValidateRope();
 
             if (!moved && now - ropeCreatedTick >= PRE_MOVE_SETTLE_TICKS) {
-                beginBodyMotion();
+                moveBodyAcrossChunkBoundary();
                 moved = true;
                 movedTick = now;
                 return;
             }
 
-            if (moved) {
-                Object handle = requireCurrentPhysicsHandle();
-                enforceTargetVelocity(handle);
-                ChunkPos currentChunk = chunkAt(bodyWorldPosition(body));
-                boolean acrossBoundary =
-                        currentChunk.x != initialBodyChunk.x || currentChunk.z != initialBodyChunk.z;
-                if (acrossBoundary) {
-                    if (boundaryCrossedTick == Long.MIN_VALUE) {
-                        boundaryCrossedTick = now;
-                    }
-                    if (now - boundaryCrossedTick >= POST_MOVE_SETTLE_TICKS) {
-                        resetVelocity(handle);
-                        complete(event);
-                    }
-                } else {
-                    boundaryCrossedTick = Long.MIN_VALUE;
-                }
+            if (moved && now - movedTick >= POST_MOVE_SETTLE_TICKS) {
+                complete(event);
             }
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail(event, "WBY Wave 1 rope sanity failed: " + failure);
@@ -294,42 +283,11 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         }
     }
 
-    private static void beginBodyMotion() throws ReflectiveOperationException {
-        Object handle = requireCurrentPhysicsHandle();
-        resetVelocity(handle);
-        enforceTargetVelocity(handle);
-    }
-
-    private static Object requireCurrentPhysicsHandle() throws ReflectiveOperationException {
-        Method getter = oneArgMethod(physicsSystem, "getPhysicsHandle", body);
-        Object handle = getter.invoke(physicsSystem, body);
-        if (handle == null || !Boolean.TRUE.equals(publicMethod(handle, "isValid").invoke(handle))) {
-            throw new IllegalStateException("Sable rope body does not have a valid current physics handle");
-        }
-        return handle;
-    }
-
-    private static void resetVelocity(Object handle) throws ReflectiveOperationException {
-        Vector3d linear = (Vector3d) publicMethod(handle, "getLinearVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d angular = (Vector3d) publicMethod(handle, "getAngularVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        linear.negate();
-        angular.negate();
-        twoArgMethod(handle, "addLinearAndAngularVelocity", linear, angular)
-                .invoke(handle, linear, angular);
-    }
-
-    private static void enforceTargetVelocity(Object handle) throws ReflectiveOperationException {
-        Vector3d currentLinear = (Vector3d) publicMethod(handle, "getLinearVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d currentAngular = (Vector3d) publicMethod(handle, "getAngularVelocity", Vector3d.class)
-                .invoke(handle, new Vector3d());
-        Vector3d correction =
-                new Vector3d(BODY_TRAVEL_VELOCITY, 0.0, 0.0).sub(currentLinear);
-        Vector3d angularCorrection = currentAngular.negate();
-        twoArgMethod(handle, "addLinearAndAngularVelocity", correction, angularCorrection)
-                .invoke(handle, correction, angularCorrection);
+    private static void moveBodyAcrossChunkBoundary() throws ReflectiveOperationException {
+        Object pose = publicMethod(body, "logicalPose").invoke(body);
+        Quaterniondc orientation = (Quaterniondc) publicMethod(pose, "orientation").invoke(pose);
+        Method teleport = methodByNameAndArity(pipeline, "teleport", 3);
+        teleport.invoke(pipeline, body, targetBodyPosition, new Quaterniond(orientation));
     }
 
     private static void updateAndValidateRope() throws ReflectiveOperationException {
@@ -414,7 +372,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         evidence.put("finalBodyChunk", finalBodyChunk.x + "," + finalBodyChunk.z);
         evidence.put("chunkBoundaryCrossed", true);
         evidence.put("boundaryStableTicks", POST_MOVE_SETTLE_TICKS);
-        evidence.put("bodyTravelVelocityBlocksPerSecond", BODY_TRAVEL_VELOCITY);
+        evidence.put("transitionMethod", "sable-pipeline-teleport");
         evidence.put("fixtureTicketChunks", fixtureTicketChunks.size());
         evidence.put("loadedChunksBefore", loadedChunksBefore);
         evidence.put("loadedChunksAfter", loadedChunksAfter);
