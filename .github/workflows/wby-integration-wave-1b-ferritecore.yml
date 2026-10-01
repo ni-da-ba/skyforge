@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache | tee wby-wave1b-ferritecore-resolve.log
-          grep -q 'WBY Wave 1B optimizer=lithium' wby-wave1b-ferritecore-resolve.log
+          grep -q 'WBY Wave 1B optimizer=ferritecore' wby-wave1b-ferritecore-resolve.log
           grep -q 'gvQqBUqZ-DDUrRVCA' wby-wave1b-ferritecore-resolve.log
           grep -q 'uXXizFIs-x7kQWVju' wby-wave1b-ferritecore-resolve.log
 
@@ -207,7 +207,7 @@ jobs:
           rm -rf "$target_mods"
           mkdir -p "$target_mods"
           cp -a "$source_mods"/. "$target_mods"/
-          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 7
+          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 8
 
       - name: Capture Lithium + FerriteCore telemetry trace
         shell: bash
