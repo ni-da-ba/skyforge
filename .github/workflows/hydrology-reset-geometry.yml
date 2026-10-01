@@ -251,6 +251,9 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticChannelReachPlannerTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandTerrainAwareRouteSolverTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGeomorphicChannelNetworkPlannerTest.java"
+      - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F3K.md"
+      - "skyforge-reference/build.gradle.kts"
+      - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyNaturalTransitionCensusCli.java"
   workflow_dispatch:
 
 permissions:
@@ -263,7 +266,7 @@ concurrency:
 jobs:
   geometry:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -478,3 +481,19 @@ jobs:
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyGeomorphicQualificationCorpusTest.xml || true
           cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyOrdinarySpanCorpusTest.xml || true
+      - name: Run bounded natural confluence/CASCADE census
+        if: success()
+        run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
+
+      - name: Print natural-transition census summary
+        if: success()
+        run: cat skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/summary.csv
+
+      - name: Upload natural-transition census evidence
+        if: success()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: hydrology-natural-transition-census-${{ github.sha }}
+          path: skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/
+          if-no-files-found: error
+          retention-days: 14
