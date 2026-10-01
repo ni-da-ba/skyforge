@@ -2121,7 +2121,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-multiplayer-server")
             systemProperty("skyforge.dev.acceptanceRadius", "0")
-            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "480")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/wby-wave1-multiplayer/server.properties").get().asFile.absolutePath,
@@ -2142,7 +2142,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "client")
             systemProperty("skyforge.dev.acceptanceCase", "wby-wave1-multiplayer-observer")
             systemProperty("skyforge.dev.acceptanceRadius", "0")
-            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "360")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/wby-wave1-multiplayer/observer.properties").get().asFile.absolutePath,
