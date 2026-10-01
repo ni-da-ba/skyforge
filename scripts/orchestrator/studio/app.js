@@ -2953,6 +2953,7 @@
       workspaceSession: window.SkyforgeStudioWorkspaceSession,
       workspacePackage: window.SkyforgeStudioWorkspacePackage,
       terrainLibrary: window.SkyforgeStudioTerrainComparisonLibrary,
+      terrainReportReader: window.SkyforgeStudioTerrainComparisonReportReader,
       regionalLibrary: window.SkyforgeStudioRegionalComparisonLibrary,
       regionalComparison: window.SkyforgeRegionalComparison,
       regionalInventory: window.SkyforgeRegionalInventory,
