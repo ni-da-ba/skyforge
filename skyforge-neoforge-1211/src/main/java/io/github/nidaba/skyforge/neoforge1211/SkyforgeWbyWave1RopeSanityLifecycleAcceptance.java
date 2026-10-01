@@ -71,6 +71,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
     private static Object rope;
     private static UUID bodyId;
     private static Vector3d worldAnchor;
+    private static Vector3d bodyAttachmentLocal;
     private static Vector3d initialBodyPosition;
     private static Vector3d targetBodyPosition;
     private static ChunkPos initialBodyChunk;
@@ -254,6 +255,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
 
     private static void createAttachedRope() throws ReflectiveOperationException {
         Vector3dc localCenterOfMass = bodyLocalCenterOfMass(body);
+        bodyAttachmentLocal = new Vector3d(localCenterOfMass);
         Vector3d bodyWorld = bodyWorldPosition(body);
 
         List<Vector3d> points = new ArrayList<>(ROPE_POINTS);
@@ -384,7 +386,7 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
         Vector3dc start = (Vector3dc) points.getFirst();
         Vector3dc end = (Vector3dc) points.getLast();
         double startError = distance(start, worldAnchor);
-        double endError = distance(end, bodyWorldPosition(body));
+        double endError = distance(end, bodyAttachmentWorldPosition());
         maxStartEndpointError = Math.max(maxStartEndpointError, startError);
         maxEndEndpointError = Math.max(maxEndEndpointError, endError);
 
@@ -498,6 +500,20 @@ final class SkyforgeWbyWave1RopeSanityLifecycleAcceptance {
             }
         }
         return null;
+    }
+
+    private static Vector3d bodyAttachmentWorldPosition() throws ReflectiveOperationException {
+        if (bodyAttachmentLocal == null) {
+            throw new IllegalStateException("Sable rope body attachment was not initialized");
+        }
+        Object pose = publicMethod(body, "logicalPose").invoke(body);
+        Method transform = methodByNameAndArity(pose, "transformPosition", 1);
+        Object transformed = transform.invoke(pose, new Vector3d(bodyAttachmentLocal));
+        if (!(transformed instanceof Vector3dc vector)) {
+            throw new IllegalStateException(
+                    "Sable logical pose transformPosition did not return Vector3dc: " + transformed);
+        }
+        return new Vector3d(vector);
     }
 
     private static Vector3d bodyWorldPosition(Object subLevel) throws ReflectiveOperationException {
