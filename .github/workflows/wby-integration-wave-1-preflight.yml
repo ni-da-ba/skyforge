@@ -81,6 +81,7 @@ jobs:
           grep -Eq '\(sable\)' "$log"
           grep -Eq '\(aeronautics\)' "$log"
           grep -Eq '\(ssrd\)' "$log"
+          grep -Eq '\(lithium\)' "$log"
 
           # Sodium is CLIENT-only and Distant Horizons is optional CLIENT in SSRD metadata.
           if grep -Eq '\(sodium\)|\(distanthorizons\)' "$log"; then
