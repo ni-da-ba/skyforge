@@ -25,6 +25,7 @@ module.exports = {
         options: {
           maintainer: "Skyforge",
           homepage: "https://github.com/ni-da-ba/skyforge",
+          bin: "skyforge-studio",
           categories: ["Graphics"],
         },
       },
