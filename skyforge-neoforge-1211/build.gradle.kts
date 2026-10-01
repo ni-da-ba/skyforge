@@ -238,7 +238,7 @@ check(wbyWave1BPin("neoforge", "version") == "21.1.249") {
     "WBY Wave 1B NeoForge pin must match the adapter runtime"
 }
 
-val wbyWave1BSupportedOptimizers = setOf("lithium")
+val wbyWave1BSupportedOptimizers = setOf("lithium", "ferritecore")
 val wbyWave1BOptimizer = providers.gradleProperty("wbyWave1BOptimizer")
     .orNull
     ?.trim()
@@ -249,7 +249,14 @@ check(wbyWave1BOptimizer == null || wbyWave1BOptimizer in wbyWave1BSupportedOpti
     "unsupported WBY Wave 1B optimizer '$wbyWave1BOptimizer'; expected one of $wbyWave1BSupportedOptimizers"
 }
 
-val wbyWave1BOptimizerMods = listOfNotNull(wbyWave1BOptimizer)
+// W1-B admission is cumulative. Each later candidate is tested on top of every earlier accepted
+// optimizer so the screen measures the actual retained stack rather than an independent alternative.
+val wbyWave1BOptimizerMods = when (wbyWave1BOptimizer) {
+    null -> emptyList()
+    "lithium" -> listOf("lithium")
+    "ferritecore" -> listOf("lithium", "ferritecore")
+    else -> error("unreachable WBY Wave 1B optimizer '$wbyWave1BOptimizer'")
+}
 
 
 val waveC9PinFile = layout.projectDirectory.file("wave-c9-mods.properties")
