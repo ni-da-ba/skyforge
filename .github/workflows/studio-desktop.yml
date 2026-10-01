@@ -124,10 +124,57 @@ jobs:
         working-directory: build/studio-desktop
         run: npm run make
 
+      - name: Prepare a simple installer handoff
+        shell: bash
+        run: |
+          set -euo pipefail
+          out_dir=build/studio-desktop/review-installers
+          mkdir -p "$out_dir"
+
+          case "${{ matrix.platform }}" in
+            windows-x64)
+              pattern='*setup.exe'
+              installer='Skyforge-Studio-Windows-Setup.exe'
+              instructions='Run Skyforge-Studio-Windows-Setup.exe to install the preview.'
+              ;;
+            macos)
+              pattern='*.dmg'
+              installer='Skyforge-Studio-macOS.dmg'
+              instructions='Open Skyforge-Studio-macOS.dmg and move the app to Applications.'
+              ;;
+            linux-x64)
+              pattern='*.deb'
+              installer='Skyforge-Studio-Linux.deb'
+              instructions='Open Skyforge-Studio-Linux.deb with your distribution package installer.'
+              ;;
+            *)
+              echo "Unsupported installer platform: ${{ matrix.platform }}"
+              exit 2
+              ;;
+          esac
+
+          mapfile -t matches < <(find build/studio-desktop/out/make -type f -iname "$pattern" -print | LC_ALL=C sort)
+          if [[ ${#matches[@]} -ne 1 ]]; then
+            echo "Expected exactly one $pattern installer; found ${#matches[@]}."
+            printf '%s\n' "${matches[@]}"
+            exit 1
+          fi
+
+          cp -- "${matches[0]}" "$out_dir/$installer"
+          {
+            echo 'Skyforge Studio desktop preview'
+            echo
+            echo "$instructions"
+            echo
+            echo 'This unsigned review build keeps drafts, workspaces, and saved comparisons on this device.'
+            echo 'It has no connected world generator or registered-artifact service.'
+            echo 'Windows and macOS may show an operating-system warning because this preview is unsigned.'
+          } > "$out_dir/README.txt"
+
       - name: Upload installable review artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: studio-desktop-${{ matrix.platform }}
-          path: build/studio-desktop/out/make
+          path: build/studio-desktop/review-installers
           if-no-files-found: error
           retention-days: 14
