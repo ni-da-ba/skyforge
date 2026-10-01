@@ -88,7 +88,7 @@ jobs:
           cp -a "$source_mods"/. "$target_mods"/
           test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
 
-      - name: Capture W1-A baseline telemetry
+      - name: Capture W1-A telemetry evidence
         shell: bash
         run: |
           set -euo pipefail
@@ -151,7 +151,8 @@ jobs:
             exit 1
           fi
 
-          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance --no-configuration-cache >"$client_log" 2>&1 &
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance --no-configuration-cache >"$client_log" 2>&1 &
           client_pid=$!
 
           terminal=""
@@ -222,55 +223,9 @@ jobs:
           grep -q '^actualClient=true$' "$client_result"
           grep -q '^actualMultiplayer=true$' "$client_result"
           grep -q '^benchmarkCameraProfile=stationary-distant-body-v1$' "$client_result"
-          grep -q '^ssrdDistanceSource=Server          grep -q '^ssrdSublevelRenderObserved=true$' "$client_result"
-          grep -q '^telemetryBaselineQualified=true$' "$client_result"
-          grep -q '^dedicatedServer=true$' "$server_result"
-
-          python3 - <<'PY'
-          from pathlib import Path
-
-          def load(path):
-              result = {}
-              for line in Path(path).read_text().splitlines():
-                  if "=" in line and not line.startswith("#"):
-                      key, value = line.split("=", 1)
-                      result[key] = value
-              return result
-
-          client = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties")
-          server = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties")
-
-          assert client["bodyId"] == server["bodyId"], (client, server)
-          assert int(client["frameSamples"]) >= 240, client
-          assert 0.0 < float(client["frameTimeMedianMs"]) <= float(client["frameTimeP95Ms"]), client
-          assert int(client["clientHeapMedianBytes"]) > 0, client
-          assert int(client["visibleSableSublevelsMedian"]) >= 1, client
-          assert int(client["vanillaRenderDistanceChunks"]) == 4, client
-          assert int(client["dhRenderDistanceChunks"]) >= int(client["ssrdEffectiveMaxChunks"]) > 4, client
-          assert client["vramTelemetryAvailable"] in {"true", "false"}, client
-          assert int(server["serverMsptSamples"]) >= 200, server
-          assert 0.0 < float(server["serverMsptMedian"]) <= float(server["serverMsptP95"]), server
-          assert int(server["loadedChunksMedian"]) >= 1, server
-          assert int(server["forcedChunksMax"]) >= 0, server
-
-          print("WBY WAVE 1 TELEMETRY BASELINE PASS", {"client": client, "server": server})
-          PY
-
-      - name: Upload Wave 1 telemetry evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: wby-wave1-telemetry-baseline
-          path: |
-            wby-wave1-telemetry-server.log
-            wby-wave1-telemetry-client.log
-            skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/*.properties
-            skyforge-neoforge-1211/run-wby-wave1-telemetry-server/logs/latest.log
-            skyforge-neoforge-1211/run-wby-wave1-telemetry-client/logs/latest.log
-          if-no-files-found: warn
- "$client_result"
+          grep -q '^ssrdDistanceSource=Server$' "$client_result"
           grep -q '^ssrdSublevelRenderObserved=true$' "$client_result"
-          grep -q '^telemetryBaselineQualified=true$' "$client_result"
+          grep -q '^telemetryHarnessQualified=true$' "$client_result"
           grep -q '^dedicatedServer=true$' "$server_result"
 
           python3 - <<'PY'
@@ -293,21 +248,35 @@ jobs:
           assert int(client["clientHeapMedianBytes"]) > 0, client
           assert int(client["visibleSableSublevelsMedian"]) >= 1, client
           assert int(client["vanillaRenderDistanceChunks"]) == 4, client
+          assert client["ssrdDistanceSource"] == "Server", client
           assert int(client["dhRenderDistanceChunks"]) >= int(client["ssrdEffectiveMaxChunks"]) > 4, client
           assert client["vramTelemetryAvailable"] in {"true", "false"}, client
+          assert client["softwareRenderer"] in {"true", "false"}, client
+          assert client["representativeHardwareTelemetry"] in {"true", "false"}, client
+          if client["representativeHardwareTelemetry"] == "true":
+              assert client["softwareRenderer"] == "false", client
+              assert client["vramTelemetryAvailable"] == "true", client
+
           assert int(server["serverMsptSamples"]) >= 200, server
           assert 0.0 < float(server["serverMsptMedian"]) <= float(server["serverMsptP95"]), server
           assert int(server["loadedChunksMedian"]) >= 1, server
           assert int(server["forcedChunksMax"]) >= 0, server
 
-          print("WBY WAVE 1 TELEMETRY BASELINE PASS", {"client": client, "server": server})
+          print(
+              "WBY WAVE 1 TELEMETRY HARNESS PASS",
+              {
+                  "representativeHardwareTelemetry": client["representativeHardwareTelemetry"],
+                  "client": client,
+                  "server": server,
+              },
+          )
           PY
 
       - name: Upload Wave 1 telemetry evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-wave1-telemetry-baseline
+          name: wby-wave1-telemetry-capture
           path: |
             wby-wave1-telemetry-server.log
             wby-wave1-telemetry-client.log
