@@ -250,6 +250,12 @@
   let token = readStoredToken();
   let scene = null;
   let overlay = null;
+  let workspaceSceneArtifact = null;
+  let workspaceSceneTitle = "";
+  let workspaceSceneJson = "";
+  let workspaceOverlayArtifact = null;
+  let workspaceOverlayTitle = "";
+  let workspaceOverlayJson = "";
   let hydrologyComparison = null;
   let importedHydrologyComparisonReport = null;
   let importedComparisonReportPage = 0;
@@ -1419,9 +1425,16 @@
     $("terrain-slice-value").textContent = fmt(y, 1);
   }
 
-  function setScene(nextScene) {
+  function setScene(nextScene, sourceArtifact = null, sourceTitle = "", sourceJson = null) {
     stopPlayback();
     scene = nextScene;
+    $("download-inspection-workspace").disabled = !sourceArtifact;
+    workspaceSceneArtifact = sourceArtifact;
+    workspaceSceneTitle = String(sourceTitle || nextScene.source.artifactTitle || nextScene.source.artifactId || "semantic-artifact.json").slice(0, 200);
+    workspaceSceneJson = sourceArtifact ? (typeof sourceJson === "string" ? sourceJson : JSON.stringify(sourceArtifact)) : "";
+    workspaceOverlayArtifact = null;
+    workspaceOverlayTitle = "";
+    workspaceOverlayJson = "";
     overlay = null;
     hydrologyComparison = null;
     $("comparison-mode").value = "causes";
@@ -1457,6 +1470,168 @@
     draw();
   }
 
+  function captureInspectionView() {
+    const camera = { yaw, pitch, zoom };
+    if (isTerrain()) {
+      return {
+        mode: "terrain",
+        camera,
+        controls: {
+          semanticView: $("terrain-view").value,
+          surface: overlay ? $("terrain-surface").value : "base",
+          sliceIndex: Number($("terrain-slice").value),
+          causeField: $("hydrology-potential").value,
+          showFlowVectors: $("show-flow-vectors").checked,
+          showChannelWidth: $("show-channel-width").checked,
+          showHydrologyResponse: $("show-hydrology-response").checked,
+          showWaterIntent: $("show-water-intent").checked,
+        },
+      };
+    }
+    if (isAtmosphere()) {
+      return {
+        mode: "atmosphere",
+        camera,
+        controls: {
+          dataset: $("dataset").value,
+          vectorMode: $("vector-mode").value,
+          colorMode: $("color-mode").value,
+          altitude: $("altitude").value,
+          frame: Number($("frame").value),
+          arrowScale: Number($("arrow-scale").value),
+        },
+      };
+    }
+    throw new Error("load a semantic specimen before downloading a workspace");
+  }
+
+  function assertInspectionViewFits(plan) {
+    if (plan.view.mode === "terrain") {
+      if (plan.scene.sceneKind !== "TERRAIN_SEMANTIC_VOLUME") {
+        throw new Error("workspace view does not match its terrain scene");
+      }
+      if (plan.view.controls.surface === "hydrology" && !plan.overlay) {
+        throw new Error("workspace selects the hydrology surface but has no reference overlay");
+      }
+      if (plan.view.controls.sliceIndex >= plan.scene.terrain.grid.ySamples) {
+        throw new Error("workspace slice is outside the terrain's vertical range");
+      }
+      return;
+    }
+    if (plan.scene.sceneKind !== "ATMOSPHERE_VECTOR_FIELD") {
+      throw new Error("workspace view does not match its atmosphere scene");
+    }
+    const controls = plan.view.controls;
+    const frames = plan.scene.opportunity.frames;
+    if (controls.frame > 0 && controls.frame >= frames.length) {
+      throw new Error("workspace frame is unavailable in this atmosphere specimen");
+    }
+    if (controls.dataset === "opportunity" && !frames.length) {
+      throw new Error("workspace opportunity dataset is unavailable in this atmosphere specimen");
+    }
+    const frame = controls.dataset === "opportunity"
+      ? frames[controls.frame]
+      : plan.scene.snapshot;
+    if (controls.altitude !== "all" &&
+        !frame.samples.some(sample => String(sample.position[1]) === controls.altitude)) {
+      throw new Error("workspace altitude is unavailable in this atmosphere specimen");
+    }
+  }
+
+  function applyInspectionView(view) {
+    yaw = view.camera.yaw;
+    pitch = view.camera.pitch;
+    zoom = view.camera.zoom;
+    if (view.mode === "terrain") {
+      $("terrain-view").value = view.controls.semanticView;
+      $("terrain-surface").value = view.controls.surface;
+      $("terrain-slice").value = String(view.controls.sliceIndex);
+      $("terrain-slice-value").textContent = fmt(
+        scene.terrain.grid.minimumY + scene.terrain.grid.spacingY * view.controls.sliceIndex, 1
+      );
+      $("terrain-slice-control").hidden = view.controls.semanticView !== "slice";
+      $("hydrology-potential").value = view.controls.causeField;
+      $("show-flow-vectors").checked = view.controls.showFlowVectors;
+      $("show-channel-width").checked = view.controls.showChannelWidth;
+      $("show-hydrology-response").checked = view.controls.showHydrologyResponse;
+      $("show-water-intent").checked = view.controls.showWaterIntent;
+      updateHydrologyControlVisibility();
+    } else {
+      $("dataset").value = view.controls.dataset;
+      $("vector-mode").value = view.controls.vectorMode;
+      $("color-mode").value = view.controls.colorMode;
+      $("frame").value = String(view.controls.frame);
+      $("time-controls").hidden = view.controls.dataset !== "opportunity";
+      rebuildAtmosphereAltitudeOptions();
+      $("altitude").value = view.controls.altitude;
+      $("arrow-scale").value = String(view.controls.arrowScale);
+      $("arrow-scale-value").textContent = view.controls.arrowScale.toFixed(2) + "×";
+      $("frame-value").textContent = String(view.controls.frame);
+      $("frame-summary").textContent = view.controls.dataset === "opportunity"
+        ? "Opportunity frame " + view.controls.frame
+        : "Spatial snapshot";
+    }
+    selected = null;
+    updateBindingPill();
+    renderInspector(null);
+    draw();
+  }
+
+  function downloadInspectionWorkspace() {
+    if (!workspaceSceneArtifact) {
+      throw new Error("the current scene source is not available for workspace export");
+    }
+    const workspace = window.SkyforgeStudioWorkspacePackage.create({
+      scene: { title: workspaceSceneTitle, artifactJson: workspaceSceneJson },
+      overlay: workspaceOverlayArtifact
+        ? { title: workspaceOverlayTitle, artifactJson: workspaceOverlayJson }
+        : null,
+      view: captureInspectionView(),
+    });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(new Blob(
+      [JSON.stringify(workspace, null, 2) + "\n"], { type: "application/json" }
+    ));
+    link.href = url;
+    link.download = "skyforge-studio-inspection-workspace.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+    $("inspection-workspace-status").textContent =
+      "Downloaded a portable workspace. Any reopened sources are local diagnostics, not registered-artifact verification.";
+    $("inspection-workspace-status").className = "small muted";
+  }
+
+  async function openInspectionWorkspace(file) {
+    const status = $("inspection-workspace-status");
+    try {
+      if (file.size > window.SkyforgeStudioWorkspacePackage.maximumFileBytes) {
+        throw new Error("workspace files must be 25 MB or smaller");
+      }
+      const plan = window.SkyforgeStudioWorkspacePackage.prepare(
+        await file.text(),
+        {
+          adaptScene: (artifact, source) => window.SkyforgeStudioScene.adaptArtifact(artifact, source),
+          adaptOverlay: (artifact, activeScene, source) =>
+            window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, activeScene, source),
+        }
+      );
+      assertInspectionViewFits(plan);
+
+      setScene(plan.scene, plan.sceneArtifact, plan.sceneTitle, plan.sceneJson);
+      if (plan.overlay) setOverlay(plan.overlay, plan.overlayArtifact, plan.overlayTitle, plan.overlayJson);
+      applyInspectionView(plan.view);
+      $("source-status").textContent = "Opened local inspection workspace; all sources are unbound diagnostics.";
+      status.textContent = "Workspace reopened and all sources were revalidated as local diagnostics.";
+      status.className = "small muted";
+    } catch (error) {
+      status.textContent = "Could not open inspection workspace: " + String(error.message || error) +
+        ". The current inspector was left unchanged.";
+      status.className = "small error";
+    } finally {
+      $("inspection-workspace-file").value = "";
+    }
+  }
+
   async function loadRegisteredArtifact() {
     const select = $("artifact-select");
     const artifactId = select.value;
@@ -1470,7 +1645,8 @@
     if (!response.ok) {
       throw new Error("artifact content request failed: HTTP " + response.status);
     }
-    const artifact = await response.json();
+    const sourceJson = await response.text();
+    const artifact = JSON.parse(sourceJson);
     const nextScene = window.SkyforgeStudioScene.adaptArtifact(artifact, {
       binding: "REGISTERED_ARTIFACT",
       artifactId,
@@ -1478,7 +1654,7 @@
       sourceSha: option.dataset.sha || "",
       reviewAuthority: true,
     });
-    setScene(nextScene);
+    setScene(nextScene, artifact, option.dataset.title || artifactId, sourceJson);
     $("source-status").textContent = "Loaded exact artifact " + artifactId + ".";
   }
 
@@ -1538,8 +1714,11 @@
       : "No registered JSON semantic artifacts are currently available; local diagnostics remain available.";
   }
 
-  function setOverlay(nextOverlay) {
+  function setOverlay(nextOverlay, sourceArtifact = null, sourceTitle = "", sourceJson = null) {
     overlay = nextOverlay;
+    workspaceOverlayArtifact = sourceArtifact;
+    workspaceOverlayTitle = String(sourceTitle || nextOverlay.source.artifactTitle || nextOverlay.source.artifactId || "hydrology-overlay.json").slice(0, 200);
+    workspaceOverlayJson = sourceArtifact ? (typeof sourceJson === "string" ? sourceJson : JSON.stringify(sourceArtifact)) : "";
     hydrologyComparison = null;
     $("comparison-mode").value = "causes";
     $("show-hydrology-delta").checked = false;
@@ -1570,14 +1749,15 @@
     if (!response.ok) {
       throw new Error("overlay content request failed: HTTP " + response.status);
     }
-    const artifact = await response.json();
+    const sourceJson = await response.text();
+    const artifact = JSON.parse(sourceJson);
     setOverlay(window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, scene, {
       binding: "REGISTERED_ARTIFACT",
       artifactId,
       artifactTitle: option.dataset.title || artifactId,
       sourceSha: option.dataset.sha || "",
       reviewAuthority: true,
-    }));
+    }), artifact, option.dataset.title || artifactId, sourceJson);
   }
 
   function displayHydrologyComparison(candidate) {
@@ -1670,6 +1850,9 @@
 
   function clearOverlay() {
     overlay = null;
+    workspaceOverlayArtifact = null;
+    workspaceOverlayTitle = "";
+    workspaceOverlayJson = "";
     hydrologyComparison = null;
     $("show-hydrology-delta").checked = false;
     $("comparison-status").textContent = "Attach a reference hydrology artifact first.";
@@ -1718,6 +1901,20 @@
     showLocalMode();
   });
 
+  $("download-inspection-workspace").addEventListener("click", () => {
+    try {
+      downloadInspectionWorkspace();
+    } catch (error) {
+      $("inspection-workspace-status").textContent = "Could not download workspace: " + String(error.message || error);
+      $("inspection-workspace-status").className = "small error";
+    }
+  });
+  $("open-inspection-workspace").addEventListener("click", () => $("inspection-workspace-file").click());
+  $("inspection-workspace-file").addEventListener("change", event => {
+    const file = event.target.files?.[0];
+    if (file) openInspectionWorkspace(file);
+  });
+
   $("load-artifact").addEventListener("click", () => {
     loadRegisteredArtifact().catch((error) => {
       $("source-status").textContent = String(error.message || error);
@@ -1728,12 +1925,13 @@
     const file = event.target.files?.[0];
     if (!file) return;
     try {
-      const artifact = JSON.parse(await file.text());
+      const sourceJson = await file.text();
+      const artifact = JSON.parse(sourceJson);
       setScene(window.SkyforgeStudioScene.adaptArtifact(artifact, {
         binding: "UNBOUND_LOCAL",
         artifactTitle: file.name,
         reviewAuthority: false,
-      }));
+      }), artifact, file.name, sourceJson);
       $("source-status").textContent =
         "Loaded local diagnostic " + file.name + "; not review authority.";
     } catch (error) {
@@ -1741,7 +1939,7 @@
     }
   });
 
-  function loadLocalPair(terrainArtifact, terrainTitle, hydrologyArtifact, hydrologyTitle) {
+  function loadLocalPair(terrainArtifact, terrainTitle, hydrologyArtifact, hydrologyTitle, terrainJson = null, hydrologyJson = null) {
     const nextScene = window.SkyforgeStudioScene.adaptArtifact(terrainArtifact, {
       binding: "UNBOUND_LOCAL",
       artifactTitle: terrainTitle,
@@ -1757,8 +1955,8 @@
       }
     );
 
-    setScene(nextScene);
-    setOverlay(nextOverlay);
+    setScene(nextScene, terrainArtifact, terrainTitle, terrainJson);
+    setOverlay(nextOverlay, hydrologyArtifact, hydrologyTitle, hydrologyJson);
     $("source-status").textContent =
       "Loaded " + terrainTitle + " with " + hydrologyTitle +
       "; paired local diagnostics only, not review authority.";
@@ -1774,10 +1972,10 @@
           "Select both JSON files: the terrain semantic volume and its bound hydrology layer."
         );
       }
-      const entries = await Promise.all(files.map(async (file) => ({
-        file,
-        artifact: JSON.parse(await file.text()),
-      })));
+      const entries = await Promise.all(files.map(async (file) => {
+        const sourceJson = await file.text();
+        return { file, sourceJson, artifact: JSON.parse(sourceJson) };
+      }));
       const terrainEntry = entries.find(
         (entry) => entry.artifact?.artifact_kind === "SKYFORGE_TERRAIN_SEMANTIC_VOLUME"
       );
@@ -1794,7 +1992,9 @@
         terrainEntry.artifact,
         terrainEntry.file.name,
         hydrologyEntry.artifact,
-        hydrologyEntry.file.name
+        hydrologyEntry.file.name,
+        terrainEntry.sourceJson,
+        hydrologyEntry.sourceJson
       );
     } catch (error) {
       $("source-status").textContent = String(error.message || error);
@@ -1814,7 +2014,9 @@
         sample.terrain,
         "terrain-semantic-volume.json",
         sample.hydrology,
-        "hydrology-semantic-layer.json"
+        "hydrology-semantic-layer.json",
+        JSON.stringify(sample.terrain),
+        JSON.stringify(sample.hydrology)
       );
     } catch (error) {
       $("source-status").textContent = String(error.message || error);
@@ -1832,7 +2034,9 @@
         sample.terrain,
         "terrain-semantic-volume.json",
         sample.hydrology,
-        "hydrology-semantic-layer.json"
+        "hydrology-semantic-layer.json",
+        JSON.stringify(sample.terrain),
+        JSON.stringify(sample.hydrology)
       );
       const candidate = window.SkyforgeStudioScene.adaptOverlayArtifact(
         sample.hydrology,
@@ -2365,12 +2569,13 @@
       if (!isTerrain()) {
         throw new Error("load a terrain semantic volume before attaching hydrology");
       }
-      const artifact = JSON.parse(await file.text());
+      const sourceJson = await file.text();
+      const artifact = JSON.parse(sourceJson);
       setOverlay(window.SkyforgeStudioScene.adaptOverlayArtifact(artifact, scene, {
         binding: "UNBOUND_LOCAL",
         artifactTitle: file.name,
         reviewAuthority: false,
-      }));
+      }), artifact, file.name, sourceJson);
       $("overlay-status").textContent =
         "Attached local hydrology diagnostic " + file.name +
         "; composite is not review authority.";
