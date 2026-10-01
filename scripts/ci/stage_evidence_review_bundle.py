@@ -136,6 +136,8 @@ STUDIO_APP_FILES = (
     Path('workspace-package.js'),
     Path('workspace-session.js'),
     Path('terrain-comparison.js'),
+    Path('terrain-comparison-report.js'),
+    Path('terrain-comparison-report-reader.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
@@ -148,7 +150,7 @@ Studio opens the exact packaged terrain + hydrology pair in one step. In Inspect
 use “Download inspection workspace” to save the current scene, optional reference overlay,
 and view settings in one portable JSON file. Use “Open inspection workspace” to restore it.
 
-In “Compare terrain”, load a reference and candidate terrain volume with identical grids to inspect surface-height changes and paged semantic-cell differences. The comparison rejects grid mismatches and never resamples.
+In “Compare terrain”, load a reference and candidate terrain volume with identical grids to inspect surface-height changes and paged semantic-cell differences. The comparison rejects grid mismatches and never resamples. Download a diagnostic report to share or reopen the summary, exact grid, surface map data, and changed-cell pages.
 
 Reopened sources are UNBOUND LOCAL DIAGNOSTICS: no token is needed, and the package does
 not preserve registered-artifact verification or grant review authority. Comparison
