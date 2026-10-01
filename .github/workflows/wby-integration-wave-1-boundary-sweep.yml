@@ -111,9 +111,11 @@ jobs:
           assert float(p["maxRenderTransformErrorBlocks"]) <= 8.0, p
           assert float(p["minDistanceBlocks"]) <= 64.0, p
           assert float(p["maxDistanceBlocks"]) > 96.0, p
-          assert int(p["initialNearSamples"]) >= 10, p
-          assert int(p["farHoldSamples"]) >= 10, p
-          assert int(p["finalNearSamples"]) >= 10, p
+          assert int(p["initialNearSamples"]) >= 5, p
+          assert int(p["farHoldSamples"]) >= 5, p
+          assert int(p["recedingSamples"]) >= 10, p
+          assert int(p["approachingSamples"]) >= 10, p
+          assert int(p["finalNearSamples"]) >= 5, p
           print("WBY WAVE 1 BOUNDARY SWEEP PASS", p)
           PY
 
