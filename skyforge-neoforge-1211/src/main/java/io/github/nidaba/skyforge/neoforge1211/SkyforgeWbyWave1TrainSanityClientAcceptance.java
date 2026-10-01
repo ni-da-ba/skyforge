@@ -1,10 +1,9 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
-import com.simibubi.create.Create;
-import com.simibubi.create.content.trains.entity.CarriageContraptionEntity;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -79,7 +78,7 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
         try {
             requireClientMods();
 
-            CarriageContraptionEntity carriage = findCarriage(minecraft, trainSnapshot.trainId());
+            Entity carriage = findCarriage(minecraft, trainSnapshot.trainId());
             if (carriage == null) {
                 if (trainStableTicks > 0 || distantStableTicks > 0) {
                     fail("Create carriage disappeared during WBY train-sanity proof: trainId="
@@ -93,9 +92,9 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
                 return;
             }
 
-            trainRailwayRecordObserved |=
-                    Create.RAILWAYS.sided(minecraft.level).trains.containsKey(trainSnapshot.trainId());
-            EntityRenderer<? super CarriageContraptionEntity> renderer =
+            trainRailwayRecordObserved |= clientTrainRecordPresent(minecraft.level, trainSnapshot.trainId());
+
+            EntityRenderer<? super Entity> renderer =
                     minecraft.getEntityRenderDispatcher().getRenderer(carriage);
             trainRendererClass = renderer.getClass().getName();
             trainRendererObserved |= trainRendererClass.endsWith("CarriageContraptionEntityRenderer");
@@ -103,9 +102,14 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
             trainHorizontalDistanceBlocks = Math.hypot(
                     carriage.getX() - player.getX(),
                     carriage.getZ() - player.getZ());
+
+            boolean validForRender =
+                    carriage.getClass().getField("validForRender").getBoolean(carriage);
+            boolean firstPositionUpdate =
+                    carriage.getClass().getField("firstPositionUpdate").getBoolean(carriage);
             boolean trainQualified = carriage.isAlive()
-                    && carriage.validForRender
-                    && !carriage.firstPositionUpdate
+                    && validForRender
+                    && !firstPositionUpdate
                     && trainRailwayRecordObserved
                     && trainRendererObserved
                     && trainHorizontalDistanceBlocks < 64.0;
@@ -120,8 +124,6 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
                 return;
             }
 
-            // The train must remain tracked/valid while the camera qualifies the distant Sable
-            // body through SSRD and Distant Horizons.
             if (!trainQualified) {
                 fail("Create train lost valid client render state while distant Sable was observed");
                 return;
@@ -183,16 +185,30 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
         }
     }
 
-    private static CarriageContraptionEntity findCarriage(
-            Minecraft minecraft,
-            UUID expectedTrainId) {
+    private static Entity findCarriage(Minecraft minecraft, UUID expectedTrainId)
+            throws ReflectiveOperationException {
         for (Entity entity : minecraft.level.entitiesForRendering()) {
-            if (entity instanceof CarriageContraptionEntity carriage
-                    && expectedTrainId.equals(carriage.trainId)) {
-                return carriage;
+            if (!entity.getClass().getName()
+                    .equals("com.simibubi.create.content.trains.entity.CarriageContraptionEntity")) {
+                continue;
+            }
+            Object trainId = entity.getClass().getField("trainId").get(entity);
+            if (expectedTrainId.equals(trainId)) {
+                return entity;
             }
         }
         return null;
+    }
+
+    private static boolean clientTrainRecordPresent(ClientLevel level, UUID expectedTrainId)
+            throws ReflectiveOperationException {
+        Object railways = Class.forName("com.simibubi.create.Create").getField("RAILWAYS").get(null);
+        Object sided = compatibleOneArgMethod(railways, "sided", level).invoke(railways, level);
+        Object trainsValue = sided.getClass().getField("trains").get(sided);
+        if (!(trainsValue instanceof Map<?, ?> trains)) {
+            throw new IllegalStateException("Create client railway trains did not resolve to a Map");
+        }
+        return trains.containsKey(expectedTrainId);
     }
 
     private static Object clientSubLevel(ClientLevel level, UUID bodyId)
@@ -247,6 +263,18 @@ final class SkyforgeWbyWave1TrainSanityClientAcceptance {
     private static Method publicMethod(Object target, String name, Class<?>... parameterTypes)
             throws NoSuchMethodException {
         return target.getClass().getMethod(name, parameterTypes);
+    }
+
+    private static Method compatibleOneArgMethod(Object target, String name, Object argument)
+            throws NoSuchMethodException {
+        for (Method method : target.getClass().getMethods()) {
+            if (method.getName().equals(name)
+                    && method.getParameterCount() == 1
+                    && method.getParameterTypes()[0].isAssignableFrom(argument.getClass())) {
+                return method;
+            }
+        }
+        throw new NoSuchMethodException(target.getClass().getName() + "#" + name + "(compatible arg)");
     }
 
     private static void complete(
