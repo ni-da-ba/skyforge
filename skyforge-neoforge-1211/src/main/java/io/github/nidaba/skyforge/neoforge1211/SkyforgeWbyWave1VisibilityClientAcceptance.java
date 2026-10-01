@@ -36,6 +36,9 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
     @SubscribeEvent
     static void onClientTick(ClientTickEvent.Post event) {
         if (!Boolean.getBoolean(SkyforgeWbyWave1VisibilityLifecycleAcceptance.ENABLE_PROPERTY)
+                // Composite WBY cases reuse the server-side visibility fixture but own their
+                // terminal client evidence. Do not let the baseline verifier stop Minecraft first.
+                || Boolean.getBoolean(SkyforgeWbyWave1TrainSanityLifecycleAcceptance.ENABLE_PROPERTY)
                 || !SkyforgeAutomatedAcceptanceHarness.clientMode()
                 || clientComplete) {
             return;
