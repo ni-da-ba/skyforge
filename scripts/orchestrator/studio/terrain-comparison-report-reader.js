@@ -57,8 +57,13 @@
     });
   }
   function validateColumns(columns, grid) {
-    if (!Array.isArray(columns) || columns.length > MAX_COLUMNS) throw new Error("terrain report surface column count is invalid or too large");
+    const expectedCount = grid.xSamples * grid.zSamples;
+    if (!Array.isArray(columns) || columns.length > MAX_COLUMNS || columns.length !== expectedCount) {
+      throw new Error("terrain report surface column count is invalid or incomplete");
+    }
     const seen = new Set();
+    let changedColumnCount = 0;
+    let maximumAbsSurfaceDelta = 0;
     for (const column of columns) {
       requireRecord(column, "surface column");
       for (const field of ["x", "z"]) {
@@ -70,15 +75,31 @@
       const key = column.x + ":" + column.z;
       if (seen.has(key)) throw new Error("terrain report surface columns contain duplicates");
       seen.add(key);
-      finite(column.worldX, "surface world X");
-      finite(column.worldZ, "surface world Z");
-      if (column.heightDelta !== null) finite(column.heightDelta, "surface height delta");
-      if (!["UNCHANGED", "CANDIDATE_ONLY", "REFERENCE_ONLY", "HEIGHT_CHANGED", "SEMANTIC_ONLY"].includes(column.status)) {
-        throw new Error("terrain report surface status is invalid");
+      const expectedWorldX = grid.minimumX + grid.spacingX * column.x;
+      const expectedWorldZ = grid.minimumZ + grid.spacingZ * column.z;
+      if (column.worldX !== expectedWorldX || column.worldZ !== expectedWorldZ) {
+        throw new Error("terrain report surface world position does not match its grid");
       }
       validateTop(column.referenceTop, "reference top");
       validateTop(column.candidateTop, "candidate top");
+      const before = column.referenceTop;
+      const after = column.candidateTop;
+      let expectedStatus = "UNCHANGED";
+      let expectedDelta = null;
+      if (!before && after) expectedStatus = "CANDIDATE_ONLY";
+      else if (before && !after) expectedStatus = "REFERENCE_ONLY";
+      else if (before && after) {
+        expectedDelta = after.position[1] - before.position[1];
+        if (expectedDelta !== 0) expectedStatus = "HEIGHT_CHANGED";
+        else if (before.semanticName !== after.semanticName) expectedStatus = "SEMANTIC_ONLY";
+      }
+      if (column.heightDelta !== expectedDelta || column.status !== expectedStatus) {
+        throw new Error("terrain report surface status or height delta does not match its recorded values");
+      }
+      if (expectedStatus !== "UNCHANGED") changedColumnCount++;
+      if (expectedDelta !== null) maximumAbsSurfaceDelta = Math.max(maximumAbsSurfaceDelta, Math.abs(expectedDelta));
     }
+    return { changedColumnCount, maximumAbsSurfaceDelta };
   }
   function validateCells(cells, grid) {
     if (!Array.isArray(cells) || cells.length > MAX_CHANGED_CELLS) {
@@ -95,13 +116,26 @@
           !Array.isArray(cell.position) || cell.position.length !== 3) {
         throw new Error("terrain report changed-cell coordinates are invalid");
       }
+      const expectedIndex = [
+        cell.index % grid.xSamples,
+        Math.floor(cell.index / (grid.xSamples * grid.zSamples)),
+        Math.floor(cell.index / grid.xSamples) % grid.zSamples,
+      ];
       cell.gridIndex.forEach((value, i) => {
-        if (!Number.isSafeInteger(value) || value < 0 ||
+        if (!Number.isSafeInteger(value) || value !== expectedIndex[i] ||
             value >= [grid.xSamples, grid.ySamples, grid.zSamples][i]) {
-          throw new Error("terrain report changed-cell grid index is invalid");
+          throw new Error("terrain report changed-cell grid index is inconsistent with its linear index");
         }
       });
-      cell.position.forEach((value, i) => finite(value, "changed-cell position " + i));
+      const expectedPosition = [
+        grid.minimumX + grid.spacingX * expectedIndex[0],
+        grid.minimumY + grid.spacingY * expectedIndex[1],
+        grid.minimumZ + grid.spacingZ * expectedIndex[2],
+      ];
+      cell.position.forEach((value, i) => {
+        finite(value, "changed-cell position " + i);
+        if (value !== expectedPosition[i]) throw new Error("terrain report changed-cell world position does not match its grid");
+      });
       requireText(cell.referenceName, "reference semantic");
       requireText(cell.candidateName, "candidate semantic");
       if (cell.referenceName === cell.candidateName) throw new Error("terrain report contains an unchanged cell");
@@ -141,29 +175,62 @@
     }
     const counts = report.semantic_counts;
     if (!Array.isArray(counts)) throw new Error("terrain report semantic counts are invalid");
+    const semanticNames = new Set();
+    let referenceTotal = 0;
+    let candidateTotal = 0;
     for (const item of counts) {
       requireRecord(item, "semantic count");
       requireText(item.name, "semantic name");
+      if (semanticNames.has(item.name)) throw new Error("terrain report semantic counts contain duplicate names");
+      semanticNames.add(item.name);
       for (const field of ["reference", "candidate"]) {
         if (!Number.isSafeInteger(item[field]) || item[field] < 0 || item[field] > grid.sampleCount) {
           throw new Error("terrain report semantic count value is invalid");
         }
       }
+      referenceTotal += item.reference;
+      candidateTotal += item.candidate;
+    }
+    if (referenceTotal !== grid.sampleCount || candidateTotal !== grid.sampleCount) {
+      throw new Error("terrain report semantic totals do not match the grid sample count");
     }
     const transitions = report.semantic_transitions;
     if (!Array.isArray(transitions)) throw new Error("terrain report semantic transitions are invalid");
+    const expectedTransitions = new Map();
     for (const item of transitions) {
       requireRecord(item, "semantic transition");
       requireText(item.referenceName, "transition reference");
       requireText(item.candidateName, "transition candidate");
+      if (!semanticNames.has(item.referenceName) || !semanticNames.has(item.candidateName)) {
+        throw new Error("terrain report transition refers to an unknown semantic name");
+      }
       if (!Number.isSafeInteger(item.count) || item.count < 1 || item.count > grid.sampleCount) {
         throw new Error("terrain report transition count is invalid");
       }
+      const key = JSON.stringify([item.referenceName, item.candidateName]);
+      if (expectedTransitions.has(key)) throw new Error("terrain report contains duplicate semantic transitions");
+      expectedTransitions.set(key, item.count);
     }
-    validateColumns(report.columns, grid);
+    const columnSummary = validateColumns(report.columns, grid);
     validateCells(report.changed_cells, grid);
     if (report.summary.changedCellCount !== report.changed_cells.length) {
       throw new Error("terrain report changed-cell summary does not match its records");
+    }
+    if (summary.changedPercent !== summary.changedCellCount / grid.sampleCount * 100) {
+      throw new Error("terrain report changed percentage does not match its changed-cell count");
+    }
+    if (summary.changedColumnCount !== columnSummary.changedColumnCount ||
+        summary.maximumAbsSurfaceDelta !== columnSummary.maximumAbsSurfaceDelta) {
+      throw new Error("terrain report surface summary does not match its columns");
+    }
+    const actualTransitions = new Map();
+    for (const cell of report.changed_cells) {
+      const key = JSON.stringify([cell.referenceName, cell.candidateName]);
+      actualTransitions.set(key, (actualTransitions.get(key) || 0) + 1);
+    }
+    if (actualTransitions.size !== expectedTransitions.size ||
+        [...expectedTransitions].some(([key, count]) => actualTransitions.get(key) !== count)) {
+      throw new Error("terrain report semantic transitions do not match its changed cells");
     }
     const comparison = Object.freeze({
       grid,
