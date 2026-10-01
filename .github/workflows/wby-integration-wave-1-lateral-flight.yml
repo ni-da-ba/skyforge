@@ -169,7 +169,7 @@ jobs:
                   p[k] = v
           assert float(p["serverLateralDisplacementBlocks"]) >= 48.0, p
           assert float(p["clientLateralDisplacementBlocks"]) >= 32.0, p
-          assert float(p["maxRenderTransformErrorBlocks"]) <= 8.0, p
+          assert float(p["maxRenderLogicalErrorBlocks"]) <= 8.0, p
           assert float(p["minimumHorizontalDistanceBlocks"]) > 96.0, p
           assert int(p["motionSamples"]) >= 8, p
           assert int(p["vanillaRenderDistanceChunks"]) == 4, p
