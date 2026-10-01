@@ -326,6 +326,14 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
 
         complete = true;
         VramEvidence vram = vramEvidence();
+        String glVendor = safeGlString(GL11.GL_VENDOR);
+        String glRenderer = safeGlString(GL11.GL_RENDERER);
+        String rendererLower = glRenderer.toLowerCase(java.util.Locale.ROOT);
+        boolean softwareRenderer = rendererLower.contains("llvmpipe")
+                || rendererLower.contains("softpipe")
+                || rendererLower.contains("swiftshader");
+        boolean representativeHardwareTelemetry = !softwareRenderer && vram.available();
+
         LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
         evidence.put("actualClient", true);
         evidence.put("actualMultiplayer", !minecraft.hasSingleplayerServer());
@@ -353,11 +361,13 @@ final class SkyforgeWbyWave1TelemetryClientAcceptance {
         evidence.put("vramTotalBytes", vram.totalBytes());
         evidence.put("vramAvailableBytes", vram.availableBytes());
         evidence.put("vramUsedBytes", vram.usedBytes());
-        evidence.put("glVendor", safeGlString(GL11.GL_VENDOR));
-        evidence.put("glRenderer", safeGlString(GL11.GL_RENDERER));
+        evidence.put("glVendor", glVendor);
+        evidence.put("glRenderer", glRenderer);
+        evidence.put("softwareRenderer", softwareRenderer);
+        evidence.put("representativeHardwareTelemetry", representativeHardwareTelemetry);
         evidence.put("sodiumLoaded", ModList.get().isLoaded("sodium"));
         evidence.put("distantHorizonsLoaded", ModList.get().isLoaded("distanthorizons"));
-        evidence.put("telemetryBaselineQualified", true);
+        evidence.put("telemetryHarnessQualified", true);
 
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
         minecraft.stop();
