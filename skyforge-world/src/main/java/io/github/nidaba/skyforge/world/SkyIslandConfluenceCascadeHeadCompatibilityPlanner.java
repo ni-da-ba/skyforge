@@ -463,6 +463,7 @@ public final class SkyIslandConfluenceCascadeHeadCompatibilityPlanner {
                 Optional.empty(),
                 Optional.empty(),
                 Optional.empty(),
+                Optional.empty(),
                 List.of(),
                 Optional.ofNullable(diagnostic));
     }
