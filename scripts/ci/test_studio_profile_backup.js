@@ -107,7 +107,8 @@ const session = {
   }),
 };
 const terrain = [{id:"terrain-0001",report_json:"{\"document_type\":\"diagnostic\"}"}];
-const regional = [{id:"regional-0001",package_json:"{\"rows\":[]}"}];
+const regionalPackage = JSON.stringify({document_type:"SKYFORGE_STUDIO_REGIONAL_COMPARISON_PACKAGE"});
+const regional = [{id:"regional-0001",package_json:regionalPackage,package_bytes:new TextEncoder().encode(regionalPackage).length}];
 const source = create({
   inspectionSession: session,
   terrainComparisons: terrain,
