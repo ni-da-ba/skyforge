@@ -11,6 +11,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.level.TicketType;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.ChunkPos;
@@ -35,7 +36,13 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
  */
 final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.wbyWave1Visibility";
+    static final String BOUNDARY_SWEEP_PROPERTY = "skyforge.dev.wbyWave1BoundarySweep";
     static final int HORIZONTAL_OFFSET_BLOCKS = 256;
+    private static final int SWEEP_NEAR_DISTANCE_BLOCKS = 48;
+    private static final int SWEEP_FAR_DISTANCE_BLOCKS = 256;
+    private static final int SWEEP_STEP_BLOCKS = 4;
+    private static final int SWEEP_HOLD_TICKS = 30;
+    private static final int SWEEP_ENDPOINT_OBSERVATION_TICKS = 20;
 
     private static final ResourceLocation PHYSICS_ASSEMBLER =
             ResourceLocation.fromNamespaceAndPath("simulated", "physics_assembler");
@@ -55,13 +62,36 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     private static boolean fixtureReady;
     private static boolean clientComplete;
     private static long firstPlayerTick = Long.MIN_VALUE;
+    private static volatile SweepPhase sweepPhase = SweepPhase.DISABLED;
+    private static volatile double sweepTargetDistanceBlocks = Double.NaN;
+    private static int sweepPhaseTick;
+    private static double sweepPlayerY;
+    private static ServerPlayer sweepPlayer;
+    private static boolean sweepOriginalInvulnerable;
+    private static boolean sweepInvulnerabilityCaptured;
+
+    private enum SweepPhase {
+        DISABLED,
+        NEAR_HOLD,
+        RECEDING,
+        FAR_HOLD,
+        APPROACHING,
+        FINAL_NEAR_HOLD,
+        COMPLETE
+    }
 
     private SkyforgeWbyWave1VisibilityLifecycleAcceptance() {}
 
     record Snapshot(UUID bodyId, Vec3 expectedBodyCenter) {}
 
+    record BoundarySweepSnapshot(
+            UUID bodyId,
+            Vec3 expectedBodyCenter,
+            String phase,
+            double targetDistanceBlocks) {}
+
     static void installFromSystemProperty() {
-        if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY) && !Boolean.getBoolean(BOUNDARY_SWEEP_PROPERTY)) {
             return;
         }
         NeoForge.EVENT_BUS.addListener(SkyforgeWbyWave1VisibilityLifecycleAcceptance::onServerTickPost);
@@ -77,19 +107,35 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
                 : null;
     }
 
+    static BoundarySweepSnapshot boundarySweepSnapshot() {
+        return fixtureReady && bodyId != null && expectedBodyCenter != null
+                ? new BoundarySweepSnapshot(
+                        bodyId,
+                        expectedBodyCenter,
+                        sweepPhase.name(),
+                        sweepTargetDistanceBlocks)
+                : null;
+    }
+
     static void markClientComplete() {
         clientComplete = true;
         restoreFixtureState();
     }
 
     private static void onServerTickPost(ServerTickEvent.Post event) {
-        if (clientComplete || fixtureReady) {
+        if (clientComplete) {
             return;
         }
         if (level == null) {
             level = event.getServer().overworld();
         }
         if (event.getServer().getPlayerList().getPlayers().isEmpty()) {
+            return;
+        }
+        if (fixtureReady) {
+            if (Boolean.getBoolean(BOUNDARY_SWEEP_PROPERTY)) {
+                advanceBoundarySweep(event);
+            }
             return;
         }
         long now = level.getGameTime();
@@ -157,6 +203,93 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail(event, "WBY Wave 1 distant Sable fixture failed: " + failure);
         }
+    }
+
+    private static void advanceBoundarySweep(ServerTickEvent.Post event) {
+        List<ServerPlayer> players = event.getServer().getPlayerList().getPlayers();
+        if (players.size() != 1) {
+            return;
+        }
+
+        ServerPlayer player = players.getFirst();
+        if (sweepPhase == SweepPhase.DISABLED) {
+            sweepPlayer = player;
+            sweepPlayerY = player.getY();
+            sweepOriginalInvulnerable = player.isInvulnerable();
+            sweepInvulnerabilityCaptured = true;
+            player.setInvulnerable(true);
+            sweepPhase = SweepPhase.NEAR_HOLD;
+            sweepPhaseTick = 0;
+        }
+
+        double distance = switch (sweepPhase) {
+            case DISABLED, NEAR_HOLD, FINAL_NEAR_HOLD, COMPLETE -> SWEEP_NEAR_DISTANCE_BLOCKS;
+            case RECEDING -> Math.min(
+                    SWEEP_FAR_DISTANCE_BLOCKS,
+                    SWEEP_NEAR_DISTANCE_BLOCKS
+                            + Math.max(0, sweepPhaseTick - SWEEP_ENDPOINT_OBSERVATION_TICKS)
+                                    * SWEEP_STEP_BLOCKS);
+            case FAR_HOLD -> SWEEP_FAR_DISTANCE_BLOCKS;
+            case APPROACHING -> Math.max(
+                    SWEEP_NEAR_DISTANCE_BLOCKS,
+                    SWEEP_FAR_DISTANCE_BLOCKS - sweepPhaseTick * SWEEP_STEP_BLOCKS);
+        };
+
+        sweepTargetDistanceBlocks = distance;
+        player.teleportTo(
+                expectedBodyCenter.x - distance,
+                sweepPlayerY,
+                expectedBodyCenter.z);
+        player.setDeltaMovement(Vec3.ZERO);
+
+        if (sweepPhase == SweepPhase.COMPLETE) {
+            return;
+        }
+
+        sweepPhaseTick++;
+        switch (sweepPhase) {
+            case NEAR_HOLD -> {
+                if (sweepPhaseTick >= SWEEP_HOLD_TICKS) {
+                    transitionSweep(SweepPhase.RECEDING);
+                }
+            }
+            case RECEDING -> {
+                int travelTicks = (SWEEP_FAR_DISTANCE_BLOCKS - SWEEP_NEAR_DISTANCE_BLOCKS)
+                        / SWEEP_STEP_BLOCKS;
+                if (distance >= SWEEP_FAR_DISTANCE_BLOCKS
+                        && sweepPhaseTick >= travelTicks + SWEEP_ENDPOINT_OBSERVATION_TICKS + 1) {
+                    transitionSweep(SweepPhase.FAR_HOLD);
+                }
+            }
+            case FAR_HOLD -> {
+                if (sweepPhaseTick >= SWEEP_HOLD_TICKS) {
+                    transitionSweep(SweepPhase.APPROACHING);
+                }
+            }
+            case APPROACHING -> {
+                // Keep the endpoint in APPROACHING long enough for the client tick to observe
+                // the inbound vanilla-boundary crossing before the phase advances.
+                int travelTicks = (SWEEP_FAR_DISTANCE_BLOCKS - SWEEP_NEAR_DISTANCE_BLOCKS)
+                        / SWEEP_STEP_BLOCKS;
+                if (distance <= SWEEP_NEAR_DISTANCE_BLOCKS
+                        && sweepPhaseTick >= travelTicks + SWEEP_ENDPOINT_OBSERVATION_TICKS) {
+                    transitionSweep(SweepPhase.FINAL_NEAR_HOLD);
+                }
+            }
+            case FINAL_NEAR_HOLD -> {
+                if (sweepPhaseTick >= SWEEP_HOLD_TICKS) {
+                    transitionSweep(SweepPhase.COMPLETE);
+                }
+            }
+            case DISABLED, COMPLETE -> {
+                // handled above
+            }
+        }
+    }
+
+    private static void transitionSweep(SweepPhase next) {
+        sweepPhase = next;
+        sweepPhaseTick = 0;
     }
 
     private static void requireRuntimePreconditions() {
@@ -275,6 +408,10 @@ final class SkyforgeWbyWave1VisibilityLifecycleAcceptance {
     }
 
     private static void restoreFixtureState() {
+        if (sweepInvulnerabilityCaptured && sweepPlayer != null) {
+            sweepPlayer.setInvulnerable(sweepOriginalInvulnerable);
+            sweepInvulnerabilityCaptured = false;
+        }
         if (physicsSystem != null && physicsPauseChanged) {
             try {
                 publicMethod(physicsSystem, "setPaused", boolean.class).invoke(physicsSystem, previousPhysicsPaused);
