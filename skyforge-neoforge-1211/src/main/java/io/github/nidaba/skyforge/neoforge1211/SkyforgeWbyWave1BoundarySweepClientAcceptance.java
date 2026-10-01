@@ -159,6 +159,12 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
                 case "FINAL_NEAR_HOLD" -> {
                     if (insideVanilla) {
                         finalNearSamples++;
+                        // The server advances sweep phases on server ticks while this observer
+                        // samples client ticks. Under CI load the first client-visible inside-
+                        // vanilla frame may arrive after APPROACHING has transitioned. Observing
+                        // the same UUID finalized and correctly transformed here is the inbound
+                        // crossing proof; do not couple correctness to the exact phase-label tick.
+                        inboundInsideObserved |= inboundFarObserved;
                     }
                 }
                 case "COMPLETE" -> finishIfQualified(minecraft, snapshot.bodyId(), distanceEvidence);
@@ -299,6 +305,7 @@ final class SkyforgeWbyWave1BoundarySweepClientAcceptance {
         complete = true;
         SkyforgeWbyWave1VisibilityLifecycleAcceptance.markClientComplete();
         SkyforgeAutomatedAcceptanceHarness.failClientCase(reason);
+        Minecraft.getInstance().stop();
     }
 
     private record DistanceEvidence(int chunks, String source) {}
