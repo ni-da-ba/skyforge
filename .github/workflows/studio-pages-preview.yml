@@ -8,6 +8,7 @@ on:
       - studio/local-world-brief
       - studio/provenance-inspector
       - studio/regional-comparison-package
+      - studio/regional-comparison-library
     paths:
       - "scripts/orchestrator/studio/**"
       - "scripts/ci/stage_evidence_review_bundle.py"

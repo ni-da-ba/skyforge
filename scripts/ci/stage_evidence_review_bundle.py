@@ -131,6 +131,7 @@ STUDIO_APP_FILES = (
     Path('comparison-report.js'),
     Path('comparison-report-reader.js'),
     Path('regional-inventory.js'),
+    Path('regional-comparison-library.js'),
     Path('regional-comparison.js'),
     Path('styles.css'),
 )
