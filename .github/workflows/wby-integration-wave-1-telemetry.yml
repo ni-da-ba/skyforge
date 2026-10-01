@@ -1,0 +1,271 @@
+name: WBY Integration Wave 1 Telemetry Baseline
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-wave-1-telemetry.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryServerAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1TelemetryClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-wave1-telemetry-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  telemetry-baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve exact Wave 1 renderer pins
+        run: ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache
+
+      - name: Compile telemetry acceptance
+        run: ./gradlew :skyforge-neoforge-1211:classes --no-configuration-cache
+
+      - name: Configure dedicated server and benchmark client
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_dir="skyforge-neoforge-1211/run-wby-wave1-telemetry-server"
+          client_dir="skyforge-neoforge-1211/run-wby-wave1-telemetry-client"
+          rm -rf "$server_dir" "$client_dir"
+          mkdir -p "$server_dir" "$client_dir"
+
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          cat > "$server_dir/server.properties" <<'EOF'
+          level-name=wby-wave1-telemetry
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=2
+          server-port=25569
+          EOF
+
+          cat > "$client_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          maxFps:120
+          EOF
+
+      - name: Stage exact Wave 1 jars into real benchmark client
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+
+          source_mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          target_mods="skyforge-neoforge-1211/run-wby-wave1-telemetry-client/mods"
+          rm -rf "$target_mods"
+          mkdir -p "$target_mods"
+          cp -a "$source_mods"/. "$target_mods"/
+          test "$(find "$target_mods" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 6
+
+      - name: Capture W1-A baseline telemetry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          server_log="wby-wave1-telemetry-server.log"
+          client_log="wby-wave1-telemetry-client.log"
+          server_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties"
+          server_fixture_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server-fixture.properties"
+          client_result="skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties"
+          rm -f "$server_result" "$server_fixture_result" "$client_result"
+
+          server_pid=""
+          client_pid=""
+          cleanup() {
+            set +e
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+              fi
+            done
+            sleep 2
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryServerAcceptance --no-configuration-cache >"$server_log" 2>&1 &
+          server_pid=$!
+
+          ready=0
+          for _ in $(seq 1 180); do
+            if grep -Fq "Done (" "$server_log" 2>/dev/null; then
+              ready=1
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "telemetry server exited before ready"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo "telemetry server did not become ready"
+            cat "$server_log"
+            exit 1
+          fi
+
+          grep -Eq '\(create\)' "$server_log"
+          grep -Eq '\(sable\)' "$server_log"
+          grep -Eq '\(aeronautics\)' "$server_log"
+          grep -Eq '\(ssrd\)' "$server_log"
+          if grep -Eq '\(sodium\)|\(distanthorizons\)' "$server_log"; then
+            echo "telemetry server leaked client-only renderer mods"
+            cat "$server_log"
+            exit 1
+          fi
+
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1TelemetryClientAcceptance --no-configuration-cache >"$client_log" 2>&1 &
+          client_pid=$!
+
+          terminal=""
+          for _ in $(seq 1 240); do
+            if [[ -f "$client_result" ]]; then
+              if grep -q '^status=PASS$' "$client_result"; then
+                terminal="PASS"
+                break
+              fi
+              if grep -q '^status=FAIL$' "$client_result"; then
+                terminal="FAIL"
+                break
+              fi
+            fi
+            if [[ -f "$server_fixture_result" ]] && grep -q '^status=FAIL$' "$server_fixture_result"; then
+              echo "telemetry server fixture reported FAIL"
+              cat "$server_fixture_result"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "telemetry server exited before client qualification"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              echo "telemetry client exited before terminal evidence"
+              cat "$client_log"
+              exit 1
+            fi
+            sleep 1
+          done
+
+          if [[ "$terminal" != "PASS" ]]; then
+            echo "WBY telemetry client failed or timed out"
+            [[ -f "$client_result" ]] && cat "$client_result"
+            cat "$server_log"
+            cat "$client_log"
+            exit 1
+          fi
+
+          server_done=0
+          for _ in $(seq 1 120); do
+            if [[ -f "$server_result" ]] && grep -q '^status=PASS$' "$server_result"; then
+              server_done=1
+              break
+            fi
+            if [[ -f "$server_fixture_result" ]] && grep -q '^status=FAIL$' "$server_fixture_result"; then
+              cat "$server_fixture_result"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo "telemetry server exited before server metrics were durable"
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$server_done" -ne 1 ]]; then
+            echo "server telemetry did not complete"
+            cat "$server_log"
+            exit 1
+          fi
+
+          cat "$client_result"
+          cat "$server_result"
+
+          grep -q '^actualClient=true$' "$client_result"
+          grep -q '^actualMultiplayer=true$' "$client_result"
+          grep -q '^benchmarkCameraProfile=stationary-distant-body-v1$' "$client_result"
+          grep -q '^ssrdDistanceSource=Distant Horizons$' "$client_result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$client_result"
+          grep -q '^telemetryBaselineQualified=true$' "$client_result"
+          grep -q '^dedicatedServer=true$' "$server_result"
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def load(path):
+              result = {}
+              for line in Path(path).read_text().splitlines():
+                  if "=" in line and not line.startswith("#"):
+                      key, value = line.split("=", 1)
+                      result[key] = value
+              return result
+
+          client = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/client.properties")
+          server = load("skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/server.properties")
+
+          assert client["bodyId"] == server["bodyId"], (client, server)
+          assert int(client["frameSamples"]) >= 240, client
+          assert 0.0 < float(client["frameTimeMedianMs"]) <= float(client["frameTimeP95Ms"]), client
+          assert int(client["clientHeapMedianBytes"]) > 0, client
+          assert int(client["visibleSableSublevelsMedian"]) >= 1, client
+          assert int(client["vanillaRenderDistanceChunks"]) == 4, client
+          assert int(client["dhRenderDistanceChunks"]) >= int(client["ssrdEffectiveMaxChunks"]) > 4, client
+          assert client["vramTelemetryAvailable"] in {"true", "false"}, client
+          assert int(server["serverMsptSamples"]) >= 200, server
+          assert 0.0 < float(server["serverMsptMedian"]) <= float(server["serverMsptP95"]), server
+          assert int(server["loadedChunksMedian"]) >= 1, server
+          assert int(server["forcedChunksMax"]) >= 0, server
+
+          print("WBY WAVE 1 TELEMETRY BASELINE PASS", {"client": client, "server": server})
+          PY
+
+      - name: Upload Wave 1 telemetry evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-wave1-telemetry-baseline
+          path: |
+            wby-wave1-telemetry-server.log
+            wby-wave1-telemetry-client.log
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-telemetry/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-telemetry-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-telemetry-client/logs/latest.log
+          if-no-files-found: warn
