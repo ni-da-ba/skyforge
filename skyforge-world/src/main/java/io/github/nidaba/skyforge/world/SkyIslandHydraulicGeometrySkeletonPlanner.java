@@ -111,8 +111,95 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                                     policy.limits(qualificationClass));
                     return Math.max(
                             0.0, envelope.lowerHead() - envelope.upperHead());
-                });
+                },
+                points -> longitudinalHeadFeasibilityGap(
+                        descriptor, semantic, points, dischargeProfile, terrain, policy));
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
+    }
+
+    private static double longitudinalHeadFeasibilityGap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SemanticDischargeProfile dischargeProfile,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy) {
+        double[] cumulative = cumulativeDistance(points);
+        double pathLength = cumulative[cumulative.length - 1];
+        double reachableLower = Double.NaN;
+        double reachableUpper = Double.NaN;
+        double squaredConflict = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition position = points.get(i);
+            double station = cumulative[i] / pathLength;
+            SkyIslandChannelProfileKind kind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
+                            semantic.profiles(), station);
+            if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                reachableLower = Double.NaN;
+                reachableUpper = Double.NaN;
+                continue;
+            }
+            SkyIslandGeomorphicQualificationClass qualificationClass =
+                    qualificationClass(kind);
+            SkyIslandGeomorphicProfileLimits limits =
+                    policy.limits(qualificationClass);
+            SkyIslandLocalPosition before = points.get(Math.max(0, i - 1));
+            SkyIslandLocalPosition after = points.get(Math.min(points.size() - 1, i + 1));
+            double tangentX = after.x() - before.x();
+            double tangentZ = after.z() - before.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                throw new IllegalStateException(
+                        "longitudinal feasibility requires non-zero centerline tangents");
+            }
+            double discharge = dischargeProfile.atStation(station);
+            double halfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                    descriptor.nominalRadius(), discharge);
+            double depth = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge);
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            kind,
+                            position,
+                            halfWidth,
+                            depth,
+                            clamp01(terrain.sample(position)),
+                            -tangentZ / tangentLength,
+                            tangentX / tangentLength,
+                            terrain,
+                            limits);
+            double localLower = envelope.lowerHead();
+            double localUpper = envelope.upperHead();
+            double localConflict = Math.max(0.0, localLower - localUpper);
+            if (localConflict > 0.0) {
+                squaredConflict += localConflict * localConflict;
+                double midpoint = 0.5 * (localLower + localUpper);
+                localLower = midpoint;
+                localUpper = midpoint;
+            }
+            if (Double.isNaN(reachableLower)) {
+                reachableLower = localLower;
+                reachableUpper = localUpper;
+                continue;
+            }
+            double ds = cumulative[i] - cumulative[i - 1];
+            double maximumDrop = limits.maximumLongitudinalGrade() * ds;
+            double nextLower = Math.max(localLower, reachableLower - maximumDrop);
+            double nextUpper = Math.min(localUpper, reachableUpper);
+            double conflict = Math.max(0.0, nextLower - nextUpper);
+            if (conflict > 0.0) {
+                squaredConflict += conflict * conflict;
+                // Continue scoring downstream from the nearest admissible local interval. This
+                // keeps the objective informative without pretending the violated path is feasible.
+                double midpoint = 0.5 * (nextLower + nextUpper);
+                nextLower = midpoint;
+                nextUpper = midpoint;
+            }
+            reachableLower = nextLower;
+            reachableUpper = nextUpper;
+        }
+        return squaredConflict;
     }
 
     record CenterlineRefinement(
