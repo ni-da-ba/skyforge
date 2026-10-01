@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Builds C2 centerlines and discharge-scaled width/depth geometry without solving water-surface head.
@@ -71,8 +70,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         descriptor.nominalRadius(), dischargeProfile.maximumDischarge());
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
-        Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
-                singleOrdinaryProfileKind(semantic);
         var outcome = SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
                 route.route(),
                 semantic.guidancePoints(),
@@ -88,14 +85,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     SkyIslandChannelProfileKind kind =
                             SkyIslandHydraulicHeadEnvelopePlanner.profileKind(
                                     semantic.profiles(), station);
-                    if (kind == SkyIslandChannelProfileKind.CASCADE
-                            || ordinaryProfileKind.isEmpty()) {
+                    if (kind == SkyIslandChannelProfileKind.CASCADE) {
                         return 0.0;
                     }
-                    SkyIslandChannelProfileKind ordinaryKind =
-                            ordinaryProfileKind.orElseThrow();
                     SkyIslandGeomorphicQualificationClass qualificationClass =
-                            qualificationClass(ordinaryKind);
+                            qualificationClass(kind);
                     SkyIslandHydraulicHeadEnvelope envelope =
                             SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
                                     descriptor,
@@ -118,17 +112,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
     record CenterlineRefinement(
             SkyIslandContinuousChannelCenterline centerline,
             SkyIslandSemanticCorridorCenterlinePlanner.SearchDiagnostics diagnostics) {}
-
-    private static Optional<SkyIslandChannelProfileKind> singleOrdinaryProfileKind(
-            SkyIslandSemanticChannelReach semantic) {
-        List<SkyIslandChannelProfileKind> kinds =
-                semantic.profiles().stream()
-                        .map(profile -> profile.kind())
-                        .filter(kind -> kind != SkyIslandChannelProfileKind.CASCADE)
-                        .distinct()
-                        .toList();
-        return kinds.size() == 1 ? Optional.of(kinds.getFirst()) : Optional.empty();
-    }
 
     private static SkyIslandGeomorphicQualificationClass qualificationClass(
             SkyIslandChannelProfileKind profileKind) {
