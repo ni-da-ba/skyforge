@@ -693,7 +693,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     }
                 }
                 if (!admission.allowed() || !curvatureAllowed) continue;
-                if (headEnvelopeGap == null
+                if ((headEnvelopeGap == null && longitudinalHeadFeasibility == null)
                         || compareLocalCandidates(
                                         result, i, option, selected,
                                         bankfullHalfWidthAtStation, headEnvelopeGap,
