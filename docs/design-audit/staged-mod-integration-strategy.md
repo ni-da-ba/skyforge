@@ -113,6 +113,37 @@ No unresolved A/B gameplay dependency is forced into S0.
 
 **Status:** largely covered by WBY-INT-0001..0003; S0 work should consolidate, not re-prove from scratch.
 
+# S0.5 — pack integration and information shell
+
+**Goal:** establish the common modpack-integration and basic information layer before broad content arrives.
+
+### Integration authority
+- KubeJS
+- KubeJS Create
+- LootJS
+- Paxi
+- Almost Unified under explicit canonical-material allowlist only
+
+These integrate Minecraft-facing recipes, tags, loot, and pack delivery. They do not own Skyforge simulation semantics.
+
+### Information/QoL baseline
+- JEI
+- Jade + Jade Addons + Jade Sable Compat
+- Controlling
+- Mouse Tweaks
+- Crafting Tweaks
+- AppleSkin
+- Polymorph
+- Clumps
+- Map Atlases under no-radar/no-auto-reveal policy
+- Spyglass Improvements
+
+### Exit
+- pack-authored configs/datapacks/scripts load reproducibly;
+- canonical recipe/loot suppression hooks are available before content expansion;
+- information tools expose existing state without granting omniscient navigation;
+- dedicated server does not load client-only helpers.
+
 # S1 — atmosphere and personal mobility
 
 **Goal:** close the shared environmental/mobility foundation without pulling in broad world content.
@@ -120,8 +151,10 @@ No unresolved A/B gameplay dependency is forced into S0.
 ### Candidate layers
 - Aerodynamics4MC — D-01
 - Particle Rain
-- Simple Clouds — D-02 comparison profile
-- Reliable Gliders — D-03
+- Better Clouds — D-02 comparison profile
+- Simple Clouds remains reserve/reference
+- Hang Glider vs Create: Ornithopter Glider — D-03
+- Reliable Gliders remains the accepted compatibility fallback/reference
 - No More Elytra Boosting
 - Create: FlyHigher
 - ThinAir: ReLived as a separate breathability overlay
@@ -277,10 +310,17 @@ No new broad Overworld content search. The installed vocabulary is sufficient.
 - CBC Neo Warfare
 - CBC Terminal Ballistics
 
+### Personal firearms A/B
+- TaCZ family + Create/Aeronautics compatibility
+- Scorched Guns NeoForge
+
+Do not promote either firearm family before moving-Sable projectile behavior, NPC use, ammo economy, catalogue suppression, and performance are exercised.
+
 ### Exit
 - threats pressure players and vehicles without saturating the world;
 - radar/IFF/APS/ERA/countermeasure interoperability is characterized;
-- aircraft combat does not require bespoke penalties before native mass/recoil/ammunition costs are tested.
+- aircraft combat does not require bespoke penalties before native mass/recoil/ammunition costs are tested;
+- D-17/D-18 resolved or deliberately left as bounded playtest overlays.
 
 # S8 — Nether
 
@@ -340,14 +380,20 @@ Close D-08, D-09, D-10, D-11. Then freeze Nether acquisition.
 ### Exit
 Close D-12/D-13 and freeze End acquisition.
 
-# S10 — onboarding and optional economy bridges
+# S10 — onboarding, operations, and optional economy bridges
 
 Run these after the common game substrate exists so their value can be judged in context.
 
-- FTB Quests vs vanilla advancements — D-15
+- FTB Quests + Patchouli authored guidance layer; D-15 now concerns alpha content depth rather than dependency discovery
 - Create: Enchantment Industry — D-14
+- Simple Voice Chat + Walkie-Talkie Plus
+- Simple Backups
+- ServerCore conservative profile
+- True Adaptive Music / Presence Footsteps / accepted acoustic presentation
+- optional shader/Iris profile only after D-02
 - multiplayer claim tools only if public/server scope requires them
-- navigation-map conveniences only if they can preserve authored navigation
+- small field backpack only if D-19 demonstrates a real need
+- optional broad performance overlays only through D-20
 
 # S11 — full-stack convergence
 
