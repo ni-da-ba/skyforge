@@ -43,7 +43,7 @@ assert.match(app, /capabilities\.fromProtocol\(window\.location\.protocol\)/,
 assert.match(app, /\$\("auth-panel"\)\.hidden = true/);
 assert.match(app, /\$\("desktop-local-status"\)\.hidden = false/);
 assert.match(app, /localScopeCopy\(message\)/, "local status text follows the runtime copy");
-assert.match(app, /configureRuntimeCapabilities\(\);/
+assert.match(app, /configureRuntimeCapabilities\(\);/,
   "capabilities are applied after the shared local-mode setup");
 
 console.log("PASS Studio desktop and web capability states");
