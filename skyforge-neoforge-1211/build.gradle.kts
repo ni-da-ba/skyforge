@@ -238,6 +238,18 @@ check(!wbyPt02ElytraSuppression || wbyPt02Glider) {
     "WBY PT-02 Elytra suppression requires the accepted PT-02 glider overlay"
 }
 
+// PT-03 is the first engineering-content overlay on the accepted W1 + PT-02 substrate.
+// It admits only the already qualified C9/C14 computing and avionics capability.
+val wbyPt03ComputingAvionics = providers.gradleProperty("wbyPt03ComputingAvionics")
+    .orNull
+    ?.trim()
+    ?.equals("true", ignoreCase = true)
+    ?: false
+
+check(!wbyPt03ComputingAvionics || (wbyPt02Glider && wbyPt02ElytraSuppression)) {
+    "WBY PT-03 computing/avionics requires the accepted final PT-02B profile"
+}
+
 // W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
 // resolve or stage any optimizer unless the qualification invocation explicitly supplies
 // -PwbyWave1BOptimizer=<candidate>.
@@ -6406,6 +6418,14 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
             }
         } else {
             emptyList()
+        } +
+        if (wbyPt03ComputingAvionics) {
+            listOf(
+                waveC9Pin("cctweaked", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+                waveC9Pin("createavionics", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6454,6 +6474,14 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
             }
         } else {
             emptyList()
+        } +
+        if (wbyPt03ComputingAvionics) {
+            listOf(
+                waveC9Pin("cctweaked", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+                waveC9Pin("createavionics", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6488,6 +6516,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
     description = "Resolve and assert the WBY Wave 1 Sodium + Distant Horizons + SSRD visibility candidates."
     inputs.file(wbyWave1PinFile)
     inputs.file(waveC1PinFile)
+    inputs.file(waveC9PinFile)
     inputs.file(wbyWave1BPinFile)
 
     doLast {
@@ -6552,6 +6581,19 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             }
         }
 
+        if (wbyPt03ComputingAvionics) {
+            val ccToken = artifactToken(waveC9Pin("cctweaked", "coordinate"))
+            val avionicsToken = artifactToken(waveC9Pin("createavionics", "coordinate"))
+            listOf("client" to clientFiles, "server" to serverFiles).forEach { (side, files) ->
+                check(files.any { it.contains(ccToken) }) {
+                    "WBY PT-03 $side missing CC:Tweaked token '$ccToken': $files"
+                }
+                check(files.any { it.contains(avionicsToken) }) {
+                    "WBY PT-03 $side missing Create: Avionics token '$avionicsToken': $files"
+                }
+            }
+        }
+
         wbyWave1BClientOptimizerMods.forEach { mod ->
             val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
@@ -6578,6 +6620,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
         println("WBY Wave 1B optimizer=" + (wbyWave1BOptimizer ?: "none"))
         println("WBY PT-02 glider overlay=" + if (wbyPt02Glider) "enabled" else "disabled")
         println("WBY PT-02 Elytra suppression=" + if (wbyPt02ElytraSuppression) "enabled" else "disabled")
+        println("WBY PT-03 computing/avionics=" + if (wbyPt03ComputingAvionics) "enabled" else "disabled")
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
 }
@@ -7077,6 +7120,20 @@ dependencies {
             add(
                 wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
                 waveC2Pin("noelytraboost", "coordinate"),
+            )
+        }
+    }
+
+    // PT-03 layers only the already accepted C9/C14 computing and avionics artifacts.
+    if (wbyPt03ComputingAvionics) {
+        listOf("cctweaked", "createavionics").forEach { mod ->
+            add(
+                wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+                waveC9Pin(mod, "coordinate"),
+            )
+            add(
+                wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+                waveC9Pin(mod, "coordinate"),
             )
         }
     }
