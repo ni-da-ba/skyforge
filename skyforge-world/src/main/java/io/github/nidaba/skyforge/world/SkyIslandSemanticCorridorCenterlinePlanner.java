@@ -1213,29 +1213,32 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumLocalEnvelopeConflict,
             double maximumLongitudinalGradeConflict,
             double longitudinalHeadFeasibilityGap) {
-        private boolean hydrologyResidualsNoWorseThan(Candidate other) {
-            return maximumLocalEnvelopeConflict
+        private boolean refinementResidualsNoWorseThan(Candidate other) {
+            return maximumHeadEnvelopeGap <= other.maximumHeadEnvelopeGap + EPSILON
+                    && integratedSquaredHeadEnvelopeGap
+                            <= other.integratedSquaredHeadEnvelopeGap + EPSILON
+                    && maximumLocalEnvelopeConflict
                             <= other.maximumLocalEnvelopeConflict + EPSILON
                     && maximumLongitudinalGradeConflict
                             <= other.maximumLongitudinalGradeConflict + EPSILON;
         }
 
         private int compareTo(Candidate other, double minimumBendRadius) {
+            boolean thisNoWorse = refinementResidualsNoWorseThan(other);
+            boolean otherNoWorse = other.refinementResidualsNoWorseThan(this);
+            if (thisNoWorse != otherNoWorse) {
+                return thisNoWorse ? -1 : 1;
+            }
+            if (!thisNoWorse) {
+                // Do not exchange a local-envelope, grade-propagation, or existing D2 objective
+                // regression for an improvement in a different residual.
+                return 0;
+            }
             double curvatureExcess = curvatureExcess(minimumBendRadius);
             double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
             int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
             if (excess != 0) {
                 return excess;
-            }
-            boolean thisNoWorse = hydrologyResidualsNoWorseThan(other);
-            boolean otherNoWorse = other.hydrologyResidualsNoWorseThan(this);
-            if (thisNoWorse != otherNoWorse) {
-                return thisNoWorse ? -1 : 1;
-            }
-            if (!thisNoWorse) {
-                // The candidates trade two independent hard-feasibility residuals. Do not
-                // exchange one violation for a different violation during geometry refinement.
-                return 0;
             }
             int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
             if (maximumGap != 0) {
