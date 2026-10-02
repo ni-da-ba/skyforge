@@ -2505,8 +2505,7 @@ neoForge {
             client()
             sourceSet.set(wbyS1ClientRuntime)
             gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
-            programArgument("--quickPlayMultiplayer")
-            programArgument("127.0.0.1:25565")
+            programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25565", "--username", "WbyS1Acceptance")
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(wbyS1StageClientMods)

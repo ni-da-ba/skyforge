@@ -120,7 +120,12 @@ jobs:
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
             -PwbyS1RunDirectory=run-wby-s1-server --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
+          client_pid=""
           cleanup() {
+            if [[ -n "$client_pid" ]]; then
+              kill -INT -- "-$client_pid" 2>/dev/null || true
+              wait "$client_pid" 2>/dev/null || true
+            fi
             kill -INT -- "-$server_pid" 2>/dev/null || true
             wait "$server_pid" 2>/dev/null || true
           }
@@ -140,13 +145,42 @@ jobs:
           test "$ready" = true
           test -f "$server_dir/world/level.dat"
 
-          set +e
-          timeout --signal=INT 180 xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
-            -PwbyS1RunDirectory=run-wby-s1-client --no-configuration-cache 2>&1 | tee wby-s1-client.log
-          client_status=${PIPESTATUS[0]}
-          set -e
-          test "$client_status" -eq 124
-          grep -E -q 'logged in with entity id|joined the game' "$server_log"
+          client_log="wby-s1-client.log"
+          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
+              -PwbyS1RunDirectory=run-wby-s1-client --no-configuration-cache > "$client_log" 2>&1 &
+          client_pid=$!
+          joined=false
+          for attempt in $(seq 1 180); do
+            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log"; then
+              joined=true
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              echo 'S1 client exited before joining the dedicated server'
+              cat "$client_log"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo 'S1 server exited before the client joined'
+              cat "$server_log"
+              cat "$client_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$joined" != true ]]; then
+            echo 'S1 client did not join the dedicated server within 180 seconds'
+            cat "$client_log"
+            cat "$server_log"
+            exit 1
+          fi
+          kill -INT -- "-$client_pid" 2>/dev/null || true
+          wait "$client_pid" 2>/dev/null || true
+
+
+          client_pid=""
 
           kill -INT -- "-$server_pid" 2>/dev/null || true
           wait "$server_pid" 2>/dev/null || true
