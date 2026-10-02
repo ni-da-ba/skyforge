@@ -195,6 +195,23 @@ val wbyWave1VisibilityServerRuntime = sourceSets.create("wbyWave1VisibilityServe
         development.output
 }
 
+// #1433 converges the canonical alpha stack without re-running every historical component proof.
+// Client/server source sets remain side-aware so client renderers never become server requirements.
+val wbyAlphaClientRuntime = sourceSets.create("wbyAlphaClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -362,6 +379,15 @@ check(sfImp0084AalPin("neoforge.version") == "21.1.249") {
 check(sfImp0084AalPin("coordinate") == "maven.modrinth:73ZXeRfx:EgPi4wq9") {
     "SF-IMP-0084 must use the exact AAL released coordinate authorized by #441"
 }
+
+// S0 is deliberately narrow: accepted physical/runtime shell plus JEI,
+// long-range visibility, and the already accepted conservative optimizers.
+// Later capability/content slices must not leak into this parent profile.
+val wbyAlphaEngineeringMods = listOf("create", "sable", "aeronautics", "jei")
+val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
+val wbyAlphaServerVisibilityMods = listOf("ssrd")
+val wbyAlphaClientOptimizerMods = listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
+val wbyAlphaServerOptimizerMods = listOf("lithium", "ferritecore")
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
@@ -2070,7 +2096,84 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Canonical alpha convergence uses one full-stack server creation and one actual-client reopen.
+        // The existing bounded W1 acceptance harness provides deterministic stop/reload/render evidence.
+        create("wbyAlphaPrepareServer") {
+            server()
+            sourceSet.set(wbyAlphaServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-alpha")
+            // Keep ordinary alpha playtest runs out of third-party GameTest reflection.
+            // Empty/not-set means all namespaces in NeoForge; only Skyforge tests belong here.
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-alpha-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-alpha/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
 
+        create("wbyAlphaClientAcceptance") {
+            client()
+            sourceSet.set(wbyAlphaClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-alpha-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-alpha/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Sync>("wbyAlphaStageClientMods") {
+                group = "verification"
+                description = "Stage exact S0 external client mods into the ordinary mods directory so NeoForge dependency sorting sees them as installed mods."
+            
+                val expectedTokens = (
+                    wbyAlphaEngineeringMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } } +
+                    wbyAlphaClientVisibilityMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } } +
+                    wbyAlphaClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } }
+                ).toSet()
+            
+                from(wbyAlphaClientRuntime.runtimeClasspath) {
+                    include { details -> expectedTokens.any { token -> details.file.name.contains(token) } }
+                }
+                into(layout.projectDirectory.dir("run-wby-alpha/mods"))
+            
+                doFirst { destinationDir.deleteRecursively() }
+                doLast {
+                    val staged = destinationDir.listFiles()
+                        ?.filter { file -> file.isFile && file.extension == "jar" }
+                        ?.map { file -> file.name }
+                        ?.sorted()
+                        ?: emptyList()
+                    expectedTokens.forEach { token ->
+                        check(staged.any { name -> name.contains(token) }) { "S0 staged client mods missing token '$token': $staged" }
+                    }
+                    check(staged.size == expectedTokens.size) {
+                        "S0 staged client mods contain unexpected jars: expected=" + expectedTokens.size + " staged=" + staged
+                    }
+                    println("WBY S0 CLIENT MOD STAGING PASS")
+                }
+            })
+        }
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
@@ -6400,6 +6503,56 @@ tasks.register("waveC1ResolvePinnedMods") {
 }
 
 
+tasks.register("wbyAlphaResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the bounded WBY S0 launch shell and enforce side-aware membership."
+    inputs.file(waveC1PinFile)
+    inputs.file(wbyWave1PinFile)
+    inputs.file(wbyWave1BPinFile)
+
+    doLast {
+        fun token(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return parts[1] + "-" + parts[2]
+        }
+        val client = wbyAlphaClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val server = wbyAlphaServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        wbyAlphaEngineeringMods.forEach { mod ->
+            val t = token(waveC1Pin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY S0 client missing $mod token '$t'" }
+            check(server.any { it.contains(t) }) { "WBY S0 server missing $mod token '$t'" }
+        }
+        wbyAlphaClientVisibilityMods.forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY S0 client missing visibility $mod token '$t'" }
+        }
+        wbyAlphaServerVisibilityMods.forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.any { it.contains(t) }) { "WBY S0 server missing visibility $mod token '$t'" }
+        }
+        wbyAlphaClientOptimizerMods.forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY S0 client missing optimizer $mod token '$t'" }
+        }
+        wbyAlphaServerOptimizerMods.forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.any { it.contains(t) }) { "WBY S0 server missing optimizer $mod token '$t'" }
+        }
+        listOf("sodium", "distanthorizons").forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.none { it.contains(t) }) { "WBY S0 server leaked client-only $mod token '$t'" }
+        }
+        listOf("immediatelyfast", "dynamicfps").forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.none { it.contains(t) }) { "WBY S0 server leaked client-only $mod token '$t'" }
+        }
+        println("WBY S0 LAUNCH SHELL RESOLUTION PASS")
+        println("  clientFiles=" + client.size)
+        println("  serverFiles=" + server.size)
+    }
+}
+
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
@@ -7091,6 +7244,24 @@ dependencies {
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1BPin(mod, "coordinate"),
         )
+    }
+
+    // #1433 S0 canonical launch shell: no post-S0 capability/content leakage.
+    wbyAlphaEngineeringMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+    }
+    wbyAlphaClientVisibilityMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate"))
+    }
+    wbyAlphaServerVisibilityMods.forEach { mod ->
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate"))
+    }
+    wbyAlphaClientOptimizerMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
+    }
+    wbyAlphaServerOptimizerMods.forEach { mod ->
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.

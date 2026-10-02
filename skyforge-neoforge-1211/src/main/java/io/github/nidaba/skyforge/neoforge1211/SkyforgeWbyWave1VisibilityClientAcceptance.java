@@ -26,6 +26,7 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
     private static int stableTicks;
     private static boolean renderObserved;
     private static boolean clientComplete;
+    private static boolean quickPlayRecoveryAttempted;
     private static int fpsSamples;
     private static long fpsSum;
     private static int fpsMin = Integer.MAX_VALUE;
@@ -61,6 +62,8 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
                     + "; renderObserved=" + renderObserved);
             return;
         }
+        dismissDistantHorizonsUpdateScreen(minecraft);
+        recoverInterruptedQuickPlay(minecraft);
         if (minecraft.level == null || player == null || minecraft.gameMode == null || minecraft.screen != null) {
             return;
         }
@@ -141,6 +144,34 @@ final class SkyforgeWbyWave1VisibilityClientAcceptance {
             }
         } catch (ReflectiveOperationException | RuntimeException failure) {
             fail("WBY Wave 1 actual-client visibility failed: " + failure);
+        }
+    }
+
+    private static void recoverInterruptedQuickPlay(Minecraft minecraft) {
+        if (quickPlayRecoveryAttempted
+                || minecraft.level != null
+                || minecraft.screen == null
+                || !"net.minecraft.client.gui.screens.TitleScreen".equals(minecraft.screen.getClass().getName())) {
+            return;
+        }
+        quickPlayRecoveryAttempted = true;
+        // DH's updater can consume the launch-time --quickPlaySingleplayer transition before the
+        // acceptance harness dismisses it. Re-enter the exact prepared save through Minecraft's
+        // public world-open flow rather than synthesizing input or weakening the acceptance gate.
+        minecraft.createWorldOpenFlows().openWorld("wby-alpha", () -> {});
+    }
+
+    private static void dismissDistantHorizonsUpdateScreen(Minecraft minecraft) {
+        if (minecraft.screen == null) {
+            return;
+        }
+        String screenClass = minecraft.screen.getClass().getName();
+        if (screenClass.startsWith("com.seibel.distanthorizons.")
+                && screenClass.contains(".updater.UpdateModScreen")) {
+            // The CI specimen intentionally pins DH, so its interactive "new version available"
+            // screen must not intercept --quickPlaySingleplayer. This is acceptance-harness-only
+            // behavior; normal players still see the upstream update UI.
+            minecraft.setScreen(null);
         }
     }
 

@@ -1,0 +1,116 @@
+name: WBY S0 Launch Shell
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-alpha-stack-convergence.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s0-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  s0-machine-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve bounded S0 launch shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyAlphaResolvePinnedMods --no-configuration-cache | tee wby-s0-resolve.log
+          grep -Fq 'WBY S0 LAUNCH SHELL RESOLUTION PASS' wby-s0-resolve.log
+
+      - name: Prepare clean S0 runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-alpha"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+
+      - name: Create S0 world on dedicated server
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyAlphaPrepareServer --no-configuration-cache 2>&1 | tee wby-s0-server.log
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-alpha/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          # S0 must not accidentally admit post-S0 capability/content layers.
+          for modid in reliable_gliders computercraft create_avionics create_diesel_generators regions_unexplored; do
+            if grep -Eq "\\($modid\\)" wby-s0-server.log; then
+              echo "post-S0 mod leaked into launch shell: $modid"
+              exit 1
+            fi
+          done
+
+      - name: Reopen same save in actual client
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyAlphaClientAcceptance --no-configuration-cache 2>&1 | tee wby-s0-client.log
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-alpha/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+          for modid in reliable_gliders computercraft create_avionics create_diesel_generators regions_unexplored; do
+            if grep -Eq "\\($modid\\)" wby-s0-client.log; then
+              echo "post-S0 mod leaked into launch shell: $modid"
+              exit 1
+            fi
+          done
+
+      - name: Capture bounded S0 sanity summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "profile=S0"
+            echo "head_sha=${GITHUB_SHA}"
+            echo "server_world_created=true"
+            echo "same_save_actual_client_reopen=true"
+            echo "distant_horizons_loaded=true"
+            echo "sodium_loaded=true"
+            echo "ssrd_sublevel_render_observed=true"
+            echo "post_s0_leakage=false"
+          } > wby-s0-summary.properties
+
+      - name: Upload S0 evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s0-machine-acceptance
+          path: |
+            wby-s0-*.log
+            wby-s0-summary.properties
+            skyforge-neoforge-1211/build/acceptance/wby-alpha/*.properties
+            skyforge-neoforge-1211/run-wby-alpha/logs/latest.log
+          if-no-files-found: warn
