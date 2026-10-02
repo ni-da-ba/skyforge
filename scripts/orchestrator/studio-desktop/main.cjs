@@ -37,7 +37,7 @@ const CSP = [
 let mainWindow = null;
 let protocolRegistered = false;
 let downloadDialogsRegistered = false;
-const dispatchBackupAction = createBackupActionDispatcher(
+const dispatchStudioAction = createStudioActionDispatcher(
   () => mainWindow,
   (message, error) => console.error(message, error),
 );
