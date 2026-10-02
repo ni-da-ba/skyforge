@@ -6592,6 +6592,10 @@ tasks.register("wbyS05ResolvePinnedMods") {
         }
         val client = wbyS05ClientRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
         val server = wbyS05ServerRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
+        println("WBY S0.5A client runtime files:")
+        client.forEach { println("  client=$it") }
+        println("WBY S0.5A server runtime files:")
+        server.forEach { println("  server=$it") }
 
         wbyAlphaEngineeringMods.forEach { mod ->
             val expected = token(waveC1Pin(mod, "coordinate"))
