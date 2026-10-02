@@ -2143,12 +2143,6 @@ neoForge {
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
-tasks.named("wbyAlphaClientAcceptance").configure {
-    dependsOn(tasks.named("wbyAlphaStageClientMods"))
-}
-
-
-
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
@@ -6559,6 +6553,11 @@ tasks.register<Sync>("wbyAlphaStageClientMods") {
         println("WBY S0 CLIENT MOD STAGING PASS")
     }
 }
+
+tasks.named("wbyAlphaClientAcceptance").configure {
+    dependsOn(tasks.named("wbyAlphaStageClientMods"))
+}
+
 
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
