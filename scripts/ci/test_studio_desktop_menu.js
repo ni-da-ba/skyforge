@@ -8,10 +8,18 @@ const {
   createBackupActionDispatcher,
 } = require("../orchestrator/studio-desktop/menu.cjs");
 
-const studioHtml = fs.readFileSync(
-  path.join(__dirname, "..", "orchestrator", "studio", "index.html"),
+const studioRoot = path.join(__dirname, "..", "orchestrator", "studio");
+const desktopRoot = path.join(__dirname, "..", "orchestrator", "studio-desktop");
+const studioHtml = fs.readFileSync(path.join(studioRoot, "index.html"), "utf8");
+const desktopMain = fs.readFileSync(path.join(desktopRoot, "main.cjs"), "utf8");
+const desktopWorkflow = fs.readFileSync(
+  path.join(__dirname, "..", "..", ".github", "workflows", "studio-desktop.yml"),
   "utf8",
 );
+assert.match(desktopMain, /require\("\.\/menu\.cjs"\)/);
+assert.match(desktopMain, /Menu\.setApplicationMenu\(/);
+assert.match(desktopMain, /configureApplicationMenu\(\);/);
+assert.match(desktopWorkflow, /cp scripts\/orchestrator\/studio-desktop\/menu\.cjs/);
 assert.match(studioHtml, /id="studio-backup-import"/);
 assert.match(studioHtml, /id="studio-backup-export"/);
 
