@@ -321,10 +321,14 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             }
             SkyIslandChannelProfileKind kind = profiles.get(index).kind();
             if (kind == SkyIslandChannelProfileKind.CASCADE) {
-                throw new IllegalStateException(
-                        "confluence-to-CASCADE ordinary span overlaps authored CASCADE profile "
-                                + index + " over [" + profileStart + "," + profileEnd
-                                + "] with target [" + startStation + "," + endStation + "]");
+                return new ConfluenceCascadeGradeConflictDetails(
+                        0.0,
+                        startStation,
+                        endStation,
+                        0,
+                        "cascade-overlap-profile-" + index + "-[" + profileStart + "," + profileEnd + "]",
+                        -1,
+                        Double.NaN);
             }
             overlappingKinds.add(kind);
         }
