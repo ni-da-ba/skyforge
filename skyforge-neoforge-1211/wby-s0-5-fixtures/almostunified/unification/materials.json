@@ -1,0 +1,23 @@
+{
+  "mod_priorities": [
+    "minecraft",
+    "create"
+  ],
+  "priority_overrides": {},
+  "stone_variants": [],
+  "tags": [
+    "c:ingots/{material}",
+    "c:nuggets/{material}",
+    "c:plates/{material}",
+    "c:raw_materials/{material}",
+    "c:rods/{material}",
+    "c:storage_blocks/{material}"
+  ],
+  "ignored_tags": [],
+  "ignored_items": [],
+  "ignored_recipe_types": [],
+  "ignored_recipe_ids": [],
+  "recipe_viewer_hiding": true,
+  "loot_unification": false,
+  "ignored_loot_tables": []
+}
