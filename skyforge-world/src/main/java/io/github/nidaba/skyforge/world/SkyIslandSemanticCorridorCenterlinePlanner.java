@@ -817,23 +817,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         if (!firstGeometryValid) {
             return 0;
         }
-        int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
-        if (maximumGap != 0) {
-            return maximumGap;
-        }
-        int integratedGap = Double.compare(
-                firstGap.integratedSquaredGap(), secondGap.integratedSquaredGap());
-        if (integratedGap != 0) {
-            return integratedGap;
-        }
-        SkyIslandLocalPosition previous = points.get(changedIndex - 1);
-        SkyIslandLocalPosition next = points.get(changedIndex + 1);
-        int curvature = Double.compare(
-                localCurvature(previous, first, next),
-                localCurvature(previous, second, next));
-        if (curvature != 0) {
-            return curvature;
-        }
         if (longitudinalHeadFeasibility != null) {
             List<SkyIslandLocalPosition> firstPoints = new ArrayList<>(points);
             firstPoints.set(changedIndex, first);
@@ -843,14 +826,24 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     checkedLongitudinalScore(longitudinalHeadFeasibility, firstPoints);
             SkyIslandCenterlineLongitudinalHeadFeasibility.Score secondScore =
                     checkedLongitudinalScore(longitudinalHeadFeasibility, secondPoints);
-            int maximumGrade = Double.compare(
-                    firstScore.maximumGradePropagationConflictWorldUnits(),
-                    secondScore.maximumGradePropagationConflictWorldUnits());
-            if (maximumGrade != 0) return maximumGrade;
+            boolean firstD2NoWorse =
+                    firstGap.maximumGap() <= secondGap.maximumGap() + EPSILON
+                            && firstGap.integratedSquaredGap()
+                                    <= secondGap.integratedSquaredGap() + EPSILON;
+            boolean secondD2NoWorse =
+                    secondGap.maximumGap() <= firstGap.maximumGap() + EPSILON
+                            && secondGap.integratedSquaredGap()
+                                    <= firstGap.integratedSquaredGap() + EPSILON;
+            if (firstD2NoWorse != secondD2NoWorse) return firstD2NoWorse ? -1 : 1;
+            if (!firstD2NoWorse) return 0;
             int confluenceCascadeGrade = Double.compare(
                     firstScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
                     secondScore.maximumConfluenceCascadeGradeConflictWorldUnits());
             if (confluenceCascadeGrade != 0) return confluenceCascadeGrade;
+            int maximumGrade = Double.compare(
+                    firstScore.maximumGradePropagationConflictWorldUnits(),
+                    secondScore.maximumGradePropagationConflictWorldUnits());
+            if (maximumGrade != 0) return maximumGrade;
             int maximumLocal = Double.compare(
                     firstScore.maximumLocalEnvelopeConflictWorldUnits(),
                     secondScore.maximumLocalEnvelopeConflictWorldUnits());
@@ -860,6 +853,17 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     secondScore.integratedSquaredConflictWorldUnits());
             if (integratedGrade != 0) return integratedGrade;
         }
+        int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
+        if (maximumGap != 0) return maximumGap;
+        int integratedGap = Double.compare(
+                firstGap.integratedSquaredGap(), secondGap.integratedSquaredGap());
+        if (integratedGap != 0) return integratedGap;
+        SkyIslandLocalPosition previous = points.get(changedIndex - 1);
+        SkyIslandLocalPosition next = points.get(changedIndex + 1);
+        int curvature = Double.compare(
+                localCurvature(previous, first, next),
+                localCurvature(previous, second, next));
+        if (curvature != 0) return curvature;
         return Double.compare(
                 project(first, searchRoute.points()).distance(),
                 project(second, searchRoute.points()).distance());
@@ -1252,17 +1256,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (excess != 0) {
                 return excess;
             }
-            int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
-            if (maximumGap != 0) {
-                return maximumGap;
-            }
-            int integratedGap =
-                    Double.compare(
-                            integratedSquaredHeadEnvelopeGap,
-                            other.integratedSquaredHeadEnvelopeGap);
-            if (integratedGap != 0) {
-                return integratedGap;
-            }
             int maximumConfluenceCascade = Double.compare(
                     maximumConfluenceCascadeGradeConflict,
                     other.maximumConfluenceCascadeGradeConflict);
@@ -1275,6 +1268,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     maximumLocalEnvelopeConflict,
                     other.maximumLocalEnvelopeConflict);
             if (maximumLocal != 0) return maximumLocal;
+            int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
+            if (maximumGap != 0) return maximumGap;
+            int integratedGap =
+                    Double.compare(
+                            integratedSquaredHeadEnvelopeGap,
+                            other.integratedSquaredHeadEnvelopeGap);
+            if (integratedGap != 0) return integratedGap;
             int longitudinal = Double.compare(
                     longitudinalHeadFeasibilityGap,
                     other.longitudinalHeadFeasibilityGap);
