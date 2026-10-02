@@ -302,6 +302,20 @@ It represents an extreme upper atmospheric / near-exospheric island region chara
 - a visibly darker sky approaching space;
 - organisms that either evolved under extreme-altitude conditions or may have arrived from outside the planet.
 
+The End should remain **strange and plausibly supernatural even though it is physically continuous with the world**. Physical continuity is not a mandate to reduce End phenomena to ordinary high-altitude geology.
+
+The ancient catastrophe is the preferred common causal anchor. The highest surviving ejecta may have been subjected to exceptional stresses, fields, energies, exposures, or other anomalous conditions during emplacement, and then remained isolated in the planet's most extreme atmospheric environment for geological time. Consequently, End stone, unusual life, teleportation-like phenomena, altered material behavior, or other characteristic anomalies may share a catastrophic origin without modern science possessing a complete mechanism.
+
+This interpretation deliberately allows several causes to overlap:
+
+- **selection** — only unusually strongly levitic material remained at extreme altitude;
+- **catastrophic alteration** — some matter or life may have been changed by the same poorly understood event that shattered the old crust;
+- **extreme-environment evolution** — surviving organisms may have adapted to low pressure, radiation, isolation, and unusual chemistry over geological time;
+- **external arrival** — some organisms or materials may have entered the region from outside the planet;
+- **ancient intervention** — structures, portals, or localized anomalies may reflect later activity rather than the catastrophe itself.
+
+These are not required to collapse into one explanation. The End can be scientifically investigated and engineered around while retaining genuine unresolved anomalies.
+
 Minecraft dimension separation is an implementation boundary, not cosmological separation.
 
 Primary route:
@@ -317,6 +331,14 @@ ordinary sky
 Strongholds may remain as an ancient anomalous shortcut to the same physical region.
 
 Modern engineering reaches it by going **up**. Ancient mechanisms may reach it by going **through**.
+
+### End realization invariant
+
+End expansion should increase ecological, morphological, and exploratory richness without making the region read as another ordinary terrestrial biome layer.
+
+The governing visual and gameplay signals remain extreme altitude: thin or absent ordinary weather, enormous separation between landmasses, darkening sky, exposure, unusual illumination, sparse atmospheric shelter, and life adapted to or transformed by conditions unlike the inhabited sky.
+
+A lush End is therefore acceptable. A merely terrestrial End at high Y is not.
 
 ## Nether and post-mortem phenomena
 
