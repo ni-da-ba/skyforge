@@ -396,6 +396,18 @@ This is especially important for:
 
 The Minecraft backend should prefer perceptual fidelity over literal planetary-scale simulation.
 
+### Overworld vertical envelope
+
+Vanilla Minecraft's default Overworld height envelope should **not** be assumed sufficient for Skyforge.
+
+Skyforge's ordinary playable world requires enough vertical room for meaningful altitude bands, substantial clear-air separation between islands, deep island undersides and internal geology, aviation ascent/descent, weather volume, long waterfalls, and a perceptible distinction between ordinary inhabited sky and high-sky approaches.
+
+The Minecraft backend should therefore treat **modifying or expanding Overworld world/build heights as a required design and implementation problem** rather than an optional polish item.
+
+Do not lock an exact minimum Y, maximum Y, or total block height here. The final envelope should be chosen from executable evidence: terrain-generation cost, chunk/section behavior, lighting, rendering and Distant Horizons interaction, mod compatibility, aviation scale, atmospheric presentation, and acceptable server/client performance.
+
+Minecraft Y should also not be assumed to map literally to the full physical distance from the Lower Sea to the exosphere. The Overworld may represent a compressed but internally coherent inhabited atmospheric band, while the Lower Sea and extreme upper atmosphere / End use perceptual or backend transitions where needed.
+
 Likely implementation split:
 
 - real floating-island block terrain in the playable sky bands;
