@@ -76,7 +76,7 @@ jobs:
           EOF
 
           log="wby-pt02b-baseline-server.log"
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}             -Dskyforge.dev.waveC7GliderLift=true             -Dskyforge.dev.waveC7Acceptance=true             -Dskyforge.dev.waveC13ElytraAcceptance=baseline"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC13ElytraAcceptance=baseline"
 
           setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer \
             -PwbyPt02ElytraSuppression=false \
@@ -85,13 +85,11 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 180); do
-            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null \
-                && grep -Fq 'WAVE_C13_BASELINE PASS' "$log" 2>/dev/null; then
+            if grep -Fq 'WAVE_C13_BASELINE PASS' "$log" 2>/dev/null; then
               outcome="pass"
               break
             fi
-            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null \
-                || grep -Fq 'WAVE_C13_BASELINE FAIL' "$log" 2>/dev/null; then
+            if grep -Fq 'WAVE_C13_BASELINE FAIL' "$log" 2>/dev/null; then
               outcome="fail"
               break
             fi
@@ -108,7 +106,6 @@ jobs:
             exit 1
           fi
 
-          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
           grep -Fq 'WAVE_C13_BASELINE PASS' "$log"
           grep -Eq '\(reliable_gliders\)' "$log"
           grep -Eq '\(aerodynamics4mc\)' "$log"
@@ -154,7 +151,7 @@ jobs:
           EOF
 
           log="wby-pt02b-suppressed-server.log"
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}             -Dskyforge.dev.waveC7GliderLift=true             -Dskyforge.dev.waveC7Acceptance=true             -Dskyforge.dev.waveC13ElytraAcceptance=suppressed"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC13ElytraAcceptance=suppressed"
 
           setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer \
             -PwbyPt02ElytraSuppression=true \
@@ -163,13 +160,78 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 180); do
-            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null \
-                && grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log" 2>/dev/null; then
+            if grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log" 2>/dev/null; then
               outcome="pass"
               break
             fi
-            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null \
-                || grep -Fq 'WAVE_C13_SUPPRESSED FAIL' "$log" 2>/dev/null; then
+            if grep -Fq 'WAVE_C13_SUPPRESSED FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log"
+          for mod in create sable aeronautics ssrd lithium ferritecore reliable_gliders aerodynamics4mc; do
+            grep -Eq "\\($mod\\)" "$log"
+          done
+          if grep -Eq '\\(sodium\\)|\\(distanthorizons\\)|\\(immediatelyfast\\)|\\(dynamic_fps\\)' "$log"; then
+            echo "PT-02B dedicated server leaked a client-only renderer/optimizer mod"
+            exit 1
+          fi
+
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Prove C7 shared lift survives PT-02B suppression stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-pt02b-c7
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25574
+          EOF
+
+          log="wby-pt02b-c7-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer \
+            -PwbyPt02ElytraSuppression=true \
+            --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 180); do
+            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null; then
               outcome="fail"
               break
             fi
@@ -187,14 +249,8 @@ jobs:
           fi
 
           grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
-          grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log"
-          for mod in create sable aeronautics ssrd lithium ferritecore reliable_gliders aerodynamics4mc; do
-            grep -Eq "\\($mod\\)" "$log"
-          done
-          if grep -Eq '\\(sodium\\)|\\(distanthorizons\\)|\\(immediatelyfast\\)|\\(dynamic_fps\\)' "$log"; then
-            echo "PT-02B dedicated server leaked a client-only renderer/optimizer mod"
-            exit 1
-          fi
+          grep -Eq '\(reliable_gliders\)' "$log"
+          grep -Eq '\(aerodynamics4mc\)' "$log"
 
           kill -TERM -- "-$pid" 2>/dev/null || true
           sleep 2
