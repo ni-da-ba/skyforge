@@ -2654,6 +2654,15 @@
     }
   });
 
+  $("home-open-hydrology-sample").addEventListener("click", () => {
+    selectWorkspaceView("inspect");
+    $("open-bundled-sample").click();
+  });
+  $("home-open-hydrology-files").addEventListener("click", () => {
+    selectWorkspaceView("inspect");
+    $("local-pair-files").click();
+  });
+
   $("open-bundled-sample").addEventListener("click", () => {
     const sample = window.SKYFORGE_STUDIO_SAMPLE;
     if (!sample) {

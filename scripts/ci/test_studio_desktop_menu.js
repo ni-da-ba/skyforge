@@ -11,6 +11,7 @@ const {
 const studioRoot = path.join(__dirname, "..", "orchestrator", "studio");
 const desktopRoot = path.join(__dirname, "..", "orchestrator", "studio-desktop");
 const studioHtml = fs.readFileSync(path.join(studioRoot, "index.html"), "utf8");
+const studioApp = fs.readFileSync(path.join(studioRoot, "app.js"), "utf8");
 const desktopMain = fs.readFileSync(path.join(desktopRoot, "main.cjs"), "utf8");
 const desktopWorkflow = fs.readFileSync(
   path.join(__dirname, "..", "..", ".github", "workflows", "studio-desktop.yml"),
@@ -21,6 +22,8 @@ assert.match(desktopMain, /Menu\.setApplicationMenu\(/);
 assert.match(desktopMain, /configureApplicationMenu\(\);/);
 assert.match(desktopWorkflow, /cp scripts\/orchestrator\/studio-desktop\/menu\.cjs/);
 for (const controlId of [
+  "home-open-hydrology-sample",
+  "home-open-hydrology-files",
   "local-file",
   "local-pair-files",
   "inspection-workspace-file",
@@ -28,8 +31,12 @@ for (const controlId of [
   "studio-backup-import",
   "studio-backup-export",
 ]) {
-  assert.ok(studioHtml.includes(`id="${controlId}"`), `File menu control exists: ${controlId}`);
+  assert.ok(studioHtml.includes(`id="${controlId}"`), `Studio action control exists: ${controlId}`);
 }
+assert.ok(studioHtml.includes("Open included hydrology example"));
+assert.ok(studioHtml.includes("Open my terrain + hydrology pair"));
+assert.ok(studioApp.includes(`$("home-open-hydrology-sample").addEventListener("click", () => {\n    selectWorkspaceView("inspect");\n    $("open-bundled-sample").click();\n  });`));
+assert.ok(studioApp.includes(`$("home-open-hydrology-files").addEventListener("click", () => {\n    selectWorkspaceView("inspect");\n    $("local-pair-files").click();\n  });`));
 
 const builtTemplates = [];
 const Menu = {
