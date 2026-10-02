@@ -657,3 +657,19 @@ Biome and structure **diversity is considered sufficient for Alpha**. Do not exp
 A successful Nether should support a progression story like: **locate a promising route -> prepare equipment/vehicle/logistics -> penetrate a coherent hostile region -> reach a strategically situated fortress/resource site -> conduct the objective under environmental and creature pressure -> extract safely -> improve the route/infrastructure for repeat operations.**
 
 This applies especially to Blaze Rods. The desired challenge is an **expedition and engineering problem**, not a stat check or mandatory grind.
+
+
+## Nether morphology abstraction — provisional architecture note
+
+**Status:** Persisted for later implementation after the current Skyforge terrain/hydrology architecture is mature enough to generalize safely.
+
+- Treat major Nether cavern-system grammars as the **Nether analogue of Sky-Island morphological families**, not as a separate biome hierarchy.
+- Reuse the existing descriptor/recipe/morphology architecture where it genuinely generalizes; avoid creating a parallel Nether-only worldgen stack prematurely.
+- The principal inversion is geometric: Overworld morphology primarily describes **meaningful solid volumes in open atmosphere**, while Nether morphology primarily describes **meaningful void volumes inside a solid geological mass**.
+- Candidate first-order Nether morphological families include vault-dominant, chasm-dominant, tube/conduit-dominant, basin-dominant, and fracture/labyrinth-dominant systems. These are compositional grammars, not exclusive biome labels.
+- Major systems should be characterized chiefly by topology and geometry—connectivity, void fraction, characteristic span, vertical bias, branch factor, corridor width, chamber frequency, fracture/collapse intensity, and relationship to magma flow—not by block palette or ecology.
+- Mixed systems are expected. Example: a vault-dominant cavern system may contain a chasm spine, tube network, and terminal lava basin.
+- Host geology, cavern morphology/connectivity, and magmatic drainage are the leading physical authorities. Atmosphere/gas fields, ecology, resources, structures, civilization, and threats are downstream consumers.
+- Magmatic drainage should remain an overlapping graph/system rather than being forced beneath a single morphology hierarchy; lava reservoirs, conduits, falls, channels, and basins may traverse multiple cavern elements.
+- The Nether is therefore a useful architecture test: it should demonstrate that Skyforge morphology describes semantic geometry generally rather than being accidentally synonymous with “floating island generation.”
+- Do not finalize APIs or implementation names yet. Validate the abstraction with at least one convincing vault system, one chasm system, and one mixed system with coherent magma routing before generalizing accepted Sky-Island APIs.
