@@ -212,6 +212,17 @@ val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
         development.output
 }
 
+// S0.5A layers pack-integration authority onto the accepted S0 parent.
+val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+val wbyS05ServerRuntime = sourceSets.create("wbyS05ServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+
+
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -388,6 +399,21 @@ val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyAlphaServerVisibilityMods = listOf("ssrd")
 val wbyAlphaClientOptimizerMods = listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
 val wbyAlphaServerOptimizerMods = listOf("lithium", "ferritecore")
+
+val wbyS05PinFile = layout.projectDirectory.file("wby-s0-5-pack-authority.properties")
+val wbyS05Pins = Properties().apply { wbyS05PinFile.asFile.inputStream().use(::load) }
+check(wbyS05Pins.getProperty("minecraft.version") == "1.21.1")
+check(wbyS05Pins.getProperty("neoforge.version") == "21.1.249")
+fun wbyS05Pin(mod: String, field: String): String =
+    requireNotNull(wbyS05Pins.getProperty("\$mod.\$field")) { "missing WBY S0.5 pin: \$mod.\$field" }
+fun wbyS05Token(mod: String): String =
+    wbyS05Pins.getProperty("\$mod.artifactToken") ?: wbyS05Pin(mod, "coordinate").split(":").let { parts ->
+        check(parts.size == 3)
+        parts[1] + "-" + parts[2]
+    }
+val wbyS05PackAuthorityMods = listOf(
+    "kubejs", "rhino", "betteradvancedtooltips", "kubejscreate", "lootjs", "paxi", "almostunified",
+)
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
@@ -6524,6 +6550,24 @@ tasks.register("wbyAlphaResolvePinnedMods") {
     }
 }
 
+tasks.register("wbyS05ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve S0.5A cumulative pack-authority shell."
+    inputs.file(wbyS05PinFile)
+    doLast {
+        val client = wbyS05ClientRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
+        val server = wbyS05ServerRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
+        wbyS05PackAuthorityMods.forEach { mod ->
+            val token = wbyS05Token(mod)
+            check(client.any { name -> name.contains(token) }) { "S0.5 client missing \$mod token '\$token'" }
+            check(server.any { name -> name.contains(token) }) { "S0.5 server missing \$mod token '\$token'" }
+        }
+        println("WBY S0.5A PACK AUTHORITY RESOLUTION PASS")
+        println("  clientFiles=" + client.size)
+        println("  serverFiles=" + server.size)
+    }
+}
+
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
@@ -7233,6 +7277,20 @@ dependencies {
     }
     wbyAlphaServerOptimizerMods.forEach { mod ->
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
+    }
+
+    // S0.5A cumulative pack-authority runtime.
+    wbyAlphaEngineeringMods.forEach { mod ->
+        add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+    }
+    wbyAlphaClientVisibilityMods.forEach { mod -> add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate")) }
+    wbyAlphaServerVisibilityMods.forEach { mod -> add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate")) }
+    wbyAlphaClientOptimizerMods.forEach { mod -> add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate")) }
+    wbyAlphaServerOptimizerMods.forEach { mod -> add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate")) }
+    wbyS05PackAuthorityMods.forEach { mod ->
+        add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyS05Pin(mod, "coordinate"))
+        add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyS05Pin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
