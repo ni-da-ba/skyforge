@@ -16,7 +16,7 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
     record Score(
             double maximumConflictWorldUnits,
             double integratedSquaredConflictWorldUnits) {
-        Score {
+        public Score {
             if (!Double.isFinite(maximumConflictWorldUnits)
                     || maximumConflictWorldUnits < 0.0
                     || !Double.isFinite(integratedSquaredConflictWorldUnits)
