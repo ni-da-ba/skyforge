@@ -43,7 +43,7 @@ const dispatchStudioAction = createStudioActionDispatcher(
 );
 
 function configureApplicationMenu() {
-  Menu.setApplicationMenu(buildStudioApplicationMenu(Menu, dispatchBackupAction, process.platform));
+  Menu.setApplicationMenu(buildStudioApplicationMenu(Menu, dispatchStudioAction, process.platform));
 }
 
 function staticRoot() {
