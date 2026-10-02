@@ -1,11 +1,15 @@
 "use strict";
 
-const BACKUP_CONTROLS = Object.freeze({
+const STUDIO_CONTROLS = Object.freeze({
+  "open-semantic-artifact": "local-file",
+  "open-terrain-pair": "local-pair-files",
+  "open-inspection-workspace": "inspection-workspace-file",
+  "open-sample-trace": "sample-trace-file",
   "open-backup": "studio-backup-import",
   "save-backup": "studio-backup-export",
 });
 
-function createBackupActionDispatcher(getWindow, reportError = () => {}) {
+function createStudioActionDispatcher(getWindow, reportError = () => {}) {
   if (typeof getWindow !== "function") throw new TypeError("getWindow must be a function");
 
   return function dispatchBackupAction(action) {
