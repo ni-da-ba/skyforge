@@ -4,7 +4,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, Menu, protocol } = require("electron");
 const { registerDownloadSaveDialogs } = require("./downloads.cjs");
-const { buildStudioApplicationMenu, createBackupActionDispatcher } = require("./menu.cjs");
+const { buildStudioApplicationMenu, createStudioActionDispatcher } = require("./menu.cjs");
 
 app.setAppUserModelId("com.squirrel.SkyforgeStudio.skyforge-studio");
 
