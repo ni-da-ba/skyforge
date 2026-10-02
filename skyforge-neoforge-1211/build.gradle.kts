@@ -411,7 +411,7 @@ fun wbyS05Token(mod: String): String =
         parts[1] + "-" + parts[2]
     }
 val wbyS05PackAuthorityMods = listOf(
-    "kubejs", "rhino", "betteradvancedtooltips", "kubejscreate", "lootjs", "paxi", "almostunified",
+    "kubejs", "rhino", "betteradvancedtooltips", "kubejscreate", "lootjs", "paxi", "yungsapi", "almostunified",
 )
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
