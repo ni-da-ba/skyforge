@@ -271,11 +271,29 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 descriptor.nominalRadius(), sampledDischarge[0]);
         double startStation = startArc / pathLength;
 
-        // A confluence-adjacent CASCADE may finish exactly at the finite outgoing boundary.
-        // The target is the first CASCADE boundary downstream of that boundary, not the first
-        // CASCADE profile anywhere on the reach.
+        // F3D owns a confluence-adjacent CASCADE as its complete authored profile run. The
+        // ordinary reach begins at the first ordinary profile boundary after that run, not at an
+        // interior CASCADE profile boundary merely because the physical confluence retreat lies
+        // inside the run.
+        int startProfile = Math.min(
+                profiles.size() - 1,
+                (int) Math.floor(Math.min(0.999999999, startStation) * profiles.size()));
+        if (profiles.get(startProfile).kind() == SkyIslandChannelProfileKind.CASCADE) {
+            while (startProfile < profiles.size()
+                    && profiles.get(startProfile).kind() == SkyIslandChannelProfileKind.CASCADE) {
+                startProfile++;
+            }
+            if (startProfile >= profiles.size()) {
+                return new ConfluenceCascadeGradeConflictDetails(
+                        0.0, startStation, Double.NaN, 0, "no-ordinary-profile-after-confluence-cascade",
+                        -1, Double.NaN);
+            }
+            startStation = (double) startProfile / profiles.size();
+        }
+
+        // Score through the next downstream CASCADE boundary, matching F3D's ordinary-span slice.
         int cascadeStart = -1;
-        for (int index = 0; index < profiles.size(); index++) {
+        for (int index = startProfile + 1; index < profiles.size(); index++) {
             double profileStart = (double) index / profiles.size();
             if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE
                     && profileStart > startStation + TRANSITION_BOUNDARY_EPSILON) {
@@ -406,20 +424,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         return new ConfluenceCascadeGradeConflictDetails(
                 maximumConflict, startStation, endStation, spanPoints.size(),
                 spanClass.name(), maximumConflictIndex, maximumConflictStation);
-    }
-
-    static String confluenceCascadeGradeScorerInputs(
-            SkyIslandDescriptor descriptor,
-            SkyIslandSemanticChannelReach semantic,
-            List<SkyIslandLocalPosition> points) {
-        double pathLength = cumulativeDistance(points)[points.size() - 1];
-        double startDischarge = semanticDischargeProfile(semantic).atStation(0.0);
-        double startHalfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                descriptor.nominalRadius(), startDischarge);
-        return "pathLength=" + pathLength
-                + ",startDischarge=" + startDischarge
-                + ",startHalfWidth=" + startHalfWidth
-                + ",startStation=" + (startHalfWidth / pathLength);
     }
 
     static ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflictDetails(
