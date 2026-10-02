@@ -2126,7 +2126,6 @@ neoForge {
         create("wbyAlphaClientAcceptance") {
             client()
             sourceSet.set(wbyAlphaClientRuntime)
-            taskBefore("wbyAlphaStageClientMods")
             gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("wby-alpha")
@@ -2144,6 +2143,10 @@ neoForge {
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
+tasks.named("wbyAlphaClientAcceptance").configure {
+    dependsOn(tasks.named("wbyAlphaStageClientMods"))
+}
+
 
 
         create("wbyWave1VisibilityClientWorldPrepareServer") {
