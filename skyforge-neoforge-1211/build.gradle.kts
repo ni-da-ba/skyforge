@@ -500,6 +500,29 @@ val wbyAlphaB4SharedMods = listOf(
     "paxi", "yungsapi", "almostunified",
 )
 
+val wbyAlphaB5PinFile = layout.projectDirectory.file("wby-alpha-candidate-b5.properties")
+val wbyAlphaB5Pins = Properties().apply {
+    wbyAlphaB5PinFile.asFile.inputStream().use(::load)
+}
+fun wbyAlphaB5Pin(mod: String, field: String): String =
+    requireNotNull(wbyAlphaB5Pins.getProperty("$mod.$field")) {
+        "missing WBY alpha B5 pin: $mod.$field in " + wbyAlphaB5PinFile.asFile
+    }
+fun wbyAlphaB5Token(mod: String): String =
+    wbyAlphaB5Pin(mod, "coordinate").split(":").let {
+        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+        "${it[1]}-${it[2]}"
+    }
+check(wbyAlphaB5Pin("minecraft", "version") == "1.21.1")
+check(wbyAlphaB5Pin("neoforge", "version") == "21.1.249")
+
+val wbyAlphaB5ClientMods = listOf(
+    "voicechat", "walkietalkie", "soundphysicsaero", "trueadaptivemusic", "modernfix",
+)
+val wbyAlphaB5ServerMods = listOf(
+    "voicechat", "walkietalkie", "simplebackups", "servercore", "soundphysicsaero", "modernfix",
+)
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -6598,6 +6621,7 @@ tasks.register("wbyAlphaResolvePinnedMods") {
     inputs.file(wbyAlphaB2PinFile)
     inputs.file(wbyAlphaB3PinFile)
     inputs.file(wbyAlphaB4PinFile)
+    inputs.file(wbyAlphaB5PinFile)
 
     doLast {
         fun token(coordinate: String): String {
@@ -6677,6 +6701,22 @@ tasks.register("wbyAlphaResolvePinnedMods") {
             check(client.any { it.contains(t) }) { "WBY alpha client missing B4 $mod token '$t': $client" }
             check(server.any { it.contains(t) }) { "WBY alpha server missing B4 $mod token '$t': $server" }
         }
+        wbyAlphaB5ClientMods.forEach { mod ->
+            val t = wbyAlphaB5Token(mod)
+            check(client.any { it.contains(t) }) { "WBY alpha client missing B5 $mod token '$t': $client" }
+        }
+        wbyAlphaB5ServerMods.forEach { mod ->
+            val t = wbyAlphaB5Token(mod)
+            check(server.any { it.contains(t) }) { "WBY alpha server missing B5 $mod token '$t': $server" }
+        }
+        (wbyAlphaB5ClientMods - wbyAlphaB5ServerMods.toSet()).forEach { mod ->
+            val t = wbyAlphaB5Token(mod)
+            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only B5 $mod token '$t': $server" }
+        }
+        (wbyAlphaB5ServerMods - wbyAlphaB5ClientMods.toSet()).forEach { mod ->
+            val t = wbyAlphaB5Token(mod)
+            check(client.none { it.contains(t) }) { "WBY alpha client leaked server-only B5 $mod token '$t': $client" }
+        }
         val legacyYacl = token(waveC5Pin("yacl", "coordinate"))
         check(client.none { it.contains(legacyYacl) } && server.none { it.contains(legacyYacl) }) {
             "WBY alpha retained historical C5 YACL instead of the explicit B3 convergence pin: $legacyYacl"
@@ -6687,7 +6727,7 @@ tasks.register("wbyAlphaResolvePinnedMods") {
             "Reliable Gliders is RESERVE in the canonical alpha manifest and must not enter baseline"
         }
 
-        println("WBY ALPHA IMMUTABLE BASELINE + B1 + B2 + B3 + B4 RESOLUTION PASS")
+        println("WBY ALPHA IMMUTABLE BASELINE + B1 + B2 + B3 + B4 + B5 RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
     }
@@ -7436,6 +7476,12 @@ dependencies {
     wbyAlphaB4SharedMods.forEach { mod ->
         add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB4Pin(mod, "coordinate"))
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB4Pin(mod, "coordinate"))
+    }
+    wbyAlphaB5ClientMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB5Pin(mod, "coordinate"))
+    }
+    wbyAlphaB5ServerMods.forEach { mod ->
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB5Pin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
