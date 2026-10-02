@@ -79,14 +79,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                 first.centerline().points(), terrain);
                 report.append("OBJECTIVE_SPAN initial=")
                         .append(initialTargetScore)
-                        .append(" initialInputs=")
-                        .append(SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeScorerInputs(
-                                descriptor, route.semanticReach(), route.route().points()))
                         .append(" final=")
                         .append(finalTargetScore)
-                        .append(" finalInputs=")
-                        .append(SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeScorerInputs(
-                                descriptor, route.semanticReach(), first.centerline().points()))
                         .append(System.lineSeparator());
                 if (objectiveFailure == null
                         && (initialTargetScore.sampleCount() == 0
@@ -179,10 +173,6 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         .append(joint.status())
                         .append(" role=").append(joint.coupledLeg().nodeBoundary().role())
                         .append(" nodeArc=").append(joint.coupledLeg().nodeBoundary().arcLength())
-                        .append(" nodeDischarge=")
-                        .append(joint.coupledLeg().nodeBoundary().relativeDischarge())
-                        .append(" nodeHalfWidth=")
-                        .append(joint.coupledLeg().nodeBoundary().bankfullHalfWidth())
                         .append(" confluenceFiniteArc=")
                         .append(joint.coupledLeg().finiteBoundary().arcLength())
                         .append(" cascadeNearArc=")
