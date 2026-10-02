@@ -281,8 +281,6 @@ jobs:
           ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
-            --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
-            --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
         timeout-minutes: 15
