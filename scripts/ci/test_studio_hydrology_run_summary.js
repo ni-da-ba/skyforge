@@ -16,7 +16,8 @@ assert.ok(studioHtml.includes('src="hydrology-run-summary.js"'));
 assert.ok(studioHtml.includes('id="hydrology-run-summary"'));
 assert.ok(studioHtml.includes("Studio does not grade or recompute hydrology authorship."));
 assert.ok(studioApp.includes("window.SkyforgeStudioHydrologyRunSummary.summarize(scene, overlay)"));
-assert.ok(studioApp.includes('$("hydrology-run-summary").hidden = !summary;'));
+assert.ok(studioApp.includes('const panel = $("hydrology-run-summary");'));
+assert.ok(studioApp.includes("panel.hidden = !summary;"));
 assert.ok(stagingScript.includes("Path('hydrology-run-summary.js')"));
 
 const scene = {
