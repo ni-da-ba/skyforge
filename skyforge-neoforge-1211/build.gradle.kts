@@ -663,6 +663,8 @@ val skyforgeProductionMorphologyAtlasMembers = linkedMapOf(
 fun skyforgeMorphologyAtlasSuffix(family: String): String =
     family.substring(0, 1).uppercase() + family.substring(1)
 
+val wbyS1StageClientMods = tasks.register<Sync>("wbyS1StageClientMods")
+
 neoForge {
     version = "21.1.249"
 
@@ -2495,7 +2497,7 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             taskBefore(tasks.named(development.processResourcesTaskName))
-            taskBefore(tasks.named("wbyS1StageClientMods"))
+            taskBefore(wbyS1StageClientMods)
             taskBefore(tasks.named("wbyS1StagePolicy"))
         }
 
@@ -2507,7 +2509,7 @@ neoForge {
             programArgument("127.0.0.1:25565")
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             taskBefore(tasks.named(development.processResourcesTaskName))
-            taskBefore(tasks.named("wbyS1StageClientMods"))
+            taskBefore(wbyS1StageClientMods)
             taskBefore(tasks.named("wbyS1StagePolicy"))
         }
 
@@ -7106,7 +7108,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
     }
 }
 
-tasks.register<Sync>("wbyS1StageClientMods") {
+wbyS1StageClientMods.configure {
     group = "verification"
     description = "Stage the exact cumulative S1 and selected overlay jars for client review."
     fun token(coordinate: String): String = coordinate.split(":").let { parts ->
