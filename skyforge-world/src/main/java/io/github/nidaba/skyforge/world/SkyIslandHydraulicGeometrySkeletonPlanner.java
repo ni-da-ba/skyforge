@@ -260,18 +260,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             return new ConfluenceCascadeGradeConflictDetails(
                     0.0, Double.NaN, Double.NaN, 0, "not-confluence", -1, Double.NaN);
         }
-        int cascadeStart = -1;
         List<SkyIslandChannelProfile> profiles = semantic.profiles();
-        for (int index = 0; index < profiles.size(); index++) {
-            if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE) {
-                cascadeStart = index;
-                break;
-            }
-        }
-        if (cascadeStart <= 0) {
-            return new ConfluenceCascadeGradeConflictDetails(
-                    0.0, Double.NaN, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
-        }
         double pathLength = cumulative[cumulative.length - 1];
         double[] sampledDischarge = new double[points.size()];
         for (int index = 0; index < points.size(); index++) {
@@ -280,6 +269,23 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double startArc = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                 descriptor.nominalRadius(), sampledDischarge[0]);
         double startStation = startArc / pathLength;
+
+        // A confluence-adjacent CASCADE may finish exactly at the finite outgoing boundary.
+        // The target is the first CASCADE boundary downstream of that boundary, not the first
+        // CASCADE profile anywhere on the reach.
+        int cascadeStart = -1;
+        for (int index = 0; index < profiles.size(); index++) {
+            double profileStart = (double) index / profiles.size();
+            if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE
+                    && profileStart > startStation + EPSILON) {
+                cascadeStart = index;
+                break;
+            }
+        }
+        if (cascadeStart < 0) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, startStation, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
+        }
         double endStation = (double) cascadeStart / profiles.size();
         if (!(endStation > startStation)) {
             return new ConfluenceCascadeGradeConflictDetails(

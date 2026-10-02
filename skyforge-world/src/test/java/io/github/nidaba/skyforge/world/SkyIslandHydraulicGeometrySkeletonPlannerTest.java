@@ -82,6 +82,16 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         .append(" final=")
                         .append(finalTargetScore)
                         .append(System.lineSeparator());
+                if (objectiveFailure == null
+                        && (initialTargetScore.sampleCount() == 0
+                                || Math.abs(initialTargetScore.startStation()
+                                        - 0.13043478260869565) > EPSILON
+                                || Math.abs(initialTargetScore.endStation()
+                                        - 0.7391304347826086) > EPSILON)) {
+                    objectiveFailure =
+                            "objective must score the exact F3D free confluence-to-CASCADE window: "
+                                    + initialTargetScore;
+                }
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
                 assertTrue(
                         d.finalLongitudinalHeadFeasibilityGap()

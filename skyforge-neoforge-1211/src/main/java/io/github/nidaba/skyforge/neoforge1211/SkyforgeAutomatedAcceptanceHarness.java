@@ -84,6 +84,10 @@ final class SkyforgeAutomatedAcceptanceHarness {
         return enabled() && MODE_CLIENT.equals(System.getProperty(MODE_PROPERTY, MODE_SERVER));
     }
 
+    static boolean warmupComplete() {
+        return warmupComplete;
+    }
+
     static String caseId() {
         return System.getProperty(CASE_PROPERTY, "unspecified");
     }
