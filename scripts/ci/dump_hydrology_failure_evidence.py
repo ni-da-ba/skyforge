@@ -43,6 +43,28 @@ def print_f3h_order_context(f3h_report: Path) -> None:
         )
 
 
+def print_failed_key700_refinement_reports() -> None:
+    reports = sorted(
+        F3H_REPORTS.glob("TEST-*SkyIslandHydraulicGeometrySkeletonPlannerTest*.xml"),
+        key=lambda report: report.stat().st_mtime_ns,
+    )
+    for report in reports:
+        root = ET.parse(report).getroot()
+        failures = root.findall(".//failure") + root.findall(".//error")
+        if not failures:
+            continue
+        print(f"--- {report.as_posix()} (hydrology geometry failure detail) ---")
+        for failure in failures:
+            print(failure.attrib.get("message", ""))
+            if failure.text:
+                print(failure.text.strip())
+        for tag in ("system-out", "system-err"):
+            output = root.find(f".//{tag}")
+            if output is not None and output.text:
+                print(f"--- {tag} ---")
+                print(output.text.strip())
+
+
 def main() -> None:
     for report in REPORTS:
         if not report.is_file():
@@ -70,6 +92,8 @@ def main() -> None:
                 print(f"--- {tag} ---")
                 print(output.text.strip())
         print_f3h_order_context(report)
+
+    print_failed_key700_refinement_reports()
 
 
 if __name__ == "__main__":
