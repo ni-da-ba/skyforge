@@ -508,3 +508,31 @@ See [Structure Content Stack v0.1](structure-content-stack-v0.1.md).
 
 ### Alpha decision
 Biome and structure **diversity is considered sufficient for Alpha**. Do not expand the biome/structure mod pool merely to increase variety. Next work is inventory, integration testing, semantic curation, placement control, and identification of concrete gaps. The content audit now moves to End resources, creatures, threats, and progression.
+
+
+### End resources, ecology, threats, and expedition play
+- Treat the installed End catalogue as a large **vocabulary under Skyforge authority**, not as independent progression/worldgen authorities. Large available variety is desirable; realized local density remains sparse and coherent so multi-day exploration can continue producing both new discoveries and familiar content in new combinations.
+- BetterEnd: New Dawn contributes the broad material/ecology vocabulary, including Ender/Amber ores; Thallasium, Terminite, Aeternium; Aurora/Smaragdant crystal families; sulphur and multiple End stone/geology families; vegetation, caves, ambience, mobs, equipment, and its own progression content. Imported material tiers are assets to normalize into Skyforge's economy, not an automatically accepted tech tree.
+- End's Phantasm contributes distinctive Pream/Dreaming-Den and under-island ecology plus Oblivion/Oblivine/Oblifruit and crystal/void vocabulary. Under-island ecology is explicitly valuable because Skyforge treats islands as volumetric environments and can make undersides expedition destinations.
+- Unusual End contributes regional resources, creatures, status/infection hazards, Draglings, Enderblob-like ecology, trapped/hostile structures, Ancient End Towers, Endstone Golem encounters, and other behavior-rich threats.
+- Resource geography should motivate long-range aircraft expeditions through **regional specialization**, not a simplistic “farther = higher-tier ore” gradient.
+- Preserve multiple threat classes: atmospheric/void/logistical danger; ecological/status hazards; ordinary and exceptional creatures; constructed/trapped locations; bosses/apex encounters. Avoid spawn-table soup and spectacle saturation.
+- Skyforge descriptors/fields remain causal authority for morphology, atmosphere, geology, ecology suitability, resources, structures, rarity, and threat context. Imported biome/resource/progression logic must be intercepted, disabled, redirected, or governed where it conflicts with that authority.
+- Exploration target: enough available vocabulary that players can fly for multiple in-game days and continue finding new things and old things arranged in new ways, while retaining regional identity and quiet/ordinary stretches.
+
+### End progression threshold — stronghold, central island, and dragon
+- YUNG's Better Strongholds remains the expected Alpha candidate for a substantially richer Overworld-to-End approach/portal expedition.
+- YUNG's Better End Island remains an important **arena/presentation candidate**, especially its redesigned central island and deliberate dragon-summoning threshold, but it is not sacred if a superior dragon encounter requires a different arena.
+- Design framing: the first Ender Dragon is a **capstone capability exam for mastery of the Overworld and Nether and a gatekeeper to the outer-End expedition game**, not the ultimate threat of the End.
+- Balance against the actual expected late-Nether/Skyforge loadout and engineering capability, including cooperative play. Difficulty should come primarily from behavior, encounter pressure, positioning, preparation, arena interaction, and counterplay—not merely inflated HP/damage.
+- Engineering/preparation should matter; do not invalidate Minecraft engineering merely to enforce a scripted boss sequence.
+- A substantive dragon-combat overhaul is an **expected Alpha requirement**; the exact implementation is deferred to playtest/integration testing.
+
+### Dragon overhaul playtest / integration slate
+- **Beyond Bosses 2** — test as a genuine multi-stage/behavioral dragon encounter candidate. Its broader stronghold/central-End/other world changes are an architectural risk and must be independently disableable/governable before retention.
+- **True Ending** — test as a behaviorally ambitious dragon overhaul. Explicitly evaluate its known arena/pathing conflict with YUNG's Better End Island; if the fight is superior, prefer changing/replacing the arena over automatically sacrificing encounter quality.
+- **Ender Dragon Fight Remastered** — test as the more conservative behavior/phase overhaul baseline.
+- **Savage Ender Dragon** — retain as a useful 1.21.1 NeoForge scaling/pressure/anti-cheese candidate or supplementary layer, but do **not** treat stat/multiplayer scaling alone as sufficient for Skyforge's dragon requirement.
+- **MCS Ender Dragon / Better Ender Dragon** — retain for component-level/configurable-mechanics evaluation.
+- **Ender Trigon** and **Progressive Bosses** — interesting reference/future candidates, but do not count them as current 1.21.1 Alpha dependencies unless compatible ports become available.
+- Playtest matrix should include realistic solo, 2-player, and 4-player late-Nether loadouts; arena compatibility; crystal interactions; flight/engineering cheese; multiplayer scaling; encounter readability; and whether victory feels like an earned transition into the outer End.
