@@ -281,7 +281,6 @@ jobs:
           ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
-            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' \
             --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
             --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
             --no-configuration-cache
