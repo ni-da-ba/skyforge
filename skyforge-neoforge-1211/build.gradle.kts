@@ -488,10 +488,11 @@ fun wbyAlphaB4Pin(mod: String, field: String): String =
         "missing WBY alpha B4 pin: $mod.$field in " + wbyAlphaB4PinFile.asFile
     }
 fun wbyAlphaB4Token(mod: String): String =
-    wbyAlphaB4Pin(mod, "coordinate").split(":").let {
-        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
-        "${it[1]}-${it[2]}"
-    }
+    wbyAlphaB4Pins.getProperty("$mod.artifactToken")
+        ?: wbyAlphaB4Pin(mod, "coordinate").split(":").let {
+            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+            "${it[1]}-${it[2]}"
+        }
 check(wbyAlphaB4Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB4Pin("neoforge", "version") == "21.1.249")
 val wbyAlphaB4SharedMods = listOf(
@@ -2267,6 +2268,9 @@ neoForge {
             programArgument("saves")
             programArgument("--world")
             programArgument("wby-alpha")
+            // Keep ordinary alpha playtest runs out of third-party GameTest reflection.
+            // Empty/not-set means all namespaces in NeoForge; only Skyforge tests belong here.
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
@@ -2286,6 +2290,7 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             systemProperty("skyforge.dev.wbyWave1Visibility", "true")
             systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
