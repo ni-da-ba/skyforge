@@ -36,8 +36,25 @@ function buildStudioApplicationMenu(Menu, dispatch, platform = process.platform)
     label: "File",
     submenu: [
       {
-        label: "Open Studio backup…",
+        label: "Open local semantic JSON…",
         accelerator: "CmdOrCtrl+O",
+        click: () => dispatch("open-semantic-artifact"),
+      },
+      {
+        label: "Open terrain + hydrology pair…",
+        click: () => dispatch("open-terrain-pair"),
+      },
+      {
+        label: "Open inspection workspace…",
+        click: () => dispatch("open-inspection-workspace"),
+      },
+      {
+        label: "Open sample trace…",
+        click: () => dispatch("open-sample-trace"),
+      },
+      { type: "separator" },
+      {
+        label: "Open Studio backup…",
         click: () => dispatch("open-backup"),
       },
       {
