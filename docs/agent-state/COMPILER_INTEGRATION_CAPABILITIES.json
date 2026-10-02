@@ -685,6 +685,7 @@
         "The exact retained Sable stack exposes dev.ryanhcode.sable.api.physics.force.ForceGroups.DRAG, queued-force individual tracking, and recorded point-force observation. API/source drift must fail closed rather than silently substitute another force path.",
         "The bounded observation condition uses 10.0 m/s local -X velocity transformed through the current parent pose and applied to both current parent and child physics handles before one measurement tick.",
         "Recorded local point/force values are transformed through the current child logical pose, and moment is computed about the current parent center of mass transformed through the current parent pose.",
+        "The reusable observation contract requires a finite computable aggregate moment, not a nonzero aggregate moment; symmetric or cancelling point-force geometry may legitimately produce zero moment. Consumer-specific nonzero/sign authority remains downstream.",
         "Individual queued-force tracking is qualification instrumentation only and must be disabled before the enclosing lifecycle can PASS.",
         "Production rudder geometry, aircraft coordinate/sign convention, analytical coefficient fitting, cockpit routing, player control, atmosphere envelopes, handling, and flight remain outside this capability."
       ],
