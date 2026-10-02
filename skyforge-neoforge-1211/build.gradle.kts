@@ -250,6 +250,30 @@ check(!wbyPt03ComputingAvionics || (wbyPt02Glider && wbyPt02ElytraSuppression)) 
     "WBY PT-03 computing/avionics requires the accepted final PT-02B profile"
 }
 
+// WBY-INT-0006 admits the already accepted C25 Diesel Generators machinery stack while preserving
+// Skyforge petroleum authority. PT-04 remains reserved for later atmosphere/shader qualification.
+val wbyInt0006DieselGenerators = providers.gradleProperty("wbyInt0006DieselGenerators")
+    .orNull
+    ?.trim()
+    ?.equals("true", ignoreCase = true)
+    ?: false
+
+check(!wbyInt0006DieselGenerators || wbyPt03ComputingAvionics) {
+    "WBY-INT-0006 Diesel Generators requires the accepted PT-03 profile"
+}
+
+fun writeWbyInt0006DieselSuppressionConfig(worldDirectory: java.io.File) {
+    val serverConfig = worldDirectory.resolve("serverconfig/createdieselgenerators-server.toml")
+    serverConfig.parentFile.mkdirs()
+    serverConfig.writeText(
+        """
+        ["Server Configs"."Oil Config"]
+        "Disable normal oil chunks" = true
+        "Disable high oil chunks" = true
+        """.trimIndent() + "\n"
+    )
+}
+
 // W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
 // resolve or stage any optimizer unless the qualification invocation explicitly supplies
 // -PwbyWave1BOptimizer=<candidate>.
@@ -4014,6 +4038,26 @@ tasks.named("runWbyWave1VisibilityClientWorldPrepareServer").configure {
     }
 }
 
+tasks.named("runWbyWave1VisibilityServer").configure {
+    doFirst {
+        if (wbyInt0006DieselGenerators) {
+            val directory = layout.projectDirectory.dir("run-wby-wave1-visibility-server").asFile
+            val propertiesFile = directory.resolve("server.properties")
+            check(propertiesFile.isFile) {
+                "WBY-INT-0006 requires server.properties before dedicated-server launch: $propertiesFile"
+            }
+            val properties = Properties().apply {
+                propertiesFile.inputStream().use(::load)
+            }
+            val levelName = requireNotNull(properties.getProperty("level-name"))
+                .trim()
+                .takeIf { it.isNotEmpty() }
+                ?: error("WBY-INT-0006 dedicated server requires a non-empty level-name")
+            writeWbyInt0006DieselSuppressionConfig(directory.resolve(levelName))
+        }
+    }
+}
+
 
 val wbyWave1PersistenceServerProperties = """
     level-name=wby-wave1-persistence
@@ -6426,6 +6470,13 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
             )
         } else {
             emptyList()
+        } +
+        if (wbyInt0006DieselGenerators) {
+            listOf(
+                waveC25Pin("createdieselgenerators", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6449,6 +6500,15 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
         }
         check(staged.size == expectedTokens.size) {
             "WBY Wave 1 staged mods directory contains unexpected jars: expected=${expectedTokens.size} staged=$staged"
+        }
+        if (wbyInt0006DieselGenerators) {
+            val worldDirectory = layout.projectDirectory
+                .dir("run-wby-wave1-visibility-client/saves/wby-wave1-visibility-client")
+                .asFile
+            writeWbyInt0006DieselSuppressionConfig(worldDirectory)
+            val config = worldDirectory.resolve("serverconfig/createdieselgenerators-server.toml")
+            check(config.readText().contains("\"Disable normal oil chunks\" = true"))
+            check(config.readText().contains("\"Disable high oil chunks\" = true"))
         }
         println("WBY WAVE 1 CLIENT MOD STAGING PASS")
         staged.forEach { println("  staged=$it") }
@@ -6482,6 +6542,13 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
             )
         } else {
             emptyList()
+        } +
+        if (wbyInt0006DieselGenerators) {
+            listOf(
+                waveC25Pin("createdieselgenerators", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6506,6 +6573,15 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
         check(staged.size == expectedTokens.size) {
             "WBY Wave 1 persistence mods directory contains unexpected jars: expected=${expectedTokens.size} staged=$staged"
         }
+        if (wbyInt0006DieselGenerators) {
+            val worldDirectory = layout.projectDirectory
+                .dir("run-wby-wave1-persistence/saves/wby-wave1-persistence")
+                .asFile
+            writeWbyInt0006DieselSuppressionConfig(worldDirectory)
+            val config = worldDirectory.resolve("serverconfig/createdieselgenerators-server.toml")
+            check(config.readText().contains("\"Disable normal oil chunks\" = true"))
+            check(config.readText().contains("\"Disable high oil chunks\" = true"))
+        }
         println("WBY WAVE 1 PERSISTENCE CLIENT MOD STAGING PASS")
     }
 }
@@ -6517,6 +6593,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
     inputs.file(wbyWave1PinFile)
     inputs.file(waveC1PinFile)
     inputs.file(waveC9PinFile)
+    inputs.file(waveC25PinFile)
     inputs.file(wbyWave1BPinFile)
 
     doLast {
@@ -6594,6 +6671,15 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             }
         }
 
+        if (wbyInt0006DieselGenerators) {
+            val dieselToken = artifactToken(waveC25Pin("createdieselgenerators", "coordinate"))
+            listOf("client" to clientFiles, "server" to serverFiles).forEach { (side, files) ->
+                check(files.any { it.contains(dieselToken) }) {
+                    "WBY-INT-0006 $side missing Create: Diesel Generators token '$dieselToken': $files"
+                }
+            }
+        }
+
         wbyWave1BClientOptimizerMods.forEach { mod ->
             val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
@@ -6621,6 +6707,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
         println("WBY PT-02 glider overlay=" + if (wbyPt02Glider) "enabled" else "disabled")
         println("WBY PT-02 Elytra suppression=" + if (wbyPt02ElytraSuppression) "enabled" else "disabled")
         println("WBY PT-03 computing/avionics=" + if (wbyPt03ComputingAvionics) "enabled" else "disabled")
+        println("WBY-INT-0006 Diesel Generators=" + if (wbyInt0006DieselGenerators) "enabled" else "disabled")
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
 }
@@ -7136,6 +7223,19 @@ dependencies {
                 waveC9Pin(mod, "coordinate"),
             )
         }
+    }
+
+    // WBY-INT-0006 adds the already accepted C25 machinery artifact only. Create is already part
+    // of W1; the native petroleum geography is disabled by the per-world server config below.
+    if (wbyInt0006DieselGenerators) {
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            waveC25Pin("createdieselgenerators", "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            waveC25Pin("createdieselgenerators", "coordinate"),
+        )
     }
 
 
