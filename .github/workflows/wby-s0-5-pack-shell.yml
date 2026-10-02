@@ -7,10 +7,15 @@ on:
       - "settings.gradle.kts"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s0-5-pack-authority.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
   workflow_dispatch:
 
 permissions:
   contents: read
+
+concurrency:
+  group: wby-s0-5-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   s0-5-resolution:
