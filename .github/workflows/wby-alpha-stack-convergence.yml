@@ -7,6 +7,7 @@ on:
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-alpha-baseline.properties"
       - "skyforge-neoforge-1211/wby-alpha-candidate-b1.properties"
+      - "skyforge-neoforge-1211/wby-alpha-candidate-b2.properties"
       - "settings.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wave-c2-mods.properties"
@@ -48,7 +49,7 @@ jobs:
         run: |
           set -euo pipefail
           ./gradlew :skyforge-neoforge-1211:wbyAlphaResolvePinnedMods --no-configuration-cache | tee wby-alpha-resolve.log
-          grep -Fq 'WBY ALPHA IMMUTABLE BASELINE + B1 RESOLUTION PASS' wby-alpha-resolve.log
+          grep -Fq 'WBY ALPHA IMMUTABLE BASELINE + B1 + B2 RESOLUTION PASS' wby-alpha-resolve.log
 
       - name: Prepare authority-owned runtime configuration
         shell: bash
