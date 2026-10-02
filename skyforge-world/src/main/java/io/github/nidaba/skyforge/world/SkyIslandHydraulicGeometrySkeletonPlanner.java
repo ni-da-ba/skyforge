@@ -231,18 +231,20 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     0.5 * (squaredConflicts[i] + squaredConflicts[i + 1]) * ds;
             ordinaryLength += ds;
         }
+        ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflict =
+                maximumConfluenceCascadeGradeConflict(
+                        descriptor, network, semantic, points, cumulative,
+                        dischargeProfile, terrain, policy);
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 maximumLocalEnvelopeConflict,
                 maximumGradePropagationConflict,
-                maximumConfluenceCascadeGradeConflict(
-                        descriptor, network, semantic, points, cumulative,
-                        dischargeProfile, terrain, policy),
+                confluenceCascadeGradeConflict.maximumConflict(),
                 ordinaryLength > 0.0
                         ? integratedSquaredConflict / ordinaryLength
                         : 0.0);
     }
 
-    private static double maximumConfluenceCascadeGradeConflict(
+    private static ConfluenceCascadeGradeConflictDetails maximumConfluenceCascadeGradeConflict(
             SkyIslandDescriptor descriptor,
             SkyIslandGeomorphicChannelNetworkPlan network,
             SkyIslandSemanticChannelReach semantic,
@@ -254,7 +256,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         boolean startsAtConfluence = network.nodes().stream()
                 .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
                         && node.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE);
-        if (!startsAtConfluence) return 0.0;
+        if (!startsAtConfluence) return new ConfluenceCascadeGradeConflictDetails(0.0, Double.NaN, Double.NaN, 0, "not-confluence", -1, Double.NaN);
         int cascadeStart = -1;
         List<SkyIslandChannelProfile> profiles = semantic.profiles();
         for (int index = 0; index < profiles.size(); index++) {
@@ -263,7 +265,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 break;
             }
         }
-        if (cascadeStart <= 0) return 0.0;
+        if (cascadeStart <= 0) return new ConfluenceCascadeGradeConflictDetails(0.0, Double.NaN, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
         double pathLength = cumulative[cumulative.length - 1];
         double[] sampledDischarge = new double[points.size()];
         for (int index = 0; index < points.size(); index++) {
@@ -273,7 +275,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 descriptor.nominalRadius(), sampledDischarge[0]);
         double startStation = startArc / pathLength;
         double endStation = (double) cascadeStart / profiles.size();
-        if (!(endStation > startStation)) return 0.0;
+        if (!(endStation > startStation)) return new ConfluenceCascadeGradeConflictDetails(0.0, startStation, endStation, 0, "empty-ordinary-window", -1, Double.NaN);
 
         List<SkyIslandLocalPosition> spanPoints = new ArrayList<>();
         List<Double> spanStations = new ArrayList<>();
@@ -307,13 +309,16 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             }
             overlappingKinds.add(kind);
         }
-        SkyIslandGeomorphicProfileLimits spanLimits = policy.limits(
-                SkyIslandGeomorphicQualificationClass.classifyKinds(overlappingKinds));
+        SkyIslandGeomorphicQualificationClass spanClass =
+                SkyIslandGeomorphicQualificationClass.classifyKinds(overlappingKinds);
+        SkyIslandGeomorphicProfileLimits spanLimits = policy.limits(spanClass);
 
         double[] spanCumulative = cumulativeDistance(spanPoints);
         double reachableLower = Double.NaN;
         double reachableUpper = Double.NaN;
         double maximumConflict = 0.0;
+        int maximumConflictIndex = -1;
+        double maximumConflictStation = Double.NaN;
         for (int index = 0; index < spanPoints.size(); index++) {
             SkyIslandLocalPosition position = spanPoints.get(index);
             double station = spanStations.get(index);
@@ -362,7 +367,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double nextLower = Math.max(localLower, reachableLower - maxDrop);
             double nextUpper = Math.min(localUpper, reachableUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
-            maximumConflict = Math.max(maximumConflict, conflict);
+            if (conflict > maximumConflict) {
+                maximumConflict = conflict;
+                maximumConflictIndex = index;
+                maximumConflictStation = station;
+            }
             if (conflict > 0.0) {
                 double midpoint = 0.5 * (nextLower + nextUpper);
                 nextLower = midpoint;
@@ -371,8 +380,36 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             reachableLower = nextLower;
             reachableUpper = nextUpper;
         }
-        return maximumConflict;
+        return new ConfluenceCascadeGradeConflictDetails(
+                maximumConflict, startStation, endStation, spanPoints.size(),
+                spanClass.name(), maximumConflictIndex, maximumConflictStation);
     }
+
+    static ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflictDetails(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain) {
+        return maximumConfluenceCascadeGradeConflict(
+                descriptor,
+                network,
+                semantic,
+                points,
+                cumulativeDistance(points),
+                semanticDischargeProfile(semantic),
+                terrain,
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
+    }
+
+    record ConfluenceCascadeGradeConflictDetails(
+            double maximumConflict,
+            double startStation,
+            double endStation,
+            int sampleCount,
+            String qualificationClass,
+            int maximumConflictIndex,
+            double maximumConflictStation) {}
 
     private static void appendStationSample(
             List<SkyIslandLocalPosition> points,
