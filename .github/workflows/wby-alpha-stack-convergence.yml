@@ -1,42 +1,24 @@
-name: WBY Alpha Stack Convergence
+name: WBY S0 Launch Shell
 
 on:
   pull_request:
     paths:
       - ".github/workflows/wby-alpha-stack-convergence.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
-      - "skyforge-neoforge-1211/wby-alpha-baseline.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b1.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b2.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b3.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b4.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b5.properties"
-      - "skyforge-neoforge-1211/wby-alpha-candidate-b6-engineering.properties"
-      - "skyforge-neoforge-1211/wby-alpha-config/**"
-      - "settings.gradle.kts"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
-      - "skyforge-neoforge-1211/wave-c2-mods.properties"
-      - "skyforge-neoforge-1211/wave-c3-mods.properties"
-      - "skyforge-neoforge-1211/wave-c5-mods.properties"
-      - "skyforge-neoforge-1211/wave-c9-mods.properties"
-      - "skyforge-neoforge-1211/wave-c25-mods.properties"
-      - "skyforge-neoforge-1211/sf-imp-0084-aal.properties"
       - "skyforge-neoforge-1211/wby-wave1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
-      - "docs/design-audit/wby-canonical-mod-manifest-provisional-2026-09-30.md"
-      - "docs/design-audit/wby-build-lock-provisional-2026-09-30.md"
-      - "docs/design-audit/wby-pack-integration-progression-provisional-2026-09-30.md"
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: wby-alpha-stack-${{ github.event.pull_request.number || github.ref }}
+  group: wby-s0-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-  immutable-baseline:
+  s0-machine-acceptance:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
 
@@ -49,83 +31,45 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Resolve canonical immutable baseline
+      - name: Resolve bounded S0 launch shell
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyAlphaResolvePinnedMods --no-configuration-cache | tee wby-alpha-resolve.log
-          grep -Fq 'WBY ALPHA BASELINE B1-B6 RESOLUTION PASS radarPlaytest=false' wby-alpha-resolve.log
+          ./gradlew :skyforge-neoforge-1211:wbyAlphaResolvePinnedMods --no-configuration-cache | tee wby-s0-resolve.log
+          grep -Fq 'WBY S0 LAUNCH SHELL RESOLUTION PASS' wby-s0-resolve.log
 
-      - name: Prepare authority-owned runtime configuration
+      - name: Prepare clean S0 runtime
         shell: bash
         run: |
           set -euo pipefail
           run_dir="skyforge-neoforge-1211/run-wby-alpha"
           rm -rf "$run_dir"
-          mkdir -p "$run_dir/saves/wby-alpha/serverconfig"
-          mkdir -p "$run_dir/config"
+          mkdir -p "$run_dir"
           printf 'eula=true\n' > "$run_dir/eula.txt"
 
-          cp "skyforge-neoforge-1211/wby-alpha-config/serverconfig/createdieselgenerators-server.toml" \
-             "$run_dir/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml"
-          cp -a "skyforge-neoforge-1211/wby-alpha-config/regions unexplored" \
-             "$run_dir/config/"
-
-          diesel="$run_dir/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml"
-          ru="$run_dir/config/regions unexplored/regions_unexplored-common.toml"
-
-          grep -Fq '"Disable normal oil chunks" = true' "$diesel"
-          grep -Fq '"Disable high oil chunks" = true' "$diesel"
-          test "$(grep -Ec '^toggle_.* = false$' "$ru")" -eq 72
-          if grep -Eq '^toggle_.* = true$' "$ru"; then
-            echo "Regions Unexplored native biome/surface authority is enabled in alpha config"
-            exit 1
-          fi
-
-      - name: Create alpha world on full dedicated-server stack
+      - name: Create S0 world on dedicated server
         shell: bash
         run: |
           set -euo pipefail
-          run_dir="skyforge-neoforge-1211/run-wby-alpha"
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=SUPPRESSED"
-          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyAlphaPrepareServer --no-configuration-cache 2>&1 | tee wby-alpha-server.log
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyAlphaPrepareServer --no-configuration-cache 2>&1 | tee wby-s0-server.log
 
           result="skyforge-neoforge-1211/build/acceptance/wby-alpha/prepare.properties"
           test -f "$result"
           grep -q '^status=PASS$' "$result"
 
-          # One targeted semantic smoke in the cumulative stack: Diesel's machinery stays while
-          # its native geography remains disabled.
-          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' wby-alpha-server.log
-          grep -Fq 'normalOilDisabled=true' wby-alpha-server.log
-          grep -Fq 'highOilDisabled=true' wby-alpha-server.log
-          grep -Fq 'crudeOil=true' wby-alpha-server.log
-          grep -Fq 'pumpjackHole=true' wby-alpha-server.log
-          grep -Fq 'distillationTank=true' wby-alpha-server.log
-          grep -Fq 'dieselEngine=true' wby-alpha-server.log
-
-          # Regions Unexplored remains installed as biome/block/flora vocabulary, while its
-          # autonomous surface/cave/Nether placement authority stays disabled.
-          ru="$run_dir/config/regions unexplored/regions_unexplored-common.toml"
-          grep -Fqi 'regions_unexplored' wby-alpha-server.log
-          test "$(grep -Ec '^toggle_.* = false$' "$ru")" -eq 72
-          if grep -Eq '^toggle_.* = true$' "$ru"; then
-            echo "Regions Unexplored rewrote an authority toggle to true"
-            exit 1
-          fi
-
-          # Canonical correction: old PT-02 fallback glider must not return.
-          if grep -Eq '\(reliable_gliders\)' wby-alpha-server.log; then
-            echo "Reliable Gliders leaked into canonical alpha baseline"
-            exit 1
-          fi
+          # S0 must not accidentally admit post-S0 capability/content layers.
+          for modid in reliable_gliders computercraft create_avionics create_diesel_generators regions_unexplored; do
+            if grep -Eq "\\($modid\\)" wby-s0-server.log; then
+              echo "post-S0 mod leaked into launch shell: $modid"
+              exit 1
+            fi
+          done
 
       - name: Reopen same save in actual client
         shell: bash
         run: |
           set -euo pipefail
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=SUPPRESSED"
-          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyAlphaClientAcceptance --no-configuration-cache 2>&1 | tee wby-alpha-client.log
+          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyAlphaClientAcceptance --no-configuration-cache 2>&1 | tee wby-s0-client.log
 
           result="skyforge-neoforge-1211/build/acceptance/wby-alpha/client.properties"
           test -f "$result"
@@ -136,21 +80,36 @@ jobs:
           grep -q '^distantHorizonsLoaded=true$' "$result"
           grep -q '^sodiumLoaded=true$' "$result"
 
-          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' wby-alpha-client.log
-          if grep -Eq '\(reliable_gliders\)' wby-alpha-client.log; then
-            echo "Reliable Gliders leaked into canonical alpha baseline"
-            exit 1
-          fi
+          for modid in reliable_gliders computercraft create_avionics create_diesel_generators regions_unexplored; do
+            if grep -Eq "\\($modid\\)" wby-s0-client.log; then
+              echo "post-S0 mod leaked into launch shell: $modid"
+              exit 1
+            fi
+          done
 
-      - name: Upload convergence evidence
+      - name: Capture bounded S0 sanity summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "profile=S0"
+            echo "head_sha=${GITHUB_SHA}"
+            echo "server_world_created=true"
+            echo "same_save_actual_client_reopen=true"
+            echo "distant_horizons_loaded=true"
+            echo "sodium_loaded=true"
+            echo "ssrd_sublevel_render_observed=true"
+            echo "post_s0_leakage=false"
+          } > wby-s0-summary.properties
+
+      - name: Upload S0 evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-alpha-immutable-baseline
+          name: wby-s0-machine-acceptance
           path: |
-            wby-alpha-*.log
+            wby-s0-*.log
+            wby-s0-summary.properties
             skyforge-neoforge-1211/build/acceptance/wby-alpha/*.properties
             skyforge-neoforge-1211/run-wby-alpha/logs/latest.log
-            skyforge-neoforge-1211/run-wby-alpha/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml
-            skyforge-neoforge-1211/run-wby-alpha/config/regions unexplored/regions_unexplored-common.toml
           if-no-files-found: warn
