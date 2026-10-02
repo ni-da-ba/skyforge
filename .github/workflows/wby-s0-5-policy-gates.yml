@@ -1,0 +1,175 @@
+name: WBY S0.5 Policy Gates
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s0-5-policy-gates.yml"
+      - "skyforge-neoforge-1211/wby-s0-5-policy/**"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "scripts/wby-s0-5-diagnostic-launch.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s0-5-policy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  s0-5-policy-machine-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve inherited S0.5B shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS05BResolvePinnedMods --no-configuration-cache | tee wby-s0-5-policy-resolve.log
+          grep -Fq 'WBY S0.5B QOL RESOLUTION PASS' wby-s0-5-policy-resolve.log
+
+      - name: Validate converged diagnostic launch task graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:runWbyS05BDiagnosticServer --dry-run --no-configuration-cache | tee wby-s0-5-diagnostic-server-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS05BDiagnosticClient --dry-run --no-configuration-cache | tee wby-s0-5-diagnostic-client-dry-run.log
+          grep -Fq 'wbyS05BStageDiagnosticPolicy' wby-s0-5-diagnostic-server-dry-run.log
+          grep -Fq 'wbyS05BStageDiagnosticPolicy' wby-s0-5-diagnostic-client-dry-run.log
+          grep -Fq 'wbyS05BStageClientMods' wby-s0-5-diagnostic-client-dry-run.log
+          echo 'WBY S0.5 DIAGNOSTIC TASK GRAPH PASS'
+
+      - name: Stage explicit S0.5 policy fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-s05b"
+          policy_dir="skyforge-neoforge-1211/wby-s0-5-policy"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cp -R "$policy_dir/kubejs" "$run_dir/kubejs"
+          cp -R "$policy_dir/datapacks" "$run_dir/datapacks"
+          mkdir -p "$run_dir/config/almostunified/unification"
+          cp "$policy_dir/config/almostunified/unification/skyforge.json" \
+            "$run_dir/config/almostunified/unification/skyforge.json"
+
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("skyforge-neoforge-1211/run-wby-s05b/config/almostunified/unification/skyforge.json")
+          config = json.loads(path.read_text())
+          assert config["tags"] == [], "S0.5 Almost Unified must have no broad material tags"
+          assert config["stone_variants"] == [], "S0.5 Almost Unified must not define stone/material variants"
+          assert config["priority_overrides"] == {}, "S0.5 Almost Unified priority overrides must be explicit and empty"
+          assert config["recipe_viewer_hiding"] is False
+          assert config["loot_unification"] is False
+          print("WBY S0.5 ALMOST UNIFIED POLICY PASS")
+          PY
+
+      - name: Boot S0.5B dedicated server with policy fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyS05BPrepareServer --no-configuration-cache 2>&1 | tee wby-s0-5-policy-server.log
+          elapsed="$(( $(date +%s) - start ))"
+          printf '%s\n' "$elapsed" > wby-s0-5-policy-server-seconds.txt
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-s05b/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          grep -Fq '[SKYFORGE-S05-POLICY] startup no-op fixture loaded' wby-s0-5-policy-server.log
+          grep -Fq '[SKYFORGE-S05-POLICY] server no-op fixture loaded' wby-s0-5-policy-server.log
+          grep -Fq 'Found plugin source kubejs_create' wby-s0-5-policy-server.log
+          grep -Fq 'Found plugin source lootjs' wby-s0-5-policy-server.log
+          grep -Fq 'skyforge_s05_noop' wby-s0-5-policy-server.log
+
+          cmp             skyforge-neoforge-1211/wby-s0-5-policy/config/almostunified/unification/skyforge.json             skyforge-neoforge-1211/run-wby-s05b/config/almostunified/unification/skyforge.json
+
+      - name: Reopen same S0.5B save in actual client
+        shell: bash
+        run: |
+          set -euo pipefail
+          start="$(date +%s)"
+          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyS05BClientAcceptance --no-configuration-cache 2>&1 | tee wby-s0-5-policy-client.log
+          elapsed="$(( $(date +%s) - start ))"
+          printf '%s\n' "$elapsed" > wby-s0-5-policy-client-seconds.txt
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-s05b/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+          grep -Fq 'WBY S0.5B CLIENT MOD STAGING PASS' wby-s0-5-policy-client.log
+
+      - name: Enforce Map Atlases no-omniscience policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          common="skyforge-neoforge-1211/run-wby-s05b/config/map_atlases-common.toml"
+          client="skyforge-neoforge-1211/run-wby-s05b/config/map_atlases-client.toml"
+          test -f "$common"
+          test -f "$client"
+
+          grep -Eq '^[[:space:]]*mob_radar[[:space:]]*=[[:space:]]*false[[:space:]]*$' "$common"
+          grep -Eq '^[[:space:]]*mob_radar[[:space:]]*=[[:space:]]*false[[:space:]]*$' "$client"
+          grep -Eq '^[[:space:]]*convert_xaeros_waypoints[[:space:]]*=[[:space:]]*false[[:space:]]*$' "$client"
+
+          # Fail closed if the pinned Map Atlases configuration ever grows a structure/POI
+          # radar or automatic-reveal switch. Such a new capability needs an explicit policy.
+          if grep -Ei '^[[:space:]]*[^#]*(structure|poi).*(radar|reveal|locat)' "$common" "$client"; then
+            echo "Map Atlases exposes a structure/POI revelation control that is not explicitly governed."
+            exit 1
+          fi
+          echo "WBY S0.5 MAP ATLASES POLICY PASS"
+
+      - name: Record bounded startup sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_seconds="$(cat wby-s0-5-policy-server-seconds.txt)"
+          client_seconds="$(cat wby-s0-5-policy-client-seconds.txt)"
+          test "$server_seconds" -lt 300
+          test "$client_seconds" -lt 360
+
+          {
+            echo "profile=S0.5-policy"
+            echo "head_sha=${GITHUB_SHA}"
+            echo "kubejs_startup_noop_fixture=true"
+            echo "kubejs_server_noop_fixture=true"
+            echo "paxi_noop_datapack=true"
+            echo "almost_unified_broad_tags=false"
+            echo "almost_unified_loot_unification=false"
+            echo "map_atlases_mob_radar=false"
+            echo "map_atlases_auto_waypoint_import=false"
+            echo "server_elapsed_seconds=$server_seconds"
+            echo "client_elapsed_seconds=$client_seconds"
+            echo "server_timeout_bound_seconds=300"
+            echo "client_timeout_bound_seconds=360"
+          } > wby-s0-5-policy-summary.properties
+
+      - name: Upload S0.5 policy evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s0-5-policy-evidence
+          path: |
+            wby-s0-5-policy-*.log
+            wby-s0-5-policy-*.txt
+            wby-s0-5-policy-summary.properties
+            skyforge-neoforge-1211/build/acceptance/wby-s05b/*.properties
+            skyforge-neoforge-1211/run-wby-s05b/config/**
+            skyforge-neoforge-1211/run-wby-s05b/kubejs/**
+            skyforge-neoforge-1211/run-wby-s05b/datapacks/**
+          if-no-files-found: warn

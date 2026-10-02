@@ -2398,6 +2398,45 @@ neoForge {
             })
         }
 
+        // Converged S0.5 diagnostic launch profiles. These intentionally do not enable the
+        // acceptance harness or auto-exit: they are the human-facing place to launch the admitted
+        // stack together, reproduce cross-mod behavior, and collect logs before any tuning pass.
+        create("wbyS05BDiagnosticServer") {
+            server()
+            sourceSet.set(wbyS05BServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05b").asFile
+            programArgument("--nogui")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Copy>("wbyS05BStageDiagnosticPolicy") {
+                group = "verification"
+                description = "Stage conservative S0.5 policy fixtures for converged diagnostic launches."
+                from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) {
+                    into("kubejs")
+                }
+                from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) {
+                    into("datapacks")
+                }
+                from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
+                    into("config/almostunified/unification")
+                }
+                into(layout.projectDirectory.dir("run-wby-s05b"))
+            })
+        }
+
+        create("wbyS05BDiagnosticClient") {
+            client()
+            sourceSet.set(wbyS05BClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05b").asFile
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.named("wbyS05BStageClientMods"))
+            taskBefore(tasks.named("wbyS05BStageDiagnosticPolicy"))
+        }
+
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
