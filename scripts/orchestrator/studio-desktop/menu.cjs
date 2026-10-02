@@ -1,16 +1,20 @@
 "use strict";
 
-const BACKUP_CONTROLS = Object.freeze({
+const STUDIO_CONTROLS = Object.freeze({
+  "open-semantic-artifact": "local-file",
+  "open-terrain-pair": "local-pair-files",
+  "open-inspection-workspace": "inspection-workspace-file",
+  "open-sample-trace": "sample-trace-file",
   "open-backup": "studio-backup-import",
   "save-backup": "studio-backup-export",
 });
 
-function createBackupActionDispatcher(getWindow, reportError = () => {}) {
+function createStudioActionDispatcher(getWindow, reportError = () => {}) {
   if (typeof getWindow !== "function") throw new TypeError("getWindow must be a function");
 
-  return function dispatchBackupAction(action) {
-    const controlId = BACKUP_CONTROLS[action];
-    if (!controlId) throw new Error("unsupported Studio backup menu action: " + action);
+  return function dispatchStudioAction(action) {
+    const controlId = STUDIO_CONTROLS[action];
+    if (!controlId) throw new Error("unsupported Studio menu action: " + action);
     const mainWindow = getWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
     const contents = mainWindow.webContents;
@@ -20,7 +24,7 @@ function createBackupActionDispatcher(getWindow, reportError = () => {}) {
       JSON.stringify(controlId) +
       "); if (!control || control.disabled) return false; control.click(); return true; })()";
     return contents.executeJavaScript(script, true).catch(error => {
-      reportError("Studio backup menu action failed:", error);
+      reportError("Studio menu action failed:", error);
     });
   };
 }
@@ -32,8 +36,25 @@ function buildStudioApplicationMenu(Menu, dispatch, platform = process.platform)
     label: "File",
     submenu: [
       {
-        label: "Open Studio backup…",
+        label: "Open local semantic JSON…",
         accelerator: "CmdOrCtrl+O",
+        click: () => dispatch("open-semantic-artifact"),
+      },
+      {
+        label: "Open terrain + hydrology pair…",
+        click: () => dispatch("open-terrain-pair"),
+      },
+      {
+        label: "Open inspection workspace…",
+        click: () => dispatch("open-inspection-workspace"),
+      },
+      {
+        label: "Open sample trace…",
+        click: () => dispatch("open-sample-trace"),
+      },
+      { type: "separator" },
+      {
+        label: "Open Studio backup…",
         click: () => dispatch("open-backup"),
       },
       {
@@ -48,4 +69,4 @@ function buildStudioApplicationMenu(Menu, dispatch, platform = process.platform)
   return Menu.buildFromTemplate(template);
 }
 
-module.exports = { buildStudioApplicationMenu, createBackupActionDispatcher };
+module.exports = { buildStudioApplicationMenu, createStudioActionDispatcher };

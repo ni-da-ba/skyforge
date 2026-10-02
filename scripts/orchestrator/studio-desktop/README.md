@@ -8,7 +8,9 @@ This is an unsigned desktop preview of the existing local-first Studio. It opens
 - macOS: open the Skyforge-Studio-macOS.dmg disk image, then move Skyforge Studio to Applications.
 - Linux: install Skyforge-Studio-Linux.deb with your distribution package installer.
 
-Use **File → Open Studio backup** to restore saved Studio work or **File → Save Studio backup** to make a portable copy. These menu items use the same import validation and operating-system dialogs as the Home actions.
+Use the **File** menu to open a local semantic JSON diagnostic, a terrain + hydrology pair, a saved inspection workspace, or an exported sample trace. These shortcuts open Studio's existing file pickers, so the same parsing and diagnostic authority labels apply.
+
+Use **File → Open Studio backup** to restore saved Studio work or **File → Save Studio backup** to make a portable copy. Press **Ctrl+O** (or **⌘O** on macOS) to open a local semantic JSON file. The backup actions remain available in the same menu.
 
 When you export a file, the desktop app opens the operating system's Save dialog and starts with Studio's suggested filename. Canceling the dialog cancels only that export.
 

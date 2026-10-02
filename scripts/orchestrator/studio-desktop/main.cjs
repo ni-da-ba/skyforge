@@ -4,7 +4,7 @@ const path = require("node:path");
 const fs = require("node:fs/promises");
 const { app, BrowserWindow, Menu, protocol } = require("electron");
 const { registerDownloadSaveDialogs } = require("./downloads.cjs");
-const { buildStudioApplicationMenu, createBackupActionDispatcher } = require("./menu.cjs");
+const { buildStudioApplicationMenu, createStudioActionDispatcher } = require("./menu.cjs");
 
 app.setAppUserModelId("com.squirrel.SkyforgeStudio.skyforge-studio");
 
@@ -37,13 +37,13 @@ const CSP = [
 let mainWindow = null;
 let protocolRegistered = false;
 let downloadDialogsRegistered = false;
-const dispatchBackupAction = createBackupActionDispatcher(
+const dispatchStudioAction = createStudioActionDispatcher(
   () => mainWindow,
   (message, error) => console.error(message, error),
 );
 
 function configureApplicationMenu() {
-  Menu.setApplicationMenu(buildStudioApplicationMenu(Menu, dispatchBackupAction, process.platform));
+  Menu.setApplicationMenu(buildStudioApplicationMenu(Menu, dispatchStudioAction, process.platform));
 }
 
 function staticRoot() {
