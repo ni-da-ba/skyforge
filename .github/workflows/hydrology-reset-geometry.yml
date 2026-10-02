@@ -287,23 +287,6 @@ jobs:
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
 
-      - name: Print F3H regression diagnostic
-        if: success()
-        run: |
-          python3 - <<'PY'
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
-
-          report = Path("skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest.xml")
-          if not report.is_file():
-              raise SystemExit(f"missing F3H test report: {report}")
-          root = ET.parse(report).getroot()
-          output = root.find("system-out")
-          if output is None or not output.text:
-              raise SystemExit("F3H test report has no captured diagnostic output")
-          print(output.text.strip())
-          PY
-
       - name: Print key-700 component refinement diagnostics
         if: success()
         run: |
@@ -316,17 +299,7 @@ jobs:
       - name: Dump focused failure report
         if: failure()
         run: |
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicChannelNetworkPlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicBoundedQpSolverTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandBoundedHydraulicProfilePlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandChannelTerminalFatePlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProjectionTest.xml || true
-          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
-          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyWorldSurfaceProjectionCorpusTest.xml || true
-          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyGeomorphicQualificationCorpusTest.xml || true
-          cat skyforge-reference/build/test-results/test/TEST-io.github.nidaba.skyforge.reference.HydrologyOrdinarySpanCorpusTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
         if: success()
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
