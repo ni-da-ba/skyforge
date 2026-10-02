@@ -21,6 +21,7 @@
   <script src="terrain-comparison-report-reader.js" defer></script>
   <script src="terrain-comparison-library.js" defer></script>
   <script src="profile-backup.js" defer></script>
+  <script src="studio-capabilities.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -50,6 +51,14 @@
         </div>
       </form>
       <p id="auth-error" class="error" aria-live="polite"></p>
+    </section>
+
+    <section id="desktop-local-status" class="panel desktop-local-status" role="status" hidden>
+      <div>
+        <p class="eyebrow">DESKTOP PREVIEW</p>
+        <h2>Studio runs locally on this device</h2>
+      </div>
+      <p>Briefs, inspections, and saved comparisons stay on this device. Connected artifact browsing and world generation are not configured.</p>
     </section>
 
     <nav class="workspace-nav" aria-label="Studio workspace">

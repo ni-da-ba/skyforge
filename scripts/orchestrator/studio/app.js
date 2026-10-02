@@ -800,6 +800,14 @@
     setConnection("Local diagnostics", "warn");
   }
 
+  function configureRuntimeCapabilities() {
+    const capabilities = window.SkyforgeStudioCapabilities;
+    if (!capabilities || capabilities.fromProtocol(window.location.protocol).canConnectRegisteredArtifacts) return;
+    $("auth-panel").hidden = true;
+    $("desktop-local-status").hidden = false;
+    setConnection("Local preview", "warn");
+  }
+
   function showConnectedMode() {
     $("auth-panel").hidden = true;
     syncWorkspaceVisibility();
@@ -3527,6 +3535,7 @@
   configureWorkspaceNavigation();
   initializeWorldBrief();
   showLocalMode();
+  configureRuntimeCapabilities();
   configureBundledSample();
   initializeWorkspaceSession();
   initializeTerrainComparisonLibrary();
