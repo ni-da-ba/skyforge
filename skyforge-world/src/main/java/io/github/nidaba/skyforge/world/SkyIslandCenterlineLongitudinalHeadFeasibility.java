@@ -14,11 +14,14 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
     Score evaluate(List<SkyIslandLocalPosition> centerlinePoints);
 
     record Score(
-            double maximumConflictWorldUnits,
+            double maximumLocalEnvelopeConflictWorldUnits,
+            double maximumGradePropagationConflictWorldUnits,
             double integratedSquaredConflictWorldUnits) {
         public Score {
-            if (!Double.isFinite(maximumConflictWorldUnits)
-                    || maximumConflictWorldUnits < 0.0
+            if (!Double.isFinite(maximumLocalEnvelopeConflictWorldUnits)
+                    || maximumLocalEnvelopeConflictWorldUnits < 0.0
+                    || !Double.isFinite(maximumGradePropagationConflictWorldUnits)
+                    || maximumGradePropagationConflictWorldUnits < 0.0
                     || !Double.isFinite(integratedSquaredConflictWorldUnits)
                     || integratedSquaredConflictWorldUnits < 0.0) {
                 throw new IllegalArgumentException(
