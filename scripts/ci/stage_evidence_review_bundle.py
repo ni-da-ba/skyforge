@@ -141,6 +141,7 @@ STUDIO_APP_FILES = (
     Path('terrain-comparison-report-reader.js'),
     Path('terrain-comparison-library.js'),
     Path('profile-backup.js'),
+    Path('studio-capabilities.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
