@@ -2,6 +2,22 @@
 
 const assert = require("node:assert/strict");
 const { summarize } = require("../orchestrator/studio/hydrology-run-summary.js");
+const fs = require("node:fs");
+const path = require("node:path");
+
+const studioRoot = path.join(__dirname, "..", "orchestrator", "studio");
+const studioHtml = fs.readFileSync(path.join(studioRoot, "index.html"), "utf8");
+const studioApp = fs.readFileSync(path.join(studioRoot, "app.js"), "utf8");
+const stagingScript = fs.readFileSync(
+  path.join(__dirname, "stage_evidence_review_bundle.py"),
+  "utf8",
+);
+assert.ok(studioHtml.includes('src="hydrology-run-summary.js"'));
+assert.ok(studioHtml.includes('id="hydrology-run-summary"'));
+assert.ok(studioHtml.includes("Studio does not grade or recompute hydrology authorship."));
+assert.ok(studioApp.includes("window.SkyforgeStudioHydrologyRunSummary.summarize(scene, overlay)"));
+assert.ok(studioApp.includes('$("hydrology-run-summary").hidden = !summary;'));
+assert.ok(stagingScript.includes("Path('hydrology-run-summary.js')"));
 
 const scene = {
   sceneKind: "TERRAIN_SEMANTIC_VOLUME",
@@ -9,7 +25,7 @@ const scene = {
 };
 const overlay = {
   sceneKind: "HYDROLOGY_SEMANTIC_LAYER",
-  gridBinding: { xSamples: 8, zSamples: 6, causeStride: 2, causeSampleCount: 12 },
+  gridBinding: { xSamples: 8, zSamples: 6, causeStride: 2, causeSampleCount: 3 },
   causeSamples: [
     { runoffPotential: 0.1, retentionPotential: 0.8, drainagePotential: 0.2, outflowPotential: 0.0 },
     { runoffPotential: 0.9, retentionPotential: 0.4, drainagePotential: 0.7, outflowPotential: 1.0 },
@@ -25,7 +41,7 @@ const overlay = {
 
 const summary = summarize(scene, overlay);
 assert.deepEqual(summary.terrainGrid, { xSamples: 8, ySamples: 5, zSamples: 6 });
-assert.deepEqual(summary.causeGrid, { xSamples: 8, zSamples: 6, stride: 2, sampleCount: 12 });
+assert.deepEqual(summary.causeGrid, { xSamples: 8, zSamples: 6, stride: 2, sampleCount: 3 });
 assert.equal(summary.causeSampleCount, 3);
 assert.equal(summary.terrainResponseSampleCount, 3);
 assert.equal(summary.wetResponseSampleCount, 2);
