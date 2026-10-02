@@ -1,5 +1,7 @@
 # Working Mod and To-Build Ledger
 
+> **Selection status:** Superseded by the [Canonical Mod Ledger](canonical-mod-ledger.md) for current dependency decisions. This file remains the detailed working/audit history and integration backlog. When dependency-selection language conflicts, the canonical ledger wins unless a newer accepted repository authority supersedes it.
+
 **Snapshot:** 2026-09-29  
 **Status:** Working selection ledger; versions/licensing must be reverified at implementation time.
 
