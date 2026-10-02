@@ -226,6 +226,18 @@ val wbyPt02Glider = providers.gradleProperty("wbyPt02Glider")
     ?.equals("true", ignoreCase = true)
     ?: false
 
+// PT-02B is a policy overlay on top of accepted PT-02A. It suppresses only Elytra firework
+// propulsion through the already black-box-qualified No More Elytra Boosting artifact.
+val wbyPt02ElytraSuppression = providers.gradleProperty("wbyPt02ElytraSuppression")
+    .orNull
+    ?.trim()
+    ?.equals("true", ignoreCase = true)
+    ?: false
+
+check(!wbyPt02ElytraSuppression || wbyPt02Glider) {
+    "WBY PT-02 Elytra suppression requires the accepted PT-02 glider overlay"
+}
+
 // W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
 // resolve or stage any optimizer unless the qualification invocation explicitly supplies
 // -PwbyWave1BOptimizer=<candidate>.
@@ -6385,10 +6397,13 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         if (wbyPt02Glider) {
-            listOf(
-                waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
-                waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
-            )
+            buildList {
+                add(waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                add(waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                if (wbyPt02ElytraSuppression) {
+                    add(waveC2Pin("noelytraboost", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                }
+            }
         } else {
             emptyList()
         }
@@ -6430,10 +6445,13 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
         wbyWave1ClientMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         wbyWave1BClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { "${it[1]}-${it[2]}" } } +
         if (wbyPt02Glider) {
-            listOf(
-                waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
-                waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
-            )
+            buildList {
+                add(waveC2Pin("reliablegliders", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                add(waveC3Pin("aerodynamics4mcCore", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                if (wbyPt02ElytraSuppression) {
+                    add(waveC2Pin("noelytraboost", "coordinate").split(":").let { "${it[1]}-${it[2]}" })
+                }
+            }
         } else {
             emptyList()
         }
@@ -6522,8 +6540,14 @@ tasks.register("wbyWave1ResolvePinnedMods") {
                 check(files.any { it.contains(a4mcToken) }) {
                     "WBY PT-02 $side missing A4MC core token '$a4mcToken': $files"
                 }
-                check(files.none { it.contains(noElytraBoostToken) }) {
-                    "WBY PT-02A must not admit No More Elytra Boosting yet: $files"
+                if (wbyPt02ElytraSuppression) {
+                    check(files.any { it.contains(noElytraBoostToken) }) {
+                        "WBY PT-02B $side missing No More Elytra Boosting token '$noElytraBoostToken': $files"
+                    }
+                } else {
+                    check(files.none { it.contains(noElytraBoostToken) }) {
+                        "WBY PT-02A must remain free of No More Elytra Boosting: $files"
+                    }
                 }
             }
         }
@@ -6553,6 +6577,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
         serverFiles.forEach { println("  server=$it") }
         println("WBY Wave 1B optimizer=" + (wbyWave1BOptimizer ?: "none"))
         println("WBY PT-02 glider overlay=" + if (wbyPt02Glider) "enabled" else "disabled")
+        println("WBY PT-02 Elytra suppression=" + if (wbyPt02ElytraSuppression) "enabled" else "disabled")
         println("WBY WAVE 1 PIN RESOLUTION PASS")
     }
 }
@@ -7026,7 +7051,7 @@ dependencies {
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
-    // No More Elytra Boosting remains a separate policy gate and is intentionally absent here.
+    // PT-02B may then add the separately qualified Elytra-firework suppression policy.
     if (wbyPt02Glider) {
         add(
             wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
@@ -7044,6 +7069,16 @@ dependencies {
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             files(waveC3AeroCoreArtifact),
         )
+        if (wbyPt02ElytraSuppression) {
+            add(
+                wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+                waveC2Pin("noelytraboost", "coordinate"),
+            )
+            add(
+                wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+                waveC2Pin("noelytraboost", "coordinate"),
+            )
+        }
     }
 
 
