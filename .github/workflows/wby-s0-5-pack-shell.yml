@@ -7,6 +7,7 @@ on:
       - "settings.gradle.kts"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s0-5-pack-authority.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-fixtures/**"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
   workflow_dispatch:
 
@@ -43,6 +44,23 @@ jobs:
           mkdir -p "$run_dir"
           printf 'eula=true\n' > "$run_dir/eula.txt"
 
+      - name: Stage no-op pack-authority fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-s05"
+          fixture_dir="skyforge-neoforge-1211/wby-s0-5-fixtures"
+          mkdir -p "$run_dir/kubejs" "$run_dir/config/paxi" "$run_dir/config/almostunified"
+          cp -R "$fixture_dir/kubejs/." "$run_dir/kubejs/"
+          cp -R "$fixture_dir/paxi/." "$run_dir/config/paxi/"
+          cp -R "$fixture_dir/almostunified/." "$run_dir/config/almostunified/"
+
+          test -f "$run_dir/kubejs/server_scripts/authority_probe.js"
+          test -f "$run_dir/config/paxi/datapacks/skyforge-s05-probe/pack.mcmeta"
+          test -f "$run_dir/config/almostunified/startup.json"
+          test -f "$run_dir/config/almostunified/unification/materials.json"
+          test -f "$run_dir/config/almostunified/duplicates.json"
+
       - name: Create S0.5A world on dedicated server
         shell: bash
         run: |
@@ -50,7 +68,81 @@ jobs:
           timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyS05PrepareServer --no-configuration-cache 2>&1 | tee wby-s0-5-server.log
           result="skyforge-neoforge-1211/build/acceptance/wby-s05/prepare.properties"
           test -f "$result"
+          grep -q '^status=PASS
+      - name: Reopen same S0.5A save in actual client
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyS05ClientAcceptance --no-configuration-cache 2>&1 | tee wby-s0-5-client.log
+          result="skyforge-neoforge-1211/build/acceptance/wby-s05/client.properties"
+          test -f "$result"
           grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+          grep -Fq 'WBY S0.5A CLIENT MOD STAGING PASS' wby-s0-5-client.log
+
+      - name: Capture S0.5A sanity summary
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "profile=S0.5A"
+            echo "head_sha=${GITHUB_SHA}"
+            echo "resolver_closure=true"
+            echo "server_world_created=true"
+            echo "same_save_actual_client_reopen=true"
+            echo "s0_visibility_regression=false"
+            echo "client_mod_staging=true"
+            echo "kubejs_fixture=true"
+            echo "kubejs_create_fixture=true"
+            echo "lootjs_fixture=true"
+            echo "paxi_fixture=true"
+            echo "almost_unified_null_authority=true"
+          } > wby-s0-5-summary.properties
+
+      - name: Upload S0.5A evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s0-5-machine-acceptance
+          path: |
+            wby-s0-5-*.log
+            wby-s0-5-summary.properties
+            skyforge-neoforge-1211/build/acceptance/wby-s05/*.properties
+            skyforge-neoforge-1211/run-wby-s05/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s05/config/**
+          if-no-files-found: warn
+ "$result"
+
+          # Pack-authority fixtures prove each admitted surface loads while making no recipe,
+          # loot, material, or progression mutation.
+          grep -Fq 'WBY S0.5A KUBEJS SERVER FIXTURE PASS' wby-s0-5-server.log
+          grep -Fq 'WBY S0.5A KUBEJS CREATE FIXTURE PASS' wby-s0-5-server.log
+          grep -Fq 'WBY S0.5A LOOTJS FIXTURE PASS' wby-s0-5-server.log
+          grep -Fq 'WBY S0.5A PAXI FIXTURE PASS' wby-s0-5-server.log
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("skyforge-neoforge-1211/run-wby-s05/config/almostunified")
+          startup = json.loads((root / "startup.json").read_text())
+          materials = json.loads((root / "unification/materials.json").read_text())
+          duplicates = json.loads((root / "duplicates.json").read_text())
+
+          assert startup == {"server_only": False, "world_gen_unification": False}
+          assert materials["mod_priorities"] == ["minecraft", "create"]
+          assert materials["stone_variants"] == []
+          assert materials["tags"] == []
+          assert materials["recipe_viewer_hiding"] is False
+          assert materials["loot_unification"] is False
+          assert duplicates["ignored_recipe_types"] == [".*"]
+          assert duplicates["compare_all"] is False
+          print("WBY S0.5A ALMOST UNIFIED NULL-AUTHORITY FIXTURE PASS")
+          PY
 
       - name: Reopen same S0.5A save in actual client
         shell: bash
