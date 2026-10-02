@@ -611,3 +611,49 @@ Biome and structure **diversity is considered sufficient for Alpha**. Do not exp
 - Re-run recipe/capability closure after each retained addon. Cross-dimensional integration must strengthen the unified Skyforge economy rather than create hidden parallel ladders.
 
 **Audit conclusion:** the strongest immediate additions are My Nether's Delight, End's Delight, Farmer's Cutting: BetterEnd, and Create: Nether Industry. Enchantment Industry and Slice & Dice are broader integration A/B candidates. Create: Netherless conflicts with the current geography/logistics doctrine and should remain excluded.
+
+
+## Nether ecology, resources, structures, and threats — initial content contract
+
+**Status:** 2026-10-02 provisional design framing. Detailed inventory/curation follows integration testing; this section establishes what the retained content must accomplish.
+
+### Progression anchor: Blaze Rods
+- Blaze Rod acquisition remains a required Nether expedition objective; do not provide a dimensionless recipe or Overworld bypass.
+- The problem with vanilla is not that Blaze Rods require combat; it is that a player who locates a fortress can often convert one exposed spawner into a trivial, repeatable extraction point.
+- Skyforge should preserve recognizable Blaze/Fortress semantics while making successful extraction depend on reaching, operating in, and escaping from a genuinely dangerous location.
+- Fortresses/Blaze sites should eventually respond to Nether geography: difficult vaults, lava drainage/basins, hostile corridors, poor landing approaches, exposed crossings, or other meaningful terrain context rather than arbitrary distance inflation.
+- Do not solve this merely with higher Blaze HP, inflated spawn counts, or grindier drop rates. Prefer route difficulty, combined-arms threats, structure layout, environmental pressure, access/egress, and operational preparation.
+- Automation/farming after mastery may remain possible; the first progression-critical acquisition and establishment of a safe production route should be earned.
+
+### Ecology
+- BetterNether: New Dawn is the leading broad flora/biome/material ecology library; current New Dawn includes configurable biome/structure generation and extensive vegetation/building vocabulary.
+- Nether Depths Upgrade is a strong lava-sea ecology layer: nine lava fish plus lava plants/vents and lava-exploration equipment give lava basins ecological identity instead of treating them as empty damage floors.
+- Luminous: Nether is a high-variety hostile/ecology candidate: current 1.21.1 NeoForge releases advertise two biomes, sixteen mobs, three legendary beasts, three rare beasts, blocks, structures, and additional mechanics. Use selectively to avoid spectacle saturation.
+- My Nether's Delight connects edible Nether fauna/flora to the common Farmer's Delight domestic economy.
+- Ecology should follow causal niches: lava-basin organisms, soul-region organisms, fungal forest communities, scavengers/predators around Piglin habitation, cavern/vault fauna, and rare apex/legendary threats. Avoid uniform dimension-wide spawn soup.
+
+### Resources
+- Preserve vanilla strategic anchors where useful: Blaze Rods, Nether Wart, Quartz, Glowstone, ancient debris/Netherite, gold, soul materials, and dimension-specific mob drops.
+- BetterNether/New Dawn and selected ecology mods provide a larger raw material vocabulary, but imported materials do not automatically become independent progression tiers.
+- Create: Nether Industry is the leading test for turning Nether-specific phenomena—especially soul/nylium-related inputs—into processes in the shared Create economy.
+- CBC Nethersteel remains a major cross-dimensional industrial payoff and should retain a meaningful Nether connection.
+- Resource placement should be tied to physical systems and risk classes: lava margins/basins, magmatic conduits, soul deposits, fungal ecologies, deep solid volumes, ruins/fortifications, and exceptional geological regions.
+- Prefer geographically specialized deposits and process inputs over “deeper/farther = numerically better ore.”
+
+### Structures / civilization
+- Vanilla Nether Fortresses remain progression-critical vocabulary, but their placement/context/realization is eligible for substantial Skyforge governance.
+- Bastions remain major Piglin civilization/loot sites and should participate in coherent Piglin geography rather than appearing as arbitrary isolated dungeons.
+- Eternal Nether contributes promising major-site vocabulary: Piglin Manor in Crimson Forest context, Citadel in Warped Forest context, and Catacombs with Wither-Skeleton-focused encounters, plus associated mobs/loot.
+- BetterNether structures and the selected broad Nether substrate remain content libraries; their native density/placement must not override Skyforge's eventual regional structure semantics.
+- Structures should occupy understandable strategic sites: defensible vaults, crossings, resource zones, lava routes, corridor junctions, high ledges, basin margins, and old route infrastructure.
+
+### Threats
+- Threats must pressure both **people and machines**. Ghasts become substantially more meaningful when explosive projectiles can threaten aircraft/contraptions, landing sites, exposed components, bridges, rail infrastructure, and cargo rather than merely knocking a player around.
+- Preserve combined threat classes: ranged/explosive aerial denial; Piglin organized resistance; Blaze fire/ranged pressure; Wither Skeleton close-quarters pressure; lava/environmental risk; visibility/heat/pressure where supported; predators/rare beasts; structure traps/elite encounters.
+- Eternal Nether's Piglin Hunter/corrupted/Wither-Skeleton variants and Luminous's large creature catalogue are candidate threat vocabulary, not permission for globally elevated spawn density.
+- Aircraft should be useful but not sovereign. Tight caverns, bad approaches, roof/floor hazards, ranged threats, restricted landing zones, and infrastructure vulnerability should naturally preserve value for tunnels, rail, bridges, armored ground movement, and staged bases.
+
+### Design acceptance
+A successful Nether should support a progression story like: **locate a promising route -> prepare equipment/vehicle/logistics -> penetrate a coherent hostile region -> reach a strategically situated fortress/resource site -> conduct the objective under environmental and creature pressure -> extract safely -> improve the route/infrastructure for repeat operations.**
+
+This applies especially to Blaze Rods. The desired challenge is an **expedition and engineering problem**, not a stat check or mandatory grind.
