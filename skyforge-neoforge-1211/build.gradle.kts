@@ -413,11 +413,10 @@ fun wbyAlphaB1Pin(mod: String, field: String): String =
         "missing WBY alpha B1 pin: $mod.$field in " + wbyAlphaB1PinFile.asFile
     }
 fun wbyAlphaB1Token(mod: String): String =
-    wbyAlphaB1Pins.getProperty("$mod.artifactToken")
-        ?: wbyAlphaB1Pin(mod, "coordinate").split(":").let {
-            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
-            "${it[1]}-${it[2]}"
-        }
+    wbyAlphaB1Pin(mod, "coordinate").split(":").let {
+        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+        "${it[1]}-${it[2]}"
+    }
 
 check(wbyAlphaB1Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB1Pin("neoforge", "version") == "21.1.249")
@@ -446,11 +445,10 @@ fun wbyAlphaB2Pin(mod: String, field: String): String =
         "missing WBY alpha B2 pin: $mod.$field in " + wbyAlphaB2PinFile.asFile
     }
 fun wbyAlphaB2Token(mod: String): String =
-    wbyAlphaB2Pins.getProperty("$mod.artifactToken")
-        ?: wbyAlphaB2Pin(mod, "coordinate").split(":").let {
-            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
-            "${it[1]}-${it[2]}"
-        }
+    wbyAlphaB2Pin(mod, "coordinate").split(":").let {
+        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+        "${it[1]}-${it[2]}"
+    }
 check(wbyAlphaB2Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB2Pin("neoforge", "version") == "21.1.249")
 val wbyAlphaB2SharedMods = listOf(
@@ -466,11 +464,10 @@ fun wbyAlphaB3Pin(mod: String, field: String): String =
         "missing WBY alpha B3 pin: $mod.$field in " + wbyAlphaB3PinFile.asFile
     }
 fun wbyAlphaB3Token(mod: String): String =
-    wbyAlphaB3Pins.getProperty("$mod.artifactToken")
-        ?: wbyAlphaB3Pin(mod, "coordinate").split(":").let {
-            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
-            "${it[1]}-${it[2]}"
-        }
+    wbyAlphaB3Pin(mod, "coordinate").split(":").let {
+        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+        "${it[1]}-${it[2]}"
+    }
 check(wbyAlphaB3Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB3Pin("neoforge", "version") == "21.1.249")
 
@@ -491,11 +488,10 @@ fun wbyAlphaB4Pin(mod: String, field: String): String =
         "missing WBY alpha B4 pin: $mod.$field in " + wbyAlphaB4PinFile.asFile
     }
 fun wbyAlphaB4Token(mod: String): String =
-    wbyAlphaB4Pins.getProperty("$mod.artifactToken")
-        ?: wbyAlphaB4Pin(mod, "coordinate").split(":").let {
-            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
-            "${it[1]}-${it[2]}"
-        }
+    wbyAlphaB4Pin(mod, "coordinate").split(":").let {
+        check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+        "${it[1]}-${it[2]}"
+    }
 check(wbyAlphaB4Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB4Pin("neoforge", "version") == "21.1.249")
 val wbyAlphaB4SharedMods = listOf(
