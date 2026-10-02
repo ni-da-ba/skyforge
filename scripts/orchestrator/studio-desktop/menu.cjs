@@ -13,8 +13,8 @@ function createStudioActionDispatcher(getWindow, reportError = () => {}) {
   if (typeof getWindow !== "function") throw new TypeError("getWindow must be a function");
 
   return function dispatchBackupAction(action) {
-    const controlId = BACKUP_CONTROLS[action];
-    if (!controlId) throw new Error("unsupported Studio backup menu action: " + action);
+    const controlId = STUDIO_CONTROLS[action];
+    if (!controlId) throw new Error("unsupported Studio menu action: " + action);
     const mainWindow = getWindow();
     if (!mainWindow || mainWindow.isDestroyed()) return;
     const contents = mainWindow.webContents;
