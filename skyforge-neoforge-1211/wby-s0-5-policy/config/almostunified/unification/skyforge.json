@@ -1,0 +1,16 @@
+{
+  "mod_priorities": [
+    "minecraft",
+    "create"
+  ],
+  "priority_overrides": {},
+  "stone_variants": [],
+  "tags": [],
+  "ignored_tags": [],
+  "ignored_items": [],
+  "ignored_recipe_types": [],
+  "ignored_recipe_ids": [],
+  "recipe_viewer_hiding": false,
+  "loot_unification": false,
+  "ignored_loot_tables": []
+}
