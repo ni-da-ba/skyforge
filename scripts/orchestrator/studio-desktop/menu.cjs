@@ -69,4 +69,4 @@ function buildStudioApplicationMenu(Menu, dispatch, platform = process.platform)
   return Menu.buildFromTemplate(template);
 }
 
-module.exports = { buildStudioApplicationMenu, createBackupActionDispatcher };
+module.exports = { buildStudioApplicationMenu, createStudioActionDispatcher };
