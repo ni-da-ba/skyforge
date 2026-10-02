@@ -69,6 +69,19 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             + d.finalMaximumLongitudinalGradeConflict());
             if (route.semanticReach().startCellIndex() == 801
                     && route.semanticReach().endCellIndex() == 1951) {
+                var initialTargetScore =
+                        SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeConflictDetails(
+                                descriptor, network, route.semanticReach(),
+                                route.route().points(), terrain);
+                var finalTargetScore =
+                        SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeConflictDetails(
+                                descriptor, network, route.semanticReach(),
+                                first.centerline().points(), terrain);
+                report.append("OBJECTIVE_SPAN initial=")
+                        .append(initialTargetScore)
+                        .append(" final=")
+                        .append(finalTargetScore)
+                        .append(System.lineSeparator());
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
                 assertTrue(
                         d.finalLongitudinalHeadFeasibilityGap()
