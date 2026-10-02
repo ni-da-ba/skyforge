@@ -1,0 +1,128 @@
+name: WBY Alpha Stack Convergence
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-alpha-stack-convergence.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-alpha-baseline.properties"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wave-c5-mods.properties"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/wave-c25-mods.properties"
+      - "skyforge-neoforge-1211/sf-imp-0084-aal.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+      - "docs/design-audit/wby-canonical-mod-manifest-provisional-2026-09-30.md"
+      - "docs/design-audit/wby-build-lock-provisional-2026-09-30.md"
+      - "docs/design-audit/wby-pack-integration-progression-provisional-2026-09-30.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-alpha-stack-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  immutable-baseline:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve canonical immutable baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyAlphaResolvePinnedMods --no-configuration-cache | tee wby-alpha-resolve.log
+          grep -Fq 'WBY ALPHA IMMUTABLE BASELINE RESOLUTION PASS' wby-alpha-resolve.log
+
+      - name: Prepare authority-owned runtime configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-alpha"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir/saves/wby-alpha/serverconfig"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+
+          cat > "$run_dir/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml" <<'EOF'
+          ["Server Configs"."Oil Config"]
+          "Disable normal oil chunks" = true
+          "Disable high oil chunks" = true
+          EOF
+
+          grep -Fq '"Disable normal oil chunks" = true' "$run_dir/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml"
+          grep -Fq '"Disable high oil chunks" = true' "$run_dir/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml"
+
+      - name: Create alpha world on full dedicated-server stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=SUPPRESSED"
+          timeout 300 ./gradlew :skyforge-neoforge-1211:runWbyAlphaPrepareServer --no-configuration-cache 2>&1 | tee wby-alpha-server.log
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-alpha/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          # One targeted semantic smoke in the cumulative stack: Diesel's machinery stays while
+          # its native geography remains disabled.
+          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' wby-alpha-server.log
+          grep -Fq 'normalOilDisabled=true' wby-alpha-server.log
+          grep -Fq 'highOilDisabled=true' wby-alpha-server.log
+          grep -Fq 'crudeOil=true' wby-alpha-server.log
+          grep -Fq 'pumpjackHole=true' wby-alpha-server.log
+          grep -Fq 'distillationTank=true' wby-alpha-server.log
+          grep -Fq 'dieselEngine=true' wby-alpha-server.log
+
+          # Canonical correction: old PT-02 fallback glider must not return.
+          if grep -Eq '\(reliable_gliders\)' wby-alpha-server.log; then
+            echo "Reliable Gliders leaked into canonical alpha baseline"
+            exit 1
+          fi
+
+      - name: Reopen same save in actual client
+        shell: bash
+        run: |
+          set -euo pipefail
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=SUPPRESSED"
+          timeout 360 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyAlphaClientAcceptance --no-configuration-cache 2>&1 | tee wby-alpha-client.log
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-alpha/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' wby-alpha-client.log
+          if grep -Eq '\(reliable_gliders\)' wby-alpha-client.log; then
+            echo "Reliable Gliders leaked into canonical alpha baseline"
+            exit 1
+          fi
+
+      - name: Upload convergence evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-alpha-immutable-baseline
+          path: |
+            wby-alpha-*.log
+            skyforge-neoforge-1211/build/acceptance/wby-alpha/*.properties
+            skyforge-neoforge-1211/run-wby-alpha/logs/latest.log
+            skyforge-neoforge-1211/run-wby-alpha/saves/wby-alpha/serverconfig/createdieselgenerators-server.toml
+          if-no-files-found: warn
