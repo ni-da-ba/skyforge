@@ -52,13 +52,31 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             assertTrue(
                     d.finalLongitudinalHeadFeasibilityGap()
                             <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
+            String routeLabel = route.semanticReach().startCellIndex()
+                    + "->" + route.semanticReach().endCellIndex();
+            assertTrue(
+                    d.finalMaximumLocalEnvelopeConflict()
+                                    <= d.initialMaximumLocalEnvelopeConflict() + EPSILON,
+                    "local envelope conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumLocalEnvelopeConflict() + " -> "
+                            + d.finalMaximumLocalEnvelopeConflict());
+            assertTrue(
+                    d.finalMaximumLongitudinalGradeConflict()
+                                    <= d.initialMaximumLongitudinalGradeConflict() + EPSILON,
+                    "grade-propagation conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumLongitudinalGradeConflict() + " -> "
+                            + d.finalMaximumLongitudinalGradeConflict());
             if (route.semanticReach().startCellIndex() == 801
                     && route.semanticReach().endCellIndex() == 1951) {
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
                 assertTrue(
                         d.finalLongitudinalHeadFeasibilityGap()
                                 < d.initialLongitudinalHeadFeasibilityGap(),
-                        "whole-route refinement must reduce the key-700 grade conflict");
+                        "whole-route refinement must reduce the integrated key-700 grade conflict");
+                assertTrue(
+                        d.finalMaximumLongitudinalGradeConflict()
+                                < d.initialMaximumLongitudinalGradeConflict(),
+                        "minimax refinement must reduce the worst key-700 grade conflict");
             }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
@@ -74,6 +92,14 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialLongitudinalHeadFeasibilityGap())
                     .append(" finalLongitudinalGap=")
                     .append(d.finalLongitudinalHeadFeasibilityGap())
+                    .append(" initialMaxLocalEnvelopeConflict=")
+                    .append(d.initialMaximumLocalEnvelopeConflict())
+                    .append(" finalMaxLocalEnvelopeConflict=")
+                    .append(d.finalMaximumLocalEnvelopeConflict())
+                    .append(" initialMaxLongitudinalGradeConflict=")
+                    .append(d.initialMaximumLongitudinalGradeConflict())
+                    .append(" finalMaxLongitudinalGradeConflict=")
+                    .append(d.finalMaximumLongitudinalGradeConflict())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
