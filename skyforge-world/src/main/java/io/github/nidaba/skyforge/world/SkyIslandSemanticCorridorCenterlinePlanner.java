@@ -140,7 +140,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         int relaxationSweeps = 0;
         if (headEnvelopeGap != null
                 && (best.maximumHeadEnvelopeGap() > EPSILON
-                        || best.maximumLongitudinalHeadFeasibilityConflict() > EPSILON
+                        || best.maximumLocalEnvelopeConflict() > EPSILON
+                        || best.maximumLongitudinalGradeConflict() > EPSILON
                         || best.longitudinalHeadFeasibilityGap() > EPSILON)) {
             GlobalModeSearchOutcome globalModes = refineGlobalModes(
                     searchRoute, semanticGuidance, terrain, interiority,
@@ -205,7 +206,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     && (unchanged
                             || (candidate.maximumHeadEnvelopeGap() <= EPSILON
                                     && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
-                                    && candidate.maximumLongitudinalHeadFeasibilityConflict() <= EPSILON
+                                    && candidate.maximumLocalEnvelopeConflict() <= EPSILON
+                                    && candidate.maximumLongitudinalGradeConflict() <= EPSILON
                                     && candidate.longitudinalHeadFeasibilityGap() <= EPSILON
                                     && (minimumBendRadius <= EPSILON
                                             || candidate.maximumCurvature() * minimumBendRadius
@@ -238,13 +240,15 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 initial.maximumHeadEnvelopeGapStation(),
                 initial.integratedSquaredHeadEnvelopeGap(),
                 initial.longitudinalHeadFeasibilityGap(),
-                initial.maximumLongitudinalHeadFeasibilityConflict(),
+                initial.maximumLocalEnvelopeConflict(),
+                initial.maximumLongitudinalGradeConflict(),
                 best.maximumHeadEnvelopeGap(),
                 best.maximumHeadEnvelopeGapIndex(),
                 best.maximumHeadEnvelopeGapStation(),
                 best.integratedSquaredHeadEnvelopeGap(),
                 best.longitudinalHeadFeasibilityGap(),
-                best.maximumLongitudinalHeadFeasibilityConflict(),
+                best.maximumLocalEnvelopeConflict(),
+                best.maximumLongitudinalGradeConflict(),
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
@@ -640,7 +644,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalScore =
                         checkedLongitudinalScore(longitudinalHeadFeasibility, working);
                 if (currentGap > EPSILON
-                        || longitudinalScore.maximumConflictWorldUnits() > EPSILON) {
+                        || longitudinalScore.maximumLocalEnvelopeConflictWorldUnits() > EPSILON
+                        || longitudinalScore.maximumGradePropagationConflictWorldUnits() > EPSILON) {
                     for (int direction = -1; direction <= 1; direction += 2) {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
@@ -767,7 +772,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 maximumGapIndex,
                 station[maximumGapIndex],
                 integratedSquaredGap,
-                longitudinalScore.maximumConflictWorldUnits(),
+                longitudinalScore.maximumLocalEnvelopeConflictWorldUnits(),
+                longitudinalScore.maximumGradePropagationConflictWorldUnits(),
                 longitudinalScore.integratedSquaredConflictWorldUnits());
     }
 
@@ -835,9 +841,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandCenterlineLongitudinalHeadFeasibility.Score secondScore =
                     checkedLongitudinalScore(longitudinalHeadFeasibility, secondPoints);
             int maximumGrade = Double.compare(
-                    firstScore.maximumConflictWorldUnits(),
-                    secondScore.maximumConflictWorldUnits());
+                    firstScore.maximumGradePropagationConflictWorldUnits(),
+                    secondScore.maximumGradePropagationConflictWorldUnits());
             if (maximumGrade != 0) return maximumGrade;
+            int maximumLocal = Double.compare(
+                    firstScore.maximumLocalEnvelopeConflictWorldUnits(),
+                    secondScore.maximumLocalEnvelopeConflictWorldUnits());
+            if (maximumLocal != 0) return maximumLocal;
             int integratedGrade = Double.compare(
                     firstScore.integratedSquaredConflictWorldUnits(),
                     secondScore.integratedSquaredConflictWorldUnits());
@@ -1141,13 +1151,15 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double initialMaximumHeadEnvelopeGapStation,
             double initialIntegratedSquaredHeadEnvelopeGap,
             double initialLongitudinalHeadFeasibilityGap,
-            double initialMaximumLongitudinalHeadFeasibilityConflict,
+            double initialMaximumLocalEnvelopeConflict,
+            double initialMaximumLongitudinalGradeConflict,
             double finalMaximumHeadEnvelopeGap,
             int finalMaximumHeadEnvelopeGapIndex,
             double finalMaximumHeadEnvelopeGapStation,
             double finalIntegratedSquaredHeadEnvelopeGap,
             double finalLongitudinalHeadFeasibilityGap,
-            double finalMaximumLongitudinalHeadFeasibilityConflict,
+            double finalMaximumLocalEnvelopeConflict,
+            double finalMaximumLongitudinalGradeConflict,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
             long lateralCandidateCorridorRejected,
@@ -1198,14 +1210,32 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             int maximumHeadEnvelopeGapIndex,
             double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap,
-            double maximumLongitudinalHeadFeasibilityConflict,
+            double maximumLocalEnvelopeConflict,
+            double maximumLongitudinalGradeConflict,
             double longitudinalHeadFeasibilityGap) {
+        private boolean hydrologyResidualsNoWorseThan(Candidate other) {
+            return maximumLocalEnvelopeConflict
+                            <= other.maximumLocalEnvelopeConflict + EPSILON
+                    && maximumLongitudinalGradeConflict
+                            <= other.maximumLongitudinalGradeConflict + EPSILON;
+        }
+
         private int compareTo(Candidate other, double minimumBendRadius) {
             double curvatureExcess = curvatureExcess(minimumBendRadius);
             double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
             int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
             if (excess != 0) {
                 return excess;
+            }
+            boolean thisNoWorse = hydrologyResidualsNoWorseThan(other);
+            boolean otherNoWorse = other.hydrologyResidualsNoWorseThan(this);
+            if (thisNoWorse != otherNoWorse) {
+                return thisNoWorse ? -1 : 1;
+            }
+            if (!thisNoWorse) {
+                // The candidates trade two independent hard-feasibility residuals. Do not
+                // exchange one violation for a different violation during geometry refinement.
+                return 0;
             }
             int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
             if (maximumGap != 0) {
@@ -1219,9 +1249,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 return integratedGap;
             }
             int maximumLongitudinal = Double.compare(
-                    maximumLongitudinalHeadFeasibilityConflict,
-                    other.maximumLongitudinalHeadFeasibilityConflict);
+                    maximumLongitudinalGradeConflict,
+                    other.maximumLongitudinalGradeConflict);
             if (maximumLongitudinal != 0) return maximumLongitudinal;
+            int maximumLocal = Double.compare(
+                    maximumLocalEnvelopeConflict,
+                    other.maximumLocalEnvelopeConflict);
+            if (maximumLocal != 0) return maximumLocal;
             int longitudinal = Double.compare(
                     longitudinalHeadFeasibilityGap,
                     other.longitudinalHeadFeasibilityGap);
