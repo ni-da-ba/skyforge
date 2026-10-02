@@ -41,6 +41,20 @@ class ValidationWorkflowContractTest(unittest.TestCase):
         )
         self.assertTrue(any("duplicate canonical" in item for item in verify_text(contract, text)))
 
+    def test_studio_stage_rejects_canonical_full_check(self):
+        contract = next(
+            contract for contract in CONTRACTS if contract.path.endswith("studio-desktop.yml")
+        )
+        text = "\n".join(
+            [
+                *contract.required_triggers,
+                "uses: ./.github/actions/setup-java-gradle",
+                *contract.acceptance_tasks,
+                "./gradlew check",
+            ]
+        )
+        self.assertTrue(any("duplicate canonical" in item for item in verify_text(contract, text)))
+
     def test_missing_product_trigger_is_rejected(self):
         contract = CONTRACTS[2]
         text = "\n".join(

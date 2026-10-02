@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify retained DR characterization workflow contracts without executing Minecraft."""
+"""Verify retained acceptance and review workflow contracts without executing Minecraft."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -12,6 +12,7 @@ SETUP_ACTION = "uses: ./.github/actions/setup-java-gradle"
 FORBIDDEN_DUPLICATE_TASKS = (
     ":skyforge-neoforge-1211:compileJava",
     ":skyforge-neoforge-1211:test",
+    "./gradlew check",
 )
 
 
@@ -59,6 +60,21 @@ CONTRACTS = (
         ),
         2,
     ),
+    WorkflowContract(
+        ".github/workflows/studio-desktop.yml",
+        (
+            '- "skyforge-*/src/**"',
+            '- "skyforge-*/build.gradle.kts"',
+            "workflow_dispatch:",
+        ),
+        '- ".github/workflows/studio-desktop.yml"',
+        (
+            ":skyforge-reference:fixedSeedCorpus",
+            ":skyforge-reference:suspendedVolumeEvidence",
+            ":skyforge-reference:studioBoundHydrologySemanticCorpus",
+        ),
+        1,
+    ),
 )
 
 
@@ -82,7 +98,7 @@ def verify_text(contract: WorkflowContract, text: str) -> list[str]:
     for task in FORBIDDEN_DUPLICATE_TASKS:
         if task in text:
             errors.append(
-                f"{contract.path}: duplicate canonical compile/unit task remains: {task}"
+                f"{contract.path}: duplicate canonical build/test task remains: {task}"
             )
     return errors
 

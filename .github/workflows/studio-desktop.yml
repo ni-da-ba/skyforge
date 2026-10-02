@@ -13,7 +13,6 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle/**"
-      - ".github/workflows/studio-desktop.yml"
   push:
     branches: [main]
     paths:
@@ -27,7 +26,6 @@ on:
       - "build.gradle.kts"
       - "settings.gradle.kts"
       - "gradle/**"
-      - ".github/workflows/studio-desktop.yml"
   workflow_dispatch:
 
 permissions:
