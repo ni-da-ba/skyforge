@@ -15,6 +15,8 @@ import java.util.Optional;
  * terrain-lowering authority.
  */
 public final class SkyIslandHydraulicGeometrySkeletonPlanner {
+    private static final double EPSILON = 1.0e-12;
+
     private SkyIslandHydraulicGeometrySkeletonPlanner() {}
 
     public static SkyIslandHydraulicGeometrySkeletonPlan plan(SkyIslandDescriptor descriptor) {
