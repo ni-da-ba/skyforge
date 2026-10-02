@@ -113,12 +113,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                             0.0, envelope.lowerHead() - envelope.upperHead());
                 },
                 points -> longitudinalHeadFeasibilityGap(
-                        descriptor, semantic, points, dischargeProfile, terrain, policy));
+                        descriptor, network, semantic, points, dischargeProfile, terrain, policy));
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
     }
 
     private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalHeadFeasibilityGap(
             SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
             SkyIslandSemanticChannelReach semantic,
             List<SkyIslandLocalPosition> points,
             SemanticDischargeProfile dischargeProfile,
@@ -231,9 +232,142 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 maximumLocalEnvelopeConflict,
                 maximumGradePropagationConflict,
+                maximumConfluenceCascadeGradeConflict(
+                        descriptor, network, semantic, points, cumulative,
+                        dischargeProfile, terrain, policy),
                 ordinaryLength > 0.0
                         ? integratedSquaredConflict / ordinaryLength
                         : 0.0);
+    }
+
+    private static double maximumConfluenceCascadeGradeConflict(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            double[] cumulative,
+            SemanticDischargeProfile dischargeProfile,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy) {
+        boolean startsAtConfluence = network.nodes().stream()
+                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
+                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE);
+        if (!startsAtConfluence) return 0.0;
+        int cascadeStart = -1;
+        List<SkyIslandChannelProfile> profiles = semantic.profiles();
+        for (int index = 0; index < profiles.size(); index++) {
+            if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE) {
+                cascadeStart = index;
+                break;
+            }
+        }
+        if (cascadeStart <= 0) return 0.0;
+        double pathLength = cumulative[cumulative.length - 1];
+        double startArc = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                descriptor.nominalRadius(), dischargeProfile.atStation(0.0));
+        double startStation = startArc / pathLength;
+        double endStation = (double) cascadeStart / profiles.size();
+        if (!(endStation > startStation)) return 0.0;
+
+        List<SkyIslandLocalPosition> spanPoints = new ArrayList<>();
+        List<Double> spanStations = new ArrayList<>();
+        appendStationSample(points, cumulative, pathLength, startStation, spanPoints, spanStations);
+        for (int index = 1; index + 1 < points.size(); index++) {
+            double station = cumulative[index] / pathLength;
+            if (station > startStation + 1.0e-12 && station < endStation - 1.0e-12) {
+                spanPoints.add(points.get(index));
+                spanStations.add(station);
+            }
+        }
+        appendStationSample(points, cumulative, pathLength, endStation, spanPoints, spanStations);
+
+        double reachableLower = Double.NaN;
+        double reachableUpper = Double.NaN;
+        double maximumConflict = 0.0;
+        for (int index = 0; index < spanPoints.size(); index++) {
+            SkyIslandLocalPosition position = spanPoints.get(index);
+            double station = spanStations.get(index);
+            SkyIslandLocalPosition before = spanPoints.get(Math.max(0, index - 1));
+            SkyIslandLocalPosition after =
+                    spanPoints.get(Math.min(spanPoints.size() - 1, index + 1));
+            double tangentX = after.x() - before.x();
+            double tangentZ = after.z() - before.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                throw new IllegalStateException(
+                        "confluence-to-CASCADE grade scoring requires non-zero tangents");
+            }
+            SkyIslandChannelProfileKind kind =
+                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(profiles, station);
+            SkyIslandGeomorphicQualificationClass qualificationClass =
+                    qualificationClass(kind);
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            kind,
+                            position,
+                            SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                    descriptor.nominalRadius(),
+                                    dischargeProfile.atStation(station)),
+                            SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
+                                    dischargeProfile.atStation(station)),
+                            clamp01(terrain.sample(position)),
+                            -tangentZ / tangentLength,
+                            tangentX / tangentLength,
+                            terrain,
+                            policy.limits(qualificationClass));
+            double localLower = envelope.lowerHead();
+            double localUpper = envelope.upperHead();
+            if (localLower > localUpper) {
+                double midpoint = 0.5 * (localLower + localUpper);
+                localLower = midpoint;
+                localUpper = midpoint;
+            }
+            if (Double.isNaN(reachableLower)) {
+                reachableLower = localLower;
+                reachableUpper = localUpper;
+                continue;
+            }
+            double ds = cumulativeDistance(spanPoints)[index]
+                    - cumulativeDistance(spanPoints)[index - 1];
+            double maxDrop =
+                    policy.limits(qualificationClass).maximumLongitudinalGrade() * ds;
+            double nextLower = Math.max(localLower, reachableLower - maxDrop);
+            double nextUpper = Math.min(localUpper, reachableUpper);
+            double conflict = Math.max(0.0, nextLower - nextUpper);
+            maximumConflict = Math.max(maximumConflict, conflict);
+            if (conflict > 0.0) {
+                double midpoint = 0.5 * (nextLower + nextUpper);
+                nextLower = midpoint;
+                nextUpper = midpoint;
+            }
+            reachableLower = nextLower;
+            reachableUpper = nextUpper;
+        }
+        return maximumConflict;
+    }
+
+    private static void appendStationSample(
+            List<SkyIslandLocalPosition> points,
+            double[] cumulative,
+            double pathLength,
+            double station,
+            List<SkyIslandLocalPosition> spanPoints,
+            List<Double> spanStations) {
+        double targetArc = station * pathLength;
+        for (int index = 0; index + 1 < points.size(); index++) {
+            if (targetArc > cumulative[index + 1] + 1.0e-12) continue;
+            double ds = cumulative[index + 1] - cumulative[index];
+            double fraction = (targetArc - cumulative[index]) / ds;
+            SkyIslandLocalPosition a = points.get(index);
+            SkyIslandLocalPosition b = points.get(index + 1);
+            spanPoints.add(new SkyIslandLocalPosition(
+                    a.x() + fraction * (b.x() - a.x()),
+                    a.z() + fraction * (b.z() - a.z())));
+            spanStations.add(station);
+            return;
+        }
+        throw new IllegalStateException("transition station escaped centerline");
     }
 
     record CenterlineRefinement(
