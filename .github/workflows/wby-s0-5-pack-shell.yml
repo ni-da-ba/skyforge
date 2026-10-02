@@ -1,0 +1,36 @@
+name: WBY S0.5 Pack Shell
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s0-5-pack-shell.yml"
+      - "settings.gradle.kts"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s0-5-pack-authority.properties"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  s0-5-resolution:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+      - name: Resolve cumulative S0.5A shell
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS05ResolvePinnedMods --no-configuration-cache | tee wby-s0-5-resolve.log
+          grep -Fq 'WBY S0.5A PACK AUTHORITY RESOLUTION PASS' wby-s0-5-resolve.log
+      - name: Upload resolver evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s0-5-resolution
+          path: wby-s0-5-resolve.log
+          if-no-files-found: warn
