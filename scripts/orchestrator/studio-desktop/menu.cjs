@@ -1,6 +1,7 @@
 "use strict";
 
 const STUDIO_CONTROLS = Object.freeze({
+  "open-hydrology-run-folder": "open-hydrology-run-folder",
   "open-semantic-artifact": "local-file",
   "open-terrain-pair": "local-pair-files",
   "open-inspection-workspace": "inspection-workspace-file",
@@ -36,8 +37,12 @@ function buildStudioApplicationMenu(Menu, dispatch, platform = process.platform)
     label: "File",
     submenu: [
       {
-        label: "Open local semantic JSON…",
+        label: "Open hydrology run folder…",
         accelerator: "CmdOrCtrl+O",
+        click: () => dispatch("open-hydrology-run-folder"),
+      },
+      {
+        label: "Open local semantic JSON…",
         click: () => dispatch("open-semantic-artifact"),
       },
       {

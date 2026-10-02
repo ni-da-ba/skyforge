@@ -62,7 +62,8 @@ const fileMenu = menu.template.find(item => item.label === "File");
 assert.ok(fileMenu, "desktop menu has a File section");
 const actionItems = fileMenu.submenu.filter(item => typeof item.click === "function");
 assert.deepEqual(actionItems.map(item => ({ label: item.label, accelerator: item.accelerator || null })), [
-  { label: "Open local semantic JSON…", accelerator: "CmdOrCtrl+O" },
+  { label: "Open hydrology run folder…", accelerator: "CmdOrCtrl+O" },
+  { label: "Open local semantic JSON…", accelerator: null },
   { label: "Open terrain + hydrology pair…", accelerator: null },
   { label: "Open inspection workspace…", accelerator: null },
   { label: "Open sample trace…", accelerator: null },
@@ -71,6 +72,7 @@ assert.deepEqual(actionItems.map(item => ({ label: item.label, accelerator: item
 ]);
 for (const item of actionItems) item.click();
 assert.deepEqual(actions, [
+  "open-hydrology-run-folder",
   "open-semantic-artifact",
   "open-terrain-pair",
   "open-inspection-workspace",
@@ -97,6 +99,7 @@ assert.equal(builtTemplates.length, 2);
   };
   const dispatch = createStudioActionDispatcher(() => mainWindow);
   const controlIds = [
+    "open-hydrology-run-folder",
     "local-file",
     "local-pair-files",
     "inspection-workspace-file",
@@ -105,6 +108,7 @@ assert.equal(builtTemplates.length, 2);
     "studio-backup-export",
   ];
   const actionIds = [
+    "open-hydrology-run-folder",
     "open-semantic-artifact",
     "open-terrain-pair",
     "open-inspection-workspace",
