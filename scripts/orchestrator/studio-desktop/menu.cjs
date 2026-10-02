@@ -12,7 +12,7 @@ const STUDIO_CONTROLS = Object.freeze({
 function createStudioActionDispatcher(getWindow, reportError = () => {}) {
   if (typeof getWindow !== "function") throw new TypeError("getWindow must be a function");
 
-  return function dispatchBackupAction(action) {
+  return function dispatchStudioAction(action) {
     const controlId = STUDIO_CONTROLS[action];
     if (!controlId) throw new Error("unsupported Studio menu action: " + action);
     const mainWindow = getWindow();
@@ -24,7 +24,7 @@ function createStudioActionDispatcher(getWindow, reportError = () => {}) {
       JSON.stringify(controlId) +
       "); if (!control || control.disabled) return false; control.click(); return true; })()";
     return contents.executeJavaScript(script, true).catch(error => {
-      reportError("Studio backup menu action failed:", error);
+      reportError("Studio menu action failed:", error);
     });
   };
 }
