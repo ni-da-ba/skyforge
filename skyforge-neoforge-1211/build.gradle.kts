@@ -393,7 +393,9 @@ val wbyAlphaEngineeringMods = listOf(
     "create", "rpl", "createbigcannons", "createaddition", "createmetallurgy",
     "sable", "aeronautics", "createpropulsion", "jei",
 )
-val wbyAlphaBirdMods = listOf("fowlplay", "smartbrainlib", "yacl")
+// YACL 3.6.5 remains the historical C5 pin, but alpha convergence uses B3 YACL 3.8.2
+// because Critters & Companions requires the newer 1.21.1 line.
+val wbyAlphaBirdMods = listOf("fowlplay", "smartbrainlib")
 val wbyAlphaAvionicsMods = listOf("cctweaked", "createavionics")
 val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyAlphaServerVisibilityMods = listOf("ssrd")
@@ -453,6 +455,31 @@ check(wbyAlphaB2Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB2Pin("neoforge", "version") == "21.1.249")
 val wbyAlphaB2SharedMods = listOf(
     "artifacts", "lootr", "graveless", "aerotoolgun", "climbableropes", "grapplinghooks",
+)
+
+val wbyAlphaB3PinFile = layout.projectDirectory.file("wby-alpha-candidate-b3.properties")
+val wbyAlphaB3Pins = Properties().apply {
+    wbyAlphaB3PinFile.asFile.inputStream().use(::load)
+}
+fun wbyAlphaB3Pin(mod: String, field: String): String =
+    requireNotNull(wbyAlphaB3Pins.getProperty("$mod.$field")) {
+        "missing WBY alpha B3 pin: $mod.$field in " + wbyAlphaB3PinFile.asFile
+    }
+fun wbyAlphaB3Token(mod: String): String =
+    wbyAlphaB3Pins.getProperty("$mod.artifactToken")
+        ?: wbyAlphaB3Pin(mod, "coordinate").split(":").let {
+            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+            "${it[1]}-${it[2]}"
+        }
+check(wbyAlphaB3Pin("minecraft", "version") == "1.21.1")
+check(wbyAlphaB3Pin("neoforge", "version") == "21.1.249")
+
+val wbyAlphaB3SharedMods = listOf(
+    "geckolib", "architectury", "yacl", "clothconfig", "cerbonsapi",
+    "lithostitched", "cristellib", "createdragonsplus", "cookscollection",
+    "naturalist", "critters", "mowziesmobs", "bomd", "incontrol",
+    "morevillagers", "guardvillagers", "ctov", "townsandtowers", "illagerstructures",
+    "farmersdelight", "centralkitchen", "supplementaries", "brewinchewin", "culturaldelights",
 )
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
@@ -6551,6 +6578,7 @@ tasks.register("wbyAlphaResolvePinnedMods") {
     inputs.file(wbyWave1BPinFile)
     inputs.file(wbyAlphaB1PinFile)
     inputs.file(wbyAlphaB2PinFile)
+    inputs.file(wbyAlphaB3PinFile)
 
     doLast {
         fun token(coordinate: String): String {
@@ -6620,13 +6648,22 @@ tasks.register("wbyAlphaResolvePinnedMods") {
             check(client.any { it.contains(t) }) { "WBY alpha client missing B2 $mod token '$t': $client" }
             check(server.any { it.contains(t) }) { "WBY alpha server missing B2 $mod token '$t': $server" }
         }
+        wbyAlphaB3SharedMods.forEach { mod ->
+            val t = wbyAlphaB3Token(mod)
+            check(client.any { it.contains(t) }) { "WBY alpha client missing B3 $mod token '$t': $client" }
+            check(server.any { it.contains(t) }) { "WBY alpha server missing B3 $mod token '$t': $server" }
+        }
+        val legacyYacl = token(waveC5Pin("yacl", "coordinate"))
+        check(client.none { it.contains(legacyYacl) } && server.none { it.contains(legacyYacl) }) {
+            "WBY alpha retained historical C5 YACL instead of the explicit B3 convergence pin: $legacyYacl"
+        }
 
         val gliderToken = token(waveC2Pin("reliablegliders", "coordinate"))
         check(client.none { it.contains(gliderToken) } && server.none { it.contains(gliderToken) }) {
             "Reliable Gliders is RESERVE in the canonical alpha manifest and must not enter baseline"
         }
 
-        println("WBY ALPHA IMMUTABLE BASELINE + B1 + B2 RESOLUTION PASS")
+        println("WBY ALPHA IMMUTABLE BASELINE + B1 + B2 + B3 RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
     }
@@ -7367,6 +7404,10 @@ dependencies {
     wbyAlphaB2SharedMods.forEach { mod ->
         add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
+    }
+    wbyAlphaB3SharedMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB3Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB3Pin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
