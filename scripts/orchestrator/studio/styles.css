@@ -32,6 +32,8 @@ label{display:block;font-size:.78rem;color:#91a0b4;margin:.7rem 0 .3rem}input,se
 .studio-home-card h3{margin:0;font-size:1rem}
 .studio-home-card p{margin:0;line-height:1.5}
 .studio-home-card .eyebrow{margin:0;color:#72bddc;font-size:.68rem;font-weight:700;letter-spacing:.11em}
+.home-action-stack{display:grid;gap:.55rem;width:100%;margin-top:auto}
+.home-action-stack button{width:100%}
 .home-action{margin-top:auto}
 .studio-home-note{margin:.1rem 0}
 .studio-backup-panel{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:.8rem;border-color:#385064}
