@@ -22,8 +22,11 @@ assert.match(desktopMain, /Menu\.setApplicationMenu\(/);
 assert.match(desktopMain, /configureApplicationMenu\(\);/);
 assert.match(desktopWorkflow, /cp scripts\/orchestrator\/studio-desktop\/menu\.cjs/);
 for (const controlId of [
+  "home-open-hydrology-folder",
   "home-open-hydrology-sample",
   "home-open-hydrology-files",
+  "open-hydrology-run-folder",
+  "local-hydrology-run-folder",
   "local-file",
   "local-pair-files",
   "inspection-workspace-file",
@@ -33,8 +36,16 @@ for (const controlId of [
 ]) {
   assert.ok(studioHtml.includes(`id="${controlId}"`), `Studio action control exists: ${controlId}`);
 }
+assert.ok(studioHtml.includes("Open my hydrology run folder"));
 assert.ok(studioHtml.includes("Open included hydrology example"));
-assert.ok(studioHtml.includes("Open my terrain + hydrology pair"));
+assert.ok(studioHtml.includes("Choose terrain + hydrology files"));
+assert.ok(studioHtml.includes('type="file" accept=".json,application/json" webkitdirectory directory multiple hidden'));
+assert.ok(studioApp.includes('$("home-open-hydrology-folder").addEventListener("click"'));
+assert.ok(studioApp.includes('$("open-hydrology-run-folder").click()'));
+assert.ok(studioApp.includes('$("local-hydrology-run-folder").addEventListener("change"'));
+assert.ok(studioApp.includes('await loadHydrologyRunFolder(files)'));
+assert.ok(studioApp.includes('loadLocalPair(\n      terrainArtifact,'));
+assert.ok(studioApp.includes("Choose a narrower folder or select the pair directly."));
 assert.ok(studioApp.includes(`$("home-open-hydrology-sample").addEventListener("click", () => {\n    selectWorkspaceView("inspect");\n    $("open-bundled-sample").click();\n  });`));
 assert.ok(studioApp.includes(`$("home-open-hydrology-files").addEventListener("click", () => {\n    selectWorkspaceView("inspect");\n    $("local-pair-files").click();\n  });`));
 
