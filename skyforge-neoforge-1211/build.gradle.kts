@@ -2407,7 +2407,6 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-wby-s05b").asFile
             programArgument("--nogui")
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
-            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(tasks.register<Copy>("wbyS05BStageDiagnosticPolicy") {
                 group = "verification"
@@ -2430,7 +2429,6 @@ neoForge {
             sourceSet.set(wbyS05BClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-wby-s05b").asFile
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
-            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
             systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(tasks.named("wbyS05BStageClientMods"))
