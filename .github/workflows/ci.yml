@@ -51,6 +51,9 @@ jobs:
       - name: Test Studio desktop and web capability states
         run: node scripts/ci/test_studio_capabilities.js
 
+      - name: Test Studio native backup menu
+        run: node scripts/ci/test_studio_desktop_menu.js
+
       - name: Test Studio terrain comparison contract
         run: node scripts/ci/test_studio_terrain_comparison.js
       - name: Test Studio terrain comparison report contract

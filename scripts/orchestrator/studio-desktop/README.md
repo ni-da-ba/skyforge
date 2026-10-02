@@ -8,6 +8,8 @@ This is an unsigned desktop preview of the existing local-first Studio. It opens
 - macOS: open the Skyforge-Studio-macOS.dmg disk image, then move Skyforge Studio to Applications.
 - Linux: install Skyforge-Studio-Linux.deb with your distribution package installer.
 
+Use **File → Open Studio backup** to restore saved Studio work or **File → Save Studio backup** to make a portable copy. These menu items use the same import validation and operating-system dialogs as the Home actions.
+
 When you export a file, the desktop app opens the operating system's Save dialog and starts with Studio's suggested filename. Canceling the dialog cancels only that export.
 
 The first preview is unsigned. Windows and macOS may show an operating-system warning until a code-signing identity is configured for a later release.
