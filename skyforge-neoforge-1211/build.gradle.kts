@@ -387,16 +387,9 @@ val wbyAlphaPins = Properties().apply {
 check(wbyAlphaPins.getProperty("minecraft.version") == "1.21.1")
 check(wbyAlphaPins.getProperty("neoforge.version") == "21.1.249")
 
-// Immutable-tested alpha baseline. Reliable Gliders is intentionally absent: the canonical
-// Sep. 30 manifest moved it to RESERVE. Historical proofs remain valid but no longer define pack membership.
-val wbyAlphaEngineeringMods = listOf(
-    "create", "rpl", "createbigcannons", "createaddition", "createmetallurgy",
-    "sable", "aeronautics", "createpropulsion",
-)
-// YACL 3.6.5 remains the historical C5 pin, but alpha convergence uses B3 YACL 3.8.2
-// because Critters & Companions requires the newer 1.21.1 line.
-val wbyAlphaBirdMods = listOf("fowlplay", "smartbrainlib")
-val wbyAlphaAvionicsMods = listOf("cctweaked", "createavionics")
+// S0 is deliberately narrow: accepted physical/runtime shell plus JEI.
+// Later capability/content slices must not leak into this parent profile.
+val wbyAlphaEngineeringMods = listOf("create", "sable", "aeronautics", "jei")
 val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyAlphaServerVisibilityMods = listOf("ssrd")
 val wbyAlphaClientOptimizerMods = listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
@@ -6637,23 +6630,10 @@ tasks.register("waveC1ResolvePinnedMods") {
 
 tasks.register("wbyAlphaResolvePinnedMods") {
     group = "verification"
-    description = "Resolve the canonical WBY alpha baseline and enforce side-aware membership."
-    inputs.file(wbyAlphaPinFile)
+    description = "Resolve the bounded WBY S0 launch shell and enforce side-aware membership."
     inputs.file(waveC1PinFile)
-    inputs.file(waveC2PinFile)
-    inputs.file(waveC3PinFile)
-    inputs.file(waveC5PinFile)
-    inputs.file(waveC9PinFile)
-    inputs.file(waveC25PinFile)
-    inputs.file(sfImp0084AalPinFile)
     inputs.file(wbyWave1PinFile)
     inputs.file(wbyWave1BPinFile)
-    inputs.file(wbyAlphaB1PinFile)
-    inputs.file(wbyAlphaB2PinFile)
-    inputs.file(wbyAlphaB3PinFile)
-    inputs.file(wbyAlphaB4PinFile)
-    inputs.file(wbyAlphaB5PinFile)
-    inputs.file(wbyAlphaB6PinFile)
 
     doLast {
         fun token(coordinate: String): String {
@@ -6663,125 +6643,40 @@ tasks.register("wbyAlphaResolvePinnedMods") {
         }
         val client = wbyAlphaClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyAlphaServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
-
-        val sharedTokens = buildList {
-            wbyAlphaEngineeringMods.forEach { add(token(waveC1Pin(it, "coordinate"))) }
-            wbyAlphaBirdMods.forEach { add(token(waveC5Pin(it, "coordinate"))) }
-            wbyAlphaAvionicsMods.forEach { add(token(waveC9Pin(it, "coordinate"))) }
-            add(token(waveC3Pin("aerodynamics4mcCore", "coordinate")))
-            add(token(waveC3Pin("aerodynamics4mcCompat", "coordinate")))
-            add(token(waveC25Pin("createdieselgenerators", "coordinate")))
-            add(token(sfImp0084AalPin("coordinate")))
-            add(token(waveC2Pin("noelytraboost", "coordinate")))
-        }.toSet()
-        sharedTokens.forEach { t ->
-            check(client.any { it.contains(t) }) { "WBY alpha client missing '$t': $client" }
-            check(server.any { it.contains(t) }) { "WBY alpha server missing '$t': $server" }
+        wbyAlphaEngineeringMods.forEach { mod ->
+            val t = token(waveC1Pin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY S0 client missing $mod token '$t'" }
+            check(server.any { it.contains(t) }) { "WBY S0 server missing $mod token '$t'" }
         }
-
         wbyAlphaClientVisibilityMods.forEach { mod ->
             val t = token(wbyWave1Pin(mod, "coordinate"))
-            check(client.any { it.contains(t) }) { "WBY alpha client missing visibility '$t'" }
+            check(client.any { it.contains(t) }) { "WBY S0 client missing visibility $mod token '$t'" }
+        }
+        wbyAlphaServerVisibilityMods.forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.any { it.contains(t) }) { "WBY S0 server missing visibility $mod token '$t'" }
         }
         wbyAlphaClientOptimizerMods.forEach { mod ->
             val t = token(wbyWave1BPin(mod, "coordinate"))
-            check(client.any { it.contains(t) }) { "WBY alpha client missing optimizer '$t'" }
+            check(client.any { it.contains(t) }) { "WBY S0 client missing optimizer $mod token '$t'" }
         }
         wbyAlphaServerOptimizerMods.forEach { mod ->
             val t = token(wbyWave1BPin(mod, "coordinate"))
-            check(server.any { it.contains(t) }) { "WBY alpha server missing optimizer '$t'" }
+            check(server.any { it.contains(t) }) { "WBY S0 server missing optimizer $mod token '$t'" }
         }
-
         listOf("sodium", "distanthorizons").forEach { mod ->
             val t = token(wbyWave1Pin(mod, "coordinate"))
-            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only '$t': $server" }
+            check(server.none { it.contains(t) }) { "WBY S0 server leaked client-only $mod token '$t'" }
         }
         listOf("immediatelyfast", "dynamicfps").forEach { mod ->
             val t = token(wbyWave1BPin(mod, "coordinate"))
-            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only '$t': $server" }
+            check(server.none { it.contains(t) }) { "WBY S0 server leaked client-only $mod token '$t'" }
         }
-        wbyAlphaB1ClientMods.forEach { mod ->
-            val t = wbyAlphaB1Token(mod)
-            check(client.any { it.contains(t) }) {
-                "WBY alpha client missing B1 $mod token '$t': $client"
-            }
-        }
-        wbyAlphaB1ServerMods.forEach { mod ->
-            val t = wbyAlphaB1Token(mod)
-            check(server.any { it.contains(t) }) {
-                "WBY alpha server missing B1 $mod token '$t': $server"
-            }
-        }
-        (wbyAlphaB1ClientMods - wbyAlphaB1ServerMods.toSet()).forEach { mod ->
-            val t = wbyAlphaB1Token(mod)
-            check(server.none { it.contains(t) }) {
-                "WBY alpha server leaked client-only B1 $mod token '$t': $server"
-            }
-        }
-        wbyAlphaB2SharedMods.forEach { mod ->
-            val t = wbyAlphaB2Token(mod)
-            check(client.any { it.contains(t) }) { "WBY alpha client missing B2 $mod token '$t': $client" }
-            check(server.any { it.contains(t) }) { "WBY alpha server missing B2 $mod token '$t': $server" }
-        }
-        wbyAlphaB3SharedMods.forEach { mod ->
-            val t = wbyAlphaB3Token(mod)
-            check(client.any { it.contains(t) }) { "WBY alpha client missing B3 $mod token '$t': $client" }
-            check(server.any { it.contains(t) }) { "WBY alpha server missing B3 $mod token '$t': $server" }
-        }
-        wbyAlphaB4SharedMods.forEach { mod ->
-            val t = wbyAlphaB4Token(mod)
-            check(client.any { it.contains(t) }) { "WBY alpha client missing B4 $mod token '$t': $client" }
-            check(server.any { it.contains(t) }) { "WBY alpha server missing B4 $mod token '$t': $server" }
-        }
-        wbyAlphaB5ClientMods.forEach { mod ->
-            val t = wbyAlphaB5Token(mod)
-            check(client.any { it.contains(t) }) { "WBY alpha client missing B5 $mod token '$t': $client" }
-        }
-        wbyAlphaB5ServerMods.forEach { mod ->
-            val t = wbyAlphaB5Token(mod)
-            check(server.any { it.contains(t) }) { "WBY alpha server missing B5 $mod token '$t': $server" }
-        }
-        (wbyAlphaB5ClientMods - wbyAlphaB5ServerMods.toSet()).forEach { mod ->
-            val t = wbyAlphaB5Token(mod)
-            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only B5 $mod token '$t': $server" }
-        }
-        (wbyAlphaB5ServerMods - wbyAlphaB5ClientMods.toSet()).forEach { mod ->
-            val t = wbyAlphaB5Token(mod)
-            check(client.none { it.contains(t) }) { "WBY alpha client leaked server-only B5 $mod token '$t': $client" }
-        }
-        wbyAlphaB6SharedMods.forEach { mod ->
-            val t = wbyAlphaB6Token(mod)
-            check(client.any { it.contains(t) }) { "WBY alpha client missing B6 $mod token '$t': $client" }
-            check(server.any { it.contains(t) }) { "WBY alpha server missing B6 $mod token '$t': $server" }
-        }
-        wbyAlphaRadarPlaytestMods.forEach { mod ->
-            val t = wbyAlphaB6Token(mod)
-            if (wbyAlphaRadarPlaytest) {
-                check(client.any { it.contains(t) } && server.any { it.contains(t) }) {
-                    "WBY alpha radar playtest missing $mod token '$t'"
-                }
-            } else {
-                check(client.none { it.contains(t) } && server.none { it.contains(t) }) {
-                    "WBY alpha baseline leaked radar playtest mod $mod token '$t'"
-                }
-            }
-        }
-        val legacyYacl = token(waveC5Pin("yacl", "coordinate"))
-        check(client.none { it.contains(legacyYacl) } && server.none { it.contains(legacyYacl) }) {
-            "WBY alpha retained historical C5 YACL instead of the explicit B3 convergence pin: $legacyYacl"
-        }
-
-        val gliderToken = token(waveC2Pin("reliablegliders", "coordinate"))
-        check(client.none { it.contains(gliderToken) } && server.none { it.contains(gliderToken) }) {
-            "Reliable Gliders is RESERVE in the canonical alpha manifest and must not enter baseline"
-        }
-
-        println("WBY ALPHA BASELINE B1-B6 RESOLUTION PASS radarPlaytest=" + wbyAlphaRadarPlaytest)
+        println("WBY S0 LAUNCH SHELL RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
     }
 }
-
 
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
@@ -7476,25 +7371,10 @@ dependencies {
         )
     }
 
-    // #1433 canonical immutable alpha layer. Reuse exact accepted pins and test only new composition.
+    // #1433 S0 canonical launch shell: no post-S0 capability/content leakage.
     wbyAlphaEngineeringMods.forEach { mod ->
         add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
-    }
-    wbyAlphaBirdMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC5Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC5Pin(mod, "coordinate"))
-    }
-    wbyAlphaAvionicsMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
-    }
-    listOf(wbyAlphaClientRuntime, wbyAlphaServerRuntime).forEach { runtime ->
-        add(runtime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
-        add(runtime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
-        add(runtime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
-        add(runtime.runtimeOnlyConfigurationName, sfImp0084AalPin("coordinate"))
-        add(runtime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
     }
     wbyAlphaClientVisibilityMods.forEach { mod ->
         add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate"))
@@ -7507,40 +7387,6 @@ dependencies {
     }
     wbyAlphaServerOptimizerMods.forEach { mod ->
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
-    }
-    wbyAlphaB1ClientMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB1Pin(mod, "coordinate"))
-    }
-    wbyAlphaB1ServerMods.forEach { mod ->
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB1Pin(mod, "coordinate"))
-    }
-    wbyAlphaB2SharedMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
-    }
-    wbyAlphaB3SharedMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB3Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB3Pin(mod, "coordinate"))
-    }
-    wbyAlphaB4SharedMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB4Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB4Pin(mod, "coordinate"))
-    }
-    wbyAlphaB5ClientMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB5Pin(mod, "coordinate"))
-    }
-    wbyAlphaB5ServerMods.forEach { mod ->
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB5Pin(mod, "coordinate"))
-    }
-    wbyAlphaB6SharedMods.forEach { mod ->
-        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB6Pin(mod, "coordinate"))
-        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB6Pin(mod, "coordinate"))
-    }
-    if (wbyAlphaRadarPlaytest) {
-        wbyAlphaRadarPlaytestMods.forEach { mod ->
-            add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB6Pin(mod, "coordinate"))
-            add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB6Pin(mod, "coordinate"))
-        }
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
