@@ -52,12 +52,20 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             assertTrue(
                     d.finalLongitudinalHeadFeasibilityGap()
                             <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
+            String routeLabel = route.semanticReach().startCellIndex()
+                    + "->" + route.semanticReach().endCellIndex();
             assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()
-                            <= d.initialMaximumLocalEnvelopeConflict() + EPSILON);
+                                    <= d.initialMaximumLocalEnvelopeConflict() + EPSILON,
+                    "local envelope conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumLocalEnvelopeConflict() + " -> "
+                            + d.finalMaximumLocalEnvelopeConflict());
             assertTrue(
                     d.finalMaximumLongitudinalGradeConflict()
-                            <= d.initialMaximumLongitudinalGradeConflict() + EPSILON);
+                                    <= d.initialMaximumLongitudinalGradeConflict() + EPSILON,
+                    "grade-propagation conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumLongitudinalGradeConflict() + " -> "
+                            + d.finalMaximumLongitudinalGradeConflict());
             if (route.semanticReach().startCellIndex() == 801
                     && route.semanticReach().endCellIndex() == 1951) {
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
