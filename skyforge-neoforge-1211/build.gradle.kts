@@ -391,7 +391,7 @@ check(wbyAlphaPins.getProperty("neoforge.version") == "21.1.249")
 // Sep. 30 manifest moved it to RESERVE. Historical proofs remain valid but no longer define pack membership.
 val wbyAlphaEngineeringMods = listOf(
     "create", "rpl", "createbigcannons", "createaddition", "createmetallurgy",
-    "sable", "aeronautics", "createpropulsion", "jei",
+    "sable", "aeronautics", "createpropulsion",
 )
 // YACL 3.6.5 remains the historical C5 pin, but alpha convergence uses B3 YACL 3.8.2
 // because Critters & Companions requires the newer 1.21.1 line.
@@ -495,6 +495,7 @@ fun wbyAlphaB4Token(mod: String): String =
 check(wbyAlphaB4Pin("minecraft", "version") == "1.21.1")
 check(wbyAlphaB4Pin("neoforge", "version") == "21.1.249")
 val wbyAlphaB4SharedMods = listOf(
+    "jei",
     "ftblibrary", "ftbteams", "ftbquests", "ftbxmodcompat", "patchouli",
     "kubejs", "rhino", "betteradvancedtooltips", "kubejscreate", "lootjs",
     "paxi", "yungsapi", "almostunified",
