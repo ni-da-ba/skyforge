@@ -58,7 +58,7 @@ jobs:
         uses: ./.github/actions/setup-java-gradle
 
       - name: Build and generate the bound S2 specimen
-        run: ./gradlew :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence :skyforge-reference:studioBoundHydrologySemanticCorpus
+        run: ./gradlew check -x :skyforge-neoforge-1211:test :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence :skyforge-reference:studioBoundHydrologySemanticCorpus
 
       - name: Verify evidence review entry points
         run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files

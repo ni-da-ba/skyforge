@@ -12,7 +12,6 @@ SETUP_ACTION = "uses: ./.github/actions/setup-java-gradle"
 FORBIDDEN_DUPLICATE_TASKS = (
     ":skyforge-neoforge-1211:compileJava",
     ":skyforge-neoforge-1211:test",
-    "./gradlew check",
 )
 
 
@@ -95,7 +94,15 @@ def verify_text(contract: WorkflowContract, text: str) -> list[str]:
             errors.append(
                 f"{contract.path}: expected exactly one retained characterization task {task!r}"
             )
+    is_studio = contract.path.endswith("studio-desktop.yml")
+    if is_studio:
+        if "run: ./gradlew check" not in text:
+            errors.append(f"{contract.path}: evidence-producing Gradle check must remain in Studio staging")
+        if "-x :skyforge-neoforge-1211:test" not in text:
+            errors.append(f"{contract.path}: Studio must omit the duplicate canonical NeoForge unit suite")
     for task in FORBIDDEN_DUPLICATE_TASKS:
+        if task == ":skyforge-neoforge-1211:test" and is_studio and "-x :skyforge-neoforge-1211:test" in text:
+            continue
         if task in text:
             errors.append(
                 f"{contract.path}: duplicate canonical build/test task remains: {task}"
