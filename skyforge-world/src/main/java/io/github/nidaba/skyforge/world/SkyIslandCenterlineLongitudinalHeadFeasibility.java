@@ -11,5 +11,23 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
      * <p>The evaluator is diagnostic/objective evidence only; downstream ordinary-span and
      * component planners remain the independent hard admission authority.
      */
-    double evaluate(List<SkyIslandLocalPosition> centerlinePoints);
+    Score evaluate(List<SkyIslandLocalPosition> centerlinePoints);
+
+    record Score(
+            double maximumConflictWorldUnits,
+            double integratedSquaredConflictWorldUnits) {
+        Score {
+            if (!Double.isFinite(maximumConflictWorldUnits)
+                    || maximumConflictWorldUnits < 0.0
+                    || !Double.isFinite(integratedSquaredConflictWorldUnits)
+                    || integratedSquaredConflictWorldUnits < 0.0) {
+                throw new IllegalArgumentException(
+                        "longitudinal feasibility scores must be finite and non-negative");
+            }
+        }
+
+        static Score zero() {
+            return new Score(0.0, 0.0);
+        }
+    }
 }
