@@ -1,6 +1,10 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Map;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.item.Items;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 
@@ -18,10 +22,30 @@ final class SkyforgeWbyWave1VisibilityWorldPrepareAcceptance {
     }
 
     private static void onServerStarted(ServerStartedEvent event) {
+        boolean policyFixture = Boolean.getBoolean("skyforge.dev.wbyS05PolicyFixture");
+        if (policyFixture) {
+            requirePaxiProbeTag();
+        }
+
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 event.getServer(),
-                Map.of(
-                        "wbyWave1VisibilityWorldPrepared", true,
-                        "preassembledDistantSableBodyPersisted", false));
+                policyFixture
+                        ? Map.of(
+                                "wbyWave1VisibilityWorldPrepared", true,
+                                "preassembledDistantSableBodyPersisted", false,
+                                "paxiProbeTagLoaded", true)
+                        : Map.of(
+                                "wbyWave1VisibilityWorldPrepared", true,
+                                "preassembledDistantSableBodyPersisted", false));
+    }
+
+    private static void requirePaxiProbeTag() {
+        var probeTag = TagKey.create(
+                Registries.ITEM,
+                ResourceLocation.fromNamespaceAndPath("skyforge_s05", "paxi_probe"));
+        if (!Items.STICK.builtInRegistryHolder().is(probeTag)) {
+            throw new IllegalStateException(
+                    "S0.5A Paxi no-op datapack did not bind #skyforge_s05:paxi_probe to minecraft:stick");
+        }
     }
 }
