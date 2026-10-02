@@ -2199,6 +2199,90 @@ neoForge {
                 }
             })
         }
+        // S0.5A cumulative pack-authority acceptance reuses the accepted S0 visibility
+        // fixture while exercising the exact S0.5A client/server source sets.
+        create("wbyS05PrepareServer") {
+            server()
+            sourceSet.set(wbyS05ServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-s05-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-s05/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyS05ClientAcceptance") {
+            client()
+            sourceSet.set(wbyS05ClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-s05-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-s05/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Sync>("wbyS05StageClientMods") {
+                group = "verification"
+                description = "Stage exact S0.5A client mods into the ordinary mods directory."
+
+                fun coordinateToken(coordinate: String): String = coordinate.split(":").let { parts ->
+                    check(parts.size == 3)
+                    parts[1] + "-" + parts[2]
+                }
+                val expectedTokens = (
+                    wbyAlphaEngineeringMods.map { mod -> coordinateToken(waveC1Pin(mod, "coordinate")) } +
+                    wbyAlphaClientVisibilityMods.map { mod -> coordinateToken(wbyWave1Pin(mod, "coordinate")) } +
+                    wbyAlphaClientOptimizerMods.map { mod -> coordinateToken(wbyWave1BPin(mod, "coordinate")) } +
+                    wbyS05PackAuthorityMods.map(::wbyS05Token)
+                ).toSet()
+
+                from(wbyS05ClientRuntime.runtimeClasspath) {
+                    include { details -> expectedTokens.any { token -> details.file.name.contains(token) } }
+                }
+                into(layout.projectDirectory.dir("run-wby-s05/mods"))
+
+                doFirst { destinationDir.deleteRecursively() }
+                doLast {
+                    val staged = destinationDir.listFiles()
+                        ?.filter { file -> file.isFile && file.extension == "jar" }
+                        ?.map { file -> file.name }
+                        ?.sorted()
+                        ?: emptyList()
+                    expectedTokens.forEach { token ->
+                        check(staged.any { name -> name.contains(token) }) {
+                            "S0.5A staged client mods missing token '$token': $staged"
+                        }
+                    }
+                    check(staged.size == expectedTokens.size) {
+                        "S0.5A staged client mods contain unexpected jars: expected=" + expectedTokens.size + " staged=" + staged
+                    }
+                    println("WBY S0.5A CLIENT MOD STAGING PASS")
+                }
+            })
+        }
+
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
