@@ -569,3 +569,45 @@ Biome and structure **diversity is considered sufficient for Alpha**. Do not exp
 4. Defer magmatic-drainage implementation, fine player-feel tuning, progression balancing, and deep semantic interception until Skyforge's internal terrain/hydrology systems and the integrated mod stack are mature enough to support meaningful testing.
 
 **Decision principle:** maximize useful existing vocabulary while minimizing bespoke Alpha work. Skyforge ultimately owns causal semantics and placement; temporary generators are scaffolding.
+
+
+## Cross-dimensional ecosystem audit — retained-system extensions
+
+**Status:** 2026-10-02 research pass. Goal: make Nether and End extensions of Skyforge's existing engineering/domestic systems rather than parallel minigames. Version compatibility below is specifically for the current Minecraft 1.21.1 NeoForge Alpha target and must be reverified at implementation time.
+
+### Strong keeps / integration candidates
+- **My Nether's Delight** — strong Nether-side Farmer's Delight extension. Current 1.21.1 NeoForge release exists. Use it to make Nether fauna/flora into a real expeditionary food economy and support locally sustained Nether bases. Its recipes/content remain subject to Skyforge ecology and progression normalization.
+- **End's Delight** — strong End-side Farmer's Delight extension. Current 1.21.1 NeoForge build exists. Use it to make End-derived ingredients and field cooking part of expedition sustainment without turning the End into a separate survival game.
+- **Farmer's Cutting: BetterEnd** — strong lightweight compatibility layer for BetterEnd + Farmer's Delight on 1.21.1 NeoForge/datapack. Particularly valuable because it maps BetterEnd woods/flora/crystals into an already-retained processing verb instead of adding another progression system.
+- **Create: Nether Industry** — strong R&D/integration candidate. Current 1.21.1 NeoForge Create addon; Nether-themed processing includes soul-related processing and Nylium agriculture. Test whether it makes Nether phenomena useful inputs to the common Create industrial language without introducing an unwanted parallel material ladder.
+- **Create: Enchantment Industry** — cross-dimensional rather than dimension-specific, but a strong candidate for making XP/enchantment resources from dangerous Nether/End expeditions feed back into the common Create factory economy. Current 1.21.1 NeoForge builds exist. Retention depends on progression/economy audit.
+- **Create Slice & Dice** — already reserve/A-B in the general stack; current 1.21.1 NeoForge support strengthens its value as an automation bridge if My Nether's Delight / End's Delight recipes expose meaningful agricultural-processing gaps not covered by Central Kitchen.
+
+### Existing retained systems that already create cross-dimensional continuity
+- **Create Big Cannons** already supplies Nethersteel as part of the retained heavy-industry material ladder. Keep Nethersteel geographically/economically meaningful rather than allowing dimensionless recipe bypasses.
+- **Create Aeronautics / Sable** is itself a major dimension-integration system: the same engineered vehicles enter radically different pressure, morphology, visibility, and threat environments. Dimension-specific behavior should come from environmental inputs rather than separate vehicle systems.
+- **Create Propulsion: Simulated / advanced propulsion** remains the candidate for propulsion regimes where ordinary atmospheric propellers become poor choices, especially the End. Do not force an End-specific engine tier unless actual pressure/flight testing justifies it.
+- **Farmer's Delight + Central Kitchen** remain the common food/automation substrate. Dimension-specific Delight addons should extend that substrate, not replace it.
+- **Supplementaries** remains a common ordinary-life/infrastructure vocabulary across dimensions; no separate Nether/End Supplementaries layer is required merely for thematic coverage.
+
+### Reject / avoid by default
+- **Create: Netherless** — reject for Skyforge's main progression. Its explicit purpose is producing/automating Nether resources without Nether access, which directly undermines authored geography, cross-dimensional logistics, and the economic reason to build Nether infrastructure. Individual mechanics may be reconsidered only if they can be isolated without enabling geographic bypass.
+- Do not add dimension-themed Create/Delight addons solely because they exist. A candidate must connect a retained system to a dimension-specific input, constraint, or opportunity and must not create a redundant progression tree.
+
+### Integration doctrine
+1. **One game across three environments.** Create machinery, Farmer's Delight processing, CBC industry, electrical systems, logistics, aircraft, and ordinary building vocabulary remain recognizable everywhere.
+2. **Dimensions contribute inputs and constraints, not replacement tech trees.** Nether heat/souls/fauna/materials and End biology/crystals/low pressure should feed the shared economy.
+3. **Local sustainment is desirable but should be earned.** Nether and End expeditions can develop into persistent bases capable of food/repair/processing, while strategic imports and exports preserve interdimensional logistics.
+4. **Do not erase geographic value through automation.** Automation may improve extraction and processing after access is established; it should not make the dimension unnecessary.
+5. **Prefer compatibility recipes/datapacks over new machinery.** Existing verbs—cutting, cooking, mixing, pressing, milling, casting, distillation, logistics—should absorb new dimension resources wherever sensible.
+6. **Normalize materials and recipes.** Imported addon tiers are not automatically Skyforge tiers. Map duplicate materials to canonical tags/identities and remove circular or geography-bypassing recipes.
+7. **Test the feedback loop:** dimension exploration -> unique input/resource -> shared industrial/domestic processing -> new capability or sustained operation -> reason to establish routes/infrastructure -> further exploration.
+
+### Integration-test bundle
+- A/B My Nether's Delight with the selected Nether ecology stack; verify food sourcing, mob drops, crop placement, recipe overlap, and whether a Nether base can become locally sustainable without trivializing imports.
+- A/B End's Delight + Farmer's Cutting: BetterEnd against the retained BetterEnd/Phantasm/Unusual End ecology stack; verify recipe coverage, duplicate ingredients, dragon/shulker progression assumptions, and expedition sustainment.
+- Test Create: Nether Industry separately before combining it with the full Nether worldgen stack; inspect recipe graph, soul-processing semantics, Nylium farming, material duplication, and geography-bypass risks.
+- Test Enchantment Industry as an economy bridge rather than a dimension mod: determine whether Nether/End XP and enchantment rewards become useful industrial inputs without collapsing exploration rewards into a generic XP farm.
+- Re-run recipe/capability closure after each retained addon. Cross-dimensional integration must strengthen the unified Skyforge economy rather than create hidden parallel ladders.
+
+**Audit conclusion:** the strongest immediate additions are My Nether's Delight, End's Delight, Farmer's Cutting: BetterEnd, and Create: Nether Industry. Enchantment Industry and Slice & Dice are broader integration A/B candidates. Create: Netherless conflicts with the current geography/logistics doctrine and should remain excluded.
