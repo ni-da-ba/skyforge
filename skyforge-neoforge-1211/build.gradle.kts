@@ -6664,6 +6664,25 @@ tasks.register("wbyWave1ResolvePinnedMods") {
 
 
 
+fun writeWbyIndustrialDieselSuppression(directory: File, levelName: String) {
+    if (!wbyIndustrialDieselGenerators) {
+        return
+    }
+    check(levelName.isNotBlank()) {
+        "WBY industrial Diesel Generators requires an explicit level name so C25 suppression can be scoped"
+    }
+    val serverConfig = directory.resolve("$levelName/serverconfig/createdieselgenerators-server.toml")
+    serverConfig.parentFile.mkdirs()
+    serverConfig.writeText(
+        """
+        ["Server Configs"."Oil Config"]
+        "Disable normal oil chunks" = true
+        "Disable high oil chunks" = true
+        """.trimIndent() + "\n"
+    )
+    println("WBY INDUSTRIAL DIESEL SUPPRESSION CONFIG PASS level=$levelName")
+}
+
 tasks.named("runWbyWave1VisibilityServer").configure {
     doFirst {
         if (!wbyIndustrialDieselGenerators) {
@@ -6678,21 +6697,19 @@ tasks.named("runWbyWave1VisibilityServer").configure {
         val serverProperties = Properties().also { properties ->
             serverPropertiesFile.inputStream().use(properties::load)
         }
-        val levelName = serverProperties.getProperty("level-name")?.trim().orEmpty()
-        check(levelName.isNotEmpty()) {
-            "WBY industrial Diesel Generators requires an explicit level-name so C25 suppression can be scoped"
-        }
-
-        val serverConfig = directory.resolve("$levelName/serverconfig/createdieselgenerators-server.toml")
-        serverConfig.parentFile.mkdirs()
-        serverConfig.writeText(
-            """
-            ["Server Configs"."Oil Config"]
-            "Disable normal oil chunks" = true
-            "Disable high oil chunks" = true
-            """.trimIndent() + "\n"
+        writeWbyIndustrialDieselSuppression(
+            directory,
+            serverProperties.getProperty("level-name")?.trim().orEmpty(),
         )
-        println("WBY INDUSTRIAL DIESEL SUPPRESSION CONFIG PASS level=$levelName")
+    }
+}
+
+tasks.named("runWbyWave1VisibilityClientAcceptance").configure {
+    doFirst {
+        writeWbyIndustrialDieselSuppression(
+            layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile.resolve("saves"),
+            "wby-wave1-visibility-client",
+        )
     }
 }
 
