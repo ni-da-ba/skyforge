@@ -281,6 +281,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
         appendStationSample(points, cumulative, pathLength, endStation, spanPoints, spanStations);
 
+        double[] spanCumulative = cumulativeDistance(spanPoints);
         double reachableLower = Double.NaN;
         double reachableUpper = Double.NaN;
         double maximumConflict = 0.0;
@@ -298,7 +299,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         "confluence-to-CASCADE grade scoring requires non-zero tangents");
             }
             SkyIslandChannelProfileKind kind =
-                    SkyIslandHydraulicHeadEnvelopePlanner.profileKind(profiles, station);
+                    index + 1 == spanPoints.size()
+                            ? profiles.get(cascadeStart - 1).kind()
+                            : SkyIslandHydraulicHeadEnvelopePlanner.profileKind(profiles, station);
             SkyIslandGeomorphicQualificationClass qualificationClass =
                     qualificationClass(kind);
             SkyIslandHydraulicHeadEnvelope envelope =
@@ -328,8 +331,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 reachableUpper = localUpper;
                 continue;
             }
-            double ds = cumulativeDistance(spanPoints)[index]
-                    - cumulativeDistance(spanPoints)[index - 1];
+            double ds = spanCumulative[index] - spanCumulative[index - 1];
             double maxDrop =
                     policy.limits(qualificationClass).maximumLongitudinalGrade() * ds;
             double nextLower = Math.max(localLower, reachableLower - maxDrop);
