@@ -2172,7 +2172,7 @@ neoForge {
                     }
                     println("WBY S0 CLIENT MOD STAGING PASS")
                 }
-            }))
+            })
         }
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
