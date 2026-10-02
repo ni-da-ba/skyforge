@@ -329,9 +329,8 @@ jobs:
             --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
             --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
             --tests '*HydrologyGeomorphicQualificationCorpusTest' \
-            :skyforge-neoforge-1211:test \
-            --tests '*SkyforgeQualifiedFluvialVoxelRemovalProjectionTest' \
             --no-configuration-cache
+      # The broad world/reference regression suite above runs each selected test once. CI owns the full adapter regression; keep this focused workflow from re-running the projection and key-287 tests with --rerun-tasks.
       - name: Print F3H regression diagnostic
         if: success()
         run: |
@@ -416,7 +415,6 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv
           echo "--- realized-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/realized-reaches.csv
-          ./gradlew :skyforge-world:test --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest' --rerun-tasks --no-configuration-cache
           if [ ! -f skyforge-reference/build/evidence/hydrology-world-projection-test-a/summary.csv ]; then
             ./gradlew :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' --rerun-tasks --no-configuration-cache
           fi
@@ -457,7 +455,6 @@ jobs:
           cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/summary.csv
           echo "--- refined-voxel-quantization-reaches.csv ---"
           cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/reaches.csv
-          ./gradlew :skyforge-world:test --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' --rerun-tasks --no-configuration-cache
           echo "--- D2 centerline candidate admissibility: key 287 ---"
           cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
           echo "--- D2 semantic-corridor feasibility: key 287 ---"
