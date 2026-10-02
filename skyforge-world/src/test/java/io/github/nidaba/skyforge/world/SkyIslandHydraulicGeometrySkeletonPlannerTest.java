@@ -77,6 +77,12 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         d.finalMaximumLongitudinalGradeConflict()
                                 < d.initialMaximumLongitudinalGradeConflict(),
                         "minimax refinement must reduce the worst key-700 grade conflict");
+                assertTrue(
+                        d.finalMaximumConfluenceCascadeGradeConflict()
+                                < d.initialMaximumConfluenceCascadeGradeConflict(),
+                        "refinement must reduce free grade conflict on the confluence-to-CASCADE ordinary span: "
+                                + d.initialMaximumConfluenceCascadeGradeConflict() + " -> "
+                                + d.finalMaximumConfluenceCascadeGradeConflict());
             }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
@@ -100,6 +106,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialMaximumLongitudinalGradeConflict())
                     .append(" finalMaxLongitudinalGradeConflict=")
                     .append(d.finalMaximumLongitudinalGradeConflict())
+                    .append(" initialConfluenceCascadeGradeConflict=")
+                    .append(d.initialMaximumConfluenceCascadeGradeConflict())
+                    .append(" finalConfluenceCascadeGradeConflict=")
+                    .append(d.finalMaximumConfluenceCascadeGradeConflict())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
