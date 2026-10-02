@@ -242,6 +242,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 initial.longitudinalHeadFeasibilityGap(),
                 initial.maximumLocalEnvelopeConflict(),
                 initial.maximumLongitudinalGradeConflict(),
+                initial.maximumConfluenceCascadeGradeConflict(),
                 best.maximumHeadEnvelopeGap(),
                 best.maximumHeadEnvelopeGapIndex(),
                 best.maximumHeadEnvelopeGapStation(),
@@ -249,6 +250,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 best.longitudinalHeadFeasibilityGap(),
                 best.maximumLocalEnvelopeConflict(),
                 best.maximumLongitudinalGradeConflict(),
+                best.maximumConfluenceCascadeGradeConflict(),
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
@@ -774,6 +776,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 integratedSquaredGap,
                 longitudinalScore.maximumLocalEnvelopeConflictWorldUnits(),
                 longitudinalScore.maximumGradePropagationConflictWorldUnits(),
+                longitudinalScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
                 longitudinalScore.integratedSquaredConflictWorldUnits());
     }
 
@@ -844,6 +847,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     firstScore.maximumGradePropagationConflictWorldUnits(),
                     secondScore.maximumGradePropagationConflictWorldUnits());
             if (maximumGrade != 0) return maximumGrade;
+            int confluenceCascadeGrade = Double.compare(
+                    firstScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
+                    secondScore.maximumConfluenceCascadeGradeConflictWorldUnits());
+            if (confluenceCascadeGrade != 0) return confluenceCascadeGrade;
             int maximumLocal = Double.compare(
                     firstScore.maximumLocalEnvelopeConflictWorldUnits(),
                     secondScore.maximumLocalEnvelopeConflictWorldUnits());
@@ -1153,6 +1160,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double initialLongitudinalHeadFeasibilityGap,
             double initialMaximumLocalEnvelopeConflict,
             double initialMaximumLongitudinalGradeConflict,
+            double initialMaximumConfluenceCascadeGradeConflict,
             double finalMaximumHeadEnvelopeGap,
             int finalMaximumHeadEnvelopeGapIndex,
             double finalMaximumHeadEnvelopeGapStation,
@@ -1160,6 +1168,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double finalLongitudinalHeadFeasibilityGap,
             double finalMaximumLocalEnvelopeConflict,
             double finalMaximumLongitudinalGradeConflict,
+            double finalMaximumConfluenceCascadeGradeConflict,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
             long lateralCandidateCorridorRejected,
@@ -1212,6 +1221,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double integratedSquaredHeadEnvelopeGap,
             double maximumLocalEnvelopeConflict,
             double maximumLongitudinalGradeConflict,
+            double maximumConfluenceCascadeGradeConflict,
             double longitudinalHeadFeasibilityGap) {
         private boolean refinementResidualsNoWorseThan(Candidate other) {
             return maximumHeadEnvelopeGap <= other.maximumHeadEnvelopeGap + EPSILON
@@ -1220,7 +1230,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     && maximumLocalEnvelopeConflict
                             <= other.maximumLocalEnvelopeConflict + EPSILON
                     && maximumLongitudinalGradeConflict
-                            <= other.maximumLongitudinalGradeConflict + EPSILON;
+                            <= other.maximumLongitudinalGradeConflict + EPSILON
+                    && maximumConfluenceCascadeGradeConflict
+                            <= other.maximumConfluenceCascadeGradeConflict + EPSILON;
         }
 
         private int compareTo(Candidate other, double minimumBendRadius) {
@@ -1251,6 +1263,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (integratedGap != 0) {
                 return integratedGap;
             }
+            int maximumConfluenceCascade = Double.compare(
+                    maximumConfluenceCascadeGradeConflict,
+                    other.maximumConfluenceCascadeGradeConflict);
+            if (maximumConfluenceCascade != 0) return maximumConfluenceCascade;
             int maximumLongitudinal = Double.compare(
                     maximumLongitudinalGradeConflict,
                     other.maximumLongitudinalGradeConflict);
