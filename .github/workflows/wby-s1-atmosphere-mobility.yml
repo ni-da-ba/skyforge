@@ -75,7 +75,7 @@ jobs:
           set -euo pipefail
           ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run --no-configuration-cache | tee wby-s1-server-dry-run.log
           ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run --no-configuration-cache | tee wby-s1-client-dry-run.log
-          ./gradlew :skyforge-neoforge-1211:wbyS1ClientJoinAcceptance --dry-run --no-configuration-cache | tee wby-s1-join-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run --no-configuration-cache | tee wby-s1-join-dry-run.log
           grep -Fq 'wbyS1StagePolicy' wby-s1-server-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s1-client-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s1-join-dry-run.log
@@ -141,7 +141,7 @@ jobs:
           test -f "$server_dir/world/level.dat"
 
           set +e
-          timeout --signal=INT 180 xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:wbyS1ClientJoinAcceptance \
+          timeout --signal=INT 180 xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
             -PwbyS1RunDirectory=run-wby-s1-client --no-configuration-cache 2>&1 | tee wby-s1-client.log
           client_status=${PIPESTATUS[0]}
           set -e
