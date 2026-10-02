@@ -2654,6 +2654,74 @@
     }
   });
 
+  async function loadHydrologyRunFolder(files) {
+    const jsonFiles = Array.from(files || []).filter(file => file.name.toLowerCase().endsWith(".json"));
+    if (jsonFiles.length === 0) {
+      throw new Error("Choose a folder containing the terrain and hydrology JSON files.");
+    }
+    if (jsonFiles.length > 512) {
+      throw new Error("This folder contains more than 512 JSON files. Choose a narrower run folder or select the two files directly.");
+    }
+
+    const kindCandidates = {
+      terrain: [],
+      hydrology: [],
+    };
+    await Promise.all(jsonFiles.map(async file => {
+      const prefix = await file.slice(0, 8192).text();
+      if (prefix.includes("SKYFORGE_TERRAIN_SEMANTIC_VOLUME")) kindCandidates.terrain.push(file);
+      if (prefix.includes("SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER")) kindCandidates.hydrology.push(file);
+    }));
+
+    if (kindCandidates.terrain.length !== 1 || kindCandidates.hydrology.length !== 1) {
+      throw new Error(
+        "Expected exactly one terrain semantic volume and one bound hydrology layer in this folder; found " +
+        kindCandidates.terrain.length + " terrain and " + kindCandidates.hydrology.length +
+        " hydrology files. Choose a narrower folder or select the pair directly."
+      );
+    }
+
+    const [terrainFile, hydrologyFile] = [kindCandidates.terrain[0], kindCandidates.hydrology[0]];
+    const [terrainSourceJson, hydrologySourceJson] = await Promise.all([
+      terrainFile.text(),
+      hydrologyFile.text(),
+    ]);
+    const terrainArtifact = JSON.parse(terrainSourceJson);
+    const hydrologyArtifact = JSON.parse(hydrologySourceJson);
+    if (terrainArtifact?.artifact_kind !== "SKYFORGE_TERRAIN_SEMANTIC_VOLUME" ||
+        hydrologyArtifact?.artifact_kind !== "SKYFORGE_BOUND_HYDROLOGY_SEMANTIC_LAYER") {
+      throw new Error("The selected files changed while Studio was reading the run folder. Choose the folder again.");
+    }
+
+    loadLocalPair(
+      terrainArtifact,
+      terrainFile.name,
+      hydrologyArtifact,
+      hydrologyFile.name,
+      terrainSourceJson,
+      hydrologySourceJson
+    );
+  }
+
+  $("open-hydrology-run-folder").addEventListener("click", () => {
+    $("local-hydrology-run-folder").click();
+  });
+  $("local-hydrology-run-folder").addEventListener("change", async event => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    try {
+      await loadHydrologyRunFolder(files);
+    } catch (error) {
+      $("source-status").textContent = String(error.message || error);
+    } finally {
+      event.target.value = "";
+    }
+  });
+
+  $("home-open-hydrology-folder").addEventListener("click", () => {
+    selectWorkspaceView("inspect");
+    $("open-hydrology-run-folder").click();
+  });
   $("home-open-hydrology-sample").addEventListener("click", () => {
     selectWorkspaceView("inspect");
     $("open-bundled-sample").click();
