@@ -30,7 +30,7 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
         }
 
         static Score zero() {
-            return new Score(0.0, 0.0);
+            return new Score(0.0, 0.0, 0.0);
         }
     }
 }
