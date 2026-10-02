@@ -93,10 +93,11 @@
         <article class="panel studio-home-card">
           <p class="eyebrow">HYDROLOGY</p>
           <h3>Inspect an authored run</h3>
-          <p>Open the included terrain and hydrology together, or load a matching pair from your own run.</p>
+          <p>Inspect the included example, open a folder from your own run, or choose its two files directly.</p>
           <div class="home-action-stack">
-            <button id="home-open-hydrology-sample" type="button">Open included hydrology example</button>
-            <button id="home-open-hydrology-files" type="button" class="secondary">Open my terrain + hydrology pair</button>
+            <button id="home-open-hydrology-folder" type="button">Open my hydrology run folder</button>
+            <button id="home-open-hydrology-sample" type="button" class="secondary">Open included hydrology example</button>
+            <button id="home-open-hydrology-files" type="button" class="secondary">Choose terrain + hydrology files</button>
           </div>
         </article>
         <article class="panel studio-home-card">
@@ -386,6 +387,12 @@
             <label for="local-pair-files">Terrain + hydrology pair</label>
             <input id="local-pair-files" type="file" accept=".json,application/json" multiple>
             <p class="small muted">Select both JSON files together to see this specimen in Studio. Local diagnostics only.</p>
+          </div>
+          <div>
+            <label>Hydrology run folder</label>
+            <button id="open-hydrology-run-folder" type="button" class="secondary">Choose run folder</button>
+            <input id="local-hydrology-run-folder" type="file" accept=".json,application/json" webkitdirectory directory multiple hidden>
+            <p class="small muted">Choose a folder containing one terrain semantic volume and its bound hydrology layer.</p>
           </div>
         </div>
         <p id="source-status" class="small muted" aria-live="polite"></p>
