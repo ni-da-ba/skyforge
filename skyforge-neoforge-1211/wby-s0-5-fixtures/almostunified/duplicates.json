@@ -1,0 +1,16 @@
+{
+  "ignored_recipe_types": [],
+  "ignored_recipes": [],
+  "default_duplicate_rules": {
+    "ignored_fields": [
+      "show_notification",
+      "neoforge:conditions",
+      "category",
+      "group"
+    ],
+    "rules": {},
+    "handle_implicit_counts": false
+  },
+  "override_duplicate_rules": {},
+  "compare_all": false
+}
