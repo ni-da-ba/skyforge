@@ -5,6 +5,8 @@
 **Authority:** Canonical design-selection/status surface for third-party Minecraft dependencies in Project Skyforge.  
 **Release status:** This is a **design roster**, not yet the public-alpha redistribution lock. Version pinning, licenses, transitive dependencies, and exact runtime compatibility are reverified before pack assembly under HS-10.
 
+**Execution sequence:** [Staged Mod Integration Strategy](staged-mod-integration-strategy.md). The stack is integrated as launchable slices; unresolved A/B candidates are comparison overlays rather than automatic cumulative dependencies.
+
 When this file conflicts with older design-audit candidate language, **this file wins** unless a newer accepted lane-state milestone, source/test result, or explicit owner decision supersedes it.
 
 The purpose of this ledger is to end repeated mod discovery. Skyforge now has enough content vocabulary. New dependency searches require a **specific demonstrated capability gap**, a hard incompatibility in the selected solution, or a distribution/licensing blocker.
