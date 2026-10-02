@@ -405,9 +405,9 @@ val wbyS05Pins = Properties().apply { wbyS05PinFile.asFile.inputStream().use(::l
 check(wbyS05Pins.getProperty("minecraft.version") == "1.21.1")
 check(wbyS05Pins.getProperty("neoforge.version") == "21.1.249")
 fun wbyS05Pin(mod: String, field: String): String =
-    requireNotNull(wbyS05Pins.getProperty("\$mod.\$field")) { "missing WBY S0.5 pin: \$mod.\$field" }
+    requireNotNull(wbyS05Pins.getProperty("$mod.$field")) { "missing WBY S0.5 pin: $mod.$field" }
 fun wbyS05Token(mod: String): String =
-    wbyS05Pins.getProperty("\$mod.artifactToken") ?: wbyS05Pin(mod, "coordinate").split(":").let { parts ->
+    wbyS05Pins.getProperty("$mod.artifactToken") ?: wbyS05Pin(mod, "coordinate").split(":").let { parts ->
         check(parts.size == 3)
         parts[1] + "-" + parts[2]
     }
@@ -6554,14 +6554,53 @@ tasks.register("wbyS05ResolvePinnedMods") {
     group = "verification"
     description = "Resolve S0.5A cumulative pack-authority shell."
     inputs.file(wbyS05PinFile)
+    inputs.file(waveC1PinFile)
+    inputs.file(wbyWave1PinFile)
+    inputs.file(wbyWave1BPinFile)
     doLast {
+        fun token(coordinate: String): String = coordinate.split(":").let { parts ->
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            parts[1] + "-" + parts[2]
+        }
         val client = wbyS05ClientRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
         val server = wbyS05ServerRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
-        wbyS05PackAuthorityMods.forEach { mod ->
-            val token = wbyS05Token(mod)
-            check(client.any { name -> name.contains(token) }) { "S0.5 client missing \$mod token '\$token'" }
-            check(server.any { name -> name.contains(token) }) { "S0.5 server missing \$mod token '\$token'" }
+
+        wbyAlphaEngineeringMods.forEach { mod ->
+            val expected = token(waveC1Pin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 $mod token '$expected'" }
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 $mod token '$expected'" }
         }
+        wbyAlphaClientVisibilityMods.forEach { mod ->
+            val expected = token(wbyWave1Pin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 visibility $mod token '$expected'" }
+        }
+        wbyAlphaServerVisibilityMods.forEach { mod ->
+            val expected = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 visibility $mod token '$expected'" }
+        }
+        wbyAlphaClientOptimizerMods.forEach { mod ->
+            val expected = token(wbyWave1BPin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 optimizer $mod token '$expected'" }
+        }
+        wbyAlphaServerOptimizerMods.forEach { mod ->
+            val expected = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 optimizer $mod token '$expected'" }
+        }
+        wbyS05PackAuthorityMods.forEach { mod ->
+            val expected = wbyS05Token(mod)
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing $mod token '$expected'" }
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing $mod token '$expected'" }
+        }
+
+        listOf("sodium", "distanthorizons").forEach { mod ->
+            val forbidden = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.none { name -> name.contains(forbidden) }) { "S0.5 server leaked client-only $mod token '$forbidden'" }
+        }
+        listOf("immediatelyfast", "dynamicfps").forEach { mod ->
+            val forbidden = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.none { name -> name.contains(forbidden) }) { "S0.5 server leaked client-only $mod token '$forbidden'" }
+        }
+
         println("WBY S0.5A PACK AUTHORITY RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
