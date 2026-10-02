@@ -1,0 +1,253 @@
+name: WBY Integration PT-03 Computing Avionics
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-pt03-computing-avionics.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC14AvionicsCapabilityAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC7GliderLiftDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityLifecycleAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-pt03-computing-avionics-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pt03-computing-avionics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: dynamicfps
+      ORG_GRADLE_PROJECT_wbyPt02Glider: "true"
+      ORG_GRADLE_PROJECT_wbyPt02ElytraSuppression: "true"
+      ORG_GRADLE_PROJECT_wbyPt03ComputingAvionics: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve accepted cumulative PT-03 stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache | tee wby-pt03-resolve.log
+          grep -q 'WBY Wave 1B optimizer=dynamicfps' wby-pt03-resolve.log
+          grep -q 'WBY PT-02 glider overlay=enabled' wby-pt03-resolve.log
+          grep -q 'WBY PT-02 Elytra suppression=enabled' wby-pt03-resolve.log
+          grep -q 'WBY PT-03 computing/avionics=enabled' wby-pt03-resolve.log
+          grep -q 'gu7yAYhd-puxJkazX' wby-pt03-resolve.log
+          grep -q 'h4nsLvjf-sWhAueMC' wby-pt03-resolve.log
+
+      - name: Prove C14 capability inside cumulative W1 PT-02 server stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-pt03-c14
+          level-seed=601400
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25575
+          EOF
+
+          log="wby-pt03-c14-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC14AvionicsCapability=true"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 180); do
+            if grep -Fq 'WAVE_C14 PASS' "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq 'WAVE_C14 FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C14 PASS' "$log"
+          for mod in create sable aeronautics ssrd lithium ferritecore reliable_gliders aerodynamics4mc; do
+            grep -Eq "\\($mod\\)" "$log"
+          done
+          if grep -Eq '\\(sodium\\)|\\(distanthorizons\\)|\\(immediatelyfast\\)|\\(dynamic_fps\\)' "$log"; then
+            echo "PT-03 dedicated server leaked a client-only renderer/optimizer mod"
+            exit 1
+          fi
+
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Prove PT-02 shared lift survives PT-03 computing stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-pt03-c7
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25576
+          EOF
+
+          log="wby-pt03-c7-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 180); do
+            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Prepare disposable actual-client world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          rm -rf "$run_dir"
+          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          mapfile -t level_files < <(find "$run_dir" -maxdepth 4 -type f -name level.dat -print)
+          test "${#level_files[@]}" -eq 1
+          source_world="$(dirname "${level_files[0]}")"
+          client_world="$run_dir/saves/wby-wave1-visibility-client"
+          if [[ "$source_world" != "$client_world" ]]; then
+            rm -rf "$client_world"
+            mkdir -p "$run_dir/saves"
+            cp -a "$source_world" "$client_world"
+          fi
+
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact PT-03 client stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+          mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          find "$mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-pt03-client-jars.txt
+          test "$(wc -l < wby-pt03-client-jars.txt)" -eq 15
+          grep -q 'pVIWsXir-HFLhMfNC' wby-pt03-client-jars.txt
+          grep -q 'UnshaaiE-6Z0Z1pfP' wby-pt03-client-jars.txt
+          grep -q 'uNWWxAv9-G9hL7wPy' wby-pt03-client-jars.txt
+          grep -q 'gu7yAYhd-puxJkazX' wby-pt03-client-jars.txt
+          grep -q 'h4nsLvjf-sWhAueMC' wby-pt03-client-jars.txt
+
+      - name: Requalify distant Sable actual-client visibility with PT-03
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-pt03-actual-client.log"
+          timeout 300 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance --no-configuration-cache 2>&1 | tee "$log"
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+      - name: Upload PT-03 admission evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-pt03-computing-avionics
+          path: |
+            wby-pt03-*.log
+            wby-pt03-client-jars.txt
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+          if-no-files-found: warn
