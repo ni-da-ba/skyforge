@@ -117,7 +117,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
     }
 
-    private static double longitudinalHeadFeasibilityGap(
+    private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalHeadFeasibilityGap(
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticChannelReach semantic,
             List<SkyIslandLocalPosition> points,
@@ -132,6 +132,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         SkyIslandChannelProfileKind[] kinds =
                 new SkyIslandChannelProfileKind[points.size()];
         double[] squaredConflicts = new double[points.size()];
+        double maximumConflict = 0.0;
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition position = points.get(i);
             double station = cumulative[i] / pathLength;
@@ -183,6 +184,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double localUpper = envelope.upperHead();
             double localConflict = Math.max(0.0, localLower - localUpper);
             if (localConflict > 0.0) {
+                maximumConflict = Math.max(maximumConflict, localConflict);
                 squaredConflicts[i] += localConflict * localConflict;
                 double midpoint = 0.5 * (localLower + localUpper);
                 localLower = midpoint;
@@ -199,6 +201,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double nextUpper = Math.min(localUpper, reachableUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
             if (conflict > 0.0) {
+                maximumConflict = Math.max(maximumConflict, conflict);
                 squaredConflicts[i] += conflict * conflict;
                 // Continue scoring downstream from the nearest admissible local interval. This
                 // keeps the objective informative without pretending the violated path is feasible.
@@ -222,9 +225,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     0.5 * (squaredConflicts[i] + squaredConflicts[i + 1]) * ds;
             ordinaryLength += ds;
         }
-        return ordinaryLength > 0.0
-                ? integratedSquaredConflict / ordinaryLength
-                : 0.0;
+        return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
+                maximumConflict,
+                ordinaryLength > 0.0
+                        ? integratedSquaredConflict / ordinaryLength
+                        : 0.0);
     }
 
     record CenterlineRefinement(
