@@ -87,7 +87,7 @@
         <article class="panel studio-home-card">
           <p class="eyebrow">INSPECT</p>
           <h3>Explore semantic evidence</h3>
-          <p>Open a bundled specimen or connect to a registered artifact source. Provenance remains visible in the inspector.</p>
+          <p id="inspect-source-copy">Open a bundled specimen or connect to a registered artifact source. Provenance remains visible in the inspector.</p>
           <button type="button" class="home-action" data-open-workspace="inspect">Inspect a specimen</button>
         </article>
         <article class="panel studio-home-card">
@@ -123,7 +123,7 @@
         <div>
           <p class="eyebrow">WORLD INTENT · LOCAL DRAFT</p>
           <h2 id="world-brief-heading">Start with the world you imagine</h2>
-          <p class="muted">Describe it in your own words. Studio keeps drafts in this browser while generation services are being connected.</p>
+          <p id="brief-storage-copy" class="muted">Describe it in your own words. Studio keeps drafts in this browser while generation services are being connected.</p>
         </div>
         <span class="pill warn">Not evaluated</span>
       </div>
@@ -166,7 +166,7 @@
             <h3 id="generation-status-heading">World generation</h3>
             <span class="pill warn">Not connected</span>
           </div>
-          <p class="muted">This Studio preview has no generator connected. Your brief stays in this browser; it is not sent to a service, evaluated, or turned into a world.</p>
+          <p id="world-generation-copy" class="muted">This Studio preview has no generator connected. Your brief stays in this browser; it is not sent to a service, evaluated, or turned into a world.</p>
           <button type="button" class="full-button" disabled aria-describedby="generation-disabled-reason">Generate world</button>
           <p id="generation-disabled-reason" class="small muted">Generation will be enabled when a semantic evaluator and a realization backend are connected.</p>
           <div class="backend-next">
@@ -274,7 +274,7 @@
         <div class="section-heading">
           <div>
             <h4 id="terrain-comparison-library-heading">Saved in this browser</h4>
-            <p class="small muted">Open a saved comparison here at any time. The list stays in this browser profile; it is not synced or uploaded. Load two versions above to enable saving.</p>
+            <p id="terrain-comparison-library-description" class="small muted">Open a saved comparison here at any time. The list stays in this browser profile; it is not synced or uploaded. Load two versions above to enable saving.</p>
           </div>
         </div>
         <label for="terrain-comparison-library-title">Name this comparison</label>
@@ -390,7 +390,7 @@
           <p id="inspection-workspace-status" class="small muted" aria-live="polite"></p>
         </div>
         <div class="workspace-session-controls">
-          <label class="workspace-session-toggle"><input id="remember-inspection" type="checkbox"> Remember this inspection in this browser</label>
+          <label class="workspace-session-toggle"><input id="remember-inspection" type="checkbox"> <span id="remember-inspection-copy">Remember this inspection in this browser</span></label>
           <button id="workspace-session-forget" type="button" class="secondary" disabled>Forget saved inspection</button>
           <p id="workspace-session-status" class="small muted" aria-live="polite">Off by default. Your sources are never uploaded.</p>
           <p class="small muted">Only the current scene, optional hydrology overlay, and view controls are saved. Comparison candidates, reports, and development access are never included.</p>
@@ -710,7 +710,7 @@
         <section class="regional-library" aria-labelledby="regional-library-heading">
           <div>
             <h3 id="regional-library-heading">Saved in this browser</h3>
-            <p class="small muted">Save named comparisons on this device. Nothing is uploaded. Use a portable package to move a comparison to another browser.</p>
+            <p id="regional-library-description" class="small muted">Save named comparisons on this device. Nothing is uploaded. Use a portable package to move a comparison to another browser.</p>
           </div>
           <label for="regional-library-title">Name this comparison</label>
           <div class="regional-library-save-row">
