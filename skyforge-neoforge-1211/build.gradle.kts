@@ -195,6 +195,23 @@ val wbyWave1VisibilityServerRuntime = sourceSets.create("wbyWave1VisibilityServe
         development.output
 }
 
+// #1433 converges the canonical alpha stack without re-running every historical component proof.
+// Client/server source sets remain side-aware so client renderers never become server requirements.
+val wbyAlphaClientRuntime = sourceSets.create("wbyAlphaClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -362,6 +379,26 @@ check(sfImp0084AalPin("neoforge.version") == "21.1.249") {
 check(sfImp0084AalPin("coordinate") == "maven.modrinth:73ZXeRfx:EgPi4wq9") {
     "SF-IMP-0084 must use the exact AAL released coordinate authorized by #441"
 }
+
+val wbyAlphaPinFile = layout.projectDirectory.file("wby-alpha-baseline.properties")
+val wbyAlphaPins = Properties().apply {
+    wbyAlphaPinFile.asFile.inputStream().use(::load)
+}
+check(wbyAlphaPins.getProperty("minecraft.version") == "1.21.1")
+check(wbyAlphaPins.getProperty("neoforge.version") == "21.1.249")
+
+// Immutable-tested alpha baseline. Reliable Gliders is intentionally absent: the canonical
+// Sep. 30 manifest moved it to RESERVE. Historical proofs remain valid but no longer define pack membership.
+val wbyAlphaEngineeringMods = listOf(
+    "create", "rpl", "createbigcannons", "createaddition", "createmetallurgy",
+    "sable", "aeronautics", "createpropulsion", "jei",
+)
+val wbyAlphaBirdMods = listOf("fowlplay", "smartbrainlib", "yacl")
+val wbyAlphaAvionicsMods = listOf("cctweaked", "createavionics")
+val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
+val wbyAlphaServerVisibilityMods = listOf("ssrd")
+val wbyAlphaClientOptimizerMods = listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
+val wbyAlphaServerOptimizerMods = listOf("lithium", "ferritecore")
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
@@ -2067,6 +2104,50 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-server").asFile
             programArgument("--nogui")
             systemProperty("skyforge.dev.wbyWave1Profile", "visibility-server")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // Canonical alpha convergence uses one full-stack server creation and one actual-client reopen.
+        // The existing bounded W1 acceptance harness provides deterministic stop/reload/render evidence.
+        create("wbyAlphaPrepareServer") {
+            server()
+            sourceSet.set(wbyAlphaServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-alpha")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-alpha-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-alpha/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyAlphaClientAcceptance") {
+            client()
+            sourceSet.set(wbyAlphaClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-alpha")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-alpha-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-alpha/client.properties").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -6400,6 +6481,77 @@ tasks.register("waveC1ResolvePinnedMods") {
 }
 
 
+tasks.register("wbyAlphaResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve the canonical immutable WBY alpha baseline and enforce side-aware membership."
+    inputs.file(wbyAlphaPinFile)
+    inputs.file(waveC1PinFile)
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC3PinFile)
+    inputs.file(waveC5PinFile)
+    inputs.file(waveC9PinFile)
+    inputs.file(waveC25PinFile)
+    inputs.file(sfImp0084AalPinFile)
+    inputs.file(wbyWave1PinFile)
+    inputs.file(wbyWave1BPinFile)
+
+    doLast {
+        fun token(coordinate: String): String {
+            val parts = coordinate.split(":")
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            return parts[1] + "-" + parts[2]
+        }
+        val client = wbyAlphaClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val server = wbyAlphaServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
+
+        val sharedTokens = buildList {
+            wbyAlphaEngineeringMods.forEach { add(token(waveC1Pin(it, "coordinate"))) }
+            wbyAlphaBirdMods.forEach { add(token(waveC5Pin(it, "coordinate"))) }
+            wbyAlphaAvionicsMods.forEach { add(token(waveC9Pin(it, "coordinate"))) }
+            add(token(waveC3Pin("aerodynamics4mcCore", "coordinate")))
+            add(token(waveC3Pin("aerodynamics4mcCompat", "coordinate")))
+            add(token(waveC25Pin("createdieselgenerators", "coordinate")))
+            add(token(sfImp0084AalPin("coordinate")))
+            add(token(waveC2Pin("noelytraboost", "coordinate")))
+        }.toSet()
+        sharedTokens.forEach { t ->
+            check(client.any { it.contains(t) }) { "WBY alpha client missing '$t': $client" }
+            check(server.any { it.contains(t) }) { "WBY alpha server missing '$t': $server" }
+        }
+
+        wbyAlphaClientVisibilityMods.forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY alpha client missing visibility '$t'" }
+        }
+        wbyAlphaClientOptimizerMods.forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(client.any { it.contains(t) }) { "WBY alpha client missing optimizer '$t'" }
+        }
+        wbyAlphaServerOptimizerMods.forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.any { it.contains(t) }) { "WBY alpha server missing optimizer '$t'" }
+        }
+
+        listOf("sodium", "distanthorizons").forEach { mod ->
+            val t = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only '$t': $server" }
+        }
+        listOf("immediatelyfast", "dynamicfps").forEach { mod ->
+            val t = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.none { it.contains(t) }) { "WBY alpha server leaked client-only '$t': $server" }
+        }
+        val gliderToken = token(waveC2Pin("reliablegliders", "coordinate"))
+        check(client.none { it.contains(gliderToken) } && server.none { it.contains(gliderToken) }) {
+            "Reliable Gliders is RESERVE in the canonical alpha manifest and must not enter baseline"
+        }
+
+        println("WBY ALPHA IMMUTABLE BASELINE RESOLUTION PASS")
+        println("  clientFiles=" + client.size)
+        println("  serverFiles=" + server.size)
+    }
+}
+
+
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
@@ -7091,6 +7243,39 @@ dependencies {
             wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
             wbyWave1BPin(mod, "coordinate"),
         )
+    }
+
+    // #1433 canonical immutable alpha layer. Reuse exact accepted pins and test only new composition.
+    wbyAlphaEngineeringMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+    }
+    wbyAlphaBirdMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC5Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC5Pin(mod, "coordinate"))
+    }
+    wbyAlphaAvionicsMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
+    }
+    listOf(wbyAlphaClientRuntime, wbyAlphaServerRuntime).forEach { runtime ->
+        add(runtime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
+        add(runtime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
+        add(runtime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
+        add(runtime.runtimeOnlyConfigurationName, sfImp0084AalPin("coordinate"))
+        add(runtime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
+    }
+    wbyAlphaClientVisibilityMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate"))
+    }
+    wbyAlphaServerVisibilityMods.forEach { mod ->
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate"))
+    }
+    wbyAlphaClientOptimizerMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
+    }
+    wbyAlphaServerOptimizerMods.forEach { mod ->
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
