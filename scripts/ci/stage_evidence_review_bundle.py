@@ -140,6 +140,7 @@ STUDIO_APP_FILES = (
     Path('terrain-comparison-report.js'),
     Path('terrain-comparison-report-reader.js'),
     Path('terrain-comparison-library.js'),
+    Path('profile-backup.js'),
     Path('styles.css'),
 )
 STUDIO_EVIDENCE_ID = 'studio-bound-hydrology-semantic-v1'
@@ -153,6 +154,10 @@ use “Download inspection workspace” to save the current scene, optional refe
 and view settings in one portable JSON file. Use “Open inspection workspace” to restore it.
 
 In “Compare terrain”, click “Load synthetic example” to explore the map, changed cells, and report workflow without locating source files. The made-up sample is clearly marked and is not generated output or project evidence. For real local diagnostics, load reference and candidate terrain volumes with identical grids; the comparison rejects mismatches and never resamples. Save a named comparison in this browser to revisit it on this device, or download a report to move or back it up. Browser saves are not synced, uploaded, or registered.
+
+On Home, “Move your saved work” creates or opens one backup containing world briefs,
+the remembered inspection, and saved terrain and regional geology comparisons. Credentials
+are excluded. Reopened inspections remain unbound local diagnostics.
 
 Reopened sources are UNBOUND LOCAL DIAGNOSTICS: no token is needed, and the package does
 not preserve registered-artifact verification or grant review authority. Comparison

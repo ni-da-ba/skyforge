@@ -154,7 +154,26 @@
         } catch (error) { reject(error); }
       });
     }
-    return Object.freeze({list, save, remove});
+    async function replaceAll(records) {
+      const normalized = normalizeRecords(records);
+      const db = await openDatabase(indexedDB);
+      return new Promise((resolve, reject) => {
+        let transaction;
+        try {
+          transaction = db.transaction(STORE_NAME, "readwrite");
+          const store = transaction.objectStore(STORE_NAME);
+          store.clear();
+          for (const record of normalized) store.put(record);
+          transaction.oncomplete = () => resolve(normalized);
+          transaction.onerror = () => reject(transaction.error || new Error("could not restore saved comparisons"));
+          transaction.onabort = () => reject(transaction.error || new Error("could not restore saved comparisons"));
+        } catch (error) {
+          try { transaction?.abort(); } catch {}
+          reject(error);
+        }
+      });
+    }
+    return Object.freeze({list, save, remove, replaceAll});
   }
 
   const api = Object.freeze({

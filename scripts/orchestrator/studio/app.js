@@ -2,6 +2,7 @@
   "use strict";
 
   const TOKEN_KEY = "skyforge-development-api-token";
+  const WORLD_BRIEF_LIBRARY_STORAGE_KEY = "skyforge-studio-world-brief-library-v1";
   const TERRAIN_COLORS = Object.freeze({
     AIR: "#f6f4ee",
     EDGE_SHELL: "#b18554",
@@ -2681,7 +2682,7 @@
   }
 
   function initializeWorldBrief() {
-    const storageKey = "skyforge-studio-world-brief-library-v1";
+    const storageKey = WORLD_BRIEF_LIBRARY_STORAGE_KEY;
     const titleInput = $("world-brief-title");
     const intentInput = $("world-brief-intent");
     const librarySelect = $("world-brief-library");
@@ -2936,7 +2937,196 @@
       }
     });
     readLibrary();
+    window.SkyforgeStudioWorldBriefWorkspace = Object.freeze({
+      flush: flushPendingSave,
+      refresh: () => {
+        if (!flushPendingSave()) return false;
+        readLibrary();
+        return storageAvailable;
+      },
+    });
   }
+
+  function studioBackupValidators() {
+    return {
+      worldBrief: window.SkyforgeStudioWorldBrief,
+      workspaceSession: window.SkyforgeStudioWorkspaceSession,
+      workspacePackage: window.SkyforgeStudioWorkspacePackage,
+      terrainLibrary: window.SkyforgeStudioTerrainComparisonLibrary,
+      terrainReportReader: window.SkyforgeStudioTerrainComparisonReportReader,
+      regionalLibrary: window.SkyforgeStudioRegionalComparisonLibrary,
+      regionalComparison: window.SkyforgeRegionalComparison,
+      regionalInventory: window.SkyforgeRegionalInventory,
+    };
+  }
+
+  async function flushPendingBackupInspection() {
+    if (!workspaceSessionController) {
+      throw new Error("inspection storage is unavailable; Studio cannot create a complete backup");
+    }
+    if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+    workspaceSessionSaveTimer = null;
+    const shouldSaveCurrentInspection = workspaceSessionEnabled && Boolean(workspaceSceneArtifact);
+    const serializedWorkspace = shouldSaveCurrentInspection ? serializeInspectionWorkspace() : null;
+    const generation = shouldSaveCurrentInspection ? ++workspaceSessionGeneration : workspaceSessionGeneration;
+    await workspaceSessionSaveChain.catch(() => {});
+    if (!shouldSaveCurrentInspection) return;
+    const saved = await workspaceSessionController.save(serializedWorkspace);
+    if (!saved) {
+      throw new Error("remembered inspection is no longer enabled in browser storage; reload Studio before creating a backup");
+    }
+    if (generation === workspaceSessionGeneration && workspaceSessionEnabled) {
+      workspaceSessionHasSaved = true;
+      setWorkspaceSessionStatus("Saved in this browser. Sources remain local diagnostics and are never uploaded.");
+    }
+  }
+
+  async function readStudioBackupState() {
+    await flushPendingBackupInspection();
+    const briefApi = window.SkyforgeStudioWorldBrief;
+    const rawBriefLibrary = window.localStorage.getItem(WORLD_BRIEF_LIBRARY_STORAGE_KEY);
+    const worldBriefLibrary = rawBriefLibrary
+      ? briefApi.parseLibrary(rawBriefLibrary)
+      : briefApi.createLibrary();
+    if (!workspaceSessionController) throw new Error("inspection storage is unavailable; Studio cannot create a complete backup");
+    const [inspectionSession, terrainComparisons, regionalComparisons] = await Promise.all([
+      workspaceSessionController.read(),
+      window.SkyforgeStudioTerrainComparisonLibrary.createRepository().list(),
+      window.SkyforgeStudioRegionalComparisonLibrary.createRepository().list(),
+    ]);
+    return window.SkyforgeStudioProfileBackup.create({
+      createdAt: new Date().toISOString(),
+      worldBriefLibrary,
+      inspectionSession,
+      terrainComparisons,
+      regionalComparisons,
+    }, studioBackupValidators());
+  }
+
+  function setStudioBackupStatus(message, failed = false) {
+    const node = $("studio-backup-status");
+    node.textContent = message;
+    node.className = failed ? "small error" : "small muted";
+  }
+
+  async function exportStudioBackup() {
+    try {
+      if (!window.SkyforgeStudioWorldBriefWorkspace?.flush()) {
+        throw new Error("save the open world brief before creating a backup");
+      }
+      const state = await readStudioBackupState();
+      const fileText = JSON.stringify(state) + "\n";
+      const blob = new Blob([fileText], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "skyforge-studio-backup.json";
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0);
+      setStudioBackupStatus(
+        "Saved one backup with " + state.world_brief_library.briefs.length + " brief(s), " +
+        state.terrain_comparisons.length + " terrain comparison(s), and " +
+        state.regional_comparisons.length + " geology comparison(s). Credentials are excluded."
+      );
+    } catch (error) {
+      setStudioBackupStatus("Could not create this backup: " + String(error.message || error), true);
+    }
+  }
+
+  async function restoreStudioBackup(file) {
+    if (!file) return;
+    try {
+      if (file.size > window.SkyforgeStudioProfileBackup.maximumFileBytes) {
+        throw new Error("Studio backup is larger than the supported file size");
+      }
+      if (!window.SkyforgeStudioWorldBriefWorkspace?.flush()) {
+        throw new Error("save the open world brief before restoring a backup");
+      }
+      const validators = studioBackupValidators();
+      const imported = window.SkyforgeStudioProfileBackup.parse(await file.text(), validators);
+      const current = await readStudioBackupState();
+      let plan = window.SkyforgeStudioProfileBackup.prepareRestore(imported, current, validators);
+      let replaceInspection = false;
+      if (plan.inspectionReplacementRequired) {
+        replaceInspection = window.confirm(
+          "This backup contains a different remembered inspection. Replace the one saved on this device? Choose Cancel to keep the current inspection and restore the other backup data."
+        );
+        if (replaceInspection) {
+          plan = window.SkyforgeStudioProfileBackup.prepareRestore(
+            imported, current, validators, {replaceInspection:true}
+          );
+        }
+      }
+
+      const inspectionChanged = JSON.stringify(plan.inspectionSession) !==
+        JSON.stringify(current.inspection_session);
+      if (inspectionChanged && plan.inspectionSession && !workspaceSessionController) {
+        throw new Error("inspection storage is unavailable");
+      }
+      const inspectionPlan = plan.inspectionSession && plan.inspectionSession.workspace_json !== null
+        ? prepareInspectionWorkspace(plan.inspectionSession.workspace_json)
+        : null;
+
+      const localStorage = window.localStorage;
+      localStorage.setItem(
+        WORLD_BRIEF_LIBRARY_STORAGE_KEY,
+        window.SkyforgeStudioWorldBrief.serializeLibrary(plan.worldBriefLibrary)
+      );
+      await window.SkyforgeStudioTerrainComparisonLibrary.createRepository()
+        .replaceAll(plan.terrainComparisons);
+      await window.SkyforgeStudioRegionalComparisonLibrary.createRepository()
+        .replaceAll(plan.regionalComparisons);
+
+      if (inspectionChanged && plan.inspectionSession) {
+        if (!workspaceSessionController) throw new Error("inspection storage is unavailable");
+        workspaceSessionGeneration += 1;
+        if (workspaceSessionSaveTimer !== null) window.clearTimeout(workspaceSessionSaveTimer);
+        workspaceSessionSaveTimer = null;
+        await workspaceSessionSaveChain.catch(() => {});
+        await workspaceSessionController.enable(plan.inspectionSession.workspace_json);
+        workspaceSessionEnabled = true;
+        workspaceSessionReady = true;
+        workspaceSessionHasSaved = plan.inspectionSession.workspace_json !== null;
+        $("remember-inspection").checked = true;
+        setWorkspaceSessionStatus(
+          workspaceSessionHasSaved
+            ? "Restored a saved inspection as an unbound local diagnostic. Registered verification was not restored."
+            : "Restored the remember-inspection preference for this device."
+        );
+        if (workspaceSessionHasSaved) {
+          applyInspectionWorkspacePlan(inspectionPlan,
+            "Restored from a local backup as an unbound diagnostic; registered verification was not restored.");
+        }
+      }
+
+      if (!window.SkyforgeStudioWorldBriefWorkspace.refresh()) {
+        throw new Error("brief library was restored, but the open brief could not be refreshed");
+      }
+      await initializeTerrainComparisonLibrary();
+      window.dispatchEvent(new Event("skyforge-studio-backup-restored"));
+      const total = plan.counts.briefsAdded + plan.counts.terrainComparisonsAdded +
+        plan.counts.regionalComparisonsAdded;
+      setStudioBackupStatus(
+        "Restored " + total + " new saved item(s). Matching IDs were kept. " +
+        (plan.inspectionReplacementRequired && !replaceInspection
+          ? "The current remembered inspection was kept."
+          : "Your saved work remains on this device.")
+      );
+    } catch (error) {
+      setStudioBackupStatus(
+        "Restore stopped: " + String(error.message || error) +
+        ". You can safely retry the same backup; matching items are merged by ID.", true
+      );
+    }
+  }
+
+  $("studio-backup-export").addEventListener("click", exportStudioBackup);
+  $("studio-backup-import").addEventListener("click", () => $("studio-backup-file").click());
+  $("studio-backup-file").addEventListener("change", async event => {
+    const file = event.target.files && event.target.files[0];
+    try { await restoreStudioBackup(file); }
+    finally { event.target.value = ""; }
+  });
 
   function configureWorkspaceNavigation() {
     for (const button of document.querySelectorAll("[data-workspace-view]")) {
