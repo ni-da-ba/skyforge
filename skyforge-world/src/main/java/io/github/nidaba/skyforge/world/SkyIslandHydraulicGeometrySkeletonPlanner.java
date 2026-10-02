@@ -256,7 +256,10 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         boolean startsAtConfluence = network.nodes().stream()
                 .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
                         && node.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE);
-        if (!startsAtConfluence) return new ConfluenceCascadeGradeConflictDetails(0.0, Double.NaN, Double.NaN, 0, "not-confluence", -1, Double.NaN);
+        if (!startsAtConfluence) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, Double.NaN, Double.NaN, 0, "not-confluence", -1, Double.NaN);
+        }
         int cascadeStart = -1;
         List<SkyIslandChannelProfile> profiles = semantic.profiles();
         for (int index = 0; index < profiles.size(); index++) {
@@ -265,7 +268,10 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 break;
             }
         }
-        if (cascadeStart <= 0) return new ConfluenceCascadeGradeConflictDetails(0.0, Double.NaN, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
+        if (cascadeStart <= 0) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, Double.NaN, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
+        }
         double pathLength = cumulative[cumulative.length - 1];
         double[] sampledDischarge = new double[points.size()];
         for (int index = 0; index < points.size(); index++) {
@@ -275,7 +281,10 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 descriptor.nominalRadius(), sampledDischarge[0]);
         double startStation = startArc / pathLength;
         double endStation = (double) cascadeStart / profiles.size();
-        if (!(endStation > startStation)) return new ConfluenceCascadeGradeConflictDetails(0.0, startStation, endStation, 0, "empty-ordinary-window", -1, Double.NaN);
+        if (!(endStation > startStation)) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, startStation, endStation, 0, "empty-ordinary-window", -1, Double.NaN);
+        }
 
         List<SkyIslandLocalPosition> spanPoints = new ArrayList<>();
         List<Double> spanStations = new ArrayList<>();
