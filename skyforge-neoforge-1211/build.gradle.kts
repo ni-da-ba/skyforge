@@ -212,6 +212,16 @@ val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
         development.output
 }
 
+// S0.5A layers pack-integration authority onto the accepted S0 parent.
+val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+val wbyS05ServerRuntime = sourceSets.create("wbyS05ServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -388,6 +398,21 @@ val wbyAlphaClientVisibilityMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyAlphaServerVisibilityMods = listOf("ssrd")
 val wbyAlphaClientOptimizerMods = listOf("lithium", "ferritecore", "immediatelyfast", "dynamicfps")
 val wbyAlphaServerOptimizerMods = listOf("lithium", "ferritecore")
+
+val wbyS05PinFile = layout.projectDirectory.file("wby-s0-5-pack-authority.properties")
+val wbyS05Pins = Properties().apply { wbyS05PinFile.asFile.inputStream().use(::load) }
+check(wbyS05Pins.getProperty("minecraft.version") == "1.21.1")
+check(wbyS05Pins.getProperty("neoforge.version") == "21.1.249")
+fun wbyS05Pin(mod: String, field: String): String =
+    requireNotNull(wbyS05Pins.getProperty("$mod.$field")) { "missing WBY S0.5 pin: $mod.$field" }
+fun wbyS05Token(mod: String): String =
+    wbyS05Pins.getProperty("$mod.artifactToken") ?: wbyS05Pin(mod, "coordinate").split(":").let { parts ->
+        check(parts.size == 3)
+        parts[1] + "-" + parts[2]
+    }
+val wbyS05PackAuthorityMods = listOf(
+    "kubejs", "rhino", "betteradvancedtooltips", "kubejscreate", "lootjs", "paxi", "yungsapi", "almostunified",
+)
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
@@ -2174,6 +2199,90 @@ neoForge {
                 }
             })
         }
+        // S0.5A cumulative pack-authority acceptance reuses the accepted S0 visibility
+        // fixture while exercising the exact S0.5A client/server source sets.
+        create("wbyS05PrepareServer") {
+            server()
+            sourceSet.set(wbyS05ServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1VisibilityWorldPrepare", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-s05-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-s05/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("wbyS05ClientAcceptance") {
+            client()
+            sourceSet.set(wbyS05ClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-wby-s05").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("wby-alpha")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            systemProperty("skyforge.dev.wbyWave1Visibility", "true")
+            systemProperty("skyforge.dev.wbyWave1VanillaRenderDistanceChunks", "4")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "wby-s05-client")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "240")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/wby-s05/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Sync>("wbyS05StageClientMods") {
+                group = "verification"
+                description = "Stage exact S0.5A client mods into the ordinary mods directory."
+
+                fun coordinateToken(coordinate: String): String = coordinate.split(":").let { parts ->
+                    check(parts.size == 3)
+                    parts[1] + "-" + parts[2]
+                }
+                val expectedTokens = (
+                    wbyAlphaEngineeringMods.map { mod -> coordinateToken(waveC1Pin(mod, "coordinate")) } +
+                    wbyAlphaClientVisibilityMods.map { mod -> coordinateToken(wbyWave1Pin(mod, "coordinate")) } +
+                    wbyAlphaClientOptimizerMods.map { mod -> coordinateToken(wbyWave1BPin(mod, "coordinate")) } +
+                    wbyS05PackAuthorityMods.map(::wbyS05Token)
+                ).toSet()
+
+                from(wbyS05ClientRuntime.runtimeClasspath) {
+                    include { details -> expectedTokens.any { token -> details.file.name.contains(token) } }
+                }
+                into(layout.projectDirectory.dir("run-wby-s05/mods"))
+
+                doFirst { destinationDir.deleteRecursively() }
+                doLast {
+                    val staged = destinationDir.listFiles()
+                        ?.filter { file -> file.isFile && file.extension == "jar" }
+                        ?.map { file -> file.name }
+                        ?.sorted()
+                        ?: emptyList()
+                    expectedTokens.forEach { token ->
+                        check(staged.any { name -> name.contains(token) }) {
+                            "S0.5A staged client mods missing token '$token': $staged"
+                        }
+                    }
+                    check(staged.size == expectedTokens.size) {
+                        "S0.5A staged client mods contain unexpected jars: expected=" + expectedTokens.size + " staged=" + staged
+                    }
+                    println("WBY S0.5A CLIENT MOD STAGING PASS")
+                }
+            })
+        }
+
         create("wbyWave1VisibilityClientWorldPrepareServer") {
             server()
             gameDirectory = layout.projectDirectory.dir("run-wby-wave1-visibility-client").asFile
@@ -6553,6 +6662,67 @@ tasks.register("wbyAlphaResolvePinnedMods") {
     }
 }
 
+tasks.register("wbyS05ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve S0.5A cumulative pack-authority shell."
+    inputs.file(wbyS05PinFile)
+    inputs.file(waveC1PinFile)
+    inputs.file(wbyWave1PinFile)
+    inputs.file(wbyWave1BPinFile)
+    doLast {
+        fun token(coordinate: String): String = coordinate.split(":").let { parts ->
+            check(parts.size == 3) { "expected group:module:version coordinate, got '$coordinate'" }
+            parts[1] + "-" + parts[2]
+        }
+        val client = wbyS05ClientRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
+        val server = wbyS05ServerRuntime.runtimeClasspath.files.map { file -> file.name }.sorted()
+        println("WBY S0.5A client runtime files:")
+        client.forEach { println("  client=$it") }
+        println("WBY S0.5A server runtime files:")
+        server.forEach { println("  server=$it") }
+
+        wbyAlphaEngineeringMods.forEach { mod ->
+            val expected = token(waveC1Pin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 $mod token '$expected'" }
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 $mod token '$expected'" }
+        }
+        wbyAlphaClientVisibilityMods.forEach { mod ->
+            val expected = token(wbyWave1Pin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 visibility $mod token '$expected'" }
+        }
+        wbyAlphaServerVisibilityMods.forEach { mod ->
+            val expected = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 visibility $mod token '$expected'" }
+        }
+        wbyAlphaClientOptimizerMods.forEach { mod ->
+            val expected = token(wbyWave1BPin(mod, "coordinate"))
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing S0 optimizer $mod token '$expected'" }
+        }
+        wbyAlphaServerOptimizerMods.forEach { mod ->
+            val expected = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing S0 optimizer $mod token '$expected'" }
+        }
+        wbyS05PackAuthorityMods.forEach { mod ->
+            val expected = wbyS05Token(mod)
+            check(client.any { name -> name.contains(expected) }) { "S0.5 client missing $mod token '$expected'" }
+            check(server.any { name -> name.contains(expected) }) { "S0.5 server missing $mod token '$expected'" }
+        }
+
+        listOf("sodium", "distanthorizons").forEach { mod ->
+            val forbidden = token(wbyWave1Pin(mod, "coordinate"))
+            check(server.none { name -> name.contains(forbidden) }) { "S0.5 server leaked client-only $mod token '$forbidden'" }
+        }
+        listOf("immediatelyfast", "dynamicfps").forEach { mod ->
+            val forbidden = token(wbyWave1BPin(mod, "coordinate"))
+            check(server.none { name -> name.contains(forbidden) }) { "S0.5 server leaked client-only $mod token '$forbidden'" }
+        }
+
+        println("WBY S0.5A PACK AUTHORITY RESOLUTION PASS")
+        println("  clientFiles=" + client.size)
+        println("  serverFiles=" + server.size)
+    }
+}
+
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
@@ -7262,6 +7432,20 @@ dependencies {
     }
     wbyAlphaServerOptimizerMods.forEach { mod ->
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate"))
+    }
+
+    // S0.5A cumulative pack-authority runtime.
+    wbyAlphaEngineeringMods.forEach { mod ->
+        add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+    }
+    wbyAlphaClientVisibilityMods.forEach { mod -> add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate")) }
+    wbyAlphaServerVisibilityMods.forEach { mod -> add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyWave1Pin(mod, "coordinate")) }
+    wbyAlphaClientOptimizerMods.forEach { mod -> add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate")) }
+    wbyAlphaServerOptimizerMods.forEach { mod -> add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyWave1BPin(mod, "coordinate")) }
+    wbyS05PackAuthorityMods.forEach { mod ->
+        add(wbyS05ClientRuntime.runtimeOnlyConfigurationName, wbyS05Pin(mod, "coordinate"))
+        add(wbyS05ServerRuntime.runtimeOnlyConfigurationName, wbyS05Pin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.

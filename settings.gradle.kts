@@ -28,6 +28,17 @@ dependencyResolutionManagement {
                 includeGroup("maven.modrinth")
             }
         }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "CurseMaven"
+                    url = uri("https://www.cursemaven.com")
+                }
+            }
+            filter {
+                includeGroup("curse.maven")
+            }
+        }
     }
 }
 
