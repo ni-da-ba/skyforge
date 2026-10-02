@@ -13,6 +13,11 @@ class ValidationWorkflowContractTest(unittest.TestCase):
                     *contract.required_triggers,
                     *([ "uses: ./.github/actions/setup-java-gradle" ] * contract.setup_count),
                     *contract.acceptance_tasks,
+                    *(
+                        ["run: ./gradlew check -x :skyforge-neoforge-1211:test"]
+                        if contract.path.endswith("studio-desktop.yml")
+                        else []
+                    ),
                 ]
             )
             self.assertEqual(verify_text(contract, text), [])
