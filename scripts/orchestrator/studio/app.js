@@ -631,7 +631,7 @@
 
   function terrainComparisonLibraryStatus(message, isError = false) {
     const status = $("terrain-comparison-library-status");
-    status.textContent = message;
+    status.textContent = localScopeCopy(message);
     status.className = isError ? "small error" : "small muted";
   }
 
@@ -644,7 +644,7 @@
     placeholder.value = "";
     placeholder.textContent = terrainComparisonLibraryRecords.length
       ? "Choose a saved comparison"
-      : "No saved comparisons in this browser";
+      : localScopeCopy("No saved comparisons in this browser");
     select.append(placeholder);
     for (const record of terrainComparisonLibraryRecords) {
       const option = document.createElement("option");
@@ -711,7 +711,7 @@
       const parsed = reader.parse(record.report_json, record.report_bytes);
       renderTerrainComparison(parsed.comparison);
       $("terrain-comparison-status").textContent =
-        "Reopened a comparison from this browser. Its saved source provenance remains unverified.";
+        localScopeCopy("Reopened a comparison from this browser. Its saved source provenance remains unverified.");
       $("terrain-comparison-report-status").textContent = parsed.document.notice;
       $("terrain-comparison-reference").value = "";
       $("terrain-comparison-candidate").value = "";
@@ -730,8 +730,8 @@
       item.id === $("terrain-comparison-library-select").value);
     if (!record) return;
     if (typeof window.confirm !== "function" ||
-        !window.confirm("Remove “" + record.title +
-          "” from this browser? This cannot be undone here. Download a portable report first if you may need it later.")) return;
+        !window.confirm(localScopeCopy("Remove “" + record.title +
+          "” from this browser? This cannot be undone here. Download a portable report first if you may need it later."))) return;
     terrainComparisonLibraryBusy = true;
     renderTerrainComparisonLibraryControls();
     try {
@@ -784,6 +784,13 @@
     return scene?.sceneKind === "TERRAIN_SEMANTIC_VOLUME";
   }
 
+  function localScopeCopy(message) {
+    const capabilities = window.SkyforgeStudioCapabilities;
+    return capabilities
+      ? capabilities.localScopeCopy(window.location.protocol, message)
+      : String(message);
+  }
+
   function setConnection(text, severity = "muted") {
     const node = $("connection");
     node.textContent = text;
@@ -805,6 +812,26 @@
     if (!capabilities || capabilities.fromProtocol(window.location.protocol).canConnectRegisteredArtifacts) return;
     $("auth-panel").hidden = true;
     $("desktop-local-status").hidden = false;
+    const desktopCopy = [
+      ["inspect-source-copy", "Open the bundled specimen or import a local semantic file. Provenance remains visible in the inspector."],
+      ["brief-storage-copy", "Describe it in your own words. Drafts stay in this app; no generator is connected."],
+      ["world-generation-copy", "This Studio preview has no generator connected. Your brief stays in this app; it is not sent to a service, evaluated, or turned into a world."],
+      ["terrain-comparison-library-heading", "Saved in this app"],
+      ["terrain-comparison-library-description", "Open a saved comparison here at any time. The list stays in this Studio app; it is not synced or uploaded. Load two versions above to enable saving."],
+      ["terrain-comparison-library-save", "Save in this app"],
+      ["terrain-comparison-library-status", "Loading app-local comparison storage…"],
+      ["remember-inspection-copy", "Remember this inspection in this app"],
+      ["regional-library-heading", "Saved in this app"],
+      ["regional-library-description", "Save named comparisons in this app. Nothing is uploaded. Use a portable package to move a comparison to another device or Studio profile."],
+      ["regional-library-save", "Save in this app"],
+      ["regional-library-status", "Checking app-local storage…"],
+    ];
+    for (const [id, copy] of desktopCopy) {
+      const node = $(id);
+      if (node) node.textContent = copy;
+    }
+    const terrainPlaceholder = $("terrain-comparison-library-select")?.querySelector('option[value=""]');
+    if (terrainPlaceholder) terrainPlaceholder.textContent = localScopeCopy(terrainPlaceholder.textContent);
     setConnection("Local preview", "warn");
   }
 
@@ -2108,7 +2135,7 @@
 
   function setWorkspaceSessionStatus(message, failed = false) {
     const node = $("workspace-session-status");
-    node.textContent = message;
+    node.textContent = localScopeCopy(message);
     node.className = failed ? "small error" : "small muted";
     $("workspace-session-forget").disabled = !workspaceSessionHasSaved;
   }
@@ -2710,12 +2737,12 @@
     }
 
     function setStatus(message, saved = false, severity = "muted") {
-      status.textContent = message;
+      status.textContent = localScopeCopy(message);
       statePill.textContent = saved ? "Saved locally" : (isDirty ? "Unsaved changes" : "Local draft");
       statePill.className = "pill " + (saved ? "good" : "warn");
       status.dataset.severity = severity;
-      savedBriefs.textContent = library.briefs.length === 1 ? "1 saved brief in this browser" :
-        library.briefs.length + " saved briefs in this browser";
+      savedBriefs.textContent = localScopeCopy(library.briefs.length === 1 ? "1 saved brief in this browser" :
+        library.briefs.length + " saved briefs in this browser");
     }
 
     function refreshLibrarySelect() {
@@ -2793,7 +2820,7 @@
       isDirty = true;
       statePill.textContent = "Unsaved changes";
       statePill.className = "pill warn";
-      status.textContent = "Saving this brief in your browser…";
+      status.textContent = localScopeCopy("Saving this brief in your browser…");
       if (saveTimer !== null) window.clearTimeout(saveTimer);
       saveTimer = window.setTimeout(() => { saveTimer = null; saveCurrentBrief(); }, 450);
     }

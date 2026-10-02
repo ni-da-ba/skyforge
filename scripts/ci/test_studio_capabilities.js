@@ -18,6 +18,12 @@ assert.deepEqual(web, {
   canConnectRegisteredArtifacts: true,
   canGenerateWorlds: false,
 });
+assert.equal(capabilities.localScopeCopy("skyforge:", "Saved in this browser profile."),
+  "Saved in this Studio app.", "desktop copy names the installed app");
+assert.equal(capabilities.localScopeCopy("skyforge:", "Open from another browser."),
+  "Open from another device or Studio profile.", "desktop copy explains portable transfers");
+assert.equal(capabilities.localScopeCopy("https:", "Saved in this browser profile."),
+  "Saved in this browser profile.", "web wording is preserved");
 
 const studioRoot = path.join(__dirname, "..", "orchestrator", "studio");
 const html = fs.readFileSync(path.join(studioRoot, "index.html"), "utf8");
@@ -26,12 +32,17 @@ assert.ok(html.indexOf('src="studio-capabilities.js"') < html.indexOf('src="app.
   "capabilities load before Studio startup");
 assert.match(html, /id="auth-panel"/, "web connection panel remains available");
 assert.match(html, /id="desktop-local-status"[^>]*hidden/, "desktop status starts hidden for web mode");
+assert.match(html, /Open a bundled specimen or connect to a registered artifact source/,
+  "web preview retains its connected-source invitation");
+assert.match(app, /inspect-source-copy.*import a local semantic file/s,
+  "desktop Home describes the available local inspection path");
 assert.match(html, /Connected artifact browsing and world generation are not configured/,
   "desktop capability limits are explicit");
 assert.match(app, /capabilities\.fromProtocol\(window\.location\.protocol\)/,
   "Studio detects runtime mode from its origin");
 assert.match(app, /\$\("auth-panel"\)\.hidden = true/);
 assert.match(app, /\$\("desktop-local-status"\)\.hidden = false/);
+assert.match(app, /localScopeCopy\(message\)/, "local status text follows the runtime copy");
 assert.match(app, /configureRuntimeCapabilities\(\);/,
   "capabilities are applied after the shared local-mode setup");
 

@@ -123,9 +123,13 @@
   function status(side, message, error) {
     const el=$("regional-"+side+"-status"); el.textContent=message; el.className=error?"small error":"small muted";
   }
+  function localScopeCopy(message) {
+    const capabilities=root.SkyforgeStudioCapabilities;
+    return capabilities?capabilities.localScopeCopy(root.location.protocol,message):String(message);
+  }
   function libraryStatus(message,error) {
     const el=$("regional-library-status");
-    el.textContent=message;
+    el.textContent=localScopeCopy(message);
     el.className=error?"small error":"small muted";
   }
   function renderLibraryControls() {
@@ -271,7 +275,7 @@
       const record=state.libraryRecords.find(item=>item.id===$("regional-library-select").value);
       if(!record||!state.libraryRepository)return;
       if(typeof root.confirm!=="function")throw new Error("removal confirmation is unavailable");
-      if(!root.confirm("Permanently remove “"+record.title+"” from this browser? Download a portable package first if you may need it later."))return;
+      if(!root.confirm(localScopeCopy("Permanently remove “"+record.title+"” from this browser? Download a portable package first if you may need it later.")))return;
       state.libraryBusy=true;renderLibraryControls();
       try{
         await state.libraryRepository.remove(record.id);
