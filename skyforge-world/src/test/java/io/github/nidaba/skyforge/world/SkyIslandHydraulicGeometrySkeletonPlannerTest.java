@@ -53,8 +53,11 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     d.finalLongitudinalHeadFeasibilityGap()
                             <= d.initialLongitudinalHeadFeasibilityGap() + EPSILON);
             assertTrue(
-                    d.finalMaximumLongitudinalHeadFeasibilityConflict()
-                            <= d.initialMaximumLongitudinalHeadFeasibilityConflict() + EPSILON);
+                    d.finalMaximumLocalEnvelopeConflict()
+                            <= d.initialMaximumLocalEnvelopeConflict() + EPSILON);
+            assertTrue(
+                    d.finalMaximumLongitudinalGradeConflict()
+                            <= d.initialMaximumLongitudinalGradeConflict() + EPSILON);
             if (route.semanticReach().startCellIndex() == 801
                     && route.semanticReach().endCellIndex() == 1951) {
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
@@ -63,8 +66,8 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                                 < d.initialLongitudinalHeadFeasibilityGap(),
                         "whole-route refinement must reduce the integrated key-700 grade conflict");
                 assertTrue(
-                        d.finalMaximumLongitudinalHeadFeasibilityConflict()
-                                < d.initialMaximumLongitudinalHeadFeasibilityConflict(),
+                        d.finalMaximumLongitudinalGradeConflict()
+                                < d.initialMaximumLongitudinalGradeConflict(),
                         "minimax refinement must reduce the worst key-700 grade conflict");
             }
             report.append("CENTERLINE ")
@@ -81,10 +84,14 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialLongitudinalHeadFeasibilityGap())
                     .append(" finalLongitudinalGap=")
                     .append(d.finalLongitudinalHeadFeasibilityGap())
-                    .append(" initialMaxLongitudinalConflict=")
-                    .append(d.initialMaximumLongitudinalHeadFeasibilityConflict())
-                    .append(" finalMaxLongitudinalConflict=")
-                    .append(d.finalMaximumLongitudinalHeadFeasibilityConflict())
+                    .append(" initialMaxLocalEnvelopeConflict=")
+                    .append(d.initialMaximumLocalEnvelopeConflict())
+                    .append(" finalMaxLocalEnvelopeConflict=")
+                    .append(d.finalMaximumLocalEnvelopeConflict())
+                    .append(" initialMaxLongitudinalGradeConflict=")
+                    .append(d.initialMaximumLongitudinalGradeConflict())
+                    .append(" finalMaxLongitudinalGradeConflict=")
+                    .append(d.finalMaximumLongitudinalGradeConflict())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
