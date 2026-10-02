@@ -232,6 +232,16 @@ val wbyS05BServerRuntime = sourceSets.create("wbyS05BServerRuntime") {
     runtimeClasspath += wbyS05ServerRuntime.output + wbyS05ServerRuntime.runtimeClasspath
 }
 
+// S1 layers atmosphere and mobility onto the accepted S0.5B runtime. Experiential
+// alternatives are selected explicitly at launch and remain isolated overlays.
+val wbyS1ClientRuntime = sourceSets.create("wbyS1ClientRuntime") {
+    compileClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.compileClasspath
+    runtimeClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.runtimeClasspath
+}
+val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
+    compileClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.compileClasspath
+    runtimeClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.runtimeClasspath
+}
 
 // WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
@@ -442,6 +452,29 @@ val wbyS05BQolClientOnlyMods = listOf(
     "jadesable", "controlling", "searchables", "mousetweaks", "appleskin",
     "shulkerboxtooltip", "enchantmentdescriptions", "bookshelf", "prickle", "spyglassimprovements",
 )
+
+val wbyS1PinFile = layout.projectDirectory.file("wby-s1-atmosphere-mobility.properties")
+val wbyS1Pins = Properties().apply { wbyS1PinFile.asFile.inputStream().use(::load) }
+check(wbyS1Pins.getProperty("minecraft.version") == "1.21.1")
+check(wbyS1Pins.getProperty("neoforge.version") == "21.1.249")
+fun wbyS1Pin(mod: String, field: String): String =
+    requireNotNull(wbyS1Pins.getProperty("$mod.$field")) { "missing WBY S1 pin: $mod.$field" }
+fun wbyS1Token(mod: String): String =
+    wbyS1Pins.getProperty("$mod.artifactToken") ?: wbyS1Pin(mod, "coordinate").split(":").let { parts ->
+        check(parts.size == 3) { "expected group:module:version coordinate for WBY S1 $mod" }
+        parts[1] + "-" + parts[2]
+    }
+
+val wbyS1Glider = providers.gradleProperty("wbyS1Glider").orNull?.trim()?.lowercase() ?: "none"
+val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowercase() ?: "none"
+val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS1RunDirectory = providers.gradleProperty("wbyS1RunDirectory").orNull ?: "run-wby-s1"
+check(wbyS1Glider in setOf("none", "hang-glider", "ornithopter")) {
+    "unsupported WBY S1 glider '$wbyS1Glider'; choose none, hang-glider, or ornithopter"
+}
+check(wbyS1Clouds in setOf("none", "better-clouds")) {
+    "unsupported WBY S1 clouds '$wbyS1Clouds'; choose none or better-clouds"
+}
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
@@ -2433,6 +2466,49 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(tasks.named("wbyS05BStageClientMods"))
             taskBefore(tasks.named("wbyS05BStageDiagnosticPolicy"))
+        }
+
+        // S1 diagnostic runs use a fresh vanilla world directory and do not activate the
+        // S0.5 synthetic visibility/structure fixture.
+        create("wbyS1DiagnosticServer") {
+            server()
+            sourceSet.set(wbyS1ServerRuntime)
+            gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            programArgument("--nogui")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Copy>("wbyS1StagePolicy") {
+                group = "verification"
+                description = "Stage the accepted inert S0.5 policy fixtures for WBY S1."
+                from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) { into("kubejs") }
+                from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) { into("datapacks") }
+                from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
+                    into("config/almostunified/unification")
+                }
+                into(layout.projectDirectory.dir(wbyS1RunDirectory))
+            })
+        }
+
+        create("wbyS1DiagnosticClient") {
+            client()
+            sourceSet.set(wbyS1ClientRuntime)
+            gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.named("wbyS1StageClientMods"))
+            taskBefore(tasks.named("wbyS1StagePolicy"))
+        }
+
+        create("wbyS1ClientJoinAcceptance") {
+            client()
+            sourceSet.set(wbyS1ClientRuntime)
+            gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25565")
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.named("wbyS1StageClientMods"))
+            taskBefore(tasks.named("wbyS1StagePolicy"))
         }
 
         create("wbyWave1VisibilityClientWorldPrepareServer") {
@@ -6947,6 +7023,140 @@ tasks.register("wbyS05BResolvePinnedMods") {
     }
 }
 
+tasks.register("wbyS1ResolvePinnedMods") {
+    group = "verification"
+    description = "Resolve WBY S1 cumulative and comparison profile dependencies with side checks."
+    inputs.file(wbyS1PinFile)
+    inputs.file(waveC2PinFile)
+    inputs.file(waveC3PinFile)
+    doLast {
+        val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
+        fun token(coordinate: String): String = coordinate.split(":").let { parts ->
+            check(parts.size == 3)
+            parts[1] + "-" + parts[2]
+        }
+        fun requireToken(files: List<String>, mod: String, label: String) {
+            val expected = wbyS1Token(mod)
+            check(files.any { it.contains(expected) }) {
+                "WBY S1 $label runtime missing $mod token '$expected': $files"
+            }
+        }
+        fun forbidToken(files: List<String>, mod: String, label: String) {
+            val expected = wbyS1Token(mod)
+            check(files.none { it.contains(expected) }) {
+                "WBY S1 $label runtime leaked $mod token '$expected': $files"
+            }
+        }
+
+        val core = token(waveC3Pin("aerodynamics4mcCore", "coordinate"))
+        val compat = token(waveC3Pin("aerodynamics4mcCompat", "coordinate"))
+        val elytra = token(waveC2Pin("noelytraboost", "coordinate"))
+        check(client.any { it.contains(core) } && server.any { it.contains(core) }) {
+            "WBY S1 missing the accepted Aerodynamics4MC core on client/server"
+        }
+        check(client.any { it.contains(compat) } && server.any { it.contains(compat) }) {
+            "WBY S1 missing the accepted Aeronautics compatibility artifact on client/server"
+        }
+        check(client.any { it.contains(elytra) } && server.any { it.contains(elytra) }) {
+            "WBY S1 missing accepted No More Elytra Boosting on client/server"
+        }
+
+        when (wbyS1Glider) {
+            "hang-glider" -> {
+                requireToken(client, "hangglider", "client")
+                requireToken(server, "hangglider", "server")
+                requireToken(client, "puzzleslib", "client")
+                requireToken(server, "puzzleslib", "server")
+                forbidToken(client, "ornithopterglider", "Hang Glider profile")
+                forbidToken(server, "ornithopterglider", "Hang Glider profile")
+            }
+            "ornithopter" -> {
+                requireToken(client, "ornithopterglider", "client")
+                requireToken(server, "ornithopterglider", "server")
+                forbidToken(client, "hangglider", "Ornithopter profile")
+                forbidToken(server, "hangglider", "Ornithopter profile")
+                forbidToken(client, "puzzleslib", "Ornithopter profile")
+                forbidToken(server, "puzzleslib", "Ornithopter profile")
+            }
+            else -> {
+                listOf("hangglider", "ornithopterglider", "puzzleslib").forEach { mod ->
+                    forbidToken(client, mod, "baseline")
+                    forbidToken(server, mod, "baseline")
+                }
+            }
+        }
+        if (wbyS1Clouds == "better-clouds") requireToken(client, "betterclouds", "client")
+        else forbidToken(client, "betterclouds", "no-cloud overlay")
+        forbidToken(server, "betterclouds", "server")
+        if (wbyS1ThinAir) {
+            requireToken(client, "thinair", "client")
+            requireToken(server, "thinair", "server")
+        } else {
+            forbidToken(client, "thinair", "client")
+            forbidToken(server, "thinair", "server")
+        }
+
+        println("WBY S1 RESOLUTION PASS")
+        println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
+        println("  clientFiles=" + client.size + " serverFiles=" + server.size)
+        println("  atmosphere=accepted A4MC core plus Aeronautics compatibility; no second authority")
+        println("  particleRain=deferred pending A4MC wind adapter")
+        println("  flyHigher=deferred pending pressure-authority compatibility proof")
+    }
+}
+
+tasks.register<Sync>("wbyS1StageClientMods") {
+    group = "verification"
+    description = "Stage the exact cumulative S1 and selected overlay jars for client review."
+    fun token(coordinate: String): String = coordinate.split(":").let { parts ->
+        check(parts.size == 3)
+        parts[1] + "-" + parts[2]
+    }
+    val expectedTokens = (
+        wbyAlphaEngineeringMods.map { token(waveC1Pin(it, "coordinate")) } +
+        wbyAlphaClientVisibilityMods.map { token(wbyWave1Pin(it, "coordinate")) } +
+        wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) } +
+        wbyS05PackAuthorityMods.map(::wbyS05Token) +
+        wbyS05BQolClientServerMods.map(::wbyS05BQolToken) +
+        wbyS05BQolClientOnlyMods.map(::wbyS05BQolToken) +
+        listOf(
+            token(waveC3Pin("aerodynamics4mcCore", "coordinate")),
+            token(waveC3Pin("aerodynamics4mcCompat", "coordinate")),
+            token(waveC2Pin("noelytraboost", "coordinate")),
+        ) +
+        when (wbyS1Glider) {
+            "hang-glider" -> listOf(wbyS1Token("hangglider"), wbyS1Token("puzzleslib"))
+            "ornithopter" -> listOf(wbyS1Token("ornithopterglider"))
+            else -> emptyList()
+        } +
+        (if (wbyS1Clouds == "better-clouds") listOf(wbyS1Token("betterclouds")) else emptyList()) +
+        (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList())
+    ).toSet()
+
+    from(wbyS1ClientRuntime.runtimeClasspath) {
+        include { details -> expectedTokens.any { expected -> details.file.name.contains(expected) } }
+    }
+    into(layout.projectDirectory.dir("$wbyS1RunDirectory/mods"))
+    doFirst { destinationDir.deleteRecursively() }
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        expectedTokens.forEach { expected ->
+            check(staged.any { it.contains(expected) }) {
+                "WBY S1 staged client mods missing '$expected': $staged"
+            }
+        }
+        check(staged.size == expectedTokens.size) {
+            "WBY S1 staged client mods unexpected: expected=" + expectedTokens.size + " staged=" + staged
+        }
+        println("WBY S1 CLIENT MOD STAGING PASS")
+    }
+}
+
 tasks.register<Sync>("wbyWave1StageClientMods") {
     group = "verification"
     description = "Stage the exact WBY Wave 1 external mods into the quick-play client's ordinary mods directory."
@@ -7679,6 +7889,33 @@ dependencies {
     }
     wbyS05BQolClientOnlyMods.forEach { mod ->
         add(wbyS05BClientRuntime.runtimeOnlyConfigurationName, wbyS05BQolPin(mod, "coordinate"))
+    }
+
+    // S1 reuses the accepted C2 Elytra policy and C3 single atmosphere authority.
+    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
+    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
+    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
+    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
+    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
+    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
+    when (wbyS1Glider) {
+        "hang-glider" -> {
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("hangglider", "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("hangglider", "coordinate"))
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("puzzleslib", "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("puzzleslib", "coordinate"))
+        }
+        "ornithopter" -> {
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("ornithopterglider", "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("ornithopterglider", "coordinate"))
+        }
+    }
+    if (wbyS1Clouds == "better-clouds") {
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("betterclouds", "coordinate"))
+    }
+    if (wbyS1ThinAir) {
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
+        add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
