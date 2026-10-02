@@ -47,25 +47,29 @@ Use one stable cumulative spine plus isolated comparison overlays.
 ```text
 BASE-0  physical/runtime foundation
    |
-   +-- S1 presentation/performance
+   +-- S0  canonical launch shell
    |
-   +-- S2 atmosphere + personal mobility
+   +-- S0.5 pack integration/information shell
    |
-   +-- S3 computing/control/logistics
+   +-- S1  atmosphere + personal mobility
    |
-   +-- S4 industry/power/propulsion
+   +-- S2  computing/control/logistics
    |
-   +-- S5 ordinary life/building
+   +-- S3  industry/power/propulsion
    |
-   +-- S6 Overworld ecology/biomes
+   +-- S4  ordinary life/building
    |
-   +-- S7 structures/civilization
+   +-- S5  Overworld ecology/biomes
    |
-   +-- S8 threats/combat
+   +-- S6  structures/civilization
    |
-   +-- S9 Nether
+   +-- S7  threats/combat
    |
-   +-- S10 End
+   +-- S8  Nether
+   |
+   +-- S9  End
+   |
+   +-- S10 onboarding/operations/economy bridges
    |
    '-- S11 full convergence
 ```
