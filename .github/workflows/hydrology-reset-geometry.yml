@@ -283,6 +283,7 @@ jobs:
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
+        if: always()
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
 
