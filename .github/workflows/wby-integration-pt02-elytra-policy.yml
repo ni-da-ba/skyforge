@@ -1,0 +1,275 @@
+name: WBY Integration PT-02 Elytra Policy
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-pt02-elytra-policy.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC7GliderLiftDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC13ElytraBypassAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityLifecycleAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-pt02-elytra-policy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pt02-elytra-policy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: dynamicfps
+      ORG_GRADLE_PROJECT_wbyPt02Glider: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve accepted PT-02A baseline without Elytra suppression
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods             -PwbyPt02ElytraSuppression=false             --no-configuration-cache | tee wby-pt02b-baseline-resolve.log
+          grep -q 'WBY PT-02 glider overlay=enabled' wby-pt02b-baseline-resolve.log
+          grep -q 'WBY PT-02 Elytra suppression=disabled' wby-pt02b-baseline-resolve.log
+          grep -q 'pVIWsXir-HFLhMfNC' wby-pt02b-baseline-resolve.log
+          grep -q 'UnshaaiE-6Z0Z1pfP' wby-pt02b-baseline-resolve.log
+          if grep -q 'uNWWxAv9-G9hL7wPy' wby-pt02b-baseline-resolve.log; then
+            echo "PT-02A baseline unexpectedly resolved Elytra suppression"
+            exit 1
+          fi
+
+      - name: Prove combined PT-02A baseline still has vanilla Elytra boost
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-pt02b-baseline
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25572
+          EOF
+
+          log="wby-pt02b-baseline-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}             -Dskyforge.dev.waveC7GliderLift=true             -Dskyforge.dev.waveC7Acceptance=true             -Dskyforge.dev.waveC13ElytraAcceptance=baseline"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer \
+            -PwbyPt02ElytraSuppression=false \
+            --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 180); do
+            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null \
+                && grep -Fq 'WAVE_C13_BASELINE PASS' "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null \
+                || grep -Fq 'WAVE_C13_BASELINE FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
+          grep -Fq 'WAVE_C13_BASELINE PASS' "$log"
+          grep -Eq '\(reliable_gliders\)' "$log"
+          grep -Eq '\(aerodynamics4mc\)' "$log"
+          if grep -Eq 'uNWWxAv9-G9hL7wPy|No More Elytra Boosting' "$log"; then
+            echo "PT-02A baseline unexpectedly loaded Elytra suppression"
+            exit 1
+          fi
+
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Resolve PT-02B suppression overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods             -PwbyPt02ElytraSuppression=true             --no-configuration-cache | tee wby-pt02b-suppressed-resolve.log
+          grep -q 'WBY PT-02 glider overlay=enabled' wby-pt02b-suppressed-resolve.log
+          grep -q 'WBY PT-02 Elytra suppression=enabled' wby-pt02b-suppressed-resolve.log
+          grep -q 'uNWWxAv9-G9hL7wPy' wby-pt02b-suppressed-resolve.log
+
+      - name: Prove suppression coexists with PT-02 shared lift on full server stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-pt02b-suppressed
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25573
+          EOF
+
+          log="wby-pt02b-suppressed-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-}             -Dskyforge.dev.waveC7GliderLift=true             -Dskyforge.dev.waveC7Acceptance=true             -Dskyforge.dev.waveC13ElytraAcceptance=suppressed"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer \
+            -PwbyPt02ElytraSuppression=true \
+            --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 180); do
+            if grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null \
+                && grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log" 2>/dev/null; then
+              outcome="pass"
+              break
+            fi
+            if grep -Fq 'WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null \
+                || grep -Fq 'WAVE_C13_SUPPRESSED FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
+          grep -Fq 'WAVE_C13_SUPPRESSED PASS' "$log"
+          for mod in create sable aeronautics ssrd lithium ferritecore reliable_gliders aerodynamics4mc; do
+            grep -Eq "\\($mod\\)" "$log"
+          done
+          if grep -Eq '\\(sodium\\)|\\(distanthorizons\\)|\\(immediatelyfast\\)|\\(dynamic_fps\\)' "$log"; then
+            echo "PT-02B dedicated server leaked a client-only renderer/optimizer mod"
+            exit 1
+          fi
+
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Prepare disposable actual-client world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          rm -rf "$run_dir"
+          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer             -PwbyPt02ElytraSuppression=true             --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          mapfile -t level_files < <(find "$run_dir" -maxdepth 4 -type f -name level.dat -print)
+          test "${#level_files[@]}" -eq 1
+          source_world="$(dirname "${level_files[0]}")"
+          client_world="$run_dir/saves/wby-wave1-visibility-client"
+          if [[ "$source_world" != "$client_world" ]]; then
+            rm -rf "$client_world"
+            mkdir -p "$run_dir/saves"
+            cp -a "$source_world" "$client_world"
+          fi
+
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact PT-02B client stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods             -PwbyPt02ElytraSuppression=true             --no-configuration-cache
+          mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          find "$mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-pt02b-client-jars.txt
+          test "$(wc -l < wby-pt02b-client-jars.txt)" -eq 13
+          grep -q 'pVIWsXir-HFLhMfNC' wby-pt02b-client-jars.txt
+          grep -q 'UnshaaiE-6Z0Z1pfP' wby-pt02b-client-jars.txt
+          grep -q 'uNWWxAv9-G9hL7wPy' wby-pt02b-client-jars.txt
+
+      - name: Requalify distant Sable actual-client visibility with PT-02B
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-pt02b-actual-client.log"
+          timeout 300 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance             -PwbyPt02ElytraSuppression=true             --no-configuration-cache 2>&1 | tee "$log"
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+
+      - name: Upload PT-02B admission evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-pt02b-elytra-policy
+          path: |
+            wby-pt02b-*.log
+            wby-pt02b-client-jars.txt
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+          if-no-files-found: warn
