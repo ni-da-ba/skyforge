@@ -263,23 +263,50 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
         if (cascadeStart <= 0) return 0.0;
         double pathLength = cumulative[cumulative.length - 1];
+        double[] sampledDischarge = new double[points.size()];
+        for (int index = 0; index < points.size(); index++) {
+            sampledDischarge[index] = dischargeProfile.atStation(cumulative[index] / pathLength);
+        }
         double startArc = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                descriptor.nominalRadius(), dischargeProfile.atStation(0.0));
+                descriptor.nominalRadius(), sampledDischarge[0]);
         double startStation = startArc / pathLength;
         double endStation = (double) cascadeStart / profiles.size();
         if (!(endStation > startStation)) return 0.0;
 
         List<SkyIslandLocalPosition> spanPoints = new ArrayList<>();
         List<Double> spanStations = new ArrayList<>();
-        appendStationSample(points, cumulative, pathLength, startStation, spanPoints, spanStations);
+        List<Double> spanDischarges = new ArrayList<>();
+        appendStationSample(
+                points, cumulative, pathLength, startStation, sampledDischarge,
+                spanPoints, spanStations, spanDischarges);
         for (int index = 1; index + 1 < points.size(); index++) {
             double station = cumulative[index] / pathLength;
-            if (station > startStation + 1.0e-12 && station < endStation - 1.0e-12) {
+            if (station > startStation + EPSILON && station < endStation - EPSILON) {
                 spanPoints.add(points.get(index));
                 spanStations.add(station);
+                spanDischarges.add(sampledDischarge[index]);
             }
         }
-        appendStationSample(points, cumulative, pathLength, endStation, spanPoints, spanStations);
+        appendStationSample(
+                points, cumulative, pathLength, endStation, sampledDischarge,
+                spanPoints, spanStations, spanDischarges);
+
+        List<SkyIslandChannelProfileKind> overlappingKinds = new ArrayList<>();
+        for (int index = 0; index < profiles.size(); index++) {
+            double profileStart = (double) index / profiles.size();
+            double profileEnd = (double) (index + 1) / profiles.size();
+            if (Math.min(endStation, profileEnd) - Math.max(startStation, profileStart) <= EPSILON) {
+                continue;
+            }
+            SkyIslandChannelProfileKind kind = profiles.get(index).kind();
+            if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                throw new IllegalStateException(
+                        "confluence-to-CASCADE ordinary span overlaps an authored CASCADE profile");
+            }
+            overlappingKinds.add(kind);
+        }
+        SkyIslandGeomorphicProfileLimits spanLimits = policy.limits(
+                SkyIslandGeomorphicQualificationClass.classifyKinds(overlappingKinds));
 
         double[] spanCumulative = cumulativeDistance(spanPoints);
         double reachableLower = Double.NaN;
@@ -302,23 +329,20 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     index + 1 == spanPoints.size()
                             ? profiles.get(cascadeStart - 1).kind()
                             : SkyIslandHydraulicHeadEnvelopePlanner.profileKind(profiles, station);
-            SkyIslandGeomorphicQualificationClass qualificationClass =
-                    qualificationClass(kind);
+            double discharge = spanDischarges.get(index);
             SkyIslandHydraulicHeadEnvelope envelope =
                     SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
                             descriptor,
                             kind,
                             position,
                             SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                    descriptor.nominalRadius(),
-                                    dischargeProfile.atStation(station)),
-                            SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
-                                    dischargeProfile.atStation(station)),
+                                    descriptor.nominalRadius(), discharge),
+                            SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge),
                             clamp01(terrain.sample(position)),
                             -tangentZ / tangentLength,
                             tangentX / tangentLength,
                             terrain,
-                            policy.limits(qualificationClass));
+                            spanLimits);
             double localLower = envelope.lowerHead();
             double localUpper = envelope.upperHead();
             if (localLower > localUpper) {
@@ -332,8 +356,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 continue;
             }
             double ds = spanCumulative[index] - spanCumulative[index - 1];
-            double maxDrop =
-                    policy.limits(qualificationClass).maximumLongitudinalGrade() * ds;
+            double maxDrop = spanLimits.maximumLongitudinalGrade() * ds;
             double nextLower = Math.max(localLower, reachableLower - maxDrop);
             double nextUpper = Math.min(localUpper, reachableUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
@@ -354,11 +377,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double[] cumulative,
             double pathLength,
             double station,
+            double[] sampledDischarge,
             List<SkyIslandLocalPosition> spanPoints,
-            List<Double> spanStations) {
+            List<Double> spanStations,
+            List<Double> spanDischarges) {
         double targetArc = station * pathLength;
         for (int index = 0; index + 1 < points.size(); index++) {
-            if (targetArc > cumulative[index + 1] + 1.0e-12) continue;
+            if (targetArc > cumulative[index + 1] + EPSILON) continue;
             double ds = cumulative[index + 1] - cumulative[index];
             double fraction = (targetArc - cumulative[index]) / ds;
             SkyIslandLocalPosition a = points.get(index);
@@ -367,6 +392,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     a.x() + fraction * (b.x() - a.x()),
                     a.z() + fraction * (b.z() - a.z())));
             spanStations.add(station);
+            spanDischarges.add(
+                    sampledDischarge[index]
+                            + fraction * (sampledDischarge[index + 1] - sampledDischarge[index]));
             return;
         }
         throw new IllegalStateException("transition station escaped centerline");
