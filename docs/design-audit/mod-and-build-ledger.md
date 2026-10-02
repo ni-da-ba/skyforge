@@ -536,3 +536,36 @@ Biome and structure **diversity is considered sufficient for Alpha**. Do not exp
 - **MCS Ender Dragon / Better Ender Dragon** — retain for component-level/configurable-mechanics evaluation.
 - **Ender Trigon** and **Progressive Bosses** — interesting reference/future candidates, but do not count them as current 1.21.1 Alpha dependencies unless compatible ports become available.
 - Playtest matrix should include realistic solo, 2-player, and 4-player late-Nether loadouts; arena compatibility; crystal interactions; flight/engineering cheese; multiplayer scaling; encounter readability; and whether victory feels like an earned transition into the outer End.
+
+
+## Nether Alpha direction — causal grammar and first integration tests
+
+**Status:** Provisional design target and low-cost integration test plan. Do not treat the temporary Alpha worldgen substrate as permanent Skyforge architecture.
+
+### Long-term Nether grammar
+- The Nether should become a coherent three-dimensional geological system rather than a collection of independently sampled biomes.
+- Target hierarchy: Nether -> Province -> Magmatic/Cavern System -> Major Vault/Basin/Chasm Network -> Local Morphology -> Ecology/Resources/Structures/Threats.
+- Treat lava as a geological transport/drainage system: sources/reservoirs, conduits, falls, channels, basins/lava seas, cooling margins, and associated deposits should eventually have causal relationships.
+- Treat cavern topology as a first-class regional system: major vaults, chasms, corridors, tubes, shafts, collapsed regions, and thick solid volumes should form coherent traversable networks.
+- Structures, resources, ecology, and threats should respond to this physical context rather than independently dictating it.
+- Preserve mixed-mode traversal. Aircraft should solve some vault/lava/chasm routes without making tunnels, rail, roads, bridges, staging sites, ground vehicles, and defended corridors obsolete.
+- Nether threats should be evaluated for capability/vehicle pressure as well as player damage: explosive/ranged/flying/clinging threats, fire/heat, visibility denial, landing-area denial, cargo risk, and exposed-component damage are desirable interaction classes where existing systems support them.
+- Do not implement native magmatic drainage/cavern authorship as an Alpha prerequisite. Use lessons from mature Overworld hydrology/terrain work before deciding which abstractions generalize.
+
+### Provisional Alpha content/worldgen candidates
+- BetterNether: New Dawn — leading broad environmental/ecology/material vocabulary candidate; use configuration/governance to keep Skyforge semantic authority.
+- Jaden's Nether Expansion / Mosaic — promising temporary regional-coherence/worldgen substrate and content source; useful as an Alpha stand-in, not presumed permanent authority.
+- Eternal Nether — strong structure/threat vocabulary candidate for semantically placed major locations and hostile content.
+- Nether Depths Upgrade — promising lava-sea ecology candidate; especially aligned with treating lava basins as real geographic/ecological systems.
+- Luminous: Nether — playtest candidate for unusual ecology, creatures, and rare threats; prefer selective content use over granting world authority.
+- Incendium — A/B physical-Nether prototype for greater verticality/cavern/terrain ambition; do not automatically stack into the retained pack.
+- Vanilla Nether remains the control and selectable vocabulary.
+- Existing cross-dimensional creature/boss libraries remain eligible under Skyforge threat/ecology authority.
+
+### First Nether test sequence
+1. **Worldgen substrate comparison:** generate disposable worlds using the same seed for (A) vanilla/control, (B) Jaden's/Mosaic + BetterNether, and (C) Incendium. Evaluate only physical/regional qualities: region scale and coherence, vertical scale, cavern connectivity, major void/chasm/vault geometry, lava-basin geometry, navigability, and suitability for later Skyforge governance. Do not tune progression or balance.
+2. **Structure/lava-ecology layering:** take the most promising substrate and add Eternal Nether + Nether Depths Upgrade. Evaluate whether structures, threats, and lava ecology remain legible and geographically meaningful rather than becoming content soup.
+3. **Ecology/threat layering:** add Luminous and selected existing mob libraries only after the substrate test. Evaluate ecological overlap, spawn density, niche duplication, threat diversity, and vehicle-relevant interactions.
+4. Defer magmatic-drainage implementation, fine player-feel tuning, progression balancing, and deep semantic interception until Skyforge's internal terrain/hydrology systems and the integrated mod stack are mature enough to support meaningful testing.
+
+**Decision principle:** maximize useful existing vocabulary while minimizing bespoke Alpha work. Skyforge ultimately owns causal semantics and placement; temporary generators are scaffolding.
