@@ -16,12 +16,15 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
     record Score(
             double maximumLocalEnvelopeConflictWorldUnits,
             double maximumGradePropagationConflictWorldUnits,
+            double maximumConfluenceCascadeGradeConflictWorldUnits,
             double integratedSquaredConflictWorldUnits) {
         public Score {
             if (!Double.isFinite(maximumLocalEnvelopeConflictWorldUnits)
                     || maximumLocalEnvelopeConflictWorldUnits < 0.0
                     || !Double.isFinite(maximumGradePropagationConflictWorldUnits)
                     || maximumGradePropagationConflictWorldUnits < 0.0
+                    || !Double.isFinite(maximumConfluenceCascadeGradeConflictWorldUnits)
+                    || maximumConfluenceCascadeGradeConflictWorldUnits < 0.0
                     || !Double.isFinite(integratedSquaredConflictWorldUnits)
                     || integratedSquaredConflictWorldUnits < 0.0) {
                 throw new IllegalArgumentException(
@@ -30,7 +33,7 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
         }
 
         static Score zero() {
-            return new Score(0.0, 0.0, 0.0);
+            return new Score(0.0, 0.0, 0.0, 0.0);
         }
     }
 }
