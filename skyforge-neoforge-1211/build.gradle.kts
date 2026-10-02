@@ -473,7 +473,7 @@ check(wbyAlphaB3Pin("neoforge", "version") == "21.1.249")
 
 val wbyAlphaB3SharedMods = listOf(
     "geckolib", "architectury", "yacl", "clothconfig", "cerbonsapi",
-    "lithostitched", "cristellib", "createdragonsplus", "cookscollection",
+    "lithostitched", "regionsunexplored", "cristellib", "createdragonsplus", "cookscollection",
     "naturalist", "critters", "mowziesmobs", "bomd", "incontrol",
     "morevillagers", "guardvillagers", "ctov", "townsandtowers", "illagerstructures",
     "farmersdelight", "centralkitchen", "supplementaries", "brewinchewin", "culturaldelights",
