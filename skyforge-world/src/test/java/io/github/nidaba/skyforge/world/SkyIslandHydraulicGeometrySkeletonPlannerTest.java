@@ -38,6 +38,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         StringBuilder report = new StringBuilder(
                 "F3L_KEY700_D2_COMPONENT seed=0x534B59464F524745 key=700"
                         + System.lineSeparator());
+        String objectiveFailure = null;
         for (SkyIslandGeomorphicReachRoute route : incidentRoutes) {
             var first = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
                     descriptor, network, route, terrain, interiority);
@@ -77,12 +78,13 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         d.finalMaximumLongitudinalGradeConflict()
                                 < d.initialMaximumLongitudinalGradeConflict(),
                         "minimax refinement must reduce the worst key-700 grade conflict");
-                assertTrue(
-                        d.finalMaximumConfluenceCascadeGradeConflict()
-                                < d.initialMaximumConfluenceCascadeGradeConflict(),
-                        "refinement must reduce free grade conflict on the confluence-to-CASCADE ordinary span: "
-                                + d.initialMaximumConfluenceCascadeGradeConflict() + " -> "
-                                + d.finalMaximumConfluenceCascadeGradeConflict());
+                if (!(d.finalMaximumConfluenceCascadeGradeConflict()
+                        < d.initialMaximumConfluenceCascadeGradeConflict())) {
+                    objectiveFailure =
+                            "refinement must reduce free grade conflict on the confluence-to-CASCADE ordinary span: "
+                                    + d.initialMaximumConfluenceCascadeGradeConflict() + " -> "
+                                    + d.finalMaximumConfluenceCascadeGradeConflict();
+                }
             }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
@@ -209,6 +211,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 "build", "evidence", "hydrology-key700-d2-component-test", "key-700.txt");
         Files.createDirectories(evidence.getParent());
         Files.writeString(evidence, report);
+        if (objectiveFailure != null) {
+            System.out.println(report);
+            assertTrue(false, objectiveFailure);
+        }
     }
 
     @Test
