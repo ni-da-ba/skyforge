@@ -140,6 +140,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         int relaxationSweeps = 0;
         if (headEnvelopeGap != null
                 && (best.maximumHeadEnvelopeGap() > EPSILON
+                        || best.maximumLongitudinalHeadFeasibilityConflict() > EPSILON
                         || best.longitudinalHeadFeasibilityGap() > EPSILON)) {
             GlobalModeSearchOutcome globalModes = refineGlobalModes(
                     searchRoute, semanticGuidance, terrain, interiority,
@@ -204,6 +205,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     && (unchanged
                             || (candidate.maximumHeadEnvelopeGap() <= EPSILON
                                     && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
+                                    && candidate.maximumLongitudinalHeadFeasibilityConflict() <= EPSILON
                                     && candidate.longitudinalHeadFeasibilityGap() <= EPSILON
                                     && (minimumBendRadius <= EPSILON
                                             || candidate.maximumCurvature() * minimumBendRadius
@@ -236,11 +238,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 initial.maximumHeadEnvelopeGapStation(),
                 initial.integratedSquaredHeadEnvelopeGap(),
                 initial.longitudinalHeadFeasibilityGap(),
+                initial.maximumLongitudinalHeadFeasibilityConflict(),
                 best.maximumHeadEnvelopeGap(),
                 best.maximumHeadEnvelopeGapIndex(),
                 best.maximumHeadEnvelopeGapStation(),
                 best.integratedSquaredHeadEnvelopeGap(),
                 best.longitudinalHeadFeasibilityGap(),
+                best.maximumLongitudinalHeadFeasibilityConflict(),
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
@@ -633,8 +637,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double currentGap = 0.0;
             if (headEnvelopeGap != null && halfWidth > EPSILON) {
                 currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
-                double longitudinalGap = checkedLongitudinalGap(longitudinalHeadFeasibility, working);
-                if (currentGap > EPSILON || longitudinalGap > EPSILON) {
+                SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalScore =
+                        checkedLongitudinalScore(longitudinalHeadFeasibility, working);
+                if (currentGap > EPSILON
+                        || longitudinalScore.maximumConflictWorldUnits() > EPSILON) {
                     for (int direction = -1; direction <= 1; direction += 2) {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
@@ -749,6 +755,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             integratedSquaredGap /= pathLength;
         }
         int maximumGapIndex = maximumIndex(gaps);
+        SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalScore =
+                checkedLongitudinalScore(longitudinalHeadFeasibility, points);
         return new Candidate(
                 List.copyOf(points),
                 pathLength,
@@ -759,7 +767,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 maximumGapIndex,
                 station[maximumGapIndex],
                 integratedSquaredGap,
-                checkedLongitudinalGap(longitudinalHeadFeasibility, points));
+                longitudinalScore.maximumConflictWorldUnits(),
+                longitudinalScore.integratedSquaredConflictWorldUnits());
     }
 
     private static AdmissionCheck admissibilityCheck(
@@ -821,10 +830,18 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             firstPoints.set(changedIndex, first);
             List<SkyIslandLocalPosition> secondPoints = new ArrayList<>(points);
             secondPoints.set(changedIndex, second);
-            int grade = Double.compare(
-                    checkedLongitudinalGap(longitudinalHeadFeasibility, firstPoints),
-                    checkedLongitudinalGap(longitudinalHeadFeasibility, secondPoints));
-            if (grade != 0) return grade;
+            SkyIslandCenterlineLongitudinalHeadFeasibility.Score firstScore =
+                    checkedLongitudinalScore(longitudinalHeadFeasibility, firstPoints);
+            SkyIslandCenterlineLongitudinalHeadFeasibility.Score secondScore =
+                    checkedLongitudinalScore(longitudinalHeadFeasibility, secondPoints);
+            int maximumGrade = Double.compare(
+                    firstScore.maximumConflictWorldUnits(),
+                    secondScore.maximumConflictWorldUnits());
+            if (maximumGrade != 0) return maximumGrade;
+            int integratedGrade = Double.compare(
+                    firstScore.integratedSquaredConflictWorldUnits(),
+                    secondScore.integratedSquaredConflictWorldUnits());
+            if (integratedGrade != 0) return integratedGrade;
         }
         return Double.compare(
                 project(first, searchRoute.points()).distance(),
@@ -927,16 +944,15 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         return Math.acos(cosine) / (0.5 * (al + bl));
     }
 
-    private static double checkedLongitudinalGap(
+    private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score checkedLongitudinalScore(
             SkyIslandCenterlineLongitudinalHeadFeasibility feasibility,
             List<SkyIslandLocalPosition> points) {
-        if (feasibility == null) return 0.0;
-        double gap = feasibility.evaluate(List.copyOf(points));
-        if (!Double.isFinite(gap) || gap < 0.0) {
-            throw new IllegalArgumentException(
-                    "longitudinal head feasibility gap must be finite and non-negative");
+        if (feasibility == null) {
+            return SkyIslandCenterlineLongitudinalHeadFeasibility.Score.zero();
         }
-        return gap;
+        return Objects.requireNonNull(
+                feasibility.evaluate(List.copyOf(points)),
+                "longitudinal feasibility score");
     }
 
     private static double checkedGap(
@@ -1125,11 +1141,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double initialMaximumHeadEnvelopeGapStation,
             double initialIntegratedSquaredHeadEnvelopeGap,
             double initialLongitudinalHeadFeasibilityGap,
+            double initialMaximumLongitudinalHeadFeasibilityConflict,
             double finalMaximumHeadEnvelopeGap,
             int finalMaximumHeadEnvelopeGapIndex,
             double finalMaximumHeadEnvelopeGapStation,
             double finalIntegratedSquaredHeadEnvelopeGap,
             double finalLongitudinalHeadFeasibilityGap,
+            double finalMaximumLongitudinalHeadFeasibilityConflict,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
             long lateralCandidateCorridorRejected,
@@ -1180,6 +1198,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             int maximumHeadEnvelopeGapIndex,
             double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap,
+            double maximumLongitudinalHeadFeasibilityConflict,
             double longitudinalHeadFeasibilityGap) {
         private int compareTo(Candidate other, double minimumBendRadius) {
             double curvatureExcess = curvatureExcess(minimumBendRadius);
@@ -1199,6 +1218,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (integratedGap != 0) {
                 return integratedGap;
             }
+            int maximumLongitudinal = Double.compare(
+                    maximumLongitudinalHeadFeasibilityConflict,
+                    other.maximumLongitudinalHeadFeasibilityConflict);
+            if (maximumLongitudinal != 0) return maximumLongitudinal;
             int longitudinal = Double.compare(
                     longitudinalHeadFeasibilityGap,
                     other.longitudinalHeadFeasibilityGap);
