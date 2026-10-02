@@ -2126,7 +2126,7 @@ neoForge {
         create("wbyAlphaClientAcceptance") {
             client()
             sourceSet.set(wbyAlphaClientRuntime)
-            taskBefore(tasks.named("wbyAlphaStageClientMods"))
+            taskBefore("wbyAlphaStageClientMods")
             gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("wby-alpha")
