@@ -478,3 +478,33 @@ Key policy:
 - visual coherence is a later production gate.
 
 See [Structure Content Stack v0.1](structure-content-stack-v0.1.md).
+
+
+## End Alpha integration slate — atmosphere, biomes, and structures
+
+**Status:** Provisional content/integration inventory for Alpha. Persist candidates now; placement, compatibility, authority interception, and final curation are integration-phase decisions.
+
+### Atmosphere / pressure
+- ThinAir: ReLived — expected Alpha respiration/breathability layer; categorical native breathability is acceptable as the Alpha fallback if Skyforge-field coupling is not cheap.
+- Create: FlyHigher — expected Alpha candidate for atmospheric-pressure-dependent Aeronautics behavior; test cheap coupling/approximation to Skyforge pressure fields.
+- Create: Deep Seas — R&D/playtest candidate for pressure differentials, sealed hulls/cabins, oxygen, instrumentation, and pressure integrity. Test both underwater and generalized non-water atmospheres, especially low-pressure / near-vacuum End operation. Keep only if adaptation is cheap; not an Alpha blocker.
+
+### End biome / ecology content library
+- BetterEnd: New Dawn — primary broad End ecology/material/biome library candidate: biomes, vegetation, wood/stone families, resources, caves, ambience, structures, mobs, and progression content.
+- Biomes O' Plenty — retain modern End biome/ecology content as an additional library source, including End Wilds, End Reef, End Corruption, and version-dependent End variants/features.
+- End's Phantasm — retain as a distinctive supplementary End library, especially Dreaming Den/Pream content, underside/underisland ecology, Oblivion/Oblivine/Oblifruit content, and void/crystal vocabulary.
+- Unusual End — retain as a broad supplementary End content prototype with biome/environmental content, structures, creatures, hazards, resources, and encounter mechanics.
+- Vanilla End content remains selectable vocabulary.
+- Regions Unexplored — no current End-biome contribution assumed; do not count its Overworld/Nether content toward the End library unless deliberately repurposed later.
+- Nullscape — classify primarily as morphology/terrain vocabulary rather than a major ecology/content library. Skyforge must retain primary morphology authority.
+
+### End structure content library
+- MES / Moog's End Structures — primary broad, data-driven End structure-vocabulary candidate under Skyforge structure-suitability and rarity semantics.
+- Unusual End structures — supplementary points-of-interest / encounter structures, subject to semantic placement and density governance.
+- BetterEnd: New Dawn structures — part of the broad BetterEnd library; integration testing determines independent selection/suppression.
+- YUNG's Better End Island — specialized central-End / dragon-island progression set-piece candidate.
+- YUNG's Better Strongholds — specialized Overworld-to-End progression-route structure candidate.
+- Vanilla End structures remain baseline/selectable content.
+
+### Alpha decision
+Biome and structure **diversity is considered sufficient for Alpha**. Do not expand the biome/structure mod pool merely to increase variety. Next work is inventory, integration testing, semantic curation, placement control, and identification of concrete gaps. The content audit now moves to End resources, creatures, threats, and progression.
