@@ -16,6 +16,7 @@ import java.util.Optional;
  */
 public final class SkyIslandHydraulicGeometrySkeletonPlanner {
     private static final double EPSILON = 1.0e-12;
+    private static final double TRANSITION_BOUNDARY_EPSILON = 1.0e-10;
 
     private SkyIslandHydraulicGeometrySkeletonPlanner() {}
 
@@ -277,7 +278,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         for (int index = 0; index < profiles.size(); index++) {
             double profileStart = (double) index / profiles.size();
             if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE
-                    && profileStart > startStation + EPSILON) {
+                    && profileStart > startStation + TRANSITION_BOUNDARY_EPSILON) {
                 cascadeStart = index;
                 break;
             }
@@ -314,13 +315,16 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         for (int index = 0; index < profiles.size(); index++) {
             double profileStart = (double) index / profiles.size();
             double profileEnd = (double) (index + 1) / profiles.size();
-            if (Math.min(endStation, profileEnd) - Math.max(startStation, profileStart) <= EPSILON) {
+            if (Math.min(endStation, profileEnd) - Math.max(startStation, profileStart)
+                            <= TRANSITION_BOUNDARY_EPSILON) {
                 continue;
             }
             SkyIslandChannelProfileKind kind = profiles.get(index).kind();
             if (kind == SkyIslandChannelProfileKind.CASCADE) {
                 throw new IllegalStateException(
-                        "confluence-to-CASCADE ordinary span overlaps an authored CASCADE profile");
+                        "confluence-to-CASCADE ordinary span overlaps authored CASCADE profile "
+                                + index + " over [" + profileStart + "," + profileEnd
+                                + "] with target [" + startStation + "," + endStation + "]");
             }
             overlappingKinds.add(kind);
         }
