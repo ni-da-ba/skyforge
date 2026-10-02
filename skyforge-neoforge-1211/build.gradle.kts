@@ -435,6 +435,26 @@ val wbyAlphaB1ServerMods = listOf(
     "mapatlases", "moonlight",
 )
 
+val wbyAlphaB2PinFile = layout.projectDirectory.file("wby-alpha-candidate-b2.properties")
+val wbyAlphaB2Pins = Properties().apply {
+    wbyAlphaB2PinFile.asFile.inputStream().use(::load)
+}
+fun wbyAlphaB2Pin(mod: String, field: String): String =
+    requireNotNull(wbyAlphaB2Pins.getProperty("$mod.$field")) {
+        "missing WBY alpha B2 pin: $mod.$field in " + wbyAlphaB2PinFile.asFile
+    }
+fun wbyAlphaB2Token(mod: String): String =
+    wbyAlphaB2Pins.getProperty("$mod.artifactToken")
+        ?: wbyAlphaB2Pin(mod, "coordinate").split(":").let {
+            check(it.size == 3) { "expected group:module:version coordinate for $mod" }
+            "${it[1]}-${it[2]}"
+        }
+check(wbyAlphaB2Pin("minecraft", "version") == "1.21.1")
+check(wbyAlphaB2Pin("neoforge", "version") == "21.1.249")
+val wbyAlphaB2SharedMods = listOf(
+    "artifacts", "lootr", "graveless", "aerotoolgun", "climbableropes", "grapplinghooks",
+)
+
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
 // immutable Modrinth version IDs live in one small lock manifest so the development specimen can
 // be reproduced without making these R&D candidates production dependencies.
@@ -6530,6 +6550,7 @@ tasks.register("wbyAlphaResolvePinnedMods") {
     inputs.file(wbyWave1PinFile)
     inputs.file(wbyWave1BPinFile)
     inputs.file(wbyAlphaB1PinFile)
+    inputs.file(wbyAlphaB2PinFile)
 
     doLast {
         fun token(coordinate: String): String {
@@ -6594,13 +6615,18 @@ tasks.register("wbyAlphaResolvePinnedMods") {
                 "WBY alpha server leaked client-only B1 $mod token '$t': $server"
             }
         }
+        wbyAlphaB2SharedMods.forEach { mod ->
+            val t = wbyAlphaB2Token(mod)
+            check(client.any { it.contains(t) }) { "WBY alpha client missing B2 $mod token '$t': $client" }
+            check(server.any { it.contains(t) }) { "WBY alpha server missing B2 $mod token '$t': $server" }
+        }
 
         val gliderToken = token(waveC2Pin("reliablegliders", "coordinate"))
         check(client.none { it.contains(gliderToken) } && server.none { it.contains(gliderToken) }) {
             "Reliable Gliders is RESERVE in the canonical alpha manifest and must not enter baseline"
         }
 
-        println("WBY ALPHA IMMUTABLE BASELINE + B1 RESOLUTION PASS")
+        println("WBY ALPHA IMMUTABLE BASELINE + B1 + B2 RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
     }
@@ -7337,6 +7363,10 @@ dependencies {
     }
     wbyAlphaB1ServerMods.forEach { mod ->
         add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB1Pin(mod, "coordinate"))
+    }
+    wbyAlphaB2SharedMods.forEach { mod ->
+        add(wbyAlphaClientRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
+        add(wbyAlphaServerRuntime.runtimeOnlyConfigurationName, wbyAlphaB2Pin(mod, "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
