@@ -2126,6 +2126,7 @@ neoForge {
         create("wbyAlphaClientAcceptance") {
             client()
             sourceSet.set(wbyAlphaClientRuntime)
+            taskBefore(tasks.named("wbyAlphaStageClientMods"))
             gameDirectory = layout.projectDirectory.dir("run-wby-alpha").asFile
             programArgument("--quickPlaySingleplayer")
             programArgument("wby-alpha")
@@ -6521,6 +6522,38 @@ tasks.register("wbyAlphaResolvePinnedMods") {
         println("WBY S0 LAUNCH SHELL RESOLUTION PASS")
         println("  clientFiles=" + client.size)
         println("  serverFiles=" + server.size)
+    }
+}
+
+tasks.register<Sync>("wbyAlphaStageClientMods") {
+    group = "verification"
+    description = "Stage exact S0 external client mods into the ordinary mods directory so NeoForge dependency sorting sees them as installed mods."
+
+    val expectedTokens = (
+        wbyAlphaEngineeringMods.map { mod -> waveC1Pin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } } +
+        wbyAlphaClientVisibilityMods.map { mod -> wbyWave1Pin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } } +
+        wbyAlphaClientOptimizerMods.map { mod -> wbyWave1BPin(mod, "coordinate").split(":").let { parts -> parts[1] + "-" + parts[2] } }
+    ).toSet()
+
+    from(wbyAlphaClientRuntime.runtimeClasspath) {
+        include { details -> expectedTokens.any { token -> details.file.name.contains(token) } }
+    }
+    into(layout.projectDirectory.dir("run-wby-alpha/mods"))
+
+    doFirst { destinationDir.deleteRecursively() }
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { file -> file.isFile && file.extension == "jar" }
+            ?.map { file -> file.name }
+            ?.sorted()
+            ?: emptyList()
+        expectedTokens.forEach { token ->
+            check(staged.any { name -> name.contains(token) }) { "S0 staged client mods missing token '$token': $staged" }
+        }
+        check(staged.size == expectedTokens.size) {
+            "S0 staged client mods contain unexpected jars: expected=" + expectedTokens.size + " staged=" + staged
+        }
+        println("WBY S0 CLIENT MOD STAGING PASS")
     }
 }
 
