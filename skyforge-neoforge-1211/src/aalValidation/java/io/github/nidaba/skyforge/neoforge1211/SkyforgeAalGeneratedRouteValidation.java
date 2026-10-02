@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -30,13 +31,15 @@ import net.sprocketgames.create_aeronautics_automated_logistics.vehicle.VehicleC
  * storage/playback operations that the later real-ServerLevel fixture must execute.</p>
  */
 public final class SkyforgeAalGeneratedRouteValidation {
-    private static final UUID SKYFORGE_ROUTE_UUID =
+    // Canonical Skyforge identities remain outside AAL. AAL receives only deterministic,
+    // domain-separated derived references so its native IDs can never become semantic authority.
+    private static final UUID SKYFORGE_ROUTE_ID =
             UUID.fromString("7f4274ef-3b69-5f27-ae5e-8e91528f843d");
-    private static final UUID SKYFORGE_VEHICLE_UUID =
+    private static final UUID SKYFORGE_VEHICLE_ID =
             UUID.fromString("9109cbee-a2e7-52fe-b741-49e463f70edb");
-    private static final UUID ORIGIN_STOP_UUID =
+    private static final UUID SKYFORGE_ORIGIN_STOP_ID =
             UUID.fromString("7be66265-55b5-54ca-b5d0-4d47a3c6c020");
-    private static final UUID DESTINATION_STOP_UUID =
+    private static final UUID SKYFORGE_DESTINATION_STOP_ID =
             UUID.fromString("c6061136-119a-5718-b53a-677b21d34474");
 
     private SkyforgeAalGeneratedRouteValidation() {
@@ -48,24 +51,28 @@ public final class SkyforgeAalGeneratedRouteValidation {
 
         require(first.equals(second), "deterministic regeneration changed the generated AAL route");
         require(first.id().equals(second.id()), "deterministic regeneration changed the AAL route id");
-        require(first.id().value().equals(SKYFORGE_ROUTE_UUID), "AAL route id is not derived from the canonical Skyforge id");
+        UUID expectedAalRouteId = derivedAalId("route", SKYFORGE_ROUTE_ID);
+        require(first.id().value().equals(expectedAalRouteId), "AAL route id does not match the deterministic derived reference");
+        require(!first.id().value().equals(SKYFORGE_ROUTE_ID), "AAL route id collapsed into canonical Skyforge identity");
         require(first.transportMode() == TransportMode.AIRSHIP, "generated route is not AIRSHIP transport");
         require(first.dimension().equals(Level.OVERWORLD), "generated route dimension changed");
         require(first.points().size() == 3, "generated route point count changed");
         require(first.stops().size() == 2, "generated route stop count changed");
-        require(first.stops().get(0).id().equals(ORIGIN_STOP_UUID), "origin stop identity changed");
-        require(first.stops().get(1).id().equals(DESTINATION_STOP_UUID), "destination stop identity changed");
+        require(first.stops().get(0).id().equals(derivedAalId("stop", SKYFORGE_ORIGIN_STOP_ID)), "origin stop derived identity changed");
+        require(first.stops().get(1).id().equals(derivedAalId("stop", SKYFORGE_DESTINATION_STOP_ID)), "destination stop derived identity changed");
+        require(!first.stops().get(0).id().equals(SKYFORGE_ORIGIN_STOP_ID), "AAL origin stop id collapsed into canonical Skyforge identity");
+        require(!first.stops().get(1).id().equals(SKYFORGE_DESTINATION_STOP_ID), "AAL destination stop id collapsed into canonical Skyforge identity");
         require(first.ownerId().isEmpty(), "validation route unexpectedly acquired an AAL owner identity");
 
         System.out.println("SF-IMP-0084 AAL GENERATED ROUTE PASS");
     }
 
     static Route generatedRoute() {
-        RouteId routeId = new RouteId(SKYFORGE_ROUTE_UUID);
+        RouteId routeId = new RouteId(derivedAalId("route", SKYFORGE_ROUTE_ID));
         VehicleControllerRef controller = new VehicleControllerRef(
                 ResourceLocation.fromNamespaceAndPath("skyforge", "sf_imp_0084_fixture"),
                 Level.OVERWORLD,
-                Optional.of(SKYFORGE_VEHICLE_UUID),
+                Optional.of(derivedAalId("vehicle", SKYFORGE_VEHICLE_ID)),
                 Optional.empty()
         );
 
@@ -77,7 +84,7 @@ public final class SkyforgeAalGeneratedRouteValidation {
 
         List<RouteStop> stops = List.of(
                 new RouteStop(
-                        ORIGIN_STOP_UUID,
+                        derivedAalId("stop", SKYFORGE_ORIGIN_STOP_ID),
                         "skyforge-origin",
                         0,
                         WaitCondition.none(),
@@ -85,7 +92,7 @@ public final class SkyforgeAalGeneratedRouteValidation {
                         List.of()
                 ),
                 new RouteStop(
-                        DESTINATION_STOP_UUID,
+                        derivedAalId("stop", SKYFORGE_DESTINATION_STOP_ID),
                         "skyforge-destination",
                         2,
                         WaitCondition.none(),
@@ -138,6 +145,11 @@ public final class SkyforgeAalGeneratedRouteValidation {
         playback.startPlayback(level, stationPos, route);
         playback.stopPlayback(level, route.id(), stopReason);
         playback.tickPlayback(level);
+    }
+
+    private static UUID derivedAalId(String kind, UUID canonicalSkyforgeId) {
+        String namespace = "skyforge/aal/" + kind + "/" + canonicalSkyforgeId;
+        return UUID.nameUUIDFromBytes(namespace.getBytes(StandardCharsets.UTF_8));
     }
 
     private static void require(boolean condition, String message) {
