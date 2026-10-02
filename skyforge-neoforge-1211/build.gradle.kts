@@ -250,6 +250,18 @@ check(!wbyPt03ComputingAvionics || (wbyPt02Glider && wbyPt02ElytraSuppression)) 
     "WBY PT-03 computing/avionics requires the accepted final PT-02B profile"
 }
 
+// WBY-INT-0006 is the first retained petroleum-machinery overlay. It admits Diesel Generators
+// only on top of the accepted engineering stack; C25's native chunk-oil geography stays suppressed.
+val wbyIndustrialDieselGenerators = providers.gradleProperty("wbyIndustrialDieselGenerators")
+    .orNull
+    ?.trim()
+    ?.equals("true", ignoreCase = true)
+    ?: false
+
+check(!wbyIndustrialDieselGenerators || wbyPt03ComputingAvionics) {
+    "WBY industrial Diesel Generators requires the accepted PT-03 computing/avionics profile"
+}
+
 // W1-B is an opt-in overlay on the accepted W1-A baseline. Ordinary W1-A workflows do not
 // resolve or stage any optimizer unless the qualification invocation explicitly supplies
 // -PwbyWave1BOptimizer=<candidate>.
@@ -6426,6 +6438,13 @@ tasks.register<Sync>("wbyWave1StageClientMods") {
             )
         } else {
             emptyList()
+        } +
+        if (wbyIndustrialDieselGenerators) {
+            listOf(
+                waveC25Pin("createdieselgenerators", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6482,6 +6501,13 @@ tasks.register<Sync>("wbyWave1StagePersistenceClientMods") {
             )
         } else {
             emptyList()
+        } +
+        if (wbyIndustrialDieselGenerators) {
+            listOf(
+                waveC25Pin("createdieselgenerators", "coordinate").split(":").let { "${it[1]}-${it[2]}" },
+            )
+        } else {
+            emptyList()
         }
     ).toSet()
 
@@ -6517,6 +6543,7 @@ tasks.register("wbyWave1ResolvePinnedMods") {
     inputs.file(wbyWave1PinFile)
     inputs.file(waveC1PinFile)
     inputs.file(waveC9PinFile)
+    inputs.file(waveC25PinFile)
     inputs.file(wbyWave1BPinFile)
 
     doLast {
@@ -6594,6 +6621,15 @@ tasks.register("wbyWave1ResolvePinnedMods") {
             }
         }
 
+        if (wbyIndustrialDieselGenerators) {
+            val dieselToken = artifactToken(waveC25Pin("createdieselgenerators", "coordinate"))
+            listOf("client" to clientFiles, "server" to serverFiles).forEach { (side, files) ->
+                check(files.any { it.contains(dieselToken) }) {
+                    "WBY industrial $side missing Create: Diesel Generators token '$dieselToken': $files"
+                }
+            }
+        }
+
         wbyWave1BClientOptimizerMods.forEach { mod ->
             val token = artifactToken(wbyWave1BPin(mod, "coordinate"))
             check(clientFiles.any { it.contains(token) }) {
@@ -6621,7 +6657,42 @@ tasks.register("wbyWave1ResolvePinnedMods") {
         println("WBY PT-02 glider overlay=" + if (wbyPt02Glider) "enabled" else "disabled")
         println("WBY PT-02 Elytra suppression=" + if (wbyPt02ElytraSuppression) "enabled" else "disabled")
         println("WBY PT-03 computing/avionics=" + if (wbyPt03ComputingAvionics) "enabled" else "disabled")
+        println("WBY industrial Diesel Generators=" + if (wbyIndustrialDieselGenerators) "enabled" else "disabled")
         println("WBY WAVE 1 PIN RESOLUTION PASS")
+    }
+}
+
+
+
+tasks.named("runWbyWave1VisibilityServer").configure {
+    doFirst {
+        if (!wbyIndustrialDieselGenerators) {
+            return@doFirst
+        }
+
+        val directory = layout.projectDirectory.dir("run-wby-wave1-visibility-server").asFile
+        val serverPropertiesFile = directory.resolve("server.properties")
+        check(serverPropertiesFile.isFile) {
+            "WBY industrial Diesel Generators requires server.properties before server launch: $serverPropertiesFile"
+        }
+        val serverProperties = Properties().also { properties ->
+            serverPropertiesFile.inputStream().use(properties::load)
+        }
+        val levelName = serverProperties.getProperty("level-name")?.trim().orEmpty()
+        check(levelName.isNotEmpty()) {
+            "WBY industrial Diesel Generators requires an explicit level-name so C25 suppression can be scoped"
+        }
+
+        val serverConfig = directory.resolve("$levelName/serverconfig/createdieselgenerators-server.toml")
+        serverConfig.parentFile.mkdirs()
+        serverConfig.writeText(
+            """
+            ["Server Configs"."Oil Config"]
+            "Disable normal oil chunks" = true
+            "Disable high oil chunks" = true
+            """.trimIndent() + "\n"
+        )
+        println("WBY INDUSTRIAL DIESEL SUPPRESSION CONFIG PASS level=$levelName")
     }
 }
 
@@ -7136,6 +7207,19 @@ dependencies {
                 waveC9Pin(mod, "coordinate"),
             )
         }
+    }
+
+    // WBY-INT-0006 retains Diesel Generators machinery on both sides. Native oil geography is
+    // not enabled by dependency presence; the WBY server task below materializes C25 suppression.
+    if (wbyIndustrialDieselGenerators) {
+        add(
+            wbyWave1VisibilityClientRuntime.runtimeOnlyConfigurationName,
+            waveC25Pin("createdieselgenerators", "coordinate"),
+        )
+        add(
+            wbyWave1VisibilityServerRuntime.runtimeOnlyConfigurationName,
+            waveC25Pin("createdieselgenerators", "coordinate"),
+        )
     }
 
 
