@@ -673,3 +673,29 @@ This applies especially to Blaze Rods. The desired challenge is an **expedition 
 - Magmatic drainage should remain an overlapping graph/system rather than being forced beneath a single morphology hierarchy; lava reservoirs, conduits, falls, channels, and basins may traverse multiple cavern elements.
 - The Nether is therefore a useful architecture test: it should demonstrate that Skyforge morphology describes semantic geometry generally rather than being accidentally synonymous with “floating island generation.”
 - Do not finalize APIs or implementation names yet. Validate the abstraction with at least one convincing vault system, one chasm system, and one mixed system with coherent magma routing before generalizing accepted Sky-Island APIs.
+
+
+## Nether mod-acquisition closure slate
+
+**Status:** 2026-10-02 provisional closure pass. Goal is to close specific vanilla capability gaps and then freeze broad Nether mod acquisition; remaining work should shift to Skyforge integration, curation, spawn control, recipe normalization, and geographic placement.
+
+### Structure/progression closures
+- **YUNG's Better Nether Fortresses** — strong expected keep for Alpha. Current 1.21.1 NeoForge support. Replaces the weak vanilla fortress realization with a substantially larger fortress grammar while preserving the recognizable Nether Fortress/Blaze progression role. Treat as the leading Alpha realization for progression-critical fortress sites under eventual Skyforge geographic authority.
+- **Better Bastions** — immediate A/B candidate rather than automatic lock. Promising replacement/expansion of vanilla Bastion Remnants with multiple procedural forms and configurable layout/garrison behavior. Because the project is comparatively new, stability, interoperability, worldgen control, and compatibility with the selected Nether substrate must be demonstrated before retention.
+- Conservative fallback if Better Bastions fails integration: retain/clean up vanilla Bastion semantics rather than adding another broad Nether overhaul.
+
+### Boss closure
+- **Wither: Reincarnated** — focused 1.21.1 NeoForge A/B candidate for repairing the vanilla Wither encounter without importing another broad content pack. Evaluate behavioral quality, multiplayer scaling, engineering counterplay, arena/environment interactions, and compatibility with the Nether progression stack. Do not solve difficulty primarily through inflated health/damage.
+
+### Piglin depth
+- **Piglin Proliferation** — conditional candidate only. Its value is specifically deeper Piglin role/behavior vocabulary, not generic mob count. Test the retained Eternal Nether + Bastion/Piglin stack first; add Piglin Proliferation only if Piglin civilization remains behaviorally thin. Avoid redundant Piglin variants and spawn-table soup.
+
+### Environmental survival
+- **ThinAir: ReLived** remains the leading Alpha breathability/respiration frontend candidate.
+- **Cold Sweat is NOT currently a required dependency.** It is retained only as an optional R&D candidate if later playtesting demonstrates that continuous thermal physiology is necessary and cannot be represented more cheaply.
+- Current preference is to avoid a dedicated body-temperature simulation unless it earns its complexity. Skyforge may still expose canonical environmental temperature/heat fields for climate, machines, ecology, fluids, aerodynamics, rendering, and localized hazards without imposing continuous player thermoregulation.
+- For Alpha, dangerous heat should preferentially be expressed through geographically legible/local mechanics already available in Minecraft or retained mods: lava/radiant proximity, fire, hot machinery/materials, hazardous regions, equipment requirements, route constraints, and other targeted consequences. Add a continuous temperature-survival frontend only if these prove insufficient.
+- Likewise, do not conflate natural Nether atmospheric chemistry with industrial pollution merely to justify another survival mod. Airborne/pollution systems remain optional future R&D, not core closure dependencies.
+
+### Acquisition freeze
+After evaluating **YUNG's Better Nether Fortresses**, **Better Bastions**, and **Wither: Reincarnated**, plus the conditional Piglin-depth question, stop searching for broad Nether biome/resource/structure/bestiary packs unless integration testing exposes a concrete missing capability. Existing retained candidates already provide ample terrain, ecology, resources, structures, creatures, food, and industrial vocabulary. The dominant risk is now incoherent realization rather than insufficient content.
