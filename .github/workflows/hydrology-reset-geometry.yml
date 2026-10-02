@@ -276,61 +276,15 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Run reset geometry tests
+      - name: Run focused key-700 hydrology regressions
         run: |
           ./gradlew \
             :skyforge-world:test \
-            --tests '*SkyIslandPreHydrologicTerrainFieldTest' \
-            --tests '*SkyIslandSemanticChannelReachPlannerTest' \
-            --tests '*SkyIslandTerrainAwareRouteSolverTest' \
-            --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest' \
-            --tests '*SkyIslandContinuousChannelCenterlinePlannerTest' \
+            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
+            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' \
             --tests '*SkyIslandSemanticCorridorCenterlinePlannerTest' \
-            --tests '*SkyIslandHydraulicChannelNetworkPlannerTest' \
-            --tests '*SkyIslandHydraulicBoundedQpSolverTest' \
-            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest' \
-            --tests '*SkyIslandBoundedHydraulicProfilePlannerTest' \
-            --tests '*SkyIslandChannelTerminalFatePlannerTest' \
-            --tests '*SkyIslandHydraulicTransitionTopologyPlannerTest' \
-            --tests '*SkyIslandHydraulicTransitionGeometryEvidencePlannerTest' \
-            --tests '*SkyIslandConfluenceHeadCompatibilityPlannerTest' \
             --tests '*SkyIslandConfluenceCascadeHeadCompatibilityPlannerTest' \
-            --tests '*SkyIslandCascadeHeadCompatibilityPlannerTest' \
-            --tests '*SkyIslandOrdinarySpanPlannerTest' \
-            --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest' \
-            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest' \
-            --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest' \
-            --tests '*SkyIslandFluvialVoxelQuantizationPlannerTest' \
-            --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest' \
-            --tests '*SkyIslandWorldWaterHeadRefinementPlannerTest' \
-            --tests '*SkyIslandWorldHeadRefinedTerrainPlannerTest' \
-            --tests '*SkyIslandGeomorphicReachDiagnosticsPlannerTest' \
-            --tests '*SkyIslandGeomorphicQualificationEvaluatorTest' \
-            --tests '*SkyIslandHydraulicDiscontinuityDiagnosticsPlannerTest' \
-            --tests '*SkyIslandContinuousWaterbodyPlannerTest' \
-            --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest' \
-            --tests '*SkyIslandContinuousWaterbodyQualificationEvaluatorTest' \
-            --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest' \
-            :skyforge-reference:test \
-            --tests '*HydrologyConfluenceCompatibilityCorpusTest' \
-            --tests '*HydrologyCascadeCompatibilityCorpusTest' \
-            --tests '*HydrologyOrdinarySpanCorpusTest' \
-            --tests '*HydrologyNetworkAssemblyCorpusTest' \
-            --tests '*HydrologyComponentTerrainCandidateCorpusTest' \
-            --tests '*HydrologyWorldSurfaceProjectionCorpusTest' \
-            --tests '*HydrologyVoxelQuantizationCorpusTest' \
-            --tests '*HydrologyWorldWaterProjectionCorpusTest' \
-            --tests '*HydrologyWorldHeadRefinementCorpusTest' \
-            --tests '*HydrologyLateralRefinementCorpusTest' \
-            --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' \
-            --tests '*HydrologyBoundedProfileCorpusTest' \
-            --tests '*HydrologyRouteResolutionCorpusTest' \
-            --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' \
-            --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' \
-            --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' \
-            --tests '*HydrologyGeomorphicQualificationCorpusTest' \
             --no-configuration-cache
-      # The broad world/reference regression suite above runs each selected test once. CI owns the full adapter regression; keep this focused workflow from re-running the projection and key-287 tests with --rerun-tasks.
       - name: Print F3H regression diagnostic
         if: success()
         run: |
@@ -348,119 +302,12 @@ jobs:
           print(output.text.strip())
           PY
 
-      - name: Print hydrology diagnostic calibration manifests
+      - name: Print key-700 and key-287 refinement diagnostics
         if: success()
         run: |
-          if [ ! -f skyforge-reference/build/evidence/hydrology-qualification-test-a/qualification-manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicQualificationCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- geomorphic-qualification-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-qualification-test-a/qualification-manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyGeomorphicDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/manifest.csv
-          echo "--- reach-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-diagnostics-test-a/reach-manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyDiscontinuityDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- discontinuity-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-discontinuity-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyBoundedProfileCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- bounded-profile-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/manifest.csv
-          echo "--- bounded-profile-convergence-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/convergence-manifest.csv
-          echo "--- terminal-fate-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-bounded-profile-test-a/terminal-fate-manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-route-resolution-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyRouteResolutionCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- route-resolution-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-route-resolution-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyWaterbodyDiagnosticsCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- basin-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-waterbody-diagnostics-test-a/basin-manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-confluence-compatibility-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyConfluenceCompatibilityCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- confluence-compatibility-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-confluence-compatibility-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-cascade-compatibility-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyCascadeCompatibilityCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- cascade-compatibility-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-cascade-compatibility-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyOrdinarySpanCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- ordinary-span-manifest.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-ordinary-span-test-a/manifest.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-network-assembly-test-a/terminal-components.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyNetworkAssemblyCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- terminal-components.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/terminal-components.csv
-          echo "--- reach-assemblies.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-network-assembly-test-a/reach-assemblies.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyComponentTerrainCandidateCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- component-candidates.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/component-candidates.csv
-          echo "--- realized-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-component-terrain-test-a/realized-reaches.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-world-projection-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyWorldSurfaceProjectionCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- world-surface-projection-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-projection-test-a/summary.csv
-          echo "--- world-surface-projection-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-projection-test-a/reaches.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyVoxelQuantizationCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- voxel-quantization-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-voxel-quantization-test-a/summary.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyWorldWaterProjectionCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- world-water-projection-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-water-test-a/summary.csv
-          echo "--- world-water-projection-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-water-test-a/reaches.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyWorldHeadRefinementCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- world-head-refinement-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/summary.csv
-          echo "--- world-head-refinement-components.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-world-head-refinement-test-a/components.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyLateralRefinementCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- lateral-refinement-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/summary.csv
-          echo "--- lateral-refinement-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-lateral-refinement-test-a/reaches.csv
-          if [ ! -f skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/summary.csv ]; then
-            ./gradlew :skyforge-reference:test --tests '*HydrologyRefinedVoxelQuantizationCorpusTest' --rerun-tasks --no-configuration-cache
-          fi
-          echo "--- refined-voxel-quantization-summary.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/summary.csv
-          echo "--- refined-voxel-quantization-reaches.csv ---"
-          cat skyforge-reference/build/evidence/hydrology-refined-voxel-quantization-test-a/reaches.csv
-          echo "--- D2 centerline candidate admissibility: key 287 ---"
-          cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
-          echo "--- D2 semantic-corridor feasibility: key 287 ---"
-          cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287-corridor-summary.txt
-          echo "--- key-700 component D2 refinement and ordinary-span outcomes ---"
           cat skyforge-world/build/evidence/hydrology-key700-d2-component-test/key-700.txt
+          cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287.txt
+          cat skyforge-world/build/evidence/hydrology-d2-search-test/key-287-corridor-summary.txt
 
       - name: Dump generated hydrology evidence on failure
         if: failure()
