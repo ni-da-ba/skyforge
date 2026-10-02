@@ -2217,11 +2217,46 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceCase", "wby-s05-prepare")
             systemProperty("skyforge.dev.acceptanceRadius", "0")
             systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty("skyforge.dev.wbyS05PolicyFixture", "true")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/wby-s05/prepare.properties").get().asFile.absolutePath,
             )
             taskBefore(tasks.named(development.processResourcesTaskName))
+            taskBefore(tasks.register<Copy>("wbyS05StagePolicyFixtures") {
+                group = "verification"
+                description = "Stage inert S0.5A KubeJS/LootJS/Paxi/Almost Unified acceptance fixtures."
+
+                val fixtureRoot = layout.projectDirectory.dir("wby-s0-5-fixtures")
+                val runRoot = layout.projectDirectory.dir("run-wby-s05")
+
+                from(fixtureRoot.dir("kubejs")) { into("kubejs") }
+                from(fixtureRoot.dir("paxi")) { into("config/paxi") }
+                from(fixtureRoot.dir("almostunified")) { into("config/almostunified") }
+                into(runRoot)
+
+                doFirst {
+                    runRoot.dir("kubejs").asFile.deleteRecursively()
+                    runRoot.dir("config/paxi").asFile.deleteRecursively()
+                    runRoot.dir("config/almostunified").asFile.deleteRecursively()
+                }
+                doLast {
+                    val required = listOf(
+                        runRoot.file("kubejs/server_scripts/00_skyforge_s05_kubejs.js").asFile,
+                        runRoot.file("kubejs/server_scripts/01_skyforge_s05_lootjs.js").asFile,
+                        runRoot.file("config/paxi/datapacks/skyforge-s05-noop/pack.mcmeta").asFile,
+                        runRoot.file("config/paxi/datapacks/skyforge-s05-noop/data/skyforge_s05/tags/item/paxi_probe.json").asFile,
+                        runRoot.file("config/almostunified/startup.json").asFile,
+                        runRoot.file("config/almostunified/placeholders.json").asFile,
+                        runRoot.file("config/almostunified/unification/materials.json").asFile,
+                    )
+                    check(required.all { it.isFile }) {
+                        "S0.5A policy fixture staging incomplete: " +
+                            required.filterNot { it.isFile }.joinToString { it.path }
+                    }
+                    println("WBY S0.5A POLICY FIXTURE STAGING PASS")
+                }
+            })
         }
 
         create("wbyS05ClientAcceptance") {
