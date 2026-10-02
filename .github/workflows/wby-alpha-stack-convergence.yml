@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/wby-alpha-stack-convergence.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
       - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1-mods.properties"
       - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
