@@ -1,0 +1,235 @@
+name: WBY Integration INT-0006 Diesel Generators
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-integration-int0006-diesel-generators.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c25-mods.properties"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1-mods.properties"
+      - "skyforge-neoforge-1211/wby-wave1b-optimizer-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC25PetroleumAuthorityAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC14AvionicsCapabilityAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWaveC7GliderLiftDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeWbyWave1VisibilityClientAcceptance.java"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-int0006-diesel-generators-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  diesel-generators-admission:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ORG_GRADLE_PROJECT_wbyWave1BOptimizer: dynamicfps
+      ORG_GRADLE_PROJECT_wbyPt02Glider: "true"
+      ORG_GRADLE_PROJECT_wbyPt02ElytraSuppression: "true"
+      ORG_GRADLE_PROJECT_wbyPt03ComputingAvionics: "true"
+      ORG_GRADLE_PROJECT_wbyInt0006DieselGenerators: "true"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Resolve accepted cumulative INT-0006 stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1ResolvePinnedMods --no-configuration-cache | tee wby-int0006-resolve.log
+          grep -q 'WBY Wave 1B optimizer=dynamicfps' wby-int0006-resolve.log
+          grep -q 'WBY PT-02 glider overlay=enabled' wby-int0006-resolve.log
+          grep -q 'WBY PT-02 Elytra suppression=enabled' wby-int0006-resolve.log
+          grep -q 'WBY PT-03 computing/avionics=enabled' wby-int0006-resolve.log
+          grep -q 'WBY-INT-0006 Diesel Generators=enabled' wby-int0006-resolve.log
+          grep -q 'ZM3tt6p1-UoPH8lO1' wby-int0006-resolve.log
+
+      - name: Prove cumulative server capabilities with petroleum authority suppressed
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-server"
+          rm -rf "$run_dir"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=wby-int0006-combined
+          level-seed=601400
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=4
+          simulation-distance=5
+          max-tick-time=0
+          max-players=1
+          server-port=25577
+          EOF
+
+          log="wby-int0006-combined-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed -Dskyforge.dev.waveC14AvionicsCapability=true -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true"
+
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityServer --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          outcome=""
+
+          for _ in $(seq 1 240); do
+            c25=0
+            c14=0
+            c7=0
+            grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$log" 2>/dev/null && c25=1 || true
+            grep -Fq 'WAVE_C14 PASS' "$log" 2>/dev/null && c14=1 || true
+            grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log" 2>/dev/null && c7=1 || true
+            if [[ "$c25" -eq 1 && "$c14" -eq 1 && "$c7" -eq 1 ]]; then
+              outcome="pass"
+              break
+            fi
+            if grep -Eq 'WAVE_C25 FAIL|WAVE_C14 FAIL|WAVE_C7_ACCEPTANCE FAIL' "$log" 2>/dev/null; then
+              outcome="fail"
+              break
+            fi
+            kill -0 "$pid" 2>/dev/null || break
+            sleep 1
+          done
+
+          if [[ "$outcome" != "pass" ]]; then
+            cat "$log"
+            kill -TERM -- "-$pid" 2>/dev/null || true
+            sleep 1
+            kill -KILL -- "-$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            exit 1
+          fi
+
+          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$log"
+          grep -Fq 'normalOilDisabled=true' "$log"
+          grep -Fq 'highOilDisabled=true' "$log"
+          grep -Fq 'crudeOil=true' "$log"
+          grep -Fq 'pumpjackHole=true' "$log"
+          grep -Fq 'distillationTank=true' "$log"
+          grep -Fq 'dieselEngine=true' "$log"
+          grep -Fq 'productionAdapterSelected=false' "$log"
+          grep -Fq 'WAVE_C14 PASS' "$log"
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$log"
+
+          config="$run_dir/wby-int0006-combined/serverconfig/createdieselgenerators-server.toml"
+          test -f "$config"
+          grep -Fq '"Disable normal oil chunks" = true' "$config"
+          grep -Fq '"Disable high oil chunks" = true' "$config"
+
+          for mod in create sable aeronautics ssrd lithium ferritecore reliable_gliders aerodynamics4mc createdieselgenerators; do
+            grep -Eq "\\($mod\\)" "$log"
+          done
+          if grep -Eq '\\(sodium\\)|\\(distanthorizons\\)|\\(immediatelyfast\\)|\\(dynamic_fps\\)' "$log"; then
+            echo "INT-0006 dedicated server leaked a client-only renderer/optimizer mod"
+            exit 1
+          fi
+
+          kill -TERM -- "-$pid" 2>/dev/null || true
+          sleep 2
+          kill -KILL -- "-$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+
+      - name: Prepare disposable actual-client world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-wave1-visibility-client"
+          rm -rf "$run_dir"
+          timeout 180 ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientWorldPrepareServer --no-configuration-cache
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/prepare.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+
+          mapfile -t level_files < <(find "$run_dir" -maxdepth 4 -type f -name level.dat -print)
+          test "${#level_files[@]}" -eq 1
+          source_world="$(dirname "${level_files[0]}")"
+          client_world="$run_dir/saves/wby-wave1-visibility-client"
+          if [[ "$source_world" != "$client_world" ]]; then
+            rm -rf "$client_world"
+            mkdir -p "$run_dir/saves"
+            cp -a "$source_world" "$client_world"
+          fi
+
+          cat > "$run_dir/options.txt" <<'EOF'
+          onboardAccessibility:false
+          pauseOnLostFocus:false
+          renderDistance:4
+          simulationDistance:5
+          entityDistanceScaling:1.0
+          particles:0
+          narrator:0
+          EOF
+
+      - name: Stage exact cumulative INT-0006 client stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyWave1StageClientMods --no-configuration-cache
+          mods="skyforge-neoforge-1211/run-wby-wave1-visibility-client/mods"
+          find "$mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-int0006-client-jars.txt
+          test "$(wc -l < wby-int0006-client-jars.txt)" -eq 16
+          grep -q 'pVIWsXir-HFLhMfNC' wby-int0006-client-jars.txt
+          grep -q 'UnshaaiE-6Z0Z1pfP' wby-int0006-client-jars.txt
+          grep -q 'uNWWxAv9-G9hL7wPy' wby-int0006-client-jars.txt
+          grep -q 'gu7yAYhd-puxJkazX' wby-int0006-client-jars.txt
+          grep -q 'h4nsLvjf-sWhAueMC' wby-int0006-client-jars.txt
+          grep -q 'ZM3tt6p1-UoPH8lO1' wby-int0006-client-jars.txt
+
+          config="skyforge-neoforge-1211/run-wby-wave1-visibility-client/saves/wby-wave1-visibility-client/serverconfig/createdieselgenerators-server.toml"
+          test -f "$config"
+          grep -Fq '"Disable normal oil chunks" = true' "$config"
+          grep -Fq '"Disable high oil chunks" = true' "$config"
+
+          if find skyforge-neoforge-1211/src/main/resources -type f -name 'createdieselgenerators-server.toml' -print | grep -q .; then
+            echo "INT-0006 leaked validation/runtime petroleum config into packaged resources"
+            exit 1
+          fi
+
+      - name: Requalify distant Sable actual-client visibility with INT-0006
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="wby-int0006-actual-client.log"
+          timeout 300 xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyWave1VisibilityClientAcceptance --no-configuration-cache 2>&1 | tee "$log"
+
+          result="skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/client.properties"
+          test -f "$result"
+          grep -q '^status=PASS$' "$result"
+          grep -q '^actualClient=true$' "$result"
+          grep -q '^clientSubLevelFinalized=true$' "$result"
+          grep -q '^renderTransformMatchesExpected=true$' "$result"
+          grep -q '^beyondVanillaRenderDistance=true$' "$result"
+          grep -q '^ssrdSublevelRenderObserved=true$' "$result"
+          grep -q '^distantHorizonsLoaded=true$' "$result"
+          grep -q '^sodiumLoaded=true$' "$result"
+          grep -Eq '\(createdieselgenerators\)' "$log"
+
+      - name: Upload INT-0006 admission evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-int0006-diesel-generators
+          path: |
+            wby-int0006-*.log
+            wby-int0006-client-jars.txt
+            skyforge-neoforge-1211/build/acceptance/wby-wave1-visibility/*.properties
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-wave1-visibility-server/wby-int0006-combined/serverconfig/createdieselgenerators-server.toml
+            skyforge-neoforge-1211/run-wby-wave1-visibility-client/saves/wby-wave1-visibility-client/serverconfig/createdieselgenerators-server.toml
+          if-no-files-found: warn
