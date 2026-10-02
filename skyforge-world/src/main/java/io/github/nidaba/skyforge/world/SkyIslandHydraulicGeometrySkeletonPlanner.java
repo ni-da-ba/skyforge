@@ -408,6 +408,20 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 spanClass.name(), maximumConflictIndex, maximumConflictStation);
     }
 
+    static String confluenceCascadeGradeScorerInputs(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points) {
+        double pathLength = cumulativeDistance(points)[points.size() - 1];
+        double startDischarge = semanticDischargeProfile(semantic).atStation(0.0);
+        double startHalfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                descriptor.nominalRadius(), startDischarge);
+        return "pathLength=" + pathLength
+                + ",startDischarge=" + startDischarge
+                + ",startHalfWidth=" + startHalfWidth
+                + ",startStation=" + (startHalfWidth / pathLength);
+    }
+
     static ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflictDetails(
             SkyIslandDescriptor descriptor,
             SkyIslandGeomorphicChannelNetworkPlan network,
