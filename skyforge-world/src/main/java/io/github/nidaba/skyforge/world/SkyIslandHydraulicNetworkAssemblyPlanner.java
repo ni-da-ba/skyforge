@@ -239,20 +239,20 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
 
     private static SkyIslandHydraulicAssemblyStatus sharedHeadStatus(
             SkyIslandHydraulicComponentHeadSolver.Outcome outcome) {
-        if (outcome.status() == SkyIslandHydraulicQpStatus.INFEASIBLE) {
-            return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
-        }
         if (outcome.status() == SkyIslandHydraulicQpStatus.NUMERICAL_FAILURE) {
             return SkyIslandHydraulicAssemblyStatus.NUMERICAL_FAILURE;
         }
         if (outcome.complete()) {
             return SkyIslandHydraulicAssemblyStatus.QUALIFIED;
         }
-        if (!outcome.excludedSpans().isEmpty()) {
-            return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
-        }
+        // A partial graph cannot establish a terminal-component physical rejection when required
+        // transition ownership is unresolved: the missing boundary variables may change feasibility.
         if (!outcome.transitionBlockers().isEmpty()) {
             return SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED;
+        }
+        if (outcome.status() == SkyIslandHydraulicQpStatus.INFEASIBLE
+                || !outcome.excludedSpans().isEmpty()) {
+            return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
         }
         return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
     }
