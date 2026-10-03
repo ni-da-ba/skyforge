@@ -122,6 +122,11 @@ public final class SkyIslandHydraulicHeadComponentProblem {
             return observations.size();
         }
 
+        public boolean hasHead(String key) {
+            requireKey(key, "head key");
+            return observations.containsKey(key);
+        }
+
         public Outcome solve() {
             if (observations.isEmpty()) {
                 throw new IllegalStateException("component head problem requires at least one variable");
