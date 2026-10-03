@@ -172,6 +172,30 @@ public final class SkyIslandHydraulicComponentHeadSolver {
                 : plan.cascadePlan().outcomes()) {
             SkyIslandHydraulicCascadeGeometryCandidate geometry = outcome.geometry();
             SkyIslandHydraulicCascadeTransitionSite site = geometry.transitionSite();
+            boolean jointlyOwned = plan.jointPlan().outcomes().stream()
+                    .anyMatch(joint ->
+                            joint.status()
+                                            == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED
+                                    && joint.cascade().transitionSite().equals(site));
+            if (outcome.status() != SkyIslandCascadeHeadCompatibilityStatus.SOLVED) {
+                if (outcome.status()
+                                != SkyIslandCascadeHeadCompatibilityStatus.BOUNDARY_COUPLED
+                        || !jointlyOwned) {
+                    state.blockers.add(
+                            "CASCADE "
+                                    + site.reachStartCellIndex()
+                                    + "->"
+                                    + site.reachEndCellIndex()
+                                    + " remains "
+                                    + outcome.status().name()
+                                    + outcome.diagnostic().map(value -> ": " + value).orElse(""));
+                }
+                continue;
+            }
+            if (jointlyOwned) {
+                continue;
+            }
+
             SkyIslandSemanticChannelReach semantic =
                     state.requireReach(site.reachStartCellIndex(), site.reachEndCellIndex());
             List<SkyIslandChannelProfile> profiles = semantic.profiles();
@@ -188,58 +212,33 @@ public final class SkyIslandHydraulicComponentHeadSolver {
             String upstreamKey = state.pointKey(upstream);
             String downstreamKey = state.pointKey(downstream);
             SkyIslandGeomorphicProfileLimits limits = state.policy.limits(semantic);
-            if (outcome.status() == SkyIslandCascadeHeadCompatibilityStatus.SOLVED
-                    || outcome.status()
-                            == SkyIslandCascadeHeadCompatibilityStatus.BOUNDARY_COUPLED) {
-                state.addStateHead(
-                        upstreamKey,
-                        upstream,
-                        upstreamKind,
-                        upstreamDirection,
-                        0.5 * geometry.pathLength(),
-                        limits);
-                state.addStateHead(
-                        downstreamKey,
-                        downstream,
-                        downstreamKind,
-                        downstreamDirection,
-                        0.5 * geometry.pathLength(),
-                        limits);
-            }
-
-            boolean jointlyOwned = plan.jointPlan().outcomes().stream()
-                    .anyMatch(joint ->
-                            joint.status()
-                                            == SkyIslandConfluenceCascadeHeadCompatibilityStatus.SOLVED
-                                    && joint.cascade().transitionSite().equals(site));
-            if (outcome.status() == SkyIslandCascadeHeadCompatibilityStatus.SOLVED
-                    && !jointlyOwned) {
-                state.addDifference(
-                        "component-cascade:"
-                                + site.reachStartCellIndex()
-                                + "->"
-                                + site.reachEndCellIndex()
-                                + ":"
-                                + site.firstProfileIndex()
-                                + "-"
-                                + site.lastProfileIndexExclusive(),
-                        upstreamKey,
-                        downstreamKey,
-                        0.0,
-                        outcome.authoredMaximumDropWorldUnits());
-            } else if (outcome.status()
-                            != SkyIslandCascadeHeadCompatibilityStatus.SOLVED
-                    && outcome.status()
-                            != SkyIslandCascadeHeadCompatibilityStatus.BOUNDARY_COUPLED) {
-                state.blockers.add(
-                        "CASCADE "
-                                + site.reachStartCellIndex()
-                                + "->"
-                                + site.reachEndCellIndex()
-                                + " remains "
-                                + outcome.status().name()
-                                + outcome.diagnostic().map(value -> ": " + value).orElse(""));
-            }
+            state.addStateHead(
+                    upstreamKey,
+                    upstream,
+                    upstreamKind,
+                    upstreamDirection,
+                    0.5 * geometry.pathLength(),
+                    limits);
+            state.addStateHead(
+                    downstreamKey,
+                    downstream,
+                    downstreamKind,
+                    downstreamDirection,
+                    0.5 * geometry.pathLength(),
+                    limits);
+            state.addDifference(
+                    "component-cascade:"
+                            + site.reachStartCellIndex()
+                            + "->"
+                            + site.reachEndCellIndex()
+                            + ":"
+                            + site.firstProfileIndex()
+                            + "-"
+                            + site.lastProfileIndexExclusive(),
+                    upstreamKey,
+                    downstreamKey,
+                    0.0,
+                    outcome.authoredMaximumDropWorldUnits());
         }
     }
 
@@ -630,7 +629,7 @@ public final class SkyIslandHydraulicComponentHeadSolver {
                     && includedSpans.size() > 0
                     && excludedSpans.isEmpty()
                     && transitionBlockers.isEmpty();
-            if ((diagnostic == null) == complete) {
+            if ((diagnostic == null) != complete) {
                 throw new IllegalArgumentException(
                         "complete component solve has no diagnostic; partial or failed solve requires one");
             }
