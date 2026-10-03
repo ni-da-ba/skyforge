@@ -1,6 +1,6 @@
 # WBY S1 manual comparison launch
 
-These are interactive review profiles for the staged S1 issue. They use the cumulative S0.5 stack, Aerodynamics4MC 0.2.2 core + Create Aeronautics compatibility built from the immutable upstream source commit in the S1 pin file, and No More Elytra Boosting. Optional candidates are separate overlays so the D-02 and D-03 comparisons stay isolated. The source build replaces the server-crashing 0.2.1 compatibility artifact from the accepted C3 probe without changing C3's historical evidence.
+These are interactive review profiles for the staged S1 issue. They use the cumulative S0.5 stack, Aerodynamics4MC 0.2.2 core + Create Aeronautics compatibility built from the immutable upstream source commit in the S1 pin file, and No More Elytra Boosting. Optional candidates are separate overlays. The owner has selected Simple Clouds as the renderer foundation and confirmed it renders with Distant Horizons; the remaining S1 human gate is the early-game glider. The source build replaces the server-crashing 0.2.1 compatibility artifact from the accepted C3 probe without changing C3's historical evidence.
 
 ## Launch from Git Bash
 
@@ -11,16 +11,11 @@ Open Git Bash and run these commands from the isolated S1 checkout:
     git pull --ff-only origin wby/s1-atmosphere-mobility
     bash scripts/wby-s1-diagnostic-launch.sh client none none false
 
-The first launch clones and builds the pinned upstream Aerodynamics4MC source with its Gradle wrapper, then stages the 0.2.2 core and Create Aeronautics compatibility jars. Later launches reuse the clone and rebuild the same commit. Wait for the source build before the game starts. The launcher opens the client to the title screen and stages the baseline profile. The Better Clouds overlay also pins and stages its required YetAnotherConfigLib (YACL) dependency on the client only. Create a fresh Skyforge preset world using an untouched seed. Keep the same world/seed when switching overlays. The S1 launcher does not stage or activate the S0.5 synthetic visibility/structure fixture, and it does not tune recipes or progression.
+The first launch clones and builds the pinned upstream Aerodynamics4MC source with its Gradle wrapper, then stages the 0.2.2 core and Create Aeronautics compatibility jars. Later launches reuse the clone and rebuild the same commit. Wait for the source build before the game starts. The launcher opens the client to the title screen and stages the baseline profile. The Better Clouds comparison overlay also pins and stages its required YetAnotherConfigLib (YACL) dependency on the client only. Create a fresh Skyforge preset world using an untouched seed. Keep the same world/seed when switching overlays. The S1 launcher does not stage or activate the S0.5 synthetic visibility/structure fixture, and it does not tune recipes or progression.
 
-After closing Minecraft, launch each comparison profile:
+The owner has completed the Simple Clouds + Distant Horizons review. The paired cloud launches below are retained for reproducibility, but do not need to be repeated. The remaining S1 manual review is the early-game Hang Glider candidate. After closing Minecraft, run:
 
-    bash scripts/wby-s1-diagnostic-launch.sh client ornithopter simple-clouds false without-dh
-    bash scripts/wby-s1-diagnostic-launch.sh client ornithopter simple-clouds false with-dh
-    bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false
-    bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false without-dh
     bash scripts/wby-s1-diagnostic-launch.sh client hang-glider none false
-    bash scripts/wby-s1-diagnostic-launch.sh client ornithopter none false
 
 ThinAir is a distinct optional overlay for respiration/breathability inspection. It is not part of either D-02 or D-03 comparison:
 
@@ -30,38 +25,34 @@ To start the dedicated server profile instead, use:
 
     bash scripts/wby-s1-diagnostic-launch.sh server none none false
 
-## What to review
+## Owner review and remaining human gate
 
-For the Simple Clouds comparison, the two commands above launch the same S1 client stack with Ornithopter Glider and differ only in whether Distant Horizons is present. The first run uses a new isolated `run-wby-s1-simple-clouds` game directory; create a fresh world and note its seed. Set one fixed non-zero Cloud Seed in Simple Clouds' client config and leave it unchanged, because client-only mode randomizes cloud positions on each login otherwise. Use the same world, location, time, weather, video settings, and cloud seed in both runs. Confirm Minecraft video settings have Clouds enabled, and do not change Simple Clouds' cloud mode between runs. The test overlays Simple Clouds on the client only; localized server weather, synchronization, and Skyforge semantic-weather mapping are not being evaluated.
+### Cloud renderer: accepted
 
-If the no-DH run shows clouds but the DH run does not, capture a screenshot and retain the `config/simpleclouds-client.toml` file in that run's diagnostics bundle. Simple Clouds has an upstream open issue for clouds disappearing with Distant Horizons when its mode is set to Ambient; record the selected cloud mode before trying any setting change. [Upstream issue #212](https://github.com/nonamecrackers2/simple-clouds/issues/212).
+The owner reports that Simple Clouds rendered after enabling Minecraft's Clouds setting, including with Distant Horizons present. The Simple Clouds + Distant Horizons compatibility/rendering gate is closed for this pinned S1 client profile. Simple Clouds is the selected renderer foundation for Skyforge's intended cloud/weather presentation; Better Clouds is no longer an active S1 comparison.
 
-For the Better Clouds comparison, compare baseline against Better Clouds in the same seed and daytime/weather conditions. Its without-dh profile excludes only Distant Horizons from the client runtime classpath and staged-mod list.
+This confirms rendering compatibility only. Skyforge still needs a technical integration that maps authored climate/weather meaning into Simple Clouds' cloud presentation. The client-only diagnostic does not prove localized server weather, synchronization, weather persistence, or semantic mapping.
 
-- whether Simple Clouds renders with DH disabled and again after DH is added, with the rest of the profile unchanged;
-- whether the same cloud layout stays visible through DH at both near and horizon distances;
-- whether cumulus/stratus/storm formations provide useful height, windward/leeward exposure, and route-direction cues around the sky islands;
-- whether cloud layers obscure distant islands, the horizon, or Sable craft at navigation distances;
-- whether frame pacing/performance remains acceptable and the sky colors/transparency stay correct;
-- whether Better Clouds appears in the no-DH run, where it is absent, or remains absent in both;
-- whether cloud layers help judge height, windward/leeward exposure, and route direction;
-- whether the cloud field obscures distant islands or Sable craft at the distances used for navigation;
-- whether vanilla clouds remain the clearer default;
-- whether rendering remains readable with the current Distant Horizons / Sodium / SSRD stack in the ordinary profile. The no-DH run is a diagnostic comparison only.
+### Early-game glider: owner review required
 
-For the glider comparison, use the same starting position, launch height, and route for each finalist:
+The owner likes Create: Ornithopter Glider as a later-game mobility tool, but it requires an Elytra and therefore does not fill the early-game gliding role. Hang Glider is the existing early-game candidate in the S1 profile.
 
-- handling predictability and how quickly a new player can understand steering;
-- whether lift or powered assistance obscures the intended cheap, early mobility role;
-- whether sustained flat-ground travel has net descent (the glider must not become self-powered level flight);
-- whether its progression feels appropriate beside the accepted aircraft stack.
+Use the same fresh Skyforge preset world and comparable elevated starting point. The candidate launcher uses `run-wby-s1`, separate from the Simple Clouds run directory, so it will not mutate the cloud comparison world.
 
-Do not tune recipes, cooldowns, advancement hooks, quests, or progression during this comparison. Record the profile and seed, then note the choice or the specific unresolved concern. Capture the generated .skyforge-diagnostics/wby-s1-* directory if a launch fails.
+Review:
+
+- can the Hang Glider be obtained and used without an Elytra or late-game unlock;
+- how predictable its deployment, steering, landing, and recovery feel to a new player;
+- whether a sustained flat-ground route has net descent, so it does not become powered level flight;
+- whether it provides useful early traversal without making the later Ornithopter feel redundant;
+- note the visible recipe and ingredient tiers, but do not change recipes, unlocks, cooldowns, balance, or quest hooks.
+
+Record whether Hang Glider fits the early-game role, or the specific capability gap that would justify testing another candidate. The exact profile and seed are useful in the report. If launch fails, send the generated `.skyforge-diagnostics/wby-s1-*` directory or at least its `console.log` and `latest.log`.
 
 ## Current technical exclusions
 
 - Particle Rain is not in the cumulative profile while its own wind field has not been shown to consume the accepted Aerodynamics4MC sample. Its current upstream integration path is WindLink, which would add a second wind authority unless a reviewed adapter maps it to Aerodynamics4MC.
 - Create: FlyHigher is deferred pending proof that it does not introduce a competing pressure/atmosphere authority.
 - Create: Deep Seas remains isolated R&D and does not block S1.
-- Iris and shader profiles are outside S1; the D-02 cloud decision happens first.
+- Iris and shader profiles are outside S1; the Simple Clouds renderer decision is recorded, while any future shader profile remains optional.
 - Aerodynamics4MC 0.2.2 is pinned by source commit because the upstream tag has no published release asset. The Skyforge workflow and manual launcher both build that same source and stage only its core and Create Aeronautics compatibility artifacts.
