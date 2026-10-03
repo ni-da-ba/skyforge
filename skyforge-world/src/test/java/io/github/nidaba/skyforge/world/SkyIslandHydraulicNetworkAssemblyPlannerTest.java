@@ -72,13 +72,22 @@ class SkyIslandHydraulicNetworkAssemblyPlannerTest {
                 SkyIslandHydraulicNetworkAssemblyPlanner.plan(
                         descriptor(8L, 81L, 632L));
 
-        assertTrue(plan.terminalComponents().stream()
+        var edgeOutletComponents = plan.terminalComponents().stream()
                 .filter(component ->
                         component.terminalFate().kind()
                                 == SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+                .toList();
+        assertTrue(edgeOutletComponents.stream()
                 .allMatch(component ->
                         component.status()
-                                == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED));
+                                == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED),
+                () -> edgeOutletComponents.stream()
+                        .map(component -> component.terminalFate().channelTerminalCellIndex()
+                                + "=" + component.status()
+                                + ", shared=" + component.sharedHeadSolve().status()
+                                + ", diagnostic=" + component.sharedHeadSolve().diagnostic()
+                                + ", blockers=" + component.sharedHeadSolve().transitionBlockers())
+                        .toList().toString());
         assertTrue(plan.reachAssemblies().stream()
                 .filter(reach ->
                         reach.semanticReach().endCellIndex() == 710)
