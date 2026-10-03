@@ -252,7 +252,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 confluenceCascadeGradeConflict.maximumConflict(),
                 ordinaryLength > 0.0
                         ? integratedSquaredConflict / ordinaryLength
-                        : 0.0);
+                        : 0.0,
+                confluenceCascadeGradeConflict.maximumConflictStation());
     }
 
     private static ConfluenceCascadeGradeConflictDetails maximumConfluenceCascadeGradeConflict(

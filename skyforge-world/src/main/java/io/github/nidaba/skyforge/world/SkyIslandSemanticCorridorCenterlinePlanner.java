@@ -218,7 +218,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
 
         SourceEndpointSearchSummary sourceEndpointSearch =
                 SourceEndpointSearchSummary.none();
-        if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
+        if (headEnvelopeGap != null
+                && (best.maximumHeadEnvelopeGap() > EPSILON
+                        || best.maximumLocalEnvelopeConflict() > EPSILON
+                        || best.maximumLongitudinalGradeConflict() > EPSILON
+                        || best.maximumConfluenceCascadeGradeConflict() > EPSILON)) {
             CoupledBlockOutcome coupled = refineCoupledBlocks(
                     searchRoute, semanticGuidance, terrain, interiority,
                     semanticCorridorHalfWidth, minimumBendRadius,
@@ -313,6 +317,21 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double[] pointGaps = headEnvelopeGaps(
                     points, bankfullHalfWidthAtStation, headEnvelopeGap);
             List<Integer> centers = new ArrayList<>(gapPeakCenters(pointGaps));
+            double criticalGradeStation =
+                    best.maximumConfluenceCascadeGradeConflictStation();
+            if (Double.isFinite(criticalGradeStation) && points.size() > 2) {
+                double[] pointStations = stations(points);
+                int gradeCenter = 1;
+                double nearestDistance = Math.abs(pointStations[gradeCenter] - criticalGradeStation);
+                for (int index = 2; index < pointStations.length - 1; index++) {
+                    double distance = Math.abs(pointStations[index] - criticalGradeStation);
+                    if (distance < nearestDistance) {
+                        gradeCenter = index;
+                        nearestDistance = distance;
+                    }
+                }
+                if (!centers.contains(gradeCenter)) centers.add(0, gradeCenter);
+            }
             boolean sourceEndpointNeedsRefinement =
                     best.maximumSourceEndpointEnvelopeConflict() > EPSILON;
             if (sourceEndpointNeedsRefinement && points.size() > 2 && !centers.contains(1)) {
@@ -918,7 +937,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 longitudinalScore.maximumSourceEndpointEnvelopeConflictWorldUnits(),
                 longitudinalScore.maximumGradePropagationConflictWorldUnits(),
                 longitudinalScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
-                longitudinalScore.integratedSquaredConflictWorldUnits());
+                longitudinalScore.integratedSquaredConflictWorldUnits(),
+                longitudinalScore.maximumConfluenceCascadeGradeConflictStation());
     }
 
     private static AdmissionCheck admissibilityCheck(
@@ -1389,7 +1409,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumSourceEndpointEnvelopeConflict,
             double maximumLongitudinalGradeConflict,
             double maximumConfluenceCascadeGradeConflict,
-            double longitudinalHeadFeasibilityGap) {
+            double longitudinalHeadFeasibilityGap,
+            double maximumConfluenceCascadeGradeConflictStation) {
         private boolean refinementResidualsNoWorseThan(Candidate other) {
             return maximumHeadEnvelopeGap <= other.maximumHeadEnvelopeGap + EPSILON
                     && integratedSquaredHeadEnvelopeGap
