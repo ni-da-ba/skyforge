@@ -106,12 +106,23 @@ final class SkyforgeWaveC7GliderLiftDevRuntime {
 
     private static void applyLift(ServerPlayer player, SkyforgeAtmosphereView.Sample sample) {
         Vec3 current = player.getDeltaMovement();
-        double newY = SkyforgeGliderLiftCoupling.apply(
-                current.y, sample.trustedForGameplay(), sample.updraftMetersPerSecond());
+        double newY = diagnosticPostNativeY(current.y, sample);
 
         if (Double.doubleToLongBits(newY) != Double.doubleToLongBits(current.y)) {
             player.setDeltaMovement(current.x, newY, current.z);
         }
+    }
+
+    /**
+     * Diagnostic-only replay of the exact post-native C7 vertical coupling.
+     *
+     * <p>This exposes no new gameplay authority. It exists so #1180 can feed one immutable real
+     * A4MC sample into control and treatment responses without weather drift between arms.
+     */
+    static double diagnosticPostNativeY(
+            double nativeY, SkyforgeAtmosphereView.Sample sample) {
+        return SkyforgeGliderLiftCoupling.apply(
+                nativeY, sample.trustedForGameplay(), sample.updraftMetersPerSecond());
     }
 
     private static SkyforgeAtmosphereView.Sample sampleLift(ServerLevel level, Vec3 position) {
