@@ -95,6 +95,19 @@ jobs:
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds-without-dh.log
           grep -Fq 'distantHorizons=without-dh' wby-s1-better-clouds-without-dh.log
 
+      - name: Stage Better Clouds without Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s1/mods"
+          test -f "$staged/5srFLIaK-rj65x08X.jar"
+          test -f "$staged/1eAoo2KR-ACDNgCDA.jar"
+          if find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
+            echo "Distant Horizons leaked into the isolated cloud profile"
+            exit 1
+          fi
+
       - name: Resolve ThinAir optional overlay closure
         shell: bash
         run: |
