@@ -34,6 +34,27 @@ bundle=".skyforge-diagnostics/wby-s1-$mode-$glider-$clouds-thinair-$thinair-$sta
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
+a4mc_source_dir=".skyforge-diagnostics/aerodynamics4mc-0.2.2-src"
+a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
+a4mc_commit="171d8dc593651d6b34e3bfecaf6469a11b53b433"
+a4mc_core="aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+a4mc_compat="aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+
+echo "Preparing pinned Aerodynamics4MC 0.2.2 source ($a4mc_commit)."
+if [[ ! -d "$a4mc_source_dir/.git" ]]; then
+  mkdir -p "$(dirname "$a4mc_source_dir")"
+  git clone --no-checkout https://github.com/MozillaFiredoge/Aerodynamics4MC-Core.git "$a4mc_source_dir"
+fi
+git -C "$a4mc_source_dir" fetch --depth 1 origin 0.2.2
+git -C "$a4mc_source_dir" checkout --detach "$a4mc_commit"
+(
+  cd "$a4mc_source_dir"
+  ./gradlew buildAndCollect --no-daemon
+) 2>&1 | tee "$bundle/aerodynamics4mc-build.log"
+mkdir -p "$a4mc_mod_dir"
+cp "$a4mc_source_dir/build/libs/0.2.2/$a4mc_core" "$a4mc_source_dir/build/libs/0.2.2/$a4mc_compat" "$a4mc_mod_dir/"
+sha256sum "$a4mc_mod_dir/"*.jar | tee "$bundle/aerodynamics4mc-sha256.txt"
+
 echo "Launching WBY S1 $mode profile."
 echo "glider=$glider clouds=$clouds thinAir=$thinair"
 echo "The client opens to the title screen. Create or open a fresh world for the human review."
@@ -45,6 +66,7 @@ set +e
   -PwbyS1Glider="$glider" \
   -PwbyS1Clouds="$clouds" \
   -PwbyS1ThinAir="$thinair" \
+  -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
 set -e

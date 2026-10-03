@@ -31,11 +31,36 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-java-gradle
 
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            ./gradlew buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
       - name: Resolve baseline atmosphere profile
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods --no-configuration-cache | tee wby-s1-baseline.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods --no-configuration-cache -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" | tee wby-s1-baseline.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-baseline.log
           grep -Fq 'glider=none clouds=none thinAir=false' wby-s1-baseline.log
 
@@ -43,7 +68,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1Glider=hang-glider --no-configuration-cache | tee wby-s1-hang-glider.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=hang-glider --no-configuration-cache | tee wby-s1-hang-glider.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-hang-glider.log
           grep -Fq 'glider=hang-glider clouds=none thinAir=false' wby-s1-hang-glider.log
 
@@ -51,7 +76,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1Glider=ornithopter --no-configuration-cache | tee wby-s1-ornithopter.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter --no-configuration-cache | tee wby-s1-ornithopter.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-ornithopter.log
           grep -Fq 'glider=ornithopter clouds=none thinAir=false' wby-s1-ornithopter.log
 
@@ -59,14 +84,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1Clouds=better-clouds --no-configuration-cache | tee wby-s1-better-clouds.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds --no-configuration-cache | tee wby-s1-better-clouds.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds.log
 
       - name: Resolve ThinAir optional overlay closure
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1ThinAir=true --no-configuration-cache | tee wby-s1-thinair.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1ThinAir=true --no-configuration-cache | tee wby-s1-thinair.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-thinair.log
 
       - name: Validate manual launch task graphs
@@ -89,6 +114,7 @@ jobs:
             wby-s1-*.log
             skyforge-neoforge-1211/run-wby-s1/mods/*.jar
             skyforge-neoforge-1211/run-wby-s1/config/**
+            a4mc-0.2.2/*.jar
           if-no-files-found: warn
 
   cumulative-server-client:
@@ -100,6 +126,31 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            ./gradlew buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
 
       - name: Prepare isolated vanilla server and client run directories
         shell: bash
@@ -118,7 +169,7 @@ jobs:
           server_dir="skyforge-neoforge-1211/run-wby-s1-server"
           server_log="wby-s1-server.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s1-server --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           client_pid=""
           cleanup() {
@@ -155,7 +206,7 @@ jobs:
           client_log="wby-s1-client.log"
           setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
-              -PwbyS1RunDirectory=run-wby-s1-client --no-configuration-cache > "$client_log" 2>&1 &
+              -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
           joined=false
           for attempt in $(seq 1 180); do
@@ -213,7 +264,7 @@ jobs:
           set -euo pipefail
           server_log="wby-s1-server-reload.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s1-server --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           ready=false
           for attempt in $(seq 1 150); do

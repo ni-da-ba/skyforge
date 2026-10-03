@@ -1,6 +1,6 @@
 # WBY S1 manual comparison launch
 
-These are interactive review profiles for the staged S1 issue. They all use the cumulative S0.5 stack, the already accepted Aerodynamics4MC core + Aeronautics compatibility pins, and No More Elytra Boosting. Optional candidates are separate overlays so the D-02 and D-03 comparisons stay isolated.
+These are interactive review profiles for the staged S1 issue. They use the cumulative S0.5 stack, Aerodynamics4MC 0.2.2 core + Create Aeronautics compatibility built from the immutable upstream source commit in the S1 pin file, and No More Elytra Boosting. Optional candidates are separate overlays so the D-02 and D-03 comparisons stay isolated. The source build replaces the server-crashing 0.2.1 compatibility artifact from the accepted C3 probe without changing C3's historical evidence.
 
 ## Launch from Git Bash
 
@@ -9,7 +9,7 @@ Open Git Bash and run:
     cd /c/Users/nicho/Documents/skyforge
     bash scripts/wby-s1-diagnostic-launch.sh client none none false
 
-The launcher opens the client to the title screen and stages the baseline profile. Create a fresh Skyforge preset world using an untouched seed. Keep the same world/seed when switching overlays. The S1 launcher does not stage or activate the S0.5 synthetic visibility/structure fixture, and it does not tune recipes or progression.
+The first launch clones and builds the pinned upstream Aerodynamics4MC source with its Gradle wrapper, then stages the 0.2.2 core and Create Aeronautics compatibility jars. Later launches reuse the clone and rebuild the same commit. Wait for the source build before the game starts. The launcher opens the client to the title screen and stages the baseline profile. Create a fresh Skyforge preset world using an untouched seed. Keep the same world/seed when switching overlays. The S1 launcher does not stage or activate the S0.5 synthetic visibility/structure fixture, and it does not tune recipes or progression.
 
 After closing Minecraft, launch each comparison profile:
 
@@ -49,3 +49,4 @@ Do not tune recipes, cooldowns, advancement hooks, quests, or progression during
 - Create: FlyHigher is deferred pending proof that it does not introduce a competing pressure/atmosphere authority.
 - Create: Deep Seas remains isolated R&D and does not block S1.
 - Iris and shader profiles are outside S1; the D-02 cloud decision happens first.
+- Aerodynamics4MC 0.2.2 is pinned by source commit because the upstream tag has no published release asset. The Skyforge workflow and manual launcher both build that same source and stage only its core and Create Aeronautics compatibility artifacts.

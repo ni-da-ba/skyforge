@@ -469,6 +469,24 @@ val wbyS1Glider = providers.gradleProperty("wbyS1Glider").orNull?.trim()?.lowerc
 val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowercase() ?: "none"
 val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS1RunDirectory = providers.gradleProperty("wbyS1RunDirectory").orNull ?: "run-wby-s1"
+val wbyS1A4mcBuiltModDir = providers.gradleProperty("wbyS1A4mcBuiltModDir").orNull?.let { file(it) }
+val wbyS1A4mcBuiltArtifacts = wbyS1A4mcBuiltModDir?.let { dir ->
+    fileTree(dir) {
+        include("aerodynamics4mc-0.2.2-neoforge+1.21.1.jar")
+        include("aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar")
+    }
+}
+fun wbyS1A4mcToken(kind: String): String =
+    if (wbyS1A4mcBuiltModDir == null) {
+        val mod = if (kind == "core") "aerodynamics4mcCore" else "aerodynamics4mcCompat"
+        wbyS1TokenFromCoordinate(waveC3Pin(mod, "coordinate"))
+    } else when (kind) {
+        "core" -> "aerodynamics4mc-0.2.2"
+        "compat" -> "aerodynamics4mc-compat-create-aeronautics-0.2.2"
+        else -> error("unsupported WBY S1 A4MC artifact kind '$kind'")
+    }
+fun wbyS1TokenFromCoordinate(coordinate: String): String =
+    coordinate.split(":").let { parts -> check(parts.size == 3); parts[1] + "-" + parts[2] }
 check(wbyS1Glider in setOf("none", "hang-glider", "ornithopter")) {
     "unsupported WBY S1 glider '$wbyS1Glider'; choose none, hang-glider, or ornithopter"
 }
@@ -7050,8 +7068,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
             }
         }
 
-        val core = token(waveC3Pin("aerodynamics4mcCore", "coordinate"))
-        val compat = token(waveC3Pin("aerodynamics4mcCompat", "coordinate"))
+        val core = wbyS1A4mcToken("core")
+        val compat = wbyS1A4mcToken("compat")
         val elytra = token(waveC2Pin("noelytraboost", "coordinate"))
         check(client.any { it.contains(core) } && server.any { it.contains(core) }) {
             "WBY S1 missing the accepted Aerodynamics4MC core on client/server"
@@ -7122,8 +7140,8 @@ wbyS1StageClientMods.configure {
         wbyS05BQolClientServerMods.map(::wbyS05BQolToken) +
         wbyS05BQolClientOnlyMods.map(::wbyS05BQolToken) +
         listOf(
-            token(waveC3Pin("aerodynamics4mcCore", "coordinate")),
-            token(waveC3Pin("aerodynamics4mcCompat", "coordinate")),
+            wbyS1A4mcToken("core"),
+            wbyS1A4mcToken("compat"),
             token(waveC2Pin("noelytraboost", "coordinate")),
         ) +
         when (wbyS1Glider) {
@@ -7893,10 +7911,12 @@ dependencies {
     }
 
     // S1 reuses the accepted C2 Elytra policy and C3 single atmosphere authority.
-    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
-    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCoreArtifact))
-    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
-    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, files(waveC3AeroCompatArtifact))
+    // When supplied, the exact pinned upstream 0.2.2 source build replaces only C3's 0.2.1
+    // core/compat artifacts so the S1 dedicated-server profile includes the upstream server fix.
+    val s1A4mcArtifacts = wbyS1A4mcBuiltArtifacts
+        ?: files(waveC3AeroCoreArtifact, waveC3AeroCompatArtifact)
+    add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, s1A4mcArtifacts)
+    add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, s1A4mcArtifacts)
     add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
     add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
     when (wbyS1Glider) {
