@@ -234,20 +234,6 @@ val wbyS05BServerRuntime = sourceSets.create("wbyS05BServerRuntime") {
 
 // S1 layers atmosphere and mobility onto the accepted S0.5B runtime. Experiential
 // alternatives are selected explicitly at launch and remain isolated overlays.
-val wbyS1WithoutDistantHorizons = providers.gradleProperty("wbyS1WithoutDistantHorizons")
-    .orNull?.toBooleanStrictOrNull() ?: false
-val wbyS1ClientRuntime = sourceSets.create("wbyS1ClientRuntime") {
-    compileClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.compileClasspath
-    runtimeClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.runtimeClasspath.filter { artifact ->
-        !wbyS1WithoutDistantHorizons || !artifact.name.contains("distanthorizons", ignoreCase = true)
-    }
-}
-val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
-    compileClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.compileClasspath
-    runtimeClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.runtimeClasspath
-}
-
-// WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1PinFile = layout.projectDirectory.file("wby-wave1-mods.properties")
 val wbyWave1Pins = Properties().apply {
     wbyWave1PinFile.asFile.inputStream().use(::load)
@@ -264,7 +250,24 @@ check(wbyWave1Pin("minecraft", "version") == "1.21.1") {
 check(wbyWave1Pin("neoforge", "version") == "21.1.249") {
     "WBY Wave 1 NeoForge pin must match the adapter runtime"
 }
+val wbyS1WithoutDistantHorizons = providers.gradleProperty("wbyS1WithoutDistantHorizons")
+    .orNull?.toBooleanStrictOrNull() ?: false
+val wbyS1DistantHorizonsArtifactToken = wbyWave1Pin("distanthorizons", "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid Distant Horizons coordinate in the WBY Wave 1 manifest" }
+    parts[1] + "-" + parts[2]
+}
+val wbyS1ClientRuntime = sourceSets.create("wbyS1ClientRuntime") {
+    compileClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.compileClasspath
+    runtimeClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.runtimeClasspath.filter { artifact ->
+        !wbyS1WithoutDistantHorizons || !artifact.name.contains(wbyS1DistantHorizonsArtifactToken, ignoreCase = true)
+    }
+}
+val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
+    compileClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.compileClasspath
+    runtimeClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.runtimeClasspath
+}
 
+// WBY Wave 1 isolates the long-range visibility substrate from shaders and broad optimizers.
 val wbyWave1FlightMods = listOf("create", "sable", "aeronautics")
 val wbyWave1ClientMods = listOf("sodium", "distanthorizons", "ssrd")
 val wbyWave1ServerMods = listOf("ssrd")
@@ -7147,6 +7150,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
 }
 
 wbyS1StageClientMods.configure {
+    dependsOn("wbyS1ResolvePinnedMods")
     group = "verification"
     description = "Stage the exact cumulative S1 and selected overlay jars for client review."
     fun token(coordinate: String): String = coordinate.split(":").let { parts ->
