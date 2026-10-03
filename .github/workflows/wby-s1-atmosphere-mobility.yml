@@ -162,6 +162,17 @@ jobs:
           printf 'online-mode=false\nserver-port=25565\n' > "$server_dir/server.properties"
           printf 'eula=true\n' > "$server_dir/eula.txt"
 
+      - name: Disable Distant Horizons first-run updater prompt for CI client
+        shell: bash
+        run: |
+          set -euo pipefail
+          client_config="skyforge-neoforge-1211/run-wby-s1-client/config"
+          mkdir -p "$client_config"
+          cat > "$client_config/DistantHorizons.toml" <<'EOF'
+          [client.advanced.autoUpdater]
+          enableAutoUpdater = false
+          EOF
+
       - name: Boot S1 dedicated server and join from the actual client
         shell: bash
         run: |
