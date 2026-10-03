@@ -301,6 +301,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long sourceEndpointGeometryAdmissible = 0;
         long sourceEndpointScoreImproving = 0;
         long sourceEndpointNoWorse = 0;
+        long sourceEndpointHeadGapRegressions = 0;
+        long sourceEndpointIntegratedGapRegressions = 0;
+        long sourceEndpointLocalEnvelopeRegressions = 0;
+        long sourceEndpointLongitudinalGradeRegressions = 0;
+        long sourceEndpointConfluenceGradeRegressions = 0;
         long sourceEndpointAccepted = 0;
         List<Candidate> sourceEndpointCandidates = new ArrayList<>();
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
@@ -394,6 +399,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                 if (candidate.refinementResidualsNoWorseThan(roundBest)) {
                                     sourceEndpointNoWorse++;
                                 }
+                                if (candidate.maximumHeadEnvelopeGap()
+                                        > roundBest.maximumHeadEnvelopeGap() + EPSILON) sourceEndpointHeadGapRegressions++;
+                                if (candidate.integratedSquaredHeadEnvelopeGap()
+                                        > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) sourceEndpointIntegratedGapRegressions++;
+                                if (candidate.maximumLocalEnvelopeConflict()
+                                        > roundBest.maximumLocalEnvelopeConflict() + EPSILON) sourceEndpointLocalEnvelopeRegressions++;
+                                if (candidate.maximumLongitudinalGradeConflict()
+                                        > roundBest.maximumLongitudinalGradeConflict() + EPSILON) sourceEndpointLongitudinalGradeRegressions++;
+                                if (candidate.maximumConfluenceCascadeGradeConflict()
+                                        > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) sourceEndpointConfluenceGradeRegressions++;
                             }
                             if (sourceEndpointMode && sourceEndpointImproved) {
                                 sourceEndpointCandidates.add(candidate);
@@ -479,6 +494,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     if (candidate.refinementResidualsNoWorseThan(roundBest)) {
                                         sourceEndpointNoWorse++;
                                     }
+                                    if (candidate.maximumHeadEnvelopeGap()
+                                            > roundBest.maximumHeadEnvelopeGap() + EPSILON) sourceEndpointHeadGapRegressions++;
+                                    if (candidate.integratedSquaredHeadEnvelopeGap()
+                                            > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) sourceEndpointIntegratedGapRegressions++;
+                                    if (candidate.maximumLocalEnvelopeConflict()
+                                            > roundBest.maximumLocalEnvelopeConflict() + EPSILON) sourceEndpointLocalEnvelopeRegressions++;
+                                    if (candidate.maximumLongitudinalGradeConflict()
+                                            > roundBest.maximumLongitudinalGradeConflict() + EPSILON) sourceEndpointLongitudinalGradeRegressions++;
+                                    if (candidate.maximumConfluenceCascadeGradeConflict()
+                                            > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) sourceEndpointConfluenceGradeRegressions++;
                                 }
                                 if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
                                     if (sourceEndpointImproved) sourceEndpointAccepted++;
@@ -501,6 +526,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         sourceEndpointGeometryAdmissible,
                         sourceEndpointScoreImproving,
                         sourceEndpointNoWorse,
+                        sourceEndpointHeadGapRegressions,
+                        sourceEndpointIntegratedGapRegressions,
+                        sourceEndpointLocalEnvelopeRegressions,
+                        sourceEndpointLongitudinalGradeRegressions,
+                        sourceEndpointConfluenceGradeRegressions,
                         sourceEndpointAccepted));
     }
 
@@ -1389,9 +1419,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             long geometryAdmissible,
             long scoreImproving,
             long nonRegressing,
+            long headGapRegressions,
+            long integratedGapRegressions,
+            long localEnvelopeRegressions,
+            long longitudinalGradeRegressions,
+            long confluenceGradeRegressions,
             long accepted) {
         private static SourceEndpointSearchSummary none() {
-            return new SourceEndpointSearchSummary(0, 0, 0, 0, 0);
+            return new SourceEndpointSearchSummary(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
         }
     }
 
