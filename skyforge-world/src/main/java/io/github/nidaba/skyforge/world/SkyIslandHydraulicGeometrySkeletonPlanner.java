@@ -119,13 +119,14 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                             0.0, envelope.lowerHead() - envelope.upperHead());
                 },
                 points -> longitudinalHeadFeasibilityGap(
-                        descriptor, startsAtSource, semantic, points,
+                        descriptor, network, startsAtSource, semantic, points,
                         dischargeProfile, terrain, policy));
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
     }
 
     private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalHeadFeasibilityGap(
             SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
             boolean startsAtSource,
             SkyIslandSemanticChannelReach semantic,
             List<SkyIslandLocalPosition> points,
