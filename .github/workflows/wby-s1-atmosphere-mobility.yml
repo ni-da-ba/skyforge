@@ -204,6 +204,7 @@ jobs:
           test "$ready" = true
           test -f "$server_dir/world/level.dat"
 
+          server_java_pids="$(ps -eo pid=,comm= | awk '$2 ~ /^java/ {print $1}')"
           client_log="wby-s1-client.log"
           setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
@@ -248,7 +249,15 @@ jobs:
               echo '--- S1 dedicated server latest.log (last 120 lines) ---'
               tail -n 120 "$server_latest_log"
             fi
-            client_java_pids="$(ps -eo pid=,pgid=,comm= | awk -v group="$client_pid" '$2 == group && $3 ~ /^java/ {print $1}')"
+            echo '--- Java process snapshot (PID PPID PGID command) ---'
+            ps -eo pid=,ppid=,pgid=,comm=,args= | awk '$4 ~ /^java/ {print}' | tee wby-s1-client-processes.txt
+            current_java_pids="$(ps -eo pid=,comm= | awk '$2 ~ /^java/ {print $1}')"
+            client_java_pids="$(while read -r java_pid; do
+              [[ -n "$java_pid" ]] || continue
+              if ! grep -Fxq "$java_pid" <<< "$server_java_pids"; then
+                echo "$java_pid"
+              fi
+            done <<< "$current_java_pids")"
             if [[ -n "$client_java_pids" ]]; then
               while IFS= read -r client_java_pid; do
                 echo "Capturing a thread dump for stalled S1 client JVM PID $client_java_pid"
@@ -333,6 +342,7 @@ jobs:
             wby-s1-server*.log
             wby-s1-client.log
             wby-s1-client-thread-dump-*.txt
+            wby-s1-client-processes.txt
             skyforge-neoforge-1211/run-wby-s1-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s1-client/logs/latest.log
           if-no-files-found: warn
