@@ -78,6 +78,9 @@ See [Deep-Sky and Mythic Threat Stack v0.1](deep-sky-threat-stack-v0.1.md) for t
 - Create: Metalwork moved to reserve/reference status; current preference is a thin Skyforge CBC↔Metallurgy compatibility datapack rather than adopting its broad processing/yield layer wholesale
 - Create Crafts & Additions retained as the preferred single-electricity ecosystem; Silver geology excluded and Electrum retained only if integrated high-current demand proves useful
 - Create: New Age reserved specifically as a future nuclear/advanced-heat candidate, not as a second electrical authority
+- Copycats+ promoted to strong keep as the canonical structural-shaping system; Copycats+ Aeronautics Weight retained as the preferred Sable mass/physics bridge; Copycats+ Additions strong provisional for compound geometry
+- Create: Interiors and Bells & Whistles promoted to likely-keep structural/interior/transport detail layers; Design n' Decor remains a provisional industrial-architecture content layer
+- FramedBlocks moved to reserve/experimental status pending Sable collision/mass/performance proof; it is not part of the canonical moving-vehicle construction language
 - late-game logistics automation candidate
 - Dedicated storage mods are provisionally omitted: Vanilla + Create storage/logistics are the default substrate. Sophisticated Storage/Backpacks remain reserve-only if playtesting exposes a concrete capacity, performance, or UX gap; freight-scale portable storage, nesting, and bulk-fluid backpacks remain disfavored.
 
@@ -86,6 +89,8 @@ See [Engineered Weapons Systems Stack v0.1](engineered-weapons-systems-stack-v0.
 See [General Engineering Power Stack v0.1](general-engineering-power-stack-v0.1.md) for the provisional mechanical/electrical/chemical/thermal authority model and deferred balance/compatibility work.
 
 See [General Locomotion and Physical Actuation Stack v0.1](general-locomotion-stack-v0.1.md) for the provisional ground/rail/running-gear/joint authority model and locomotion compatibility backlog.
+
+See [Structural and Construction Engineering Stack v0.1](structural-construction-engineering-stack-v0.1.md) for the provisional vehicle/machinery geometry, interior, and structural-physics authority model.
 
 ### Ordinary life/building
 - Farmer's Delight promoted to strong keep as the ordinary food/agriculture substrate
