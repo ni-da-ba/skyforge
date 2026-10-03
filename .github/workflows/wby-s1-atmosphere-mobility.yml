@@ -87,6 +87,14 @@ jobs:
           ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds --no-configuration-cache | tee wby-s1-better-clouds.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds.log
 
+      - name: Resolve Better Clouds with Distant Horizons excluded
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache | tee wby-s1-better-clouds-without-dh.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds-without-dh.log
+          grep -Fq 'distantHorizons=without-dh' wby-s1-better-clouds-without-dh.log
+
       - name: Resolve ThinAir optional overlay closure
         shell: bash
         run: |
