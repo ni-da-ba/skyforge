@@ -325,9 +325,14 @@ jobs:
             fi
             exit 1
           fi
-          # Send SIGINT to the server process group (equivalent to Ctrl+C) so
-          # Minecraft runs its shutdown hook and saves the joined world.
-          kill -INT -- "-$server_pid" 2>/dev/null || true
+          # A background process inherits ignored SIGINT from this non-interactive
+          # shell. Signal the NeoForge server JVM directly so its JVM shutdown hooks
+          # save the joined world instead of relying on the Gradle process group.
+          server_jvm_pids="$(ps -eo pid=,args= | awk '/net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
+          test -n "$server_jvm_pids"
+          while IFS= read -r server_jvm_pid; do
+            [[ -n "$server_jvm_pid" ]] && kill -TERM "$server_jvm_pid"
+          done <<< "$server_jvm_pids"
           server_stopped=false
           for attempt in $(seq 1 90); do
             if grep -Fq 'Stopping server' "$server_log"; then
@@ -340,7 +345,7 @@ jobs:
             sleep 1
           done
           if [[ "$server_stopped" != true ]]; then
-            echo 'S1 dedicated server did not enter its graceful shutdown hook after SIGINT'
+            echo 'S1 dedicated server did not enter its graceful shutdown hook after JVM SIGTERM'
             exit 1
           fi
           for attempt in $(seq 1 60); do
