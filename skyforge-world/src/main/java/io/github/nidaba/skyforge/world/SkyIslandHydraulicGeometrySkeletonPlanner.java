@@ -76,6 +76,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
                 singleOrdinaryProfileKind(semantic);
+        boolean startsAtSource = network.nodes().stream()
+                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
+                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE);
         var outcome = SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
                 route.route(),
                 semantic.guidancePoints(),
@@ -116,13 +119,14 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                             0.0, envelope.lowerHead() - envelope.upperHead());
                 },
                 points -> longitudinalHeadFeasibilityGap(
-                        descriptor, network, semantic, points, dischargeProfile, terrain, policy));
+                        descriptor, startsAtSource, semantic, points,
+                        dischargeProfile, terrain, policy));
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
     }
 
     private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalHeadFeasibilityGap(
             SkyIslandDescriptor descriptor,
-            SkyIslandGeomorphicChannelNetworkPlan network,
+            boolean startsAtSource,
             SkyIslandSemanticChannelReach semantic,
             List<SkyIslandLocalPosition> points,
             SemanticDischargeProfile dischargeProfile,
@@ -136,9 +140,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         SkyIslandChannelProfileKind[] kinds =
                 new SkyIslandChannelProfileKind[points.size()];
         double[] squaredConflicts = new double[points.size()];
-        boolean startsAtSource = network.nodes().stream()
-                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
-                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE);
         double maximumLocalEnvelopeConflict = 0.0;
         double maximumSourceEndpointEnvelopeConflict = 0.0;
         double maximumGradePropagationConflict = 0.0;
