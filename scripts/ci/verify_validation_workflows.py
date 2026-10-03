@@ -62,8 +62,10 @@ CONTRACTS = (
     WorkflowContract(
         ".github/workflows/studio-desktop.yml",
         (
-            '- "skyforge-*/src/**"',
-            '- "skyforge-*/build.gradle.kts"',
+            '- "scripts/orchestrator/studio/**"',
+            '- "scripts/orchestrator/studio-desktop/**"',
+            '- "scripts/ci/stage_evidence_review_bundle.py"',
+            '- "config/ci/evidence-entry-points.json"',
             "workflow_dispatch:",
         ),
         '- ".github/workflows/studio-desktop.yml"',
@@ -96,6 +98,16 @@ def verify_text(contract: WorkflowContract, text: str) -> list[str]:
             )
     is_studio = contract.path.endswith("studio-desktop.yml")
     if is_studio:
+        for unrelated in (
+            '- "skyforge-*/src/**"',
+            '- "skyforge-*/build.gradle.kts"',
+            '- "skyforge-*/**/build.gradle.kts"',
+        ):
+            if unrelated in text:
+                errors.append(
+                    f"{contract.path}: unrelated module source/build changes must not "
+                    "trigger deferred Studio staging"
+                )
         if "run: ./gradlew check" not in text:
             errors.append(f"{contract.path}: evidence-producing Gradle check must remain in Studio staging")
         if "-x :skyforge-neoforge-1211:test" not in text:
