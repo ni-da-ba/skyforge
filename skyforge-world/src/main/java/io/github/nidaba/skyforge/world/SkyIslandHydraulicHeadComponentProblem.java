@@ -218,7 +218,7 @@ public final class SkyIslandHydraulicHeadComponentProblem {
                         result.status(),
                         Optional.of(result),
                         Map.of(),
-                        result.diagnostic());
+                        result.diagnostic().map(value -> identifyHeadBounds(value, keys)));
             }
 
             double[] solution = result.solution();
@@ -233,7 +233,17 @@ public final class SkyIslandHydraulicHeadComponentProblem {
                     Optional.empty());
         }
 
-        private static void requireKey(String value, String name) {
+        private static String identifyHeadBounds(String diagnostic, List<String> keys) {
+        String identified = diagnostic;
+        for (int index = 0; index < keys.size(); index++) {
+            identified = identified.replace(
+                    "box:" + index + ":",
+                    "box[head=" + keys.get(index) + "]:");
+        }
+        return identified;
+    }
+
+    private static void requireKey(String value, String name) {
             Objects.requireNonNull(value, name);
             if (value.isBlank()) {
                 throw new IllegalArgumentException(name + " must not be blank");
