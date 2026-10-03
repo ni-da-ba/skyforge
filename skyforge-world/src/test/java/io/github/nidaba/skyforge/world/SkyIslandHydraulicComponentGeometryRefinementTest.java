@@ -61,7 +61,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                     for (double fraction : amplitudeFractions) {
                         double amplitude = corridorHalfWidth * fraction;
                         SkyIslandContinuousChannelCenterline candidateCenterline =
-                                lateralMode(descriptor, reach, mode, sign, amplitude);
+                                lateralMode(
+                                        descriptor, reach, mode, sign, amplitude, corridorHalfWidth);
                         if (candidateCenterline == null) {
                             continue;
                         }
