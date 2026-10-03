@@ -27,6 +27,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             List.of("660->801", "801->1951", "1140->801");
     private static final Pattern CYCLE_GAP =
             Pattern.compile("negativeCycleGapWorld=([0-9.eE+-]+)");
+    private static final Pattern EXCLUDED_GAP =
+            Pattern.compile("gapWorld=([0-9.eE+-]+)");
 
     @Test
     void key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly() {
@@ -114,7 +116,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         System.out.printf(
                 Locale.ROOT,
                 "F3O_KEY700 boundedModes=%d rejectedModes=%s acceptedMoves=%s baseline=%s best=%s shared=%s "
-                        + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f blockers=%s%n",
+                        + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f totalInfeasibilityWorld=%.12f blockers=%s%n",
                 evaluated,
                 rejectedModes,
                 acceptedMoves,
@@ -124,6 +126,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 terminalComponent(best.assembly()).sharedHeadSolve().excludedSpans().size(),
                 terminalComponent(best.assembly()).sharedHeadSolve().transitionBlockers().size(),
                 best.score().negativeCycleGapWorld(),
+                best.score().totalInfeasibilityWorld(),
                 terminalComponent(best.assembly()).blockers());
 
         if (terminalComponent(best.assembly()).status()
@@ -337,11 +340,16 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 .count();
         int blockerCount = component.blockers().size();
         double cycleGap = numberAfter(CYCLE_GAP, String.join(" ", component.blockers()), Double.POSITIVE_INFINITY);
+        double excludedGap = shared.excludedSpans().stream()
+                .map(Object::toString)
+                .mapToDouble(value -> numberAfter(EXCLUDED_GAP, value, 0.0))
+                .sum();
         return new CandidateScore(
                 statusRank,
                 rejectedReaches,
                 qpRank,
                 cycleGap,
+                cycleGap + excludedGap,
                 shared.excludedSpans().size(),
                 shared.transitionBlockers().size(),
                 blockerCount,
@@ -518,6 +526,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             int rejectedReaches,
             int qpRank,
             double negativeCycleGapWorld,
+            double totalInfeasibilityWorld,
             int excludedSpans,
             int transitionBlockers,
             int blockerCount,
@@ -529,6 +538,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             result = Integer.compare(rejectedReaches, other.rejectedReaches);
             if (result != 0) return result;
             result = Integer.compare(qpRank, other.qpRank);
+            if (result != 0) return result;
+            result = Double.compare(totalInfeasibilityWorld, other.totalInfeasibilityWorld);
             if (result != 0) return result;
             result = Double.compare(negativeCycleGapWorld, other.negativeCycleGapWorld);
             if (result != 0) return result;
