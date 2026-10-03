@@ -275,7 +275,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                     < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
                 return new ModeCandidate(null, "interiority");
             }
-            SkyIslandLocalPosition seed = nearest(point, reach.geomorphicRoute().route().points());
+            SkyIslandLocalPosition seed = projectToPolyline(\n                    point, reach.geomorphicRoute().route().points());
             if (terrain.sample(point)
                     > terrain.sample(seed)
                             + SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
@@ -370,11 +370,33 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         return result;
     }
 
-    private static SkyIslandLocalPosition nearest(
+    private static SkyIslandLocalPosition projectToPolyline(
             SkyIslandLocalPosition point, List<SkyIslandLocalPosition> points) {
-        return points.stream()
-                .min(Comparator.comparingDouble(candidate -> distance(point, candidate)))
-                .orElseThrow();
+        SkyIslandLocalPosition projection = null;
+        double minimumDistance = Double.POSITIVE_INFINITY;
+        for (int i = 1; i < points.size(); i++) {
+            SkyIslandLocalPosition a = points.get(i - 1);
+            SkyIslandLocalPosition b = points.get(i);
+            double dx = b.x() - a.x();
+            double dz = b.z() - a.z();
+            double lengthSquared = dx * dx + dz * dz;
+            double t = lengthSquared == 0.0
+                    ? 0.0
+                    : Math.max(0.0, Math.min(1.0,
+                            ((point.x() - a.x()) * dx + (point.z() - a.z()) * dz)
+                                    / lengthSquared));
+            SkyIslandLocalPosition candidate = new SkyIslandLocalPosition(
+                    a.x() + t * dx, a.z() + t * dz);
+            double candidateDistance = distance(point, candidate);
+            if (candidateDistance < minimumDistance) {
+                projection = candidate;
+                minimumDistance = candidateDistance;
+            }
+        }
+        if (projection == null) {
+            throw new IllegalArgumentException("seed polyline requires at least two points");
+        }
+        return projection;
     }
 
     private static double distance(
