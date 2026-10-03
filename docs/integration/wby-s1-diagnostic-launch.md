@@ -14,6 +14,7 @@ The first launch clones and builds the pinned upstream Aerodynamics4MC source wi
 After closing Minecraft, launch each comparison profile:
 
     bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false
+    bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false without-dh
     bash scripts/wby-s1-diagnostic-launch.sh client hang-glider none false
     bash scripts/wby-s1-diagnostic-launch.sh client ornithopter none false
 
@@ -27,12 +28,13 @@ To start the dedicated server profile instead, use:
 
 ## What to review
 
-For the cloud comparison, compare baseline against Better Clouds in the same seed and daytime/weather conditions:
+For the cloud comparison, compare baseline against Better Clouds in the same seed and daytime/weather conditions. To isolate Better Clouds from its Distant Horizons compatibility path, run the added without-dh profile after the ordinary Better Clouds profile. It keeps Better Clouds and the rest of the client stack enabled while excluding only Distant Horizons from the runtime classpath and staged-mod list.
 
+- whether Better Clouds appears in the no-DH run, where it is absent, or remains absent in both;
 - whether cloud layers help judge height, windward/leeward exposure, and route direction;
 - whether the cloud field obscures distant islands or Sable craft at the distances used for navigation;
 - whether vanilla clouds remain the clearer default;
-- whether rendering remains readable with the current Distant Horizons / Sodium / SSRD stack.
+- whether rendering remains readable with the current Distant Horizons / Sodium / SSRD stack in the ordinary profile. The no-DH run is a diagnostic comparison only.
 
 For the glider comparison, use the same starting position, launch height, and route for each finalist:
 
