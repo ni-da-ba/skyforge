@@ -221,6 +221,24 @@ jobs:
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
               -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
+          client_args_file="skyforge-neoforge-1211/build/moddev/wbyS1ClientJoinAcceptanceRunProgramArgs.txt"
+          for attempt in $(seq 1 120); do
+            if [[ -s "$client_args_file" ]]; then
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              cat "$client_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s "$client_args_file"
+          cp "$client_args_file" wby-s1-client-program-args.txt
+          echo '--- Effective S1 client program arguments ---'
+          cat wby-s1-client-program-args.txt
+          grep -Fq -- '--quickPlayMultiplayer' wby-s1-client-program-args.txt
+          grep -Fq -- '127.0.0.1:25565' wby-s1-client-program-args.txt
+          grep -Fq -- 'WbyS1Acceptance' wby-s1-client-program-args.txt
           server_latest_log="$server_dir/logs/latest.log"
           client_join_timeout_seconds=600
           echo "Waiting up to ${client_join_timeout_seconds}s for the fully modded CI client to finish startup and join."
@@ -354,6 +372,7 @@ jobs:
             wby-s1-client.log
             wby-s1-client-thread-dump-*.txt
             wby-s1-client-processes.txt
+            wby-s1-client-program-args.txt
             skyforge-neoforge-1211/run-wby-s1-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s1-client/logs/latest.log
           if-no-files-found: warn
