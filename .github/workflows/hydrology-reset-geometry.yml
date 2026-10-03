@@ -301,6 +301,7 @@ jobs:
         if: failure()
         run: |
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
         if: success()
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
