@@ -15,12 +15,15 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
 
     record Score(
             double maximumLocalEnvelopeConflictWorldUnits,
+            double maximumSourceEndpointEnvelopeConflictWorldUnits,
             double maximumGradePropagationConflictWorldUnits,
             double maximumConfluenceCascadeGradeConflictWorldUnits,
             double integratedSquaredConflictWorldUnits) {
         public Score {
             if (!Double.isFinite(maximumLocalEnvelopeConflictWorldUnits)
                     || maximumLocalEnvelopeConflictWorldUnits < 0.0
+                    || !Double.isFinite(maximumSourceEndpointEnvelopeConflictWorldUnits)
+                    || maximumSourceEndpointEnvelopeConflictWorldUnits < 0.0
                     || !Double.isFinite(maximumGradePropagationConflictWorldUnits)
                     || maximumGradePropagationConflictWorldUnits < 0.0
                     || !Double.isFinite(maximumConfluenceCascadeGradeConflictWorldUnits)
@@ -33,7 +36,7 @@ interface SkyIslandCenterlineLongitudinalHeadFeasibility {
         }
 
         static Score zero() {
-            return new Score(0.0, 0.0, 0.0, 0.0);
+            return new Score(0.0, 0.0, 0.0, 0.0, 0.0);
         }
     }
 }

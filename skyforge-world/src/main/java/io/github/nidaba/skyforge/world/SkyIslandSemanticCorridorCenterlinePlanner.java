@@ -241,6 +241,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 initial.integratedSquaredHeadEnvelopeGap(),
                 initial.longitudinalHeadFeasibilityGap(),
                 initial.maximumLocalEnvelopeConflict(),
+                initial.maximumSourceEndpointEnvelopeConflict(),
                 initial.maximumLongitudinalGradeConflict(),
                 initial.maximumConfluenceCascadeGradeConflict(),
                 best.maximumHeadEnvelopeGap(),
@@ -249,6 +250,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 best.integratedSquaredHeadEnvelopeGap(),
                 best.longitudinalHeadFeasibilityGap(),
                 best.maximumLocalEnvelopeConflict(),
+                best.maximumSourceEndpointEnvelopeConflict(),
                 best.maximumLongitudinalGradeConflict(),
                 best.maximumConfluenceCascadeGradeConflict(),
                 lateralCandidateProposals, lateralCandidateAdmissible,
@@ -775,6 +777,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 station[maximumGapIndex],
                 integratedSquaredGap,
                 longitudinalScore.maximumLocalEnvelopeConflictWorldUnits(),
+                longitudinalScore.maximumSourceEndpointEnvelopeConflictWorldUnits(),
                 longitudinalScore.maximumGradePropagationConflictWorldUnits(),
                 longitudinalScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
                 longitudinalScore.integratedSquaredConflictWorldUnits());
@@ -836,6 +839,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     <= firstGap.integratedSquaredGap() + EPSILON;
             if (firstD2NoWorse != secondD2NoWorse) return firstD2NoWorse ? -1 : 1;
             if (!firstD2NoWorse) return 0;
+            int sourceEndpoint = Double.compare(
+                    firstScore.maximumSourceEndpointEnvelopeConflictWorldUnits(),
+                    secondScore.maximumSourceEndpointEnvelopeConflictWorldUnits());
+            if (sourceEndpoint != 0) return sourceEndpoint;
             int confluenceCascadeGrade = Double.compare(
                     firstScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
                     secondScore.maximumConfluenceCascadeGradeConflictWorldUnits());
@@ -1163,6 +1170,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double initialIntegratedSquaredHeadEnvelopeGap,
             double initialLongitudinalHeadFeasibilityGap,
             double initialMaximumLocalEnvelopeConflict,
+            double initialMaximumSourceEndpointEnvelopeConflict,
             double initialMaximumLongitudinalGradeConflict,
             double initialMaximumConfluenceCascadeGradeConflict,
             double finalMaximumHeadEnvelopeGap,
@@ -1171,6 +1179,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double finalIntegratedSquaredHeadEnvelopeGap,
             double finalLongitudinalHeadFeasibilityGap,
             double finalMaximumLocalEnvelopeConflict,
+            double finalMaximumSourceEndpointEnvelopeConflict,
             double finalMaximumLongitudinalGradeConflict,
             double finalMaximumConfluenceCascadeGradeConflict,
             long lateralCandidateProposals,
@@ -1224,6 +1233,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap,
             double maximumLocalEnvelopeConflict,
+            double maximumSourceEndpointEnvelopeConflict,
             double maximumLongitudinalGradeConflict,
             double maximumConfluenceCascadeGradeConflict,
             double longitudinalHeadFeasibilityGap) {
@@ -1233,6 +1243,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             <= other.integratedSquaredHeadEnvelopeGap + EPSILON
                     && maximumLocalEnvelopeConflict
                             <= other.maximumLocalEnvelopeConflict + EPSILON
+                    && maximumSourceEndpointEnvelopeConflict
+                            <= other.maximumSourceEndpointEnvelopeConflict + EPSILON
                     && maximumLongitudinalGradeConflict
                             <= other.maximumLongitudinalGradeConflict + EPSILON
                     && maximumConfluenceCascadeGradeConflict
@@ -1256,6 +1268,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             if (excess != 0) {
                 return excess;
             }
+            int sourceEndpoint = Double.compare(
+                    maximumSourceEndpointEnvelopeConflict,
+                    other.maximumSourceEndpointEnvelopeConflict);
+            if (sourceEndpoint != 0) return sourceEndpoint;
             int maximumConfluenceCascade = Double.compare(
                     maximumConfluenceCascadeGradeConflict,
                     other.maximumConfluenceCascadeGradeConflict);

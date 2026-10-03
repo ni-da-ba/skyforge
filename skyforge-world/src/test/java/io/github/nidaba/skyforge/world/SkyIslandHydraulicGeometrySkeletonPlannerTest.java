@@ -56,6 +56,18 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             String routeLabel = route.semanticReach().startCellIndex()
                     + "->" + route.semanticReach().endCellIndex();
             assertTrue(
+                    d.finalMaximumSourceEndpointEnvelopeConflict()
+                                    <= d.initialMaximumSourceEndpointEnvelopeConflict() + EPSILON,
+                    "source endpoint envelope conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumSourceEndpointEnvelopeConflict() + " -> "
+                            + d.finalMaximumSourceEndpointEnvelopeConflict());
+            if (routeLabel.equals("660->801") || routeLabel.equals("1140->801")) {
+                assertTrue(
+                        d.finalMaximumSourceEndpointEnvelopeConflict()
+                                        < d.initialMaximumSourceEndpointEnvelopeConflict() - EPSILON,
+                        "source endpoint envelope conflict did not improve on " + routeLabel);
+            }
+            assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()
                                     <= d.initialMaximumLocalEnvelopeConflict() + EPSILON,
                     "local envelope conflict regressed on " + routeLabel + ": "
@@ -127,6 +139,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialMaximumLocalEnvelopeConflict())
                     .append(" finalMaxLocalEnvelopeConflict=")
                     .append(d.finalMaximumLocalEnvelopeConflict())
+                    .append(" initialMaxSourceEndpointEnvelopeConflict=")
+                    .append(d.initialMaximumSourceEndpointEnvelopeConflict())
+                    .append(" finalMaxSourceEndpointEnvelopeConflict=")
+                    .append(d.finalMaximumSourceEndpointEnvelopeConflict())
                     .append(" initialMaxLongitudinalGradeConflict=")
                     .append(d.initialMaximumLongitudinalGradeConflict())
                     .append(" finalMaxLongitudinalGradeConflict=")

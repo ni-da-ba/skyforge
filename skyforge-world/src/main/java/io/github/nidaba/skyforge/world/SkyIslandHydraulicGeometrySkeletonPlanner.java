@@ -136,7 +136,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         SkyIslandChannelProfileKind[] kinds =
                 new SkyIslandChannelProfileKind[points.size()];
         double[] squaredConflicts = new double[points.size()];
+        boolean startsAtSource = network.nodes().stream()
+                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
+                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE);
         double maximumLocalEnvelopeConflict = 0.0;
+        double maximumSourceEndpointEnvelopeConflict = 0.0;
         double maximumGradePropagationConflict = 0.0;
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition position = points.get(i);
@@ -188,6 +192,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double localLower = envelope.lowerHead();
             double localUpper = envelope.upperHead();
             double localConflict = Math.max(0.0, localLower - localUpper);
+            if (i == 0 && startsAtSource) {
+                maximumSourceEndpointEnvelopeConflict = localConflict;
+            }
             if (localConflict > 0.0) {
                 maximumLocalEnvelopeConflict =
                         Math.max(maximumLocalEnvelopeConflict, localConflict);
@@ -238,6 +245,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                         dischargeProfile, terrain, policy);
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 maximumLocalEnvelopeConflict,
+                maximumSourceEndpointEnvelopeConflict,
                 maximumGradePropagationConflict,
                 confluenceCascadeGradeConflict.maximumConflict(),
                 ordinaryLength > 0.0
