@@ -56,6 +56,10 @@ jobs:
           cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
           sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
 
+      - name: Validate manual S1 launcher syntax
+        shell: bash
+        run: bash -n scripts/wby-s1-diagnostic-launch.sh
+
       - name: Resolve baseline atmosphere profile
         shell: bash
         run: |
@@ -86,6 +90,48 @@ jobs:
           set -euo pipefail
           ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds --no-configuration-cache | tee wby-s1-better-clouds.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds.log
+
+      - name: Resolve Simple Clouds without Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache | tee wby-s1-simple-clouds-without-dh.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-simple-clouds-without-dh.log
+          grep -Fq 'glider=ornithopter clouds=simple-clouds thinAir=false' wby-s1-simple-clouds-without-dh.log
+          grep -Fq 'distantHorizons=without-dh' wby-s1-simple-clouds-without-dh.log
+
+      - name: Resolve Simple Clouds with Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds --no-configuration-cache | tee wby-s1-simple-clouds-with-dh.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-simple-clouds-with-dh.log
+          grep -Fq 'glider=ornithopter clouds=simple-clouds thinAir=false' wby-s1-simple-clouds-with-dh.log
+          grep -Fq 'distantHorizons=with-dh' wby-s1-simple-clouds-with-dh.log
+
+      - name: Stage Simple Clouds without Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s1/mods"
+          test -f "$staged/LtZfKhel-qpinHX2C.jar"
+          if find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
+            echo "Distant Horizons leaked into the Simple Clouds isolation profile"
+            exit 1
+          fi
+
+      - name: Stage Simple Clouds with Distant Horizons
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s1/mods"
+          test -f "$staged/LtZfKhel-qpinHX2C.jar"
+          if ! find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
+            echo "Distant Horizons is missing from the Simple Clouds comparison profile"
+            exit 1
+          fi
 
       - name: Resolve Better Clouds with Distant Horizons excluded
         shell: bash

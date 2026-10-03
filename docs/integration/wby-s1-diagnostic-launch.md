@@ -4,15 +4,19 @@ These are interactive review profiles for the staged S1 issue. They use the cumu
 
 ## Launch from Git Bash
 
-Open Git Bash and run:
+Open Git Bash and run these commands from the isolated S1 checkout:
 
-    cd /c/Users/nicho/Documents/skyforge
+    cd /c/Users/nicho/Documents/skyforge-cloud-diagnostic-20261003
+    git status --short --branch
+    git pull --ff-only origin wby/s1-atmosphere-mobility
     bash scripts/wby-s1-diagnostic-launch.sh client none none false
 
 The first launch clones and builds the pinned upstream Aerodynamics4MC source with its Gradle wrapper, then stages the 0.2.2 core and Create Aeronautics compatibility jars. Later launches reuse the clone and rebuild the same commit. Wait for the source build before the game starts. The launcher opens the client to the title screen and stages the baseline profile. The Better Clouds overlay also pins and stages its required YetAnotherConfigLib (YACL) dependency on the client only. Create a fresh Skyforge preset world using an untouched seed. Keep the same world/seed when switching overlays. The S1 launcher does not stage or activate the S0.5 synthetic visibility/structure fixture, and it does not tune recipes or progression.
 
 After closing Minecraft, launch each comparison profile:
 
+    bash scripts/wby-s1-diagnostic-launch.sh client ornithopter simple-clouds false without-dh
+    bash scripts/wby-s1-diagnostic-launch.sh client ornithopter simple-clouds false with-dh
     bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false
     bash scripts/wby-s1-diagnostic-launch.sh client none better-clouds false without-dh
     bash scripts/wby-s1-diagnostic-launch.sh client hang-glider none false
@@ -28,8 +32,17 @@ To start the dedicated server profile instead, use:
 
 ## What to review
 
-For the cloud comparison, compare baseline against Better Clouds in the same seed and daytime/weather conditions. To isolate Better Clouds from its Distant Horizons compatibility path, run the added without-dh profile after the ordinary Better Clouds profile. It keeps Better Clouds and the rest of the client stack enabled while excluding only Distant Horizons from the runtime classpath and staged-mod list.
+For the Simple Clouds comparison, the two commands above launch the same S1 client stack with Ornithopter Glider and differ only in whether Distant Horizons is present. The first run uses a new isolated `run-wby-s1-simple-clouds` game directory; create a fresh world and note its seed. Set one fixed non-zero Cloud Seed in Simple Clouds' client config and leave it unchanged, because client-only mode randomizes cloud positions on each login otherwise. Use the same world, location, time, weather, video settings, and cloud seed in both runs. Confirm Minecraft video settings have Clouds enabled, and do not change Simple Clouds' cloud mode between runs. The test overlays Simple Clouds on the client only; localized server weather, synchronization, and Skyforge semantic-weather mapping are not being evaluated.
 
+If the no-DH run shows clouds but the DH run does not, capture a screenshot and retain the `config/simpleclouds-client.toml` file in that run's diagnostics bundle. Simple Clouds has an upstream open issue for clouds disappearing with Distant Horizons when its mode is set to Ambient; record the selected cloud mode before trying any setting change. [Upstream issue #212](https://github.com/nonamecrackers2/simple-clouds/issues/212).
+
+For the Better Clouds comparison, compare baseline against Better Clouds in the same seed and daytime/weather conditions. Its without-dh profile excludes only Distant Horizons from the client runtime classpath and staged-mod list.
+
+- whether Simple Clouds renders with DH disabled and again after DH is added, with the rest of the profile unchanged;
+- whether the same cloud layout stays visible through DH at both near and horizon distances;
+- whether cumulus/stratus/storm formations provide useful height, windward/leeward exposure, and route-direction cues around the sky islands;
+- whether cloud layers obscure distant islands, the horizon, or Sable craft at navigation distances;
+- whether frame pacing/performance remains acceptable and the sky colors/transparency stay correct;
 - whether Better Clouds appears in the no-DH run, where it is absent, or remains absent in both;
 - whether cloud layers help judge height, windward/leeward exposure, and route direction;
 - whether the cloud field obscures distant islands or Sable craft at the distances used for navigation;

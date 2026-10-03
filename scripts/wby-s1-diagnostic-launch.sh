@@ -15,13 +15,13 @@ case "$mode" in
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticServer"
     ;;
   *)
-    echo "usage: $0 [client|server] [none|hang-glider|ornithopter] [none|better-clouds] [true|false] [with-dh|without-dh]" >&2
+    echo "usage: $0 [client|server] [none|hang-glider|ornithopter] [none|better-clouds|simple-clouds] [true|false] [with-dh|without-dh]" >&2
     exit 2
     ;;
 esac
 
 case "$glider" in none|hang-glider|ornithopter) ;; *) echo "invalid glider profile: $glider" >&2; exit 2 ;; esac
-case "$clouds" in none|better-clouds) ;; *) echo "invalid cloud profile: $clouds" >&2; exit 2 ;; esac
+case "$clouds" in none|better-clouds|simple-clouds) ;; *) echo "invalid cloud profile: $clouds" >&2; exit 2 ;; esac
 case "$thinair" in true|false) ;; *) echo "ThinAir must be true or false" >&2; exit 2 ;; esac
 case "$distant_horizons" in with-dh|without-dh) ;; *) echo "Distant Horizons selector must be with-dh or without-dh" >&2; exit 2 ;; esac
 if [[ "$mode" != "client" && "$distant_horizons" == "without-dh" ]]; then
@@ -31,7 +31,11 @@ fi
 without_dh=false
 [[ "$distant_horizons" != "without-dh" ]] || without_dh=true
 
-run_dir="skyforge-neoforge-1211/run-wby-s1"
+run_directory_name="run-wby-s1"
+if [[ "$clouds" == "simple-clouds" ]]; then
+  run_directory_name="run-wby-s1-simple-clouds"
+fi
+run_dir="skyforge-neoforge-1211/$run_directory_name"
 mkdir -p .skyforge-diagnostics "$run_dir"
 if [[ "$mode" == "server" ]]; then
   printf 'eula=true\n' > "$run_dir/eula.txt"
@@ -65,10 +69,16 @@ sha256sum "$a4mc_mod_dir/"*.jar | tee "$bundle/aerodynamics4mc-sha256.txt"
 
 echo "Launching WBY S1 $mode profile."
 echo "glider=$glider clouds=$clouds thinAir=$thinair distantHorizons=$distant_horizons"
+if [[ "$clouds" == "simple-clouds" ]]; then
+  echo "Simple Clouds uses an isolated profile directory: $run_dir"
+  echo "Create a fresh world on the first run and reuse it for the paired Distant Horizons run."
+  echo "For a repeatable cloud layout, set one fixed non-zero Simple Clouds cloud seed and keep it unchanged."
+else
+  echo "The client opens to the title screen. Create or open a fresh world for the human review."
+fi
 if [[ "$without_dh" == true ]]; then
   echo "Distant Horizons is excluded from this client classpath and staged-mod list."
 fi
-echo "The client opens to the title screen. Create or open a fresh world for the human review."
 echo "No S0.5 synthetic visibility/structure fixture is enabled."
 echo "Diagnostics bundle: $bundle"
 echo "Full console output: $log"
@@ -79,6 +89,7 @@ set +e
   -PwbyS1Clouds="$clouds" \
   -PwbyS1ThinAir="$thinair" \
   -PwbyS1WithoutDistantHorizons="$without_dh" \
+  -PwbyS1RunDirectory="$run_directory_name" \
   -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}

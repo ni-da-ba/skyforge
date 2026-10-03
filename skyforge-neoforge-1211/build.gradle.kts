@@ -497,8 +497,8 @@ fun wbyS1TokenFromCoordinate(coordinate: String): String =
 check(wbyS1Glider in setOf("none", "hang-glider", "ornithopter")) {
     "unsupported WBY S1 glider '$wbyS1Glider'; choose none, hang-glider, or ornithopter"
 }
-check(wbyS1Clouds in setOf("none", "better-clouds")) {
-    "unsupported WBY S1 clouds '$wbyS1Clouds'; choose none or better-clouds"
+check(wbyS1Clouds in setOf("none", "better-clouds", "simple-clouds")) {
+    "unsupported WBY S1 clouds '$wbyS1Clouds'; choose none, better-clouds, or simple-clouds"
 }
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
@@ -7122,14 +7122,25 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 }
             }
         }
-        if (wbyS1Clouds == "better-clouds") {
-            requireToken(client, "betterclouds", "client")
-            requireToken(client, "yacl", "Better Clouds client dependency")
-        } else {
-            forbidToken(client, "betterclouds", "no-cloud overlay")
-            forbidToken(client, "yacl", "no-cloud overlay")
+        when (wbyS1Clouds) {
+            "better-clouds" -> {
+                requireToken(client, "betterclouds", "client")
+                requireToken(client, "yacl", "Better Clouds client dependency")
+                forbidToken(client, "simpleclouds", "Better Clouds comparison")
+            }
+            "simple-clouds" -> {
+                requireToken(client, "simpleclouds", "client")
+                forbidToken(client, "betterclouds", "Simple Clouds comparison")
+                forbidToken(client, "yacl", "Simple Clouds comparison")
+            }
+            else -> {
+                forbidToken(client, "betterclouds", "no-cloud overlay")
+                forbidToken(client, "simpleclouds", "no-cloud overlay")
+                forbidToken(client, "yacl", "no-cloud overlay")
+            }
         }
         forbidToken(server, "betterclouds", "server")
+        forbidToken(server, "simpleclouds", "server")
         forbidToken(server, "yacl", "server")
         if (wbyS1ThinAir) {
             requireToken(client, "thinair", "client")
@@ -7176,7 +7187,11 @@ wbyS1StageClientMods.configure {
             "ornithopter" -> listOf(wbyS1Token("ornithopterglider"))
             else -> emptyList()
         } +
-        (if (wbyS1Clouds == "better-clouds") listOf(wbyS1Token("betterclouds"), wbyS1Token("yacl")) else emptyList()) +
+        (when (wbyS1Clouds) {
+            "better-clouds" -> listOf(wbyS1Token("betterclouds"), wbyS1Token("yacl"))
+            "simple-clouds" -> listOf(wbyS1Token("simpleclouds"))
+            else -> emptyList()
+        }) +
         (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList())
     ).toSet()
 
@@ -7958,9 +7973,13 @@ dependencies {
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("ornithopterglider", "coordinate"))
         }
     }
-    if (wbyS1Clouds == "better-clouds") {
-        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("betterclouds", "coordinate"))
-        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("yacl", "coordinate"))
+    when (wbyS1Clouds) {
+        "better-clouds" -> {
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("betterclouds", "coordinate"))
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("yacl", "coordinate"))
+        }
+        "simple-clouds" ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("simpleclouds", "coordinate"))
     }
     if (wbyS1ThinAir) {
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
