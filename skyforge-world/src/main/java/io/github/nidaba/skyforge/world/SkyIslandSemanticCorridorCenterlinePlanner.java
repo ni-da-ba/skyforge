@@ -298,6 +298,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long sourceEndpointScoreImproving = 0;
         long sourceEndpointNoWorse = 0;
         long sourceEndpointAccepted = 0;
+        List<Candidate> sourceEndpointCandidates = new ArrayList<>();
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
         double[] sourceEndpointSupportScales = {1.0, 2.0, 4.0, 8.0};
         double[] amplitudeFractions = {0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0};
@@ -375,11 +376,95 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     sourceEndpointNoWorse++;
                                 }
                             }
+                            if (sourceEndpointMode && sourceEndpointImproved) {
+                                sourceEndpointCandidates.add(candidate);
+                            }
                             if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
                                 if (sourceEndpointMode && sourceEndpointImproved) {
                                     sourceEndpointAccepted++;
                                 }
                                 roundBest = candidate;
+                            }
+                        }
+                    }
+                }
+            }
+            sourceEndpointCandidates.sort(Comparator
+                    .comparingDouble(Candidate::maximumSourceEndpointEnvelopeConflict)
+                    .thenComparingDouble(Candidate::maximumLocalEnvelopeConflict)
+                    .thenComparingDouble(Candidate::integratedSquaredHeadEnvelopeGap));
+            for (int seedIndex = 0;
+                    seedIndex < Math.min(4, sourceEndpointCandidates.size());
+                    seedIndex++) {
+                Candidate endpointSeed = sourceEndpointCandidates.get(seedIndex);
+                List<SkyIslandLocalPosition> seedPoints = endpointSeed.points();
+                double[] seedArc = cumulativeArc(seedPoints);
+                double seedLength = seedArc[seedArc.length - 1];
+                double seedStep = seedLength / (seedPoints.size() - 1.0);
+                double[] seedGaps = headEnvelopeGaps(
+                        seedPoints, bankfullHalfWidthAtStation, headEnvelopeGap);
+                List<Integer> correctionCenters = gapPeakCenters(seedGaps);
+                if (correctionCenters.size() > 2) {
+                    correctionCenters = correctionCenters.subList(0, 2);
+                }
+                for (int correctionCenter : correctionCenters) {
+                    if (correctionCenter == 1) continue;
+                    double available = Math.min(
+                            seedArc[correctionCenter],
+                            seedLength - seedArc[correctionCenter]);
+                    if (available + EPSILON < seedStep) continue;
+                    double localHalfWidth = bankfullHalfWidthAtStation.applyAsDouble(
+                            stations(seedPoints)[correctionCenter]);
+                    double maximumAmplitude = Math.min(
+                            semanticCorridorHalfWidth,
+                            Math.max(seedStep, localHalfWidth));
+                    double[] correctionSupports = {
+                        available * 0.5, available
+                    };
+                    for (double supportLength : correctionSupports) {
+                        if (supportLength + EPSILON < seedStep) continue;
+                        for (double amplitudeFraction : new double[] {0.125, 0.25, 0.5, 1.0}) {
+                            double amplitude = maximumAmplitude * amplitudeFraction;
+                            for (int direction : new int[] {-1, 1}) {
+                                sourceEndpointProposals++;
+                                List<SkyIslandLocalPosition> candidatePoints =
+                                        coupledDisplacement(
+                                                seedPoints,
+                                                seedArc,
+                                                correctionCenter,
+                                                supportLength,
+                                                direction * amplitude);
+                                if (!geometryAdmissible(
+                                        candidatePoints,
+                                        searchRoute,
+                                        semanticGuidance,
+                                        terrain,
+                                        interiority,
+                                        semanticCorridorHalfWidth,
+                                        minimumBendRadius)) {
+                                    continue;
+                                }
+                                sourceEndpointGeometryAdmissible++;
+                                Candidate candidate = evaluate(
+                                        searchRoute,
+                                        candidatePoints,
+                                        headEnvelopeGap,
+                                        bankfullHalfWidthAtStation,
+                                        longitudinalHeadFeasibility);
+                                boolean sourceEndpointImproved =
+                                        candidate.maximumSourceEndpointEnvelopeConflict()
+                                                < roundBest.maximumSourceEndpointEnvelopeConflict()
+                                                        - EPSILON;
+                                if (sourceEndpointImproved) {
+                                    sourceEndpointScoreImproving++;
+                                    if (candidate.refinementResidualsNoWorseThan(roundBest)) {
+                                        sourceEndpointNoWorse++;
+                                    }
+                                }
+                                if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
+                                    if (sourceEndpointImproved) sourceEndpointAccepted++;
+                                    roundBest = candidate;
+                                }
                             }
                         }
                     }
