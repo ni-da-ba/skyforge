@@ -400,15 +400,25 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     sourceEndpointNoWorse++;
                                 }
                                 if (candidate.maximumHeadEnvelopeGap()
-                                        > roundBest.maximumHeadEnvelopeGap() + EPSILON) sourceEndpointHeadGapRegressions++;
+                                        > roundBest.maximumHeadEnvelopeGap() + EPSILON) {
+                                    sourceEndpointHeadGapRegressions++;
+                                }
                                 if (candidate.integratedSquaredHeadEnvelopeGap()
-                                        > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) sourceEndpointIntegratedGapRegressions++;
+                                        > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) {
+                                    sourceEndpointIntegratedGapRegressions++;
+                                }
                                 if (candidate.maximumLocalEnvelopeConflict()
-                                        > roundBest.maximumLocalEnvelopeConflict() + EPSILON) sourceEndpointLocalEnvelopeRegressions++;
+                                        > roundBest.maximumLocalEnvelopeConflict() + EPSILON) {
+                                    sourceEndpointLocalEnvelopeRegressions++;
+                                }
                                 if (candidate.maximumLongitudinalGradeConflict()
-                                        > roundBest.maximumLongitudinalGradeConflict() + EPSILON) sourceEndpointLongitudinalGradeRegressions++;
+                                        > roundBest.maximumLongitudinalGradeConflict() + EPSILON) {
+                                    sourceEndpointLongitudinalGradeRegressions++;
+                                }
                                 if (candidate.maximumConfluenceCascadeGradeConflict()
-                                        > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) sourceEndpointConfluenceGradeRegressions++;
+                                        > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) {
+                                    sourceEndpointConfluenceGradeRegressions++;
+                                }
                             }
                             if (sourceEndpointMode && sourceEndpointImproved) {
                                 sourceEndpointCandidates.add(candidate);
@@ -495,15 +505,25 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                         sourceEndpointNoWorse++;
                                     }
                                     if (candidate.maximumHeadEnvelopeGap()
-                                            > roundBest.maximumHeadEnvelopeGap() + EPSILON) sourceEndpointHeadGapRegressions++;
+                                            > roundBest.maximumHeadEnvelopeGap() + EPSILON) {
+                                        sourceEndpointHeadGapRegressions++;
+                                    }
                                     if (candidate.integratedSquaredHeadEnvelopeGap()
-                                            > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) sourceEndpointIntegratedGapRegressions++;
+                                            > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) {
+                                        sourceEndpointIntegratedGapRegressions++;
+                                    }
                                     if (candidate.maximumLocalEnvelopeConflict()
-                                            > roundBest.maximumLocalEnvelopeConflict() + EPSILON) sourceEndpointLocalEnvelopeRegressions++;
+                                            > roundBest.maximumLocalEnvelopeConflict() + EPSILON) {
+                                        sourceEndpointLocalEnvelopeRegressions++;
+                                    }
                                     if (candidate.maximumLongitudinalGradeConflict()
-                                            > roundBest.maximumLongitudinalGradeConflict() + EPSILON) sourceEndpointLongitudinalGradeRegressions++;
+                                            > roundBest.maximumLongitudinalGradeConflict() + EPSILON) {
+                                        sourceEndpointLongitudinalGradeRegressions++;
+                                    }
                                     if (candidate.maximumConfluenceCascadeGradeConflict()
-                                            > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) sourceEndpointConfluenceGradeRegressions++;
+                                            > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) {
+                                        sourceEndpointConfluenceGradeRegressions++;
+                                    }
                                 }
                                 if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
                                     if (sourceEndpointImproved) sourceEndpointAccepted++;
