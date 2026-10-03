@@ -775,9 +775,20 @@ public final class SkyIslandHydraulicComponentHeadSolver {
                 String right,
                 double lower,
                 double upper) {
-            if (!left.equals(right)) {
-                builder.addDifference(id, left, right, lower, upper);
+            if (left.equals(right)) {
+                return;
             }
+            if (!builder.hasHead(left) || !builder.hasHead(right)) {
+                blockers.add(
+                        id + ": omitted difference constraint because a boundary head has no "
+                                + "feasible D2 envelope (leftRegistered="
+                                + builder.hasHead(left)
+                                + ", rightRegistered="
+                                + builder.hasHead(right)
+                                + ")");
+                return;
+            }
+            builder.addDifference(id, left, right, lower, upper);
         }
 
         private SkyIslandSemanticChannelReach requireReach(
