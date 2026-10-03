@@ -27,6 +27,10 @@ tasks.withType<Test>().configureEach {
     // points to exist. Execute these tests rather than caching an incomplete task contract.
     outputs.doNotCacheIf("reference tests materialize review evidence outside standard Test outputs") { true }
 
+    // Keep test methods ordered within a class while distributing independent classes across a
+    // bounded number of JVM forks. The 2026-10-03 CI run spent 76 minutes in this Test task.
+    maxParallelForks = Runtime.getRuntime().availableProcessors().coerceAtMost(4)
+
     systemProperty("junit.jupiter.execution.parallel.enabled", "true")
     systemProperty("junit.jupiter.execution.parallel.mode.default", "same_thread")
     systemProperty("junit.jupiter.execution.parallel.config.strategy", "fixed")
