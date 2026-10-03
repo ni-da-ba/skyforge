@@ -49,7 +49,8 @@ public final class SkyIslandHydraulicComponentHeadSolver {
         }
 
         BuilderState state = new BuilderState(descriptor, terrain, policy, reaches);
-        addConfluenceVariablesAndConstraints(ordinaryPlan.confluencePlan(), state);
+        addConfluenceVariablesAndConstraints(
+                ordinaryPlan.confluencePlan(), ordinaryPlan.jointPlan(), state);
         addCascadeVariablesAndConstraints(ordinaryPlan, state);
         addJointVariablesAndConstraints(ordinaryPlan.jointPlan(), state);
         addOrdinarySpanVariablesAndConstraints(ordinaryPlan.outcomes(), state);
@@ -91,10 +92,23 @@ public final class SkyIslandHydraulicComponentHeadSolver {
 
     private static void addConfluenceVariablesAndConstraints(
             SkyIslandConfluenceHeadCompatibilityPlan plan,
+            SkyIslandConfluenceCascadeHeadCompatibilityPlan jointPlan,
             BuilderState state) {
-        Map<Integer, SkyIslandConfluenceHeadCompatibilityOutcome> outcomes = new HashMap<>();
         for (SkyIslandConfluenceHeadCompatibilityOutcome outcome : plan.outcomes()) {
-            outcomes.put(outcome.geometry().transitionSite().nodeCellIndex(), outcome);
+            int nodeCell = outcome.geometry().transitionSite().nodeCellIndex();
+            if (outcome.status() == SkyIslandConfluenceHeadCompatibilityStatus.CASCADE_COUPLED) {
+                boolean representedByJointPlan = jointPlan.outcomes().stream()
+                        .anyMatch(joint ->
+                                joint.confluence().transitionSite().nodeCellIndex() == nodeCell);
+                if (!representedByJointPlan) {
+                    state.blockers.add(
+                            "confluence " + nodeCell
+                                    + " is CASCADE_COUPLED without a joint transition outcome");
+                }
+                // The joint pass owns every variable/observation for this confluence. Keeping
+                // a local copy here would double-weight its ordinary-leg objective targets.
+                continue;
+            }
             for (SkyIslandHydraulicTransitionLegGeometry leg : outcome.geometry().legs()) {
                 SkyIslandSemanticChannelReach semantic = state.requireReach(leg.nodeBoundary());
                 String nodeKey = state.nodeKey(outcome.geometry().transitionSite().nodeCellIndex());
