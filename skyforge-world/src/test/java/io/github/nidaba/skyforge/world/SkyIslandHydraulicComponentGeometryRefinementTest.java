@@ -315,7 +315,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 return Double.POSITIVE_INFINITY;
             }
             for (int i = 0; i < a.size(); i++) {
-                result += a.get(i).distanceTo(b.get(i));
+                result += distance(a.get(i), b.get(i));
             }
         }
         return result;
@@ -324,8 +324,13 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
     private static SkyIslandLocalPosition nearest(
             SkyIslandLocalPosition point, List<SkyIslandLocalPosition> points) {
         return points.stream()
-                .min(Comparator.comparingDouble(point::distanceTo))
+                .min(Comparator.comparingDouble(candidate -> distance(point, candidate)))
                 .orElseThrow();
+    }
+
+    private static double distance(
+            SkyIslandLocalPosition a, SkyIslandLocalPosition b) {
+        return Math.hypot(a.x() - b.x(), a.z() - b.z());
     }
 
     private static double distanceToPolyline(
@@ -355,9 +360,9 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             SkyIslandLocalPosition a = points.get(i - 1);
             SkyIslandLocalPosition b = points.get(i);
             SkyIslandLocalPosition c = points.get(i + 1);
-            double ab = a.distanceTo(b);
-            double bc = b.distanceTo(c);
-            double ca = c.distanceTo(a);
+            double ab = distance(a, b);
+            double bc = distance(b, c);
+            double ca = distance(c, a);
             double twiceArea = Math.abs(
                     (b.x() - a.x()) * (c.z() - a.z())
                             - (b.z() - a.z()) * (c.x() - a.x()));
@@ -392,7 +397,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
     private static double[] cumulativeArc(List<SkyIslandLocalPosition> points) {
         double[] arc = new double[points.size()];
         for (int i = 1; i < points.size(); i++) {
-            arc[i] = arc[i - 1] + points.get(i - 1).distanceTo(points.get(i));
+            arc[i] = arc[i - 1] + distance(points.get(i - 1), points.get(i));
         }
         return arc;
     }
