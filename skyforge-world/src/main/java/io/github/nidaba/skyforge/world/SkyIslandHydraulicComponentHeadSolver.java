@@ -661,7 +661,7 @@ public final class SkyIslandHydraulicComponentHeadSolver {
         private final Map<Long, SkyIslandSemanticChannelReach> reaches;
         private final SkyIslandHydraulicHeadComponentProblem.Builder builder =
                 SkyIslandHydraulicHeadComponentProblem.builder();
-        private final Map<Long, String> nodeKeys = new HashMap<>();
+        private final Map<Integer, String> nodeKeys = new HashMap<>();
         private final List<Alias> aliases = new ArrayList<>();
         private final List<String> includedSpanKeys = new ArrayList<>();
         private final List<String> excludedSpans = new ArrayList<>();
