@@ -167,7 +167,7 @@ jobs:
         run: |
           set -euo pipefail
           client_dir="skyforge-neoforge-1211/run-wby-s1-client"
-          printf 'onboardAccessibility:false\\n' > "$client_dir/options.txt"
+          echo 'onboardAccessibility:false' > "$client_dir/options.txt"
           client_config="$client_dir/config"
           mkdir -p "$client_config"
           cat > "$client_config/DistantHorizons.toml" <<'EOF'
