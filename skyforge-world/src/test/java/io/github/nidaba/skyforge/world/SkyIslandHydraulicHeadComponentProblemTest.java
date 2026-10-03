@@ -57,6 +57,22 @@ class SkyIslandHydraulicHeadComponentProblemTest {
     }
 
     @Test
+    void infeasibleSharedHeadGraphReportsWorldGapCycleAndStableHeadNames() {
+        var outcome = SkyIslandHydraulicHeadComponentProblem.builder()
+                .addHead("a-upstream", 0.0, 1.0, 0.0, 0.0)
+                .addHead("z-downstream", 10.0, 1.0, 10.0, 10.0)
+                .addDifference("authored-contradiction", "a-upstream", "z-downstream", -2.0, -1.0)
+                .solve();
+
+        assertEquals(SkyIslandHydraulicQpStatus.INFEASIBLE, outcome.status());
+        String diagnostic = outcome.diagnostic().orElseThrow();
+        assertTrue(diagnostic.contains("negativeCycleGapWorld=8.0"), diagnostic);
+        assertTrue(diagnostic.contains("diff:authored-contradiction:lower"), diagnostic);
+        assertTrue(diagnostic.contains("a-upstream"), diagnostic);
+        assertTrue(diagnostic.contains("z-downstream"), diagnostic);
+    }
+
+    @Test
     void sharedObservationOrderingDoesNotChangeTheComponentSolution() {
         var first = SkyIslandHydraulicHeadComponentProblem.builder()
                 .addHead("shared", 8.0, 1.0, 0.0, 10.0)

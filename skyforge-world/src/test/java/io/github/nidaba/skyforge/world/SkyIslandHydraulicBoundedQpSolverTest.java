@@ -161,7 +161,10 @@ class SkyIslandHydraulicBoundedQpSolverTest {
                         "contradiction", 0, 1, -2.0, -1.0))));
 
         assertEquals(SkyIslandHydraulicQpStatus.INFEASIBLE, result.status());
-        assertTrue(result.diagnostic().isPresent());
+        String diagnostic = result.diagnostic().orElseThrow();
+        assertTrue(diagnostic.contains("negativeCycleGapWorld=8.0"), diagnostic);
+        assertTrue(diagnostic.contains("diff:contradiction:lower"), diagnostic);
+        assertTrue(diagnostic.contains("box:1:lower"), diagnostic);
     }
 
     @Test

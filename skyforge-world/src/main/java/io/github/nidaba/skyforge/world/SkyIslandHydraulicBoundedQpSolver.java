@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
@@ -31,15 +32,19 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         Objects.requireNonNull(problem, "problem");
         ScaledProblem scaled = scale(problem);
         ConstraintSet constraints = constraints(scaled);
-        Optional<double[]> feasible = feasiblePoint(scaled);
-        if (feasible.isEmpty()) {
-            return terminalFailure(
-                    SkyIslandHydraulicQpStatus.INFEASIBLE,
-                    "difference/box constraint graph is infeasible",
-                    0);
+        FeasibilityResult feasibility = feasiblePoint(scaled);
+        if (feasibility.point().isEmpty()) {
+            NegativeCycle cycle = feasibility.negativeCycle().orElseThrow();
+            String diagnostic = "difference/box constraint graph is infeasible"
+                    + " (negativeCycleGapWorld="
+                    + Double.toString(cycle.scaledGap() * scaled.headScale())
+                    + ", constraints="
+                    + cycle.constraintIds()
+                    + ")";
+            return terminalFailure(SkyIslandHydraulicQpStatus.INFEASIBLE, diagnostic, 0);
         }
 
-        double[] x = feasible.get();
+        double[] x = feasibility.point().orElseThrow();
         double tolerance = tolerance(1.0);
         if (primalResidual(x, constraints) > 32.0 * tolerance) {
             return terminalFailure(
@@ -267,9 +272,10 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         return new ConstraintSet(List.copyOf(equalities), List.copyOf(inequalities));
     }
 
-    private static Optional<double[]> feasiblePoint(ScaledProblem problem) {
+    private static FeasibilityResult feasiblePoint(ScaledProblem problem) {
         int variableCount = problem.target().length;
         int anchor = variableCount;
+        int nodeCount = variableCount + 1;
         List<Edge> edges = new ArrayList<>();
         for (int i = 0; i < variableCount; i++) {
             edges.add(new Edge(anchor, i, problem.upper()[i], "box:" + i + ":upper"));
@@ -293,21 +299,26 @@ public final class SkyIslandHydraulicBoundedQpSolver {
                 .thenComparingDouble(Edge::weight)
                 .thenComparing(Edge::id));
 
-        double[] distance = new double[variableCount + 1];
-        for (int pass = 0; pass < distance.length; pass++) {
-            boolean updated = false;
+        double[] distance = new double[nodeCount];
+        Edge[] predecessor = new Edge[nodeCount];
+        int lastUpdated = -1;
+        for (int pass = 0; pass < nodeCount; pass++) {
+            lastUpdated = -1;
             for (Edge edge : edges) {
                 double candidate = distance[edge.from()] + edge.weight();
                 if (candidate < distance[edge.to()] - BELLMAN_FORD_TOLERANCE) {
                     distance[edge.to()] = candidate;
-                    updated = true;
-                    if (pass == distance.length - 1) {
-                        return Optional.empty();
-                    }
+                    predecessor[edge.to()] = edge;
+                    lastUpdated = edge.to();
                 }
             }
-            if (!updated) {
+            if (lastUpdated < 0) {
                 break;
+            }
+            if (pass == nodeCount - 1) {
+                return new FeasibilityResult(
+                        Optional.empty(),
+                        Optional.of(negativeCycle(predecessor, lastUpdated, nodeCount)));
             }
         }
 
@@ -316,7 +327,41 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         for (int i = 0; i < variableCount; i++) {
             feasible[i] = distance[i] - anchorValue;
         }
-        return Optional.of(feasible);
+        return new FeasibilityResult(Optional.of(feasible), Optional.empty());
+    }
+
+    private static NegativeCycle negativeCycle(
+            Edge[] predecessor,
+            int changedVertex,
+            int nodeCount) {
+        int vertex = changedVertex;
+        for (int i = 0; i < nodeCount; i++) {
+            Edge edge = predecessor[vertex];
+            if (edge == null) {
+                throw new IllegalStateException("negative-cycle witness lost its predecessor chain");
+            }
+            vertex = edge.from();
+        }
+
+        int cycleStart = vertex;
+        List<Edge> reversed = new ArrayList<>();
+        double cycleWeight = 0.0;
+        do {
+            Edge edge = predecessor[vertex];
+            if (edge == null || reversed.size() >= nodeCount) {
+                throw new IllegalStateException("negative-cycle witness could not be closed");
+            }
+            reversed.add(edge);
+            cycleWeight += edge.weight();
+            vertex = edge.from();
+        } while (vertex != cycleStart);
+        Collections.reverse(reversed);
+        if (!(cycleWeight < 0.0) || !Double.isFinite(cycleWeight)) {
+            throw new IllegalStateException("negative-cycle witness has no finite negative gap");
+        }
+        return new NegativeCycle(
+                reversed.stream().map(Edge::id).toList(),
+                -cycleWeight);
     }
 
     private static ActiveBasis activeBasis(
@@ -587,6 +632,12 @@ public final class SkyIslandHydraulicBoundedQpSolver {
             List<String> activeIds) {}
 
     private record Edge(int from, int to, double weight, String id) {}
+
+    private record FeasibilityResult(
+            Optional<double[]> point,
+            Optional<NegativeCycle> negativeCycle) {}
+
+    private record NegativeCycle(List<String> constraintIds, double scaledGap) {}
 
     private record Row(
             String id,

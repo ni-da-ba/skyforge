@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.world;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
@@ -54,6 +55,12 @@ class SkyIslandHydraulicComponentHeadSolverTest {
                     first.status(),
                     first.solve().orElseThrow().status(),
                     "component outcome must preserve the underlying QP status: " + detail);
+            if (first.status() == SkyIslandHydraulicQpStatus.INFEASIBLE) {
+                assertTrue(
+                        first.diagnostic().contains("negativeCycleGapWorld="),
+                        "natural key-700 rejection must expose a quantitative infeasibility witness: "
+                                + detail);
+            }
         }
     }
 }
