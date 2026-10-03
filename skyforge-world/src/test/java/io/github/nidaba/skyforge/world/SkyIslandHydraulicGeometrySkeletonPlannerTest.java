@@ -61,13 +61,14 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     "source endpoint envelope conflict regressed on " + routeLabel + ": "
                             + d.initialMaximumSourceEndpointEnvelopeConflict() + " -> "
                             + d.finalMaximumSourceEndpointEnvelopeConflict());
-            if (routeLabel.equals("660->801") || routeLabel.equals("1140->801")) {
-                assertTrue(
-                        d.finalMaximumSourceEndpointEnvelopeConflict()
-                                        < d.initialMaximumSourceEndpointEnvelopeConflict() - EPSILON,
+            if ((routeLabel.equals("660->801") || routeLabel.equals("1140->801"))
+                    && d.finalMaximumSourceEndpointEnvelopeConflict()
+                            >= d.initialMaximumSourceEndpointEnvelopeConflict() - EPSILON
+                    && objectiveFailure == null) {
+                objectiveFailure =
                         "source endpoint envelope conflict did not improve on " + routeLabel
                                 + ": " + d.initialMaximumSourceEndpointEnvelopeConflict()
-                                + " -> " + d.finalMaximumSourceEndpointEnvelopeConflict());
+                                + " -> " + d.finalMaximumSourceEndpointEnvelopeConflict();
             }
             assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()
@@ -145,6 +146,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialMaximumSourceEndpointEnvelopeConflict())
                     .append(" finalMaxSourceEndpointEnvelopeConflict=")
                     .append(d.finalMaximumSourceEndpointEnvelopeConflict())
+                    .append(" sourceEndpointSearch=").append(d.sourceEndpointSearch())
                     .append(" initialMaxLongitudinalGradeConflict=")
                     .append(d.initialMaximumLongitudinalGradeConflict())
                     .append(" finalMaxLongitudinalGradeConflict=")

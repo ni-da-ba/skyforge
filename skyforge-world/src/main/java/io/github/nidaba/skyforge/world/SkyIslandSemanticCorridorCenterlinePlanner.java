@@ -216,12 +216,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
+        SourceEndpointSearchSummary sourceEndpointSearch =
+                SourceEndpointSearchSummary.none();
         if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
-            best = refineCoupledBlocks(
+            CoupledBlockOutcome coupled = refineCoupledBlocks(
                     searchRoute, semanticGuidance, terrain, interiority,
                     semanticCorridorHalfWidth, minimumBendRadius,
                     bankfullHalfWidthAtStation, headEnvelopeGap,
                     longitudinalHeadFeasibility, best);
+            best = coupled.candidate();
+            sourceEndpointSearch = coupled.sourceEndpointSearch();
         }
 
         for (SkyIslandLocalPosition point : best.points()) {
@@ -253,6 +257,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 best.maximumSourceEndpointEnvelopeConflict(),
                 best.maximumLongitudinalGradeConflict(),
                 best.maximumConfluenceCascadeGradeConflict(),
+                sourceEndpointSearch,
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
@@ -276,7 +281,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
      * constraints remain hard. The head-envelope score ranks candidates but never authorizes
      * terrain mutation or bypasses the downstream D2 qualification gate.
      */
-    private static Candidate refineCoupledBlocks(
+    private static CoupledBlockOutcome refineCoupledBlocks(
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> semanticGuidance,
             SkyIslandSemanticField terrain,
@@ -288,6 +293,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandCenterlineLongitudinalHeadFeasibility longitudinalHeadFeasibility,
             Candidate initial) {
         Candidate best = initial;
+        long sourceEndpointProposals = 0;
+        long sourceEndpointGeometryAdmissible = 0;
+        long sourceEndpointScoreImproving = 0;
+        long sourceEndpointNoWorse = 0;
+        long sourceEndpointAccepted = 0;
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
         double[] sourceEndpointSupportScales = {1.0, 2.0, 4.0, 8.0};
         double[] amplitudeFractions = {0.25, 0.5, 1.0};
@@ -340,6 +350,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     for (double amplitudeFraction : amplitudeFractions) {
                         double amplitude = maximumAmplitude * amplitudeFraction;
                         for (int direction : new int[] {-1, 1}) {
+                            if (sourceEndpointMode) sourceEndpointProposals++;
                             List<SkyIslandLocalPosition> candidatePoints =
                                     coupledDisplacement(
                                             points, arc, center, supportLength,
@@ -350,10 +361,24 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     minimumBendRadius)) {
                                 continue;
                             }
+                            if (sourceEndpointMode) sourceEndpointGeometryAdmissible++;
                             Candidate candidate = evaluate(
                                     searchRoute, candidatePoints, headEnvelopeGap,
                                     bankfullHalfWidthAtStation, longitudinalHeadFeasibility);
+                            boolean sourceEndpointImproved =
+                                    candidate.maximumSourceEndpointEnvelopeConflict()
+                                            < roundBest.maximumSourceEndpointEnvelopeConflict()
+                                                    - EPSILON;
+                            if (sourceEndpointMode && sourceEndpointImproved) {
+                                sourceEndpointScoreImproving++;
+                                if (candidate.refinementResidualsNoWorseThan(roundBest)) {
+                                    sourceEndpointNoWorse++;
+                                }
+                            }
                             if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
+                                if (sourceEndpointMode && sourceEndpointImproved) {
+                                    sourceEndpointAccepted++;
+                                }
                                 roundBest = candidate;
                             }
                         }
@@ -365,7 +390,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
             best = roundBest;
         }
-        return best;
+        return new CoupledBlockOutcome(
+                best,
+                new SourceEndpointSearchSummary(
+                        sourceEndpointProposals,
+                        sourceEndpointGeometryAdmissible,
+                        sourceEndpointScoreImproving,
+                        sourceEndpointNoWorse,
+                        sourceEndpointAccepted));
     }
 
 
@@ -1203,6 +1235,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double finalMaximumSourceEndpointEnvelopeConflict,
             double finalMaximumLongitudinalGradeConflict,
             double finalMaximumConfluenceCascadeGradeConflict,
+            SourceEndpointSearchSummary sourceEndpointSearch,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
             long lateralCandidateCorridorRejected,
@@ -1242,6 +1275,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
     private record Vector(double x, double z) {}
 
     private record Projection(SkyIslandLocalPosition position, double distance) {}
+
+    private record CoupledBlockOutcome(
+            Candidate candidate, SourceEndpointSearchSummary sourceEndpointSearch) {}
+
+    private record SourceEndpointSearchSummary(
+            long proposals,
+            long geometryAdmissible,
+            long scoreImproving,
+            long nonRegressing,
+            long accepted) {
+        private static SourceEndpointSearchSummary none() {
+            return new SourceEndpointSearchSummary(0, 0, 0, 0, 0);
+        }
+    }
 
     private record Candidate(
             List<SkyIslandLocalPosition> points,
