@@ -275,7 +275,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                     < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
                 return new ModeCandidate(null, "interiority");
             }
-            SkyIslandLocalPosition seed = projectToPolyline(\n                    point, reach.geomorphicRoute().route().points());
+            SkyIslandLocalPosition seed = projectToPolyline(
+                    point, reach.geomorphicRoute().route().points());
             if (terrain.sample(point)
                     > terrain.sample(seed)
                             + SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
