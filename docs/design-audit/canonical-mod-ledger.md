@@ -41,8 +41,8 @@ These are the remaining decisions that can actually change the dependency roster
 | ID | Decision | Current direction | Close when |
 | --- | --- | --- | --- |
 | D-01 | Authoritative atmosphere backend | **Aerodynamics4MC PREFERRED** | Pinned-stack authority/performance proof is acceptable. |
-| D-02 | Cloud renderer / enhanced visual profile | **Better Clouds A/B against no extra volumetric-cloud dependency; Simple Clouds RESERVE reference; Iris optional profile** | Combined DH/Sable/cloud/shader feasibility + human presentation judgment. |
-| D-03 | Early glider | **Hang Glider vs Create: Ornithopter Glider A/B; Reliable Gliders RESERVE fallback with accepted compatibility evidence** | Human handling/progression proof; sustained flat-ground flight must remain net-descending. |
+| D-02 | Cloud renderer / enhanced visual profile | **RESOLVED: Simple Clouds selected as the renderer foundation; Better Clouds is RESERVE** | Owner confirmed Simple Clouds rendering with Distant Horizons in the pinned S1 profile (2026-10-03). Semantic Skyforge weather/climate mapping remains technical integration work. |
+| D-03 | Early-game glider | **Hang Glider PREFERRED for the early-game role; Create: Ornithopter Glider KEEP as a later-game Elytra-gated tool; Reliable Gliders RESERVE** | Owner review of Hang Glider early availability, handling, and sustained net descent. Test another early candidate only if Hang Glider leaves a concrete role gap. |
 | D-04 | Heavy ground running gear | **Aeronautics: No Horizon vs Tracks+ A/B** | Runtime handling, Sable integration, performance, distribution fit. |
 | D-05 | General foundry depth | **Create: Metallurgy keep/remove A/B** | It must materially improve industrial play enough to justify machinery + normalization work. |
 | D-06 | Automated aircraft logistics | **Create:Aero Automated Logistics A/B** | Pinned-stack route/persistence/cargo/contention proof; no geography teleportation. |
@@ -70,8 +70,8 @@ These are the remaining decisions that can actually change the dependency roster
 | Create Aeronautics | **KEEP** | Core aircraft/Levitite vehicle layer. | Pin/version compatibility. |
 | Distant Horizons | **KEEP** | Long-range world presentation essential to Skyforge scale. | Whether it is a hard Alpha dependency remains HS-05/HS-10. |
 | Separate Sable distant-contraption renderer/equivalent | **CONDITIONAL** | Distant moving-vehicle visibility if DH does not solve it. | Add only after concrete visibility gap. |
-| Hang Glider | **A/B** | Conventional early glider finalist. | D-03. |
-| Create: Ornithopter Glider | **A/B** | Mechanically assisted glider finalist; must remain net-descending over sustained flat-ground flight. | D-03. |
+| Hang Glider | **PREFERRED** | Current early-game glider candidate; no Elytra prerequisite established by the S1 profile. | Owner handling/progression review under D-03. |
+| Create: Ornithopter Glider | **KEEP** | Owner-selected later-game mobility tool; Elytra required for use. | Exact availability/balance tuning remains a separate human decision; it does not satisfy the early-glider role. |
 | Reliable Gliders | **RESERVE** | Accepted compatibility fallback/reference for early personal soaring. | D-03 if richer finalists fail. |
 | No More Elytra Boosting | **KEEP** | Removes safe firework propulsion while preserving normal fireworks/fall-flying. | Accepted pinned runtime; only human clarity remains. |
 | Disable Elytra Outside The End | **RESERVE** | Alternative boost-control dependency. | Use only if selected solution fails distribution/runtime needs. |
@@ -91,13 +91,13 @@ These are the remaining decisions that can actually change the dependency roster
 | --- | --- | --- | --- |
 | Aerodynamics4MC | **PREFERRED** | Atmospheric/wind solver beneath Skyforge semantic climate/weather. | D-01. |
 | Particle Rain | **PREFERRED** | Precipitation presentation consuming canonical wind. | Must not own wind/weather semantics. |
-| Better Clouds | **A/B** | Primary volumetric-cloud presentation candidate. | D-02; must preserve DH/Sable/navigation readability. |
+| Better Clouds | **RESERVE** | Known fallback/reference cloud renderer. | Revisit only if Simple Clouds cannot support an evidenced capability or compatibility need. |
 | Iris | **OPTIONAL** | Enhanced shader profile only. | Never required for semantic readability. |
 | Iris Flywheel Compat / Iris Veil Compat / Create Shader Fixes | **CONDITIONAL** | Compatibility layer only if Iris profile needs them. | Add only with accepted shader profile. |
 | Sound Physics: Aeronautics | **KEEP** | Moving-sublevel-aware acoustics / attenuation / flyby behavior. | Cumulative presentation stability. |
 | Presence Footsteps | **PREFERRED** | Material-aware movement audio. | Client compatibility/performance. |
 | True Adaptive Music | **PREFERRED** | Runtime delivery for Skyforge-authored adaptive soundtrack. | Music-state integration. |
-| Simple Clouds | **RESERVE** | Cloud-renderer reference/fallback only. | D-02. |
+| Simple Clouds | **PREFERRED** | Selected cloud-renderer foundation for Skyforge weather presentation; owner confirmed it renders with Distant Horizons in the pinned S1 profile. | Technical mapping from authored Skyforge weather/climate into Simple Clouds remains unproven and needs a bounded integration design. |
 | Weather2 / Expanded Weather2 Dynamics | **RESERVE** | Severe-weather R&D/content source. | Not baseline authority. |
 | AmbientSounds | **RESERVE** | Possible ambient-audio delivery layer. | Use only if the selected presentation stack leaves a real ambience gap. |
 | Sound Physics Remastered | **RESERVE** | Generic acoustic propagation fallback. | Prefer the Aeronautics-aware acoustic layer where it covers the role. |
