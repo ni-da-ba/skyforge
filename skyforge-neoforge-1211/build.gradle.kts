@@ -7105,9 +7105,15 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 }
             }
         }
-        if (wbyS1Clouds == "better-clouds") requireToken(client, "betterclouds", "client")
-        else forbidToken(client, "betterclouds", "no-cloud overlay")
+        if (wbyS1Clouds == "better-clouds") {
+            requireToken(client, "betterclouds", "client")
+            requireToken(client, "yacl", "Better Clouds client dependency")
+        } else {
+            forbidToken(client, "betterclouds", "no-cloud overlay")
+            forbidToken(client, "yacl", "no-cloud overlay")
+        }
         forbidToken(server, "betterclouds", "server")
+        forbidToken(server, "yacl", "server")
         if (wbyS1ThinAir) {
             requireToken(client, "thinair", "client")
             requireToken(server, "thinair", "server")
@@ -7149,7 +7155,7 @@ wbyS1StageClientMods.configure {
             "ornithopter" -> listOf(wbyS1Token("ornithopterglider"))
             else -> emptyList()
         } +
-        (if (wbyS1Clouds == "better-clouds") listOf(wbyS1Token("betterclouds")) else emptyList()) +
+        (if (wbyS1Clouds == "better-clouds") listOf(wbyS1Token("betterclouds"), wbyS1Token("yacl")) else emptyList()) +
         (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList())
     ).toSet()
 
@@ -7933,6 +7939,7 @@ dependencies {
     }
     if (wbyS1Clouds == "better-clouds") {
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("betterclouds", "coordinate"))
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("yacl", "coordinate"))
     }
     if (wbyS1ThinAir) {
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
