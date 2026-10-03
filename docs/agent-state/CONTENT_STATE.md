@@ -680,6 +680,10 @@ Ordinary 1:1 portal mechanics are closed. Remaining questions:
 
 ## MANUAL VERIFICATION REQUIRED
 
+### Atmosphere observatory / SF-IMP-1140 — deferred
+
+The current A4MC/C6/C7 machine evidence proves shared-authority consumption and runtime behavior, but it is not yet a meaningful player-facing human gate: no visual or audio wind cues are exposed in play. Do not run the interactive atmosphere review until a bounded presentation read-through exists, is driven by A4MC, and has its own machine evidence.
+
 ### C1 industrial specimen
 
 Still requires recorded runtime/play evidence for material suppression/recipe closure, identity collisions, Metallurgy A/B value, electrical throughput, and world-side industrial source throughput.
