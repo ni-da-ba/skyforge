@@ -81,11 +81,6 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 acceptedMoves.add(routeId);
                 best = bestForRoute;
             }
-            if (terminalComponent(best.assembly()).status()
-                    == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
-                // Continue the remaining bounded candidates so the deterministic tie-break can
-                // select the least-displaced fully qualified geometry.
-            }
         }
 
         assertTrue(best.score().compareTo(baseline.score()) <= 0);
