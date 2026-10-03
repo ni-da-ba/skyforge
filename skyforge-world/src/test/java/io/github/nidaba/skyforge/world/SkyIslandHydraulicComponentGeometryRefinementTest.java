@@ -49,8 +49,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double corridorHalfWidth =
                 base.geomorphicNetwork().planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-        double[] amplitudeFractions = {0.125, 0.25};
-        int[] supportScales = {2, 4, 8};
+        double[] amplitudeFractions = {0.0625, 0.125, 0.25, 0.5};
+        int[] supportScales = {2, 4, 8, 16};
         int evaluated = 0;
         List<String> acceptedMoves = new ArrayList<>();
         Map<String, Integer> rejectedModes = new TreeMap<>();
@@ -365,7 +365,9 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         SkyIslandHydraulicTerminalComponent component = terminalComponent(state.assembly());
         return component.status() + "/shared=" + component.sharedHeadSolve().status()
                 + "/excluded=" + component.sharedHeadSolve().excludedSpans().size()
-                + "/blockers=" + component.blockers().size();
+                + "/blockers=" + component.blockers().size()
+                + "/deficitWorld="
+                + String.format(Locale.ROOT, "%.12f", state.score().totalInfeasibilityWorld());
     }
 
     private static double totalDisplacement(
