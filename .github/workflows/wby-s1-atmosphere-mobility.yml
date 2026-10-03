@@ -255,8 +255,8 @@ jobs:
                 "$JAVA_HOME/bin/jcmd" "$client_java_pid" Thread.print -l > "wby-s1-client-thread-dump-$client_java_pid.txt" 2>&1 || true
               done <<< "$client_java_pids"
               for dump in wby-s1-client-thread-dump-*.txt; do
-                echo "--- $dump (last 160 lines) ---"
-                tail -n 160 "$dump"
+                echo "--- $dump (complete JVM thread dump) ---"
+                cat "$dump"
               done
             else
               echo "Could not find a Java process in S1 client process group $client_pid"
