@@ -47,7 +47,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double corridorHalfWidth =
                 base.geomorphicNetwork().planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-        double[] amplitudeFractions = {0.20, 0.40};
+        double[] amplitudeFractions = {0.025, 0.05, 0.10, 0.20, 0.40};
         int evaluated = 0;
         List<String> acceptedMoves = new ArrayList<>();
         Map<String, Integer> rejectedModes = new TreeMap<>();
