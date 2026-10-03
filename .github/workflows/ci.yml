@@ -14,9 +14,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  validate:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 60
+    outputs:
+      full: ${{ steps.impact.outputs.full }}
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -130,7 +132,6 @@ jobs:
           echo "PASS lightweight repository integrity gate"
 
       - name: Validate CI helper and retained workflow contracts
-        if: steps.impact.outputs.full != 'true'
         working-directory: scripts/ci
         run: python3 -m unittest -v
 
@@ -139,31 +140,81 @@ jobs:
         run: python3 scripts/ci/verify_evidence_entry_points.py --validate-manifest
 
       - name: Verify retained DR workflow contracts
-        if: steps.impact.outputs.full != 'true'
         run: python3 scripts/ci/verify_validation_workflows.py
 
       - name: Set up Java and Gradle
         if: steps.impact.outputs.full == 'true'
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Build, test, and generate evidence
+      - name: Run non-suite build checks
         if: steps.impact.outputs.full == 'true'
-        run: ./gradlew check :skyforge-reference:fixedSeedCorpus :skyforge-reference:suspendedVolumeEvidence :skyforge-reference:studioBoundHydrologySemanticCorpus
+        run: |
+          ./gradlew \
+            -x :skyforge-world:test \
+            -x :skyforge-reference:test \
+            -x :skyforge-neoforge-1211:test \
+            --no-configuration-cache
 
+  world-tests:
+    needs: validate
+    if: needs.validate.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Run world test suite
+        run: ./gradlew :skyforge-world:test --no-configuration-cache
+
+  neoforge-tests:
+    needs: validate
+    if: needs.validate.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Run NeoForge test suite
+        run: ./gradlew :skyforge-neoforge-1211:test --no-configuration-cache
+
+  reference-evidence:
+    needs: validate
+    if: needs.validate.outputs.full == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+      - name: Run reference tests and evidence producers
+        run: |
+          ./gradlew \
+            :skyforge-reference:test \
+            :skyforge-reference:fixedSeedCorpus \
+            :skyforge-reference:suspendedVolumeEvidence \
+            :skyforge-reference:studioBoundHydrologySemanticCorpus \
+            --no-configuration-cache
       - name: Dump hydrology evidence on failure
-        if: failure() && steps.impact.outputs.full == 'true'
+        if: failure()
         run: python3 scripts/ci/dump_hydrology_failure_evidence.py
-
       - name: Verify evidence review entry points
-        if: steps.impact.outputs.full == 'true'
         run: python3 scripts/ci/verify_evidence_entry_points.py --verify-files
-
       - name: Stage compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
         run: python3 scripts/ci/stage_evidence_review_bundle.py --stage
-
       - name: Publish compact evidence review bundle
-        if: steps.impact.outputs.full == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        if: success() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         continue-on-error: true
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -172,3 +223,24 @@ jobs:
           if-no-files-found: error
           retention-days: 7
           compression-level: 9
+
+  build:
+    needs: [validate, world-tests, neoforge-tests, reference-evidence]
+    if: always()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Enforce full validation result
+        env:
+          VALIDATE_RESULT: ${{ needs.validate.result }}
+          FULL: ${{ needs.validate.outputs.full }}
+          WORLD_RESULT: ${{ needs.world-tests.result }}
+          NEOFORGE_RESULT: ${{ needs.neoforge-tests.result }}
+          REFERENCE_RESULT: ${{ needs.reference-evidence.result }}
+        run: |
+          test "${VALIDATE_RESULT}" = success
+          if [[ "${FULL}" == true ]]; then
+            test "${WORLD_RESULT}" = success
+            test "${NEOFORGE_RESULT}" = success
+            test "${REFERENCE_RESULT}" = success
+          fi

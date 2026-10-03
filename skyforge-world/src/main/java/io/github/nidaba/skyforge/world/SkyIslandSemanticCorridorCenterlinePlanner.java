@@ -216,12 +216,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
         }
 
-        if (headEnvelopeGap != null && best.maximumHeadEnvelopeGap() > EPSILON) {
-            best = refineCoupledBlocks(
+        SourceEndpointSearchSummary sourceEndpointSearch =
+                SourceEndpointSearchSummary.none();
+        if (headEnvelopeGap != null
+                && (best.maximumHeadEnvelopeGap() > EPSILON
+                        || best.maximumLocalEnvelopeConflict() > EPSILON
+                        || best.maximumLongitudinalGradeConflict() > EPSILON
+                        || best.maximumConfluenceCascadeGradeConflict() > EPSILON)) {
+            CoupledBlockOutcome coupled = refineCoupledBlocks(
                     searchRoute, semanticGuidance, terrain, interiority,
                     semanticCorridorHalfWidth, minimumBendRadius,
                     bankfullHalfWidthAtStation, headEnvelopeGap,
                     longitudinalHeadFeasibility, best);
+            best = coupled.candidate();
+            sourceEndpointSearch = coupled.sourceEndpointSearch();
         }
 
         for (SkyIslandLocalPosition point : best.points()) {
@@ -241,14 +249,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 initial.integratedSquaredHeadEnvelopeGap(),
                 initial.longitudinalHeadFeasibilityGap(),
                 initial.maximumLocalEnvelopeConflict(),
+                initial.maximumSourceEndpointEnvelopeConflict(),
                 initial.maximumLongitudinalGradeConflict(),
+                initial.maximumConfluenceCascadeGradeConflict(),
                 best.maximumHeadEnvelopeGap(),
                 best.maximumHeadEnvelopeGapIndex(),
                 best.maximumHeadEnvelopeGapStation(),
                 best.integratedSquaredHeadEnvelopeGap(),
                 best.longitudinalHeadFeasibilityGap(),
                 best.maximumLocalEnvelopeConflict(),
+                best.maximumSourceEndpointEnvelopeConflict(),
                 best.maximumLongitudinalGradeConflict(),
+                best.maximumConfluenceCascadeGradeConflict(),
+                sourceEndpointSearch,
                 lateralCandidateProposals, lateralCandidateAdmissible,
                 lateralCandidateCorridorRejected, lateralCandidateTerrainRejected,
                 lateralCandidateInteriorityRejected, lateralCandidateCurvatureRejected,
@@ -272,7 +285,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
      * constraints remain hard. The head-envelope score ranks candidates but never authorizes
      * terrain mutation or bypasses the downstream D2 qualification gate.
      */
-    private static Candidate refineCoupledBlocks(
+    private static CoupledBlockOutcome refineCoupledBlocks(
             SkyIslandGeomorphicCandidateRoute searchRoute,
             List<SkyIslandLocalPosition> semanticGuidance,
             SkyIslandSemanticField terrain,
@@ -284,8 +297,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandCenterlineLongitudinalHeadFeasibility longitudinalHeadFeasibility,
             Candidate initial) {
         Candidate best = initial;
+        long sourceEndpointProposals = 0;
+        long sourceEndpointGeometryAdmissible = 0;
+        long sourceEndpointScoreImproving = 0;
+        long sourceEndpointNoWorse = 0;
+        long sourceEndpointHeadGapRegressions = 0;
+        long sourceEndpointIntegratedGapRegressions = 0;
+        long sourceEndpointLocalEnvelopeRegressions = 0;
+        long sourceEndpointLongitudinalGradeRegressions = 0;
+        long sourceEndpointConfluenceGradeRegressions = 0;
+        long sourceEndpointAccepted = 0;
+        List<Candidate> sourceEndpointCandidates = new ArrayList<>();
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
-        double[] amplitudeFractions = {0.25, 0.5, 1.0};
+        double[] sourceEndpointSupportScales = {1.0, 2.0, 4.0, 8.0};
+        double[] amplitudeFractions = {0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0};
         for (int round = 0; round < 4; round++) {
             List<SkyIslandLocalPosition> points = best.points();
             double[] arc = cumulativeArc(points);
@@ -296,10 +321,33 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double nominalStep = totalLength / (points.size() - 1.0);
             double[] pointGaps = headEnvelopeGaps(
                     points, bankfullHalfWidthAtStation, headEnvelopeGap);
-            List<Integer> centers = gapPeakCenters(pointGaps);
+            List<Integer> centers = new ArrayList<>(gapPeakCenters(pointGaps));
+            double criticalGradeStation =
+                    best.maximumConfluenceCascadeGradeConflictStation();
+            if (Double.isFinite(criticalGradeStation) && points.size() > 2) {
+                double[] pointStations = stations(points);
+                int gradeCenter = 1;
+                double nearestDistance = Math.abs(pointStations[gradeCenter] - criticalGradeStation);
+                for (int index = 2; index < pointStations.length - 1; index++) {
+                    double distance = Math.abs(pointStations[index] - criticalGradeStation);
+                    if (distance < nearestDistance) {
+                        gradeCenter = index;
+                        nearestDistance = distance;
+                    }
+                }
+                if (!centers.contains(gradeCenter)) centers.add(0, gradeCenter);
+            }
+            boolean sourceEndpointNeedsRefinement =
+                    best.maximumSourceEndpointEnvelopeConflict() > EPSILON;
+            if (sourceEndpointNeedsRefinement && points.size() > 2 && !centers.contains(1)) {
+                centers.add(0, 1);
+            }
             Candidate roundBest = best;
             for (int center : centers) {
-                double availableSupport = Math.min(arc[center], totalLength - arc[center]);
+                boolean sourceEndpointMode = sourceEndpointNeedsRefinement && center == 1;
+                double availableSupport = sourceEndpointMode
+                        ? totalLength - arc[center]
+                        : Math.min(arc[center], totalLength - arc[center]);
                 if (availableSupport <= EPSILON) {
                     continue;
                 }
@@ -307,14 +355,27 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         stations(points)[center]);
                 double maximumAmplitude = Math.min(
                         semanticCorridorHalfWidth, Math.max(nominalStep, localHalfWidth));
-                for (double supportFraction : supportFractions) {
-                    double supportLength = availableSupport * supportFraction;
-                    if (supportLength + EPSILON < nominalStep) {
+                double[] supportLengths;
+                if (sourceEndpointMode) {
+                    supportLengths = new double[sourceEndpointSupportScales.length];
+                    for (int i = 0; i < sourceEndpointSupportScales.length; i++) {
+                        supportLengths[i] = nominalStep * sourceEndpointSupportScales[i];
+                    }
+                } else {
+                    supportLengths = new double[supportFractions.length];
+                    for (int i = 0; i < supportFractions.length; i++) {
+                        supportLengths[i] = availableSupport * supportFractions[i];
+                    }
+                }
+                for (double supportLength : supportLengths) {
+                    if (supportLength > availableSupport + EPSILON
+                            || supportLength + EPSILON < nominalStep) {
                         continue;
                     }
                     for (double amplitudeFraction : amplitudeFractions) {
                         double amplitude = maximumAmplitude * amplitudeFraction;
                         for (int direction : new int[] {-1, 1}) {
+                            if (sourceEndpointMode) sourceEndpointProposals++;
                             List<SkyIslandLocalPosition> candidatePoints =
                                     coupledDisplacement(
                                             points, arc, center, supportLength,
@@ -325,11 +386,160 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                                     minimumBendRadius)) {
                                 continue;
                             }
+                            if (sourceEndpointMode) sourceEndpointGeometryAdmissible++;
                             Candidate candidate = evaluate(
                                     searchRoute, candidatePoints, headEnvelopeGap,
                                     bankfullHalfWidthAtStation, longitudinalHeadFeasibility);
+                            boolean sourceEndpointImproved =
+                                    candidate.maximumSourceEndpointEnvelopeConflict()
+                                            < roundBest.maximumSourceEndpointEnvelopeConflict()
+                                                    - EPSILON;
+                            if (sourceEndpointMode && sourceEndpointImproved) {
+                                sourceEndpointScoreImproving++;
+                                if (candidate.refinementResidualsNoWorseThan(roundBest)) {
+                                    sourceEndpointNoWorse++;
+                                }
+                                if (candidate.maximumHeadEnvelopeGap()
+                                        > roundBest.maximumHeadEnvelopeGap() + EPSILON) {
+                                    sourceEndpointHeadGapRegressions++;
+                                }
+                                if (candidate.integratedSquaredHeadEnvelopeGap()
+                                        > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) {
+                                    sourceEndpointIntegratedGapRegressions++;
+                                }
+                                if (candidate.maximumLocalEnvelopeConflict()
+                                        > roundBest.maximumLocalEnvelopeConflict() + EPSILON) {
+                                    sourceEndpointLocalEnvelopeRegressions++;
+                                }
+                                if (candidate.maximumLongitudinalGradeConflict()
+                                        > roundBest.maximumLongitudinalGradeConflict() + EPSILON) {
+                                    sourceEndpointLongitudinalGradeRegressions++;
+                                }
+                                if (candidate.maximumConfluenceCascadeGradeConflict()
+                                        > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) {
+                                    sourceEndpointConfluenceGradeRegressions++;
+                                }
+                            }
+                            if (sourceEndpointMode && sourceEndpointImproved) {
+                                sourceEndpointCandidates.add(candidate);
+                            }
                             if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
+                                if (sourceEndpointMode && sourceEndpointImproved) {
+                                    sourceEndpointAccepted++;
+                                }
                                 roundBest = candidate;
+                            }
+                        }
+                    }
+                }
+            }
+            sourceEndpointCandidates.sort(Comparator
+                    .comparingDouble(Candidate::maximumSourceEndpointEnvelopeConflict)
+                    .thenComparingDouble(Candidate::maximumLocalEnvelopeConflict)
+                    .thenComparingDouble(Candidate::integratedSquaredHeadEnvelopeGap));
+            for (int seedIndex = 0;
+                    seedIndex < Math.min(4, sourceEndpointCandidates.size());
+                    seedIndex++) {
+                Candidate endpointSeed = sourceEndpointCandidates.get(seedIndex);
+                List<SkyIslandLocalPosition> seedPoints = endpointSeed.points();
+                double[] seedArc = cumulativeArc(seedPoints);
+                double seedLength = seedArc[seedArc.length - 1];
+                double seedStep = seedLength / (seedPoints.size() - 1.0);
+                double[] seedGaps = headEnvelopeGaps(
+                        seedPoints, bankfullHalfWidthAtStation, headEnvelopeGap);
+                double[] baselineGaps = headEnvelopeGaps(
+                        best.points(), bankfullHalfWidthAtStation, headEnvelopeGap);
+                double[] introducedGapPeaks = new double[seedGaps.length];
+                for (int index = 0; index < seedGaps.length; index++) {
+                    introducedGapPeaks[index] =
+                            Math.max(0.0, seedGaps[index] - baselineGaps[index]);
+                }
+                List<Integer> correctionCenters =
+                        new ArrayList<>(gapPeakCenters(introducedGapPeaks));
+                for (int absolutePeak : gapPeakCenters(seedGaps)) {
+                    if (correctionCenters.size() >= 3) break;
+                    if (!correctionCenters.contains(absolutePeak)) {
+                        correctionCenters.add(absolutePeak);
+                    }
+                }
+                for (int correctionCenter : correctionCenters) {
+                    if (correctionCenter == 1) continue;
+                    double available = Math.min(
+                            seedArc[correctionCenter],
+                            seedLength - seedArc[correctionCenter]);
+                    if (available + EPSILON < seedStep) continue;
+                    double localHalfWidth = bankfullHalfWidthAtStation.applyAsDouble(
+                            stations(seedPoints)[correctionCenter]);
+                    double maximumAmplitude = Math.min(
+                            semanticCorridorHalfWidth,
+                            Math.max(seedStep, localHalfWidth));
+                    double[] correctionSupports = {
+                        available * 0.5, available
+                    };
+                    for (double supportLength : correctionSupports) {
+                        if (supportLength + EPSILON < seedStep) continue;
+                        for (double amplitudeFraction : new double[] {0.125, 0.25, 0.5, 1.0}) {
+                            double amplitude = maximumAmplitude * amplitudeFraction;
+                            for (int direction : new int[] {-1, 1}) {
+                                sourceEndpointProposals++;
+                                List<SkyIslandLocalPosition> candidatePoints =
+                                        coupledDisplacement(
+                                                seedPoints,
+                                                seedArc,
+                                                correctionCenter,
+                                                supportLength,
+                                                direction * amplitude);
+                                if (!geometryAdmissible(
+                                        candidatePoints,
+                                        searchRoute,
+                                        semanticGuidance,
+                                        terrain,
+                                        interiority,
+                                        semanticCorridorHalfWidth,
+                                        minimumBendRadius)) {
+                                    continue;
+                                }
+                                sourceEndpointGeometryAdmissible++;
+                                Candidate candidate = evaluate(
+                                        searchRoute,
+                                        candidatePoints,
+                                        headEnvelopeGap,
+                                        bankfullHalfWidthAtStation,
+                                        longitudinalHeadFeasibility);
+                                boolean sourceEndpointImproved =
+                                        candidate.maximumSourceEndpointEnvelopeConflict()
+                                                < roundBest.maximumSourceEndpointEnvelopeConflict()
+                                                        - EPSILON;
+                                if (sourceEndpointImproved) {
+                                    sourceEndpointScoreImproving++;
+                                    if (candidate.refinementResidualsNoWorseThan(roundBest)) {
+                                        sourceEndpointNoWorse++;
+                                    }
+                                    if (candidate.maximumHeadEnvelopeGap()
+                                            > roundBest.maximumHeadEnvelopeGap() + EPSILON) {
+                                        sourceEndpointHeadGapRegressions++;
+                                    }
+                                    if (candidate.integratedSquaredHeadEnvelopeGap()
+                                            > roundBest.integratedSquaredHeadEnvelopeGap() + EPSILON) {
+                                        sourceEndpointIntegratedGapRegressions++;
+                                    }
+                                    if (candidate.maximumLocalEnvelopeConflict()
+                                            > roundBest.maximumLocalEnvelopeConflict() + EPSILON) {
+                                        sourceEndpointLocalEnvelopeRegressions++;
+                                    }
+                                    if (candidate.maximumLongitudinalGradeConflict()
+                                            > roundBest.maximumLongitudinalGradeConflict() + EPSILON) {
+                                        sourceEndpointLongitudinalGradeRegressions++;
+                                    }
+                                    if (candidate.maximumConfluenceCascadeGradeConflict()
+                                            > roundBest.maximumConfluenceCascadeGradeConflict() + EPSILON) {
+                                        sourceEndpointConfluenceGradeRegressions++;
+                                    }
+                                }
+                                if (candidate.compareTo(roundBest, minimumBendRadius) < 0) {
+                                    if (sourceEndpointImproved) sourceEndpointAccepted++;
+                                    roundBest = candidate;
+                                }
                             }
                         }
                     }
@@ -340,7 +550,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
             best = roundBest;
         }
-        return best;
+        return new CoupledBlockOutcome(
+                best,
+                new SourceEndpointSearchSummary(
+                        sourceEndpointProposals,
+                        sourceEndpointGeometryAdmissible,
+                        sourceEndpointScoreImproving,
+                        sourceEndpointNoWorse,
+                        sourceEndpointHeadGapRegressions,
+                        sourceEndpointIntegratedGapRegressions,
+                        sourceEndpointLocalEnvelopeRegressions,
+                        sourceEndpointLongitudinalGradeRegressions,
+                        sourceEndpointConfluenceGradeRegressions,
+                        sourceEndpointAccepted));
     }
 
 
@@ -773,8 +995,11 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 station[maximumGapIndex],
                 integratedSquaredGap,
                 longitudinalScore.maximumLocalEnvelopeConflictWorldUnits(),
+                longitudinalScore.maximumSourceEndpointEnvelopeConflictWorldUnits(),
                 longitudinalScore.maximumGradePropagationConflictWorldUnits(),
-                longitudinalScore.integratedSquaredConflictWorldUnits());
+                longitudinalScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
+                longitudinalScore.integratedSquaredConflictWorldUnits(),
+                longitudinalScore.maximumConfluenceCascadeGradeConflictStation());
     }
 
     private static AdmissionCheck admissibilityCheck(
@@ -814,23 +1039,6 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         if (!firstGeometryValid) {
             return 0;
         }
-        int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
-        if (maximumGap != 0) {
-            return maximumGap;
-        }
-        int integratedGap = Double.compare(
-                firstGap.integratedSquaredGap(), secondGap.integratedSquaredGap());
-        if (integratedGap != 0) {
-            return integratedGap;
-        }
-        SkyIslandLocalPosition previous = points.get(changedIndex - 1);
-        SkyIslandLocalPosition next = points.get(changedIndex + 1);
-        int curvature = Double.compare(
-                localCurvature(previous, first, next),
-                localCurvature(previous, second, next));
-        if (curvature != 0) {
-            return curvature;
-        }
         if (longitudinalHeadFeasibility != null) {
             List<SkyIslandLocalPosition> firstPoints = new ArrayList<>(points);
             firstPoints.set(changedIndex, first);
@@ -840,6 +1048,24 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     checkedLongitudinalScore(longitudinalHeadFeasibility, firstPoints);
             SkyIslandCenterlineLongitudinalHeadFeasibility.Score secondScore =
                     checkedLongitudinalScore(longitudinalHeadFeasibility, secondPoints);
+            boolean firstD2NoWorse =
+                    firstGap.maximumGap() <= secondGap.maximumGap() + EPSILON
+                            && firstGap.integratedSquaredGap()
+                                    <= secondGap.integratedSquaredGap() + EPSILON;
+            boolean secondD2NoWorse =
+                    secondGap.maximumGap() <= firstGap.maximumGap() + EPSILON
+                            && secondGap.integratedSquaredGap()
+                                    <= firstGap.integratedSquaredGap() + EPSILON;
+            if (firstD2NoWorse != secondD2NoWorse) return firstD2NoWorse ? -1 : 1;
+            if (!firstD2NoWorse) return 0;
+            int sourceEndpoint = Double.compare(
+                    firstScore.maximumSourceEndpointEnvelopeConflictWorldUnits(),
+                    secondScore.maximumSourceEndpointEnvelopeConflictWorldUnits());
+            if (sourceEndpoint != 0) return sourceEndpoint;
+            int confluenceCascadeGrade = Double.compare(
+                    firstScore.maximumConfluenceCascadeGradeConflictWorldUnits(),
+                    secondScore.maximumConfluenceCascadeGradeConflictWorldUnits());
+            if (confluenceCascadeGrade != 0) return confluenceCascadeGrade;
             int maximumGrade = Double.compare(
                     firstScore.maximumGradePropagationConflictWorldUnits(),
                     secondScore.maximumGradePropagationConflictWorldUnits());
@@ -853,6 +1079,17 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     secondScore.integratedSquaredConflictWorldUnits());
             if (integratedGrade != 0) return integratedGrade;
         }
+        int maximumGap = Double.compare(firstGap.maximumGap(), secondGap.maximumGap());
+        if (maximumGap != 0) return maximumGap;
+        int integratedGap = Double.compare(
+                firstGap.integratedSquaredGap(), secondGap.integratedSquaredGap());
+        if (integratedGap != 0) return integratedGap;
+        SkyIslandLocalPosition previous = points.get(changedIndex - 1);
+        SkyIslandLocalPosition next = points.get(changedIndex + 1);
+        int curvature = Double.compare(
+                localCurvature(previous, first, next),
+                localCurvature(previous, second, next));
+        if (curvature != 0) return curvature;
         return Double.compare(
                 project(first, searchRoute.points()).distance(),
                 project(second, searchRoute.points()).distance());
@@ -1152,14 +1389,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double initialIntegratedSquaredHeadEnvelopeGap,
             double initialLongitudinalHeadFeasibilityGap,
             double initialMaximumLocalEnvelopeConflict,
+            double initialMaximumSourceEndpointEnvelopeConflict,
             double initialMaximumLongitudinalGradeConflict,
+            double initialMaximumConfluenceCascadeGradeConflict,
             double finalMaximumHeadEnvelopeGap,
             int finalMaximumHeadEnvelopeGapIndex,
             double finalMaximumHeadEnvelopeGapStation,
             double finalIntegratedSquaredHeadEnvelopeGap,
             double finalLongitudinalHeadFeasibilityGap,
             double finalMaximumLocalEnvelopeConflict,
+            double finalMaximumSourceEndpointEnvelopeConflict,
             double finalMaximumLongitudinalGradeConflict,
+            double finalMaximumConfluenceCascadeGradeConflict,
+            SourceEndpointSearchSummary sourceEndpointSearch,
             long lateralCandidateProposals,
             long lateralCandidateAdmissible,
             long lateralCandidateCorridorRejected,
@@ -1200,6 +1442,25 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
 
     private record Projection(SkyIslandLocalPosition position, double distance) {}
 
+    private record CoupledBlockOutcome(
+            Candidate candidate, SourceEndpointSearchSummary sourceEndpointSearch) {}
+
+    private record SourceEndpointSearchSummary(
+            long proposals,
+            long geometryAdmissible,
+            long scoreImproving,
+            long nonRegressing,
+            long headGapRegressions,
+            long integratedGapRegressions,
+            long localEnvelopeRegressions,
+            long longitudinalGradeRegressions,
+            long confluenceGradeRegressions,
+            long accepted) {
+        private static SourceEndpointSearchSummary none() {
+            return new SourceEndpointSearchSummary(0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        }
+    }
+
     private record Candidate(
             List<SkyIslandLocalPosition> points,
             double pathLength,
@@ -1211,16 +1472,23 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double maximumHeadEnvelopeGapStation,
             double integratedSquaredHeadEnvelopeGap,
             double maximumLocalEnvelopeConflict,
+            double maximumSourceEndpointEnvelopeConflict,
             double maximumLongitudinalGradeConflict,
-            double longitudinalHeadFeasibilityGap) {
+            double maximumConfluenceCascadeGradeConflict,
+            double longitudinalHeadFeasibilityGap,
+            double maximumConfluenceCascadeGradeConflictStation) {
         private boolean refinementResidualsNoWorseThan(Candidate other) {
             return maximumHeadEnvelopeGap <= other.maximumHeadEnvelopeGap + EPSILON
                     && integratedSquaredHeadEnvelopeGap
                             <= other.integratedSquaredHeadEnvelopeGap + EPSILON
                     && maximumLocalEnvelopeConflict
                             <= other.maximumLocalEnvelopeConflict + EPSILON
+                    && maximumSourceEndpointEnvelopeConflict
+                            <= other.maximumSourceEndpointEnvelopeConflict + EPSILON
                     && maximumLongitudinalGradeConflict
-                            <= other.maximumLongitudinalGradeConflict + EPSILON;
+                            <= other.maximumLongitudinalGradeConflict + EPSILON
+                    && maximumConfluenceCascadeGradeConflict
+                            <= other.maximumConfluenceCascadeGradeConflict + EPSILON;
         }
 
         private int compareTo(Candidate other, double minimumBendRadius) {
@@ -1234,23 +1502,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 // regression for an improvement in a different residual.
                 return 0;
             }
+            int sourceEndpoint = Double.compare(
+                    maximumSourceEndpointEnvelopeConflict,
+                    other.maximumSourceEndpointEnvelopeConflict);
+            if (sourceEndpoint != 0) return sourceEndpoint;
             double curvatureExcess = curvatureExcess(minimumBendRadius);
             double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
             int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
             if (excess != 0) {
                 return excess;
             }
-            int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
-            if (maximumGap != 0) {
-                return maximumGap;
-            }
-            int integratedGap =
-                    Double.compare(
-                            integratedSquaredHeadEnvelopeGap,
-                            other.integratedSquaredHeadEnvelopeGap);
-            if (integratedGap != 0) {
-                return integratedGap;
-            }
+            int maximumConfluenceCascade = Double.compare(
+                    maximumConfluenceCascadeGradeConflict,
+                    other.maximumConfluenceCascadeGradeConflict);
+            if (maximumConfluenceCascade != 0) return maximumConfluenceCascade;
             int maximumLongitudinal = Double.compare(
                     maximumLongitudinalGradeConflict,
                     other.maximumLongitudinalGradeConflict);
@@ -1259,6 +1524,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     maximumLocalEnvelopeConflict,
                     other.maximumLocalEnvelopeConflict);
             if (maximumLocal != 0) return maximumLocal;
+            int maximumGap = Double.compare(maximumHeadEnvelopeGap, other.maximumHeadEnvelopeGap);
+            if (maximumGap != 0) return maximumGap;
+            int integratedGap =
+                    Double.compare(
+                            integratedSquaredHeadEnvelopeGap,
+                            other.integratedSquaredHeadEnvelopeGap);
+            if (integratedGap != 0) return integratedGap;
             int longitudinal = Double.compare(
                     longitudinalHeadFeasibilityGap,
                     other.longitudinalHeadFeasibilityGap);

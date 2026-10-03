@@ -166,6 +166,12 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
             return;
         }
 
+        // The acceptance harness subscriber performs synchronous chunk warmup on the same
+        // tick. Do not mistake subscriber ordering for a missing proof-footprint chunk.
+        if (!SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+            return;
+        }
+
         List<BlockPos> expectedWaterHeads = expectedWaterHeadPositions(fixture);
         if (expectedWaterHeads.isEmpty()) {
             SkyforgeAutomatedAcceptanceHarness.fail(

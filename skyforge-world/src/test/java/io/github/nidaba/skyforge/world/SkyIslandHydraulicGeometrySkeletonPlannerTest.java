@@ -38,6 +38,7 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
         StringBuilder report = new StringBuilder(
                 "F3L_KEY700_D2_COMPONENT seed=0x534B59464F524745 key=700"
                         + System.lineSeparator());
+        String objectiveFailure = null;
         for (SkyIslandGeomorphicReachRoute route : incidentRoutes) {
             var first = SkyIslandHydraulicGeometrySkeletonPlanner.refineCenterline(
                     descriptor, network, route, terrain, interiority);
@@ -55,6 +56,12 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
             String routeLabel = route.semanticReach().startCellIndex()
                     + "->" + route.semanticReach().endCellIndex();
             assertTrue(
+                    d.finalMaximumSourceEndpointEnvelopeConflict()
+                                    <= d.initialMaximumSourceEndpointEnvelopeConflict() + EPSILON,
+                    "source endpoint envelope conflict regressed on " + routeLabel + ": "
+                            + d.initialMaximumSourceEndpointEnvelopeConflict() + " -> "
+                            + d.finalMaximumSourceEndpointEnvelopeConflict());
+            assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()
                                     <= d.initialMaximumLocalEnvelopeConflict() + EPSILON,
                     "local envelope conflict regressed on " + routeLabel + ": "
@@ -68,6 +75,29 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                             + d.finalMaximumLongitudinalGradeConflict());
             if (route.semanticReach().startCellIndex() == 801
                     && route.semanticReach().endCellIndex() == 1951) {
+                var initialTargetScore =
+                        SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeConflictDetails(
+                                descriptor, network, route.semanticReach(),
+                                route.route().points(), terrain);
+                var finalTargetScore =
+                        SkyIslandHydraulicGeometrySkeletonPlanner.confluenceCascadeGradeConflictDetails(
+                                descriptor, network, route.semanticReach(),
+                                first.centerline().points(), terrain);
+                report.append("OBJECTIVE_SPAN initial=")
+                        .append(initialTargetScore)
+                        .append(" final=")
+                        .append(finalTargetScore)
+                        .append(System.lineSeparator());
+                if (objectiveFailure == null
+                        && (initialTargetScore.sampleCount() == 0
+                                || Math.abs(initialTargetScore.startStation()
+                                        - 0.13043478260869565) > EPSILON
+                                || Math.abs(initialTargetScore.endStation()
+                                        - 0.7391304347826086) > EPSILON)) {
+                    objectiveFailure =
+                            "objective must score the exact F3D free confluence-to-CASCADE window: "
+                                    + initialTargetScore;
+                }
                 assertTrue(d.initialLongitudinalHeadFeasibilityGap() > EPSILON);
                 assertTrue(
                         d.finalLongitudinalHeadFeasibilityGap()
@@ -77,6 +107,13 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                         d.finalMaximumLongitudinalGradeConflict()
                                 < d.initialMaximumLongitudinalGradeConflict(),
                         "minimax refinement must reduce the worst key-700 grade conflict");
+                if (!(d.finalMaximumConfluenceCascadeGradeConflict()
+                        < d.initialMaximumConfluenceCascadeGradeConflict())) {
+                    objectiveFailure =
+                            "refinement must reduce free grade conflict on the confluence-to-CASCADE ordinary span: "
+                                    + d.initialMaximumConfluenceCascadeGradeConflict() + " -> "
+                                    + d.finalMaximumConfluenceCascadeGradeConflict();
+                }
             }
             report.append("CENTERLINE ")
                     .append(route.semanticReach().startCellIndex())
@@ -96,10 +133,19 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     .append(d.initialMaximumLocalEnvelopeConflict())
                     .append(" finalMaxLocalEnvelopeConflict=")
                     .append(d.finalMaximumLocalEnvelopeConflict())
+                    .append(" initialMaxSourceEndpointEnvelopeConflict=")
+                    .append(d.initialMaximumSourceEndpointEnvelopeConflict())
+                    .append(" finalMaxSourceEndpointEnvelopeConflict=")
+                    .append(d.finalMaximumSourceEndpointEnvelopeConflict())
+                    .append(" sourceEndpointSearch=").append(d.sourceEndpointSearch())
                     .append(" initialMaxLongitudinalGradeConflict=")
                     .append(d.initialMaximumLongitudinalGradeConflict())
                     .append(" finalMaxLongitudinalGradeConflict=")
                     .append(d.finalMaximumLongitudinalGradeConflict())
+                    .append(" initialConfluenceCascadeGradeConflict=")
+                    .append(d.initialMaximumConfluenceCascadeGradeConflict())
+                    .append(" finalConfluenceCascadeGradeConflict=")
+                    .append(d.finalMaximumConfluenceCascadeGradeConflict())
                     .append(" selectedLateralMoves=").append(d.selectedLateralMoves())
                     .append(" globalModeAcceptedMoves=")
                     .append(d.globalModeSearchAcceptedMoves())
@@ -199,6 +245,10 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 "build", "evidence", "hydrology-key700-d2-component-test", "key-700.txt");
         Files.createDirectories(evidence.getParent());
         Files.writeString(evidence, report);
+        if (objectiveFailure != null) {
+            System.out.println(report);
+            assertTrue(false, objectiveFailure);
+        }
     }
 
     @Test

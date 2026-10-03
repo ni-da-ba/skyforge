@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify retained DR characterization workflow contracts without executing Minecraft."""
+"""Verify retained acceptance and review workflow contracts without executing Minecraft."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -59,6 +59,23 @@ CONTRACTS = (
         ),
         2,
     ),
+    WorkflowContract(
+        ".github/workflows/studio-desktop.yml",
+        (
+            '- "scripts/orchestrator/studio/**"',
+            '- "scripts/orchestrator/studio-desktop/**"',
+            '- "scripts/ci/stage_evidence_review_bundle.py"',
+            '- "config/ci/evidence-entry-points.json"',
+            "workflow_dispatch:",
+        ),
+        '- ".github/workflows/studio-desktop.yml"',
+        (
+            ":skyforge-reference:fixedSeedCorpus",
+            ":skyforge-reference:suspendedVolumeEvidence",
+            ":skyforge-reference:studioBoundHydrologySemanticCorpus",
+        ),
+        1,
+    ),
 )
 
 
@@ -79,10 +96,28 @@ def verify_text(contract: WorkflowContract, text: str) -> list[str]:
             errors.append(
                 f"{contract.path}: expected exactly one retained characterization task {task!r}"
             )
+    is_studio = contract.path.endswith("studio-desktop.yml")
+    if is_studio:
+        for unrelated in (
+            '- "skyforge-*/src/**"',
+            '- "skyforge-*/build.gradle.kts"',
+            '- "skyforge-*/**/build.gradle.kts"',
+        ):
+            if unrelated in text:
+                errors.append(
+                    f"{contract.path}: unrelated module source/build changes must not "
+                    "trigger deferred Studio staging"
+                )
+        if "run: ./gradlew check" not in text:
+            errors.append(f"{contract.path}: evidence-producing Gradle check must remain in Studio staging")
+        if "-x :skyforge-neoforge-1211:test" not in text:
+            errors.append(f"{contract.path}: Studio must omit the duplicate canonical NeoForge unit suite")
     for task in FORBIDDEN_DUPLICATE_TASKS:
+        if task == ":skyforge-neoforge-1211:test" and is_studio and "-x :skyforge-neoforge-1211:test" in text:
+            continue
         if task in text:
             errors.append(
-                f"{contract.path}: duplicate canonical compile/unit task remains: {task}"
+                f"{contract.path}: duplicate canonical build/test task remains: {task}"
             )
     return errors
 

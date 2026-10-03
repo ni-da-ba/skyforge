@@ -13,6 +13,11 @@ class ValidationWorkflowContractTest(unittest.TestCase):
                     *contract.required_triggers,
                     *([ "uses: ./.github/actions/setup-java-gradle" ] * contract.setup_count),
                     *contract.acceptance_tasks,
+                    *(
+                        ["run: ./gradlew check -x :skyforge-neoforge-1211:test"]
+                        if contract.path.endswith("studio-desktop.yml")
+                        else []
+                    ),
                 ]
             )
             self.assertEqual(verify_text(contract, text), [])
@@ -40,6 +45,43 @@ class ValidationWorkflowContractTest(unittest.TestCase):
             ]
         )
         self.assertTrue(any("duplicate canonical" in item for item in verify_text(contract, text)))
+
+    def test_studio_does_not_run_for_unrelated_module_source_changes(self):
+        contract = next(
+            contract for contract in CONTRACTS if contract.path.endswith("studio-desktop.yml")
+        )
+        text = "\n".join(
+            [
+                *contract.required_triggers,
+                "uses: ./.github/actions/setup-java-gradle",
+                *contract.acceptance_tasks,
+                "run: ./gradlew check -x :skyforge-neoforge-1211:test",
+            ]
+        )
+        self.assertEqual(verify_text(contract, text), [])
+        text += '\n- "skyforge-*/src/**"'
+        self.assertTrue(
+            any("unrelated module source/build changes" in item for item in verify_text(contract, text))
+        )
+    def test_studio_stage_requires_omitting_canonical_neoforge_unit_suite(self):
+        contract = next(
+            contract for contract in CONTRACTS if contract.path.endswith("studio-desktop.yml")
+        )
+        prefix = [
+            *contract.required_triggers,
+            "uses: ./.github/actions/setup-java-gradle",
+            *contract.acceptance_tasks,
+            "run: ./gradlew check",
+        ]
+        missing_exclusion = "\\n".join(prefix)
+        self.assertTrue(
+            any("must omit the duplicate canonical NeoForge unit suite" in item
+                for item in verify_text(contract, missing_exclusion))
+        )
+        retained_check = "\\n".join(
+            [*prefix, "run: ./gradlew check -x :skyforge-neoforge-1211:test"]
+        )
+        self.assertEqual(verify_text(contract, retained_check), [])
 
     def test_missing_product_trigger_is_rejected(self):
         contract = CONTRACTS[2]

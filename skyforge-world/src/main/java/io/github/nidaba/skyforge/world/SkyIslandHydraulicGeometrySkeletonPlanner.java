@@ -15,6 +15,9 @@ import java.util.Optional;
  * terrain-lowering authority.
  */
 public final class SkyIslandHydraulicGeometrySkeletonPlanner {
+    private static final double EPSILON = 1.0e-12;
+    private static final double TRANSITION_BOUNDARY_EPSILON = 1.0e-10;
+
     private SkyIslandHydraulicGeometrySkeletonPlanner() {}
 
     public static SkyIslandHydraulicGeometrySkeletonPlan plan(SkyIslandDescriptor descriptor) {
@@ -73,6 +76,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         Optional<SkyIslandChannelProfileKind> ordinaryProfileKind =
                 singleOrdinaryProfileKind(semantic);
+        boolean startsAtSource = network.nodes().stream()
+                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
+                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE);
         var outcome = SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
                 route.route(),
                 semantic.guidancePoints(),
@@ -113,12 +119,15 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                             0.0, envelope.lowerHead() - envelope.upperHead());
                 },
                 points -> longitudinalHeadFeasibilityGap(
-                        descriptor, semantic, points, dischargeProfile, terrain, policy));
+                        descriptor, network, startsAtSource, semantic, points,
+                        dischargeProfile, terrain, policy));
         return new CenterlineRefinement(outcome.centerline(), outcome.diagnostics());
     }
 
     private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalHeadFeasibilityGap(
             SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            boolean startsAtSource,
             SkyIslandSemanticChannelReach semantic,
             List<SkyIslandLocalPosition> points,
             SemanticDischargeProfile dischargeProfile,
@@ -133,6 +142,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 new SkyIslandChannelProfileKind[points.size()];
         double[] squaredConflicts = new double[points.size()];
         double maximumLocalEnvelopeConflict = 0.0;
+        double maximumSourceEndpointEnvelopeConflict = 0.0;
         double maximumGradePropagationConflict = 0.0;
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition position = points.get(i);
@@ -184,6 +194,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double localLower = envelope.lowerHead();
             double localUpper = envelope.upperHead();
             double localConflict = Math.max(0.0, localLower - localUpper);
+            if (i == 0 && startsAtSource) {
+                maximumSourceEndpointEnvelopeConflict = localConflict;
+            }
             if (localConflict > 0.0) {
                 maximumLocalEnvelopeConflict =
                         Math.max(maximumLocalEnvelopeConflict, localConflict);
@@ -228,12 +241,254 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     0.5 * (squaredConflicts[i] + squaredConflicts[i + 1]) * ds;
             ordinaryLength += ds;
         }
+        ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflict =
+                maximumConfluenceCascadeGradeConflict(
+                        descriptor, network, semantic, points, cumulative,
+                        dischargeProfile, terrain, policy);
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 maximumLocalEnvelopeConflict,
+                maximumSourceEndpointEnvelopeConflict,
                 maximumGradePropagationConflict,
+                confluenceCascadeGradeConflict.maximumConflict(),
                 ordinaryLength > 0.0
                         ? integratedSquaredConflict / ordinaryLength
-                        : 0.0);
+                        : 0.0,
+                confluenceCascadeGradeConflict.maximumConflictStation());
+    }
+
+    private static ConfluenceCascadeGradeConflictDetails maximumConfluenceCascadeGradeConflict(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            double[] cumulative,
+            SemanticDischargeProfile dischargeProfile,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy) {
+        boolean startsAtConfluence = network.nodes().stream()
+                .anyMatch(node -> node.cellIndex() == semantic.startCellIndex()
+                        && node.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE);
+        if (!startsAtConfluence) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, Double.NaN, Double.NaN, 0, "not-confluence", -1, Double.NaN);
+        }
+        List<SkyIslandChannelProfile> profiles = semantic.profiles();
+        double pathLength = cumulative[cumulative.length - 1];
+        double[] sampledDischarge = new double[points.size()];
+        for (int index = 0; index < points.size(); index++) {
+            sampledDischarge[index] = dischargeProfile.atStation(cumulative[index] / pathLength);
+        }
+        double startArc = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                descriptor.nominalRadius(), sampledDischarge[0]);
+        double startStation = startArc / pathLength;
+
+        // F3D owns a confluence-adjacent CASCADE as its complete authored profile run. The
+        // ordinary reach begins at the first ordinary profile boundary after that run, not at an
+        // interior CASCADE profile boundary merely because the physical confluence retreat lies
+        // inside the run.
+        int startProfile = Math.min(
+                profiles.size() - 1,
+                (int) Math.floor(Math.min(0.999999999, startStation) * profiles.size()));
+        if (profiles.get(startProfile).kind() == SkyIslandChannelProfileKind.CASCADE) {
+            while (startProfile < profiles.size()
+                    && profiles.get(startProfile).kind() == SkyIslandChannelProfileKind.CASCADE) {
+                startProfile++;
+            }
+            if (startProfile >= profiles.size()) {
+                return new ConfluenceCascadeGradeConflictDetails(
+                        0.0, startStation, Double.NaN, 0, "no-ordinary-profile-after-confluence-cascade",
+                        -1, Double.NaN);
+            }
+            startStation = (double) startProfile / profiles.size();
+        }
+
+        // Score through the next downstream CASCADE boundary, matching F3D's ordinary-span slice.
+        int cascadeStart = -1;
+        for (int index = startProfile + 1; index < profiles.size(); index++) {
+            double profileStart = (double) index / profiles.size();
+            if (profiles.get(index).kind() == SkyIslandChannelProfileKind.CASCADE
+                    && profileStart > startStation + TRANSITION_BOUNDARY_EPSILON) {
+                cascadeStart = index;
+                break;
+            }
+        }
+        if (cascadeStart < 0) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, startStation, Double.NaN, 0, "no-downstream-cascade", -1, Double.NaN);
+        }
+        double endStation = (double) cascadeStart / profiles.size();
+        if (!(endStation > startStation)) {
+            return new ConfluenceCascadeGradeConflictDetails(
+                    0.0, startStation, endStation, 0, "empty-ordinary-window", -1, Double.NaN);
+        }
+
+        List<SkyIslandLocalPosition> spanPoints = new ArrayList<>();
+        List<Double> spanStations = new ArrayList<>();
+        List<Double> spanDischarges = new ArrayList<>();
+        appendStationSample(
+                points, cumulative, pathLength, startStation, sampledDischarge,
+                spanPoints, spanStations, spanDischarges);
+        for (int index = 1; index + 1 < points.size(); index++) {
+            double station = cumulative[index] / pathLength;
+            if (station > startStation + EPSILON && station < endStation - EPSILON) {
+                spanPoints.add(points.get(index));
+                spanStations.add(station);
+                spanDischarges.add(sampledDischarge[index]);
+            }
+        }
+        appendStationSample(
+                points, cumulative, pathLength, endStation, sampledDischarge,
+                spanPoints, spanStations, spanDischarges);
+
+        List<SkyIslandChannelProfileKind> overlappingKinds = new ArrayList<>();
+        for (int index = 0; index < profiles.size(); index++) {
+            double profileStart = (double) index / profiles.size();
+            double profileEnd = (double) (index + 1) / profiles.size();
+            if (Math.min(endStation, profileEnd) - Math.max(startStation, profileStart)
+                            <= TRANSITION_BOUNDARY_EPSILON) {
+                continue;
+            }
+            SkyIslandChannelProfileKind kind = profiles.get(index).kind();
+            if (kind == SkyIslandChannelProfileKind.CASCADE) {
+                return new ConfluenceCascadeGradeConflictDetails(
+                        0.0,
+                        startStation,
+                        endStation,
+                        0,
+                        "cascade-overlap-profile-" + index + "-[" + profileStart + "," + profileEnd + "]",
+                        -1,
+                        Double.NaN);
+            }
+            overlappingKinds.add(kind);
+        }
+        SkyIslandGeomorphicQualificationClass spanClass =
+                SkyIslandGeomorphicQualificationClass.classifyKinds(overlappingKinds);
+        SkyIslandGeomorphicProfileLimits spanLimits = policy.limits(spanClass);
+
+        double[] spanCumulative = cumulativeDistance(spanPoints);
+        double reachableLower = Double.NaN;
+        double reachableUpper = Double.NaN;
+        for (int index = 0; index < spanPoints.size(); index++) {
+            SkyIslandLocalPosition position = spanPoints.get(index);
+            double station = spanStations.get(index);
+            SkyIslandLocalPosition before = spanPoints.get(Math.max(0, index - 1));
+            SkyIslandLocalPosition after =
+                    spanPoints.get(Math.min(spanPoints.size() - 1, index + 1));
+            double tangentX = after.x() - before.x();
+            double tangentZ = after.z() - before.z();
+            double tangentLength = Math.hypot(tangentX, tangentZ);
+            if (!(tangentLength > 0.0)) {
+                throw new IllegalStateException(
+                        "confluence-to-CASCADE grade scoring requires non-zero tangents");
+            }
+            SkyIslandChannelProfileKind kind =
+                    index + 1 == spanPoints.size()
+                            ? profiles.get(cascadeStart - 1).kind()
+                            : SkyIslandHydraulicHeadEnvelopePlanner.profileKind(profiles, station);
+            double discharge = spanDischarges.get(index);
+            SkyIslandHydraulicHeadEnvelope envelope =
+                    SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                            descriptor,
+                            kind,
+                            position,
+                            SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                    descriptor.nominalRadius(), discharge),
+                            SkyIslandHydraulicGeometryCalibration.waterDepthPotential(discharge),
+                            clamp01(terrain.sample(position)),
+                            -tangentZ / tangentLength,
+                            tangentX / tangentLength,
+                            terrain,
+                            spanLimits);
+            double localLower = envelope.lowerHead();
+            double localUpper = envelope.upperHead();
+            if (localLower > localUpper) {
+                double midpoint = 0.5 * (localLower + localUpper);
+                localLower = midpoint;
+                localUpper = midpoint;
+            }
+            if (Double.isNaN(reachableLower)) {
+                reachableLower = localLower;
+                reachableUpper = localUpper;
+                continue;
+            }
+            double ds = spanCumulative[index] - spanCumulative[index - 1];
+            double maxDrop = spanLimits.maximumLongitudinalGrade() * ds;
+            double nextLower = Math.max(localLower, reachableLower - maxDrop);
+            double nextUpper = Math.min(localUpper, reachableUpper);
+            double conflict = Math.max(0.0, nextLower - nextUpper);
+            if (conflict > EPSILON) {
+                // Forward interval propagation is fail-closed: after the first empty reachable
+                // interval, later midpoint repair is not a feasible continuation. Report the
+                // exact first conflict used by F3D instead of a synthetic downstream residual.
+                return new ConfluenceCascadeGradeConflictDetails(
+                        conflict,
+                        startStation,
+                        endStation,
+                        spanPoints.size(),
+                        spanClass.name(),
+                        index,
+                        station);
+            }
+            reachableLower = nextLower;
+            reachableUpper = nextUpper;
+        }
+        return new ConfluenceCascadeGradeConflictDetails(
+                0.0, startStation, endStation, spanPoints.size(),
+                spanClass.name(), -1, Double.NaN);
+    }
+
+    static ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflictDetails(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SkyIslandSemanticField terrain) {
+        return maximumConfluenceCascadeGradeConflict(
+                descriptor,
+                network,
+                semantic,
+                points,
+                cumulativeDistance(points),
+                semanticDischargeProfile(semantic),
+                terrain,
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
+    }
+
+    record ConfluenceCascadeGradeConflictDetails(
+            double maximumConflict,
+            double startStation,
+            double endStation,
+            int sampleCount,
+            String qualificationClass,
+            int maximumConflictIndex,
+            double maximumConflictStation) {}
+
+    private static void appendStationSample(
+            List<SkyIslandLocalPosition> points,
+            double[] cumulative,
+            double pathLength,
+            double station,
+            double[] sampledDischarge,
+            List<SkyIslandLocalPosition> spanPoints,
+            List<Double> spanStations,
+            List<Double> spanDischarges) {
+        double targetArc = station * pathLength;
+        for (int index = 0; index + 1 < points.size(); index++) {
+            if (targetArc > cumulative[index + 1] + EPSILON) continue;
+            double ds = cumulative[index + 1] - cumulative[index];
+            double fraction = (targetArc - cumulative[index]) / ds;
+            SkyIslandLocalPosition a = points.get(index);
+            SkyIslandLocalPosition b = points.get(index + 1);
+            spanPoints.add(new SkyIslandLocalPosition(
+                    a.x() + fraction * (b.x() - a.x()),
+                    a.z() + fraction * (b.z() - a.z())));
+            spanStations.add(station);
+            spanDischarges.add(
+                    sampledDischarge[index]
+                            + fraction * (sampledDischarge[index + 1] - sampledDischarge[index]));
+            return;
+        }
+        throw new IllegalStateException("transition station escaped centerline");
     }
 
     record CenterlineRefinement(
