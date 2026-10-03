@@ -281,6 +281,7 @@ jobs:
           ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
+            --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
         if: always()
