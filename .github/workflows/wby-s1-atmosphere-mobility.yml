@@ -328,7 +328,7 @@ jobs:
           # A background process inherits ignored SIGINT from this non-interactive
           # shell. Signal the NeoForge server JVM directly so its JVM shutdown hooks
           # save the joined world instead of relying on the Gradle process group.
-          server_jvm_pids="$(ps -eo pid=,args= | awk '/net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
+          server_jvm_pids="$(ps -eo pid=,comm=,args= | awk '$2 ~ /^java/ && /net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
           test -n "$server_jvm_pids"
           while IFS= read -r server_jvm_pid; do
             [[ -n "$server_jvm_pid" ]] && kill -TERM "$server_jvm_pid"
