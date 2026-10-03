@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.TreeSet;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -47,38 +48,48 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double corridorHalfWidth =
                 base.geomorphicNetwork().planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-        double[] amplitudeFractions = {0.025, 0.05, 0.10, 0.20, 0.40};
+        double[] amplitudeFractions = {0.125, 0.25};
+        int[] supportScales = {2, 4, 8};
         int evaluated = 0;
         List<String> acceptedMoves = new ArrayList<>();
         Map<String, Integer> rejectedModes = new TreeMap<>();
 
-        // Deterministic coordinate descent over low-frequency lateral modes. Endpoints stay fixed;
-        // every candidate is rechecked against the existing C2 corridor, terrain-rise, interiority,
-        // and width-scaled curvature limits before exact F3E assembly is allowed to score it.
+        // Deterministic local cosine-windowed lateral moves target exact F3E-blocked span
+        // boundaries/interiors. Endpoints remain fixed; existing C2 bounds stay hard.
         for (String routeId : TARGET_REACHES) {
             CandidateState bestForRoute = best;
-            SkyIslandHydraulicReachSkeleton reach =
-                    findReach(best.skeleton(), routeId);
-            for (int mode = 1; mode <= 2; mode++) {
-                for (int sign : new int[] {-1, 1}) {
+            SkyIslandHydraulicReachSkeleton reach = findReach(best.skeleton(), routeId);
+            double nominalSpacing =
+                    reach.pathLength() / (reach.centerline().points().size() - 1.0);
+            double amplitudeBudget = Math.min(
+                    corridorHalfWidth,
+                    Math.max(nominalSpacing, reach.maximumBankfullHalfWidth()));
+            List<Double> centers = candidateStations(
+                    terminalComponent(baseline.assembly()), routeId);
+            for (double station : centers) {
+                for (int supportScale : supportScales) {
+                    double supportLength = nominalSpacing * supportScale;
                     for (double fraction : amplitudeFractions) {
-                        double amplitude = corridorHalfWidth * fraction;
-                        ModeCandidate modeCandidate =
-                                lateralMode(
-                                        descriptor, reach, mode, sign, amplitude, corridorHalfWidth);
-                        SkyIslandContinuousChannelCenterline candidateCenterline =
-                                modeCandidate.centerline();
-                        if (candidateCenterline == null) {
-                            rejectedModes.merge(modeCandidate.rejection(), 1, Integer::sum);
-                            continue;
-                        }
-                        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
-                                replaceReach(descriptor, best.skeleton(), reach, candidateCenterline);
-                        CandidateState candidate =
-                                evaluate(descriptor, candidateSkeleton, base, routeId);
-                        evaluated++;
-                        if (candidate.score().compareTo(bestForRoute.score()) < 0) {
-                            bestForRoute = candidate;
+                        double amplitude = amplitudeBudget * fraction;
+                        for (int sign : new int[] {-1, 1}) {
+                            ModeCandidate modeCandidate = lateralMode(
+                                    descriptor, reach, station, supportLength,
+                                    sign, amplitude, corridorHalfWidth);
+                            SkyIslandContinuousChannelCenterline candidateCenterline =
+                                    modeCandidate.centerline();
+                            if (candidateCenterline == null) {
+                                rejectedModes.merge(modeCandidate.rejection(), 1, Integer::sum);
+                                continue;
+                            }
+                            SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
+                                    replaceReach(
+                                            descriptor, best.skeleton(), reach, candidateCenterline);
+                            CandidateState candidate =
+                                    evaluate(descriptor, candidateSkeleton, base, routeId);
+                            evaluated++;
+                            if (candidate.score().compareTo(bestForRoute.score()) < 0) {
+                                bestForRoute = candidate;
+                            }
                         }
                     }
                 }
@@ -171,6 +182,29 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 .orElseThrow(() -> new AssertionError("missing target reach " + routeId));
     }
 
+    private static List<Double> candidateStations(
+            SkyIslandHydraulicTerminalComponent component, String routeId) {
+        TreeSet<Double> stations = new TreeSet<>();
+        stations.add(0.0);
+        stations.add(1.0);
+        component.reaches().stream()
+                .filter(reach -> routeId.equals(reachId(
+                        reach.semanticReach().startCellIndex(),
+                        reach.semanticReach().endCellIndex())))
+                .flatMap(reach -> reach.ordinarySpans().stream())
+                .filter(outcome -> outcome.status()
+                        != SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED)
+                .map(SkyIslandOrdinarySpanOutcome::span)
+                .forEach(span -> {
+                    double startStation = span.parentStartStationFraction();
+                    double endStation = span.parentEndStationFraction();
+                    stations.add(startStation);
+                    stations.add(0.5 * (startStation + endStation));
+                    stations.add(endStation);
+                });
+        return List.copyOf(stations);
+    }
+
     private static SkyIslandHydraulicGeometrySkeletonPlan replaceReach(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicGeometrySkeletonPlan source,
@@ -193,7 +227,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
     private static ModeCandidate lateralMode(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicReachSkeleton reach,
-            int mode,
+            double centerStation,
+            double supportLength,
             int sign,
             double amplitude,
             double corridor) {
@@ -214,8 +249,11 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             if (!(tangentLength > EPSILON)) {
                 return new ModeCandidate(null, "degenerate-tangent");
             }
-            double station = arc[i] / length;
-            double offset = sign * amplitude * Math.sin(mode * Math.PI * station);
+            double distanceFromCenter = Math.abs(arc[i] - centerStation * length);
+            double weight = distanceFromCenter < supportLength
+                    ? 0.5 * (1.0 + Math.cos(Math.PI * distanceFromCenter / supportLength))
+                    : 0.0;
+            double offset = sign * amplitude * weight;
             points.add(new SkyIslandLocalPosition(
                     source.get(i).x() - tangentZ / tangentLength * offset,
                     source.get(i).z() + tangentX / tangentLength * offset));
