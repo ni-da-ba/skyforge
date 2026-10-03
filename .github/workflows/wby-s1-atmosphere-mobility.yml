@@ -167,6 +167,7 @@ jobs:
         run: |
           set -euo pipefail
           server_dir="skyforge-neoforge-1211/run-wby-s1-server"
+          client_dir="skyforge-neoforge-1211/run-wby-s1-client"
           server_log="wby-s1-server.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
             -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
@@ -247,13 +248,19 @@ jobs:
               echo '--- S1 dedicated server latest.log (last 120 lines) ---'
               tail -n 120 "$server_latest_log"
             fi
-            client_java_pid="$(pgrep -f -- 'forgeclientdev' | head -n 1 || true)"
-            if [[ -n "$client_java_pid" ]]; then
-              echo "Capturing a thread dump for stalled S1 client PID $client_java_pid"
-              "$JAVA_HOME/bin/jcmd" "$client_java_pid" Thread.print -l > wby-s1-client-thread-dump.txt 2>&1 || true
-              tail -n 160 wby-s1-client-thread-dump.txt
+            client_java_pids="$(ps -eo pid=,pgid=,comm= | awk -v group="$client_pid" '$2 == group && $3 ~ /^java/ {print $1}')"
+            if [[ -n "$client_java_pids" ]]; then
+              while IFS= read -r client_java_pid; do
+                echo "Capturing a thread dump for stalled S1 client JVM PID $client_java_pid"
+                "$JAVA_HOME/bin/jcmd" "$client_java_pid" Thread.print -l > "wby-s1-client-thread-dump-$client_java_pid.txt" 2>&1 || true
+              done <<< "$client_java_pids"
+              for dump in wby-s1-client-thread-dump-*.txt; do
+                echo "--- $dump (last 160 lines) ---"
+                tail -n 160 "$dump"
+              done
             else
-              echo 'Could not find the forgeclientdev JVM for a thread dump'
+              echo "Could not find a Java process in S1 client process group $client_pid"
+              ps -eo pid=,ppid=,pgid=,comm=,args= | awk -v group="$client_pid" 'NR == 1 || $3 == group'
             fi
             exit 1
           fi
@@ -325,7 +332,7 @@ jobs:
           path: |
             wby-s1-server*.log
             wby-s1-client.log
-            wby-s1-client-thread-dump.txt
+            wby-s1-client-thread-dump-*.txt
             skyforge-neoforge-1211/run-wby-s1-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s1-client/logs/latest.log
           if-no-files-found: warn
