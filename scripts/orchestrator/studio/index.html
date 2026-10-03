@@ -6,6 +6,7 @@
   <title>Skyforge Studio</title>
   <link rel="stylesheet" href="styles.css">
   <script src="scene.js" defer></script>
+  <script src="hydrology-run-summary.js" defer></script>
   <script src="sample-data.js" defer></script>
   <script src="trace-viewer.js" defer></script>
   <script src="comparison-report.js" defer></script>
@@ -396,6 +397,27 @@
           </div>
         </div>
         <p id="source-status" class="small muted" aria-live="polite"></p>
+        <section id="hydrology-run-summary" class="hydrology-run-summary panel" aria-labelledby="hydrology-run-summary-heading" hidden>
+          <div class="section-heading">
+            <h3 id="hydrology-run-summary-heading">Recorded run contents</h3>
+          </div>
+          <p class="small muted">Counts and ranges describe the selected artifacts. Studio does not grade or recompute hydrology authorship.</p>
+          <dl class="hydrology-summary-grid">
+            <div><dt>Terrain volume · X × Y × Z</dt><dd id="hydrology-summary-terrain">—</dd></div>
+            <div><dt>Authored cause lattice</dt><dd id="hydrology-summary-causes">—</dd></div>
+            <div><dt>Terrain response</dt><dd id="hydrology-summary-response">—</dd></div>
+            <div><dt>Projected reaches</dt><dd id="hydrology-summary-reaches">—</dd></div>
+            <div><dt>Water surface coverage</dt><dd id="hydrology-summary-water">—</dd></div>
+          </dl>
+          <h4>Observed value ranges</h4>
+          <dl class="hydrology-summary-ranges">
+            <div><dt>Runoff potential</dt><dd id="hydrology-summary-runoff">—</dd></div>
+            <div><dt>Retention potential</dt><dd id="hydrology-summary-retention">—</dd></div>
+            <div><dt>Drainage potential</dt><dd id="hydrology-summary-drainage">—</dd></div>
+            <div><dt>Outflow potential</dt><dd id="hydrology-summary-outflow">—</dd></div>
+            <div><dt>Terrain response delta · world units</dt><dd id="hydrology-summary-delta">—</dd></div>
+          </dl>
+        </section>
         <div class="workspace-package-controls">
           <div class="workspace-package-actions">
             <button id="download-inspection-workspace" type="button" disabled>Download inspection workspace</button>
