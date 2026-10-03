@@ -65,7 +65,9 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                 assertTrue(
                         d.finalMaximumSourceEndpointEnvelopeConflict()
                                         < d.initialMaximumSourceEndpointEnvelopeConflict() - EPSILON,
-                        "source endpoint envelope conflict did not improve on " + routeLabel);
+                        "source endpoint envelope conflict did not improve on " + routeLabel
+                                + ": " + d.initialMaximumSourceEndpointEnvelopeConflict()
+                                + " -> " + d.finalMaximumSourceEndpointEnvelopeConflict());
             }
             assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()

@@ -1262,16 +1262,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 // regression for an improvement in a different residual.
                 return 0;
             }
+            int sourceEndpoint = Double.compare(
+                    maximumSourceEndpointEnvelopeConflict,
+                    other.maximumSourceEndpointEnvelopeConflict);
+            if (sourceEndpoint != 0) return sourceEndpoint;
             double curvatureExcess = curvatureExcess(minimumBendRadius);
             double otherCurvatureExcess = other.curvatureExcess(minimumBendRadius);
             int excess = Double.compare(curvatureExcess, otherCurvatureExcess);
             if (excess != 0) {
                 return excess;
             }
-            int sourceEndpoint = Double.compare(
-                    maximumSourceEndpointEnvelopeConflict,
-                    other.maximumSourceEndpointEnvelopeConflict);
-            if (sourceEndpoint != 0) return sourceEndpoint;
             int maximumConfluenceCascade = Double.compare(
                     maximumConfluenceCascadeGradeConflict,
                     other.maximumConfluenceCascadeGradeConflict);
