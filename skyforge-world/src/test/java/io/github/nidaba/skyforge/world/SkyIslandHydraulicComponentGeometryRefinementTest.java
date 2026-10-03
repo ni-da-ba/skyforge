@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -65,7 +64,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                     corridorHalfWidth,
                     Math.max(nominalSpacing, reach.maximumBankfullHalfWidth()));
             List<Double> centers = candidateStations(
-                    terminalComponent(baseline.assembly()), routeId);
+                    terminalComponent(best.assembly()), routeId);
             for (double station : centers) {
                 for (int supportScale : supportScales) {
                     double supportLength = nominalSpacing * supportScale;
@@ -84,8 +83,12 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                             SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
                                     replaceReach(
                                             descriptor, best.skeleton(), reach, candidateCenterline);
+                            String modeLabel = String.format(
+                                    Locale.ROOT,
+                                    "%s@station=%.6f,support=%d,amplitude=%.6f,sign=%d",
+                                    routeId, station, supportScale, amplitude, sign);
                             CandidateState candidate =
-                                    evaluate(descriptor, candidateSkeleton, base, routeId);
+                                    evaluate(descriptor, candidateSkeleton, base, modeLabel);
                             evaluated++;
                             if (candidate.score().compareTo(bestForRoute.score()) < 0) {
                                 bestForRoute = candidate;
@@ -95,7 +98,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 }
             }
             if (bestForRoute.score().compareTo(best.score()) < 0) {
-                acceptedMoves.add(routeId);
+                acceptedMoves.add(bestForRoute.changedRoute());
                 best = bestForRoute;
             }
         }
