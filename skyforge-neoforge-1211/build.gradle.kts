@@ -234,9 +234,13 @@ val wbyS05BServerRuntime = sourceSets.create("wbyS05BServerRuntime") {
 
 // S1 layers atmosphere and mobility onto the accepted S0.5B runtime. Experiential
 // alternatives are selected explicitly at launch and remain isolated overlays.
+val wbyS1WithoutDistantHorizons = providers.gradleProperty("wbyS1WithoutDistantHorizons")
+    .orNull?.toBooleanStrictOrNull() ?: false
 val wbyS1ClientRuntime = sourceSets.create("wbyS1ClientRuntime") {
     compileClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.compileClasspath
-    runtimeClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.runtimeClasspath
+    runtimeClasspath += wbyS05BClientRuntime.output + wbyS05BClientRuntime.runtimeClasspath.filter { artifact ->
+        !wbyS1WithoutDistantHorizons || !artifact.name.contains("distanthorizons", ignoreCase = true)
+    }
 }
 val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
     compileClasspath += wbyS05BServerRuntime.output + wbyS05BServerRuntime.compileClasspath
@@ -7071,6 +7075,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         val core = wbyS1A4mcToken("core")
         val compat = wbyS1A4mcToken("compat")
         val elytra = token(waveC2Pin("noelytraboost", "coordinate"))
+        val distantHorizons = token(wbyWave1Pin("distanthorizons", "coordinate"))
         check(client.any { it.contains(core) } && server.any { it.contains(core) }) {
             "WBY S1 missing the accepted Aerodynamics4MC core on client/server"
         }
@@ -7079,6 +7084,15 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
         check(client.any { it.contains(elytra) } && server.any { it.contains(elytra) }) {
             "WBY S1 missing accepted No More Elytra Boosting on client/server"
+        }
+        if (wbyS1WithoutDistantHorizons) {
+            check(client.none { it.contains(distantHorizons, ignoreCase = true) }) {
+                "WBY S1 cloud isolation profile unexpectedly resolved Distant Horizons: $client"
+            }
+        } else {
+            check(client.any { it.contains(distantHorizons, ignoreCase = true) }) {
+                "WBY S1 cumulative client missing Distant Horizons token '$distantHorizons': $client"
+            }
         }
 
         when (wbyS1Glider) {
@@ -7124,6 +7138,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
 
         println("WBY S1 RESOLUTION PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
+        println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         println("  atmosphere=accepted A4MC core plus Aeronautics compatibility; no second authority")
         println("  particleRain=deferred pending A4MC wind adapter")
@@ -7140,8 +7155,10 @@ wbyS1StageClientMods.configure {
     }
     val expectedTokens = (
         wbyAlphaEngineeringMods.map { token(waveC1Pin(it, "coordinate")) } +
-        wbyAlphaClientVisibilityMods.map { token(wbyWave1Pin(it, "coordinate")) } +
-        wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) } +
+        wbyAlphaClientVisibilityMods
+            .filterNot { wbyS1WithoutDistantHorizons && it == "distanthorizons" }
+            .map { token(wbyWave1Pin(it, "coordinate")) } +
+        wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) }
         wbyS05PackAuthorityMods.map(::wbyS05Token) +
         wbyS05BQolClientServerMods.map(::wbyS05BQolToken) +
         wbyS05BQolClientOnlyMods.map(::wbyS05BQolToken) +
