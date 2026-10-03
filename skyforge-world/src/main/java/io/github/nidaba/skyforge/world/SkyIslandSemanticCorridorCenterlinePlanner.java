@@ -300,7 +300,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long sourceEndpointAccepted = 0;
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
         double[] sourceEndpointSupportScales = {1.0, 2.0, 4.0, 8.0};
-        double[] amplitudeFractions = {0.25, 0.5, 1.0};
+        double[] amplitudeFractions = {0.03125, 0.0625, 0.125, 0.25, 0.5, 1.0};
         for (int round = 0; round < 4; round++) {
             List<SkyIslandLocalPosition> points = best.points();
             double[] arc = cumulativeArc(points);
