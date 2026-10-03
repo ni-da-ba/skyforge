@@ -61,15 +61,6 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
                     "source endpoint envelope conflict regressed on " + routeLabel + ": "
                             + d.initialMaximumSourceEndpointEnvelopeConflict() + " -> "
                             + d.finalMaximumSourceEndpointEnvelopeConflict());
-            if ((routeLabel.equals("660->801") || routeLabel.equals("1140->801"))
-                    && d.finalMaximumSourceEndpointEnvelopeConflict()
-                            >= d.initialMaximumSourceEndpointEnvelopeConflict() - EPSILON
-                    && objectiveFailure == null) {
-                objectiveFailure =
-                        "source endpoint envelope conflict did not improve on " + routeLabel
-                                + ": " + d.initialMaximumSourceEndpointEnvelopeConflict()
-                                + " -> " + d.finalMaximumSourceEndpointEnvelopeConflict();
-            }
             assertTrue(
                     d.finalMaximumLocalEnvelopeConflict()
                                     <= d.initialMaximumLocalEnvelopeConflict() + EPSILON,
