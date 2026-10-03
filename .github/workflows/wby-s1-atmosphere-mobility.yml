@@ -325,29 +325,57 @@ jobs:
             fi
             exit 1
           fi
-          kill -TERM -- "-$client_pid" 2>/dev/null || true
-          sleep 2
-          kill -KILL -- "-$client_pid" 2>/dev/null || true
-          wait "$client_pid" 2>/dev/null || true
-
-
-          client_pid=""
-
-          kill -TERM -- "-$server_pid" 2>/dev/null || true
-          for attempt in $(seq 1 30); do
+          # Send SIGINT to the server process group (equivalent to Ctrl+C) so
+          # Minecraft runs its shutdown hook and saves the joined world.
+          kill -INT -- "-$server_pid" 2>/dev/null || true
+          server_stopped=false
+          for attempt in $(seq 1 90); do
             if grep -Fq 'Stopping server' "$server_log"; then
+              server_stopped=true
               break
             fi
-            if ! kill -0 "$server_pid" 2>/dev/null; then
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
               break
             fi
             sleep 1
           done
-          kill -KILL -- "-$server_pid" 2>/dev/null || true
+          if [[ "$server_stopped" != true ]]; then
+            echo 'S1 dedicated server did not enter its graceful shutdown hook after SIGINT'
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 -- "-$server_pid" 2>/dev/null; then
+            echo 'S1 dedicated server did not exit after its graceful shutdown hook'
+            exit 1
+          fi
           wait "$server_pid" 2>/dev/null || true
-          trap - EXIT
+          server_pid=""
+
+          # The server has saved and disconnected the client. Shut the client
+          # down gracefully too, with a bounded force-stop fallback.
+          kill -INT -- "-$client_pid" 2>/dev/null || true
+          for attempt in $(seq 1 30); do
+            if ! kill -0 -- "-$client_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 -- "-$client_pid" 2>/dev/null; then
+            kill -TERM -- "-$client_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$client_pid" 2>/dev/null || true
+          fi
+          wait "$client_pid" 2>/dev/null || true
+          client_pid=""
+
           grep -Fq 'Stopping server' "$server_log"
           test -f "$server_dir/world/level.dat"
+          trap - EXIT
 
       - name: Reopen the same S1 dedicated-server world
         shell: bash
