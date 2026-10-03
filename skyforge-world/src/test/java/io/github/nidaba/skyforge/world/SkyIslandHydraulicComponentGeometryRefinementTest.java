@@ -9,6 +9,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
@@ -48,6 +50,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double[] amplitudeFractions = {0.20, 0.40};
         int evaluated = 0;
         List<String> acceptedMoves = new ArrayList<>();
+        Map<String, Integer> rejectedModes = new TreeMap<>();
 
         // Deterministic coordinate descent over low-frequency lateral modes. Endpoints stay fixed;
         // every candidate is rechecked against the existing C2 corridor, terrain-rise, interiority,
@@ -60,10 +63,13 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 for (int sign : new int[] {-1, 1}) {
                     for (double fraction : amplitudeFractions) {
                         double amplitude = corridorHalfWidth * fraction;
-                        SkyIslandContinuousChannelCenterline candidateCenterline =
+                        ModeCandidate modeCandidate =
                                 lateralMode(
                                         descriptor, reach, mode, sign, amplitude, corridorHalfWidth);
+                        SkyIslandContinuousChannelCenterline candidateCenterline =
+                                modeCandidate.centerline();
                         if (candidateCenterline == null) {
+                            rejectedModes.merge(modeCandidate.rejection(), 1, Integer::sum);
                             continue;
                         }
                         SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
@@ -86,9 +92,10 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         assertTrue(best.score().compareTo(baseline.score()) <= 0);
         System.out.printf(
                 Locale.ROOT,
-                "F3O_KEY700 boundedModes=%d acceptedMoves=%s baseline=%s best=%s shared=%s "
+                "F3O_KEY700 boundedModes=%d rejectedModes=%s acceptedMoves=%s baseline=%s best=%s shared=%s "
                         + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f blockers=%s%n",
                 evaluated,
+                rejectedModes,
                 acceptedMoves,
                 scoreLabel(baseline),
                 scoreLabel(best),
@@ -183,7 +190,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 descriptor, source.geomorphicNetwork(), reaches);
     }
 
-    private static SkyIslandContinuousChannelCenterline lateralMode(
+    private static ModeCandidate lateralMode(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicReachSkeleton reach,
             int mode,
@@ -194,7 +201,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double[] arc = cumulativeArc(source);
         double length = arc[arc.length - 1];
         if (!(length > 0.0)) {
-            return null;
+            return new ModeCandidate(null, "zero-length-route");
         }
         List<SkyIslandLocalPosition> points = new ArrayList<>(source.size());
         points.add(source.getFirst());
@@ -205,7 +212,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             double tangentZ = after.z() - before.z();
             double tangentLength = Math.hypot(tangentX, tangentZ);
             if (!(tangentLength > EPSILON)) {
-                return null;
+                return new ModeCandidate(null, "degenerate-tangent");
             }
             double station = arc[i] / length;
             double offset = sign * amplitude * Math.sin(mode * Math.PI * station);
@@ -223,22 +230,24 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 SkyIslandSemanticFieldSet.create(descriptor).interiority();
         for (int i = 0; i < points.size(); i++) {
             SkyIslandLocalPosition point = points.get(i);
-            if (distanceToPolyline(point, semantic.guidancePoints()) > corridor + EPSILON
-                    || interiority.sample(point)
-                            < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
-                return null;
+            if (distanceToPolyline(point, semantic.guidancePoints()) > corridor + EPSILON) {
+                return new ModeCandidate(null, "semantic-corridor");
+            }
+            if (interiority.sample(point)
+                    < SkyIslandSemanticCorridorCenterlinePlanner.MINIMUM_INTERIORITY) {
+                return new ModeCandidate(null, "interiority");
             }
             SkyIslandLocalPosition seed = nearest(point, reach.geomorphicRoute().route().points());
             if (terrain.sample(point)
                     > terrain.sample(seed)
                             + SkyIslandSemanticCorridorCenterlinePlanner.MAXIMUM_TERRAIN_RISE_FROM_SEED
                             + EPSILON) {
-                return null;
+                return new ModeCandidate(null, "terrain-rise");
             }
         }
         double minimumBendRadius = 2.0 * reach.maximumBankfullHalfWidth();
         if (maximumCurvature(points) * minimumBendRadius > 1.0 + EPSILON) {
-            return null;
+            return new ModeCandidate(null, "width-scaled-curvature");
         }
 
         double pathLength = length(points);
@@ -249,12 +258,14 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                     distanceToPolyline(point, reach.geomorphicRoute().route().points()));
         }
         double maximumTurn = maximumTurnAngle(points);
-        return new SkyIslandContinuousChannelCenterline(
-                reach.geomorphicRoute().route(),
-                points,
-                pathLength,
-                maximumDeviation,
-                maximumTurn);
+        return new ModeCandidate(
+                new SkyIslandContinuousChannelCenterline(
+                        reach.geomorphicRoute().route(),
+                        points,
+                        pathLength,
+                        maximumDeviation,
+                        maximumTurn),
+                "accepted");
     }
 
     private static CandidateScore score(
@@ -360,16 +371,17 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             SkyIslandLocalPosition a = points.get(i - 1);
             SkyIslandLocalPosition b = points.get(i);
             SkyIslandLocalPosition c = points.get(i + 1);
-            double ab = distance(a, b);
-            double bc = distance(b, c);
-            double ca = distance(c, a);
-            double twiceArea = Math.abs(
-                    (b.x() - a.x()) * (c.z() - a.z())
-                            - (b.z() - a.z()) * (c.x() - a.x()));
-            if (ab <= EPSILON || bc <= EPSILON || ca <= EPSILON) {
+            double ax = b.x() - a.x();
+            double az = b.z() - a.z();
+            double bx = c.x() - b.x();
+            double bz = c.z() - b.z();
+            double ab = Math.hypot(ax, az);
+            double bc = Math.hypot(bx, bz);
+            if (ab <= EPSILON || bc <= EPSILON) {
                 return Double.POSITIVE_INFINITY;
             }
-            maximum = Math.max(maximum, 2.0 * twiceArea / (ab * bc * ca));
+            double cosine = Math.max(-1.0, Math.min(1.0, (ax * bx + az * bz) / (ab * bc)));
+            maximum = Math.max(maximum, Math.acos(cosine) / (0.5 * (ab + bc)));
         }
         return maximum;
     }
@@ -420,6 +432,9 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         return SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
     }
+
+    private record ModeCandidate(
+            SkyIslandContinuousChannelCenterline centerline, String rejection) {}
 
     private record CandidateState(
             SkyIslandHydraulicGeometrySkeletonPlan skeleton,
