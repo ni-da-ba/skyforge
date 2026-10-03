@@ -289,6 +289,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             Candidate initial) {
         Candidate best = initial;
         double[] supportFractions = {0.25, 0.5, 0.75, 1.0};
+        double[] sourceEndpointSupportScales = {1.0, 2.0, 4.0, 8.0};
         double[] amplitudeFractions = {0.25, 0.5, 1.0};
         for (int round = 0; round < 4; round++) {
             List<SkyIslandLocalPosition> points = best.points();
@@ -300,10 +301,18 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             double nominalStep = totalLength / (points.size() - 1.0);
             double[] pointGaps = headEnvelopeGaps(
                     points, bankfullHalfWidthAtStation, headEnvelopeGap);
-            List<Integer> centers = gapPeakCenters(pointGaps);
+            List<Integer> centers = new ArrayList<>(gapPeakCenters(pointGaps));
+            boolean sourceEndpointNeedsRefinement =
+                    best.maximumSourceEndpointEnvelopeConflict() > EPSILON;
+            if (sourceEndpointNeedsRefinement && points.size() > 2 && !centers.contains(1)) {
+                centers.add(0, 1);
+            }
             Candidate roundBest = best;
             for (int center : centers) {
-                double availableSupport = Math.min(arc[center], totalLength - arc[center]);
+                boolean sourceEndpointMode = sourceEndpointNeedsRefinement && center == 1;
+                double availableSupport = sourceEndpointMode
+                        ? totalLength - arc[center]
+                        : Math.min(arc[center], totalLength - arc[center]);
                 if (availableSupport <= EPSILON) {
                     continue;
                 }
@@ -311,9 +320,21 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         stations(points)[center]);
                 double maximumAmplitude = Math.min(
                         semanticCorridorHalfWidth, Math.max(nominalStep, localHalfWidth));
-                for (double supportFraction : supportFractions) {
-                    double supportLength = availableSupport * supportFraction;
-                    if (supportLength + EPSILON < nominalStep) {
+                double[] supportLengths;
+                if (sourceEndpointMode) {
+                    supportLengths = new double[sourceEndpointSupportScales.length];
+                    for (int i = 0; i < sourceEndpointSupportScales.length; i++) {
+                        supportLengths[i] = nominalStep * sourceEndpointSupportScales[i];
+                    }
+                } else {
+                    supportLengths = new double[supportFractions.length];
+                    for (int i = 0; i < supportFractions.length; i++) {
+                        supportLengths[i] = availableSupport * supportFractions[i];
+                    }
+                }
+                for (double supportLength : supportLengths) {
+                    if (supportLength > availableSupport + EPSILON
+                            || supportLength + EPSILON < nominalStep) {
                         continue;
                     }
                     for (double amplitudeFraction : amplitudeFractions) {
