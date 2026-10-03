@@ -54,6 +54,12 @@ class SkyIslandHydraulicComponentHeadSolverTest {
                     first.status(),
                     first.solve().orElseThrow().status(),
                     "component outcome must preserve the underlying QP status: " + detail);
+            if (first.status() == SkyIslandHydraulicQpStatus.INFEASIBLE) {
+                assertTrue(
+                        first.diagnostic().contains("negativeCycleGapWorld="),
+                        "natural key-700 rejection must expose a quantitative infeasibility witness: "
+                                + detail);
+            }
         }
     }
 }
