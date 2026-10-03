@@ -7158,7 +7158,7 @@ wbyS1StageClientMods.configure {
         wbyAlphaClientVisibilityMods
             .filterNot { wbyS1WithoutDistantHorizons && it == "distanthorizons" }
             .map { token(wbyWave1Pin(it, "coordinate")) } +
-        wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) }
+        wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) } +
         wbyS05PackAuthorityMods.map(::wbyS05Token) +
         wbyS05BQolClientServerMods.map(::wbyS05BQolToken) +
         wbyS05BQolClientOnlyMods.map(::wbyS05BQolToken) +
