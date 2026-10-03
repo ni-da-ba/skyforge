@@ -447,9 +447,20 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 double seedStep = seedLength / (seedPoints.size() - 1.0);
                 double[] seedGaps = headEnvelopeGaps(
                         seedPoints, bankfullHalfWidthAtStation, headEnvelopeGap);
-                List<Integer> correctionCenters = gapPeakCenters(seedGaps);
-                if (correctionCenters.size() > 2) {
-                    correctionCenters = correctionCenters.subList(0, 2);
+                double[] baselineGaps = headEnvelopeGaps(
+                        best.points(), bankfullHalfWidthAtStation, headEnvelopeGap);
+                double[] introducedGapPeaks = new double[seedGaps.length];
+                for (int index = 0; index < seedGaps.length; index++) {
+                    introducedGapPeaks[index] =
+                            Math.max(0.0, seedGaps[index] - baselineGaps[index]);
+                }
+                List<Integer> correctionCenters =
+                        new ArrayList<>(gapPeakCenters(introducedGapPeaks));
+                for (int absolutePeak : gapPeakCenters(seedGaps)) {
+                    if (correctionCenters.size() >= 3) break;
+                    if (!correctionCenters.contains(absolutePeak)) {
+                        correctionCenters.add(absolutePeak);
+                    }
                 }
                 for (int correctionCenter : correctionCenters) {
                     if (correctionCenter == 1) continue;
