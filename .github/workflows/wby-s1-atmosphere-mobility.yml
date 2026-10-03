@@ -204,7 +204,7 @@ jobs:
           test -f "$server_dir/world/level.dat"
 
           client_log="wby-s1-client.log"
-          setsid env LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+          setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
               -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
@@ -238,9 +238,22 @@ jobs:
             tail -n 120 "$client_log"
             echo '--- S1 dedicated server Gradle output (last 120 lines) ---'
             tail -n 120 "$server_log"
+            client_latest_log="$client_dir/logs/latest.log"
+            if [[ -f "$client_latest_log" ]]; then
+              echo '--- S1 client latest.log (last 120 lines) ---'
+              tail -n 120 "$client_latest_log"
+            fi
             if [[ -f "$server_latest_log" ]]; then
               echo '--- S1 dedicated server latest.log (last 120 lines) ---'
               tail -n 120 "$server_latest_log"
+            fi
+            client_java_pid="$(pgrep -f -- 'forgeclientdev' | head -n 1 || true)"
+            if [[ -n "$client_java_pid" ]]; then
+              echo "Capturing a thread dump for stalled S1 client PID $client_java_pid"
+              "$JAVA_HOME/bin/jcmd" "$client_java_pid" Thread.print -l > wby-s1-client-thread-dump.txt 2>&1 || true
+              tail -n 160 wby-s1-client-thread-dump.txt
+            else
+              echo 'Could not find the forgeclientdev JVM for a thread dump'
             fi
             exit 1
           fi
@@ -312,6 +325,7 @@ jobs:
           path: |
             wby-s1-server*.log
             wby-s1-client.log
+            wby-s1-client-thread-dump.txt
             skyforge-neoforge-1211/run-wby-s1-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s1-client/logs/latest.log
           if-no-files-found: warn
