@@ -53,53 +53,60 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         List<String> acceptedMoves = new ArrayList<>();
         Map<String, Integer> rejectedModes = new TreeMap<>();
 
-        // Deterministic local cosine-windowed lateral moves target exact F3E-blocked span
-        // boundaries/interiors. Endpoints remain fixed; existing C2 bounds stay hard.
-        for (String routeId : TARGET_REACHES) {
-            CandidateState bestForRoute = best;
-            SkyIslandHydraulicReachSkeleton reach = findReach(best.skeleton(), routeId);
-            double nominalSpacing =
-                    reach.pathLength() / (reach.centerline().points().size() - 1.0);
-            double amplitudeBudget = Math.min(
-                    corridorHalfWidth,
-                    Math.max(nominalSpacing, reach.maximumBankfullHalfWidth()));
-            List<Double> centers = candidateStations(
-                    terminalComponent(best.assembly()), routeId);
-            for (double station : centers) {
-                for (int supportScale : supportScales) {
-                    double supportLength = nominalSpacing * supportScale;
-                    for (double fraction : amplitudeFractions) {
-                        double amplitude = amplitudeBudget * fraction;
-                        for (int sign : new int[] {-1, 1}) {
-                            ModeCandidate modeCandidate = lateralMode(
-                                    descriptor, reach, station, supportLength,
-                                    sign, amplitude, corridorHalfWidth);
-                            SkyIslandContinuousChannelCenterline candidateCenterline =
-                                    modeCandidate.centerline();
-                            if (candidateCenterline == null) {
-                                rejectedModes.merge(modeCandidate.rejection(), 1, Integer::sum);
-                                continue;
-                            }
-                            SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
-                                    replaceReach(
-                                            descriptor, best.skeleton(), reach, candidateCenterline);
-                            String modeLabel = String.format(
-                                    Locale.ROOT,
-                                    "%s@station=%.6f,support=%d,amplitude=%.6f,sign=%d",
-                                    routeId, station, supportScale, amplitude, sign);
-                            CandidateState candidate =
-                                    evaluate(descriptor, candidateSkeleton, base, modeLabel);
-                            evaluated++;
-                            if (candidate.score().compareTo(bestForRoute.score()) < 0) {
-                                bestForRoute = candidate;
+        // Deterministic coordinate descent over local cosine-windowed lateral moves targeting
+        // exact F3E-blocked span boundaries/interiors. Endpoints remain fixed; existing C2 bounds
+        // stay hard. A small pass cap allows interactions among the three incident reaches.
+        for (int pass = 0; pass < 3; pass++) {
+            CandidateScore passStart = best.score();
+            for (String routeId : TARGET_REACHES) {
+                CandidateState bestForRoute = best;
+                SkyIslandHydraulicReachSkeleton reach = findReach(best.skeleton(), routeId);
+                double nominalSpacing =
+                        reach.pathLength() / (reach.centerline().points().size() - 1.0);
+                double amplitudeBudget = Math.min(
+                        corridorHalfWidth,
+                        Math.max(nominalSpacing, reach.maximumBankfullHalfWidth()));
+                List<Double> centers = candidateStations(
+                        terminalComponent(best.assembly()), routeId);
+                for (double station : centers) {
+                    for (int supportScale : supportScales) {
+                        double supportLength = nominalSpacing * supportScale;
+                        for (double fraction : amplitudeFractions) {
+                            double amplitude = amplitudeBudget * fraction;
+                            for (int sign : new int[] {-1, 1}) {
+                                ModeCandidate modeCandidate = lateralMode(
+                                        descriptor, reach, station, supportLength,
+                                        sign, amplitude, corridorHalfWidth);
+                                SkyIslandContinuousChannelCenterline candidateCenterline =
+                                        modeCandidate.centerline();
+                                if (candidateCenterline == null) {
+                                    rejectedModes.merge(modeCandidate.rejection(), 1, Integer::sum);
+                                    continue;
+                                }
+                                SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
+                                        replaceReach(
+                                                descriptor, best.skeleton(), reach, candidateCenterline);
+                                String modeLabel = String.format(
+                                        Locale.ROOT,
+                                        "pass=%d:%s@station=%.6f,support=%d,amplitude=%.6f,sign=%d",
+                                        pass + 1, routeId, station, supportScale, amplitude, sign);
+                                CandidateState candidate =
+                                        evaluate(descriptor, candidateSkeleton, base, modeLabel);
+                                evaluated++;
+                                if (candidate.score().compareTo(bestForRoute.score()) < 0) {
+                                    bestForRoute = candidate;
+                                }
                             }
                         }
                     }
                 }
+                if (bestForRoute.score().compareTo(best.score()) < 0) {
+                    acceptedMoves.add(bestForRoute.changedRoute());
+                    best = bestForRoute;
+                }
             }
-            if (bestForRoute.score().compareTo(best.score()) < 0) {
-                acceptedMoves.add(bestForRoute.changedRoute());
-                best = bestForRoute;
+            if (best.score().compareTo(passStart) >= 0) {
+                break;
             }
         }
 
