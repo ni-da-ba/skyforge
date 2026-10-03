@@ -70,7 +70,7 @@ These are the remaining decisions that can actually change the dependency roster
 | Create Aeronautics | **KEEP** | Core aircraft/Levitite vehicle layer. | Pin/version compatibility. |
 | Distant Horizons | **KEEP** | Long-range world presentation essential to Skyforge scale. | Whether it is a hard Alpha dependency remains HS-05/HS-10. |
 | Separate Sable distant-contraption renderer/equivalent | **CONDITIONAL** | Distant moving-vehicle visibility if DH does not solve it. | Add only after concrete visibility gap. |
-| Hang Glider | **PREFERRED** | Current early-game glider candidate; no Elytra prerequisite established by the S1 profile. | Owner handling/progression review under D-03. |
+| Hang Glider | **PREFERRED** | Current candidate for early-game gliding. | Owner must confirm Elytra-free use, early survival availability, handling, and sustained net descent under D-03. |
 | Create: Ornithopter Glider | **KEEP** | Owner-selected later-game mobility tool; Elytra required for use. | Exact availability/balance tuning remains a separate human decision; it does not satisfy the early-glider role. |
 | Reliable Gliders | **RESERVE** | Accepted compatibility fallback/reference for early personal soaring. | D-03 if richer finalists fail. |
 | No More Elytra Boosting | **KEEP** | Removes safe firework propulsion while preserving normal fireworks/fall-flying. | Accepted pinned runtime; only human clarity remains. |
