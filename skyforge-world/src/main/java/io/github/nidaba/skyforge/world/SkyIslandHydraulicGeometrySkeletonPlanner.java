@@ -367,9 +367,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double[] spanCumulative = cumulativeDistance(spanPoints);
         double reachableLower = Double.NaN;
         double reachableUpper = Double.NaN;
-        double maximumConflict = 0.0;
-        int maximumConflictIndex = -1;
-        double maximumConflictStation = Double.NaN;
         for (int index = 0; index < spanPoints.size(); index++) {
             SkyIslandLocalPosition position = spanPoints.get(index);
             double station = spanStations.get(index);
@@ -418,22 +415,25 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double nextLower = Math.max(localLower, reachableLower - maxDrop);
             double nextUpper = Math.min(localUpper, reachableUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
-            if (conflict > maximumConflict) {
-                maximumConflict = conflict;
-                maximumConflictIndex = index;
-                maximumConflictStation = station;
-            }
-            if (conflict > 0.0) {
-                double midpoint = 0.5 * (nextLower + nextUpper);
-                nextLower = midpoint;
-                nextUpper = midpoint;
+            if (conflict > EPSILON) {
+                // Forward interval propagation is fail-closed: after the first empty reachable
+                // interval, later midpoint repair is not a feasible continuation. Report the
+                // exact first conflict used by F3D instead of a synthetic downstream residual.
+                return new ConfluenceCascadeGradeConflictDetails(
+                        conflict,
+                        startStation,
+                        endStation,
+                        spanPoints.size(),
+                        spanClass.name(),
+                        index,
+                        station);
             }
             reachableLower = nextLower;
             reachableUpper = nextUpper;
         }
         return new ConfluenceCascadeGradeConflictDetails(
-                maximumConflict, startStation, endStation, spanPoints.size(),
-                spanClass.name(), maximumConflictIndex, maximumConflictStation);
+                0.0, startStation, endStation, spanPoints.size(),
+                spanClass.name(), -1, Double.NaN);
     }
 
     static ConfluenceCascadeGradeConflictDetails confluenceCascadeGradeConflictDetails(
