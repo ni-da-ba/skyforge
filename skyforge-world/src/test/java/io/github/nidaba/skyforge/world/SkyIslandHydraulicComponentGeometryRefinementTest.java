@@ -35,7 +35,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 .filter(reach -> TARGET_REACHES.contains(reachId(reach)))
                 .count());
 
-        CandidateState best = evaluate(descriptor, base, base, "baseline");
+        CandidateState baseline = evaluate(descriptor, base, base, "baseline");
+        CandidateState best = baseline;
         assertEquals(
                 SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION,
                 terminalComponent(best.assembly()).status(),
@@ -86,14 +87,14 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             }
         }
 
-        assertTrue(best.score().compareTo(evaluate(descriptor, base, base, "baseline").score()) <= 0);
+        assertTrue(best.score().compareTo(baseline.score()) <= 0);
         System.out.printf(
                 Locale.ROOT,
                 "F3O_KEY700 boundedModes=%d acceptedMoves=%s baseline=%s best=%s shared=%s "
                         + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f blockers=%s%n",
                 evaluated,
                 acceptedMoves,
-                scoreLabel(evaluate(descriptor, base, base, "baseline")),
+                scoreLabel(baseline),
                 scoreLabel(best),
                 terminalComponent(best.assembly()).sharedHeadSolve().status(),
                 terminalComponent(best.assembly()).sharedHeadSolve().excludedSpans().size(),
@@ -191,7 +192,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             SkyIslandHydraulicReachSkeleton reach,
             int mode,
             int sign,
-            double amplitude) {
+            double amplitude,
+            double corridor) {
         List<SkyIslandLocalPosition> source = reach.centerline().points();
         double[] arc = cumulativeArc(source);
         double length = arc[arc.length - 1];
@@ -219,18 +221,6 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
 
         SkyIslandSemanticChannelReach semantic =
                 reach.geomorphicRoute().semanticReach();
-        double corridor =
-                reach.geomorphicRoute().route() == null
-                        ? 0.0
-                        : SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION
-                                * descriptor.nominalRadius()
-                                * 2.0
-                                / (SkyIslandWatershedPlanner.GRID_SIZE - 1.0);
-        corridor = Math.min(
-                corridor,
-                reach.geomorphicRoute().route().points().isEmpty()
-                        ? corridor
-                        : Double.POSITIVE_INFINITY);
         SkyIslandPreHydrologicTerrainField terrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField interiority =
