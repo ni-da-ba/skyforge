@@ -38,7 +38,7 @@ if [[ "$mode" == "server" ]]; then
 fi
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-bundle=".skyforge-diagnostics/wby-s1-$mode-$glider-$clouds-thinair-$thinair-$stamp"
+bundle=".skyforge-diagnostics/wby-s1-$mode-$glider-$clouds-thinair-$thinair-$distant_horizons-$stamp"
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
@@ -70,6 +70,7 @@ if [[ "$without_dh" == true ]]; then
 fi
 echo "The client opens to the title screen. Create or open a fresh world for the human review."
 echo "No S0.5 synthetic visibility/structure fixture is enabled."
+echo "Diagnostics bundle: $bundle"
 echo "Full console output: $log"
 
 set +e
