@@ -187,7 +187,26 @@ jobs:
           server_pid=$!
           client_pid=""
           cleanup() {
+            exit_status=$?
             set +e
+            if [[ "$exit_status" -ne 0 ]]; then
+              echo "S1 acceptance step exited with status $exit_status; collecting final process and log state."
+              ps -eo pid=,ppid=,pgid=,stat=,comm=,args= | awk '$5 ~ /^java/ || $0 ~ /runWbyS1(ClientJoinAcceptance|DiagnosticServer)/ {print}'
+              for log in "$client_log" "$server_log" "$client_dir/logs/latest.log" "$server_dir/logs/latest.log"; do
+                if [[ -f "$log" ]]; then
+                  echo "--- $log (last 160 lines at failure) ---"
+                  tail -n 160 "$log"
+                else
+                  echo "--- Missing diagnostic log: $log ---"
+                fi
+              done
+              echo "--- Effective S1 client program arguments at failure ---"
+              if [[ -f wby-s1-client-program-args.txt ]]; then
+                cat wby-s1-client-program-args.txt
+              else
+                echo "Client program arguments were not captured."
+              fi
+            fi
             for pid in "$client_pid" "$server_pid"; do
               if [[ -n "$pid" ]]; then
                 kill -TERM -- "-$pid" 2>/dev/null || true
@@ -200,7 +219,9 @@ jobs:
                 wait "$pid" 2>/dev/null || true
               fi
             done
+            return "$exit_status"
           }
+          trap 'status=$?; echo "S1 acceptance command failed with status $status: $BASH_COMMAND" >&2; exit "$status"' ERR
           trap cleanup EXIT
           ready=false
           for attempt in $(seq 1 150); do
