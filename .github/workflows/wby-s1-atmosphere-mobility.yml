@@ -45,7 +45,7 @@ jobs:
           set -euo pipefail
           (
             cd upstream-a4mc
-            ./gradlew buildAndCollect --no-daemon
+            MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
           )
           output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
           core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
@@ -141,7 +141,7 @@ jobs:
           set -euo pipefail
           (
             cd upstream-a4mc
-            ./gradlew buildAndCollect --no-daemon
+            MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
           )
           output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
           core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"

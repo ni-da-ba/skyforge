@@ -49,7 +49,7 @@ git -C "$a4mc_source_dir" fetch --depth 1 origin 0.2.2
 git -C "$a4mc_source_dir" checkout --detach "$a4mc_commit"
 (
   cd "$a4mc_source_dir"
-  ./gradlew buildAndCollect --no-daemon
+  MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
 ) 2>&1 | tee "$bundle/aerodynamics4mc-build.log"
 mkdir -p "$a4mc_mod_dir"
 cp "$a4mc_source_dir/build/libs/0.2.2/$a4mc_core" "$a4mc_source_dir/build/libs/0.2.2/$a4mc_compat" "$a4mc_mod_dir/"
