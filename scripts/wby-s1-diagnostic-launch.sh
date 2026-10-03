@@ -5,6 +5,7 @@ mode="${1:-client}"
 glider="${2:-none}"
 clouds="${3:-none}"
 thinair="${4:-false}"
+distant_horizons="${5:-with-dh}"
 
 case "$mode" in
   client)
@@ -14,7 +15,7 @@ case "$mode" in
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticServer"
     ;;
   *)
-    echo "usage: $0 [client|server] [none|hang-glider|ornithopter] [none|better-clouds] [true|false]" >&2
+    echo "usage: $0 [client|server] [none|hang-glider|ornithopter] [none|better-clouds] [true|false] [with-dh|without-dh]" >&2
     exit 2
     ;;
 esac
@@ -22,6 +23,13 @@ esac
 case "$glider" in none|hang-glider|ornithopter) ;; *) echo "invalid glider profile: $glider" >&2; exit 2 ;; esac
 case "$clouds" in none|better-clouds) ;; *) echo "invalid cloud profile: $clouds" >&2; exit 2 ;; esac
 case "$thinair" in true|false) ;; *) echo "ThinAir must be true or false" >&2; exit 2 ;; esac
+case "$distant_horizons" in with-dh|without-dh) ;; *) echo "Distant Horizons selector must be with-dh or without-dh" >&2; exit 2 ;; esac
+if [[ "$mode" != "client" && "$distant_horizons" == "without-dh" ]]; then
+  echo "without-dh is a client-only comparison profile" >&2
+  exit 2
+fi
+without_dh=false
+[[ "$distant_horizons" != "without-dh" ]] || without_dh=true
 
 run_dir="skyforge-neoforge-1211/run-wby-s1"
 mkdir -p .skyforge-diagnostics "$run_dir"
@@ -56,7 +64,10 @@ cp "$a4mc_source_dir/build/libs/0.2.2/$a4mc_core" "$a4mc_source_dir/build/libs/0
 sha256sum "$a4mc_mod_dir/"*.jar | tee "$bundle/aerodynamics4mc-sha256.txt"
 
 echo "Launching WBY S1 $mode profile."
-echo "glider=$glider clouds=$clouds thinAir=$thinair"
+echo "glider=$glider clouds=$clouds thinAir=$thinair distantHorizons=$distant_horizons"
+if [[ "$without_dh" == true ]]; then
+  echo "Distant Horizons is excluded from this client classpath and staged-mod list."
+fi
 echo "The client opens to the title screen. Create or open a fresh world for the human review."
 echo "No S0.5 synthetic visibility/structure fixture is enabled."
 echo "Full console output: $log"
@@ -66,6 +77,7 @@ set +e
   -PwbyS1Glider="$glider" \
   -PwbyS1Clouds="$clouds" \
   -PwbyS1ThinAir="$thinair" \
+  -PwbyS1WithoutDistantHorizons="$without_dh" \
   -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
