@@ -126,9 +126,17 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                             value.semanticReach().startCellIndex())
                     .thenComparingInt(value -> value.semanticReach().endCellIndex()));
 
+            SkyIslandHydraulicComponentHeadSolver.Outcome sharedHeadSolve =
+                    solveComponentHeads(descriptor, ordinarySpanPlan, network, ordered);
             List<String> blockers = new ArrayList<>();
             SkyIslandHydraulicAssemblyStatus status = terminalStatus(fate);
-            if (status != SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+            SkyIslandHydraulicAssemblyStatus sharedHeadStatus =
+                    sharedHeadStatus(sharedHeadSolve);
+            status = combine(status, sharedHeadStatus);
+            if (sharedHeadStatus != SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+                blockers.add(sharedHeadBlocker(sharedHeadSolve));
+            }
+            if (terminalStatus(fate) != SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
                 blockers.add(
                         "terminal "
                                 + fate.channelTerminalCellIndex()
@@ -153,7 +161,8 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                     fate,
                     ordered,
                     status,
-                    List.copyOf(blockers)));
+                    List.copyOf(blockers),
+                    sharedHeadSolve));
         }
 
         return new SkyIslandHydraulicNetworkAssemblyPlan(
@@ -161,6 +170,102 @@ public final class SkyIslandHydraulicNetworkAssemblyPlanner {
                 ordinarySpanPlan,
                 reachAssemblies,
                 terminalComponents);
+    }
+
+    private static SkyIslandHydraulicComponentHeadSolver.Outcome solveComponentHeads(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinarySpanPlan ordinarySpanPlan,
+            SkyIslandGeomorphicChannelNetworkPlan network,
+            List<SkyIslandHydraulicReachAssembly> componentReaches) {
+        Set<Long> reachIdentities = new LinkedHashSet<>();
+        Set<Integer> confluenceNodes = new LinkedHashSet<>();
+        for (SkyIslandHydraulicReachAssembly assembly : componentReaches) {
+            SkyIslandSemanticChannelReach reach = assembly.semanticReach();
+            reachIdentities.add(identity(reach));
+            if (network.requireNode(reach.startCellIndex()).kind()
+                    == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+                confluenceNodes.add(reach.startCellIndex());
+            }
+            if (network.requireNode(reach.endCellIndex()).kind()
+                    == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+                confluenceNodes.add(reach.endCellIndex());
+            }
+        }
+
+        SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
+                ordinarySpanPlan.cascadePlan().transitionGeometry();
+        SkyIslandConfluenceHeadCompatibilityPlan confluences =
+                new SkyIslandConfluenceHeadCompatibilityPlan(
+                        descriptor,
+                        geometry,
+                        ordinarySpanPlan.confluencePlan().outcomes().stream()
+                                .filter(value -> confluenceNodes.contains(
+                                        value.geometry().transitionSite().nodeCellIndex()))
+                                .toList());
+        SkyIslandCascadeHeadCompatibilityPlan cascades =
+                new SkyIslandCascadeHeadCompatibilityPlan(
+                        descriptor,
+                        geometry,
+                        ordinarySpanPlan.cascadePlan().outcomes().stream()
+                                .filter(value -> reachIdentities.contains(identity(
+                                        value.geometry().transitionSite().reachStartCellIndex(),
+                                        value.geometry().transitionSite().reachEndCellIndex())))
+                                .toList());
+        SkyIslandConfluenceCascadeHeadCompatibilityPlan joint =
+                new SkyIslandConfluenceCascadeHeadCompatibilityPlan(
+                        descriptor,
+                        geometry,
+                        ordinarySpanPlan.jointPlan().outcomes().stream()
+                                .filter(value -> confluenceNodes.contains(
+                                        value.confluence().transitionSite().nodeCellIndex()))
+                                .toList());
+        List<SkyIslandOrdinarySpanOutcome> spans =
+                ordinarySpanPlan.outcomes().stream()
+                        .filter(value -> reachIdentities.contains(identity(
+                                value.span().parentReachStartCellIndex(),
+                                value.span().parentReachEndCellIndex())))
+                        .toList();
+        SkyIslandOrdinarySpanPlan componentPlan =
+                new SkyIslandOrdinarySpanPlan(
+                        descriptor, confluences, cascades, joint, spans);
+        SkyIslandSemanticField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        return SkyIslandHydraulicComponentHeadSolver.solve(
+                descriptor,
+                componentPlan,
+                terrain,
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
+    }
+
+    private static SkyIslandHydraulicAssemblyStatus sharedHeadStatus(
+            SkyIslandHydraulicComponentHeadSolver.Outcome outcome) {
+        if (outcome.status() == SkyIslandHydraulicQpStatus.NUMERICAL_FAILURE) {
+            return SkyIslandHydraulicAssemblyStatus.NUMERICAL_FAILURE;
+        }
+        if (outcome.complete()) {
+            return SkyIslandHydraulicAssemblyStatus.QUALIFIED;
+        }
+        // A partial graph cannot establish a terminal-component physical rejection when required
+        // transition ownership is unresolved: the missing boundary variables may change feasibility.
+        if (!outcome.transitionBlockers().isEmpty()) {
+            return SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED;
+        }
+        if (outcome.status() == SkyIslandHydraulicQpStatus.INFEASIBLE
+                || !outcome.excludedSpans().isEmpty()) {
+            return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
+        }
+        return SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION;
+    }
+
+    private static String sharedHeadBlocker(
+            SkyIslandHydraulicComponentHeadSolver.Outcome outcome) {
+        return "shared-head component solve "
+                + outcome.status().name()
+                + (outcome.diagnostic() == null ? "" : ": " + outcome.diagnostic())
+                + "; excludedSpans="
+                + outcome.excludedSpans()
+                + "; transitionBlockers="
+                + outcome.transitionBlockers();
     }
 
     private static SkyIslandHydraulicReachAssembly assembleReach(

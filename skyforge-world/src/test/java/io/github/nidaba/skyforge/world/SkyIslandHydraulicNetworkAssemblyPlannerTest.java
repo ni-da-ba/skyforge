@@ -58,6 +58,12 @@ class SkyIslandHydraulicNetworkAssemblyPlannerTest {
                 .allMatch(component ->
                         component.terminalFate().kind()
                                 == SkyIslandChannelTerminalFateKind.EDGE_OUTLET));
+        assertTrue(plan.terminalComponents().stream()
+                .filter(component ->
+                        component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
+                .allMatch(component -> component.sharedHeadSolve().complete()
+                        && component.sharedHeadSolve().status()
+                                == SkyIslandHydraulicQpStatus.SOLVED));
     }
 
     @Test
@@ -66,19 +72,50 @@ class SkyIslandHydraulicNetworkAssemblyPlannerTest {
                 SkyIslandHydraulicNetworkAssemblyPlanner.plan(
                         descriptor(8L, 81L, 632L));
 
-        assertTrue(plan.terminalComponents().stream()
+        var edgeOutletComponents = plan.terminalComponents().stream()
                 .filter(component ->
                         component.terminalFate().kind()
                                 == SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+                .toList();
+        assertTrue(edgeOutletComponents.stream()
                 .allMatch(component ->
                         component.status()
-                                == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED));
+                                == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED),
+                () -> edgeOutletComponents.stream()
+                        .map(component -> component.terminalFate().channelTerminalCellIndex()
+                                + "=" + component.status()
+                                + ", shared=" + component.sharedHeadSolve().status()
+                                + ", diagnostic=" + component.sharedHeadSolve().diagnostic()
+                                + ", blockers=" + component.sharedHeadSolve().transitionBlockers())
+                        .toList().toString());
         assertTrue(plan.reachAssemblies().stream()
                 .filter(reach ->
                         reach.semanticReach().endCellIndex() == 710)
                 .anyMatch(reach ->
                         reach.status()
                                 == SkyIslandHydraulicAssemblyStatus.QUALIFIED));
+    }
+
+    @Test
+    void naturalKey700SharedHeadInfeasibilityIsIncludedInF3EBlockers() {
+        SkyIslandHydraulicNetworkAssemblyPlan plan =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor(8L, 81L, 700L));
+
+        SkyIslandHydraulicTerminalComponent component = plan.terminalComponents().stream()
+                .filter(value -> value.reaches().stream().anyMatch(reach ->
+                        reach.semanticReach().startCellIndex() == 801
+                                && reach.semanticReach().endCellIndex() == 1951))
+                .findFirst()
+                .orElseThrow();
+        assertEquals(
+                SkyIslandHydraulicQpStatus.INFEASIBLE,
+                component.sharedHeadSolve().status());
+        assertFalse(component.sharedHeadSolve().complete());
+        assertEquals(
+                SkyIslandHydraulicAssemblyStatus.PHYSICAL_REJECTION,
+                component.status());
+        assertTrue(component.blockers().stream()
+                .anyMatch(value -> value.contains("negativeCycleGapWorld=")));
     }
 
     @Test
