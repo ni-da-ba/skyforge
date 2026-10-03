@@ -120,7 +120,7 @@ jobs:
   cumulative-server-client:
     needs: resolve-s1-profiles
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -208,9 +208,13 @@ jobs:
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
               -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
+          server_latest_log="$server_dir/logs/latest.log"
+          client_join_timeout_seconds=600
+          echo "Waiting up to ${client_join_timeout_seconds}s for the fully modded CI client to finish startup and join."
           joined=false
-          for attempt in $(seq 1 180); do
-            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log"; then
+          for attempt in $(seq 1 "$client_join_timeout_seconds"); do
+            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log" || \
+              grep -Fq 'WbyS1Acceptance joined the game' "$server_latest_log" 2>/dev/null; then
               joined=true
               break
             fi
@@ -229,9 +233,15 @@ jobs:
             sleep 1
           done
           if [[ "$joined" != true ]]; then
-            echo 'S1 client did not join the dedicated server within 180 seconds'
-            cat "$client_log"
-            cat "$server_log"
+            echo "S1 client did not join the dedicated server within ${client_join_timeout_seconds} seconds"
+            echo '--- S1 client Gradle output (last 120 lines) ---'
+            tail -n 120 "$client_log"
+            echo '--- S1 dedicated server Gradle output (last 120 lines) ---'
+            tail -n 120 "$server_log"
+            if [[ -f "$server_latest_log" ]]; then
+              echo '--- S1 dedicated server latest.log (last 120 lines) ---'
+              tail -n 120 "$server_latest_log"
+            fi
             exit 1
           fi
           kill -TERM -- "-$client_pid" 2>/dev/null || true
