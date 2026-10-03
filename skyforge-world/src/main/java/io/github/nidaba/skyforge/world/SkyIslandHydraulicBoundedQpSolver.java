@@ -31,15 +31,19 @@ public final class SkyIslandHydraulicBoundedQpSolver {
         Objects.requireNonNull(problem, "problem");
         ScaledProblem scaled = scale(problem);
         ConstraintSet constraints = constraints(scaled);
-        Optional<double[]> feasible = feasiblePoint(scaled);
-        if (feasible.isEmpty()) {
-            return terminalFailure(
-                    SkyIslandHydraulicQpStatus.INFEASIBLE,
-                    "difference/box constraint graph is infeasible",
-                    0);
+        FeasibilityResult feasibility = feasiblePoint(scaled);
+        if (feasibility.point().isEmpty()) {
+            NegativeCycle cycle = feasibility.negativeCycle().orElseThrow();
+            String diagnostic = "difference/box constraint graph is infeasible"
+                    + " (negativeCycleGapWorld="
+                    + Double.toString(cycle.scaledGap() * scaled.headScale())
+                    + ", constraints="
+                    + cycle.constraintIds()
+                    + ")";
+            return terminalFailure(SkyIslandHydraulicQpStatus.INFEASIBLE, diagnostic, 0);
         }
 
-        double[] x = feasible.get();
+        double[] x = feasibility.point().orElseThrow();
         double tolerance = tolerance(1.0);
         if (primalResidual(x, constraints) > 32.0 * tolerance) {
             return terminalFailure(
