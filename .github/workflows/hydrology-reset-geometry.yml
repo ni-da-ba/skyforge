@@ -76,6 +76,7 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlanner.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicNetworkAssemblyPlannerTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicComponentGeometryRefinementTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/HydrologyNetworkAssemblyCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyNetworkAssemblyCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_F4A.md"
@@ -281,6 +282,7 @@ jobs:
           ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
+            --tests '*SkyIslandHydraulicComponentGeometryRefinementTest.key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly' \
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
@@ -301,6 +303,7 @@ jobs:
         if: failure()
         run: |
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
         if: success()
