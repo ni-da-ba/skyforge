@@ -162,11 +162,13 @@ jobs:
           printf 'online-mode=false\nserver-port=25565\n' > "$server_dir/server.properties"
           printf 'eula=true\n' > "$server_dir/eula.txt"
 
-      - name: Disable Distant Horizons first-run updater prompt for CI client
+      - name: Prepare clean-client first-run settings for headless acceptance
         shell: bash
         run: |
           set -euo pipefail
-          client_config="skyforge-neoforge-1211/run-wby-s1-client/config"
+          client_dir="skyforge-neoforge-1211/run-wby-s1-client"
+          printf 'onboardAccessibility:false\\n' > "$client_dir/options.txt"
+          client_config="$client_dir/config"
           mkdir -p "$client_config"
           cat > "$client_config/DistantHorizons.toml" <<'EOF'
           [client.advanced.autoUpdater]
