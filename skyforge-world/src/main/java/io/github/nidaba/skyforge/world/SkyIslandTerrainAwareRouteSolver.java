@@ -201,7 +201,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     double candidateFill = Math.max(filledElevation[currentIndex], elevations[next]);
                     double candidateCost = routeCost[currentIndex]
                             + BASE_LENGTH_WEIGHT * normalizedLength
-                            + 0.5 * (localCost[currentIndex] + localCost[next]) * normalizedLength;
+                            + 0.5 * Math.max(0.0, localCost[currentIndex] + localCost[next]) * normalizedLength;
                     boolean improves = candidateFill < filledElevation[next] - EPSILON
                             || (Math.abs(candidateFill - filledElevation[next]) <= EPSILON
                                     && candidateCost < routeCost[next] - EPSILON);
