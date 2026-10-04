@@ -2589,7 +2589,9 @@ neoForge {
             sourceSet.set(wbyS1ClientRuntime)
             gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
             programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25565", "--username", "WbyS1Acceptance")
-            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            // This is a join smoke test, not a GameTest run. A non-existent namespace prevents
+            // NeoForge from reflecting third-party GameTests with absent optional dependencies.
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge_s4_join_acceptance")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(wbyS1StageClientMods)
             taskBefore(tasks.named("wbyS1StagePolicy"))
