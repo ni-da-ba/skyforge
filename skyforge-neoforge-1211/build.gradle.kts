@@ -2565,6 +2565,9 @@ neoForge {
                     from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
                         into("config")
                     }
+                    from(layout.projectDirectory.file("wby-s4-policy/hearthandharvest-common.toml")) {
+                        into("config")
+                    }
                 }
                 into(layout.projectDirectory.dir(wbyS1RunDirectory))
             })
