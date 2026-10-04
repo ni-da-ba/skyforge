@@ -47,7 +47,7 @@ cleanup() {
     for log in "$server_log" "$client_log" "$server_dir/logs/latest.log" "$client_dir/logs/latest.log"; do
       if [[ -f "$log" ]]; then echo "--- $log ---"; tail -n 180 "$log"; fi
     done
-    [[ ! -f "$server_dir/world/level.dat" ]] || cp "$server_dir/world/level.dat" wby-s4-joined-world-level.dat
+    [[ ! -f "$server_dir/s4-acceptance/level.dat" ]] || cp "$server_dir/s4-acceptance/level.dat" wby-s4-joined-world-level.dat
   fi
   return "$status"
 }
@@ -182,7 +182,7 @@ assert_hearthandharvest_worldgen_policy() {
 }
 
 start_server "$server_log"
-test -f "$server_dir/world/level.dat"
+test -f "$server_dir/s4-acceptance/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
@@ -227,7 +227,7 @@ grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
 grep -Fq '(hearthandharvest)' "$server_latest_log"
-test -f "$server_dir/world/level.dat"
+test -f "$server_dir/s4-acceptance/level.dat"
 cp "$server_latest_log" wby-s4-joined-server-latest.log
 client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
@@ -239,11 +239,11 @@ sleep 3
 kill -TERM -- "-$client_pid" 2>/dev/null || true
 wait "$client_pid" 2>/dev/null || true
 client_pid=""
-test -f "$server_dir/world/level.dat"
+test -f "$server_dir/s4-acceptance/level.dat"
 
 server_log="wby-s4-server-reopen.log"
 start_server "$server_log"
-test -f "$server_dir/world/level.dat"
+test -f "$server_dir/s4-acceptance/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
