@@ -188,26 +188,30 @@ assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
-if [[ -n "${WBY_S4_GRADLE_JAVA_HOME:-}" ]]; then
-  export JAVA_HOME="$WBY_S4_GRADLE_JAVA_HOME"
-  export PATH="$JAVA_HOME/bin:$PATH"
-fi
+client_dir_abs="$PWD/$client_dir"
+launcher_python="${WBY_S4_LAUNCHER_PYTHON:-python3}"
+minecraft_dir="${WBY_S4_MINECRAFT_DIRECTORY:-$GITHUB_WORKSPACE/s4-minecraft}"
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
-  xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
-    -PwbyS1RunDirectory=run-wby-s4-join-client \
-    -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
-    -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
-    -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true \
-    -PwbyS3CreateBigCannons=true -PwbyS4OrdinaryLife=true \
-    --no-configuration-cache >"$client_log" 2>&1 &
+  xvfb-run -a "$launcher_python" scripts/wby-s4-launch-production-client.py \
+    --minecraft-directory "$minecraft_dir" \
+    --game-directory "$client_dir_abs" \
+    --username WbyS1Acceptance \
+    --server 127.0.0.1:25565 \
+    --java "$JAVA_HOME/bin/java" \
+    --program-args-file "$GITHUB_WORKSPACE/wby-s4-client-program-args.txt" \
+    >"$client_log" 2>&1 &
 client_pid=$!
-client_args_file="skyforge-neoforge-1211/build/moddev/wbyS1ClientJoinAcceptanceRunProgramArgs.txt"
-for _ in $(seq 1 120); do
+client_args_file="wby-s4-client-program-args.txt"
+for _ in $(seq 1 900); do
   [[ ! -s "$client_args_file" ]] || break
   if ! kill -0 "$client_pid" 2>/dev/null; then cat "$client_log"; exit 1; fi
   sleep 1
 done
 test -s "$client_args_file"
+cp "$client_args_file" wby-s4-client-program-args.txt
+grep -Fq -- '--quickPlayMultiplayer' "$client_args_file"
+grep -Fq -- '127.0.0.1:25565' "$client_args_file"
+grep -Fq -- 'WbyS1Acceptance' "$client_args_file"
 cp "$client_args_file" wby-s4-client-program-args.txt
 grep -Fq -- '--quickPlayMultiplayer' "$client_args_file"
 grep -Fq -- '127.0.0.1:25565' "$client_args_file"
