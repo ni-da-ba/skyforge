@@ -103,7 +103,7 @@ jobs:
           set -euo pipefail
           run_dir="skyforge-neoforge-1211/run-wby-s2-c14"
           mkdir -p "$run_dir"
-          printf 'eula=true\\n' > "$run_dir/eula.txt"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
           cat > "$run_dir/server.properties" <<'EOF'
           level-name=wby-s2-c14
           level-seed=601400
@@ -120,9 +120,9 @@ jobs:
           EOF
           log="wby-s2-c14-server.log"
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC14AvionicsCapability=true"
-          setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \\
-            -PwbyS1RunDirectory=run-wby-s2-c14 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \\
-            -PwbyS2ComputingAvionics=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \\
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s2-c14 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           outcome=""
@@ -152,7 +152,7 @@ jobs:
           set -euo pipefail
           run_dir="skyforge-neoforge-1211/run-wby-s2-c7"
           mkdir -p "$run_dir"
-          printf 'eula=true\\n' > "$run_dir/eula.txt"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
           cat > "$run_dir/server.properties" <<'EOF'
           level-name=wby-s2-c7
           online-mode=false
@@ -168,9 +168,9 @@ jobs:
           EOF
           log="wby-s2-c7-server.log"
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true"
-          setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \\
-            -PwbyS1RunDirectory=run-wby-s2-c7 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \\
-            -PwbyS2ComputingAvionics=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \\
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s2-c7 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           outcome=""
