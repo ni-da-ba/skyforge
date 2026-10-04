@@ -1,0 +1,465 @@
+name: WBY S2 Computing and Control
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s2-computing-control.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wave-c2-mods.properties"
+      - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-*.properties"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s2-computing-control.properties"
+      - "skyforge-neoforge-1211/wave-c9-mods.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-policy/**"
+      - "scripts/wby-s2-diagnostic-launch.sh"
+      - "docs/integration/wby-s2-diagnostic-launch.md"
+      - "scripts/wby-s2-diagnostic-launch.sh"
+      - "docs/integration/wby-s2-diagnostic-launch.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s2-atmosphere-mobility-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-s1-profiles:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Validate manual S1 launcher syntax
+        shell: bash
+        run: bash -n scripts/wby-s2-diagnostic-launch.sh
+
+      - name: Resolve baseline atmosphere profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods --no-configuration-cache -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" | tee wby-s2-baseline.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s2-baseline.log
+          grep -Fq 'glider=none clouds=none thinAir=false' wby-s2-baseline.log
+
+      - name: Resolve and stage the selected integrated S1 profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-integrated.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s2-integrated.log
+          grep -Fq 'WBY S2 COMPUTING OVERLAY PASS' wby-s2-integrated.log
+          grep -Fq 'glider=combined clouds=simple-clouds thinAir=false' wby-s2-integrated.log
+          grep -Fq 'distantHorizons=with-dh' wby-s2-integrated.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1RunDirectory=run-wby-s2-integrated -PwbyS2ComputingAvionics=true --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s2-integrated/mods"
+          test -f "$staged/pVIWsXir-HFLhMfNC.jar"
+          test -f "$staged/A30Sq5Gt-rbDbxAY3.jar"
+          test -f "$staged/gu7yAYhd-puxJkazX.jar"
+          test -f "$staged/h4nsLvjf-sWhAueMC.jar"
+          test -f "$staged/LtZfKhel-qpinHX2C.jar"
+          if find "$staged" -maxdepth 1 -type f \( -name '*uHWrqYcS-nLff2PaZ*' -o -name '*QAGBst4M-uxVsdkST*' \) | grep -q .; then
+            echo "Rejected Hang Glider or its PuzzlesLib dependency leaked into the integrated S1 profile"
+            exit 1
+          fi
+          if ! find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
+            echo "Distant Horizons is missing from the selected integrated S2 profile"
+            exit 1
+          fi
+
+      - name: Resolve ThinAir optional overlay closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1ThinAir=true -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-thinair.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s2-thinair.log
+
+      - name: Validate manual launch task graphs
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-server-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-client-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-join-dry-run.log
+          grep -Fq 'wbyS1StagePolicy' wby-s2-server-dry-run.log
+          grep -Fq 'wbyS1StageClientMods' wby-s2-client-dry-run.log
+          grep -Fq 'wbyS1StageClientMods' wby-s2-join-dry-run.log
+
+      - name: Upload S1 resolver evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s2-atmosphere-mobility-resolution
+          path: |
+            wby-s2-*.log
+            skyforge-neoforge-1211/run-wby-s2-integrated/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s2-integrated/config/**
+            a4mc-0.2.2/*.jar
+          if-no-files-found: warn
+
+  cumulative-server-client:
+    needs: resolve-s1-profiles
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Prepare isolated vanilla server and client run directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="skyforge-neoforge-1211/run-wby-s2-server"
+          client_dir="skyforge-neoforge-1211/run-wby-s2-client"
+          mkdir -p "$server_dir" "$client_dir"
+          printf 'online-mode=false\nserver-port=25565\n' > "$server_dir/server.properties"
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+
+      - name: Prepare clean-client first-run settings for headless acceptance
+        shell: bash
+        run: |
+          set -euo pipefail
+          client_dir="skyforge-neoforge-1211/run-wby-s2-client"
+          echo 'onboardAccessibility:false' > "$client_dir/options.txt"
+          client_config="$client_dir/config"
+          mkdir -p "$client_config"
+          cat > "$client_config/DistantHorizons.toml" <<'EOF'
+          [client.advanced.autoUpdater]
+          enableAutoUpdater = false
+          EOF
+
+      - name: Boot S1 dedicated server and join from the actual client
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="skyforge-neoforge-1211/run-wby-s2-server"
+          client_dir="skyforge-neoforge-1211/run-wby-s2-client"
+          server_log="wby-s2-server.log"
+          setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
+          server_pid=$!
+          client_pid=""
+          cleanup() {
+            exit_status=$?
+            set +e
+            if [[ "$exit_status" -ne 0 ]]; then
+              echo "S1 acceptance step exited with status $exit_status; collecting final process and log state."
+              ps -eo pid=,ppid=,pgid=,stat=,comm=,args= | awk '$5 ~ /^java/ || $0 ~ /runWbyS1(ClientJoinAcceptance|DiagnosticServer)/ {print}'
+              for log in "$client_log" "$server_log" "$client_dir/logs/latest.log" "$server_dir/logs/latest.log"; do
+                if [[ -f "$log" ]]; then
+                  echo "--- $log (last 160 lines at failure) ---"
+                  tail -n 160 "$log"
+                else
+                  echo "--- Missing diagnostic log: $log ---"
+                fi
+              done
+              echo "--- Effective S1 client program arguments at failure ---"
+              if [[ -f wby-s2-client-program-args.txt ]]; then
+                cat wby-s2-client-program-args.txt
+              else
+                echo "Client program arguments were not captured."
+              fi
+            fi
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+              fi
+            done
+            sleep 2
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+                wait "$pid" 2>/dev/null || true
+              fi
+            done
+            return "$exit_status"
+          }
+          trap 'status=$?; echo "S1 acceptance command failed with status $status: $BASH_COMMAND" >&2; exit "$status"' ERR
+          trap cleanup EXIT
+          ready=false
+          for attempt in $(seq 1 150); do
+            if grep -Fq 'Done (' "$server_log"; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          test -f "$server_dir/world/level.dat"
+
+          server_java_pids="$(ps -eo pid=,comm= | awk '$2 ~ /^java/ {print $1}')"
+          client_log="wby-s2-client.log"
+          setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
+            xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
+              -PwbyS1RunDirectory=run-wby-s2-client -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$client_log" 2>&1 &
+          client_pid=$!
+          client_args_file="skyforge-neoforge-1211/build/moddev/wbyS1ClientJoinAcceptanceRunProgramArgs.txt"
+          for attempt in $(seq 1 120); do
+            if [[ -s "$client_args_file" ]]; then
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              cat "$client_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          test -s "$client_args_file"
+          cp "$client_args_file" wby-s2-client-program-args.txt
+          echo '--- Effective S1 client program arguments ---'
+          cat wby-s2-client-program-args.txt
+          grep -Fq -- '--quickPlayMultiplayer' wby-s2-client-program-args.txt
+          grep -Fq -- '127.0.0.1:25565' wby-s2-client-program-args.txt
+          grep -Fq -- 'WbyS1Acceptance' wby-s2-client-program-args.txt
+          server_latest_log="$server_dir/logs/latest.log"
+          client_join_timeout_seconds=600
+          echo "Waiting up to ${client_join_timeout_seconds}s for the fully modded CI client to finish startup and join."
+          joined=false
+          for attempt in $(seq 1 "$client_join_timeout_seconds"); do
+            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log" || \
+              grep -Fq 'WbyS1Acceptance joined the game' "$server_latest_log" 2>/dev/null; then
+              joined=true
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then
+              echo 'S1 client exited before joining the dedicated server'
+              cat "$client_log"
+              cat "$server_log"
+              exit 1
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              echo 'S1 server exited before the client joined'
+              cat "$server_log"
+              cat "$client_log"
+              exit 1
+            fi
+            sleep 1
+          done
+          if [[ "$joined" != true ]]; then
+            echo "S1 client did not join the dedicated server within ${client_join_timeout_seconds} seconds"
+            echo '--- S1 client Gradle output (last 120 lines) ---'
+            tail -n 120 "$client_log"
+            echo '--- S1 dedicated server Gradle output (last 120 lines) ---'
+            tail -n 120 "$server_log"
+            client_latest_log="$client_dir/logs/latest.log"
+            if [[ -f "$client_latest_log" ]]; then
+              echo '--- S1 client latest.log (last 120 lines) ---'
+              tail -n 120 "$client_latest_log"
+            fi
+            if [[ -f "$server_latest_log" ]]; then
+              echo '--- S1 dedicated server latest.log (last 120 lines) ---'
+              tail -n 120 "$server_latest_log"
+            fi
+            echo '--- Java process snapshot (PID PPID PGID command) ---'
+            ps -eo pid=,ppid=,pgid=,comm=,args= | awk '$4 ~ /^java/ {print}' | tee wby-s2-client-processes.txt
+            current_java_pids="$(ps -eo pid=,comm= | awk '$2 ~ /^java/ {print $1}')"
+            client_java_pids="$(while read -r java_pid; do
+              [[ -n "$java_pid" ]] || continue
+              if ! grep -Fxq "$java_pid" <<< "$server_java_pids"; then
+                echo "$java_pid"
+              fi
+            done <<< "$current_java_pids")"
+            if [[ -n "$client_java_pids" ]]; then
+              while IFS= read -r client_java_pid; do
+                echo "Capturing a thread dump for stalled S1 client JVM PID $client_java_pid"
+                "$JAVA_HOME/bin/jcmd" "$client_java_pid" Thread.print -l > "wby-s2-client-thread-dump-$client_java_pid.txt" 2>&1 || true
+              done <<< "$client_java_pids"
+              for dump in wby-s2-client-thread-dump-*.txt; do
+                echo "--- $dump (complete JVM thread dump) ---"
+                cat "$dump"
+              done
+            else
+              echo "Could not find a Java process in S1 client process group $client_pid"
+              ps -eo pid=,ppid=,pgid=,comm=,args= | awk -v group="$client_pid" 'NR == 1 || $3 == group'
+            fi
+            exit 1
+          fi
+          # A background process inherits ignored SIGINT from this non-interactive
+          # shell. Signal the NeoForge server JVM directly so its JVM shutdown hooks
+          # save the joined world instead of relying on the Gradle process group.
+          server_jvm_pids="$(ps -eo pid=,comm=,args= | awk '$2 ~ /^java/ && /net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
+          test -n "$server_jvm_pids"
+          while IFS= read -r server_jvm_pid; do
+            [[ -n "$server_jvm_pid" ]] && kill -TERM "$server_jvm_pid"
+          done <<< "$server_jvm_pids"
+          server_stopped=false
+          for attempt in $(seq 1 90); do
+            if grep -Fq 'Stopping server' "$server_log"; then
+              server_stopped=true
+              break
+            fi
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$server_stopped" != true ]]; then
+            echo 'S1 dedicated server did not enter its graceful shutdown hook after JVM SIGTERM'
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 -- "-$server_pid" 2>/dev/null; then
+            echo 'S1 dedicated server did not exit after its graceful shutdown hook'
+            exit 1
+          fi
+          wait "$server_pid" 2>/dev/null || true
+          server_pid=""
+
+          # The server has saved and disconnected the client. Shut the client
+          # down gracefully too, with a bounded force-stop fallback.
+          kill -INT -- "-$client_pid" 2>/dev/null || true
+          for attempt in $(seq 1 30); do
+            if ! kill -0 -- "-$client_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 -- "-$client_pid" 2>/dev/null; then
+            kill -TERM -- "-$client_pid" 2>/dev/null || true
+            sleep 2
+            kill -KILL -- "-$client_pid" 2>/dev/null || true
+          fi
+          wait "$client_pid" 2>/dev/null || true
+          client_pid=""
+
+          grep -Fq 'Stopping server' "$server_log"
+          test -f "$server_dir/world/level.dat"
+          trap - EXIT
+
+      - name: Reopen the same S1 dedicated-server world
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_log="wby-s2-server-reload.log"
+          setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
+          server_pid=$!
+          ready=false
+          for attempt in $(seq 1 150); do
+            if grep -Fq 'Done (' "$server_log"; then
+              ready=true
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat "$server_log"
+              exit 1
+            fi
+            sleep 2
+          done
+          test "$ready" = true
+          test -f skyforge-neoforge-1211/run-wby-s2-server/world/level.dat
+          server_jvm_pids="$(ps -eo pid=,comm=,args= | awk '$2 ~ /^java/ && /net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
+          test -n "$server_jvm_pids"
+          while IFS= read -r server_jvm_pid; do
+            [[ -n "$server_jvm_pid" ]] && kill -TERM "$server_jvm_pid" || true
+          done <<< "$server_jvm_pids"
+          server_stopped=false
+          for attempt in $(seq 1 90); do
+            if grep -Fq 'Stopping server' "$server_log"; then
+              server_stopped=true
+              break
+            fi
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$server_stopped" != true ]]; then
+            echo 'S1 reopened dedicated server did not enter its graceful shutdown hook after JVM SIGTERM'
+            cat "$server_log"
+            exit 1
+          fi
+          for attempt in $(seq 1 60); do
+            if ! kill -0 -- "-$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if kill -0 -- "-$server_pid" 2>/dev/null; then
+            echo 'S1 reopened dedicated server did not exit after graceful shutdown'
+            cat "$server_log"
+            exit 1
+          fi
+          wait "$server_pid" 2>/dev/null || true
+          grep -Fq 'Stopping server' "$server_log"
+
+      - name: Upload S1 runtime evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s2-runtime-acceptance
+          path: |
+            wby-s2-server*.log
+            wby-s2-client.log
+            wby-s2-client-thread-dump-*.txt
+            wby-s2-client-processes.txt
+            wby-s2-client-program-args.txt
+            skyforge-neoforge-1211/run-wby-s2-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s2-client/logs/latest.log
+          if-no-files-found: warn
