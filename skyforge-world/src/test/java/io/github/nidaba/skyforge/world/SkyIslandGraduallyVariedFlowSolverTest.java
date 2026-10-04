@@ -38,6 +38,22 @@ class SkyIslandGraduallyVariedFlowSolverTest {
             assertTrue(point.froudeNumber() < 1.0);
         }
         assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
+
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> shiftedDatum = sections.stream()
+                .map(section -> new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                        section.chainageMeters(),
+                        section.bedElevationMeters() + 1.0e8,
+                        section.dischargeCubicMetersPerSecond(),
+                        section.bottomWidthMeters(),
+                        section.sideSlopeHorizontalToVertical()))
+                .toList();
+        SkyIslandGraduallyVariedFlowSolver.Result shifted =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        shiftedDatum, depth, PARAMETERS);
+        for (int i = 0; i < result.points().size(); i++) {
+            assertEquals(result.points().get(i).depthMeters(),
+                    shifted.points().get(i).depthMeters(), 1.0e-6);
+        }
     }
 
     @Test
