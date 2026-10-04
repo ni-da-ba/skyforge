@@ -82,10 +82,10 @@ assert_supplementaries_policy() {
       expected["redstone.pulley_block.mineshaft_elevator"] = "0.0"
     }
     /^[[:space:]]*#/ { next }
-    /^[[:space:]]*\\[/ {
+    /^[[:space:]]*\[/ {
       section = $0
-      sub(/^[[:space:]]*\\[/, "", section)
-      sub(/\\][[:space:]]*$/, "", section)
+      sub(/^[[:space:]]*\[/, "", section)
+      sub(/\][[:space:]]*$/, "", section)
       gsub(/[[:space:]]/, "", section)
       next
     }
@@ -96,7 +96,7 @@ assert_supplementaries_policy() {
       key = trim(substr(line, 1, split_at - 1))
       value = trim(substr(line, split_at + 1))
       gsub(/[[:space:]]/, "", key)
-      gsub(/[[:space:]\"\\047]/, "", value)
+      gsub(/[[:space:]\"]/, "", value)
       full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
       if (full_key in expected && value == expected[full_key]) found[full_key] = 1
     }
