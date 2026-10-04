@@ -15,6 +15,15 @@ Disabled settings:
 
 This is an S4 development profile policy, not a global production config. Confirm the options against the pinned Supplementaries 3.8.9 NeoForge config during CI and manual review. If the file format or settings are rejected, fix the policy before proceeding. An S4 world should contain no Supplementaries-generated road signs, galleons, cave urns, wild flax, basalt ash patches, or Supplementaries mineshaft elevators.
 
+## Hearth and Harvest compatibility companion
+
+The pinned [Hearth and Harvest 1.21.1 NeoForge 1.3.4 release](https://www.curseforge.com/minecraft/mc-mods/hearth-and-harvest/files/8837088) is included because Create: Central Kitchen's optional Hearth and Harvest GameTest integration directly links its Cask block-entity class during server test discovery. Farmer's Delight is already a required S4 dependency and satisfies H&H's declared dependency.
+
+Hearth and Harvest 1.3.4 also adds its Lilliput Lane structure to forests. This candidate does not claim the structure is accepted for Skyforge production. During the manual gate, use a fresh disposable test world and inspect any generated Lilliput Lane structures for interaction with authored islands, forced-spawn structures, and the intended empty space. Report whether the structure should remain, be disabled through a verified supported policy, or whether Hearth and Harvest should be removed once the CCK startup issue has another compatible resolution. Do not reuse an existing world for this review.
+
+The shader overlay remains client-only and retains the specifically selected Iris/Simple Clouds/Distant Horizons bridge and Atmospheric Shaders package.
+
+
 Upstream references:
 
 - [Supplementaries 1.21.1 CommonConfigs.java](https://github.com/MehVahdJukaar/Supplementaries/blob/1.21.1/common/src/main/java/net/mehvahdjukaar/supplementaries/configs/CommonConfigs.java)
