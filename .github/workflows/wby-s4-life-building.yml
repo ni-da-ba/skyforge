@@ -153,6 +153,27 @@ jobs:
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
           policy="$run_dir/config/supplementaries-common.toml"
           test -s "$policy"
+          python3 - "$policy" <<'PY'
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          policy = Path(sys.argv[1])
+          with policy.open("rb") as source:
+              config = tomllib.load(source)
+          for parts in (
+              ("building", "way_sign", "road_signs", "enabled"),
+              ("building", "ash", "basalt_ash"),
+              ("functional", "urn", "cave_urns"),
+              ("functional", "flax", "wild_flax"),
+              ("functional", "plunderer", "galleon"),
+              ("redstone", "pulley_block", "mineshaft_elevator"),
+          ):
+              value = config
+              for part in parts:
+                  value = value.get(part) if isinstance(value, dict) else None
+              print(f"S4 Supplementaries config: {'.'.join(parts)}={value!r}")
+          PY
           for expected in \
             "building.way_sign.road_signs enabled false" \
             "building.ash basalt_ash false" \
