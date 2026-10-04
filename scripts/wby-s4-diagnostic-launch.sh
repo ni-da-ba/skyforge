@@ -111,13 +111,59 @@ assert_supplementaries_policy() {
   ' "$config"
 }
 
+
+assert_hearthandharvest_policy() {
+  local config="$1"
+  test -f "$config"
+  awk '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    BEGIN {
+      expected["generateCornMazes"] = "false"
+      expected["generateLilliputLane"] = "false"
+      expected["nests.generateNests"] = "false"
+      expected["salt.generateSaltCaves"] = "false"
+    }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*\[/ {
+      section = $0
+      sub(/^[[:space:]]*\[/, "", section)
+      sub(/\][[:space:]]*$/, "", section)
+      gsub(/[[:space:]]/, "", section)
+      next
+    }
+    index($0, "=") {
+      line = $0
+      sub(/[[:space:]]*#.*/, "", line)
+      split_at = index(line, "=")
+      key = trim(substr(line, 1, split_at - 1))
+      value = trim(substr(line, split_at + 1))
+      gsub(/[[:space:]]/, "", key)
+      gsub(/[[:space:]]/,"", value)
+      full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
+      if (full_key in expected && value == expected[full_key]) found[full_key] = 1
+    }
+    END {
+      for (key in expected) {
+        if (!found[key]) {
+          print "Hearth and Harvest worldgen policy missing or incorrect: " key " (expected " expected[key] ")" > "/dev/stderr"
+          exit 1
+        }
+      }
+    }
+  ' "$config"
+}
+
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 bundle=".skyforge-diagnostics/wby-s4-$mode-$stamp"
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
 echo "S4 gameplay stack: Farmer's Delight + Hearth and Harvest, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
-echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its Lilliput Lane forest structure is part of this candidate and must be reviewed in a new test world."
+echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its Lilliput Lane, Corn Maze, nest, and salt-cave worldgen are disabled by the staged common config."
 echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generators/CBC."
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
@@ -153,6 +199,10 @@ run_path="skyforge-neoforge-1211/$run_directory"
 if [[ "$status" -eq 0 ]]; then
   if ! assert_supplementaries_policy "$run_path/config/supplementaries-common.toml"; then
     echo "S4 Supplementaries worldgen policy was not active after the profile loaded." >&2
+    status=1
+  fi
+  if ! assert_hearthandharvest_policy "$run_path/config/hearthandharvest-common.toml"; then
+    echo "S4 Hearth and Harvest worldgen policy was not active after the profile loaded." >&2
     status=1
   fi
 fi
