@@ -2563,7 +2563,7 @@ neoForge {
                 }
                 if (wbyS4OrdinaryLife) {
                     from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
-                        into("defaultconfigs")
+                        into("config")
                     }
                 }
                 into(layout.projectDirectory.dir(wbyS1RunDirectory))
@@ -8012,18 +8012,6 @@ fun writeWbyS3DieselDefaultConfig(runDirectory: java.io.File) {
     )
 }
 
-fun writeWbyS4SupplementariesPolicy(runDirectory: java.io.File, worldDirectory: java.io.File? = null) {
-    val policy = layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml").asFile
-    check(policy.isFile) { "WBY S4 Supplementaries policy fixture is missing: $policy" }
-    val defaults = runDirectory.resolve("defaultconfigs")
-    defaults.mkdirs()
-    policy.copyTo(defaults.resolve("supplementaries-common.toml"), overwrite = true)
-    if (worldDirectory != null) {
-        val serverConfig = worldDirectory.resolve("serverconfig/supplementaries-common.toml")
-        serverConfig.parentFile.mkdirs()
-        policy.copyTo(serverConfig, overwrite = true)
-    }
-}
 
 tasks.named("runWbyS1DiagnosticServer").configure {
     doFirst {
@@ -8040,9 +8028,6 @@ tasks.named("runWbyS1DiagnosticServer").configure {
                 ?: "world"
             val worldDirectory = directory.resolve(levelName)
             writeWbyS3DieselSuppressionConfig(worldDirectory)
-            if (wbyS4OrdinaryLife) {
-                writeWbyS4SupplementariesPolicy(directory, worldDirectory)
-            }
         }
     }
 }
@@ -8054,9 +8039,6 @@ tasks.named("runWbyS1DiagnosticClient").configure {
             // Existing worlds remain individually governed by their own serverconfig.
             val runDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
             writeWbyS3DieselDefaultConfig(runDirectory)
-            if (wbyS4OrdinaryLife) {
-                writeWbyS4SupplementariesPolicy(runDirectory)
-            }
         }
     }
 }
