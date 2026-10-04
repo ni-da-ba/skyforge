@@ -62,8 +62,25 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         for (int sourceId : List.of(660, 1140)) {
             CandidateState bestForSource = best;
             SkyIslandGeomorphicNetworkNode sourceNode = best.skeleton().geomorphicNetwork().requireNode(sourceId);
-            for (SkyIslandGeomorphicNetworkNode candidateNode :
-                    sourceAnchorCandidates(sourceNode, base.geomorphicNetwork().planningSpacing(), corridorHalfWidth, terrain)) {
+            SkyIslandHydraulicReachSkeleton sourceReach =
+                    findReach(best.skeleton(), sourceId + "->801");
+            List<SkyIslandGeomorphicNetworkNode> rankedAnchorCandidates =
+                    sourceAnchorCandidates(
+                                    sourceNode,
+                                    base.geomorphicNetwork().planningSpacing(),
+                                    corridorHalfWidth,
+                                    terrain)
+                            .stream()
+                            .sorted(Comparator
+                                    .comparingDouble((SkyIslandGeomorphicNetworkNode node) ->
+                                            endpointD2Gap(descriptor, sourceReach, node, terrain))
+                                    .thenComparingDouble(node ->
+                                            distance(node.physicalPosition(), sourceNode.physicalPosition()))
+                                    .thenComparingDouble(node -> node.physicalPosition().x())
+                                    .thenComparingDouble(node -> node.physicalPosition().z()))
+                            .limit(6)
+                            .toList();
+            for (SkyIslandGeomorphicNetworkNode candidateNode : rankedAnchorCandidates) {
                 SkyIslandGeomorphicChannelNetworkPlan candidateNetwork = reanchorSource(
                         descriptor,
                         best.skeleton().geomorphicNetwork(),
@@ -417,6 +434,38 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 .thenComparingDouble(node -> node.physicalPosition().x())
                 .thenComparingDouble(node -> node.physicalPosition().z()));
         return List.copyOf(result);
+    }
+
+    private static double endpointD2Gap(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicReachSkeleton reach,
+            SkyIslandGeomorphicNetworkNode candidateNode,
+            SkyIslandSemanticField terrain) {
+        List<SkyIslandLocalPosition> centerline = reach.centerline().points();
+        SkyIslandLocalPosition next = centerline.get(1);
+        double tangentX = next.x() - candidateNode.physicalPosition().x();
+        double tangentZ = next.z() - candidateNode.physicalPosition().z();
+        double tangentLength = Math.hypot(tangentX, tangentZ);
+        if (tangentLength <= EPSILON) {
+            return Double.POSITIVE_INFINITY;
+        }
+        SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().getFirst();
+        SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
+        SkyIslandHydraulicHeadEnvelope envelope =
+                SkyIslandHydraulicHeadEnvelopePlanner.evaluateForKind(
+                        descriptor,
+                        SkyIslandHydraulicHeadEnvelopePlanner.profileKind(semantic.profiles(), 0.0),
+                        candidateNode.physicalPosition(),
+                        sample.bankfullHalfWidth(),
+                        sample.waterDepthPotential(),
+                        terrain.sample(candidateNode.physicalPosition()),
+                        -tangentZ,
+                        tangentX,
+                        terrain,
+                        policy.limits(semantic));
+        return Math.max(0.0, envelope.lowerHead() - envelope.upperHead());
     }
 
     private static SkyIslandGeomorphicChannelNetworkPlan reanchorSource(
