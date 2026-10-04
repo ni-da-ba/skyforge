@@ -233,7 +233,29 @@ public final class HydrologyGameScaleCalibrationSweepCli {
             String parameters,
             String result,
             String details) {
-        String cleanDetails = details.replace('\n', ' ').replace('\r', ' ').replace('|', '/');
+        String boundaryDetails =
+                "upstreamBoundary="
+                        + span.upstreamBoundary().status()
+                        + "@"
+                        + span.upstreamBoundary().fixedHeadWorldUnits()
+                                .map(String::valueOf)
+                                .orElse("none")
+                        + ",downstreamBoundary="
+                        + span.downstreamBoundary().status()
+                        + "@"
+                        + span.downstreamBoundary().fixedHeadWorldUnits()
+                                .map(String::valueOf)
+                                .orElse("none")
+                        + ",samples="
+                        + span.samples().size()
+                        + ",endpointRelativeDischarge="
+                        + span.samples().getFirst().relativeDischarge()
+                        + "->"
+                        + span.samples().getLast().relativeDischarge();
+        String cleanDetails = (details + ";" + boundaryDetails)
+                .replace('\n', ' ')
+                .replace('\r', ' ')
+                .replace('|', '/');
         diagnostics.add(
                 control.name()
                         + "|" + control.heldOut()
