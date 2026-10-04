@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -49,6 +50,49 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         double corridorHalfWidth =
                 base.geomorphicNetwork().planningSpacing()
                         * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+        int evaluatedAnchors = 0;
+        List<String> acceptedAnchorMoves = new ArrayList<>();
+        Map<String, Integer> rejectedAnchorMoves = new TreeMap<>();
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority = SkyIslandSemanticFieldSet.create(descriptor).interiority();
+
+        // Coordinate-descent over the two fixed-identity source anchors. Candidate positions stay
+        // inside each source's original C2 semantic corridor; every affected fine route and the
+        // complete F3E component are rebuilt before a move can win.
+        for (int sourceId : List.of(660, 1140)) {
+            CandidateState bestForSource = best;
+            SkyIslandGeomorphicNetworkNode sourceNode = best.skeleton().geomorphicNetwork().requireNode(sourceId);
+            for (SkyIslandGeomorphicNetworkNode candidateNode :
+                    sourceAnchorCandidates(sourceNode, base.geomorphicNetwork().planningSpacing(), corridorHalfWidth, terrain)) {
+                SkyIslandGeomorphicChannelNetworkPlan candidateNetwork = reanchorSource(
+                        descriptor,
+                        best.skeleton().geomorphicNetwork(),
+                        sourceId,
+                        candidateNode,
+                        terrain,
+                        interiority,
+                        corridorHalfWidth);
+                if (candidateNetwork == null) {
+                    rejectedAnchorMoves.merge("no-route", 1, Integer::sum);
+                    continue;
+                }
+                SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
+                        SkyIslandHydraulicGeometrySkeletonPlanner.plan(
+                                descriptor, candidateNetwork, terrain, interiority);
+                CandidateState candidate =
+                        evaluate(descriptor, candidateSkeleton, base, "source-" + sourceId);
+                evaluatedAnchors++;
+                if (candidate.score().compareTo(bestForSource.score()) < 0) {
+                    bestForSource = candidate;
+                }
+            }
+            if (bestForSource.score().compareTo(best.score()) < 0) {
+                acceptedAnchorMoves.add("source-" + sourceId + ":" + sourceNode.physicalPosition()
+                        + "->" + bestForSource.skeleton().geomorphicNetwork().requireNode(sourceId).physicalPosition());
+                best = bestForSource;
+            }
+        }
+
         double[] amplitudeFractions = {0.0625, 0.125, 0.25, 0.5};
         int[] supportScales = {2, 4, 8, 16};
         int evaluated = 0;
@@ -56,8 +100,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         Map<String, Integer> rejectedModes = new TreeMap<>();
 
         // Deterministic coordinate descent over local cosine-windowed lateral moves targeting
-        // exact F3E-blocked span boundaries/interiors. Endpoints remain fixed; existing C2 bounds
-        // stay hard. A small pass cap allows interactions among the three incident reaches.
+        // exact F3E-blocked span boundaries/interiors. Shared anchor positions are held fixed during
+        // each lateral step; the source-anchor pass above already enforces the original C2 bound.
         for (int pass = 0; pass < 24; pass++) {
             CandidateScore passStart = best.score();
             for (String routeId : TARGET_REACHES) {
@@ -119,8 +163,11 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 "bounded refinement must not trade away endpoint D2 feasibility");
         System.out.printf(
                 Locale.ROOT,
-                "F3O_KEY700 boundedModes=%d rejectedModes=%s acceptedMoves=%s baseline=%s best=%s shared=%s "
+                "F3O_KEY700 boundedAnchors=%d rejectedAnchors=%s acceptedAnchorMoves=%s boundedModes=%d rejectedModes=%s acceptedMoves=%s baseline=%s best=%s shared=%s "
                         + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f maxEndpointD2GapWorld=%.12f totalInfeasibilityWorld=%.12f blockers=%s%n",
+                evaluatedAnchors,
+                rejectedAnchorMoves,
+                acceptedAnchorMoves,
                 evaluated,
                 rejectedModes,
                 acceptedMoves,
@@ -325,6 +372,122 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 "accepted");
     }
 
+    private static List<SkyIslandGeomorphicNetworkNode> sourceAnchorCandidates(
+            SkyIslandGeomorphicNetworkNode source,
+            double planningSpacing,
+            double corridor,
+            SkyIslandSemanticField terrain) {
+        double fineStep = planningSpacing
+                / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
+        int baseGridX = (int) Math.round(source.physicalPosition().x() / fineStep);
+        int baseGridZ = (int) Math.round(source.physicalPosition().z() / fineStep);
+        int minX = (int) Math.ceil((source.semanticCenter().x() - corridor) / fineStep);
+        int maxX = (int) Math.floor((source.semanticCenter().x() + corridor) / fineStep);
+        int minZ = (int) Math.ceil((source.semanticCenter().z() - corridor) / fineStep);
+        int maxZ = (int) Math.floor((source.semanticCenter().z() + corridor) / fineStep);
+        double probeRadius = planningSpacing * SkyIslandTerrainAwareRouteSolver.RIDGE_PROBE_RADIUS_PLANNING_FRACTION;
+        List<SkyIslandGeomorphicNetworkNode> result = new ArrayList<>();
+        for (int gx = minX; gx <= maxX; gx++) {
+            if (Math.floorMod(gx - baseGridX, 2) != 0) {
+                continue;
+            }
+            for (int gz = minZ; gz <= maxZ; gz++) {
+                if (Math.floorMod(gz - baseGridZ, 2) != 0) {
+                    continue;
+                }
+                SkyIslandLocalPosition position = new SkyIslandLocalPosition(gx * fineStep, gz * fineStep);
+                if (distance(position, source.semanticCenter()) > corridor + EPSILON) {
+                    continue;
+                }
+                double elevation = terrain.sample(position);
+                double valleyAdvantage = surroundingMean(terrain, position, probeRadius) - elevation;
+                result.add(new SkyIslandGeomorphicNetworkNode(
+                        source.cellIndex(),
+                        source.kind(),
+                        source.semanticCenter(),
+                        position,
+                        corridor,
+                        elevation,
+                        valleyAdvantage));
+            }
+        }
+        result.sort(Comparator
+                .comparingDouble((SkyIslandGeomorphicNetworkNode node) ->
+                        distance(node.physicalPosition(), source.physicalPosition()))
+                .thenComparingDouble(node -> node.physicalPosition().x())
+                .thenComparingDouble(node -> node.physicalPosition().z()));
+        return List.copyOf(result);
+    }
+
+    private static SkyIslandGeomorphicChannelNetworkPlan reanchorSource(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGeomorphicChannelNetworkPlan source,
+            int sourceId,
+            SkyIslandGeomorphicNetworkNode candidateNode,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            double corridorHalfWidth) {
+        List<SkyIslandGeomorphicNetworkNode> nodes = new ArrayList<>(source.nodes().size());
+        boolean replacedNode = false;
+        for (SkyIslandGeomorphicNetworkNode node : source.nodes()) {
+            if (node.cellIndex() == sourceId) {
+                nodes.add(candidateNode);
+                replacedNode = true;
+            } else {
+                nodes.add(node);
+            }
+        }
+        if (!replacedNode) {
+            throw new IllegalArgumentException("missing source node " + sourceId);
+        }
+
+        List<SkyIslandGeomorphicReachRoute> routes = new ArrayList<>(source.routes().size());
+        int affectedRoutes = 0;
+        for (SkyIslandGeomorphicReachRoute route : source.routes()) {
+            if (route.semanticReach().startCellIndex() != sourceId) {
+                routes.add(route);
+                continue;
+            }
+            SkyIslandGeomorphicNetworkNode end =
+                    source.requireNode(route.semanticReach().endCellIndex());
+            SkyIslandGeomorphicCandidateRoute rerouted;
+            try {
+                rerouted = SkyIslandTerrainAwareRouteSolver.solve(
+                        terrain,
+                        interiority,
+                        route.semanticReach().guidancePoints(),
+                        source.planningSpacing(),
+                        corridorHalfWidth,
+                        new SkyIslandGeomorphicRouteAnchor(candidateNode.physicalPosition(), 0.0),
+                        new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0));
+            } catch (IllegalStateException noRouteInsideOriginalCorridor) {
+                return null;
+            }
+            routes.add(new SkyIslandGeomorphicReachRoute(route.semanticReach(), rerouted));
+            affectedRoutes++;
+        }
+        if (affectedRoutes != 1) {
+            throw new IllegalStateException(
+                    "key-700 source anchor must own exactly one outgoing reach, got " + affectedRoutes);
+        }
+        return new SkyIslandGeomorphicChannelNetworkPlan(
+                descriptor, source.planningSpacing(), nodes, routes);
+    }
+
+    private static double surroundingMean(
+            SkyIslandSemanticField terrain,
+            SkyIslandLocalPosition center,
+            double radius) {
+        double sum = 0.0;
+        for (int i = 0; i < 8; i++) {
+            double angle = i * Math.PI / 4.0;
+            sum += terrain.sample(new SkyIslandLocalPosition(
+                    center.x() + Math.cos(angle) * radius,
+                    center.z() + Math.sin(angle) * radius));
+        }
+        return sum / 8.0;
+    }
+
     private static CandidateScore score(
             SkyIslandHydraulicTerminalComponent component, double displacement) {
         int statusRank = switch (component.status()) {
@@ -395,12 +558,15 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             }
             List<SkyIslandLocalPosition> a = base.centerline().points();
             List<SkyIslandLocalPosition> b = changed.centerline().points();
-            if (a.size() != b.size()) {
-                return Double.POSITIVE_INFINITY;
-            }
-            for (int i = 0; i < a.size(); i++) {
-                result += distance(a.get(i), b.get(i));
-            }
+            double baseToCandidate = a.stream()
+                    .mapToDouble(point -> distanceToPolyline(point, b))
+                    .average()
+                    .orElse(0.0);
+            double candidateToBase = b.stream()
+                    .mapToDouble(point -> distanceToPolyline(point, a))
+                    .average()
+                    .orElse(0.0);
+            result += baseToCandidate + candidateToBase;
         }
         return result;
     }
