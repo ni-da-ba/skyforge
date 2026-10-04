@@ -198,10 +198,10 @@ setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
     --username WbyS1Acceptance \
     --server 127.0.0.1:25565 \
     --java "$JAVA_HOME/bin/java" \
-    --program-args-file "$GITHUB_WORKSPACE/wby-s4-client-program-args.txt" \
+    --program-args-file "$GITHUB_WORKSPACE/skyforge-neoforge-1211/build/wby-s4-client-program-args.txt" \
     >"$client_log" 2>&1 &
 client_pid=$!
-client_args_file="wby-s4-client-program-args.txt"
+client_args_file="skyforge-neoforge-1211/build/wby-s4-client-program-args.txt"
 for _ in $(seq 1 900); do
   [[ ! -s "$client_args_file" ]] || break
   if ! kill -0 "$client_pid" 2>/dev/null; then cat "$client_log"; exit 1; fi
@@ -209,9 +209,9 @@ for _ in $(seq 1 900); do
 done
 test -s "$client_args_file"
 cp "$client_args_file" wby-s4-client-program-args.txt
-grep -Fq -- '--quickPlayMultiplayer' "$client_args_file"
-grep -Fq -- '127.0.0.1:25565' "$client_args_file"
-grep -Fq -- 'WbyS1Acceptance' "$client_args_file"
+grep -Fq -- '--quickPlayMultiplayer' wby-s4-client-program-args.txt
+grep -Fq -- '127.0.0.1:25565' wby-s4-client-program-args.txt
+grep -Fq -- 'WbyS1Acceptance' wby-s4-client-program-args.txt
 cp "$client_args_file" wby-s4-client-program-args.txt
 grep -Fq -- '--quickPlayMultiplayer' "$client_args_file"
 grep -Fq -- '127.0.0.1:25565' "$client_args_file"
