@@ -338,6 +338,16 @@ jobs:
             echo "Game-scale calibration sweep summary was not produced."
           fi
 
+      - name: Print ordinary-span failure diagnostics
+        if: always()
+        run: |
+          diagnostics=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-diagnostics.txt
+          if [ -f "$diagnostics" ]; then
+            cat "$diagnostics"
+          else
+            echo "Ordinary-span diagnostics were not produced."
+          fi
+
       - name: Print natural-transition census summary
         if: always()
         run: |
