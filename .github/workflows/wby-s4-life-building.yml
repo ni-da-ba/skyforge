@@ -153,7 +153,9 @@ jobs:
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
           policy="$run_dir/config/supplementaries-common.toml"
           test -s "$policy"
-          if grep -Eiq 'Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml' "$log" "$run_dir/logs/latest.log" 2>/dev/null; then
+          config_warning='Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml'
+          if grep -Eiq "$config_warning" "$run_dir/logs/latest.log" 2>/dev/null; then
+            grep -Ein "$config_warning" "$run_dir/logs/latest.log" >&2 || true
             echo "Supplementaries rejected the S4 common config." >&2
             exit 1
           fi
