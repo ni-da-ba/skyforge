@@ -53,12 +53,13 @@ mkdir -p "$a4mc_mod_dir"
 cp "$a4mc_source_dir/build/libs/0.2.2/$a4mc_core" "$a4mc_source_dir/build/libs/0.2.2/$a4mc_compat" "$a4mc_mod_dir/"
 sha256sum "$a4mc_mod_dir/"*.jar | tee "$bundle/aerodynamics4mc-sha256.txt"
 
-echo "Launching WBY S3: selected S1 atmosphere/mobility + S2 CC:Tweaked/Avionics + S3 Diesel Generators."
+echo "Launching WBY S3: selected S1 atmosphere/mobility + S2 CC:Tweaked/Avionics + S3 Diesel Generators + Create Big Cannons."
 echo "Diesel Generators native normal/high oil generation is disabled for this test profile."
+echo "Create Big Cannons 5.11.7 + Ritchie's Projectile Library 2.1.2 use the existing Wave C1 lock."
 echo "Run directory: $run_dir"
 echo "Diagnostics bundle: $bundle"
 echo "When finished, send the diagnostics folder: $bundle"
-echo "Review: confirm launch and mod discovery, then inspect JEI for Pumpjack Hole, Distillation Tank, Diesel Engine, and crude oil."
+echo "Review: confirm launch and mod discovery; inspect JEI for Diesel assets and CBC cannon components, ammunition, and projectile blocks."
 echo "After creating a new world, verify its serverconfig/createdieselgenerators-server.toml has both oil chunk options set to true."
 echo "Staged mod inventory will be saved to $bundle/staged-mods.txt"
 
@@ -71,6 +72,7 @@ JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthori
   -PwbyS1RunDirectory="$run_directory" \
   -PwbyS2ComputingAvionics=true \
   -PwbyS3DieselGenerators=true \
+  -PwbyS3CreateBigCannons=true \
   -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
 status=${PIPESTATUS[0]}
