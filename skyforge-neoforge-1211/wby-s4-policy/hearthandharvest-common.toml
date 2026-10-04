@@ -1,0 +1,12 @@
+# S4 Hearth and Harvest Common Config
+# Retain H&H items, blocks, food, and processing while suppressing third-party
+# structures and world-generation features that compete with Skyforge-authored content.
+
+generateCornMazes = false
+generateLilliputLane = false
+
+[nests]
+generateNests = false
+
+[salt]
+generateSaltCaves = false
