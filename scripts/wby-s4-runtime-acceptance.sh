@@ -97,6 +97,52 @@ assert_supplementaries_policy() {
   ' "$config"
 }
 
+
+assert_hearthandharvest_policy() {
+  local config="$1"
+  test -f "$config"
+  awk '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    BEGIN {
+      expected["generateCornMazes"] = "false"
+      expected["generateLilliputLane"] = "false"
+      expected["nests.generateNests"] = "false"
+      expected["salt.generateSaltCaves"] = "false"
+    }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*\[/ {
+      section = $0
+      sub(/^[[:space:]]*\[/, "", section)
+      sub(/\][[:space:]]*$/, "", section)
+      gsub(/[[:space:]]/, "", section)
+      next
+    }
+    index($0, "=") {
+      line = $0
+      sub(/[[:space:]]*#.*/, "", line)
+      split_at = index(line, "=")
+      key = trim(substr(line, 1, split_at - 1))
+      value = trim(substr(line, split_at + 1))
+      gsub(/[[:space:]]/, "", key)
+      gsub(/[[:space:]]/,"", value)
+      full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
+      if (full_key in expected && value == expected[full_key]) found[full_key] = 1
+    }
+    END {
+      for (key in expected) {
+        if (!found[key]) {
+          print "Hearth and Harvest worldgen policy missing or incorrect: " key " (expected " expected[key] ")" > "/dev/stderr"
+          exit 1
+        }
+      }
+    }
+  ' "$config"
+}
+
 start_server() {
   local log_path="$1"
   setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
@@ -141,6 +187,7 @@ stop_server() {
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
 assert_supplementaries_policy
+assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
@@ -196,6 +243,7 @@ server_log="wby-s4-server-reopen.log"
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
 assert_supplementaries_policy
+assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 stop_server "$server_log"
 grep -Fq 'Stopping server' "$server_log"
 trap - EXIT
