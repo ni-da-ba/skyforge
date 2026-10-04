@@ -19,6 +19,7 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                         new SkyIslandLocalPosition(0.0, 0.0),
                         12.0,
                         0.5,
+                        0.5,
                         10.0,
                         0.01,
                         0.5);
@@ -50,6 +51,7 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 new SkyIslandHydraulicGeometrySkeletonSample(
                         new SkyIslandLocalPosition(0.0, 0.0),
                         1.0,
+                        0.5,
                         0.5,
                         1.0,
                         0.02,
