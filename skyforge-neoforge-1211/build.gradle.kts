@@ -400,11 +400,28 @@ val wbyS3Pins = Properties().apply { wbyS3PinFile.asFile.inputStream().use(::loa
 fun wbyS3Pin(field: String): String =
     requireNotNull(wbyS3Pins.getProperty(field)) { "missing WBY S3 pin: $field in " + wbyS3PinFile.asFile }
 
+fun wbyS4Token(mod: String): String = wbyS4Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S4 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+
 check(wbyS3Pin("minecraft.version") == "1.21.1")
 check(wbyS3Pin("neoforge.version") == "21.1.249")
 check(wbyS3Pin("profile.base") == "wby-s2-computing-control")
 check(wbyS3Pin("dieselGenerators.coordinate") == waveC25Pin("createdieselgenerators", "coordinate"))
 check(wbyS3Pin("dieselGenerators.version") == waveC25Pin("createdieselgenerators", "version"))
+
+val wbyS4PinFile = layout.projectDirectory.file("wby-s4-life-building.properties")
+val wbyS4Pins = Properties().apply { wbyS4PinFile.asFile.inputStream().use(::load) }
+fun wbyS4Pin(mod: String, field: String): String =
+    requireNotNull(wbyS4Pins.getProperty("$mod.$field")) {
+        "missing WBY S4 pin: $mod.$field in " + wbyS4PinFile.asFile
+    }
+check(wbyS4Pin("minecraft", "version") == "1.21.1")
+check(wbyS4Pin("neoforge", "version") == "21.1.249")
+check(wbyS4Pin("profile.base") == "wby-s3-industry")
+check(wbyS4Pin("irisSimpleCloudsCompat.releaseStatus") == "beta")
+check(wbyS4Pin("atmosphericShaders.distribution") == "manual-client-install; custom-license; do-not-bundle")
 
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
@@ -490,6 +507,14 @@ val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equa
 val wbyS2ComputingAvionics = providers.gradleProperty("wbyS2ComputingAvionics").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS4OrdinaryLife = providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+check(!wbyS4OrdinaryLife || (wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
+    "WBY S4 requires the cumulative S2 + Diesel Generators + Create Big Cannons profile"
+}
+check(!wbyS4Shaders || (wbyS4OrdinaryLife && wbyS1Clouds == "simple-clouds" && !wbyS1WithoutDistantHorizons)) {
+    "WBY S4 shaders require the S4 profile with Simple Clouds and Distant Horizons enabled"
+}
 check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
     "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
 }
@@ -7086,6 +7111,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
     inputs.property("wbyS3DieselGenerators", wbyS3DieselGenerators)
     inputs.property("wbyS3CreateBigCannons", wbyS3CreateBigCannons)
+    inputs.file(wbyS4PinFile)
+    inputs.property("wbyS4OrdinaryLife", wbyS4OrdinaryLife)
+    inputs.property("wbyS4Shaders", wbyS4Shaders)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7230,7 +7258,32 @@ tasks.register("wbyS1ResolvePinnedMods") {
         if (wbyS3CreateBigCannons) println("WBY S3 CREATE BIG CANNONS OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
+        val s4GameplayMods = listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+        s4GameplayMods.forEach { mod ->
+            val expected = wbyS4Token(mod)
+            if (wbyS4OrdinaryLife) {
+                check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                    "WBY S4 missing $mod on client/server: $expected"
+                }
+            } else {
+                check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                    "WBY S1-S3 profile unexpectedly resolved S4 $mod: $expected"
+                }
+            }
+        }
+        val s4ShaderMods = listOf("iris", "irisSimpleCloudsCompat")
+        s4ShaderMods.forEach { mod ->
+            val expected = wbyS4Token(mod)
+            if (wbyS4Shaders) {
+                check(client.any { it.contains(expected) }) { "WBY S4 shader client missing $mod: $expected" }
+            } else {
+                check(client.none { it.contains(expected) }) { "WBY S4 shader client unexpectedly resolved $mod: $expected" }
+            }
+            check(server.none { it.contains(expected) }) { "WBY S4 leaked client-only shader mod $mod to server: $expected" }
+        }
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
+        if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
+        if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         println("  atmosphere=accepted A4MC core plus Aeronautics compatibility; no second authority")
         println("  particleRain=deferred pending A4MC wind adapter")
         println("  flyHigher=deferred pending pressure-authority compatibility proof")
@@ -7278,7 +7331,12 @@ wbyS1StageClientMods.configure {
         (if (wbyS3CreateBigCannons) listOf(
             token(waveC1Pin("rpl", "coordinate")),
             token(waveC1Pin("createbigcannons", "coordinate")),
-        ) else emptyList())
+        ) else emptyList()) +
+        (if (wbyS4OrdinaryLife) {
+            listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+                .map { wbyS4Token(it) }
+        } else emptyList()) +
+        (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8148,6 +8206,20 @@ dependencies {
         listOf("rpl", "createbigcannons").forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        }
+    }
+
+    // S4 ordinary-life content is cumulative client/server content. The optional shader layer
+    // remains client-only and is absent from every dedicated-server run.
+    if (wbyS4OrdinaryLife) {
+        listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS4Shaders) {
+        listOf("iris", "irisSimpleCloudsCompat").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
         }
     }
 
