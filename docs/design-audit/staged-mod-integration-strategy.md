@@ -83,7 +83,7 @@ The repository has already done substantial useful work. Do not throw it away.
 - **WBY-INT-0001 / #1341 — PASS:** Create + Sable + Create Aeronautics flight substrate.
 - **WBY-INT-0002 / #1342 — PASS:** Sodium + Distant Horizons + SSRD long-range visibility baseline.
 - **WBY-INT-0003 / #1351 — PASS:** conservative optimizer layering.
-- **WBY-INT-0004 / #1411 — historical PASS:** Reliable Gliders + A4MC compatibility proof. This proves compatibility, but does **not** itself settle current D-03 baseline selection.
+- **WBY-INT-0004 / #1411 and #1412 — accepted:** Reliable Gliders + A4MC compatibility, exact resolution/staging, distant-Sable visibility, shared-lift behavior, and client/server separation. Reuse this evidence in S1; the remaining D-03 gate is current-stack gameplay/role review and coexistence with Ornithopter.
 - **WBY-INT-0005 / #1418 — PASS:** CC:Tweaked + Create: Avionics cumulative compatibility.
 - **WBY-INT-0006 / #1422 — still open:** Diesel Generators must be re-proven in the current canonical cumulative profile; the obsolete failed composition should not be repaired blindly.
 
@@ -155,10 +155,10 @@ These integrate Minecraft-facing recipes, tags, loot, and pack delivery. They do
 ### Candidate layers
 - Aerodynamics4MC — D-01
 - Particle Rain
-- Better Clouds — D-02 comparison profile
-- Simple Clouds remains reserve/reference
-- Hang Glider vs Create: Ornithopter Glider — D-03
-- Reliable Gliders remains the accepted compatibility fallback/reference
+- Simple Clouds — selected D-02 renderer foundation; owner confirmed visibility with Distant Horizons
+- Reliable Gliders — early-game personal soaring candidate, reusing accepted WBY-INT-0004 evidence
+- Create: Ornithopter Glider — retained later-game Elytra-gated mobility
+- Hang Glider — rejected by owner and excluded
 - No More Elytra Boosting
 - Create: FlyHigher
 - ThinAir: ReLived as a separate breathability overlay
@@ -172,7 +172,7 @@ These integrate Minecraft-facing recipes, tags, loot, and pack delivery. They do
 - ThinAir does not turn the ordinary inhabited Overworld into oxygen micromanagement.
 
 ### Exit
-Close D-01/D-03 where evidence permits. D-02 may remain a human visual A/B until the later combined render-stack gate.
+Close D-01/D-03 where evidence permits. D-02's selected-renderer/Distant Horizons visual gate is accepted; Simple Clouds semantic weather mapping remains technical work. D-03 closes after the integrated Reliable Gliders + Ornithopter owner play review.
 
 # S2 — computing, control, and routine logistics
 
