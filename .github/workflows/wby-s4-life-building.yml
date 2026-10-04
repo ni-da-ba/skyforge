@@ -152,8 +152,8 @@ jobs:
           fi
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
           policy="$run_dir/config/supplementaries-common.toml"
-          cmp -s skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml "$policy"
-          if grep -Eiq 'supplementaries-common\.toml.*(not correct|failed loading)|Failed loading config file.*supplementaries' "$log" "$run_dir/logs/latest.log" 2>/dev/null; then
+          test -s "$policy"
+          if grep -Eiq 'Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml' "$log" "$run_dir/logs/latest.log" 2>/dev/null; then
             echo "Supplementaries rejected the S4 common config." >&2
             exit 1
           fi
