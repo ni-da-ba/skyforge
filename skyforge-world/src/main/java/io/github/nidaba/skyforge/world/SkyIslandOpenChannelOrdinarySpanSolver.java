@@ -173,7 +173,6 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             upstreamStageResidualMeters =
                     Objects.requireNonNull(upstreamStageResidualMeters, "upstreamStageResidualMeters");
             if (solvedSamples.isEmpty()
-                    || measurements == null
                     || !Double.isFinite(upstreamStageToleranceMeters)
                     || upstreamStageToleranceMeters <= 0.0) {
                 throw new IllegalArgumentException("ordinary-span hydraulic outcome is invalid");
