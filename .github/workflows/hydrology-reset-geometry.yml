@@ -322,7 +322,7 @@ jobs:
         run: |
           summary=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-sweep.csv
           if [ -f "$summary" ]; then
-            head -n 10 "$summary"
+            awk -F, 'NR == 1 { print "control,heldOut,parameterSet,qualified,rejected,hydraulicFailure,upstreamStageMismatch,deferred,invalidGeometry,maxEnergyResidualMeters,maxUpstreamStageResidualMeters"; next } { print $1 "," $2 "," $6 "," $12 "," $13 "," $14 "," $15 "," $16 "," $17 "," $18 "," $19 }' "$summary"
             echo "Calibration sweep total rows: $(($(wc -l < "$summary") - 1))"
           else
             echo "Game-scale calibration sweep summary was not produced."
