@@ -42,7 +42,7 @@ These are the remaining decisions that can actually change the dependency roster
 | --- | --- | --- | --- |
 | D-01 | Authoritative atmosphere backend | **Aerodynamics4MC PREFERRED** | Pinned-stack authority/performance proof is acceptable. |
 | D-02 | Cloud renderer / enhanced visual profile | **RESOLVED: Simple Clouds selected as the renderer foundation; Better Clouds is RESERVE** | Owner confirmed Simple Clouds rendering with Distant Horizons in the pinned S1 profile (2026-10-03). Semantic Skyforge weather/climate mapping remains technical integration work. |
-| D-03 | Early-game glider | **Reliable Gliders PREFERRED for the early-game role; Create: Ornithopter Glider KEEP as a later-game Elytra-gated tool; Hang Glider REJECTED by owner** | Current-stack owner review of Reliable Gliders early availability, handling, sustained net descent, and coexistence with the Ornithopter. Historical Reliable Gliders/A4MC compatibility evidence is reused. |
+| D-03 | Early-game glider | **RESOLVED: PROMOTE Reliable Gliders for the early-game role; KEEP Create: Ornithopter Glider as a later-game Elytra-gated tool; REJECT Hang Glider** | Owner accepted Reliable Gliders as good for the early-game role after the integrated S1 review (2026-10-03). Reuse WBY-INT-0004 compatibility evidence. Any later recipe/balance/quest tuning is separate. |
 | D-04 | Heavy ground running gear | **Aeronautics: No Horizon vs Tracks+ A/B** | Runtime handling, Sable integration, performance, distribution fit. |
 | D-05 | General foundry depth | **Create: Metallurgy keep/remove A/B** | It must materially improve industrial play enough to justify machinery + normalization work. |
 | D-06 | Automated aircraft logistics | **Create:Aero Automated Logistics A/B** | Pinned-stack route/persistence/cargo/contention proof; no geography teleportation. |
@@ -70,9 +70,9 @@ These are the remaining decisions that can actually change the dependency roster
 | Create Aeronautics | **KEEP** | Core aircraft/Levitite vehicle layer. | Pin/version compatibility. |
 | Distant Horizons | **KEEP** | Long-range world presentation essential to Skyforge scale. | Whether it is a hard Alpha dependency remains HS-05/HS-10. |
 | Separate Sable distant-contraption renderer/equivalent | **CONDITIONAL** | Distant moving-vehicle visibility if DH does not solve it. | Add only after concrete visibility gap. |
-| Reliable Gliders | **PREFERRED** | Selected early-game personal-soaring candidate; existing WBY-INT-0004 compatibility evidence is reused. | Owner review of early availability, handling, sustained net descent, and coexistence in the current S1 profile. |
+| Reliable Gliders | **PROMOTE** | Owner-approved early-game personal soaring role; existing WBY-INT-0004 compatibility evidence is reused. | No open selection gate. Recipe/balance/quest tuning remains separate. |
 | Hang Glider | **REJECT** | Rejected by the owner; excluded from the active S1 roster. | No further test unless the owner reopens the choice. |
-| Create: Ornithopter Glider | **KEEP** | Owner-selected later-game mobility tool; requires an Elytra to use. | Confirm distinct late-game role and coexistence with Reliable Gliders in the integrated S1 human gate; balance/availability tuning remains a separate owner decision. |
+| Create: Ornithopter Glider | **KEEP** | Owner-selected later-game mobility tool; requires an Elytra to use. | No open selection gate. Balance/availability tuning remains a separate owner decision. |
 | No More Elytra Boosting | **KEEP** | Removes safe firework propulsion while preserving normal fireworks/fall-flying. | Accepted pinned runtime; only human clarity remains. |
 | Disable Elytra Outside The End | **RESERVE** | Alternative boost-control dependency. | Use only if selected solution fails distribution/runtime needs. |
 | Elytra Tuning | **RESERVE** | Non-binary boost tuning fallback. | Only if full suppression feels wrong. |
