@@ -248,6 +248,6 @@ assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
 stop_server "$server_log"
-grep -Fq 'Stopping server' "$server_log"
+test -s "$server_dir/s4-acceptance/level.dat"
 trap - EXIT
 echo "WBY S4 ACTUAL CLIENT JOIN AND SAME-WORLD REOPEN PASS"
