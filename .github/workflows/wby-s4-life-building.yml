@@ -302,7 +302,9 @@ jobs:
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
-        run: bash scripts/wby-s4-runtime-acceptance.sh
+        run: |
+          export WBY_S4_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s4-production-server"
+          bash scripts/wby-s4-runtime-acceptance.sh
 
       - name: Upload S4 integration evidence
         if: always()
