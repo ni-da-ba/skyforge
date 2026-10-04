@@ -129,33 +129,26 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 continue;
             }
             try {
-                List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
-                        calibration.crossSections(descriptor, span.samples());
-                SkyIslandGraduallyVariedFlowSolver.Result result =
-                        solve(descriptor, span, sections, calibration, terminalFates);
+                SkyIslandOpenChannelOrdinarySpanSolver.Outcome solved =
+                        SkyIslandOpenChannelOrdinarySpanSolver.solve(
+                                descriptor,
+                                span,
+                                terrain,
+                                policy,
+                                planningSpacing,
+                                calibration,
+                                terminalFates);
                 maxEnergyResidual = Math.max(
-                        maxEnergyResidual, result.maximumEnergyResidualMeters());
-
-                List<SkyIslandHydraulicGeometrySample> solved =
-                        reconstruct(span, result, descriptor, calibration);
-                List<SkyIslandLocalPosition> points = span.samples().stream()
-                        .map(SkyIslandHydraulicGeometrySkeletonSample::position)
-                        .toList();
-                SkyIslandGeomorphicMeasurements measurements =
-                        SkyIslandGeomorphicReachDiagnosticsPlanner.measureGeometry(
-                                descriptor, points, solved, span.sampleProfileKinds(),
-                                terrain, planningSpacing);
-                SkyIslandGeomorphicProfileLimits limits = policy.limits(span.qualificationClass());
-                if (!SkyIslandGeomorphicQualificationEvaluator.violations(measurements, limits).isEmpty()) {
+                        maxEnergyResidual,
+                        solved.hydraulicProfile().maximumEnergyResidualMeters());
+                if (solved.upstreamStageResidualMeters().isPresent()) {
+                    maxUpstreamResidual = Math.max(
+                            maxUpstreamResidual,
+                            solved.upstreamStageResidualMeters().orElseThrow());
+                }
+                if (!solved.geomorphicallyQualified()) {
                     rejected++;
-                    continue;
-                }
-                double residual = upstreamStageResidual(span, result, calibration);
-                if (Double.isFinite(residual)) {
-                    maxUpstreamResidual = Math.max(maxUpstreamResidual, residual);
-                }
-                if (Double.isFinite(residual) && residual > Math.max(
-                        1.0e-5, 100.0 * calibration.relativeTolerance())) {
+                } else if (!solved.upstreamStageCompatible()) {
                     upstreamStageMismatch++;
                 } else {
                     qualified++;
@@ -167,68 +160,15 @@ public final class HydrologyGameScaleCalibrationSweepCli {
             }
         }
         return new Assessment(
-                plan.outcomes().size(), qualified, rejected, hydraulicFailure,
-                upstreamStageMismatch, deferred, invalidGeometry,
-                maxEnergyResidual, maxUpstreamResidual);
-    }
-
-    private static SkyIslandGraduallyVariedFlowSolver.Result solve(
-            SkyIslandDescriptor descriptor,
-            SkyIslandOrdinaryHydraulicSpan span,
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
-            SkyIslandGameScaleHydraulicCalibration calibration,
-            Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates) {
-        if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
-            double stage = span.downstreamBoundary().fixedHeadWorldUnits().orElseThrow()
-                    * calibration.metersPerWorldUnit();
-            double depth = stage - sections.getLast().bedElevationMeters();
-            return SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
-                    sections, depth, calibration.solverParameters());
-        }
-        if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FREE
-                && terminalFates.get(span.parentReachEndCellIndex())
-                        == SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
-            return calibration.solveFreeOutfall(descriptor, span.samples());
-        }
-        throw new IllegalArgumentException("downstream boundary has no authorized hydraulic control");
-    }
-
-    private static List<SkyIslandHydraulicGeometrySample> reconstruct(
-            SkyIslandOrdinaryHydraulicSpan span,
-            SkyIslandGraduallyVariedFlowSolver.Result result,
-            SkyIslandDescriptor descriptor,
-            SkyIslandGameScaleHydraulicCalibration calibration) {
-        double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
-        List<SkyIslandHydraulicGeometrySample> samples = new java.util.ArrayList<>(span.samples().size());
-        for (int i = 0; i < span.samples().size(); i++) {
-            SkyIslandHydraulicGeometrySkeletonSample source = span.samples().get(i);
-            var profile = result.points().get(i);
-            double waterSurfacePotential = profile.waterSurfaceElevationMeters() / reliefMeters;
-            double bedPotential = source.terrainElevation() - source.waterDepthPotential();
-            if (!Double.isFinite(waterSurfacePotential)
-                    || waterSurfacePotential < 0.0 || waterSurfacePotential > 1.0
-                    || bedPotential < 0.0 || bedPotential >= waterSurfacePotential) {
-                throw new IllegalArgumentException("standard-step profile escaped authored vertical domain");
-            }
-            samples.add(new SkyIslandHydraulicGeometrySample(
-                    source.position(), source.stationFraction(), source.relativeDischarge(),
-                    source.bankfullHalfWidth(), source.waterDepthPotential(), source.terrainElevation(),
-                    waterSurfacePotential, bedPotential,
-                    Math.max(0.0, source.terrainElevation() - bedPotential)));
-        }
-        return List.copyOf(samples);
-    }
-
-    private static double upstreamStageResidual(
-            SkyIslandOrdinaryHydraulicSpan span,
-            SkyIslandGraduallyVariedFlowSolver.Result result,
-            SkyIslandGameScaleHydraulicCalibration calibration) {
-        if (span.upstreamBoundary().status() != SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
-            return Double.NaN;
-        }
-        double requested = span.upstreamBoundary().fixedHeadWorldUnits().orElseThrow()
-                * calibration.metersPerWorldUnit();
-        return Math.abs(requested - result.points().getFirst().waterSurfaceElevationMeters());
+                plan.outcomes().size(),
+                qualified,
+                rejected,
+                hydraulicFailure,
+                upstreamStageMismatch,
+                deferred,
+                invalidGeometry,
+                maxEnergyResidual,
+                maxUpstreamResidual);
     }
 
     private static Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates(
