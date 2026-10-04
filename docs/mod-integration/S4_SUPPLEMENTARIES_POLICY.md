@@ -2,7 +2,7 @@
 
 S4 retains Supplementaries blocks, items, and recipes while suppressing its autonomous world-generation additions in candidate worlds. This avoids adding third-party structures and ecology on top of Skyforge-authored world composition.
 
-The default config fixture is `skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml`. The S4 staging task copies it to the run profile's `defaultconfigs/`; NeoForge applies these defaults when a new world is created. Existing worlds retain their own `serverconfig/supplementaries-common.toml`, so do not use an old world as evidence that the policy was applied.
+The default config fixture is `skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml`. The S4 staging task copies it to the isolated run profile's `config/supplementaries-common.toml`. This is Supplementaries' common config, so it applies to the candidate profile on both client and server and is independent of a world's seed or `serverconfig/` contents.
 
 Disabled settings:
 
@@ -13,7 +13,7 @@ Disabled settings:
 - `functional.plunderer.galleon.enabled`: suppresses galleon structures.
 - `redstone.pulley_block.mineshaft_elevator`: sets the new mineshaft elevator piece chance to zero.
 
-This is an S4 development profile policy, not a global production config. Confirm the options against the pinned Supplementaries 3.8.9 NeoForge config during CI and manual review. If the file format or settings are rejected, fix the policy before proceeding. A fresh S4 world should contain no Supplementaries-generated road signs, galleons, cave urns, wild flax, basalt ash patches, or Supplementaries mineshaft elevators.
+This is an S4 development profile policy, not a global production config. Confirm the options against the pinned Supplementaries 3.8.9 NeoForge config during CI and manual review. If the file format or settings are rejected, fix the policy before proceeding. An S4 world should contain no Supplementaries-generated road signs, galleons, cave urns, wild flax, basalt ash patches, or Supplementaries mineshaft elevators.
 
 Upstream references:
 
