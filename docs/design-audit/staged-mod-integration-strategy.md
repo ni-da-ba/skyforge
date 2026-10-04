@@ -156,7 +156,7 @@ These integrate Minecraft-facing recipes, tags, loot, and pack delivery. They do
 - Aerodynamics4MC — D-01
 - Particle Rain
 - Simple Clouds — selected D-02 renderer foundation; owner confirmed visibility with Distant Horizons
-- Reliable Gliders — early-game personal soaring candidate, reusing accepted WBY-INT-0004 evidence
+- Reliable Gliders — PROMOTE for early-game personal soaring, owner accepted after integrated S1 review (2026-10-03); reuse WBY-INT-0004 evidence
 - Create: Ornithopter Glider — retained later-game Elytra-gated mobility
 - Hang Glider — rejected by owner and excluded
 - No More Elytra Boosting
@@ -172,7 +172,7 @@ These integrate Minecraft-facing recipes, tags, loot, and pack delivery. They do
 - ThinAir does not turn the ordinary inhabited Overworld into oxygen micromanagement.
 
 ### Exit
-Close D-01/D-03 where evidence permits. D-02's selected-renderer/Distant Horizons visual gate is accepted; Simple Clouds semantic weather mapping remains technical work. D-03 closes after the integrated Reliable Gliders + Ornithopter owner play review.
+D-01 remains preferred pending its pinned-stack authority/performance proof. D-02's selected-renderer/Distant Horizons visual gate is accepted; Simple Clouds semantic weather mapping remains technical work. D-03 is resolved: Reliable Gliders is promoted for early personal soaring, Ornithopter remains later-game and Elytra-gated, and Hang Glider is rejected. Recipe/balance/quest tuning remains separate.
 
 # S2 — computing, control, and routine logistics
 
