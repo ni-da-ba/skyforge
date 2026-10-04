@@ -153,12 +153,29 @@ jobs:
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
           policy="$run_dir/config/supplementaries-common.toml"
           test -s "$policy"
-          config_warning='Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml'
-          if grep -Eiq "$config_warning" "$run_dir/logs/latest.log" 2>/dev/null; then
-            grep -Ein "$config_warning" "$run_dir/logs/latest.log" >&2 || true
-            echo "Supplementaries rejected the S4 common config." >&2
-            exit 1
-          fi
+          for expected in \
+            "building.way_sign.road_signs enabled false" \
+            "building.ash basalt_ash false" \
+            "functional.urn cave_urns false" \
+            "functional.flax wild_flax false" \
+            "functional.plunderer galleon false" \
+            "redstone.pulley_block mineshaft_elevator 0.0"; do
+            read -r section key value <<< "$expected"
+            awk -v target="[$section]" -v wanted_key="$key" -v wanted_value="$value" '
+              /^\[/ { section = $0 }
+              section == target && $0 ~ "^[[:space:]]*" wanted_key "[[:space:]]*=" {
+                line = $0
+                sub(/^[^=]*=[[:space:]]*/, "", line)
+                gsub(/[[:space:]"]/, "", line)
+                if (line == wanted_value) found = 1
+              }
+              END { exit !found }
+            ' "$policy" || {
+              echo "Supplementaries did not retain expected override: [$section] $key=$value" >&2
+              exit 1
+            }
+          done
+          echo "WBY S4 Supplementaries overrides persisted after config correction."
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
