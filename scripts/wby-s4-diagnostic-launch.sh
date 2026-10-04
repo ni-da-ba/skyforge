@@ -187,22 +187,73 @@ else
   echo "Diagnostics bundle: $bundle"
 fi
 
-set +e
-JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
-./gradlew "$task" \
-  -PwbyS1Glider=combined \
-  -PwbyS1Clouds=simple-clouds \
-  -PwbyS1ThinAir=false \
-  -PwbyS1RunDirectory="$run_directory" \
-  -PwbyS2ComputingAvionics=true \
-  -PwbyS3DieselGenerators=true \
-  -PwbyS3CreateBigCannons=true \
-  -PwbyS4OrdinaryLife=true \
-  -PwbyS4Shaders="$shader_enabled" \
-  -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
-  --no-configuration-cache 2>&1 | tee "$log"
-status=${PIPESTATUS[0]}
-set -e
+status=0
+if [[ "$mode" == "shaders" ]]; then
+  python_bin="$(command -v python3 || command -v python || true)"
+  if [[ -z "$python_bin" ]]; then
+    echo "Install Python 3.10 or newer, then rerun this command." >&2
+    exit 2
+  fi
+  launcher_venv="$PWD/.skyforge-diagnostics/wby-s4-launcher-venv"
+  if [[ -x "$launcher_venv/Scripts/python.exe" ]]; then
+    launcher_python="$launcher_venv/Scripts/python.exe"
+  else
+    launcher_python="$launcher_venv/bin/python"
+  fi
+  if [[ ! -x "$launcher_python" ]]; then
+    "$python_bin" -m venv "$launcher_venv"
+    if [[ -x "$launcher_venv/Scripts/python.exe" ]]; then
+      launcher_python="$launcher_venv/Scripts/python.exe"
+    else
+      launcher_python="$launcher_venv/bin/python"
+    fi
+  fi
+  if ! "$launcher_python" -c 'import minecraft_launcher_lib' >/dev/null 2>&1; then
+    "$launcher_python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+  fi
+
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
+    ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+      -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1ThinAir=false \
+      -PwbyS1RunDirectory="$run_directory" -PwbyS2ComputingAvionics=true \
+      -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+      -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true \
+      -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" --no-configuration-cache \
+      2>&1 | tee "$bundle/profile-resolution.log"
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
+    ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+      -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1ThinAir=false \
+      -PwbyS1RunDirectory="$run_directory" -PwbyS2ComputingAvionics=true \
+      -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+      -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true \
+      -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" --no-configuration-cache \
+      2>&1 | tee "$bundle/profile-stage.log"
+
+  set +e
+  "$launcher_python" scripts/wby-s4-launch-production-client.py \
+    --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s4-production-client" \
+    --game-directory "$PWD/$run_dir" \
+    --username WbyS4Review 2>&1 | tee "$log"
+  status=${PIPESTATUS[0]}
+  set -e
+else
+  set +e
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
+    ./gradlew "$task" \
+      -PwbyS1Glider=combined \
+      -PwbyS1Clouds=simple-clouds \
+      -PwbyS1ThinAir=false \
+      -PwbyS1RunDirectory="$run_directory" \
+      -PwbyS2ComputingAvionics=true \
+      -PwbyS3DieselGenerators=true \
+      -PwbyS3CreateBigCannons=true \
+      -PwbyS4OrdinaryLife=true \
+      -PwbyS4Shaders="$shader_enabled" \
+      -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
+      --no-configuration-cache 2>&1 | tee "$log"
+  status=${PIPESTATUS[0]}
+  set -e
+fi
 
 run_path="skyforge-neoforge-1211/$run_directory"
 if [[ "$status" -eq 0 ]]; then
