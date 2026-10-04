@@ -46,10 +46,9 @@ final class SkyforgeWaveC25PetroleumAuthorityAcceptance {
     private static void onServerStarted(ServerStartedEvent event, Mode mode) {
         requireLoaded("create");
         requireLoaded("createdieselgenerators");
-        if (ModList.get().isLoaded("kubejs")) {
-            fail("isolated C25 runtime unexpectedly loaded KubeJS and could bypass native chunk-oil config");
-        }
-
+        // KubeJS is already part of the selected S0.5 pack-integration shell. Its presence
+        // is not itself a petroleum authority; this acceptance proves the retained mod's native
+        // chunk-oil config and representative queries directly, with no petroleum adapter selected.
         requireBlock("createdieselgenerators", "pumpjack_hole");
         requireBlock("createdieselgenerators", "distillation_tank");
         requireBlock("createdieselgenerators", "diesel_engine");
@@ -96,7 +95,7 @@ final class SkyforgeWaveC25PetroleumAuthorityAcceptance {
                         + " pumpjackHole=true"
                         + " distillationTank=true"
                         + " dieselEngine=true"
-                        + " kubejs=false"
+                        + " kubejs=" + ModList.get().isLoaded("kubejs")
                         + " productionAdapterSelected=false");
     }
 
