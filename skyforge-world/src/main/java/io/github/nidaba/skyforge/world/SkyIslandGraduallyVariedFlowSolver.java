@@ -236,6 +236,32 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             List<CrossSection> sections,
             double upstreamDepthMeters,
             Parameters parameters) {
+        return solveSupercriticalDownstreamInternal(
+                sections, upstreamDepthMeters, parameters, false);
+    }
+
+    /**
+     * Solves the downstream supercritical branch from an explicitly authorized internal critical
+     * control. The caller is responsible for locating and validating the paired upstream branch.
+     */
+    public static Result solveSupercriticalDownstreamFromCriticalControl(
+            List<CrossSection> sections, Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 2) {
+            throw new IllegalArgumentException("GVF reach requires at least two cross sections");
+        }
+        double criticalDepth = criticalDepth(reach.getFirst(), parameters);
+        return solveSupercriticalDownstreamInternal(
+                reach, criticalDepth, parameters, true);
+    }
+
+    private static Result solveSupercriticalDownstreamInternal(
+            List<CrossSection> sections,
+            double upstreamDepthMeters,
+            Parameters parameters,
+            boolean allowCriticalStart) {
         Objects.requireNonNull(sections, "sections");
         Objects.requireNonNull(parameters, "parameters");
         if (sections.size() < 2) {
@@ -252,9 +278,15 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             }
         }
         double upstreamCritical = criticalDepth(reach.getFirst(), parameters);
-        if (!(upstreamDepthMeters < upstreamCritical
-                * (1.0 - 10.0 * parameters.relativeTolerance()))) {
-            throw new IllegalArgumentException("upstream boundary is not strictly supercritical");
+        boolean strictlySupercritical = upstreamDepthMeters < upstreamCritical
+                * (1.0 - 10.0 * parameters.relativeTolerance());
+        boolean controlledCritical = allowCriticalStart
+                && Math.abs(upstreamDepthMeters - upstreamCritical)
+                        <= 10.0 * parameters.relativeTolerance()
+                                * Math.max(1.0, upstreamCritical);
+        if (!strictlySupercritical && !controlledCritical) {
+            throw new IllegalArgumentException(
+                    "upstream boundary must be supercritical or an explicit critical control");
         }
 
         double[] depths = new double[reach.size()];
