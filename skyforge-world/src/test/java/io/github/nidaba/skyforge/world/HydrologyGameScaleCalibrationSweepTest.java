@@ -30,6 +30,7 @@ class HydrologyGameScaleCalibrationSweepTest {
         assertTrue(diagnosticsA.contains("accepted-77|false|77|"));
         assertTrue(diagnosticsA.contains("rejected-287|false|287|"));
         assertTrue(diagnosticsA.contains("heldout-700|true|700|"));
+        assertTrue(diagnosticsA.contains("bedSlopeDownstreamRange="));
         assertTrue(Files.readString(first.resolve("README.txt")).contains(
                 "Key 700 is not used to choose parameters."));
     }
