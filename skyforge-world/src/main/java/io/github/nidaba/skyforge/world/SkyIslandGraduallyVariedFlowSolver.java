@@ -132,7 +132,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             double lowerResidual = energyResidual(
                     upstream, downstream, depths[i + 1], lower, spacing,
                     downstreamEnergy, downstreamFriction, parameters);
-            if (lowerResidual > energyTolerance(downstreamEnergy, parameters)) {
+            if (lowerResidual > energyTolerance(upstream, lower, downstream, depths[i + 1], parameters)) {
                 throw new IllegalStateException(
                         "no subcritical standard-step solution before critical depth at section " + i);
             }
@@ -161,7 +161,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                 double residual = energyResidual(
                         upstream, downstream, depths[i + 1], middle, spacing,
                         downstreamEnergy, downstreamFriction, parameters);
-                if (Math.abs(residual) <= energyTolerance(downstreamEnergy, parameters)
+                if (Math.abs(residual) <= energyTolerance(upstream, middle, downstream, depths[i + 1], parameters)
                         || upper - lower <= parameters.relativeTolerance() * Math.max(1.0, middle)) {
                     root = middle;
                     break;
@@ -286,7 +286,26 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                 * Math.hypot(1.0, section.sideSlopeHorizontalToVertical());
     }
 
-    private static double energyTolerance(double energy, Parameters parameters) {
-        return parameters.relativeTolerance() * Math.max(1.0, Math.abs(energy));
+    private static double energyTolerance(
+            CrossSection upstream,
+            double upstreamDepth,
+            CrossSection downstream,
+            double downstreamDepth,
+            Parameters parameters) {
+        double upstreamSpecificEnergy = upstreamDepth
+                + parameters.energyCoefficient()
+                        * Math.pow(upstream.dischargeCubicMetersPerSecond()
+                                        / area(upstream, upstreamDepth),
+                                2.0)
+                        / (2.0 * parameters.gravityMetersPerSecondSquared());
+        double downstreamSpecificEnergy = downstreamDepth
+                + parameters.energyCoefficient()
+                        * Math.pow(downstream.dischargeCubicMetersPerSecond()
+                                        / area(downstream, downstreamDepth),
+                                2.0)
+                        / (2.0 * parameters.gravityMetersPerSecondSquared());
+        // Tolerance is based on local hydraulic head, not absolute elevation datum.
+        return parameters.relativeTolerance()
+                * Math.max(1.0, Math.max(upstreamSpecificEnergy, downstreamSpecificEnergy));
     }
 }
