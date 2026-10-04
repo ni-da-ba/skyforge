@@ -102,6 +102,17 @@ status=${PIPESTATUS[0]}
 set -e
 
 run_path="skyforge-neoforge-1211/$run_directory"
+if [[ "$status" -eq 0 ]]; then
+  policy="$run_path/config/supplementaries-common.toml"
+  if [[ ! -f "$policy" ]] || ! cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$policy"; then
+    echo "S4 Supplementaries policy was not staged into the run profile: $policy" >&2
+    status=1
+  fi
+  if grep -Eiq 'supplementaries-common\.toml.*(not correct|failed loading)|Failed loading config file.*supplementaries' "$log" "$run_path/logs/latest.log" 2>/dev/null; then
+    echo "Supplementaries rejected the staged S4 config; inspect the diagnostics bundle." >&2
+    status=1
+  fi
+fi
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
 test ! -d "$run_path/config" || cp -R "$run_path/config" "$bundle/config"
