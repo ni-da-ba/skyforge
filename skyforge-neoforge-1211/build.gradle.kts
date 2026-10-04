@@ -419,9 +419,9 @@ fun wbyS4Pin(mod: String, field: String): String =
     }
 check(wbyS4Pin("minecraft", "version") == "1.21.1")
 check(wbyS4Pin("neoforge", "version") == "21.1.249")
-check(wbyS4Pin("profile.base") == "wby-s3-industry")
-check(wbyS4Pin("irisSimpleCloudsCompat.releaseStatus") == "beta")
-check(wbyS4Pin("atmosphericShaders.distribution") == "manual-client-install; custom-license; do-not-bundle")
+check(requireNotNull(wbyS4Pins.getProperty("profile.base")) == "wby-s3-industry")
+check(wbyS4Pin("irisSimpleCloudsCompat", "releaseStatus") == "beta")
+check(wbyS4Pin("atmosphericShaders", "distribution") == "manual-client-install; custom-license; do-not-bundle")
 
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
