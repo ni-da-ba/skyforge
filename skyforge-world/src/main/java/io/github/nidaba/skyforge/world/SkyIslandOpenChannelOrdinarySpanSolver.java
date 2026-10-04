@@ -10,9 +10,9 @@ import java.util.Optional;
 /**
  * Solves and independently geomorphically qualifies one finite ordinary open-channel span.
  *
- * <p>The hydraulic profile is computed first from the declared downstream control and explicit
- * game-scale calibration. D2 is applied only to the resulting geometry; it never supplies a
- * pointwise water-surface interval to this solve. Confluence, CASCADE, basin, and unauthorized
+ * <p>The hydraulic profile is computed first from the declared boundary controls and explicit
+ * game-scale calibration, with marching direction selected from the controlled regime. D2 is
+ * applied only to the resulting geometry; it never supplies a pointwise water-surface interval. Confluence, CASCADE, basin, and unauthorized
  * terminal controls remain outside this ordinary-span solver and fail closed.
  */
 public final class SkyIslandOpenChannelOrdinarySpanSolver {
