@@ -78,7 +78,7 @@ assert_supplementaries_policy() {
       expected["building.ash.basalt_ash"] = "false"
       expected["functional.urn.cave_urns"] = "false"
       expected["functional.flax.wild_flax"] = "false"
-      expected["functional.plunderer.galleon"] = "false"
+      expected["functional.cannon.plunderer.galleon"] = "false"
       expected["redstone.pulley_block.mineshaft_elevator"] = "0.0"
     }
     /^[[:space:]]*#/ { next }

@@ -15,7 +15,7 @@ cave_urns = false
 [functional.flax]
 wild_flax = false
 
-[functional.plunderer]
+[functional.cannon.plunderer]
 galleon = false
 
 [redstone.pulley_block]

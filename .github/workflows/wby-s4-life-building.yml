@@ -180,7 +180,7 @@ jobs:
               (("building", "ash", "basalt_ash"), False),
               (("functional", "urn", "cave_urns"), False),
               (("functional", "flax", "wild_flax"), False),
-              (("functional", "plunderer", "galleon"), False),
+              (("functional", "cannon", "plunderer", "galleon"), False),
               (("redstone", "pulley_block", "mineshaft_elevator"), 0.0),
           )
           failed = False

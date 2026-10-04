@@ -10,7 +10,7 @@ Disabled settings:
 - `building.ash.basalt_ash`: suppresses the worldgen basalt ash feature.
 - `functional.urn.cave_urns`: suppresses cave urn generation.
 - `functional.flax.wild_flax`: suppresses wild flax generation.
-- `functional.plunderer.galleon`: disables galleon structures.
+- `functional.cannon.plunderer.galleon`: disables galleon structures.
 - `redstone.pulley_block.mineshaft_elevator`: sets the new mineshaft elevator piece chance to zero.
 
 This is an S4 development profile policy, not a global production config. Confirm the options against the pinned Supplementaries 3.8.9 NeoForge config during CI and manual review. If the file format or settings are rejected, fix the policy before proceeding. An S4 world should contain no Supplementaries-generated road signs, galleons, cave urns, wild flax, basalt ash patches, or Supplementaries mineshaft elevators.
