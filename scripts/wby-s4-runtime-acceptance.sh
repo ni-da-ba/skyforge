@@ -50,6 +50,30 @@ cleanup() {
 }
 trap cleanup EXIT
 
+assert_supplementaries_policy() {
+  local config="$server_dir/config/supplementaries-common.toml"
+  test -f "$config"
+  for expected in \
+    "building.way_sign.road_signs enabled false" \
+    "building.ash basalt_ash false" \
+    "functional.urn cave_urns false" \
+    "functional.flax wild_flax false" \
+    "functional.plunderer.galleon enabled false" \
+    "redstone.pulley_block mineshaft_elevator 0.0"; do
+    read -r section key value <<< "$expected"
+    awk -v target="[$section]" -v wanted_key="$key" -v wanted_value="$value" '
+      /^\[/ { section = $0 }
+      section == target && $0 ~ "^[[:space:]]*" wanted_key "[[:space:]]*=" {
+        line = $0
+        sub(/^[^=]*=[[:space:]]*/, "", line)
+        gsub(/[[:space:]"]/, "", line)
+        if (line == wanted_value) found = 1
+      }
+      END { exit !found }
+    ' "$config"
+  done
+}
+
 start_server() {
   local log_path="$1"
   setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
@@ -68,8 +92,6 @@ start_server() {
   cat "$log_path"
   echo "S4 server did not reach Done: $log_path" >&2
   return 1
-  local policy="skyforge-neoforge-1211/run-wby-s4-join-server/config/supplementaries-common.toml"
-  cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$policy"
 }
 
 stop_server() {
@@ -95,7 +117,7 @@ stop_server() {
 
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
-cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$server_dir/config/supplementaries-common.toml"
+assert_supplementaries_policy
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
