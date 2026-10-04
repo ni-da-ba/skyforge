@@ -9818,3 +9818,45 @@ tasks.register("launchF4KHydrologyReview") {
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
 }
+
+
+// Stage only mods visible to the cumulative dedicated-server runtime. The ordinary S4
+// acceptance run uses NeoForge's installed server launcher so Gradle's optional integration
+// GameTest discovery cannot load classes for absent optional food mods.
+tasks.register<Sync>("wbyS1StageServerMods") {
+    group = "verification"
+    description = "Stage the exact cumulative server mod jars for the installed S4 runtime acceptance server."
+    from(wbyS1ServerRuntime.runtimeClasspath) {
+        include { details ->
+            val file = details.file
+            if (!file.isFile || file.extension != "jar") {
+                false
+            } else {
+                val name = file.name.lowercase()
+                val isLoaderArtifact = name.startsWith("neoforge-") || name.startsWith("minecraft-")
+                !isLoaderArtifact && ZipFile(file).use { archive ->
+                    archive.getEntry("META-INF/neoforge.mods.toml") != null ||
+                        archive.getEntry("META-INF/mods.toml") != null
+                }
+            }
+        }
+    }
+    into(layout.projectDirectory.dir("$wbyS1RunDirectory/server-mods"))
+    doFirst { destinationDir.deleteRecursively() }
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        check(staged.isNotEmpty()) { "WBY S1 server staging produced no NeoForge mod jars." }
+        listOf("distanthorizons", "iris", "oculus-for-simpleclouds", "simpleclouds", "betterclouds")
+            .forEach { forbidden ->
+                check(staged.none { it.contains(forbidden, ignoreCase = true) }) {
+                    "WBY S1 server staging leaked client-only $forbidden: $staged"
+                }
+            }
+        println("WBY S1 SERVER MOD STAGING PASS")
+        staged.forEach { println("  serverMod=$it") }
+    }
+}

@@ -261,6 +261,45 @@ jobs:
           PY
           echo "WBY S4 Hearth and Harvest KubeJS worldgen policies are staged and valid."
 
+
+      - name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S4_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
+
+      - name: Install production NeoForge server and stage the exact S4 server profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="$GITHUB_WORKSPACE/s4-production-server"
+          export JAVA_HOME="$WBY_S4_GRADLE_JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods \
+            -PwbyS1RunDirectory=run-wby-s4-server \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true --no-configuration-cache
+          mkdir -p "$server_dir"
+          curl --fail --location --retry 3 \
+            https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar \
+            --output "$server_dir/neoforge-installer.jar"
+          (cd "$server_dir" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
+          mkdir -p "$server_dir/mods" "$server_dir/config"
+          cp skyforge-neoforge-1211/run-wby-s4-server/server-mods/*.jar "$server_dir/mods/"
+          cp skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml "$server_dir/config/"
+          cp skyforge-neoforge-1211/run-wby-s4-server/config/hearthandharvest-common.toml "$server_dir/config/"
+          mkdir -p "$server_dir/kubejs/data"
+          cp -R skyforge-neoforge-1211/run-wby-s4-server/kubejs/data/. "$server_dir/kubejs/data/"
+          printf 'eula=true\\n' > "$server_dir/eula.txt"
+          echo "WBY S4 production NeoForge server profile staged."
+
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
         run: bash scripts/wby-s4-runtime-acceptance.sh
@@ -277,6 +316,10 @@ jobs:
             wby-s4-joined-*.log
             wby-s4-server-reopen.log
             wby-s4-join-*.log
+            s4-production-server/logs/latest.log
+            s4-production-server/mods/*.jar
+            s4-production-server/config/*.toml
+            s4-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml

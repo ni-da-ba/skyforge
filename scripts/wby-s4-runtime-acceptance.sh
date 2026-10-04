@@ -1,5 +1,8 @@
 set -euo pipefail
-server_dir="skyforge-neoforge-1211/run-wby-s4-join-server"
+: "${WBY_S4_PRODUCTION_SERVER_DIR:?Set WBY_S4_PRODUCTION_SERVER_DIR to the installed NeoForge server directory}"
+server_dir="$WBY_S4_PRODUCTION_SERVER_DIR"
+server_java="${JAVA_HOME:+$JAVA_HOME/bin/java}"
+[[ -n "$server_java" ]] || server_java="$(command -v java)"
 client_dir="skyforge-neoforge-1211/run-wby-s4-join-client"
 mkdir -p "$server_dir" "$client_dir"
 printf 'eula=true\n' > "$server_dir/eula.txt"
@@ -142,13 +145,7 @@ assert_hearthandharvest_policy() {
 
 start_server() {
   local log_path="$1"
-  setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-    -PwbyS1RunDirectory=run-wby-s4-join-server \
-    -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
-    -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
-    -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true \
-    -PwbyS3CreateBigCannons=true -PwbyS4OrdinaryLife=true \
-    --no-configuration-cache >"$log_path" 2>&1 &
+  setsid bash -c 'cd "$1"; exec "$2" @user_jvm_args.txt @libraries/net/neoforged/neoforge/21.1.249/unix_args.txt nogui' _ "$server_dir" "$server_java" >"$log_path" 2>&1 &
   server_pid=$!
   for _ in $(seq 1 180); do
     if grep -Fq 'Done (' "$log_path" 2>/dev/null; then return 0; fi
@@ -162,21 +159,12 @@ start_server() {
 
 stop_server() {
   local log_path="$1"
-  local server_jvms
-  server_jvms="$(ps -eo pid=,comm=,args= | awk '$2 ~ /^java/ && /net.neoforged.devlaunch.Main/ && /wbyS1DiagnosticServerRunVmArgs.txt/ {print $1}')"
-  test -n "$server_jvms"
-  while IFS= read -r java_pid; do [[ -n "$java_pid" ]] && kill -TERM "$java_pid"; done <<< "$server_jvms"
-  local stopped=false
+  kill -TERM -- "-$server_pid" 2>/dev/null || true
   for _ in $(seq 1 90); do
-    if grep -Fq 'Stopping server' "$log_path" 2>/dev/null; then stopped=true; break; fi
+    if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
     sleep 1
   done
-  if [[ "$stopped" != true ]]; then cat "$log_path"; return 1; fi
-  for _ in $(seq 1 60); do
-    if ! kill -0 -- "-$server_pid" 2>/dev/null; then break; fi
-    sleep 1
-  done
-  if kill -0 -- "-$server_pid" 2>/dev/null; then cat "$log_path"; return 1; fi
+  if kill -0 "$server_pid" 2>/dev/null; then cat "$log_path"; return 1; fi
   wait "$server_pid" 2>/dev/null || true
   server_pid=""
 }
@@ -200,6 +188,10 @@ assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
+if [[ -n "${WBY_S4_GRADLE_JAVA_HOME:-}" ]]; then
+  export JAVA_HOME="$WBY_S4_GRADLE_JAVA_HOME"
+  export PATH="$JAVA_HOME/bin:$PATH"
+fi
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
   xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
     -PwbyS1RunDirectory=run-wby-s4-join-client \
