@@ -16,6 +16,8 @@ on:
       - "skyforge-neoforge-1211/wby-s0-5-policy/**"
       - "scripts/wby-s4-diagnostic-launch.sh"
       - "scripts/wby-s4-runtime-acceptance.sh"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
 
 permissions:
@@ -299,6 +301,23 @@ jobs:
           cp -R skyforge-neoforge-1211/run-wby-s4-server/kubejs/data/. "$server_dir/kubejs/data/"
           printf 'eula=true\\n' > "$server_dir/eula.txt"
           echo "WBY S4 production NeoForge server profile staged."
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s4-join-client \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false --no-configuration-cache
+          echo "WBY S4 production client profile staged without the opt-in shader overlay."
+
+      - name: Prepare pinned production client launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          launcher_venv="$RUNNER_TEMP/wby-s4-launcher-venv"
+          python3 -m venv "$launcher_venv"
+          "$launcher_venv/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+          echo "WBY_S4_LAUNCHER_PYTHON=$launcher_venv/bin/python" >> "$GITHUB_ENV"
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
