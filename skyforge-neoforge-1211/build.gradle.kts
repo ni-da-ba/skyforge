@@ -2589,8 +2589,8 @@ neoForge {
             sourceSet.set(wbyS1ClientRuntime)
             gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
             programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25565", "--username", "WbyS1Acceptance")
-            // This is a join smoke test, not a GameTest run. A non-existent namespace prevents
-            // NeoForge from reflecting third-party GameTests with absent optional dependencies.
+            // NeoForge reflects GameTest holder classes before applying this namespace filter.
+            // Optional references can still fail class loading, so S4 acceptance uses a production client.
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge_s4_join_acceptance")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(wbyS1StageClientMods)
