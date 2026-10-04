@@ -15,12 +15,12 @@ case "$mode" in
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticServer"
     ;;
   *)
-    echo "usage: $0 [client|server] [none|hang-glider|ornithopter] [none|better-clouds|simple-clouds] [true|false] [with-dh|without-dh]" >&2
+    echo "usage: $0 [client|server] [none|reliable-gliders|ornithopter|combined] [none|better-clouds|simple-clouds] [true|false] [with-dh|without-dh]" >&2
     exit 2
     ;;
 esac
 
-case "$glider" in none|hang-glider|ornithopter) ;; *) echo "invalid glider profile: $glider" >&2; exit 2 ;; esac
+case "$glider" in none|reliable-gliders|ornithopter|combined) ;; *) echo "invalid glider profile: $glider" >&2; exit 2 ;; esac
 case "$clouds" in none|better-clouds|simple-clouds) ;; *) echo "invalid cloud profile: $clouds" >&2; exit 2 ;; esac
 case "$thinair" in true|false) ;; *) echo "ThinAir must be true or false" >&2; exit 2 ;; esac
 case "$distant_horizons" in with-dh|without-dh) ;; *) echo "Distant Horizons selector must be with-dh or without-dh" >&2; exit 2 ;; esac
@@ -32,7 +32,9 @@ without_dh=false
 [[ "$distant_horizons" != "without-dh" ]] || without_dh=true
 
 run_directory_name="run-wby-s1"
-if [[ "$clouds" == "simple-clouds" ]]; then
+if [[ "$glider" == "combined" && "$clouds" == "simple-clouds" ]]; then
+  run_directory_name="run-wby-s1-integrated"
+elif [[ "$clouds" == "simple-clouds" ]]; then
   run_directory_name="run-wby-s1-simple-clouds"
 fi
 run_dir="skyforge-neoforge-1211/$run_directory_name"
@@ -71,10 +73,13 @@ echo "Launching WBY S1 $mode profile."
 echo "glider=$glider clouds=$clouds thinAir=$thinair distantHorizons=$distant_horizons"
 if [[ "$clouds" == "simple-clouds" ]]; then
   echo "Simple Clouds uses an isolated profile directory: $run_dir"
-  echo "Create a fresh world on the first run and reuse it for the paired Distant Horizons run."
-  echo "For a repeatable cloud layout, set one fixed non-zero Simple Clouds cloud seed and keep it unchanged."
+  echo "Create a fresh Skyforge preset world on the first run; this profile has its own isolated world directory."
+  echo "Keep Minecraft's Clouds video setting enabled and Distant Horizons enabled for the selected profile."
 else
   echo "The client opens to the title screen. Create or open a fresh world for the human review."
+fi
+if [[ "$glider" == "combined" ]]; then
+  echo "Reliable Gliders and Create: Ornithopter Glider are staged together to review distinct early/late roles and coexistence."
 fi
 if [[ "$without_dh" == true ]]; then
   echo "Distant Horizons is excluded from this client classpath and staged-mod list."

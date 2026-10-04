@@ -68,89 +68,25 @@ jobs:
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-baseline.log
           grep -Fq 'glider=none clouds=none thinAir=false' wby-s1-baseline.log
 
-      - name: Resolve Hang Glider comparison closure
+      - name: Resolve and stage the selected integrated S1 profile
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=hang-glider --no-configuration-cache | tee wby-s1-hang-glider.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-hang-glider.log
-          grep -Fq 'glider=hang-glider clouds=none thinAir=false' wby-s1-hang-glider.log
-
-      - name: Resolve Ornithopter Glider comparison closure
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter --no-configuration-cache | tee wby-s1-ornithopter.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-ornithopter.log
-          grep -Fq 'glider=ornithopter clouds=none thinAir=false' wby-s1-ornithopter.log
-
-      - name: Resolve Better Clouds comparison closure
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds --no-configuration-cache | tee wby-s1-better-clouds.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds.log
-
-      - name: Resolve Simple Clouds without Distant Horizons
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache | tee wby-s1-simple-clouds-without-dh.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-simple-clouds-without-dh.log
-          grep -Fq 'glider=ornithopter clouds=simple-clouds thinAir=false' wby-s1-simple-clouds-without-dh.log
-          grep -Fq 'distantHorizons=without-dh' wby-s1-simple-clouds-without-dh.log
-
-      - name: Resolve Simple Clouds with Distant Horizons
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds --no-configuration-cache | tee wby-s1-simple-clouds-with-dh.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-simple-clouds-with-dh.log
-          grep -Fq 'glider=ornithopter clouds=simple-clouds thinAir=false' wby-s1-simple-clouds-with-dh.log
-          grep -Fq 'distantHorizons=with-dh' wby-s1-simple-clouds-with-dh.log
-
-      - name: Stage Simple Clouds without Distant Horizons
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache
-          staged="skyforge-neoforge-1211/run-wby-s1/mods"
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds --no-configuration-cache | tee wby-s1-integrated.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-integrated.log
+          grep -Fq 'glider=combined clouds=simple-clouds thinAir=false' wby-s1-integrated.log
+          grep -Fq 'distantHorizons=with-dh' wby-s1-integrated.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1RunDirectory=run-wby-s1-integrated --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s1-integrated/mods"
+          test -f "$staged/pVIWsXir-HFLhMfNC.jar"
+          test -f "$staged/A30Sq5Gt-rbDbxAY3.jar"
           test -f "$staged/LtZfKhel-qpinHX2C.jar"
-          if find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
-            echo "Distant Horizons leaked into the Simple Clouds isolation profile"
+          if find "$staged" -maxdepth 1 -type f \( -name '*uHWrqYcS-nLff2PaZ*' -o -name '*QAGBst4M-uxVsdkST*' \) | grep -q .; then
+            echo "Rejected Hang Glider or its PuzzlesLib dependency leaked into the integrated S1 profile"
             exit 1
           fi
-
-      - name: Stage Simple Clouds with Distant Horizons
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=ornithopter -PwbyS1Clouds=simple-clouds --no-configuration-cache
-          staged="skyforge-neoforge-1211/run-wby-s1/mods"
-          test -f "$staged/LtZfKhel-qpinHX2C.jar"
           if ! find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
-            echo "Distant Horizons is missing from the Simple Clouds comparison profile"
-            exit 1
-          fi
-
-      - name: Resolve Better Clouds with Distant Horizons excluded
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache | tee wby-s1-better-clouds-without-dh.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s1-better-clouds-without-dh.log
-          grep -Fq 'distantHorizons=without-dh' wby-s1-better-clouds-without-dh.log
-
-      - name: Stage Better Clouds without Distant Horizons
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Clouds=better-clouds -PwbyS1WithoutDistantHorizons=true --no-configuration-cache
-          staged="skyforge-neoforge-1211/run-wby-s1/mods"
-          test -f "$staged/5srFLIaK-rj65x08X.jar"
-          test -f "$staged/1eAoo2KR-ACDNgCDA.jar"
-          if find "$staged" -maxdepth 1 -type f -name '*uCdwusMi-Ez3cx7Yd*' | grep -q .; then
-            echo "Distant Horizons leaked into the isolated cloud profile"
+            echo "Distant Horizons is missing from the selected integrated S1 profile"
             exit 1
           fi
 
@@ -179,8 +115,8 @@ jobs:
           name: wby-s1-atmosphere-mobility-resolution
           path: |
             wby-s1-*.log
-            skyforge-neoforge-1211/run-wby-s1/mods/*.jar
-            skyforge-neoforge-1211/run-wby-s1/config/**
+            skyforge-neoforge-1211/run-wby-s1-integrated/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s1-integrated/config/**
             a4mc-0.2.2/*.jar
           if-no-files-found: warn
 
@@ -250,7 +186,7 @@ jobs:
           client_dir="skyforge-neoforge-1211/run-wby-s1-client"
           server_log="wby-s1-server.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           client_pid=""
           cleanup() {
@@ -309,7 +245,7 @@ jobs:
           client_log="wby-s1-client.log"
           setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
-              -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
+              -PwbyS1RunDirectory=run-wby-s1-client -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
           client_args_file="skyforge-neoforge-1211/build/moddev/wbyS1ClientJoinAcceptanceRunProgramArgs.txt"
           for attempt in $(seq 1 120); do
@@ -455,7 +391,7 @@ jobs:
           set -euo pipefail
           server_log="wby-s1-server-reload.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s1-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           ready=false
           for attempt in $(seq 1 150); do

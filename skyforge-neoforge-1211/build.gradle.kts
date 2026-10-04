@@ -494,8 +494,8 @@ fun wbyS1A4mcToken(kind: String): String =
     }
 fun wbyS1TokenFromCoordinate(coordinate: String): String =
     coordinate.split(":").let { parts -> check(parts.size == 3); parts[1] + "-" + parts[2] }
-check(wbyS1Glider in setOf("none", "hang-glider", "ornithopter")) {
-    "unsupported WBY S1 glider '$wbyS1Glider'; choose none, hang-glider, or ornithopter"
+check(wbyS1Glider in setOf("none", "reliable-gliders", "ornithopter", "combined")) {
+    "unsupported WBY S1 glider '$wbyS1Glider'; choose none, reliable-gliders, ornithopter, or combined"
 }
 check(wbyS1Clouds in setOf("none", "better-clouds", "simple-clouds")) {
     "unsupported WBY S1 clouds '$wbyS1Clouds'; choose none, better-clouds, or simple-clouds"
@@ -7099,24 +7099,30 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
 
         when (wbyS1Glider) {
-            "hang-glider" -> {
-                requireToken(client, "hangglider", "client")
-                requireToken(server, "hangglider", "server")
-                requireToken(client, "puzzleslib", "client")
-                requireToken(server, "puzzleslib", "server")
-                forbidToken(client, "ornithopterglider", "Hang Glider profile")
-                forbidToken(server, "ornithopterglider", "Hang Glider profile")
+            "reliable-gliders" -> {
+                requireToken(client, "reliablegliders", "client")
+                requireToken(server, "reliablegliders", "server")
+                forbidToken(client, "ornithopterglider", "Reliable Gliders profile")
+                forbidToken(server, "ornithopterglider", "Reliable Gliders profile")
             }
             "ornithopter" -> {
                 requireToken(client, "ornithopterglider", "client")
                 requireToken(server, "ornithopterglider", "server")
-                forbidToken(client, "hangglider", "Ornithopter profile")
-                forbidToken(server, "hangglider", "Ornithopter profile")
-                forbidToken(client, "puzzleslib", "Ornithopter profile")
-                forbidToken(server, "puzzleslib", "Ornithopter profile")
+                forbidToken(client, "reliablegliders", "Ornithopter profile")
+                forbidToken(server, "reliablegliders", "Ornithopter profile")
+            }
+            "combined" -> {
+                requireToken(client, "reliablegliders", "client")
+                requireToken(server, "reliablegliders", "server")
+                requireToken(client, "ornithopterglider", "client")
+                requireToken(server, "ornithopterglider", "server")
+                listOf("hangglider", "puzzleslib").forEach { mod ->
+                    forbidToken(client, mod, "combined glider profile")
+                    forbidToken(server, mod, "combined glider profile")
+                }
             }
             else -> {
-                listOf("hangglider", "ornithopterglider", "puzzleslib").forEach { mod ->
+                listOf("hangglider", "puzzleslib", "reliablegliders", "ornithopterglider").forEach { mod ->
                     forbidToken(client, mod, "baseline")
                     forbidToken(server, mod, "baseline")
                 }
@@ -7183,8 +7189,9 @@ wbyS1StageClientMods.configure {
             token(waveC2Pin("noelytraboost", "coordinate")),
         ) +
         when (wbyS1Glider) {
-            "hang-glider" -> listOf(wbyS1Token("hangglider"), wbyS1Token("puzzleslib"))
+            "reliable-gliders" -> listOf(wbyS1Token("reliablegliders"))
             "ornithopter" -> listOf(wbyS1Token("ornithopterglider"))
+            "combined" -> listOf(wbyS1Token("reliablegliders"), wbyS1Token("ornithopterglider"))
             else -> emptyList()
         } +
         (when (wbyS1Clouds) {
@@ -7962,15 +7969,19 @@ dependencies {
     add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
     add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC2Pin("noelytraboost", "coordinate"))
     when (wbyS1Glider) {
-        "hang-glider" -> {
-            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("hangglider", "coordinate"))
-            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("hangglider", "coordinate"))
-            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("puzzleslib", "coordinate"))
-            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("puzzleslib", "coordinate"))
+        "reliable-gliders" -> {
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("reliablegliders", "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("reliablegliders", "coordinate"))
         }
         "ornithopter" -> {
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("ornithopterglider", "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("ornithopterglider", "coordinate"))
+        }
+        "combined" -> {
+            listOf("reliablegliders", "ornithopterglider").forEach { mod ->
+                add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin(mod, "coordinate"))
+                add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin(mod, "coordinate"))
+            }
         }
     }
     when (wbyS1Clouds) {
