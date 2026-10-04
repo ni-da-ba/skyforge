@@ -53,25 +53,48 @@ trap cleanup EXIT
 assert_supplementaries_policy() {
   local config="$server_dir/config/supplementaries-common.toml"
   test -f "$config"
-  for expected in \
-    "building.way_sign.road_signs enabled false" \
-    "building.ash basalt_ash false" \
-    "functional.urn cave_urns false" \
-    "functional.flax wild_flax false" \
-    "functional.plunderer galleon false" \
-    "redstone.pulley_block mineshaft_elevator 0.0"; do
-    read -r section key value <<< "$expected"
-    awk -v target="[$section]" -v wanted_key="$key" -v wanted_value="$value" '
-      /^\[/ { section = $0 }
-      section == target && $0 ~ "^[[:space:]]*" wanted_key "[[:space:]]*=" {
-        line = $0
-        sub(/^[^=]*=[[:space:]]*/, "", line)
-        gsub(/[[:space:]"]/, "", line)
-        if (line == wanted_value) found = 1
+  awk '
+    function trim(value) {
+      sub(/^[[:space:]]+/, "", value)
+      sub(/[[:space:]]+$/, "", value)
+      return value
+    }
+    BEGIN {
+      expected["building.way_sign.road_signs.enabled"] = "false"
+      expected["building.ash.basalt_ash"] = "false"
+      expected["functional.urn.cave_urns"] = "false"
+      expected["functional.flax.wild_flax"] = "false"
+      expected["functional.plunderer.galleon"] = "false"
+      expected["redstone.pulley_block.mineshaft_elevator"] = "0.0"
+    }
+    /^[[:space:]]*#/ { next }
+    /^[[:space:]]*\\[/ {
+      section = $0
+      sub(/^[[:space:]]*\\[/, "", section)
+      sub(/\\][[:space:]]*$/, "", section)
+      gsub(/[[:space:]]/, "", section)
+      next
+    }
+    index($0, "=") {
+      line = $0
+      sub(/[[:space:]]*#.*/, "", line)
+      split_at = index(line, "=")
+      key = trim(substr(line, 1, split_at - 1))
+      value = trim(substr(line, split_at + 1))
+      gsub(/[[:space:]]/, "", key)
+      gsub(/[[:space:]\"\\047]/, "", value)
+      full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
+      if (full_key in expected && value == expected[full_key]) found[full_key] = 1
+    }
+    END {
+      for (key in expected) {
+        if (!found[key]) {
+          print "Supplementaries policy missing or incorrect: " key " (expected " expected[key] ")" > "/dev/stderr"
+          exit 1
+        }
       }
-      END { exit !found }
-    ' "$config"
-  done
+    }
+  ' "$config"
 }
 
 start_server() {
