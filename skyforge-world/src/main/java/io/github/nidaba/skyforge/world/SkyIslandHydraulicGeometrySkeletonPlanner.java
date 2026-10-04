@@ -551,7 +551,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 cumulativeDistance, totalLength, discharge);
     }
 
-    private static SkyIslandHydraulicReachSkeleton sampleReach(
+    static SkyIslandHydraulicReachSkeleton sampleReach(
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticField terrain,
             SkyIslandGeomorphicReachRoute route,
