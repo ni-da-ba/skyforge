@@ -489,8 +489,12 @@ val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowerc
 val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS2ComputingAvionics = providers.gradleProperty("wbyS2ComputingAvionics").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
     "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
+}
+check(!wbyS3CreateBigCannons || (wbyS3DieselGenerators && wbyS2ComputingAvionics)) {
+    "WBY S3 Create Big Cannons requires the cumulative S2 + Diesel candidate profile"
 }
 val wbyS1RunDirectory = providers.gradleProperty("wbyS1RunDirectory").orNull ?: "run-wby-s1"
 val wbyS1A4mcBuiltModDir = providers.gradleProperty("wbyS1A4mcBuiltModDir").orNull?.let { file(it) }
@@ -7078,8 +7082,10 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(waveC9PinFile)
     inputs.file(waveC25PinFile)
     inputs.file(wbyS3PinFile)
+    inputs.file(waveC1PinFile)
     inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
     inputs.property("wbyS3DieselGenerators", wbyS3DieselGenerators)
+    inputs.property("wbyS3CreateBigCannons", wbyS3CreateBigCannons)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7203,9 +7209,25 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "S1/S2 runtime unexpectedly resolved S3 Diesel Generators: $dieselToken"
             }
         }
+        val cbcToken = wbyS1TokenFromCoordinate(waveC1Pin("createbigcannons", "coordinate"))
+        val rplToken = wbyS1TokenFromCoordinate(waveC1Pin("rpl", "coordinate"))
+        if (wbyS3CreateBigCannons) {
+            check(client.any { it.contains(cbcToken) } && server.any { it.contains(cbcToken) }) {
+                "WBY S3 missing Create Big Cannons on client/server: $cbcToken"
+            }
+            check(client.any { it.contains(rplToken) } && server.any { it.contains(rplToken) }) {
+                "WBY S3 missing Ritchie's Projectile Library on client/server: $rplToken"
+            }
+        } else {
+            check(client.none { it.contains(cbcToken) || it.contains(rplToken) } &&
+                server.none { it.contains(cbcToken) || it.contains(rplToken) }) {
+                "S1/S2 or Diesel-only profile unexpectedly resolved CBC/RPL: cbc=$cbcToken rpl=$rplToken"
+            }
+        }
         println("WBY S1 RESOLUTION PASS")
         if (wbyS2ComputingAvionics) println("WBY S2 COMPUTING OVERLAY PASS")
         if (wbyS3DieselGenerators) println("WBY S3 DIESEL GENERATORS OVERLAY PASS")
+        if (wbyS3CreateBigCannons) println("WBY S3 CREATE BIG CANNONS OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
@@ -7252,7 +7274,11 @@ wbyS1StageClientMods.configure {
         (if (wbyS2ComputingAvionics) {
             listOf("cctweaked", "createavionics").map { wbyS1TokenFromCoordinate(waveC9Pin(it, "coordinate")) }
         } else emptyList()) +
-        (if (wbyS3DieselGenerators) listOf(token(waveC25Pin("createdieselgenerators", "coordinate"))) else emptyList())
+        (if (wbyS3DieselGenerators) listOf(token(waveC25Pin("createdieselgenerators", "coordinate"))) else emptyList()) +
+        (if (wbyS3CreateBigCannons) listOf(
+            token(waveC1Pin("rpl", "coordinate")),
+            token(waveC1Pin("createbigcannons", "coordinate")),
+        ) else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8117,6 +8143,12 @@ dependencies {
     if (wbyS3DieselGenerators) {
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
         add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
+    }
+    if (wbyS3CreateBigCannons) {
+        listOf("rpl", "createbigcannons").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        }
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
