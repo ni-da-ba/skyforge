@@ -193,7 +193,15 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                     qualified++;
                     result = "QUALIFIED";
                 }
-                addDiagnostic(diagnostics, control, descriptor, span, calibration, parameters, result, details);
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        descriptor,
+                        span,
+                        calibration,
+                        parameters,
+                        result,
+                        details);
             } catch (IllegalArgumentException invalidSectionOrControl) {
                 invalidGeometry++;
                 addDiagnostic(
