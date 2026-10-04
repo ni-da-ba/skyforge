@@ -171,7 +171,7 @@ test -f "$server_dir/world/level.dat"
 server_log="wby-s4-server-reopen.log"
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
-cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$server_dir/config/supplementaries-common.toml"
+assert_supplementaries_policy
 stop_server "$server_log"
 grep -Fq 'Stopping server' "$server_log"
 trap - EXIT
