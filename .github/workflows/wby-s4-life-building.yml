@@ -6,6 +6,8 @@ on:
       - ".github/workflows/wby-s4-life-building.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s4-life-building.properties"
+      - "skyforge-neoforge-1211/wby-s4-policy/**"
+      - "docs/mod-integration/S4_SUPPLEMENTARIES_POLICY.md"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
       - "skyforge-neoforge-1211/wave-c*.properties"
@@ -149,6 +151,12 @@ jobs:
             exit 1
           fi
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
+          policy="$run_dir/config/supplementaries-common.toml"
+          cmp -s skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml "$policy"
+          if grep -Eiq 'supplementaries-common\.toml.*(not correct|failed loading)|Failed loading config file.*supplementaries' "$log" "$run_dir/logs/latest.log" 2>/dev/null; then
+            echo "Supplementaries rejected the S4 common config." >&2
+            exit 1
+          fi
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
@@ -168,5 +176,6 @@ jobs:
             wby-s4-join-*.log
             skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml
             a4mc-0.2.2/*.jar
           if-no-files-found: warn
