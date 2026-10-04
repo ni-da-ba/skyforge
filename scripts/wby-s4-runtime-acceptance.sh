@@ -177,6 +177,7 @@ test "$joined" = true
 grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
+grep -Fq '(hearthandharvest)' "$server_latest_log"
 test -f "$server_dir/world/level.dat"
 cp "$server_latest_log" wby-s4-joined-server-latest.log
 client_latest_log="$client_dir/logs/latest.log"
