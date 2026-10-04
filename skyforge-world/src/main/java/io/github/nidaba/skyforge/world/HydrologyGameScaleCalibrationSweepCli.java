@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 
 /**
  * Screens explicit game-scale hydraulic parameter hypotheses against fixed ordinary-span controls.
@@ -37,6 +39,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                         + "manningRoughness,sideSlope,spanCount,qualified,rejected,hydraulicFailure,"
                         + "upstreamStageMismatch,deferred,invalidGeometry,maxEnergyResidualMeters,"
                         + "maxUpstreamStageResidualMeters\n");
+        Set<String> diagnostics = new TreeSet<>();
 
         for (Control control : List.of(
                 new Control("accepted-77", 6L, 61L, 77L, false),
@@ -59,8 +62,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                         1.0, dischargeScale, roughness, sideSlope,
                                         1.0, 9.81, 1.0e-8, 160);
                         Assessment assessment = assess(
-                                descriptor, plan, policy, terrain, terminalFates,
-                                planningSpacing, calibration);
+                                control, descriptor, plan, policy, terrain, terminalFates,
+                                planningSpacing, calibration, diagnostics);
                         rows.append(control.name()).append(',')
                                 .append(control.heldOut()).append(',')
                                 .append(control.province()).append(',')
@@ -86,6 +89,13 @@ public final class HydrologyGameScaleCalibrationSweepCli {
         }
 
         Files.writeString(out.resolve("ordinary-span-sweep.csv"), rows, StandardCharsets.UTF_8);
+        StringBuilder diagnosticText = new StringBuilder(
+                "control|heldOut|key|reach|parentStations|parameterSet|outcome|details\n");
+        diagnostics.forEach(value -> diagnosticText.append(value).append('\n'));
+        Files.writeString(
+                out.resolve("ordinary-span-diagnostics.txt"),
+                diagnosticText,
+                StandardCharsets.UTF_8);
         Files.writeString(out.resolve("README.txt"), """
                 Game-scale open-channel calibration sweep v1
 
@@ -101,18 +111,22 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 stages still come from the current transition planners; deferred boundaries remain
                 deferred. This is calibration evidence, not production F3E/F4 admission, and grants
                 no terrain mutation, water placement, Minecraft, or human-review authority.
+                The adjacent ordinary-span-diagnostics.txt reports control, span, parameter-set,
+                deferred-boundary, hydraulic-failure, D2-rejection, and boundary-mismatch details.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("ordinary-span-sweep.csv").toAbsolutePath());
     }
 
     private static Assessment assess(
+            Control control,
             SkyIslandDescriptor descriptor,
             SkyIslandOrdinarySpanPlan plan,
             SkyIslandGeomorphicQualificationPolicy policy,
             SkyIslandSemanticField terrain,
             Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates,
             double planningSpacing,
-            SkyIslandGameScaleHydraulicCalibration calibration) {
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            Set<String> diagnostics) {
         int qualified = 0;
         int rejected = 0;
         int hydraulicFailure = 0;
@@ -121,11 +135,26 @@ public final class HydrologyGameScaleCalibrationSweepCli {
         int invalidGeometry = 0;
         double maxEnergyResidual = 0.0;
         double maxUpstreamResidual = 0.0;
+        String parameters = parameterSet(
+                calibration.dischargeCubicMetersPerSecondPerRelativeUnit(),
+                calibration.manningRoughness(),
+                calibration.sideSlopeHorizontalToVertical());
 
         for (SkyIslandOrdinarySpanOutcome outcome : plan.outcomes()) {
             SkyIslandOrdinaryHydraulicSpan span = outcome.span();
             if (span.boundaryDeferred()) {
                 deferred++;
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        span,
+                        "n/a",
+                        "DEFERRED",
+                        "upstream=" + span.upstreamBoundary().status()
+                                + ",downstream=" + span.downstreamBoundary().status()
+                                + ",reason=" + span.upstreamBoundary().diagnostic()
+                                        .or(() -> span.downstreamBoundary().diagnostic())
+                                        .orElse("transition-owned"));
                 continue;
             }
             try {
@@ -146,17 +175,43 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                             maxUpstreamResidual,
                             solved.upstreamStageResidualMeters().orElseThrow());
                 }
+                String result;
+                String details = "D2violations=" + solved.violations()
+                        + ",upstreamStageResidual="
+                        + solved.upstreamStageResidualMeters().map(String::valueOf).orElse("none")
+                        + ",energyResidual="
+                        + solved.hydraulicProfile().maximumEnergyResidualMeters();
                 if (!solved.geomorphicallyQualified()) {
                     rejected++;
+                    result = "D2_REJECTED";
                 } else if (!solved.upstreamStageCompatible()) {
                     upstreamStageMismatch++;
+                    result = "UPSTREAM_STAGE_MISMATCH";
                 } else {
                     qualified++;
+                    result = "QUALIFIED";
                 }
+                addDiagnostic(diagnostics, control, span, parameters, result, details);
             } catch (IllegalArgumentException invalidSectionOrControl) {
                 invalidGeometry++;
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        span,
+                        parameters,
+                        "INVALID_GEOMETRY_OR_CONTROL",
+                        invalidSectionOrControl.getClass().getSimpleName()
+                                + ":" + invalidSectionOrControl.getMessage());
             } catch (IllegalStateException hydraulicNoSolution) {
                 hydraulicFailure++;
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        span,
+                        parameters,
+                        "HYDRAULIC_FAILURE",
+                        hydraulicNoSolution.getClass().getSimpleName()
+                                + ":" + hydraulicNoSolution.getMessage());
             }
         }
         return new Assessment(
@@ -169,6 +224,27 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 invalidGeometry,
                 maxEnergyResidual,
                 maxUpstreamResidual);
+    }
+
+    private static void addDiagnostic(
+            Set<String> diagnostics,
+            Control control,
+            SkyIslandOrdinaryHydraulicSpan span,
+            String parameters,
+            String result,
+            String details) {
+        String cleanDetails = details.replace('\n', ' ').replace('\r', ' ').replace('|', '/');
+        diagnostics.add(
+                control.name()
+                        + "|" + control.heldOut()
+                        + "|" + control.key()
+                        + "|" + span.parentReachStartCellIndex()
+                        + "->" + span.parentReachEndCellIndex()
+                        + "|" + format(span.parentStartStationFraction())
+                        + ".." + format(span.parentEndStationFraction())
+                        + "|" + parameters
+                        + "|" + result
+                        + "|" + cleanDetails);
     }
 
     private static Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates(
