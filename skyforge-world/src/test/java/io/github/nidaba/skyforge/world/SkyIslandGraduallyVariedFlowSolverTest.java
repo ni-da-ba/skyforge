@@ -160,6 +160,44 @@ class SkyIslandGraduallyVariedFlowSolverTest {
     }
 
     @Test
+    void mixedRegimeSolveMatchesUpstreamStageAcrossAnInternalCriticalControl() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 100.0, 10.0, 3.0),
+                section(10.0, 99.99, 10.0, 3.0),
+                section(20.0, 99.98, 10.0, 3.0),
+                section(30.0, 98.0, 10.0, 3.0),
+                section(40.0, 96.0, 10.0, 3.0));
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> upstreamControl =
+                sections.subList(0, 3);
+        SkyIslandGraduallyVariedFlowSolver.Result knownSubcritical =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        upstreamControl, PARAMETERS);
+        double upstreamDepth = knownSubcritical.points().getFirst().depthMeters();
+
+        assertThrows(IllegalStateException.class,
+                () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        sections, PARAMETERS));
+
+        SkyIslandGameScaleHydraulicCalibration calibration =
+                new SkyIslandGameScaleHydraulicCalibration(
+                        1.0, 1.0, ROUGHNESS, 0.0, 1.0, GRAVITY, 1.0e-9, 160);
+        SkyIslandGraduallyVariedFlowSolver.Result mixed =
+                SkyIslandOpenChannelOrdinarySpanSolver.solveMixedRegimeAtInternalCriticalControl(
+                        sections,
+                        upstreamDepth,
+                        calibration,
+                        new IllegalStateException(
+                                "no subcritical standard-step solution before critical depth at section 3"));
+
+        assertEquals(sections.size(), mixed.points().size());
+        assertEquals(upstreamDepth, mixed.points().getFirst().depthMeters(), 1.0e-5);
+        assertEquals(1.0, mixed.points().get(2).froudeNumber(), 1.0e-7);
+        assertTrue(mixed.points().get(3).froudeNumber() > 1.0);
+        assertTrue(mixed.points().get(4).froudeNumber() > 1.0);
+        assertTrue(mixed.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
     void authorizedCriticalOutfallControlProducesAnUpstreamSubcriticalProfile() {
         double width = 10.0;
         double discharge = 3.0;
