@@ -113,10 +113,14 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         }
 
         assertTrue(best.score().compareTo(baseline.score()) <= 0);
+        assertTrue(
+                best.score().maximumEndpointD2GapWorld()
+                        <= baseline.score().maximumEndpointD2GapWorld() + EPSILON,
+                "bounded refinement must not trade away endpoint D2 feasibility");
         System.out.printf(
                 Locale.ROOT,
                 "F3O_KEY700 boundedModes=%d rejectedModes=%s acceptedMoves=%s baseline=%s best=%s shared=%s "
-                        + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f totalInfeasibilityWorld=%.12f blockers=%s%n",
+                        + "excluded=%d transitionBlockers=%d negativeCycleGapWorld=%.12f maxEndpointD2GapWorld=%.12f totalInfeasibilityWorld=%.12f blockers=%s%n",
                 evaluated,
                 rejectedModes,
                 acceptedMoves,
@@ -126,6 +130,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 terminalComponent(best.assembly()).sharedHeadSolve().excludedSpans().size(),
                 terminalComponent(best.assembly()).sharedHeadSolve().transitionBlockers().size(),
                 best.score().negativeCycleGapWorld(),
+                best.score().maximumEndpointD2GapWorld(),
                 best.score().totalInfeasibilityWorld(),
                 terminalComponent(best.assembly()).blockers());
 
@@ -340,15 +345,24 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
                 .count();
         int blockerCount = component.blockers().size();
         double cycleGap = numberAfter(CYCLE_GAP, String.join(" ", component.blockers()), Double.POSITIVE_INFINITY);
-        double excludedGap = shared.excludedSpans().stream()
+        List<String> excludedSpans = shared.excludedSpans().stream()
                 .map(Object::toString)
+                .toList();
+        double excludedGap = excludedSpans.stream()
                 .mapToDouble(value -> numberAfter(EXCLUDED_GAP, value, 0.0))
                 .sum();
+        double maximumEndpointD2Gap = excludedSpans.stream()
+                .filter(value -> value.startsWith("660->801:0.000000000-")
+                        || value.startsWith("1140->801:0.000000000-"))
+                .mapToDouble(value -> numberAfter(EXCLUDED_GAP, value, 0.0))
+                .max()
+                .orElse(0.0);
         return new CandidateScore(
                 statusRank,
                 rejectedReaches,
                 qpRank,
                 cycleGap,
+                maximumEndpointD2Gap,
                 cycleGap + excludedGap,
                 shared.excludedSpans().size(),
                 shared.transitionBlockers().size(),
@@ -528,6 +542,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             int rejectedReaches,
             int qpRank,
             double negativeCycleGapWorld,
+            double maximumEndpointD2GapWorld,
             double totalInfeasibilityWorld,
             int excludedSpans,
             int transitionBlockers,
@@ -540,6 +555,8 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             result = Integer.compare(rejectedReaches, other.rejectedReaches);
             if (result != 0) return result;
             result = Integer.compare(qpRank, other.qpRank);
+            if (result != 0) return result;
+            result = Double.compare(maximumEndpointD2GapWorld, other.maximumEndpointD2GapWorld);
             if (result != 0) return result;
             result = Double.compare(totalInfeasibilityWorld, other.totalInfeasibilityWorld);
             if (result != 0) return result;
