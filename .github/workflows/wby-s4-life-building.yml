@@ -32,6 +32,9 @@ jobs:
           persist-credentials: false
       - uses: ./.github/actions/setup-java-gradle
 
+      - name: Check the manual launcher shell syntax
+        run: bash -n scripts/wby-s4-diagnostic-launch.sh
+
       - name: Checkout pinned Aerodynamics4MC 0.2.2 source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -93,6 +96,9 @@ jobs:
           find "$staged" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-s4-client-stage.txt
           grep -Fq 'YL57xq9U-KduFYu4t' wby-s4-client-stage.txt
           grep -Fq 'oculus-for-simpleclouds-1386686-9037451' wby-s4-client-stage.txt
+          grep -Fq 'LtZfKhel-qpinHX2C' wby-s4-client-stage.txt
+          grep -Fq 'uCdwusMi-Ez3cx7Yd' wby-s4-client-stage.txt
+          grep -Fq 'AANobbMI-uMOpc5uV' wby-s4-client-stage.txt
 
       - name: Boot cumulative S4 dedicated server in a disposable flat world
         shell: bash
@@ -138,7 +144,6 @@ jobs:
             echo "S4 dedicated server did not reach Done; outcome=$outcome" >&2
             exit 1
           fi
-          grep -Fq 'farmersdelight' "$log" || true
           echo "WBY S4 dedicated server reached Done in a flat disposable world."
 
       - name: Upload S4 integration evidence
