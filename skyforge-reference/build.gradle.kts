@@ -249,6 +249,15 @@ tasks.register<JavaExec>("authorshipFluvialSpecimenSearch") {
 }
 
 
+tasks.register<JavaExec>("hydrologyGameScaleCalibrationSweep") {
+    group = "verification"
+    description = "Screens explicit open-channel parameters on fixed accepted/rejected hydrology controls with key 700 held out."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.world.HydrologyGameScaleCalibrationSweepCli")
+    jvmArgs("-Dskyforge.version=${project.version}")
+    args(layout.buildDirectory.dir("evidence/hydrology-game-scale-calibration-sweep-v1").get().asFile.absolutePath)
+}
+
 tasks.register<JavaExec>("hydrologyNaturalTransitionCensus") {
     group = "verification"
     description = "Screens a fixed hydrology proving-ground grid for naturally supported confluence/CASCADE components."

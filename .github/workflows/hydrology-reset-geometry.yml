@@ -4,6 +4,9 @@ on:
   pull_request:
     paths:
       - ".github/workflows/hydrology-reset-geometry.yml"
+      - "skyforge-reference/build.gradle.kts"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepCli.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
@@ -310,6 +313,21 @@ jobs:
         if: success()
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
 
+      - name: Run game-scale ordinary-span calibration sweep (key 700 held out)
+        if: success()
+        run: ./gradlew :skyforge-reference:hydrologyGameScaleCalibrationSweep --no-configuration-cache
+
+      - name: Print calibration sweep summary
+        if: always()
+        run: |
+          summary=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-sweep.csv
+          if [ -f "$summary" ]; then
+            head -n 10 "$summary"
+            echo "Calibration sweep total rows: $(($(wc -l < "$summary") - 1))"
+          else
+            echo "Game-scale calibration sweep summary was not produced."
+          fi
+
       - name: Print natural-transition census summary
         if: always()
         run: |
@@ -324,6 +342,15 @@ jobs:
             echo "Natural-transition census candidate outcomes:"
             awk -F, 'NR == 1 || $7 == "true" { print }' "$manifest"
           fi
+
+      - name: Upload game-scale calibration sweep evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: hydrology-game-scale-calibration-sweep-${{ github.sha }}
+          path: skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/
+          if-no-files-found: warn
+          retention-days: 14
 
       - name: Upload F4K review preparation evidence
         if: always()
