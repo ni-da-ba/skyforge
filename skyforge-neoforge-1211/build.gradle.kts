@@ -7263,7 +7263,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         if (wbyS3CreateBigCannons) println("WBY S3 CREATE BIG CANNONS OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
-        val s4GameplayMods = listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+        val s4GameplayMods = listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
         s4GameplayMods.forEach { mod ->
             val expected = wbyS4Token(mod)
             if (wbyS4OrdinaryLife) {
@@ -7338,7 +7338,7 @@ wbyS1StageClientMods.configure {
             token(waveC1Pin("createbigcannons", "coordinate")),
         ) else emptyList()) +
         (if (wbyS4OrdinaryLife) {
-            listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+            listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
                 .map { wbyS4Token(it) }
         } else emptyList()) +
         (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList())
@@ -8217,10 +8217,11 @@ dependencies {
         }
     }
 
-    // S4 ordinary-life content is cumulative client/server content. The optional shader layer
-    // remains client-only and is absent from every dedicated-server run.
+    // S4 ordinary-life content is cumulative client/server content. Hearth and Harvest is present
+    // because CCK's optional GameTest class links its Cask block entity during test discovery.
+    // The optional shader layer remains client-only and is absent from every dedicated-server run.
     if (wbyS4OrdinaryLife) {
-        listOf("farmersDelight", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight").forEach { mod ->
+        listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight").forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
         }
