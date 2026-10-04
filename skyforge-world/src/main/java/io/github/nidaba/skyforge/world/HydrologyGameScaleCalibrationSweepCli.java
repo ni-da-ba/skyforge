@@ -147,7 +147,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 addDiagnostic(
                         diagnostics,
                         control,
+                        descriptor,
                         span,
+                        calibration,
                         "n/a",
                         "DEFERRED",
                         "upstream=" + span.upstreamBoundary().status()
@@ -191,13 +193,15 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                     qualified++;
                     result = "QUALIFIED";
                 }
-                addDiagnostic(diagnostics, control, span, parameters, result, details);
+                addDiagnostic(diagnostics, control, descriptor, span, calibration, parameters, result, details);
             } catch (IllegalArgumentException invalidSectionOrControl) {
                 invalidGeometry++;
                 addDiagnostic(
                         diagnostics,
                         control,
+                        descriptor,
                         span,
+                        calibration,
                         parameters,
                         "INVALID_GEOMETRY_OR_CONTROL",
                         invalidSectionOrControl.getClass().getSimpleName()
@@ -207,7 +211,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 addDiagnostic(
                         diagnostics,
                         control,
+                        descriptor,
                         span,
+                        calibration,
                         parameters,
                         "HYDRAULIC_FAILURE",
                         hydraulicNoSolution.getClass().getSimpleName()
@@ -229,7 +235,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
     private static void addDiagnostic(
             Set<String> diagnostics,
             Control control,
+            SkyIslandDescriptor descriptor,
             SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandGameScaleHydraulicCalibration calibration,
             String parameters,
             String result,
             String details) {
@@ -252,7 +260,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                         + span.samples().getFirst().relativeDischarge()
                         + "->"
                         + span.samples().getLast().relativeDischarge();
-        String cleanDetails = (details + ";" + boundaryDetails)
+        String profileDetails = profileContext(descriptor, span, calibration);
+        String cleanDetails = (details + ";" + boundaryDetails + ";" + profileDetails)
                 .replace('\n', ' ')
                 .replace('\r', ' ')
                 .replace('|', '/');
@@ -267,6 +276,36 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                         + "|" + parameters
                         + "|" + result
                         + "|" + cleanDetails);
+    }
+
+    private static String profileContext(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandGameScaleHydraulicCalibration calibration) {
+        try {
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
+                    calibration.crossSections(descriptor, span.samples());
+            double minimumBedSlope = Double.POSITIVE_INFINITY;
+            double maximumBedSlope = Double.NEGATIVE_INFINITY;
+            for (int i = 0; i + 1 < sections.size(); i++) {
+                SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = sections.get(i);
+                SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = sections.get(i + 1);
+                double slope = (upstream.bedElevationMeters() - downstream.bedElevationMeters())
+                        / (downstream.chainageMeters() - upstream.chainageMeters());
+                minimumBedSlope = Math.min(minimumBedSlope, slope);
+                maximumBedSlope = Math.max(maximumBedSlope, slope);
+            }
+            return "bedSlopeDownstreamRange="
+                    + format(minimumBedSlope)
+                    + ".."
+                    + format(maximumBedSlope)
+                    + ",bedElevationEndpointsMeters="
+                    + format(sections.getFirst().bedElevationMeters())
+                    + "->"
+                    + format(sections.getLast().bedElevationMeters());
+        } catch (IllegalArgumentException invalidGeometry) {
+            return "profileGeometry=invalid:" + invalidGeometry.getMessage();
+        }
     }
 
     private static Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates(
