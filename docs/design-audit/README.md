@@ -7,6 +7,13 @@ This directory records the Minecraft-backend content, experience, ecosystem, thr
 
 The purpose is to give other agents a stable cross-reference for decisions that would otherwise live only in conversation history.
 
+## Canonical dependency authority
+
+- [Canonical Mod Ledger](canonical-mod-ledger.md) — current reconciled dependency-selection authority. Use this first for KEEP/PREFERRED/A-B/CONDITIONAL/RESERVE/REJECT status. Older audit documents remain supporting evidence and detailed design history.
+- [Staged Mod Integration Strategy](staged-mod-integration-strategy.md) — executable launch-profile sequence for integrating the roster slice by slice while core Skyforge continues.
+- [Canonical Mod Ledger](canonical-mod-ledger.md)
+- [Working mod and to-build ledger](mod-and-build-ledger.md) — historical/detail ledger — detailed historical audit/integration backlog; no longer the dependency-selection authority.
+
 ## Scope
 
 Skyforge remains the semantic/world-authoring authority. Minecraft, NeoForge, vanilla registries, and selected third-party mods are treated as lower-level realization systems and content libraries.
