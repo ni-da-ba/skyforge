@@ -476,6 +476,10 @@ val wbyS1Glider = providers.gradleProperty("wbyS1Glider").orNull?.trim()?.lowerc
 val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowercase() ?: "none"
 val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS2ComputingAvionics = providers.gradleProperty("wbyS2ComputingAvionics").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
+    "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
+}
 val wbyS1RunDirectory = providers.gradleProperty("wbyS1RunDirectory").orNull ?: "run-wby-s1"
 val wbyS1A4mcBuiltModDir = providers.gradleProperty("wbyS1A4mcBuiltModDir").orNull?.let { file(it) }
 val wbyS1A4mcBuiltArtifacts = wbyS1A4mcBuiltModDir?.let { dir ->
@@ -7060,7 +7064,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(waveC2PinFile)
     inputs.file(waveC3PinFile)
     inputs.file(waveC9PinFile)
+    inputs.file(waveC25PinFile)
     inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
+    inputs.property("wbyS3DieselGenerators", wbyS3DieselGenerators)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7174,8 +7180,19 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 }
             }
         }
+        val dieselToken = wbyS1TokenFromCoordinate(waveC25Pin("createdieselgenerators", "coordinate"))
+        if (wbyS3DieselGenerators) {
+            check(client.any { it.contains(dieselToken) } && server.any { it.contains(dieselToken) }) {
+                "WBY S3 missing retained Diesel Generators on client/server: $dieselToken"
+            }
+        } else {
+            check(client.none { it.contains(dieselToken) } && server.none { it.contains(dieselToken) }) {
+                "S1/S2 runtime unexpectedly resolved S3 Diesel Generators: $dieselToken"
+            }
+        }
         println("WBY S1 RESOLUTION PASS")
         if (wbyS2ComputingAvionics) println("WBY S2 COMPUTING OVERLAY PASS")
+        if (wbyS3DieselGenerators) println("WBY S3 DIESEL GENERATORS OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
@@ -7221,7 +7238,8 @@ wbyS1StageClientMods.configure {
         (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList()) +
         (if (wbyS2ComputingAvionics) {
             listOf("cctweaked", "createavionics").map { wbyS1TokenFromCoordinate(waveC9Pin(it, "coordinate")) }
-        } else emptyList())
+        } else emptyList()) +
+        (if (wbyS3DieselGenerators) listOf(token(waveC25Pin("createdieselgenerators", "coordinate"))) else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -7867,6 +7885,59 @@ tasks.register("waveC13ResolvePinnedMods") {
 }
 
 
+fun writeWbyS3DieselSuppressionConfig(worldDirectory: java.io.File) {
+    val serverConfig = worldDirectory.resolve("serverconfig/createdieselgenerators-server.toml")
+    serverConfig.parentFile.mkdirs()
+    serverConfig.writeText(
+        """
+        ["Server Configs"."Oil Config"]
+        "Disable normal oil chunks" = true
+        "Disable high oil chunks" = true
+        """.trimIndent() + "\n"
+    )
+}
+
+fun writeWbyS3DieselDefaultConfig(runDirectory: java.io.File) {
+    val defaults = runDirectory.resolve("defaultconfigs")
+    defaults.mkdirs()
+    val config = defaults.resolve("createdieselgenerators-server.toml")
+    config.writeText(
+        """
+        ["Server Configs"."Oil Config"]
+        "Disable normal oil chunks" = true
+        "Disable high oil chunks" = true
+        """.trimIndent() + "\n"
+    )
+}
+
+tasks.named("runWbyS1DiagnosticServer").configure {
+    doFirst {
+        if (wbyS3DieselGenerators) {
+            val directory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            val propertiesFile = directory.resolve("server.properties")
+            check(propertiesFile.isFile) {
+                "WBY S3 requires server.properties before dedicated-server launch: $propertiesFile"
+            }
+            val properties = Properties().apply { propertiesFile.inputStream().use(::load) }
+            val levelName = requireNotNull(properties.getProperty("level-name"))
+                .trim()
+                .takeIf { it.isNotEmpty() }
+                ?: error("WBY S3 dedicated server requires a non-empty level-name")
+            writeWbyS3DieselSuppressionConfig(directory.resolve(levelName))
+        }
+    }
+}
+
+tasks.named("runWbyS1DiagnosticClient").configure {
+    doFirst {
+        if (wbyS3DieselGenerators) {
+            // NeoForge copies defaultconfigs into newly created integrated-server worlds.
+            // Existing worlds remain individually governed by their own serverconfig.
+            writeWbyS3DieselDefaultConfig(layout.projectDirectory.dir(wbyS1RunDirectory).asFile)
+        }
+    }
+}
+
 dependencies {
     api(project(":skyforge-world"))
 
@@ -8026,6 +8097,13 @@ dependencies {
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
         }
+    }
+
+    // S3 is the first retained-industry layer on the owner-reviewed cumulative S2 profile.
+    // Diesel machinery is admitted on both sides while its independent native oil geography stays disabled.
+    if (wbyS3DieselGenerators) {
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
+        add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC25Pin("createdieselgenerators", "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
