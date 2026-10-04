@@ -11,7 +11,7 @@ import java.util.Objects;
  * <p>Distances, elevations, widths, and depths are metres; discharge is cubic metres per second;
  * roughness is Manning's SI coefficient in s/m^(1/3). Each section must carry the same discharge.
  * A downstream depth boundary is marched upstream by solving the specific-energy equation with
- * arithmetic-mean friction slope between adjacent sections. Junctions, lateral inflows, hydraulic
+ * average-conveyance friction slope between adjacent sections. Junctions, lateral inflows, hydraulic
  * jumps, and supercritical controls are deliberately outside this solver's domain.
  */
 public final class SkyIslandGraduallyVariedFlowSolver {
@@ -211,9 +211,11 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             Parameters parameters) {
         double upstreamEnergy = specificEnergy(upstream, upstreamDepth, parameters);
         double upstreamFriction = frictionSlope(upstream, upstreamDepth, parameters);
+        double averageFrictionSlope = averageConveyanceFrictionSlope(
+                upstreamFriction, downstreamFriction);
         return upstream.bedElevationMeters() - downstream.bedElevationMeters()
                 + upstreamEnergy - downstreamEnergy
-                - 0.5 * (upstreamFriction + downstreamFriction) * spacing;
+                - averageFrictionSlope * spacing;
     }
 
     private static double specificEnergy(
@@ -232,6 +234,16 @@ public final class SkyIslandGraduallyVariedFlowSolver {
         double scaledDischarge = parameters.manningRoughness()
                 * section.dischargeCubicMetersPerSecond() / conveyanceFactor;
         return scaledDischarge * scaledDischarge;
+    }
+
+    private static double averageConveyanceFrictionSlope(
+            double upstreamFrictionSlope, double downstreamFrictionSlope) {
+        // For constant discharge, the HEC-RAS average-conveyance expression reduces to this
+        // equivalent form. This is the documented default in the reference implementation.
+        double inverseRootMeanConveyance = 0.5
+                * (1.0 / Math.sqrt(upstreamFrictionSlope)
+                        + 1.0 / Math.sqrt(downstreamFrictionSlope));
+        return 1.0 / (inverseRootMeanConveyance * inverseRootMeanConveyance);
     }
 
     private static double criticalDepth(CrossSection section, Parameters parameters) {

@@ -47,7 +47,7 @@ S_0=-rac{dz_b}{dx},quad
 Fr^2=rac{alpha Q^2T}{gA^3}.
 ]
 
-Implementation must use a documented integration scheme and stability/critical-depth handling. A computed normal depth is only a uniform-flow reference state; it is not a backwater, confluence, lake, or cascade solution. The new `SkyIslandManningHydraulics.normalDepthMeters` primitive implements only that reference-state equation and is deliberately not wired into world generation.
+The implementation uses the standard-step energy equation, solving iteratively for upstream subcritical depth from a downstream stage boundary. Reach friction loss uses the average-conveyance method (the HEC-RAS default), with constant discharge and one velocity coefficient. It rejects critical/supercritical controls and variable discharge instead of smoothing them across ordinary reaches. This current solver does not include lateral momentum, contraction/expansion losses, or junction/cascade/basin equations; those require explicit transition solvers. A computed normal depth is only a uniform-flow reference state; it is not a backwater, confluence, lake, or cascade solution. The new `SkyIslandManningHydraulics.normalDepthMeters` primitive implements only that reference-state equation and is deliberately not wired into world generation.
 
 ## Boundary and transition rules
 
@@ -82,6 +82,8 @@ A constrained optimization/QP remains suitable for enforcing mathematical contin
 
 ## References
 
-- Manning's open-channel conveyance and gradually-varied-flow equation: USACE HEC-RAS technical reference, [1D steady-flow water-surface profiles](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/7.0/theoretical-basis-for-one-dimensional-and-two-dimensional-hydrodynamic-calculations/1d-steady-flow-water-surface-profiles).
+- Standard-step energy equation: USACE HEC-RAS technical reference, [equations for basic profile calculations](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/6.0/theoretical-basis-for-one-dimensional-and-two-dimensional-hydrodynamic-calculations/1d-steady-flow-water-surface-profiles/equations-for-basic-profile-calculations).
+- Manning friction slope and average-conveyance reach loss (the HEC-RAS default): USACE HEC-RAS, [friction loss evaluation](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/6.3/theoretical-basis-for-one-dimensional-and-two-dimensional-hydrodynamic-calculations/1d-steady-flow-water-surface-profiles/friction-loss-evaluation).
+- One-dimensional steady-flow assumptions and exclusions: USACE HEC-RAS, [program limitations](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/6.4/theoretical-basis-for-one-dimensional-and-two-dimensional-hydrodynamic-calculations/1d-steady-flow-water-surface-profiles/1d-steady-flow-program-limitations).
 - Junction energy/momentum modeling assumptions: USACE HEC-RAS, [modeling stream junctions](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/6.1/overview-of-optional-capabilities/modeling-stream-junctions).
 - Depression conditioning/flow direction/accumulation foundations: Jenson & Domingue, USGS, [Extracting topographic structure from digital elevation data for geographic information system analysis](https://pubs.usgs.gov/publication/70142175); Barnes et al., [Priority-Flood](https://doi.org/10.1016/j.cageo.2013.04.024); Tarboton, [D-infinity flow directions](https://doi.org/10.1029/96WR03137).
