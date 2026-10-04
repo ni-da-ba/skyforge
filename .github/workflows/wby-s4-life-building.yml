@@ -209,9 +209,6 @@ jobs:
 
           expected = {
               ("generateCornMazes",): False,
-              ("generateLilliputLane",): False,
-              ("nests", "generateNests"): False,
-              ("salt", "generateSaltCaves"): False,
           }
           failed = False
           for parts, wanted in expected.items():
@@ -222,9 +219,46 @@ jobs:
               if value is not wanted:
                   failed = True
           if failed:
-              raise SystemExit("Hearth and Harvest autonomous worldgen was not fully disabled.")
+              raise SystemExit("Hearth and Harvest supported config policy was not applied.")
           PY
-          echo "WBY S4 Hearth and Harvest worldgen policy persisted after config correction."
+          echo "WBY S4 Hearth and Harvest Corn Maze config toggle persisted after config correction."
+          python3 - "$run_dir/kubejs/data" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          expected = {
+              "skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json": {
+                  "type": "neoforge:remove_features",
+                  "biomes": "#minecraft:is_overworld",
+                  "features": "hearthandharvest:nest",
+                  "steps": ["vegetal_decoration"],
+              },
+              "skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json": {
+                  "type": "neoforge:remove_features",
+                  "biomes": "#minecraft:is_overworld",
+                  "features": "hearthandharvest:salt_cave",
+                  "steps": ["underground_decoration"],
+              },
+              "hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json": {
+                  "replace": True,
+                  "values": [],
+              },
+              "hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json": {
+                  "replace": True,
+                  "values": [],
+              },
+          }
+          for relative_path, wanted in expected.items():
+              path = root / relative_path
+              with path.open(encoding="utf-8") as source:
+                  actual = json.load(source)
+              print(f"S4 Hearth and Harvest datapack policy: {relative_path}={actual!r}")
+              if actual != wanted:
+                  raise SystemExit(f"Unexpected S4 Hearth and Harvest datapack policy: {relative_path}")
+          PY
+          echo "WBY S4 Hearth and Harvest KubeJS worldgen policies are staged and valid."
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
@@ -246,5 +280,7 @@ jobs:
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml
             skyforge-neoforge-1211/run-wby-s4-server/config/hearthandharvest-common.toml
+            skyforge-neoforge-1211/run-wby-s4-server/kubejs/data/skyforge/neoforge/biome_modifier/*.json
+            skyforge-neoforge-1211/run-wby-s4-server/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/*.json
             a4mc-0.2.2/*.jar
           if-no-files-found: warn

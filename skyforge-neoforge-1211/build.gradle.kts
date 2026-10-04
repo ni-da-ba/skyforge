@@ -2562,6 +2562,7 @@ neoForge {
                     into("config/almostunified/unification")
                 }
                 if (wbyS4OrdinaryLife) {
+                    from(layout.projectDirectory.dir("wby-s4-policy/kubejs")) { into("kubejs") }
                     from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
                         into("config")
                     }

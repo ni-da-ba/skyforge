@@ -1,12 +1,5 @@
-# S4 Hearth and Harvest Common Config
-# Retain H&H items, blocks, food, and processing while suppressing third-party
-# structures and world-generation features that compete with Skyforge-authored content.
+# S4 Hearth and Harvest 1.3.4 Common Config
+# This pinned release exposes the Corn Maze generation toggle. Other H&H
+# worldgen boundaries are enforced by the staged S4 KubeJS datapack policy.
 
 generateCornMazes = false
-generateLilliputLane = false
-
-[nests]
-generateNests = false
-
-[salt]
-generateSaltCaves = false

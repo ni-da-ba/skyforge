@@ -123,9 +123,6 @@ assert_hearthandharvest_policy() {
     }
     BEGIN {
       expected["generateCornMazes"] = "false"
-      expected["generateLilliputLane"] = "false"
-      expected["nests.generateNests"] = "false"
-      expected["salt.generateSaltCaves"] = "false"
     }
     /^[[:space:]]*#/ { next }
     /^[[:space:]]*\[/ {
@@ -158,12 +155,24 @@ assert_hearthandharvest_policy() {
 }
 
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+assert_hearthandharvest_worldgen_policy() {
+  local data="$1/kubejs/data"
+  local nests="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json"
+  local salt="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
+  local lilliput="$data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
+  local maze="$data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
+  test -s "$nests" && grep -Fq '"features": "hearthandharvest:nest"' "$nests"
+  test -s "$salt" && grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt"
+  test -s "$lilliput" && grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput"
+  test -s "$maze" && grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze"
+}
+
 bundle=".skyforge-diagnostics/wby-s4-$mode-$stamp"
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
 echo "S4 gameplay stack: Farmer's Delight + Hearth and Harvest, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
-echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its Lilliput Lane, Corn Maze, nest, and salt-cave worldgen are disabled by the staged common config."
+echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its supported Corn Maze config toggle is off, while the staged KubeJS policy removes H&H structure eligibility, nests, and salt caves."
 echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generators/CBC."
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
@@ -202,7 +211,11 @@ if [[ "$status" -eq 0 ]]; then
     status=1
   fi
   if ! assert_hearthandharvest_policy "$run_path/config/hearthandharvest-common.toml"; then
-    echo "S4 Hearth and Harvest worldgen policy was not active after the profile loaded." >&2
+    echo "S4 Hearth and Harvest Corn Maze config policy was not active after the profile loaded." >&2
+    status=1
+  fi
+  if ! assert_hearthandharvest_worldgen_policy "$run_path"; then
+    echo "S4 Hearth and Harvest KubeJS worldgen policy was not staged correctly." >&2
     status=1
   fi
 fi

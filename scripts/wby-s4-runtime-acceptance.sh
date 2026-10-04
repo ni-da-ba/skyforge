@@ -109,9 +109,6 @@ assert_hearthandharvest_policy() {
     }
     BEGIN {
       expected["generateCornMazes"] = "false"
-      expected["generateLilliputLane"] = "false"
-      expected["nests.generateNests"] = "false"
-      expected["salt.generateSaltCaves"] = "false"
     }
     /^[[:space:]]*#/ { next }
     /^[[:space:]]*\[/ {
@@ -184,10 +181,23 @@ stop_server() {
   server_pid=""
 }
 
+assert_hearthandharvest_worldgen_policy() {
+  local data="$server_dir/kubejs/data"
+  local nests="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json"
+  local salt="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
+  local lilliput="$data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
+  local maze="$data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
+  test -s "$nests" && grep -Fq '"features": "hearthandharvest:nest"' "$nests"
+  test -s "$salt" && grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt"
+  test -s "$lilliput" && grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput"
+  test -s "$maze" && grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze"
+}
+
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
+assert_hearthandharvest_worldgen_policy
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
@@ -244,6 +254,7 @@ start_server "$server_log"
 test -f "$server_dir/world/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
+assert_hearthandharvest_worldgen_policy
 stop_server "$server_log"
 grep -Fq 'Stopping server' "$server_log"
 trap - EXIT
