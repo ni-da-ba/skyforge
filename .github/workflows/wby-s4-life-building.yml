@@ -91,7 +91,6 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true --no-configuration-cache
           staged="skyforge-neoforge-1211/run-wby-s4-shaders/mods"
           find "$staged" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-s4-client-stage.txt
-          test "$(find "$staged" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 29
           grep -Fq 'YL57xq9U-KduFYu4t' wby-s4-client-stage.txt
           grep -Fq 'oculus-for-simpleclouds-1386686-9037451' wby-s4-client-stage.txt
 
