@@ -2561,6 +2561,11 @@ neoForge {
                 from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
                     into("config/almostunified/unification")
                 }
+                if (wbyS4OrdinaryLife) {
+                    from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
+                        into("defaultconfigs")
+                    }
+                }
                 into(layout.projectDirectory.dir(wbyS1RunDirectory))
             })
         }
@@ -8007,6 +8012,19 @@ fun writeWbyS3DieselDefaultConfig(runDirectory: java.io.File) {
     )
 }
 
+fun writeWbyS4SupplementariesPolicy(runDirectory: java.io.File, worldDirectory: java.io.File? = null) {
+    val policy = layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml").asFile
+    check(policy.isFile) { "WBY S4 Supplementaries policy fixture is missing: $policy" }
+    val defaults = runDirectory.resolve("defaultconfigs")
+    defaults.mkdirs()
+    policy.copyTo(defaults.resolve("supplementaries-common.toml"), overwrite = true)
+    if (worldDirectory != null) {
+        val serverConfig = worldDirectory.resolve("serverconfig/supplementaries-common.toml")
+        serverConfig.parentFile.mkdirs()
+        policy.copyTo(serverConfig, overwrite = true)
+    }
+}
+
 tasks.named("runWbyS1DiagnosticServer").configure {
     doFirst {
         if (wbyS3DieselGenerators) {
@@ -8020,7 +8038,11 @@ tasks.named("runWbyS1DiagnosticServer").configure {
                 .trim()
                 .takeIf { it.isNotEmpty() }
                 ?: "world"
-            writeWbyS3DieselSuppressionConfig(directory.resolve(levelName))
+            val worldDirectory = directory.resolve(levelName)
+            writeWbyS3DieselSuppressionConfig(worldDirectory)
+            if (wbyS4OrdinaryLife) {
+                writeWbyS4SupplementariesPolicy(directory, worldDirectory)
+            }
         }
     }
 }
@@ -8030,7 +8052,11 @@ tasks.named("runWbyS1DiagnosticClient").configure {
         if (wbyS3DieselGenerators) {
             // NeoForge copies defaultconfigs into newly created integrated-server worlds.
             // Existing worlds remain individually governed by their own serverconfig.
-            writeWbyS3DieselDefaultConfig(layout.projectDirectory.dir(wbyS1RunDirectory).asFile)
+            val runDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            writeWbyS3DieselDefaultConfig(runDirectory)
+            if (wbyS4OrdinaryLife) {
+                writeWbyS4SupplementariesPolicy(runDirectory)
+            }
         }
     }
 }
