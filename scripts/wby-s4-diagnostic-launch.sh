@@ -116,7 +116,8 @@ bundle=".skyforge-diagnostics/wby-s4-$mode-$stamp"
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
-echo "S4 gameplay stack: Farmer's Delight, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
+echo "S4 gameplay stack: Farmer's Delight + Hearth and Harvest, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
+echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its Lilliput Lane forest structure is part of this candidate and must be reviewed in a new test world."
 echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generators/CBC."
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
