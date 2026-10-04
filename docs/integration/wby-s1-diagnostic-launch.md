@@ -2,7 +2,7 @@
 
 This is the final S1 manual gate for the selected atmosphere and mobility stack. It stages the accepted S0.5 cumulative profile, Aerodynamics4MC 0.2.2 core + Create Aeronautics compatibility built from its immutable upstream source commit, No More Elytra Boosting, Reliable Gliders, Create: Ornithopter Glider, Simple Clouds, and the existing Distant Horizons client layer.
 
-Simple Clouds with Distant Horizons has already passed the owner's visual check after Minecraft's Clouds setting was enabled. The remaining human review is whether Reliable Gliders works as the early personal-mobility role alongside the retained Elytra-gated Ornithopter. The two gliders serve different progression roles, so this is an integrated coexistence review rather than a head-to-head comparison.
+Simple Clouds with Distant Horizons has already passed the owner's visual check after Minecraft's Clouds setting was enabled; no cloud re-review is needed. The remaining human review is whether Reliable Gliders works as the early personal-mobility role alongside the retained Elytra-gated Ornithopter. The two gliders serve different progression roles, so this is an integrated coexistence review rather than a head-to-head comparison.
 
 ## Launch from Git Bash
 
@@ -29,7 +29,6 @@ Use ordinary survival progression as the reference; do not change recipes, progr
 - **Travel limits:** Try a sustained flat-ground route. Does it descend overall, preserving a clear distinction from powered level flight and late-game vehicles?
 - **Atmosphere fit:** If convenient, compare ordinary-air and A4MC wind/thermal conditions. Record whether the glider remains understandable and responds consistently.
 - **Late role and coexistence:** Confirm the Ornithopter remains Elytra-gated, is still a useful later-game option, and both gliders load/work in the same profile without confusing controls or duplicated progression.
-- **World presentation:** Confirm Simple Clouds remain visible with Distant Horizons in the fresh Skyforge preset world; note any cloud/island readability issue that materially affects flight.
 
 Please send back the world seed, whether Reliable Gliders fits the early role, and any concrete blocker or friction you observed. Recipe, progression, balance, and quest-hook decisions remain separate producer decisions; we will stop for those if the review raises them.
 
