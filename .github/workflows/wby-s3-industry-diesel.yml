@@ -7,6 +7,7 @@ on:
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wave-c2-mods.properties"
       - "skyforge-neoforge-1211/wave-c3-mods.properties"
+      - "skyforge-neoforge-1211/wave-c1-mods.properties"
       - "skyforge-neoforge-1211/wby-s0-5-*.properties"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s2-computing-control.properties"
@@ -77,19 +78,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache | tee wby-s3-integrated.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache | tee wby-s3-integrated.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s3-integrated.log
           grep -Fq 'WBY S2 COMPUTING OVERLAY PASS' wby-s3-integrated.log
           grep -Fq 'WBY S3 DIESEL GENERATORS OVERLAY PASS' wby-s3-integrated.log
+          grep -Fq 'WBY S3 CREATE BIG CANNONS OVERLAY PASS' wby-s3-integrated.log
           grep -Fq 'glider=combined clouds=simple-clouds thinAir=false' wby-s3-integrated.log
           grep -Fq 'distantHorizons=with-dh' wby-s3-integrated.log
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1RunDirectory=run-wby-s3-integrated -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1RunDirectory=run-wby-s3-integrated -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache
           staged="skyforge-neoforge-1211/run-wby-s3-integrated/mods"
           test -f "$staged/pVIWsXir-HFLhMfNC.jar"
           test -f "$staged/A30Sq5Gt-rbDbxAY3.jar"
           test -f "$staged/gu7yAYhd-puxJkazX.jar"
           test -f "$staged/h4nsLvjf-sWhAueMC.jar"
           test -f "$staged/ZM3tt6p1-UoPH8lO1.jar"
+          test -f "$staged/B3pb093D-hZ6B2Z0x.jar"
+          test -f "$staged/GWp4jCJj-bOiDu0LS.jar"
           test -f "$staged/LtZfKhel-qpinHX2C.jar"
           if find "$staged" -maxdepth 1 -type f \( -name '*uHWrqYcS-nLff2PaZ*' -o -name '*QAGBst4M-uxVsdkST*' \) | grep -q .; then
             echo "Rejected Hang Glider or its PuzzlesLib dependency leaked into the integrated S1 profile"
@@ -129,7 +133,7 @@ jobs:
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC14AvionicsCapability=true -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
           setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
             -PwbyS1RunDirectory=run-wby-s3-c14 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
-            -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           outcome=""
@@ -180,7 +184,7 @@ jobs:
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
           setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
             -PwbyS1RunDirectory=run-wby-s3-c7 -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
-            -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             --no-configuration-cache >"$log" 2>&1 &
           pid=$!
           outcome=""
@@ -218,9 +222,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache | tee wby-s3-server-dry-run.log
-          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache | tee wby-s3-client-dry-run.log
-          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache | tee wby-s3-join-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache | tee wby-s3-server-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache | tee wby-s3-client-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache | tee wby-s3-join-dry-run.log
           grep -Fq 'wbyS1StagePolicy' wby-s3-server-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s3-client-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s3-join-dry-run.log
@@ -304,7 +308,7 @@ jobs:
           server_log="wby-s3-server.log"
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC14AvionicsCapability=true -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s3-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s3-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           client_pid=""
           cleanup() {
@@ -366,7 +370,7 @@ jobs:
           client_log="wby-s3-client.log"
           setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
             xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
-              -PwbyS1RunDirectory=run-wby-s3-client -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache > "$client_log" 2>&1 &
+              -PwbyS1RunDirectory=run-wby-s3-client -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache > "$client_log" 2>&1 &
           client_pid=$!
           client_args_file="skyforge-neoforge-1211/build/moddev/wbyS1ClientJoinAcceptanceRunProgramArgs.txt"
           for attempt in $(seq 1 120); do
@@ -387,6 +391,8 @@ jobs:
           grep -Fq -- '127.0.0.1:25565' wby-s3-client-program-args.txt
           grep -Fq -- 'WbyS1Acceptance' wby-s3-client-program-args.txt
           server_latest_log="$server_dir/logs/latest.log"
+          grep -Eq '\(createbigcannons\)' "$server_latest_log"
+          grep -Eq '\(ritchiesprojectilelib\)' "$server_latest_log"
           grep -Fq '"Disable normal oil chunks" = true' "$server_dir/world/serverconfig/createdieselgenerators-server.toml"
           grep -Fq '"Disable high oil chunks" = true' "$server_dir/world/serverconfig/createdieselgenerators-server.toml"
           client_join_timeout_seconds=600
@@ -453,6 +459,8 @@ jobs:
           fi
           client_latest_log="$client_dir/logs/latest.log"
           grep -Eq '\(createdieselgenerators\)' "$client_latest_log"
+          grep -Eq '\(createbigcannons\)' "$client_latest_log"
+          grep -Eq '\(ritchiesprojectilelib\)' "$client_latest_log"
           grep -Fq 'WAVE_C14 PASS' "$server_log"
           grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_log"
           grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$server_log"
@@ -520,7 +528,7 @@ jobs:
           server_log="wby-s3-server-reload.log"
           export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s3-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s3-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           ready=false
           for attempt in $(seq 1 150); do
