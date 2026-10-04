@@ -155,7 +155,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
      * interval. The transition location is an unknown, solved by matching the upstream stage;
      * both sides must independently satisfy the energy equation and the critical control.
      */
-    private static SkyIslandGraduallyVariedFlowSolver.Result
+    static SkyIslandGraduallyVariedFlowSolver.Result
             solveMixedRegimeAtInternalCriticalControl(
                     List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
                     double upstreamDepthMeters,
@@ -240,9 +240,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                         lastFailure = invalidControl;
                         break;
                     }
-                    if (Math.abs(middle.upstreamStageResidualMeters()) <= stageTolerance
-                            || upperFraction - lowerFraction
-                                    <= parameters.relativeTolerance()) {
+                    if (Math.abs(middle.upstreamStageResidualMeters()) <= stageTolerance) {
                         try {
                             return joinMixedProfiles(
                                     sections,
@@ -254,6 +252,11 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                             lastFailure = invalidControl;
                             break;
                         }
+                    }
+                    if (upperFraction - lowerFraction <= parameters.relativeTolerance()) {
+                        lastFailure = new IllegalStateException(
+                                "critical-control location converged without matching upstream stage");
+                        break;
                     }
                     if (lower.upstreamStageResidualMeters()
                                     * middle.upstreamStageResidualMeters()
