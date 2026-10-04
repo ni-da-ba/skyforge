@@ -84,6 +84,34 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             List<CrossSection> sections,
             double downstreamDepthMeters,
             Parameters parameters) {
+        return solveSubcriticalUpstreamInternal(
+                sections, downstreamDepthMeters, parameters, false);
+    }
+
+    /**
+     * Solves upstream from an explicit critical-depth control at a free outfall.
+     *
+     * <p>The caller must already have authority to model this terminal as a free outfall. The
+     * control does not authorize or imply an edge outlet; terminal-fate policy remains separate.
+     */
+    public static Result solveSubcriticalUpstreamFromCriticalControl(
+            List<CrossSection> sections, Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 2) {
+            throw new IllegalArgumentException("GVF reach requires at least two cross sections");
+        }
+        double criticalDepth = criticalDepth(reach.getLast(), parameters);
+        return solveSubcriticalUpstreamInternal(
+                reach, criticalDepth, parameters, true);
+    }
+
+    private static Result solveSubcriticalUpstreamInternal(
+            List<CrossSection> sections,
+            double downstreamDepthMeters,
+            Parameters parameters,
+            boolean criticalDownstreamControl) {
         Objects.requireNonNull(sections, "sections");
         Objects.requireNonNull(parameters, "parameters");
         if (sections.size() < 2) {
@@ -102,10 +130,17 @@ public final class SkyIslandGraduallyVariedFlowSolver {
 
         int last = reach.size() - 1;
         double criticalDownstream = criticalDepth(reach.get(last), parameters);
-        if (!(downstreamDepthMeters > criticalDownstream
-                * (1.0 + 10.0 * parameters.relativeTolerance()))) {
+        if (!criticalDownstreamControl
+                && !(downstreamDepthMeters > criticalDownstream
+                        * (1.0 + 10.0 * parameters.relativeTolerance()))) {
             throw new IllegalArgumentException(
-                    "downstream boundary is critical or supercritical; subcritical solver requires downstream control");
+                    "downstream boundary is critical or supercritical; use the explicit critical-control entry point only for an authorized free outfall");
+        }
+        if (criticalDownstreamControl
+                && Math.abs(downstreamDepthMeters - criticalDownstream)
+                        > 10.0 * parameters.relativeTolerance()
+                                * Math.max(1.0, criticalDownstream)) {
+            throw new IllegalArgumentException("critical-control depth must equal computed critical depth");
         }
 
         double[] depths = new double[reach.size()];

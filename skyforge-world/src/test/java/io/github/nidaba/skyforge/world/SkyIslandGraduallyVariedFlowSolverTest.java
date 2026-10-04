@@ -120,6 +120,25 @@ class SkyIslandGraduallyVariedFlowSolverTest {
     }
 
     @Test
+    void authorizedCriticalOutfallControlProducesAnUpstreamSubcriticalProfile() {
+        double width = 10.0;
+        double discharge = 3.0;
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 100.0, discharge, width),
+                section(50.0, 100.0, discharge, width),
+                section(100.0, 100.0, discharge, width));
+
+        SkyIslandGraduallyVariedFlowSolver.Result result =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        sections, PARAMETERS);
+
+        assertTrue(result.points().getFirst().froudeNumber() < 1.0);
+        assertTrue(result.points().get(1).froudeNumber() < 1.0);
+        assertEquals(1.0, result.points().getLast().froudeNumber(), 1.0e-7);
+        assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
     void rejectsMalformedSectionsAndNumericalParameters() {
         assertThrows(IllegalArgumentException.class,
                 () -> section(0.0, 0.0, 1.0, 0.0));
