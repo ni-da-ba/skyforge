@@ -99,6 +99,10 @@ jobs:
             echo "Distant Horizons is missing from the selected integrated S3 profile"
             exit 1
           fi
+          if find skyforge-neoforge-1211/src/main/resources -type f -name "createdieselgenerators-server.toml" -print | grep -q .; then
+            echo "S3 petroleum suppression config leaked into packaged production resources"
+            exit 1
+          fi
 
       - name: Re-run accepted C14 computer and avionics smoke on cumulative S3
         shell: bash
@@ -439,6 +443,10 @@ jobs:
             fi
             exit 1
           fi
+          client_latest_log="$client_dir/logs/latest.log"
+          grep -Eq '\\(createdieselgenerators\\)' "$client_latest_log"
+          grep -Fq 'WAVE_C14 PASS' "$server_latest_log"
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_latest_log"
           # A background process inherits ignored SIGINT from this non-interactive
           # shell. Signal the NeoForge server JVM directly so its JVM shutdown hooks
           # save the joined world instead of relying on the Gradle process group.
