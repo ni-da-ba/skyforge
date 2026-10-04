@@ -119,11 +119,283 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                             "upstream fixed stage is near critical; mixed-regime control is unsupported");
                 }
             }
-            return calibration.solveFreeOutfall(descriptor, span.samples());
+            try {
+                return calibration.solveFreeOutfall(descriptor, span.samples());
+            } catch (IllegalStateException subcriticalFailure) {
+                if (span.upstreamBoundary().status()
+                        != SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
+                    throw subcriticalFailure;
+                }
+                double upstreamStageMeters =
+                        span.upstreamBoundary().fixedHeadWorldUnits().orElseThrow()
+                                * calibration.metersPerWorldUnit();
+                double upstreamDepthMeters =
+                        upstreamStageMeters - sections.getFirst().bedElevationMeters();
+                try {
+                    return solveMixedRegimeAtInternalCriticalControl(
+                            sections,
+                            upstreamDepthMeters,
+                            calibration,
+                            subcriticalFailure);
+                } catch (IllegalStateException mixedFailure) {
+                    throw new IllegalStateException(
+                            subcriticalFailure.getMessage()
+                                    + "; mixed-regime critical-control solve failed: "
+                                    + mixedFailure.getMessage(),
+                            subcriticalFailure);
+                }
+            }
         }
         throw new IllegalArgumentException(
                 "ordinary span has no authorized downstream hydraulic control");
     }
+
+    /**
+     * Resolves a gradual subcritical-to-supercritical transition in the failed standard-step
+     * interval. The transition location is an unknown, solved by matching the upstream stage;
+     * both sides must independently satisfy the energy equation and the critical control.
+     */
+    private static SkyIslandGraduallyVariedFlowSolver.Result
+            solveMixedRegimeAtInternalCriticalControl(
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+                    double upstreamDepthMeters,
+                    SkyIslandGameScaleHydraulicCalibration calibration,
+                    IllegalStateException subcriticalFailure) {
+        int failedSection = failedSectionIndex(subcriticalFailure.getMessage());
+        if (failedSection < 0) {
+            throw new IllegalStateException(
+                    "subcritical failure did not identify its critical-control interval");
+        }
+        int maximumInterval = sections.size() - 2;
+        int primaryInterval = Math.min(failedSection, maximumInterval);
+        if (primaryInterval < 0) {
+            throw new IllegalStateException("critical-control interval lies outside the reach");
+        }
+
+        List<Integer> intervals = new ArrayList<>();
+        intervals.add(primaryInterval);
+        if (primaryInterval > 0) {
+            intervals.add(primaryInterval - 1);
+        }
+        if (primaryInterval < maximumInterval) {
+            intervals.add(primaryInterval + 1);
+        }
+
+        double stageTolerance = Math.max(
+                MINIMUM_STAGE_RESIDUAL_METERS,
+                100.0 * calibration.relativeTolerance());
+        SkyIslandGraduallyVariedFlowSolver.Parameters parameters =
+                calibration.solverParameters();
+        RuntimeException lastFailure = null;
+        for (int interval : intervals) {
+            List<MixedStepTrial> trials = new ArrayList<>();
+            for (int sample = 0; sample <= 8; sample++) {
+                double fraction = sample / 8.0;
+                try {
+                    MixedStepTrial trial = evaluateCriticalControl(
+                            sections,
+                            interval,
+                            fraction,
+                            upstreamDepthMeters,
+                            stageTolerance,
+                            parameters);
+                    if (Math.abs(trial.upstreamStageResidualMeters()) <= stageTolerance) {
+                        return joinMixedProfiles(
+                                sections,
+                                interval,
+                                fraction,
+                                trial.subcriticalProfile(),
+                                parameters);
+                    }
+                    trials.add(trial);
+                } catch (IllegalArgumentException | IllegalStateException invalidControl) {
+                    lastFailure = invalidControl;
+                    trials.add(null);
+                }
+            }
+
+            for (int sample = 0; sample < 8; sample++) {
+                MixedStepTrial lowerTrial = trials.get(sample);
+                MixedStepTrial upperTrial = trials.get(sample + 1);
+                if (lowerTrial == null || upperTrial == null
+                        || lowerTrial.upstreamStageResidualMeters()
+                                * upperTrial.upstreamStageResidualMeters() > 0.0) {
+                    continue;
+                }
+                double lowerFraction = lowerTrial.controlFraction();
+                double upperFraction = upperTrial.controlFraction();
+                MixedStepTrial lower = lowerTrial;
+                for (int iteration = 0; iteration < parameters.maximumIterations(); iteration++) {
+                    double middleFraction = 0.5 * (lowerFraction + upperFraction);
+                    MixedStepTrial middle;
+                    try {
+                        middle = evaluateCriticalControl(
+                                sections,
+                                interval,
+                                middleFraction,
+                                upstreamDepthMeters,
+                                stageTolerance,
+                                parameters);
+                    } catch (IllegalArgumentException | IllegalStateException invalidControl) {
+                        lastFailure = invalidControl;
+                        break;
+                    }
+                    if (Math.abs(middle.upstreamStageResidualMeters()) <= stageTolerance
+                            || upperFraction - lowerFraction
+                                    <= parameters.relativeTolerance()) {
+                        try {
+                            return joinMixedProfiles(
+                                    sections,
+                                    interval,
+                                    middleFraction,
+                                    middle.subcriticalProfile(),
+                                    parameters);
+                        } catch (IllegalArgumentException | IllegalStateException invalidControl) {
+                            lastFailure = invalidControl;
+                            break;
+                        }
+                    }
+                    if (lower.upstreamStageResidualMeters()
+                                    * middle.upstreamStageResidualMeters()
+                            <= 0.0) {
+                        upperFraction = middleFraction;
+                    } else {
+                        lowerFraction = middleFraction;
+                        lower = middle;
+                    }
+                }
+            }
+        }
+        throw new IllegalStateException(
+                "no bracketed interior critical control matches the upstream stage"
+                        + (lastFailure == null ? "" : ": " + lastFailure.getMessage()));
+    }
+
+    private static MixedStepTrial evaluateCriticalControl(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            int interval,
+            double controlFraction,
+            double requestedUpstreamDepthMeters,
+            double stageTolerance,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        SkyIslandGraduallyVariedFlowSolver.CrossSection control =
+                interpolate(sections.get(interval), sections.get(interval + 1), controlFraction);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> prefix =
+                criticalPrefix(sections, interval, controlFraction, control);
+        SkyIslandGraduallyVariedFlowSolver.Result upstreamProfile =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        prefix, parameters);
+        double requestedStage =
+                sections.getFirst().bedElevationMeters() + requestedUpstreamDepthMeters;
+        double residual = upstreamProfile.points().getFirst().waterSurfaceElevationMeters()
+                - requestedStage;
+        if (!Double.isFinite(residual) || stageTolerance <= 0.0) {
+            throw new IllegalStateException("critical-control boundary residual is invalid");
+        }
+        return new MixedStepTrial(controlFraction, upstreamProfile, residual);
+    }
+
+    private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> criticalPrefix(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            int interval,
+            double controlFraction,
+            SkyIslandGraduallyVariedFlowSolver.CrossSection control) {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> result =
+                new ArrayList<>(sections.subList(0, interval + 1));
+        if (controlFraction > 0.0) {
+            result.add(control);
+        }
+        return List.copyOf(result);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.Result joinMixedProfiles(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            int interval,
+            double controlFraction,
+            SkyIslandGraduallyVariedFlowSolver.Result subcritical,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        SkyIslandGraduallyVariedFlowSolver.CrossSection control =
+                interpolate(sections.get(interval), sections.get(interval + 1), controlFraction);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix =
+                new ArrayList<>();
+        if (controlFraction < 1.0) {
+            suffix.add(control);
+            suffix.addAll(sections.subList(interval + 1, sections.size()));
+        } else {
+            suffix.addAll(sections.subList(interval + 1, sections.size()));
+        }
+        if (suffix.size() < 2) {
+            throw new IllegalStateException(
+                    "critical control leaves no downstream supercritical interval");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result supercritical =
+                SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstreamFromCriticalControl(
+                        suffix, parameters);
+
+        List<SkyIslandGraduallyVariedFlowSolver.ProfilePoint> points =
+                new ArrayList<>(sections.size());
+        int upstreamPointCount = subcritical.points().size();
+        if (controlFraction > 0.0 && controlFraction < 1.0) {
+            upstreamPointCount--;
+        }
+        points.addAll(subcritical.points().subList(0, upstreamPointCount));
+        points.addAll(supercritical.points().subList(1, supercritical.points().size()));
+        if (points.size() != sections.size()) {
+            throw new IllegalStateException(
+                    "mixed-regime profile must preserve every original cross section");
+        }
+        double residual = Math.max(
+                subcritical.maximumEnergyResidualMeters(),
+                supercritical.maximumEnergyResidualMeters());
+        return new SkyIslandGraduallyVariedFlowSolver.Result(points, residual);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.CrossSection interpolate(
+            SkyIslandGraduallyVariedFlowSolver.CrossSection first,
+            SkyIslandGraduallyVariedFlowSolver.CrossSection second,
+            double fraction) {
+        return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                lerp(first.chainageMeters(), second.chainageMeters(), fraction),
+                lerp(first.bedElevationMeters(), second.bedElevationMeters(), fraction),
+                lerp(first.dischargeCubicMetersPerSecond(),
+                        second.dischargeCubicMetersPerSecond(), fraction),
+                lerp(first.bottomWidthMeters(), second.bottomWidthMeters(), fraction),
+                lerp(first.sideSlopeHorizontalToVertical(),
+                        second.sideSlopeHorizontalToVertical(), fraction));
+    }
+
+    private static double lerp(double first, double second, double fraction) {
+        return first + (second - first) * fraction;
+    }
+
+    private static int failedSectionIndex(String diagnostic) {
+        if (diagnostic == null) {
+            return -1;
+        }
+        String marker = "section ";
+        int start = diagnostic.lastIndexOf(marker);
+        if (start < 0) {
+            return -1;
+        }
+        start += marker.length();
+        int end = start;
+        while (end < diagnostic.length() && Character.isDigit(diagnostic.charAt(end))) {
+            end++;
+        }
+        if (end == start) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(diagnostic.substring(start, end));
+        } catch (NumberFormatException invalidIndex) {
+            return -1;
+        }
+    }
+
+    private record MixedStepTrial(
+            double controlFraction,
+            SkyIslandGraduallyVariedFlowSolver.Result subcriticalProfile,
+            double upstreamStageResidualMeters) {}
 
     private static List<SkyIslandHydraulicGeometrySample> reconstruct(
             SkyIslandOrdinaryHydraulicSpan span,
