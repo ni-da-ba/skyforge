@@ -137,6 +137,23 @@ class SkyIslandGraduallyVariedFlowSolverTest {
         assertTrue(result.points().getLast().depthMeters()
                 < result.points().getFirst().depthMeters());
         assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
+
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> shiftedDatum = sections.stream()
+                .map(section -> new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                        section.chainageMeters(),
+                        section.bedElevationMeters() + 1.0e8,
+                        section.dischargeCubicMetersPerSecond(),
+                        section.bottomWidthMeters(),
+                        section.sideSlopeHorizontalToVertical()))
+                .toList();
+        SkyIslandGraduallyVariedFlowSolver.Result shifted =
+                SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                        shiftedDatum, 0.4, PARAMETERS);
+        for (int i = 0; i < result.points().size(); i++) {
+            assertEquals(result.points().get(i).depthMeters(),
+                    shifted.points().get(i).depthMeters(), 1.0e-6);
+        }
+
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
                         sections, 2.0, PARAMETERS));
