@@ -15,7 +15,6 @@ import java.util.PriorityQueue;
  * not themselves realization authority.
  */
 public final class SkyIslandConditionedDemFlow {
-    private static final double ELEVATION_EPSILON = 1.0e-12;
     private static final int[][] NEIGHBORS = {
         {-1, -1}, {-1, 0}, {-1, 1},
         {0, -1},             {0, 1},
