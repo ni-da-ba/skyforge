@@ -1,14 +1,17 @@
-# WBY S3 Diesel Generators owner review
+# WBY S3 industry profile owner review
 
-This review layers the exact Diesel Generators pin onto the accepted S2 profile:
+This review layers the current S3 industry candidates onto the selected and accepted cumulative profile:
 
-- selected S1: Simple Clouds, Distant Horizons, Reliable Gliders, and Ornithopter Glider;
+- selected S1: Simple Clouds, Distant Horizons, Reliable Gliders, and Create: Ornithopter Glider;
 - accepted S2: CC:Tweaked and Create: Avionics;
-- S3 candidate: Create: Diesel Generators 1.21.1-1.3.15 (`ZM3tt6p1-UoPH8lO1`).
+- S3 candidate: Create: Diesel Generators 1.21.1-1.3.15 (`ZM3tt6p1-UoPH8lO1`);
+- S3 CBC overlay: Create: Big Cannons 5.11.7 (`GWp4jCJj-bOiDu0LS`) + Ritchie's Projectile Library 2.1.2 (`B3pb093D-hZ6B2Z0x`).
 
-The diagnostic profile disables Diesel Generators' native normal/high oil chunk generation in its disposable worlds. It preserves the retained crude oil, Pumpjack Hole, Distillation Tank, and Diesel Engine registrations. It does not add a Skyforge petroleum adapter or recipe/progression tuning.
+CBC and RPL reuse the existing immutable Wave C1 pins. CBC 5.11.7 is the repository-tested version and includes Sable 2.0 compatibility fixes. No CBC addon is included.
 
-The S3 branch is stacked on the exact owner-reviewed S2 branch. It does not merge S2 or S3 automatically. The unresolved D-06 logistics comparison remains outside this tranche; Implementation owns its route persistence/playback evidence.
+The disposable profile disables Diesel Generators' native normal/high oil chunk generation and retains its crude oil and machinery assets. It does not yet place Skyforge-authored oil sources in the world. This profile is for launch/registry/compatibility review, not recipe, projectile-balance, combat, or quest decisions.
+
+The candidate branch is stacked on the S3 Diesel branch and does not merge either S3 change automatically. Diesel's prior review remains pending; this cumulative launch can review Diesel and CBC together.
 
 ## Run from an isolated worktree
 
@@ -16,23 +19,23 @@ In **PowerShell**, from the existing clone:
 
 ```powershell
 cd C:\Users\nicho\Documents\skyforge
-git fetch origin wby/s3-industry-diesel
-git worktree add --track -b codex/review-s3-diesel ..\skyforge-s3-diesel origin/wby/s3-industry-diesel
+git fetch origin wby/s3-industry-cbc
+git worktree add --track -b codex/review-s3-cbc ..\skyforge-s3-cbc origin/wby/s3-industry-cbc
 ```
 
-If Git reports that the local review branch already exists, use a fresh name in the `-b` argument, such as `codex/review-s3-diesel-2`.
+If Git says the local review branch already exists, use a fresh name in the `-b` argument, such as `codex/review-s3-cbc-2`.
 
 Then open **Git Bash** and run:
 
 ```bash
-cd /c/Users/nicho/Documents/skyforge-s3-diesel
+cd /c/Users/nicho/Documents/skyforge-s3-cbc
 git pull --ff-only
 bash scripts/wby-s3-diagnostic-launch.sh client
 ```
 
-The launcher fetches and builds the pinned Aerodynamics4MC source, resolves/stages the exact profile, and starts the NeoForge client. First run may take several minutes while Gradle downloads/builds dependencies.
+The launcher builds the pinned Aerodynamics4MC compatibility jars, resolves/stages the exact stack, and starts NeoForge. The first run may take several minutes while Gradle downloads/builds dependencies.
 
-For a standalone server diagnostic instead, use:
+For a standalone server diagnostic instead:
 
 ```bash
 bash scripts/wby-s3-diagnostic-launch.sh server
@@ -41,19 +44,19 @@ bash scripts/wby-s3-diagnostic-launch.sh server
 ## What to review
 
 1. The client reaches the title screen without a missing-dependency screen or crash.
-2. The Mods list shows Create: Diesel Generators, CC:Tweaked, and the already accepted profile components.
-3. Create a **new disposable world** in the diagnostic profile and open JEI. Confirm it exposes Diesel Generators' Pumpjack Hole, Distillation Tank, Diesel Engine, and crude oil.
-4. After the world has opened once, inspect `skyforge-neoforge-1211/run-wby-s3-integrated/saves/<world-name>/serverconfig/createdieselgenerators-server.toml`. Confirm both `"Disable normal oil chunks" = true` and `"Disable high oil chunks" = true`.
-5. Report any missing assets, unexpected world oil generation, launch error, or other visible integration issue.
+2. The Mods list shows Create: Big Cannons 5.11.7, Ritchie's Projectile Library 2.1.2, Diesel Generators, CC:Tweaked, and the selected S1/S2 components.
+3. In a **new disposable world**, open JEI. Confirm CBC cannon components, projectiles/ammunition, and Diesel's Pumpjack Hole, Distillation Tank, Diesel Engine, and crude oil are registered.
+4. If convenient, use creative mode in that disposable world to assemble and fire one basic CBC cannon. Report any assembly/projectile failure. This checks that the machinery works; it is not a balance review.
+5. After the world has opened once, inspect `skyforge-neoforge-1211/run-wby-s3-integrated/saves/<world-name>/serverconfig/createdieselgenerators-server.toml`. Confirm both `"Disable normal oil chunks" = true` and `"Disable high oil chunks" = true`.
 
-This gate asks for launch/visibility feedback. Recipe balance, resource-site choices, progression and quest hooks are later product decisions. When done, exit Minecraft; the launcher gathers logs, the staged mod list, config, and disposable saves under `.skyforge-diagnostics/wby-s3-client-<timestamp>`. Send me that diagnostics folder or a short pass/fail report.
+Report missing assets, launch errors, recipe/material conflicts that are obvious during inspection, or other integration issues. Do not resolve recipe conflicts or tune weapon balance in this review.
 
-## Branch refresh after new commits
+When finished, exit Minecraft. The launcher gathers the logs, staged mod list, config, and disposable save under `.skyforge-diagnostics/wby-s3-client-<timestamp>`. Send me that diagnostics folder or a short pass/fail report.
 
-From Git Bash in the review worktree, run:
+## Refresh after new commits
+
+From Git Bash in the review worktree:
 
 ```bash
-git pull --ff-only origin wby/s3-industry-diesel
+git pull --ff-only origin wby/s3-industry-cbc
 ```
-
-If you are returning after the PR is merged, the selected S3 work will be incorporated through the normal cumulative integration path.
