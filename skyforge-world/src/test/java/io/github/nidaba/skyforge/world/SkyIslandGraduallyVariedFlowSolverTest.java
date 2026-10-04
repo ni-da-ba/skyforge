@@ -82,21 +82,41 @@ class SkyIslandGraduallyVariedFlowSolverTest {
     }
 
     @Test
-    void rejectsVariableDischargeAndNonSubcriticalBoundaryInsteadOfSmoothingTransitions() {
-        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> changingFlow = List.of(
-                section(0.0, 1.0, 2.0, 4.0),
-                section(10.0, 0.9, 3.0, 4.0));
-        assertThrows(IllegalArgumentException.class,
-                () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
-                        changingFlow, 1.0, PARAMETERS));
+    void solvesGraduallyDistributedRunoffWithSectionSpecificDischarge() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> graduallyIncreasingFlow = List.of(
+                section(0.0, 100.1, 1.0, 5.0),
+                section(50.0, 100.05, 1.5, 5.0),
+                section(100.0, 100.0, 2.0, 5.0));
+        SkyIslandGraduallyVariedFlowSolver.Result result =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        graduallyIncreasingFlow, 0.8, PARAMETERS);
+        SkyIslandGraduallyVariedFlowSolver.ProfilePoint upstream = result.points().get(1);
+        SkyIslandGraduallyVariedFlowSolver.ProfilePoint downstream = result.points().get(2);
+        double upstreamConveyance = conveyance(upstream, ROUGHNESS);
+        double downstreamConveyance = conveyance(downstream, ROUGHNESS);
+        double averageFrictionSlope = Math.pow(
+                (upstream.section().dischargeCubicMetersPerSecond()
+                                + downstream.section().dischargeCubicMetersPerSecond())
+                        / (upstreamConveyance + downstreamConveyance),
+                2.0);
+        double upstreamEnergy = upstream.waterSurfaceElevationMeters()
+                + upstream.velocityMetersPerSecond() * upstream.velocityMetersPerSecond()
+                        / (2.0 * GRAVITY);
+        double downstreamEnergy = downstream.waterSurfaceElevationMeters()
+                + downstream.velocityMetersPerSecond() * downstream.velocityMetersPerSecond()
+                        / (2.0 * GRAVITY);
+        assertEquals(averageFrictionSlope * 50.0,
+                upstreamEnergy - downstreamEnergy, 1.0e-6);
+        assertTrue(result.points().getFirst().froudeNumber() < 1.0);
+        assertTrue(result.points().get(1).froudeNumber() < 1.0);
+        assertTrue(result.points().getLast().froudeNumber() < 1.0);
 
-        double discharge = 9.0;
-        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> ordinaryReach = List.of(
-                section(0.0, 1.0, discharge, 10.0),
-                section(10.0, 0.9, discharge, 10.0));
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> supercriticalBoundary = List.of(
+                section(0.0, 1.0, 9.0, 10.0),
+                section(10.0, 0.9, 9.0, 10.0));
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
-                        ordinaryReach, 0.1, PARAMETERS));
+                        supercriticalBoundary, 0.1, PARAMETERS));
     }
 
     @Test
@@ -109,6 +129,16 @@ class SkyIslandGraduallyVariedFlowSolverTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
                         List.of(section(0.0, 2.0, 1.0, 4.0)), 0.5, PARAMETERS));
+    }
+
+    private static double conveyance(
+            SkyIslandGraduallyVariedFlowSolver.ProfilePoint point, double roughness) {
+        double depth = point.depthMeters();
+        double bottomWidth = point.section().bottomWidthMeters();
+        double sideSlope = point.section().sideSlopeHorizontalToVertical();
+        double area = depth * (bottomWidth + sideSlope * depth);
+        double perimeter = bottomWidth + 2.0 * depth * Math.hypot(1.0, sideSlope);
+        return area * Math.pow(area / perimeter, 2.0 / 3.0) / roughness;
     }
 
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(

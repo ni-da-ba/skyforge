@@ -9,7 +9,7 @@ import java.util.Objects;
  * subcritical ordinary reach.
  *
  * <p>Distances, elevations, widths, and depths are metres; discharge is cubic metres per second;
- * roughness is Manning's SI coefficient in s/m^(1/3). Each section must carry the same discharge.
+ * roughness is Manning's SI coefficient in s/m^(1/3). Discharge may vary gradually by section to represent distributed inflow.
  * A downstream depth boundary is marched upstream by solving the specific-energy equation with
  * average-conveyance friction slope between adjacent sections. Junctions, lateral inflows, hydraulic
  * jumps, and supercritical controls are deliberately outside this solver's domain.
@@ -78,7 +78,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
     /**
      * Solves a subcritical profile from a specified downstream depth, returning stations in
      * increasing upstream chainage order. The supplied sections must be strictly ordered and have
-     * constant discharge; split reaches at confluences, withdrawals, or other flow discontinuities.
+     * gradually varying discharge for distributed inflow; split reaches at confluences, drops, or abrupt flow discontinuities.
      */
     public static Result solveSubcriticalUpstream(
             List<CrossSection> sections,
@@ -93,20 +93,10 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             throw new IllegalArgumentException("downstream depth must be finite and positive");
         }
         List<CrossSection> reach = List.copyOf(sections);
-        double discharge = reach.getFirst().dischargeCubicMetersPerSecond();
         for (int i = 0; i < reach.size(); i++) {
             CrossSection section = Objects.requireNonNull(reach.get(i), "section");
-            if (i > 0) {
-                CrossSection previous = reach.get(i - 1);
-                if (!(section.chainageMeters() > previous.chainageMeters())) {
-                    throw new IllegalArgumentException("section chainage must increase strictly downstream");
-                }
-                double dischargeScale = Math.max(1.0, Math.abs(discharge));
-                if (Math.abs(section.dischargeCubicMetersPerSecond() - discharge)
-                        > parameters.relativeTolerance() * dischargeScale) {
-                    throw new IllegalArgumentException(
-                            "discharge changes within an ordinary reach; split at lateral-flow transitions");
-                }
+            if (i > 0 && !(section.chainageMeters() > reach.get(i - 1).chainageMeters())) {
+                throw new IllegalArgumentException("section chainage must increase strictly downstream");
             }
         }
 
@@ -126,12 +116,11 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             CrossSection downstream = reach.get(i + 1);
             double spacing = downstream.chainageMeters() - upstream.chainageMeters();
             double downstreamEnergy = specificEnergy(downstream, depths[i + 1], parameters);
-            double downstreamFriction = frictionSlope(downstream, depths[i + 1], parameters);
             double critical = criticalDepth(upstream, parameters);
             double lower = critical * (1.0 + 10.0 * parameters.relativeTolerance());
             double lowerResidual = energyResidual(
                     upstream, downstream, depths[i + 1], lower, spacing,
-                    downstreamEnergy, downstreamFriction, parameters);
+                    downstreamEnergy, parameters);
             if (lowerResidual > energyTolerance(upstream, lower, downstream, depths[i + 1], parameters)) {
                 throw new IllegalStateException(
                         "no subcritical standard-step solution before critical depth at section " + i);
@@ -149,7 +138,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                 }
                 upperResidual = energyResidual(
                         upstream, downstream, depths[i + 1], upper, spacing,
-                        downstreamEnergy, downstreamFriction, parameters);
+                        downstreamEnergy, parameters);
             }
             if (!(upperResidual >= 0.0) || !Double.isFinite(upperResidual)) {
                 throw new IllegalStateException("failed to bracket subcritical standard-step depth at section " + i);
@@ -207,12 +196,15 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             double upstreamDepth,
             double spacing,
             double downstreamEnergy,
-            double downstreamFriction,
             Parameters parameters) {
         double upstreamEnergy = specificEnergy(upstream, upstreamDepth, parameters);
         double upstreamFriction = frictionSlope(upstream, upstreamDepth, parameters);
+        double downstreamFriction = frictionSlope(downstream, downstreamDepth, parameters);
         double averageFrictionSlope = averageConveyanceFrictionSlope(
-                upstreamFriction, downstreamFriction);
+                upstream.dischargeCubicMetersPerSecond(),
+                conveyance(upstream, upstreamDepth, parameters),
+                downstream.dischargeCubicMetersPerSecond(),
+                conveyance(downstream, downstreamDepth, parameters));
         return upstream.bedElevationMeters() - downstream.bedElevationMeters()
                 + upstreamEnergy - downstreamEnergy
                 - averageFrictionSlope * spacing;
@@ -229,21 +221,28 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             CrossSection section, double depth, Parameters parameters) {
         double area = area(section, depth);
         double wettedPerimeter = wettedPerimeter(section, depth);
-        double hydraulicRadius = area / wettedPerimeter;
-        double conveyanceFactor = area * Math.pow(hydraulicRadius, 2.0 / 3.0);
-        double scaledDischarge = parameters.manningRoughness()
-                * section.dischargeCubicMetersPerSecond() / conveyanceFactor;
+        double conveyance = conveyance(section, depth, parameters);
+        double scaledDischarge = section.dischargeCubicMetersPerSecond() / conveyance;
         return scaledDischarge * scaledDischarge;
     }
 
+    private static double conveyance(
+            CrossSection section, double depth, Parameters parameters) {
+        double area = area(section, depth);
+        double hydraulicRadius = area / wettedPerimeter(section, depth);
+        return area * Math.pow(hydraulicRadius, 2.0 / 3.0)
+                / parameters.manningRoughness();
+    }
+
     private static double averageConveyanceFrictionSlope(
-            double upstreamFrictionSlope, double downstreamFrictionSlope) {
-        // For constant discharge, the HEC-RAS average-conveyance expression reduces to this
-        // equivalent form. This is the documented default in the reference implementation.
-        double inverseRootMeanConveyance = 0.5
-                * (1.0 / Math.sqrt(upstreamFrictionSlope)
-                        + 1.0 / Math.sqrt(downstreamFrictionSlope));
-        return 1.0 / (inverseRootMeanConveyance * inverseRootMeanConveyance);
+            double upstreamDischarge,
+            double upstreamConveyance,
+            double downstreamDischarge,
+            double downstreamConveyance) {
+        // HEC-RAS average-conveyance expression, including varying section discharge.
+        double meanDischarge = 0.5 * (upstreamDischarge + downstreamDischarge);
+        double meanConveyance = 0.5 * (upstreamConveyance + downstreamConveyance);
+        return Math.pow(meanDischarge / meanConveyance, 2.0);
     }
 
     private static double criticalDepth(CrossSection section, Parameters parameters) {
