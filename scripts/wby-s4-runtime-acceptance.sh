@@ -212,10 +212,6 @@ cp "$client_args_file" wby-s4-client-program-args.txt
 grep -Fq -- '--quickPlayMultiplayer' wby-s4-client-program-args.txt
 grep -Fq -- '127.0.0.1:25565' wby-s4-client-program-args.txt
 grep -Fq -- 'WbyS1Acceptance' wby-s4-client-program-args.txt
-cp "$client_args_file" wby-s4-client-program-args.txt
-grep -Fq -- '--quickPlayMultiplayer' "$client_args_file"
-grep -Fq -- '127.0.0.1:25565' "$client_args_file"
-grep -Fq -- 'WbyS1Acceptance' "$client_args_file"
 
 server_latest_log="$server_dir/logs/latest.log"
 joined=false
