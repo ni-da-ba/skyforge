@@ -129,7 +129,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             double upper = Math.max(Math.max(depths[i + 1], lower) * 2.0, lower + 1.0);
             double upperResidual = energyResidual(
                     upstream, downstream, depths[i + 1], upper, spacing,
-                    downstreamEnergy, downstreamFriction, parameters);
+                    downstreamEnergy, parameters);
             int expansion = 0;
             while (upperResidual < 0.0 && expansion++ < parameters.maximumIterations()) {
                 upper *= 2.0;
@@ -149,7 +149,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                 double middle = lower + 0.5 * (upper - lower);
                 double residual = energyResidual(
                         upstream, downstream, depths[i + 1], middle, spacing,
-                        downstreamEnergy, downstreamFriction, parameters);
+                        downstreamEnergy, parameters);
                 if (Math.abs(residual) <= energyTolerance(upstream, middle, downstream, depths[i + 1], parameters)
                         || upper - lower <= parameters.relativeTolerance() * Math.max(1.0, middle)) {
                     root = middle;
@@ -167,7 +167,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             depths[i] = root;
             maximumResidual = Math.max(maximumResidual, Math.abs(energyResidual(
                     upstream, downstream, depths[i + 1], root, spacing,
-                    downstreamEnergy, downstreamFriction, parameters)));
+                    downstreamEnergy, parameters)));
         }
 
         List<ProfilePoint> points = new ArrayList<>(reach.size());
