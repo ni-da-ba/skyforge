@@ -400,8 +400,13 @@ public final class SkyIslandGraduallyVariedFlowSolver {
         throw new IllegalStateException("critical-depth iteration did not converge");
     }
 
-    private static double froudeNumber(
+    public static double froudeNumber(
             CrossSection section, double depth, Parameters parameters) {
+        Objects.requireNonNull(section, "section");
+        Objects.requireNonNull(parameters, "parameters");
+        if (!Double.isFinite(depth) || depth <= 0.0) {
+            throw new IllegalArgumentException("depth must be finite and positive");
+        }
         return Math.sqrt(froudeSquared(section, depth, parameters));
     }
 
