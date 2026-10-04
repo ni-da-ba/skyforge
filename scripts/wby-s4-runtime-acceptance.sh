@@ -68,6 +68,8 @@ start_server() {
   cat "$log_path"
   echo "S4 server did not reach Done: $log_path" >&2
   return 1
+  local policy="skyforge-neoforge-1211/run-wby-s4-join-server/config/supplementaries-common.toml"
+  cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$policy"
 }
 
 stop_server() {
@@ -93,6 +95,7 @@ stop_server() {
 
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
+cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$server_dir/config/supplementaries-common.toml"
 grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
 
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
@@ -146,6 +149,7 @@ test -f "$server_dir/world/level.dat"
 server_log="wby-s4-server-reopen.log"
 start_server "$server_log"
 test -f "$server_dir/world/level.dat"
+cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$server_dir/config/supplementaries-common.toml"
 stop_server "$server_log"
 grep -Fq 'Stopping server' "$server_log"
 trap - EXIT
