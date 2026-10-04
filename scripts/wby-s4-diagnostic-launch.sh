@@ -84,6 +84,7 @@ else
   echo "Diagnostics bundle: $bundle"
 fi
 
+set +e
 JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
 ./gradlew "$task" \
   -PwbyS1Glider=combined \
@@ -97,8 +98,9 @@ JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthori
   -PwbyS4Shaders="$shader_enabled" \
   -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
-
 status=${PIPESTATUS[0]}
+set -e
+
 run_path="skyforge-neoforge-1211/$run_directory"
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
