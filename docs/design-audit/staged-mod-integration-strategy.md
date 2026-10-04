@@ -181,9 +181,10 @@ D-01 remains preferred pending its pinned-stack authority/performance proof. D-0
 ### Selected baseline
 - CC:Tweaked
 - Create: Avionics
+- First cumulative profile admission: #1454, layered on the S1 branch after #1447, reusing accepted WBY-INT-0005 / #1418 C14 evidence.
 
 ### Comparison / bounded candidates
-- Create:Aero Automated Logistics — D-06
+- Create:Aero Automated Logistics — D-06; keep as a separate candidate overlay and use the exact-artifact/API/runtime evidence tracked by Implementation issue #441 before any cumulative admission.
 - Create Aeronautics Discovery where route/prefab realization is needed
 
 ### Authority rule
