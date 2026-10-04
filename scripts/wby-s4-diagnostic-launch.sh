@@ -64,6 +64,30 @@ server-port=25565
 EOF
 fi
 
+assert_supplementaries_policy() {
+  local config="$1"
+  test -f "$config"
+  for expected in \
+    "building.way_sign.road_signs enabled false" \
+    "building.ash basalt_ash false" \
+    "functional.urn cave_urns false" \
+    "functional.flax wild_flax false" \
+    "functional.plunderer.galleon enabled false" \
+    "redstone.pulley_block mineshaft_elevator 0.0"; do
+    read -r section key value <<< "$expected"
+    awk -v target="[$section]" -v wanted_key="$key" -v wanted_value="$value" '
+      /^\[/ { section = $0 }
+      section == target && $0 ~ "^[[:space:]]*" wanted_key "[[:space:]]*=" {
+        line = $0
+        sub(/^[^=]*=[[:space:]]*/, "", line)
+        gsub(/[[:space:]"]/, "", line)
+        if (line == wanted_value) found = 1
+      }
+      END { exit !found }
+    ' "$config"
+  done
+}
+
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 bundle=".skyforge-diagnostics/wby-s4-$mode-$stamp"
 mkdir -p "$bundle"
@@ -103,12 +127,11 @@ set -e
 
 run_path="skyforge-neoforge-1211/$run_directory"
 if [[ "$status" -eq 0 ]]; then
-  policy="$run_path/config/supplementaries-common.toml"
-  if [[ ! -f "$policy" ]] || ! cmp -s "skyforge-neoforge-1211/wby-s4-policy/supplementaries-common.toml" "$policy"; then
-    echo "S4 Supplementaries policy was not staged into the run profile: $policy" >&2
+  if ! assert_supplementaries_policy "$run_path/config/supplementaries-common.toml"; then
+    echo "S4 Supplementaries worldgen policy was not active in the run profile." >&2
     status=1
   fi
-  if grep -Eiq 'supplementaries-common\.toml.*(not correct|failed loading)|Failed loading config file.*supplementaries' "$log" "$run_path/logs/latest.log" 2>/dev/null; then
+  if grep -Eiq 'Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml' "$run_path/logs/latest.log" 2>/dev/null; then
     echo "Supplementaries rejected the staged S4 config; inspect the diagnostics bundle." >&2
     status=1
   fi
