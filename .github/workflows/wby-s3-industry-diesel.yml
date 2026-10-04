@@ -444,7 +444,7 @@ jobs:
             exit 1
           fi
           client_latest_log="$client_dir/logs/latest.log"
-          grep -Eq '\\(createdieselgenerators\\)' "$client_latest_log"
+          grep -Eq '\(createdieselgenerators\)' "$client_latest_log"
           grep -Fq 'WAVE_C14 PASS' "$server_latest_log"
           grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_latest_log"
           # A background process inherits ignored SIGINT from this non-interactive
