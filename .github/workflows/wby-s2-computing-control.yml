@@ -22,7 +22,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: wby-s2-atmosphere-mobility-${{ github.event.pull_request.number || github.ref }}
+  group: wby-s2-computing-control-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -193,13 +193,6 @@ jobs:
           sleep 2
           kill -KILL -- "-$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
-
-      - name: Resolve ThinAir optional overlay closure
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1ThinAir=true --no-configuration-cache | tee wby-s2-thinair.log
-          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s2-thinair.log
 
       - name: Validate manual launch task graphs
         shell: bash
