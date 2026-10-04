@@ -131,11 +131,12 @@ if [[ "$status" -eq 0 ]]; then
     echo "S4 Supplementaries worldgen policy was not active in the run profile." >&2
     status=1
   fi
-  if grep -Eiq 'Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml' "$run_path/logs/latest.log" 2>/dev/null; then
+  config_warning='Configuration file .*supplementaries-common\.toml is not correct|Failed loading config file supplementaries-common\.toml'
+  if grep -Eiq "$config_warning" "$run_path/logs/latest.log" 2>/dev/null; then
+    grep -Ein "$config_warning" "$run_path/logs/latest.log" >&2 || true
     echo "Supplementaries rejected the staged S4 config; inspect the diagnostics bundle." >&2
     status=1
-  fi
-fi
+  fifi
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
 test ! -d "$run_path/config" || cp -R "$run_path/config" "$bundle/config"
