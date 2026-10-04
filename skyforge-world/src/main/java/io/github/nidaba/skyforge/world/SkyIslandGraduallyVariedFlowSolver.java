@@ -211,16 +211,16 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             Parameters parameters) {
         double upstreamEnergy = specificEnergy(upstream, upstreamDepth, parameters);
         double upstreamFriction = frictionSlope(upstream, upstreamDepth, parameters);
-        return upstreamEnergy - downstreamEnergy
+        return upstream.bedElevationMeters() - downstream.bedElevationMeters()
+                + upstreamEnergy - downstreamEnergy
                 - 0.5 * (upstreamFriction + downstreamFriction) * spacing;
     }
 
     private static double specificEnergy(
             CrossSection section, double depth, Parameters parameters) {
         double velocity = section.dischargeCubicMetersPerSecond() / area(section, depth);
-        return section.bedElevationMeters() + depth
-                + parameters.energyCoefficient() * velocity * velocity
-                        / (2.0 * parameters.gravityMetersPerSecondSquared());
+        return depth + parameters.energyCoefficient() * velocity * velocity
+                / (2.0 * parameters.gravityMetersPerSecondSquared());
     }
 
     private static double frictionSlope(
