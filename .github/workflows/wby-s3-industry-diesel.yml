@@ -302,7 +302,7 @@ jobs:
           server_dir="skyforge-neoforge-1211/run-wby-s3-server"
           client_dir="skyforge-neoforge-1211/run-wby-s3-client"
           server_log="wby-s3-server.log"
-          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC14AvionicsCapability=true -Dskyforge.dev.waveC7GliderLift=true -Dskyforge.dev.waveC7Acceptance=true -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
             -PwbyS1RunDirectory=run-wby-s3-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true -PwbyS3DieselGenerators=true --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
@@ -346,8 +346,10 @@ jobs:
           trap cleanup EXIT
           ready=false
           for attempt in $(seq 1 150); do
-            if grep -Fq 'Done (' "$server_log"; then
-              grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$server_log"
+            if grep -Fq 'Done (' "$server_log" && \
+              grep -Fq 'WAVE_C14 PASS' "$server_log" && \
+              grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_log" && \
+              grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$server_log"; then
               ready=true
               break
             fi
@@ -387,7 +389,6 @@ jobs:
           server_latest_log="$server_dir/logs/latest.log"
           grep -Fq '"Disable normal oil chunks" = true' "$server_dir/world/serverconfig/createdieselgenerators-server.toml"
           grep -Fq '"Disable high oil chunks" = true' "$server_dir/world/serverconfig/createdieselgenerators-server.toml"
-          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$server_latest_log"
           client_join_timeout_seconds=600
           echo "Waiting up to ${client_join_timeout_seconds}s for the fully modded CI client to finish startup and join."
           joined=false
@@ -452,8 +453,9 @@ jobs:
           fi
           client_latest_log="$client_dir/logs/latest.log"
           grep -Eq '\(createdieselgenerators\)' "$client_latest_log"
-          grep -Fq 'WAVE_C14 PASS' "$server_latest_log"
-          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_latest_log"
+          grep -Fq 'WAVE_C14 PASS' "$server_log"
+          grep -Fq 'WAVE_C7_ACCEPTANCE PASS' "$server_log"
+          grep -Fq 'WAVE_C25 PASS mode=SUPPRESSED' "$server_log"
           # A background process inherits ignored SIGINT from this non-interactive
           # shell. Signal the NeoForge server JVM directly so its JVM shutdown hooks
           # save the joined world instead of relying on the Gradle process group.
