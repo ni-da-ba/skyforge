@@ -1,0 +1,156 @@
+name: WBY S4 Life, Building, and Shader Profile
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s4-life-building.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s4-life-building.properties"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s3-industry.properties"
+      - "skyforge-neoforge-1211/wave-c*.properties"
+      - "skyforge-neoforge-1211/wby-wave1*.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-*.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-policy/**"
+      - "scripts/wby-s4-diagnostic-launch.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s4-life-building-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-and-server-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Resolve cumulative S4 gameplay profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true --no-configuration-cache | tee wby-s4-gameplay-resolution.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s4-gameplay-resolution.log
+          grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s4-gameplay-resolution.log
+          grep -Fq 'distantHorizons=with-dh' wby-s4-gameplay-resolution.log
+
+      - name: Resolve and stage the opt-in shader client overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true --no-configuration-cache | tee wby-s4-shader-resolution.log
+          grep -Fq 'WBY S4 SHADER MOD RESOLUTION PASS' wby-s4-shader-resolution.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s4-shaders \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true --no-configuration-cache
+          staged="skyforge-neoforge-1211/run-wby-s4-shaders/mods"
+          find "$staged" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-s4-client-stage.txt
+          test "$(find "$staged" -maxdepth 1 -type f -name '*.jar' | wc -l)" -eq 29
+          grep -Fq 'YL57xq9U-KduFYu4t' wby-s4-client-stage.txt
+          grep -Fq 'oculus-for-simpleclouds-1386686-9037451' wby-s4-client-stage.txt
+
+      - name: Boot cumulative S4 dedicated server in a disposable flat world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-s4-server"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=s4-acceptance
+          level-seed=817304
+          level-type=minecraft:flat
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=5
+          simulation-distance=3
+          max-tick-time=0
+          server-port=25565
+          EOF
+          log="$GITHUB_WORKSPACE/wby-s4-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s4-server \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          cleanup() { kill -INT "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          outcome=""
+          for _ in $(seq 1 300); do
+            if grep -Fq 'Done (' "$log" 2>/dev/null; then outcome="ready"; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then outcome="exited"; break; fi
+            sleep 2
+          done
+          if [[ "$outcome" != "ready" ]]; then
+            cat "$log"
+            echo "S4 dedicated server did not reach Done; outcome=$outcome" >&2
+            exit 1
+          fi
+          grep -Fq 'farmersdelight' "$log" || true
+          echo "WBY S4 dedicated server reached Done in a flat disposable world."
+
+      - name: Upload S4 integration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s4-life-building-resolution
+          path: |
+            wby-s4-*.log
+            wby-s4-client-stage.txt
+            skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
+            a4mc-0.2.2/*.jar
+          if-no-files-found: warn
