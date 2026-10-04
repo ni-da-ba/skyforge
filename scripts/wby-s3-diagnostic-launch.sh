@@ -12,7 +12,7 @@ run_directory="run-wby-s3-integrated"
 run_dir="skyforge-neoforge-1211/$run_directory"
 mkdir -p .skyforge-diagnostics "$run_dir"
 if [[ "$mode" == "server" ]]; then
-  printf 'eula=true\\n' > "$run_dir/eula.txt"
+  printf 'eula=true\n' > "$run_dir/eula.txt"
   cat > "$run_dir/server.properties" <<'EOF'
 level-name=world
 online-mode=false
