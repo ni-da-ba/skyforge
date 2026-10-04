@@ -65,6 +65,25 @@ The current semantic (Q_r) is a relative ordering, not a discharge with units. T
 
 The parameter mapping must be fixed before evaluating key 700, then tested against the existing accepted ordinary outlet controls and known fail-closed controls. It must not be chosen solely to make key 700 pass. Report sensitivity to roughness, width/depth, and boundary stage. Until that mapping exists, the SI normal-depth utility is a tested component, not production hydraulics.
 
+### Provisional event-to-flow mapping
+
+For a bounded small catchment, the standard Rational Method offers a dimensionally explicit bridge
+from the existing accumulated effective-runoff potential to discharge:
+
+\[
+Q = i\,A_{eff},\qquad
+A_{eff}=\left(\sum_j C_j\right)\,\Delta x^2\,s^2
+\]
+
+where the current flow accumulation is \(\sum C_j\), grid spacing is \(\Delta x\) in world
+units, \(s\) converts world units to metres, and \(i\) is a selected design-storm intensity in
+m/s. The code helper accepts rainfall intensity in mm/h and converts units explicitly. This treats
+the existing normalized runoff potential as an effective runoff coefficient; that interpretation is
+a **calibration hypothesis**, not accepted hydrology truth. The Rational Method also assumes a storm
+duration equal to time of concentration and a small basin where peak flow is meaningful. Until the
+project supplies/accepts storm intensity, time-of-concentration treatment, runoff-potential mapping,
+and catchment-domain evidence, production must not select this mapping silently.
+
 ## Separation of solution and geomorphic acceptance
 
 The hydraulic solve returns water surface, bed, section state, flow regime, and residual/error diagnostics. D2 then independently evaluates terrain fit: incision/lowering, bank containment, lateral/valley recovery, ridge occupancy, curvature-width compatibility, and excavation burden. D2 may reject the physically solved candidate. Its bounds must not be fed back as invented hydraulic boundary stages or modified after solving to force acceptance.

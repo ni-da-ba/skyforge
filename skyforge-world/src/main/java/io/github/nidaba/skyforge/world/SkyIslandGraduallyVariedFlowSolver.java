@@ -198,8 +198,6 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             double downstreamEnergy,
             Parameters parameters) {
         double upstreamEnergy = specificEnergy(upstream, upstreamDepth, parameters);
-        double upstreamFriction = frictionSlope(upstream, upstreamDepth, parameters);
-        double downstreamFriction = frictionSlope(downstream, downstreamDepth, parameters);
         double averageFrictionSlope = averageConveyanceFrictionSlope(
                 upstream.dischargeCubicMetersPerSecond(),
                 conveyance(upstream, upstreamDepth, parameters),
@@ -219,8 +217,6 @@ public final class SkyIslandGraduallyVariedFlowSolver {
 
     private static double frictionSlope(
             CrossSection section, double depth, Parameters parameters) {
-        double area = area(section, depth);
-        double wettedPerimeter = wettedPerimeter(section, depth);
         double conveyance = conveyance(section, depth, parameters);
         double scaledDischarge = section.dischargeCubicMetersPerSecond() / conveyance;
         return scaledDischarge * scaledDischarge;
