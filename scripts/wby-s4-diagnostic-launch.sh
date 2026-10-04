@@ -128,13 +128,10 @@ set -e
 run_path="skyforge-neoforge-1211/$run_directory"
 if [[ "$status" -eq 0 ]]; then
   if ! assert_supplementaries_policy "$run_path/config/supplementaries-common.toml"; then
-    echo "S4 Supplementaries worldgen policy was not active in the run profile." >&2
+    echo "S4 Supplementaries worldgen policy was not active after the profile loaded." >&2
     status=1
   fi
-  if ! assert_supplementaries_policy "$run_path/config/supplementaries-common.toml"; then
-    echo "Supplementaries did not retain the S4 worldgen policy after loading its config." >&2
-    status=1
-  fifi
+fi
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
 test ! -d "$run_path/config" || cp -R "$run_path/config" "$bundle/config"
