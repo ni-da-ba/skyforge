@@ -342,6 +342,7 @@ jobs:
             s4-production-server/config/*.toml
             s4-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s4-join-client/mods/*.jar
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml
             skyforge-neoforge-1211/run-wby-s4-server/config/hearthandharvest-common.toml
