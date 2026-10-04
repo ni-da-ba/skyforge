@@ -96,6 +96,29 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FREE
                 && terminalFates.get(span.parentReachEndCellIndex())
                         == SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
+            if (span.upstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
+                double upstreamStageMeters =
+                        span.upstreamBoundary().fixedHeadWorldUnits().orElseThrow()
+                                * calibration.metersPerWorldUnit();
+                double upstreamDepthMeters =
+                        upstreamStageMeters - sections.getFirst().bedElevationMeters();
+                if (!(upstreamDepthMeters > 0.0)) {
+                    throw new IllegalArgumentException(
+                            "upstream fixed stage must lie above the modeled channel bed");
+                }
+                double upstreamFroude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                        sections.getFirst(), upstreamDepthMeters, calibration.solverParameters());
+                double regimeMargin = Math.max(
+                        1.0e-6, 10.0 * calibration.relativeTolerance());
+                if (upstreamFroude > 1.0 + regimeMargin) {
+                    return SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                            sections, upstreamDepthMeters, calibration.solverParameters());
+                }
+                if (upstreamFroude >= 1.0 - regimeMargin) {
+                    throw new IllegalStateException(
+                            "upstream fixed stage is near critical; mixed-regime control is unsupported");
+                }
+            }
             return calibration.solveFreeOutfall(descriptor, span.samples());
         }
         throw new IllegalArgumentException(
