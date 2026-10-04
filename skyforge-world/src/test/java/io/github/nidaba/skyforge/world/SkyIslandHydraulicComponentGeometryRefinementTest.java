@@ -58,7 +58,7 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
         // Deterministic coordinate descent over local cosine-windowed lateral moves targeting
         // exact F3E-blocked span boundaries/interiors. Endpoints remain fixed; existing C2 bounds
         // stay hard. A small pass cap allows interactions among the three incident reaches.
-        for (int pass = 0; pass < 3; pass++) {
+        for (int pass = 0; pass < 6; pass++) {
             CandidateScore passStart = best.score();
             for (String routeId : TARGET_REACHES) {
                 CandidateState bestForRoute = best;
