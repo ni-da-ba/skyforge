@@ -7919,10 +7919,10 @@ tasks.named("runWbyS1DiagnosticServer").configure {
                 "WBY S3 requires server.properties before dedicated-server launch: $propertiesFile"
             }
             val properties = Properties().apply { propertiesFile.inputStream().use(::load) }
-            val levelName = requireNotNull(properties.getProperty("level-name"))
+            val levelName = properties.getProperty("level-name", "world")
                 .trim()
                 .takeIf { it.isNotEmpty() }
-                ?: error("WBY S3 dedicated server requires a non-empty level-name")
+                ?: "world"
             writeWbyS3DieselSuppressionConfig(directory.resolve(levelName))
         }
     }
