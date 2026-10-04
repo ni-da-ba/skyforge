@@ -395,6 +395,18 @@ check(waveC25Pin("neoforge", "version") == "21.1.249") {
     "Wave C25 NeoForge pin must match the adapter runtime"
 }
 
+val wbyS3PinFile = layout.projectDirectory.file("wby-s3-industry.properties")
+val wbyS3Pins = Properties().apply { wbyS3PinFile.asFile.inputStream().use(::load) }
+fun wbyS3Pin(field: String): String =
+    requireNotNull(wbyS3Pins.getProperty(field)) { "missing WBY S3 pin: $field in " + wbyS3PinFile.asFile }
+
+check(wbyS3Pin("minecraft.version") == "1.21.1")
+check(wbyS3Pin("neoforge.version") == "21.1.249")
+check(wbyS3Pin("profile.base") == "wby-s2-computing-control")
+check(wbyS3Pin("dieselGenerators.coordinate") == waveC25Pin("createdieselgenerators", "coordinate"))
+check(wbyS3Pin("dieselGenerators.version") == waveC25Pin("createdieselgenerators", "version"))
+
+
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
 val sfImp0084AalPinFile = layout.projectDirectory.file("sf-imp-0084-aal.properties")
@@ -7065,6 +7077,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(waveC3PinFile)
     inputs.file(waveC9PinFile)
     inputs.file(waveC25PinFile)
+    inputs.file(wbyS3PinFile)
     inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
     inputs.property("wbyS3DieselGenerators", wbyS3DieselGenerators)
     doLast {
