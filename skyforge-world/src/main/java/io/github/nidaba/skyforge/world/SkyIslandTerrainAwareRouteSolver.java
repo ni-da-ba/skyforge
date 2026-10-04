@@ -105,6 +105,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
         boolean[] valid = new boolean[count];
         boolean[] start = new boolean[count];
         boolean[] goal = new boolean[count];
+        boolean[] discovered = new boolean[count];
         Arrays.fill(filledElevation, Double.POSITIVE_INFINITY);
         Arrays.fill(routeCost, Double.POSITIVE_INFINITY);
         Arrays.fill(previous, -1);
@@ -164,6 +165,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 .thenComparingInt(FloodNode::index));
         for (int i = 0; i < count; i++) {
             if (goal[i]) {
+                discovered[i] = true;
                 filledElevation[i] = elevations[i];
                 routeCost[i] = 0.0;
                 open.add(new FloodNode(i, filledElevation[i], routeCost[i]));
@@ -173,12 +175,6 @@ public final class SkyIslandTerrainAwareRouteSolver {
         while (!open.isEmpty()) {
             FloodNode current = open.remove();
             int currentIndex = current.index();
-            if (current.filledElevation() > filledElevation[currentIndex] + EPSILON
-                    || (Math.abs(current.filledElevation() - filledElevation[currentIndex]) <= EPSILON
-                            && current.routeCost() > routeCost[currentIndex] + EPSILON)) {
-                continue;
-            }
-
             int cx = currentIndex % width;
             int cz = currentIndex / width;
             for (int dz = -1; dz <= 1; dz++) {
@@ -192,7 +188,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                         continue;
                     }
                     int next = index(nx, nz, width);
-                    if (!valid[next] || goal[next]) {
+                    if (!valid[next] || discovered[next]) {
                         continue;
                     }
 
@@ -202,15 +198,14 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     double candidateCost = routeCost[currentIndex]
                             + BASE_LENGTH_WEIGHT * normalizedLength
                             + 0.5 * Math.max(0.0, localCost[currentIndex] + localCost[next]) * normalizedLength;
-                    boolean improves = candidateFill < filledElevation[next] - EPSILON
-                            || (Math.abs(candidateFill - filledElevation[next]) <= EPSILON
-                                    && candidateCost < routeCost[next] - EPSILON);
-                    if (improves) {
-                        filledElevation[next] = candidateFill;
-                        routeCost[next] = candidateCost;
-                        previous[next] = currentIndex;
-                        open.add(new FloodNode(next, candidateFill, candidateCost));
-                    }
+
+                    // Priority-Flood claims each cell once. The queue's fill elevation is the
+                    // primary order; deterministic route cost/index only order equal spill levels.
+                    discovered[next] = true;
+                    filledElevation[next] = candidateFill;
+                    routeCost[next] = candidateCost;
+                    previous[next] = currentIndex;
+                    open.add(new FloodNode(next, candidateFill, candidateCost));
                 }
             }
         }
