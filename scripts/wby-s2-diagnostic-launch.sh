@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-mode="\${1:-client}"
+mode="${1:-client}"
 case "$mode" in
   client) task=":skyforge-neoforge-1211:runWbyS1DiagnosticClient" ;;
   server) task=":skyforge-neoforge-1211:runWbyS1DiagnosticServer" ;;
@@ -61,7 +61,7 @@ set +e
   -PwbyS2ComputingAvionics=true \
   -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
   --no-configuration-cache 2>&1 | tee "$log"
-status=\${PIPESTATUS[0]}
+status=${PIPESTATUS[0]}
 set -e
 
 test ! -f "$run_dir/logs/latest.log" || cp "$run_dir/logs/latest.log" "$bundle/latest.log"
