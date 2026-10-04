@@ -15,8 +15,8 @@ cave_urns = false
 [functional.flax]
 wild_flax = false
 
-[functional.plunderer.galleon]
-enabled = false
+[functional.plunderer]
+galleon = false
 
 [redstone.pulley_block]
 mineshaft_elevator = 0.0
