@@ -58,7 +58,7 @@ assert_supplementaries_policy() {
     "building.ash basalt_ash false" \
     "functional.urn cave_urns false" \
     "functional.flax wild_flax false" \
-    "functional.plunderer.galleon enabled false" \
+    "functional.plunderer galleon false" \
     "redstone.pulley_block mineshaft_elevator 0.0"; do
     read -r section key value <<< "$expected"
     awk -v target="[$section]" -v wanted_key="$key" -v wanted_value="$value" '
