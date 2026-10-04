@@ -101,16 +101,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1ThinAir=true -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-thinair.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS1ThinAir=true --no-configuration-cache | tee wby-s2-thinair.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s2-thinair.log
 
       - name: Validate manual launch task graphs
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-server-dry-run.log
-          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-client-dry-run.log
-          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-join-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-server-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticClient --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-client-dry-run.log
+          ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance --dry-run -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS2ComputingAvionics=true --no-configuration-cache | tee wby-s2-join-dry-run.log
           grep -Fq 'wbyS1StagePolicy' wby-s2-server-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s2-client-dry-run.log
           grep -Fq 'wbyS1StageClientMods' wby-s2-join-dry-run.log
@@ -193,7 +193,7 @@ jobs:
           client_dir="skyforge-neoforge-1211/run-wby-s2-client"
           server_log="wby-s2-server.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           client_pid=""
           cleanup() {
@@ -398,7 +398,7 @@ jobs:
           set -euo pipefail
           server_log="wby-s2-server-reload.log"
           setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
-            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
+            -PwbyS1RunDirectory=run-wby-s2-server -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" -PwbyS2ComputingAvionics=true --no-configuration-cache > "$server_log" 2>&1 &
           server_pid=$!
           ready=false
           for attempt in $(seq 1 150); do
