@@ -32,6 +32,63 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
             Pattern.compile("gapWorld=([0-9.eE+-]+)");
 
     @Test
+    void key700PriorityFloodRouteCandidateIsScoredByExactTerminalComponentAssembly() {
+        SkyIslandDescriptor descriptor = descriptor();
+        SkyIslandHydraulicGeometrySkeletonPlan base =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
+        SkyIslandGeomorphicChannelNetworkPlan network = base.geomorphicNetwork();
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority = SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        double corridorHalfWidth = network.planningSpacing()
+                * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+
+        List<SkyIslandGeomorphicReachRoute> routes = new ArrayList<>(network.routes().size());
+        int replaced = 0;
+        for (SkyIslandGeomorphicReachRoute route : network.routes()) {
+            SkyIslandSemanticChannelReach semantic = route.semanticReach();
+            String id = semantic.startCellIndex() + "->" + semantic.endCellIndex();
+            if (!TARGET_REACHES.contains(id)) {
+                routes.add(route);
+                continue;
+            }
+            SkyIslandGeomorphicNetworkNode start = network.requireNode(semantic.startCellIndex());
+            SkyIslandGeomorphicNetworkNode end = network.requireNode(semantic.endCellIndex());
+            SkyIslandGeomorphicCandidateRoute candidate =
+                    SkyIslandTerrainAwareRouteSolver.solveByPriorityFlood(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0));
+            routes.add(new SkyIslandGeomorphicReachRoute(semantic, candidate));
+            replaced++;
+        }
+        assertEquals(TARGET_REACHES.size(), replaced);
+
+        SkyIslandGeomorphicChannelNetworkPlan candidateNetwork =
+                new SkyIslandGeomorphicChannelNetworkPlan(
+                        descriptor, network.planningSpacing(), network.nodes(), routes);
+        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(
+                        descriptor, candidateNetwork, terrain, interiority);
+        CandidateState candidate =
+                evaluate(descriptor, candidateSkeleton, base, "priority-flood");
+
+        System.out.printf(
+                Locale.ROOT,
+                "F3P_KEY700 candidate=outlet-rooted-priority-flood status=%s score=%s%n",
+                terminalComponent(candidate.assembly()).status(),
+                candidate.score());
+        assertEquals(
+                TARGET_REACHES.size(),
+                candidate.skeleton().reaches().stream()
+                        .filter(reach -> TARGET_REACHES.contains(reachId(reach)))
+                        .count());
+    }
+
+    @Test
     void key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly() {
         SkyIslandDescriptor descriptor = descriptor();
         SkyIslandHydraulicGeometrySkeletonPlan base =
