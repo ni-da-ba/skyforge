@@ -27,6 +27,27 @@ class SkyIslandManningHydraulicsTest {
     }
 
     @Test
+    void trapezoidalNormalDepthSatisfiesManningEquation() {
+        double expectedDepthMeters = 1.75;
+        double bottomWidthMeters = 4.0;
+        double sideSlope = 1.5;
+        double roughness = 0.035;
+        double slope = 0.004;
+        double area = expectedDepthMeters
+                * (bottomWidthMeters + sideSlope * expectedDepthMeters);
+        double wettedPerimeter = bottomWidthMeters
+                + 2.0 * expectedDepthMeters * Math.hypot(1.0, sideSlope);
+        double hydraulicRadius = area / wettedPerimeter;
+        double discharge = (1.0 / roughness) * area
+                * Math.pow(hydraulicRadius, 2.0 / 3.0) * Math.sqrt(slope);
+
+        double solved = SkyIslandManningHydraulics.normalDepthMeters(
+                discharge, roughness, slope, bottomWidthMeters, sideSlope);
+
+        assertEquals(expectedDepthMeters, solved, EPSILON);
+    }
+
+    @Test
     void normalDepthIncreasesWithDischargeAndRoughnessAndDecreasesWithSlope() {
         double base = SkyIslandManningHydraulics.normalDepthMeters(4.0, 0.03, 0.01, 3.0, 1.5);
         double higherDischarge =
