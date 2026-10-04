@@ -147,18 +147,18 @@ public final class SkyIslandConditionedDemFlow {
             }
             int to = index(nx, nz, width);
             double difference = filled[from] - filled[to];
-            if (difference > ELEVATION_EPSILON) {
+            if (difference > 0.0) {
                 double distance = cellSize * (delta[0] == 0 || delta[1] == 0
                         ? 1.0
                         : Math.sqrt(2.0));
                 double slope = difference / distance;
-                if (slope > steepestSlope + ELEVATION_EPSILON
-                        || (Math.abs(slope - steepestSlope) <= ELEVATION_EPSILON
+                if (Double.compare(slope, steepestSlope) > 0
+                        || (Double.compare(slope, steepestSlope) == 0
                                 && (steepest < 0 || to < steepest))) {
                     steepest = to;
                     steepestSlope = slope;
                 }
-            } else if (Math.abs(difference) <= ELEVATION_EPSILON
+            } else if (difference == 0.0
                     && floodRank[to] < floodRank[from]
                     && floodRank[to] > greatestPredecessorRank) {
                 flatPredecessor = to;
