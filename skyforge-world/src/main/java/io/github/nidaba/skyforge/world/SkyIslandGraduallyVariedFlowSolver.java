@@ -263,14 +263,13 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             CrossSection upstream = reach.get(i);
             CrossSection downstream = reach.get(i + 1);
             double spacing = downstream.chainageMeters() - upstream.chainageMeters();
-            double upstreamEnergy = specificEnergy(upstream, depths[i], parameters);
             double critical = criticalDepth(downstream, parameters);
             double lower = Math.max(1.0e-12, Math.ulp(downstream.bottomWidthMeters()));
             double upper = critical * (1.0 - 10.0 * parameters.relativeTolerance());
             double lowerResidual = energyResidual(
-                    upstream, downstream, lower, depths[i], spacing, upstreamEnergy, parameters);
+                    upstream, downstream, lower, depths[i], spacing,\n                    specificEnergy(downstream, lower, parameters), parameters);
             double upperResidual = energyResidual(
-                    upstream, downstream, upper, depths[i], spacing, upstreamEnergy, parameters);
+                    upstream, downstream, upper, depths[i], spacing,\n                    specificEnergy(downstream, upper, parameters), parameters);
             if (!(lowerResidual <= 0.0 && upperResidual >= 0.0)) {
                 throw new IllegalStateException(
                         "no supercritical standard-step solution before critical depth at section "
@@ -281,7 +280,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             for (int iteration = 0; iteration < parameters.maximumIterations(); iteration++) {
                 double middle = lower + 0.5 * (upper - lower);
                 double residual = energyResidual(
-                        upstream, downstream, middle, depths[i], spacing, upstreamEnergy, parameters);
+                        upstream, downstream, middle, depths[i], spacing,\n                        specificEnergy(downstream, middle, parameters), parameters);
                 if (Math.abs(residual) <= energyTolerance(
                                 upstream, depths[i], downstream, middle, parameters)
                         || upper - lower <= parameters.relativeTolerance() * Math.max(1.0, middle)) {
@@ -301,7 +300,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             }
             depths[i + 1] = root;
             maximumResidual = Math.max(maximumResidual, Math.abs(energyResidual(
-                    upstream, downstream, root, depths[i], spacing, upstreamEnergy, parameters)));
+                    upstream, downstream, root, depths[i], spacing,\n                    specificEnergy(downstream, root, parameters), parameters)));
         }
 
         List<ProfilePoint> points = new ArrayList<>(reach.size());
