@@ -475,6 +475,7 @@ fun wbyS1Token(mod: String): String =
 val wbyS1Glider = providers.gradleProperty("wbyS1Glider").orNull?.trim()?.lowercase() ?: "none"
 val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowercase() ?: "none"
 val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS2ComputingAvionics = providers.gradleProperty("wbyS2ComputingAvionics").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS1RunDirectory = providers.gradleProperty("wbyS1RunDirectory").orNull ?: "run-wby-s1"
 val wbyS1A4mcBuiltModDir = providers.gradleProperty("wbyS1A4mcBuiltModDir").orNull?.let { file(it) }
 val wbyS1A4mcBuiltArtifacts = wbyS1A4mcBuiltModDir?.let { dir ->
@@ -499,6 +500,9 @@ check(wbyS1Glider in setOf("none", "reliable-gliders", "ornithopter", "combined"
 }
 check(wbyS1Clouds in setOf("none", "better-clouds", "simple-clouds")) {
     "unsupported WBY S1 clouds '$wbyS1Clouds'; choose none, better-clouds, or simple-clouds"
+}
+check(!wbyS2ComputingAvionics || (wbyS1Glider == "combined" && wbyS1Clouds == "simple-clouds")) {
+    "WBY S2 requires the selected integrated S1 profile: combined gliders and Simple Clouds"
 }
 
 // Wave C1 keeps optional engineering-mod dependencies out of ordinary Skyforge runs. The
@@ -7055,6 +7059,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(wbyS1PinFile)
     inputs.file(waveC2PinFile)
     inputs.file(waveC3PinFile)
+    inputs.file(waveC9PinFile)
+    inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7156,7 +7162,20 @@ tasks.register("wbyS1ResolvePinnedMods") {
             forbidToken(server, "thinair", "server")
         }
 
+        listOf("cctweaked", "createavionics").forEach { mod ->
+            val token = wbyS1TokenFromCoordinate(waveC9Pin(mod, "coordinate"))
+            if (wbyS2ComputingAvionics) {
+                check(client.any { it.contains(token) } && server.any { it.contains(token) }) {
+                    "WBY S2 missing $mod on client/server: $token"
+                }
+            } else {
+                check(client.none { it.contains(token) } && server.none { it.contains(token) }) {
+                    "WBY S1 baseline unexpectedly resolved S2 $mod: $token"
+                }
+            }
+        }
         println("WBY S1 RESOLUTION PASS")
+        if (wbyS2ComputingAvionics) println("WBY S2 COMPUTING OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
@@ -7199,7 +7218,10 @@ wbyS1StageClientMods.configure {
             "simple-clouds" -> listOf(wbyS1Token("simpleclouds"))
             else -> emptyList()
         }) +
-        (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList())
+        (if (wbyS1ThinAir) listOf(wbyS1Token("thinair")) else emptyList()) +
+        (if (wbyS2ComputingAvionics) {
+            listOf("cctweaked", "createavionics").map { wbyS1TokenFromCoordinate(waveC9Pin(it, "coordinate")) }
+        } else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -7995,6 +8017,15 @@ dependencies {
     if (wbyS1ThinAir) {
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
         add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS1Pin("thinair", "coordinate"))
+    }
+
+    // S2 is an opt-in cumulative overlay on the accepted S1 classpaths. Its pins are reused
+    // exactly from WBY-INT-0005 / Wave C9; ordinary S1 remains free of computing mods.
+    if (wbyS2ComputingAvionics) {
+        listOf("cctweaked", "createavionics").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC9Pin(mod, "coordinate"))
+        }
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
