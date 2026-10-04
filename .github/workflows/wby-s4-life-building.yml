@@ -196,6 +196,35 @@ jobs:
               raise SystemExit("Supplementaries did not retain the complete S4 worldgen policy.")
           PY
           echo "WBY S4 Supplementaries overrides persisted after config correction."
+          hnh_policy="$run_dir/config/hearthandharvest-common.toml"
+          test -s "$hnh_policy"
+          python3 - "$hnh_policy" <<'PY'
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          policy = Path(sys.argv[1])
+          with policy.open("rb") as source:
+              config = tomllib.load(source)
+
+          expected = {
+              ("generateCornMazes",): False,
+              ("generateLilliputLane",): False,
+              ("nests", "generateNests"): False,
+              ("salt", "generateSaltCaves"): False,
+          }
+          failed = False
+          for parts, wanted in expected.items():
+              value = config
+              for part in parts:
+                  value = value.get(part) if isinstance(value, dict) else None
+              print(f"S4 Hearth and Harvest config: {'.'.join(parts)}={value!r}")
+              if value is not wanted:
+                  failed = True
+          if failed:
+              raise SystemExit("Hearth and Harvest autonomous worldgen was not fully disabled.")
+          PY
+          echo "WBY S4 Hearth and Harvest worldgen policy persisted after config correction."
 
       - name: Join S4 dedicated server from actual client and reopen the same world
         shell: bash
@@ -216,5 +245,6 @@ jobs:
             skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml
+            skyforge-neoforge-1211/run-wby-s4-server/config/hearthandharvest-common.toml
             a4mc-0.2.2/*.jar
           if-no-files-found: warn
