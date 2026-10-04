@@ -6,7 +6,8 @@ import java.util.Objects;
 
 /**
  * Standard-step gradually-varied-flow solver for a single, prismatic-or-gradually-varied
- * subcritical ordinary reach.
+ * ordinary reach in one declared flow regime. Subcritical reaches are marched upstream from a
+ * downstream control; supercritical reaches are marched downstream from an upstream control.
  *
  * <p>Distances, elevations, widths, and depths are metres; discharge is cubic metres per second;
  * roughness is Manning's SI coefficient in s/m^(1/3). Discharge may vary gradually by section to represent distributed inflow.
