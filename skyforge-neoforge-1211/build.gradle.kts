@@ -7742,6 +7742,18 @@ tasks.register("sfImp0084AalValidation") {
     }
 }
 
+tasks.register<JavaExec>("sfImp0084AalGeneratedRouteValidation") {
+    group = "verification"
+    description = "Execute deterministic AAL 0.6.2 generated-route construction without a player recording pass."
+    dependsOn(aalValidation.classesTaskName)
+    classpath = aalValidation.runtimeClasspath
+    mainClass.set("io.github.nidaba.skyforge.neoforge1211.SkyforgeAalGeneratedRouteValidation")
+}
+
+tasks.named("sfImp0084AalValidation") {
+    dependsOn("sfImp0084AalGeneratedRouteValidation")
+}
+
 tasks.named("check") {
     dependsOn("sfImp0084AalValidation")
 }
