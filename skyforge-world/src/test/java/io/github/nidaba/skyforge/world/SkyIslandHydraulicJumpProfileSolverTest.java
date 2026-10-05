@@ -1,6 +1,9 @@
 package io.github.nidaba.skyforge.world;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -20,15 +23,36 @@ class SkyIslandHydraulicJumpProfileSolverTest {
     }
 
     @Test
-    void failsClosedWhenNoMomentumMatchedJumpConnectsTheControls() {
+    void joinsSupercriticalSourceToCriticalTailwaterThroughAdmissibleJump() {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
                 section(0.0, 4.0, 0.0),
                 section(10.0, 3.99, 0.0),
                 section(20.0, 3.98, 0.0),
                 section(30.0, 3.97, 0.0),
                 section(40.0, 3.96, 0.0));
-        assertThrows(IllegalStateException.class,
-                () -> SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, PARAMETERS));
+
+        var profile = SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, PARAMETERS);
+
+        assertEquals(sections, profile.points().stream()
+                .map(SkyIslandGraduallyVariedFlowSolver.ProfilePoint::section)
+                .toList());
+        assertTrue(profile.points().getFirst().froudeNumber() > 1.0);
+        assertTrue(Math.abs(profile.points().getLast().froudeNumber() - 1.0) < 1.0e-6);
+        int firstSubcritical = -1;
+        for (int i = 1; i < profile.points().size() - 1; i++) {
+            double froude = profile.points().get(i).froudeNumber();
+            if (froude < 1.0) {
+                if (firstSubcritical < 0) {
+                    firstSubcritical = i;
+                }
+            } else {
+                assertTrue(firstSubcritical < 0,
+                        "the joined profile must not return to the supercritical branch");
+            }
+        }
+        assertTrue(firstSubcritical > 0,
+                "the momentum-matched jump must leave at least one subcritical interior section");
+        assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-4);
     }
 
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(
