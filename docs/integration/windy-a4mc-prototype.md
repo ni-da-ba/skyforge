@@ -9,12 +9,13 @@
 - Windy (NeoForge 1.21.1) upstream commit `3ba5523481d22179cdf0fa7dab0743210f136bb8`, advertised mod 1.2.0, MIT.
 - A4MC accepted 0.2.2 source commit `171d8dc593651d6b34e3bfecaf6469a11b53b433`, public Minecraft-independent API.
 
-Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies four intentionally narrow patches in order:
+Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies five intentionally narrow patches in order:
 
 1. `0001-authoritative-wind-provider.patch` — adds an optional external vector-field hook to Windy's existing particles and ribbons. When externally bound, the internal randomized wind is skipped, missing samples fail closed, streaks sample each location, ribbons follow 3D local velocity rather than decorative horizontal weave, and high-altitude flight may spawn nearby ribbons.
 2. `0002-a4mc-client-authority-binding.patch` — binds the seam to `AeroClientWindApi.sample` with `SERVER_AGGREGATED_PREFERRED` (trusted coarse / aggregated flow, never client-only local voxel detail). A4MC remains the sole wind/pressure physics authority. The provider is registered only if A4MC is loaded.
 3. `0003-external-wind-command-guard.patch` — reports the physical A4MC wind vector and gust in `/windy status` and rejects `/windy gust` or `/windy calm` when A4MC owns airflow, preventing misleading local overrides.
 4. `0004-trusted-wind-and-ambient-guard.patch` — admits only server-trusted A4MC airflow and suppresses Windy's unrelated biome particle drift while physical authority is active.
+5. `0005-physical-flight-cues.patch` — wisps advect with the local trusted 3D velocity at each tick, fail closed when flow disappears, and ribbons move at physical m/s ÷ 20 without their previous randomized speed factor. Uncalibrated tiny ambient wind-motes are suppressed in external-authority mode pending a bounded particle fidelity/performance trial.
 
 ## Authority boundary
 
@@ -35,7 +36,7 @@ Skyforge / A4MC gameplay consumers remain untouched.
 - **Actual client:** test no-source, still air, crosswind, shear, thermals, sink, near/above/between floating islands, two players at different heights and positions, reconnect/dimension switch, night/storm and sustained gliding. Verify against sampled A4MC public API traces, not just appearance.
 - **Visual issues:** WindRibbons still draws at `AFTER_TRANSLUCENT_BLOCKS` with a custom render type, so Iris/Atmospheric Shaders + DH/SSRD + Simple Clouds depth ordering remains unknown until a real client captures the overlap. Ordinary wisps may be retained independently if ribbons fail.
 - **Weather overlap:** The actual-client smoke explicitly blacklists `dev.fallingcloud.windy.particle.*` under A4MC's particle wind rules, which take precedence over whitelists; avoid duplicate snow/dust/rain when Particle Rain later enters the stack.
-- **Short-particle velocity:** existing Windy wisps/motes/debris still use stylized speed despite following A4MC's local wind direction; only long ribbons currently use `m/s / 20` physical travel. Correct speed and per-tick motion before accepting them as quantitative flight-readable signals.
+- **Particle behavior boundary:** wisps and ribbons now sample physical m/s ÷ 20 travel; other debris effects (leaves, snow and dust) still have stylized drift, gravity and inertia and must not be treated as quantitative aircraft instrumentation. Dedicated same-position tracing and sustained flight p95 profiling remain required before promotion.
 - **Skyforge cloud semantics:** Simple Clouds currently renders with DH in accepted S1, but mapping authored weather to Simple Clouds remains a separate unclosed integration; do not pretend wind patch solves it.
 - **Authority nuance:** client-local A4MC L2 is deliberately excluded from flight-readable ribbons since server gameplay does not trust it. Future purely cosmetic local detail could be allowed if visibly distinguishable from usable lift.
 - **API upstreamability:** the generic `WindStateProvider` seam is intended as an upstream-compatible proposal; the A4MC dependency belongs in a separate optional adapter rather than a permanent fork. Split or submit upstream before production promotion.
