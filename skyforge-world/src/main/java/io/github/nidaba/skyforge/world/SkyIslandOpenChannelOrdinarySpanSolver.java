@@ -102,8 +102,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                 throw new IllegalArgumentException(
                         "CASCADE critical-control solve requires an independent upstream source boundary");
             }
-            return SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
-                    sections, calibration.solverParameters());
+            return solveSourceNormalDepthToCriticalControl(sections, calibration);
         }
         if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
             double downstreamStageMeters =
@@ -171,6 +170,92 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
         throw new IllegalArgumentException(
                 "ordinary span has no authorized downstream hydraulic control");
+    }
+
+    /**
+     * Applies the approved game-scale source closure. Normal depth is calculated from Manning's
+     * equation using the first reach segment's positive bed slope; a supercritical source must
+     * close through a momentum-matched hydraulic jump before the authored downstream critical
+     * control. A subcritical normal-depth source is accepted only when its downstream-controlled
+     * profile independently matches the source depth. Unsupported combinations remain fail-closed.
+     */
+    private static SkyIslandGraduallyVariedFlowSolver.Result
+            solveSourceNormalDepthToCriticalControl(
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+                    SkyIslandGameScaleHydraulicCalibration calibration) {
+        if (sections.size() < 3) {
+            throw new IllegalStateException(
+                    "source normal-depth closure requires at least three cross sections");
+        }
+        SkyIslandGraduallyVariedFlowSolver.CrossSection source = sections.getFirst();
+        double sourceBedSlope = sourceEnergySlope(sections);
+        if (!Double.isFinite(sourceBedSlope) || sourceBedSlope <= 0.0) {
+            throw new IllegalStateException(
+                    "source normal-depth closure requires a positive local downstream bed slope");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Parameters parameters =
+                calibration.solverParameters();
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                source.dischargeCubicMetersPerSecond(),
+                parameters.manningRoughness(),
+                sourceBedSlope,
+                source.bottomWidthMeters(),
+                source.sideSlopeHorizontalToVertical());
+        double froude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                source, normalDepth, parameters);
+        double regimeMargin = Math.max(1.0e-6, 10.0 * calibration.relativeTolerance());
+        if (froude > 1.0 + regimeMargin) {
+            return SkyIslandHydraulicJumpProfileSolver.solve(
+                    sections, normalDepth, parameters);
+        }
+        if (froude >= 1.0 - regimeMargin) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary is near critical; mixed-regime closure is unsupported");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result subcritical =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        sections, parameters);
+        double solvedSourceDepth = subcritical.points().getFirst().depthMeters();
+        double sourceDepthTolerance = Math.max(
+                MINIMUM_STAGE_RESIDUAL_METERS,
+                100.0 * calibration.relativeTolerance()
+                        * Math.max(1.0, normalDepth));
+        if (Math.abs(solvedSourceDepth - normalDepth) > sourceDepthTolerance) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary conflicts with downstream critical control"
+                            + "; normalDepthMeters=" + normalDepth
+                            + "; solvedDepthMeters=" + solvedSourceDepth
+                            + "; toleranceMeters=" + sourceDepthTolerance);
+        }
+        return subcritical;
+    }
+
+    private static double sourceEnergySlope(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections) {
+        int windowEnd = Math.min(
+                sections.size() - 1,
+                Math.max(2, (int) Math.ceil((sections.size() - 1) * 0.25)));
+        double meanChainage = 0.0;
+        double meanBed = 0.0;
+        for (int i = 0; i <= windowEnd; i++) {
+            meanChainage += sections.get(i).chainageMeters();
+            meanBed += sections.get(i).bedElevationMeters();
+        }
+        meanChainage /= windowEnd + 1.0;
+        meanBed /= windowEnd + 1.0;
+        double covariance = 0.0;
+        double variance = 0.0;
+        for (int i = 0; i <= windowEnd; i++) {
+            double dx = sections.get(i).chainageMeters() - meanChainage;
+            covariance += dx * (sections.get(i).bedElevationMeters() - meanBed);
+            variance += dx * dx;
+        }
+        if (!(variance > 0.0)) {
+            return Double.NaN;
+        }
+        // Least-squares bed grade over the first quarter of the reach (at least two intervals)
+        // is a more stable game-scale uniform-flow reference than one quantized local segment.
+        return -covariance / variance;
     }
 
     /**
