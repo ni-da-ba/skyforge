@@ -305,7 +305,7 @@ jobs:
             --tests '*SkyIslandHydraulicJumpProfileSolverTest' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
 
@@ -379,7 +379,7 @@ jobs:
           retention-days: 14
 
       - name: Upload F4K review preparation evidence
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: f4k-hydrology-review-prep-${{ github.sha }}
