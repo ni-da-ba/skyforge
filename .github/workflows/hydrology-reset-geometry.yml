@@ -10,6 +10,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGameScaleHydraulicCalibration.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGraduallyVariedFlowSolver.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandManningHydraulics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelOrdinarySpanSolver.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRationalRunoffCalibration.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepTest.java"
@@ -297,6 +299,7 @@ jobs:
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
             --tests '*SkyIslandHydraulicComponentGeometryRefinementTest.key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly' \
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
+            --tests '*SkyIslandHydraulicJumpSolverTest' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
         if: always()
