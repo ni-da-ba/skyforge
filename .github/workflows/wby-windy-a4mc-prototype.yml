@@ -75,7 +75,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          (cd windy-upstream && ./gradlew assemble --no-daemon)
+          (cd windy-upstream && bash ./gradlew assemble --no-daemon)
           jar_file="$(find windy-upstream/build/libs -maxdepth 1 -name '*.jar' ! -name '*sources*' | head -n 1)"
           test -n "$jar_file"
           jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/A4mcWindStateProvider.class'
