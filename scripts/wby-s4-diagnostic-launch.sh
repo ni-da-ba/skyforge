@@ -2,6 +2,7 @@
 set -euo pipefail
 
 mode="${1:-shaders}"
+cloud_interior="${2:-off}"
 case "$mode" in
   shaders)
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticClient"
@@ -14,10 +15,18 @@ case "$mode" in
     shader_enabled=false
     ;;
   *)
-    echo "usage: $0 [shaders|server]" >&2
+    echo "usage: $0 [shaders|server] [off|on]" >&2
     exit 2
     ;;
 esac
+if [[ "$cloud_interior" != "off" && "$cloud_interior" != "on" ]]; then
+  echo "cloud interior mode must be off or on" >&2
+  exit 2
+fi
+if [[ "$mode" == "server" && "$cloud_interior" != "off" ]]; then
+  echo "cloud interior mode applies only to the shader client profile" >&2
+  exit 2
+fi
 
 a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
 a4mc_core="$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
@@ -177,7 +186,11 @@ echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generat
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
   echo "Selected shader: Atmospheric Shaders 0.2 (DH fixes; Simple Clouds support)."
-  echo "S4 diagnostic override: Simple Clouds bridge interior fog/mesh suppression is disabled to isolate the reported blue cloud columns."
+  if [[ "$cloud_interior" == "off" ]]; then
+    echo "Diagnostic A/B state: bridge interior fog/mesh suppression is disabled."
+  else
+    echo "Diagnostic A/B state: bridge interior fog/mesh suppression is enabled for comparison."
+  fi
   echo "Run directory: $run_dir"
   echo "Diagnostics bundle: $bundle"
   echo "After the launcher opens, review cloud rendering, DH LOD visibility/blending, horizon fog, and terrain occlusion."
@@ -240,9 +253,15 @@ if [[ "$mode" == "shaders" ]]; then
   assert_supplementaries_policy "$run_dir/config/supplementaries-common.toml"
   assert_hearthandharvest_policy "$run_dir/config/hearthandharvest-common.toml"
   assert_hearthandharvest_worldgen_policy "$run_dir"
-  grep -Fq '[interior_clouds]' "$run_dir/config/oculus_for_simpleclouds-client.toml"
-  grep -Fqx 'enabled = false' "$run_dir/config/oculus_for_simpleclouds-client.toml"
-  echo "S4 cloud diagnostic policy staging PASS."
+  cloud_config="$run_dir/config/oculus_for_simpleclouds-client.toml"
+  grep -Fq '[interior_clouds]' "$cloud_config"
+  if [[ "$cloud_interior" == "on" ]]; then
+    sed -i 's/^enabled = false$/enabled = true/' "$cloud_config"
+  fi
+  expected_cloud_interior=false
+  [[ "$cloud_interior" == "on" ]] && expected_cloud_interior=true
+  grep -Fqx "enabled = $expected_cloud_interior" "$cloud_config"
+  echo "S4 cloud diagnostic policy staging PASS (interior effect $cloud_interior)."
   "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s4-production-client" \
     --game-directory "$PWD/$run_dir" \
