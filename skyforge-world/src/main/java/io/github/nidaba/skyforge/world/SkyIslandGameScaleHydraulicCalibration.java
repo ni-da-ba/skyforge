@@ -103,14 +103,92 @@ public record SkyIslandGameScaleHydraulicCalibration(
     public List<SkyIslandGraduallyVariedFlowSolver.CrossSection> crossSections(
             SkyIslandDescriptor descriptor,
             List<SkyIslandHydraulicGeometrySkeletonSample> samples) {
+        return crossSections(descriptor, samples, samples);
+    }
+
+    /**
+     * Maps a subspan using one bed profile computed for its entire semantic parent reach.
+     *
+     * <p>The candidate bed is the maximum no-fill, non-increasing profile lying at or below each
+     * raw station candidate: a downstream running minimum. This removes uphill bed reversals
+     * without raising the bed into terrain. D2 still independently rejects excessive incision or
+     * grade; this is an exploratory profile constraint, not production selection.
+     */
+    public List<SkyIslandGraduallyVariedFlowSolver.CrossSection> crossSections(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
+            List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples) {
+        Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(samples, "samples");
+        Objects.requireNonNull(parentReachSamples, "parentReachSamples");
+        if (parentReachSamples.size() < 2) {
+            throw new IllegalArgumentException("parent hydraulic profile requires at least two samples");
+        }
+
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> parent =
+                new ArrayList<>(parentReachSamples.size());
+        double previousChainage = Double.NEGATIVE_INFINITY;
+        double runningMinimumBed = Double.POSITIVE_INFINITY;
+        for (SkyIslandHydraulicGeometrySkeletonSample sample : parentReachSamples) {
+            SkyIslandGraduallyVariedFlowSolver.CrossSection raw = crossSection(descriptor, sample);
+            if (!(raw.chainageMeters() > previousChainage)) {
+                throw new IllegalArgumentException("parent hydraulic stations must increase strictly downstream");
+            }
+            previousChainage = raw.chainageMeters();
+            runningMinimumBed = Math.min(runningMinimumBed, raw.bedElevationMeters());
+            parent.add(withBedElevation(raw, runningMinimumBed));
+        }
+
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
                 new ArrayList<>(samples.size());
         for (SkyIslandHydraulicGeometrySkeletonSample sample : samples) {
-            sections.add(crossSection(descriptor, sample));
+            SkyIslandGraduallyVariedFlowSolver.CrossSection raw = crossSection(descriptor, sample);
+            sections.add(withBedElevation(
+                    raw, interpolatedBedElevation(parent, raw.chainageMeters())));
         }
         return List.copyOf(sections);
     }
+
+    private static SkyIslandGraduallyVariedFlowSolver.CrossSection withBedElevation(
+            SkyIslandGraduallyVariedFlowSolver.CrossSection section, double bedElevationMeters) {
+        return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                section.chainageMeters(),
+                bedElevationMeters,
+                section.dischargeCubicMetersPerSecond(),
+                section.bottomWidthMeters(),
+                section.sideSlopeHorizontalToVertical());
+    }
+
+    private static double interpolatedBedElevation(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> profile, double chainageMeters) {
+        double first = profile.getFirst().chainageMeters();
+        double last = profile.getLast().chainageMeters();
+        double tolerance = 1.0e-9 * Math.max(1.0, Math.max(Math.abs(first), Math.abs(last)));
+        if (chainageMeters < first - tolerance || chainageMeters > last + tolerance) {
+            throw new IllegalArgumentException("subspan station lies outside its parent bed profile");
+        }
+        if (chainageMeters <= first + tolerance) {
+            return profile.getFirst().bedElevationMeters();
+        }
+        if (chainageMeters >= last - tolerance) {
+            return profile.getLast().bedElevationMeters();
+        }
+        for (int i = 0; i + 1 < profile.size(); i++) {
+            SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = profile.get(i);
+            SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = profile.get(i + 1);
+            if (Math.abs(chainageMeters - upstream.chainageMeters()) <= tolerance) {
+                return upstream.bedElevationMeters();
+            }
+            if (chainageMeters <= downstream.chainageMeters()) {
+                double fraction = (chainageMeters - upstream.chainageMeters())
+                        / (downstream.chainageMeters() - upstream.chainageMeters());
+                return upstream.bedElevationMeters()
+                        + fraction * (downstream.bedElevationMeters() - upstream.bedElevationMeters());
+            }
+        }
+        return profile.getLast().bedElevationMeters();
+    }
+
 
     /**
      * Applies a critical-depth terminal control for a separately authorized free outfall.
