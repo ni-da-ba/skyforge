@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch; do
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch; do
             git -C windy-upstream apply --check "../third_party/patches/windy/$patch"
             git -C windy-upstream apply "../third_party/patches/windy/$patch"
           done
@@ -113,6 +113,13 @@ jobs:
           printf 'online-mode=false\nserver-port=25565\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-server/server.properties
           printf 'onboardAccessibility:false\npauseOnLostFocus:false\nclouds:true\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/options.txt
           mkdir -p skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config
+          cat > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config/aerodynamics4mc-particles.json <<'EOF'
+          {
+            "enabled": true,
+            "whitelist": [],
+            "blacklist": ["dev.fallingcloud.windy.particle.*"]
+          }
+          EOF
           printf '[client.advanced.autoUpdater]\nenableAutoUpdater = false\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config/DistantHorizons.toml
 
       - name: Launch S1 actual NeoForge dedicated server and Windy client
