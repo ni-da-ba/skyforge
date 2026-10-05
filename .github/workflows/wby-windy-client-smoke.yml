@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch 0008-wind-sample-profiling.patch; do
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch 0008-wind-sample-profiling.patch 0009-trusted-burst-probe.patch; do
             git -C windy-upstream apply --check "../third_party/patches/windy/$patch"
             git -C windy-upstream apply "../third_party/patches/windy/$patch"
           done
@@ -224,19 +224,24 @@ jobs:
           echo 'PASS: live Windy provider consumed a server-trusted A4MC wind sample'
           sampled=false
           for attempt in $(seq 1 60); do
-            if grep -Fq 'SKYFORGE_WINDY_SAMPLE_PROFILE' "$client_latest"; then
+            if grep -Fq 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest"; then
               sampled=true; break
             fi
             if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
             sleep 1
           done
           if [[ "$sampled" != true ]]; then
-            echo 'BLOCKED: insufficient live samples for bounded sampling-cost profile'
+            echo 'BLOCKED: no valid trusted burst microbenchmark after A4MC authority confirmation'
             tail -n 120 "$client_latest"; exit 1
           fi
-          grep -F 'SKYFORGE_WINDY_SAMPLE_PROFILE' "$client_latest" | head -n 1
-          echo 'PASS: bounded live A4MC API sampling-cost profile recorded'
-          echo 'BOUNDARY: sample-call p95 is NOT frame-time p95; no shader or flight-visual acceptance claimed'
+          burst_line="$(grep -m1 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest")"
+          available="$(printf '%s' "$burst_line" | sed -n 's/.*available=\\([0-9][0-9]*\\).*/\\1/p')"
+          if [[ -z "$available" ]] || (( available < 120 )); then
+            echo 'BLOCKED: fewer than 120/128 trusted samples in burst'; echo "$burst_line"; exit 1
+          fi
+          echo "$burst_line"
+          echo 'PASS: verified 128-query A4MC trusted-airflow CI burst'
+          echo 'BOUNDARY: burst query p95 is NOT natural traffic or frame-time p95; no shader or flight-visual acceptance claimed'
 
       - name: Upload exact smoke evidence
         if: always()
