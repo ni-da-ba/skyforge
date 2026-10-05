@@ -10,9 +10,10 @@ import java.util.Objects;
  *
  * <p>The calibration maps normalized terrain and bankfull-depth potential through the
  * descriptor's relief budget, and derives trapezoid bottom width so the top width at that bankfull
- * depth matches the authored bankfull width. The bed-incision scale is explicit in the canonical
- * constructor. The eight-argument compatibility constructor retains the former baseline value 1.0;
- * calibration sweeps must provide and report the scale explicitly. No mapping is production-ready
+ * depth matches the authored bankfull width. Bed-incision scale and maximum
+ * downstream bed slope are explicit in the canonical constructor. Compatibility constructors retain
+ * the former 1.0 baselines; calibration sweeps must provide and report both profile scales explicitly.
+ * No mapping is production-ready
  * until fixed-control evidence qualifies it.
  */
 public record SkyIslandGameScaleHydraulicCalibration(
@@ -24,7 +25,8 @@ public record SkyIslandGameScaleHydraulicCalibration(
         double gravityMetersPerSecondSquared,
         double relativeTolerance,
         int maximumIterations,
-        double bedIncisionScale) {
+        double bedIncisionScale,
+        double maximumDownstreamBedSlope) {
     public SkyIslandGameScaleHydraulicCalibration(
             double metersPerWorldUnit,
             double dischargeCubicMetersPerSecondPerRelativeUnit,
@@ -43,6 +45,30 @@ public record SkyIslandGameScaleHydraulicCalibration(
                 gravityMetersPerSecondSquared,
                 relativeTolerance,
                 maximumIterations,
+                1.0,
+                1.0);
+    }
+
+    public SkyIslandGameScaleHydraulicCalibration(
+            double metersPerWorldUnit,
+            double dischargeCubicMetersPerSecondPerRelativeUnit,
+            double manningRoughness,
+            double sideSlopeHorizontalToVertical,
+            double energyCoefficient,
+            double gravityMetersPerSecondSquared,
+            double relativeTolerance,
+            int maximumIterations,
+            double bedIncisionScale) {
+        this(
+                metersPerWorldUnit,
+                dischargeCubicMetersPerSecondPerRelativeUnit,
+                manningRoughness,
+                sideSlopeHorizontalToVertical,
+                energyCoefficient,
+                gravityMetersPerSecondSquared,
+                relativeTolerance,
+                maximumIterations,
+                bedIncisionScale,
                 1.0);
     }
 
@@ -59,7 +85,9 @@ public record SkyIslandGameScaleHydraulicCalibration(
                 || !Double.isFinite(relativeTolerance)
                 || relativeTolerance <= 0.0 || relativeTolerance >= 1.0
                 || maximumIterations < 1
-                || !Double.isFinite(bedIncisionScale) || bedIncisionScale <= 0.0) {
+                || !Double.isFinite(bedIncisionScale) || bedIncisionScale <= 0.0
+                || !Double.isFinite(maximumDownstreamBedSlope)
+                || maximumDownstreamBedSlope <= 0.0) {
             throw new IllegalArgumentException("game-scale hydraulic calibration must be finite and physical");
         }
     }
@@ -109,10 +137,11 @@ public record SkyIslandGameScaleHydraulicCalibration(
     /**
      * Maps a subspan using one bed profile computed for its entire semantic parent reach.
      *
-     * <p>The candidate bed is the maximum no-fill, non-increasing profile lying at or below each
-     * raw station candidate: a downstream running minimum. This removes uphill bed reversals
-     * without raising the bed into terrain. D2 still independently rejects excessive incision or
-     * grade; this is an exploratory profile constraint, not production selection.
+     * <p>The candidate bed is the pointwise-greatest no-fill, non-increasing profile below the raw
+     * station candidates whose downstream grade does not exceed the explicit calibration limit.
+     * This slope-limited lower envelope removes uphill reversals and abrupt drops without raising
+     * the bed into terrain. D2 independently evaluates the solved bed; this is an exploratory
+     * profile constraint, not production selection.
      */
     public List<SkyIslandGraduallyVariedFlowSolver.CrossSection> crossSections(
             SkyIslandDescriptor descriptor,
@@ -125,18 +154,31 @@ public record SkyIslandGameScaleHydraulicCalibration(
             throw new IllegalArgumentException("parent hydraulic profile requires at least two samples");
         }
 
-        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> parent =
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawParent =
                 new ArrayList<>(parentReachSamples.size());
         double previousChainage = Double.NEGATIVE_INFINITY;
-        double runningMinimumBed = Double.POSITIVE_INFINITY;
         for (SkyIslandHydraulicGeometrySkeletonSample sample : parentReachSamples) {
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = crossSection(descriptor, sample);
             if (!(raw.chainageMeters() > previousChainage)) {
                 throw new IllegalArgumentException("parent hydraulic stations must increase strictly downstream");
             }
             previousChainage = raw.chainageMeters();
-            runningMinimumBed = Math.min(runningMinimumBed, raw.bedElevationMeters());
-            parent.add(withBedElevation(raw, runningMinimumBed));
+            rawParent.add(raw);
+        }
+
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> parent =
+                new ArrayList<>(rawParent.size());
+        for (SkyIslandGraduallyVariedFlowSolver.CrossSection station : rawParent) {
+            double conditionedBed = Double.POSITIVE_INFINITY;
+            for (SkyIslandGraduallyVariedFlowSolver.CrossSection constraint : rawParent) {
+                double downstreamDistance = Math.max(
+                        0.0, constraint.chainageMeters() - station.chainageMeters());
+                conditionedBed = Math.min(
+                        conditionedBed,
+                        constraint.bedElevationMeters()
+                                + maximumDownstreamBedSlope * downstreamDistance);
+            }
+            parent.add(withBedElevation(station, conditionedBed));
         }
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
