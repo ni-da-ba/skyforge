@@ -7239,12 +7239,20 @@ tasks.register("wbyS1ResolvePinnedMods") {
             "simple-clouds" -> {
                 requireToken(client, "simpleclouds", "client")
                 forbidToken(client, "betterclouds", "Simple Clouds comparison")
-                forbidToken(client, "yacl", "Simple Clouds comparison")
+                // S5 adds YACL for the client-side Fowl Play configuration screen. Preserve
+                // the S1-only leak check, while the later S5 side-aware check keeps YACL off servers.
+                if (!wbyS5OverworldEcology) {
+                    forbidToken(client, "yacl", "Simple Clouds comparison")
+                }
             }
             else -> {
                 forbidToken(client, "betterclouds", "no-cloud overlay")
                 forbidToken(client, "simpleclouds", "no-cloud overlay")
-                forbidToken(client, "yacl", "no-cloud overlay")
+                // S5 adds YACL for the client-side Fowl Play configuration screen. Preserve
+                // the S1-only leak check, while the later S5 side-aware check keeps YACL off servers.
+                if (!wbyS5OverworldEcology) {
+                    forbidToken(client, "yacl", "no-cloud overlay")
+                }
             }
         }
         forbidToken(server, "betterclouds", "server")
