@@ -1,0 +1,389 @@
+name: WBY S5 Life, Building, and Shader Profile
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s5-overworld-ecology.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s5-life-building.properties"
+      - "skyforge-neoforge-1211/wby-s5-policy/**"
+      - "docs/mod-integration/S4_SUPPLEMENTARIES_POLICY.md"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s3-industry.properties"
+      - "skyforge-neoforge-1211/wave-c*.properties"
+      - "skyforge-neoforge-1211/wby-wave1*.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-*.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-policy/**"
+      - "scripts/wby-s5-diagnostic-launch.sh"
+      - "scripts/wby-s5-runtime-acceptance.sh"
+      - "scripts/wby-s5-diagnostic-launch.sh"
+      - "scripts/wby-s5-launch-production-client.py"
+      - "scripts/wby-s5-launcher-requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s5-life-building-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-and-server-boot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Check S4 launcher and runtime script syntax
+        shell: bash
+        run: |
+          bash -n scripts/wby-s5-diagnostic-launch.sh
+          bash -n scripts/wby-s5-runtime-acceptance.sh
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            # Target S4's exact Minecraft/loader variant; the root task fans out across unrelated Stonecutter variants.
+            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          core="$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          compat="$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          test -f "$core"
+          test -f "$compat"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Resolve cumulative S4 gameplay profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true --no-configuration-cache | tee wby-s5-gameplay-resolution.log
+          grep -Fq 'WBY S1 RESOLUTION PASS' wby-s5-gameplay-resolution.log
+          grep -Fq 'WBY S5 ORDINARY LIFE RESOLUTION PASS' wby-s5-gameplay-resolution.log
+          grep -Fq 'distantHorizons=with-dh' wby-s5-gameplay-resolution.log
+
+      - name: Resolve and stage the opt-in shader client overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=true --no-configuration-cache | tee wby-s5-shader-resolution.log
+          grep -Fq 'WBY S5 SHADER MOD RESOLUTION PASS' wby-s5-shader-resolution.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s5-shaders \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=true --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s5-shaders \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=true --no-configuration-cache
+          policy="skyforge-neoforge-1211/run-wby-s5-shaders"
+          grep -Fq 'mineshaft_elevator = 0.0' "$policy/config/supplementaries-common.toml"
+          grep -Fq 'generateCornMazes = false' "$policy/config/hearthandharvest-common.toml"
+          awk '
+            /^\[interior_clouds\]$/ { in_interior = 1; next }
+            /^\[/ { in_interior = 0 }
+            in_interior && /^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*$/ { found = 1 }
+            END { exit !found }
+          ' "$policy/config/oculus_for_simpleclouds-client.toml"
+          test -s "$policy/kubejs/data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json"
+          test -s "$policy/kubejs/data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
+          test -s "$policy/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
+          test -s "$policy/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
+          echo "WBY S5 shader profile policy staging PASS"
+          staged="skyforge-neoforge-1211/run-wby-s5-shaders/mods"
+          find "$staged" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-s5-client-stage.txt
+          grep -Fq 'YL57xq9U-KduFYu4t' wby-s5-client-stage.txt
+          grep -Fq 'oculus-for-simpleclouds-1386686-9037451' wby-s5-client-stage.txt
+          grep -Fq 'hearth-and-harvest-1212197-8837088' wby-s5-client-stage.txt
+          grep -Fq 'LtZfKhel-qpinHX2C' wby-s5-client-stage.txt
+          grep -Fq 'uCdwusMi-Ez3cx7Yd' wby-s5-client-stage.txt
+          grep -Fq 'AANobbMI-uMOpc5uV' wby-s5-client-stage.txt
+          grep -Fq 'F8BQNPWX-ETgOvHHS' wby-s5-client-stage.txt
+          grep -Fq 'WpXfePbg-E8sSxhfr' wby-s5-client-stage.txt
+          grep -Fq 'Yd4wb5wZ-aeDUpTJS' wby-s5-client-stage.txt
+          grep -Fq 'IielEDnJ-CG7IbDiP' wby-s5-client-stage.txt
+          grep -Fq 'biomes-o-plenty-220318-8288121' wby-s5-client-stage.txt
+          grep -Fq 'Tkikq67H-jITSrhFt' wby-s5-client-stage.txt
+          grep -Fq 'natures-spirit-1044992-6962784' wby-s5-client-stage.txt
+          grep -Fq 'kkmrDlKT-6e8GCrLb' wby-s5-client-stage.txt
+          grep -Fq 's3dmwKy5-S2TfWrZR' wby-s5-client-stage.txt
+          grep -Fq '8BmcQJ2H-Grwn5rUB' wby-s5-client-stage.txt
+          grep -Fq 'PuyPazRT-O5EpeqI3' wby-s5-client-stage.txt
+          grep -Fq 'lhGA9TYQ-ZxYGwlk0' wby-s5-client-stage.txt
+          grep -Fq '1eAoo2KR-ACDNgCDA' wby-s5-client-stage.txt
+
+      - name: Boot cumulative S4 dedicated server in a disposable flat world
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_dir="skyforge-neoforge-1211/run-wby-s5-server"
+          mkdir -p "$run_dir"
+          printf 'eula=true\n' > "$run_dir/eula.txt"
+          cat > "$run_dir/server.properties" <<'EOF'
+          level-name=s4-acceptance
+          level-seed=817304
+          level-type=minecraft:flat
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=5
+          simulation-distance=3
+          max-tick-time=0
+          server-port=25565
+          EOF
+          log="$GITHUB_WORKSPACE/wby-s5-server.log"
+          export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
+          ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-s5-server \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true --no-configuration-cache >"$log" 2>&1 &
+          pid=$!
+          cleanup() { kill -INT "$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; }
+          trap cleanup EXIT
+          outcome=""
+          for _ in $(seq 1 300); do
+            if grep -Fq 'Done (' "$log" 2>/dev/null; then outcome="ready"; break; fi
+            if ! kill -0 "$pid" 2>/dev/null; then outcome="exited"; break; fi
+            sleep 2
+          done
+          if [[ "$outcome" != "ready" ]]; then
+            cat "$log"
+            echo "S4 dedicated server did not reach Done; outcome=$outcome" >&2
+            exit 1
+          fi
+          echo "WBY S5 dedicated server reached Done in a flat disposable world."
+          policy="$run_dir/config/supplementaries-common.toml"
+          test -s "$policy"
+          python3 - "$policy" <<'PY'
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          policy = Path(sys.argv[1])
+          with policy.open("rb") as source:
+              config = tomllib.load(source)
+
+          def lookup(parts):
+              value = config
+              for part in parts:
+                  value = value.get(part) if isinstance(value, dict) else None
+              return value
+
+          def relevant_leaves(value, prefix=()):
+              if isinstance(value, dict):
+                  for key, child in value.items():
+                      yield from relevant_leaves(child, prefix + (str(key),))
+              elif any("galleon" in part.lower() or "plunderer" in part.lower() for part in prefix):
+                  yield ".".join(prefix), value
+
+          expected = (
+              (("building", "way_sign", "road_signs", "enabled"), False),
+              (("building", "ash", "basalt_ash"), False),
+              (("functional", "urn", "cave_urns"), False),
+              (("functional", "flax", "wild_flax"), False),
+              (("functional", "cannon", "plunderer", "galleon"), False),
+              (("redstone", "pulley_block", "mineshaft_elevator"), 0.0),
+          )
+          failed = False
+          for parts, wanted in expected:
+              actual = lookup(parts)
+              print(f"S4 Supplementaries config: {'.'.join(parts)}={actual!r}")
+              if actual != wanted:
+                  failed = True
+          for path, value in relevant_leaves(config):
+              print(f"S4 Supplementaries plunderer/galleon candidate: {path}={value!r}")
+          if failed:
+              raise SystemExit("Supplementaries did not retain the complete S4 worldgen policy.")
+          PY
+          echo "WBY S5 Supplementaries overrides persisted after config correction."
+          hnh_policy="$run_dir/config/hearthandharvest-common.toml"
+          test -s "$hnh_policy"
+          python3 - "$hnh_policy" <<'PY'
+          import sys
+          import tomllib
+          from pathlib import Path
+
+          policy = Path(sys.argv[1])
+          with policy.open("rb") as source:
+              config = tomllib.load(source)
+
+          expected = {
+              ("generateCornMazes",): False,
+          }
+          failed = False
+          for parts, wanted in expected.items():
+              value = config
+              for part in parts:
+                  value = value.get(part) if isinstance(value, dict) else None
+              print(f"S4 Hearth and Harvest config: {'.'.join(parts)}={value!r}")
+              if value is not wanted:
+                  failed = True
+          if failed:
+              raise SystemExit("Hearth and Harvest supported config policy was not applied.")
+          PY
+          echo "WBY S5 Hearth and Harvest Corn Maze config toggle persisted after config correction."
+          python3 - "$run_dir/kubejs/data" <<'PY'
+          import json
+          import sys
+          from pathlib import Path
+
+          root = Path(sys.argv[1])
+          expected = {
+              "skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json": {
+                  "type": "neoforge:remove_features",
+                  "biomes": "#minecraft:is_overworld",
+                  "features": "hearthandharvest:nest",
+                  "steps": ["vegetal_decoration"],
+              },
+              "skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json": {
+                  "type": "neoforge:remove_features",
+                  "biomes": "#minecraft:is_overworld",
+                  "features": "hearthandharvest:salt_cave",
+                  "steps": ["underground_decoration"],
+              },
+              "hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json": {
+                  "replace": True,
+                  "values": [],
+              },
+              "hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json": {
+                  "replace": True,
+                  "values": [],
+              },
+          }
+          for relative_path, wanted in expected.items():
+              path = root / relative_path
+              with path.open(encoding="utf-8") as source:
+                  actual = json.load(source)
+              print(f"S4 Hearth and Harvest datapack policy: {relative_path}={actual!r}")
+              if actual != wanted:
+                  raise SystemExit(f"Unexpected S4 Hearth and Harvest datapack policy: {relative_path}")
+          PY
+          echo "WBY S5 Hearth and Harvest KubeJS worldgen policies are staged and valid."
+
+
+      - name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S4_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
+
+      - name: Install production NeoForge server and stage the exact S4 server profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="$GITHUB_WORKSPACE/s5-production-server"
+          export JAVA_HOME="$WBY_S4_GRADLE_JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods \
+            -PwbyS1RunDirectory=run-wby-s5-server \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true --no-configuration-cache
+          mkdir -p "$server_dir"
+          curl --fail --location --retry 3 \
+            https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar \
+            --output "$server_dir/neoforge-installer.jar"
+          (cd "$server_dir" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
+          mkdir -p "$server_dir/mods" "$server_dir/config"
+          cp skyforge-neoforge-1211/run-wby-s5-server/server-mods/*.jar "$server_dir/mods/"
+          cp skyforge-neoforge-1211/run-wby-s5-server/config/supplementaries-common.toml "$server_dir/config/"
+          cp skyforge-neoforge-1211/run-wby-s5-server/config/hearthandharvest-common.toml "$server_dir/config/"
+          mkdir -p "$server_dir/kubejs/data"
+          cp -R skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/. "$server_dir/kubejs/data/"
+          printf 'eula=true\\n' > "$server_dir/eula.txt"
+          echo "WBY S5 production NeoForge server profile staged."
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s5-join-client \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=false --no-configuration-cache
+          echo "WBY S5 production client profile staged without the opt-in shader overlay."
+
+      - name: Prepare pinned production client launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          launcher_venv="$RUNNER_TEMP/wby-s5-launcher-venv"
+          python3 -m venv "$launcher_venv"
+          "$launcher_venv/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s5-launcher-requirements.txt
+          echo "WBY_S4_LAUNCHER_PYTHON=$launcher_venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Join S4 dedicated server from actual client and reopen the same world
+        shell: bash
+        run: |
+          export WBY_S4_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s5-production-server"
+          bash scripts/wby-s5-runtime-acceptance.sh
+
+      - name: Upload S4 integration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s5-overworld-ecology-resolution
+          path: |
+            wby-s5-*.log
+            wby-s5-client-stage.txt
+            wby-s5-client-program-args.txt
+            wby-s5-joined-*.log
+            wby-s5-server-reopen.log
+            wby-s5-join-*.log
+            s5-production-server/logs/latest.log
+            s5-production-server/mods/*.jar
+            s5-production-server/config/*.toml
+            s5-production-server/kubejs/data/**/*.json
+            skyforge-neoforge-1211/run-wby-s5-shaders/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s5-shaders/config/*.toml
+            skyforge-neoforge-1211/run-wby-s5-shaders/kubejs/data/**/*.json
+            skyforge-neoforge-1211/run-wby-s5-join-client/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s5-server/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s5-server/config/supplementaries-common.toml
+            skyforge-neoforge-1211/run-wby-s5-server/config/hearthandharvest-common.toml
+            skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/skyforge/neoforge/biome_modifier/*.json
+            skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/*.json
+            a4mc-0.2.2/*.jar
+          if-no-files-found: warn
