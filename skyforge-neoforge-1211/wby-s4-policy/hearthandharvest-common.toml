@@ -1,0 +1,5 @@
+# S4 Hearth and Harvest 1.3.4 Common Config
+# This pinned release exposes the Corn Maze generation toggle. Other H&H
+# worldgen boundaries are enforced by the staged S4 KubeJS datapack policy.
+
+generateCornMazes = false

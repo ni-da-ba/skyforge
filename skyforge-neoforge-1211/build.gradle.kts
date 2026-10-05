@@ -400,11 +400,28 @@ val wbyS3Pins = Properties().apply { wbyS3PinFile.asFile.inputStream().use(::loa
 fun wbyS3Pin(field: String): String =
     requireNotNull(wbyS3Pins.getProperty(field)) { "missing WBY S3 pin: $field in " + wbyS3PinFile.asFile }
 
+fun wbyS4Token(mod: String): String = wbyS4Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S4 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+
 check(wbyS3Pin("minecraft.version") == "1.21.1")
 check(wbyS3Pin("neoforge.version") == "21.1.249")
 check(wbyS3Pin("profile.base") == "wby-s2-computing-control")
 check(wbyS3Pin("dieselGenerators.coordinate") == waveC25Pin("createdieselgenerators", "coordinate"))
 check(wbyS3Pin("dieselGenerators.version") == waveC25Pin("createdieselgenerators", "version"))
+
+val wbyS4PinFile = layout.projectDirectory.file("wby-s4-life-building.properties")
+val wbyS4Pins = Properties().apply { wbyS4PinFile.asFile.inputStream().use(::load) }
+fun wbyS4Pin(mod: String, field: String): String =
+    requireNotNull(wbyS4Pins.getProperty("$mod.$field")) {
+        "missing WBY S4 pin: $mod.$field in " + wbyS4PinFile.asFile
+    }
+check(wbyS4Pin("minecraft", "version") == "1.21.1")
+check(wbyS4Pin("neoforge", "version") == "21.1.249")
+check(requireNotNull(wbyS4Pins.getProperty("profile.base")) == "wby-s3-industry")
+check(wbyS4Pin("irisSimpleCloudsCompat", "releaseStatus") == "beta")
+check(wbyS4Pin("atmosphericShaders", "distribution") == "manual-client-install; custom-license; do-not-bundle")
 
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
@@ -490,6 +507,39 @@ val wbyS1ThinAir = providers.gradleProperty("wbyS1ThinAir").orNull?.trim()?.equa
 val wbyS2ComputingAvionics = providers.gradleProperty("wbyS2ComputingAvionics").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS4OrdinaryLife = providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+
+tasks.register<Copy>("wbyS1StagePolicy") {
+    group = "verification"
+    description = "Stage the accepted baseline, S4 worldgen, and opt-in shader policy fixtures."
+    from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) { into("kubejs") }
+    from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) { into("datapacks") }
+    from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
+        into("config/almostunified/unification")
+    }
+    if (wbyS4OrdinaryLife) {
+        from(layout.projectDirectory.dir("wby-s4-policy/kubejs")) { into("kubejs") }
+        from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
+            into("config")
+        }
+        from(layout.projectDirectory.file("wby-s4-policy/hearthandharvest-common.toml")) {
+            into("config")
+        }
+    }
+    if (wbyS4Shaders) {
+        from(layout.projectDirectory.file("wby-s4-policy/oculus_for_simpleclouds-client.toml")) {
+            into("config")
+        }
+    }
+    into(layout.projectDirectory.dir(wbyS1RunDirectory))
+}
+check(!wbyS4OrdinaryLife || (wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
+    "WBY S4 requires the cumulative S2 + Diesel Generators + Create Big Cannons profile"
+}
+check(!wbyS4Shaders || (wbyS4OrdinaryLife && wbyS1Clouds == "simple-clouds" && !wbyS1WithoutDistantHorizons)) {
+    "WBY S4 shaders require the S4 profile with Simple Clouds and Distant Horizons enabled"
+}
 check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
     "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
 }
@@ -2528,16 +2578,7 @@ neoForge {
             programArgument("--nogui")
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             taskBefore(tasks.named(development.processResourcesTaskName))
-            taskBefore(tasks.register<Copy>("wbyS1StagePolicy") {
-                group = "verification"
-                description = "Stage the accepted inert S0.5 policy fixtures for WBY S1."
-                from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) { into("kubejs") }
-                from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) { into("datapacks") }
-                from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
-                    into("config/almostunified/unification")
-                }
-                into(layout.projectDirectory.dir(wbyS1RunDirectory))
-            })
+            taskBefore(tasks.named("wbyS1StagePolicy"))
         }
 
         create("wbyS1DiagnosticClient") {
@@ -2555,7 +2596,9 @@ neoForge {
             sourceSet.set(wbyS1ClientRuntime)
             gameDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
             programArguments.addAll("--quickPlayMultiplayer", "127.0.0.1:25565", "--username", "WbyS1Acceptance")
-            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
+            // NeoForge reflects GameTest holder classes before applying this namespace filter.
+            // Optional references can still fail class loading, so S4 acceptance uses a production client.
+            systemProperty("neoforge.enabledGameTestNamespaces", "skyforge_s4_join_acceptance")
             taskBefore(tasks.named(development.processResourcesTaskName))
             taskBefore(wbyS1StageClientMods)
             taskBefore(tasks.named("wbyS1StagePolicy"))
@@ -7086,6 +7129,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.property("wbyS2ComputingAvionics", wbyS2ComputingAvionics)
     inputs.property("wbyS3DieselGenerators", wbyS3DieselGenerators)
     inputs.property("wbyS3CreateBigCannons", wbyS3CreateBigCannons)
+    inputs.file(wbyS4PinFile)
+    inputs.property("wbyS4OrdinaryLife", wbyS4OrdinaryLife)
+    inputs.property("wbyS4Shaders", wbyS4Shaders)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7230,7 +7276,32 @@ tasks.register("wbyS1ResolvePinnedMods") {
         if (wbyS3CreateBigCannons) println("WBY S3 CREATE BIG CANNONS OVERLAY PASS")
         println("  glider=" + wbyS1Glider + " clouds=" + wbyS1Clouds + " thinAir=" + wbyS1ThinAir)
         println("  distantHorizons=" + if (wbyS1WithoutDistantHorizons) "without-dh" else "with-dh")
+        val s4GameplayMods = listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+        s4GameplayMods.forEach { mod ->
+            val expected = wbyS4Token(mod)
+            if (wbyS4OrdinaryLife) {
+                check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                    "WBY S4 missing $mod on client/server: $expected"
+                }
+            } else {
+                check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                    "WBY S1-S3 profile unexpectedly resolved S4 $mod: $expected"
+                }
+            }
+        }
+        val s4ShaderMods = listOf("iris", "irisSimpleCloudsCompat")
+        s4ShaderMods.forEach { mod ->
+            val expected = wbyS4Token(mod)
+            if (wbyS4Shaders) {
+                check(client.any { it.contains(expected) }) { "WBY S4 shader client missing $mod: $expected" }
+            } else {
+                check(client.none { it.contains(expected) }) { "WBY S4 shader client unexpectedly resolved $mod: $expected" }
+            }
+            check(server.none { it.contains(expected) }) { "WBY S4 leaked client-only shader mod $mod to server: $expected" }
+        }
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
+        if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
+        if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         println("  atmosphere=accepted A4MC core plus Aeronautics compatibility; no second authority")
         println("  particleRain=deferred pending A4MC wind adapter")
         println("  flyHigher=deferred pending pressure-authority compatibility proof")
@@ -7278,7 +7349,12 @@ wbyS1StageClientMods.configure {
         (if (wbyS3CreateBigCannons) listOf(
             token(waveC1Pin("rpl", "coordinate")),
             token(waveC1Pin("createbigcannons", "coordinate")),
-        ) else emptyList())
+        ) else emptyList()) +
+        (if (wbyS4OrdinaryLife) {
+            listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
+                .map { wbyS4Token(it) }
+        } else emptyList()) +
+        (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -7949,6 +8025,7 @@ fun writeWbyS3DieselDefaultConfig(runDirectory: java.io.File) {
     )
 }
 
+
 tasks.named("runWbyS1DiagnosticServer").configure {
     doFirst {
         if (wbyS3DieselGenerators) {
@@ -7962,7 +8039,8 @@ tasks.named("runWbyS1DiagnosticServer").configure {
                 .trim()
                 .takeIf { it.isNotEmpty() }
                 ?: "world"
-            writeWbyS3DieselSuppressionConfig(directory.resolve(levelName))
+            val worldDirectory = directory.resolve(levelName)
+            writeWbyS3DieselSuppressionConfig(worldDirectory)
         }
     }
 }
@@ -7972,7 +8050,8 @@ tasks.named("runWbyS1DiagnosticClient").configure {
         if (wbyS3DieselGenerators) {
             // NeoForge copies defaultconfigs into newly created integrated-server worlds.
             // Existing worlds remain individually governed by their own serverconfig.
-            writeWbyS3DieselDefaultConfig(layout.projectDirectory.dir(wbyS1RunDirectory).asFile)
+            val runDirectory = layout.projectDirectory.dir(wbyS1RunDirectory).asFile
+            writeWbyS3DieselDefaultConfig(runDirectory)
         }
     }
 }
@@ -8148,6 +8227,21 @@ dependencies {
         listOf("rpl", "createbigcannons").forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, waveC1Pin(mod, "coordinate"))
+        }
+    }
+
+    // S4 ordinary-life content is cumulative client/server content. Hearth and Harvest is present
+    // because CCK's optional GameTest class links its Cask block entity during test discovery.
+    // The optional shader layer remains client-only and is absent from every dedicated-server run.
+    if (wbyS4OrdinaryLife) {
+        listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS4Shaders) {
+        listOf("iris", "irisSimpleCloudsCompat").forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
         }
     }
 
@@ -9732,4 +9826,46 @@ tasks.register("launchF4KHydrologyReview") {
     group = "application"
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
+}
+
+
+// Stage only mods visible to the cumulative dedicated-server runtime. The ordinary S4
+// acceptance run uses NeoForge's installed server launcher so Gradle's optional integration
+// GameTest discovery cannot load classes for absent optional food mods.
+tasks.register<Sync>("wbyS1StageServerMods") {
+    group = "verification"
+    description = "Stage the exact cumulative server mod jars for the installed S4 runtime acceptance server."
+    from(wbyS1ServerRuntime.runtimeClasspath) {
+        include { details ->
+            val file = details.file
+            if (!file.isFile || file.extension != "jar") {
+                false
+            } else {
+                val name = file.name.lowercase()
+                val isLoaderArtifact = name.startsWith("neoforge-") || name.startsWith("minecraft-")
+                !isLoaderArtifact && ZipFile(file).use { archive ->
+                    archive.getEntry("META-INF/neoforge.mods.toml") != null ||
+                        archive.getEntry("META-INF/mods.toml") != null
+                }
+            }
+        }
+    }
+    into(layout.projectDirectory.dir("$wbyS1RunDirectory/server-mods"))
+    doFirst { destinationDir.deleteRecursively() }
+    doLast {
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension == "jar" }
+            ?.map { it.name }
+            ?.sorted()
+            ?: emptyList()
+        check(staged.isNotEmpty()) { "WBY S1 server staging produced no NeoForge mod jars." }
+        listOf("distanthorizons", "iris", "oculus-for-simpleclouds", "simpleclouds", "betterclouds")
+            .forEach { forbidden ->
+                check(staged.none { it.contains(forbidden, ignoreCase = true) }) {
+                    "WBY S1 server staging leaked client-only $forbidden: $staged"
+                }
+            }
+        println("WBY S1 SERVER MOD STAGING PASS")
+        staged.forEach { println("  serverMod=$it") }
+    }
 }

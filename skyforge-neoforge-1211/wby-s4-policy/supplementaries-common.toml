@@ -1,0 +1,22 @@
+# S4 Supplementaries Common Config
+# Candidate profile defaults for newly created S4 worlds. Keep the content and recipes enabled.
+# These switches suppress Supplementaries-owned autonomous worldgen that would compete with
+# Skyforge-authored structures, ecology, and world composition.
+
+[building.way_sign.road_signs]
+enabled = false
+
+[building.ash]
+basalt_ash = false
+
+[functional.urn]
+cave_urns = false
+
+[functional.flax]
+wild_flax = false
+
+[functional.cannon.plunderer]
+galleon = false
+
+[redstone.pulley_block]
+mineshaft_elevator = 0.0
