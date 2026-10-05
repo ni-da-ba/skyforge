@@ -8,11 +8,12 @@ import java.util.Objects;
 /**
  * Explicit mapping from authored game-scale hydraulic geometry to the SI open-channel solver.
  *
- * <p>All numerical parameters are required; this type intentionally provides no hidden defaults.
- * The current geometry interpretation maps the normalized terrain and bankfull-depth potential
- * through the descriptor's relief budget, and derives trapezoid bottom width so the top width at
- * that bankfull depth matches the authored bankfull width. Parameters still require fixed-control
- * calibration before production use.
+ * <p>The calibration maps normalized terrain and bankfull-depth potential through the
+ * descriptor's relief budget, and derives trapezoid bottom width so the top width at that bankfull
+ * depth matches the authored bankfull width. The bed-incision scale is explicit in the canonical
+ * constructor. The eight-argument compatibility constructor retains the former baseline value 1.0;
+ * calibration sweeps must provide and report the scale explicitly. No mapping is production-ready
+ * until fixed-control evidence qualifies it.
  */
 public record SkyIslandGameScaleHydraulicCalibration(
         double metersPerWorldUnit,
@@ -44,6 +45,7 @@ public record SkyIslandGameScaleHydraulicCalibration(
                 maximumIterations,
                 1.0);
     }
+
     public SkyIslandGameScaleHydraulicCalibration {
         if (!Double.isFinite(metersPerWorldUnit) || metersPerWorldUnit <= 0.0
                 || !Double.isFinite(dischargeCubicMetersPerSecondPerRelativeUnit)
