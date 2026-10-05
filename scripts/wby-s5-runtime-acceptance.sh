@@ -192,7 +192,7 @@ client_dir_abs="$PWD/$client_dir"
 launcher_python="${WBY_S4_LAUNCHER_PYTHON:-python3}"
 minecraft_dir="${WBY_S4_MINECRAFT_DIRECTORY:-$GITHUB_WORKSPACE/s4-minecraft}"
 setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
-  xvfb-run -a "$launcher_python" scripts/wby-s5-launch-production-client.py \
+  xvfb-run -a "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$minecraft_dir" \
     --game-directory "$client_dir_abs" \
     --username WbyS1Acceptance \
