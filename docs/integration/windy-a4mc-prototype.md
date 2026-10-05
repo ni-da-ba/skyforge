@@ -13,6 +13,7 @@ Never edit the upstream sources in-place in this repository. CI checks out pinne
 
 1. `0001-authoritative-wind-provider.patch` — adds an optional external vector-field hook to Windy's existing particles and ribbons. When externally bound, the internal randomized wind is skipped, missing samples fail closed, streaks sample each location, ribbons follow 3D local velocity rather than decorative horizontal weave, and high-altitude flight may spawn nearby ribbons.
 2. `0002-a4mc-client-authority-binding.patch` — binds the seam to `AeroClientWindApi.sample` with `SERVER_AGGREGATED_PREFERRED` (trusted coarse / aggregated flow, never client-only local voxel detail). A4MC remains the sole wind/pressure physics authority. The provider is registered only if A4MC is loaded.
+3. `0003-external-wind-command-guard.patch` — reports the physical A4MC wind vector and gust in `/windy status` and rejects `/windy gust` or `/windy calm` when A4MC owns airflow, preventing misleading local overrides.
 
 ## Authority boundary
 
