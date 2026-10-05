@@ -28,6 +28,20 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             double planningSpacing,
             SkyIslandGameScaleHydraulicCalibration calibration,
             Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates) {
+        return solve(
+                descriptor, span, terrain, policy, planningSpacing, calibration, terminalFates,
+                span.samples());
+    }
+
+    static Outcome solve(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy,
+            double planningSpacing,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates,
+            List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(span, "span");
         Objects.requireNonNull(terrain, "terrain");
@@ -42,7 +56,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
-                calibration.crossSections(descriptor, span.samples());
+                calibration.crossSections(descriptor, span.samples(), parentReachSamples);
         SkyIslandGraduallyVariedFlowSolver.Result hydraulicProfile =
                 solveHydraulics(descriptor, span, sections, calibration, terminalFates);
         List<SkyIslandHydraulicGeometrySample> solvedSamples =
@@ -447,8 +461,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             SkyIslandGraduallyVariedFlowSolver.ProfilePoint profile = result.points().get(i);
             double waterSurfacePotential =
                     profile.waterSurfaceElevationMeters() / reliefMeters;
-            double bedPotential =
-                    source.terrainElevation() - source.waterDepthPotential();
+            double bedPotential = profile.section().bedElevationMeters() / reliefMeters;
             if (!Double.isFinite(waterSurfacePotential)
                     || waterSurfacePotential < 0.0
                     || waterSurfacePotential > 1.0
