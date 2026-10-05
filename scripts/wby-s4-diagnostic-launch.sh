@@ -241,7 +241,8 @@ if [[ "$mode" == "shaders" ]]; then
   assert_hearthandharvest_policy "$run_dir/config/hearthandharvest-common.toml"
   assert_hearthandharvest_worldgen_policy "$run_dir"
   grep -Fq '[interior_clouds]' "$run_dir/config/oculus_for_simpleclouds-client.toml"
-  grep -Eq '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*
+  grep -Fqx 'enabled = false' "$run_dir/config/oculus_for_simpleclouds-client.toml"
+  echo "S4 cloud diagnostic policy staging PASS."
   "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s4-production-client" \
     --game-directory "$PWD/$run_dir" \
