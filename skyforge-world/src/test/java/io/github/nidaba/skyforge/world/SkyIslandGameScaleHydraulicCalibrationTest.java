@@ -44,6 +44,36 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
     }
 
     @Test
+    void appliesExplicitBedIncisionScaleWithoutChangingBankfullGeometry() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 77L));
+        SkyIslandHydraulicGeometrySkeletonSample sample =
+                new SkyIslandHydraulicGeometrySkeletonSample(
+                        new SkyIslandLocalPosition(0.0, 0.0),
+                        12.0,
+                        0.5,
+                        0.5,
+                        10.0,
+                        0.01,
+                        0.5);
+        SkyIslandGameScaleHydraulicCalibration calibration =
+                new SkyIslandGameScaleHydraulicCalibration(
+                        1.0, 4.0, 0.035, 1.0, 1.0, 9.81, 1.0e-8, 160, 2.0);
+
+        SkyIslandGraduallyVariedFlowSolver.CrossSection section =
+                calibration.crossSection(descriptor, sample);
+
+        double reliefMeters = descriptor.reliefBudget();
+        assertEquals((0.5 - 2.0 * 0.01) * reliefMeters, section.bedElevationMeters(), 1.0e-12);
+        assertEquals(
+                20.0,
+                section.bottomWidthMeters()
+                        + 2.0 * section.sideSlopeHorizontalToVertical()
+                                * 0.01 * reliefMeters,
+                1.0e-12);
+    }
+
+    @Test
     void rejectsCrossSectionsWhoseBankfullWidthCannotContainTheSelectedSideSlope() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 77L));
@@ -73,6 +103,10 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 IllegalArgumentException.class,
                 () -> new SkyIslandGameScaleHydraulicCalibration(
                         1.0, 1.0, 0.0, 1.0, 1.0, 9.81, 1.0e-8, 100));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandGameScaleHydraulicCalibration(
+                        1.0, 1.0, 0.035, 1.0, 1.0, 9.81, 1.0e-8, 100, 0.0));
     }
 
     private static SkyIslandGameScaleHydraulicCalibration calibration(
