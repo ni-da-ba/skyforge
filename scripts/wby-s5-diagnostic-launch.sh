@@ -223,7 +223,7 @@ if [[ "$mode" == "shaders" ]]; then
     fi
   fi
   if ! "$launcher_python" -c 'import minecraft_launcher_lib' >/dev/null 2>&1; then
-    "$launcher_python" -m pip install --disable-pip-version-check -r scripts/wby-s5-launcher-requirements.txt
+    "$launcher_python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
   fi
 
   JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
@@ -262,7 +262,7 @@ if [[ "$mode" == "shaders" ]]; then
   [[ "$cloud_interior" == "on" ]] && expected_cloud_interior=true
   grep -Fqx "enabled = $expected_cloud_interior" "$cloud_config"
   echo "S4 cloud diagnostic policy staging PASS (interior effect $cloud_interior)."
-  "$launcher_python" scripts/wby-s5-launch-production-client.py \
+  "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s5-production-client" \
     --game-directory "$PWD/$run_dir" \
     --username WbyS4Review 2>&1 | tee "$log"
