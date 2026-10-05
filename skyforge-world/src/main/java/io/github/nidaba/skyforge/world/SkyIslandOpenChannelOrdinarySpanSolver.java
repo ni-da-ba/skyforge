@@ -173,7 +173,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
 
         List<Integer> intervals = new ArrayList<>();
-        for (int interval = primaryInterval; interval >= 1; interval--) {
+        for (int interval = primaryInterval; interval >= 0; interval--) {
             intervals.add(interval);
         }
         for (int interval = primaryInterval + 1; interval <= maximumInterval; interval++) {
@@ -193,6 +193,11 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             double minimumStageResidual = Double.POSITIVE_INFINITY;
             double maximumStageResidual = Double.NEGATIVE_INFINITY;
             for (int sample = 0; sample <= 8; sample++) {
+                if (interval == 0 && sample == 0) {
+                    // A control at the upstream boundary has no upstream subcritical reach.
+                    trials.add(null);
+                    continue;
+                }
                 double fraction = sample / 8.0;
                 try {
                     MixedStepTrial trial = evaluateCriticalControl(
