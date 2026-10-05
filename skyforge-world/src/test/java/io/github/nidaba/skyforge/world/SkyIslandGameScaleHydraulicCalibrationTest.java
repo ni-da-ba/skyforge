@@ -80,13 +80,13 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 77L));
         List<SkyIslandHydraulicGeometrySkeletonSample> samples = List.of(
-                sample(0.0, 0.0, 0.70),
-                sample(10.0, 1.0 / 3.0, 0.60),
-                sample(20.0, 2.0 / 3.0, 0.80),
-                sample(30.0, 1.0, 0.55));
+                sample(0.0, 0.0, 0.81),
+                sample(10.0, 1.0 / 3.0, 0.11),
+                sample(20.0, 2.0 / 3.0, 0.91),
+                sample(30.0, 1.0, 0.81));
         SkyIslandGameScaleHydraulicCalibration calibration =
                 new SkyIslandGameScaleHydraulicCalibration(
-                        1.0, 4.0, 0.035, 0.25, 1.0, 9.81, 1.0e-8, 160, 1.0);
+                        1.0, 4.0, 0.035, 0.25, 1.0, 9.81, 1.0e-8, 160, 1.0, 0.05);
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> full =
                 calibration.crossSections(descriptor, samples);
@@ -97,8 +97,13 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
             double rawBed = calibration.crossSection(descriptor, samples.get(i)).bedElevationMeters();
             assertTrue(full.get(i).bedElevationMeters() <= rawBed + 1.0e-12);
             if (i > 0) {
-                assertTrue(full.get(i).bedElevationMeters()
-                        <= full.get(i - 1).bedElevationMeters() + 1.0e-12);
+                double downstreamDrop = full.get(i - 1).bedElevationMeters()
+                        - full.get(i).bedElevationMeters();
+                double spacing = full.get(i).chainageMeters()
+                        - full.get(i - 1).chainageMeters();
+                assertTrue(downstreamDrop >= -1.0e-12);
+                assertTrue(downstreamDrop
+                        <= calibration.maximumDownstreamBedSlope() * spacing + 1.0e-12);
             }
         }
         assertEquals(full.get(1).bedElevationMeters(), subspan.getFirst().bedElevationMeters(), 1.0e-12);
@@ -151,6 +156,10 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 IllegalArgumentException.class,
                 () -> new SkyIslandGameScaleHydraulicCalibration(
                         1.0, 1.0, 0.035, 1.0, 1.0, 9.81, 1.0e-8, 100, 0.0));
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> new SkyIslandGameScaleHydraulicCalibration(
+                        1.0, 1.0, 0.035, 1.0, 1.0, 9.81, 1.0e-8, 100, 1.0, 0.0));
     }
 
     private static SkyIslandGameScaleHydraulicCalibration calibration(
