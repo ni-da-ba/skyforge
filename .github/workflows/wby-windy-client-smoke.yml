@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch; do
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch 0008-wind-sample-profiling.patch; do
             git -C windy-upstream apply --check "../third_party/patches/windy/$patch"
             git -C windy-upstream apply "../third_party/patches/windy/$patch"
           done
@@ -99,6 +99,7 @@ jobs:
           // Explicit opt-in: runtime proof of A4MC binding and trusted sample reception.
           neoForge.runs.named("wbyS1ClientJoinAcceptance") {
               systemProperty("skyforge.windy.flowProbe", "true")
+              systemProperty("skyforge.windy.sampleProfiler", "true")
           }
           val wbyWindyClientSmokeJar = providers.gradleProperty("skyforgeWindySmokeJar").orNull?.let { file(it) }
           if (wbyWindyClientSmokeJar != null) {
@@ -221,7 +222,21 @@ jobs:
           fi
           grep -F 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest" | head -n 1
           echo 'PASS: live Windy provider consumed a server-trusted A4MC wind sample'
-          echo 'BOUNDARY: no actual shader, 3D flight-line comparison, visual-depth or aircraft-lift acceptance claimed'
+          sampled=false
+          for attempt in $(seq 1 60); do
+            if grep -Fq 'SKYFORGE_WINDY_SAMPLE_PROFILE' "$client_latest"; then
+              sampled=true; break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$sampled" != true ]]; then
+            echo 'BLOCKED: insufficient live samples for bounded sampling-cost profile'
+            tail -n 120 "$client_latest"; exit 1
+          fi
+          grep -F 'SKYFORGE_WINDY_SAMPLE_PROFILE' "$client_latest" | head -n 1
+          echo 'PASS: bounded live A4MC API sampling-cost profile recorded'
+          echo 'BOUNDARY: sample-call p95 is NOT frame-time p95; no shader or flight-visual acceptance claimed'
 
       - name: Upload exact smoke evidence
         if: always()
