@@ -423,6 +423,25 @@ check(requireNotNull(wbyS4Pins.getProperty("profile.base")) == "wby-s3-industry"
 check(wbyS4Pin("irisSimpleCloudsCompat", "releaseStatus") == "beta")
 check(wbyS4Pin("atmosphericShaders", "distribution") == "manual-client-install; custom-license; do-not-bundle")
 
+val wbyS5PinFile = layout.projectDirectory.file("wby-s5-overworld-ecology.properties")
+val wbyS5Pins = Properties().apply { wbyS5PinFile.asFile.inputStream().use(::load) }
+fun wbyS5Pin(mod: String, field: String): String =
+    requireNotNull(wbyS5Pins.getProperty("$mod.$field")) {
+        "missing WBY S5 pin: $mod.$field in " + wbyS5PinFile.asFile
+    }
+fun wbyS5Token(mod: String): String = wbyS5Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S5 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+check(wbyS5Pin("minecraft", "version") == "1.21.1")
+check(wbyS5Pin("neoforge", "version") == "21.1.249")
+check(wbyS5Pin("profile.base") == "wby-s4-life-building")
+check(wbyS5Pin("biomesOPlenty", "releaseStatus") == "beta")
+check(wbyS5Pin("terraBlender", "releaseStatus") == "beta")
+check(wbyS5Pin("yacl", "coordinate") == wbyS1Pin("yacl", "coordinate")) {
+    "WBY S5 must reuse the S1 YACL artifact to avoid duplicate YACL versions"
+}
+
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -509,6 +528,7 @@ val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").or
 val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS4OrdinaryLife = providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS5OverworldEcology = providers.gradleProperty("wbyS5OverworldEcology").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -539,6 +559,9 @@ check(!wbyS4OrdinaryLife || (wbyS2ComputingAvionics && wbyS3DieselGenerators && 
 }
 check(!wbyS4Shaders || (wbyS4OrdinaryLife && wbyS1Clouds == "simple-clouds" && !wbyS1WithoutDistantHorizons)) {
     "WBY S4 shaders require the S4 profile with Simple Clouds and Distant Horizons enabled"
+}
+check(!wbyS5OverworldEcology || (wbyS4OrdinaryLife && wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
+    "WBY S5 requires the cumulative S4 life/building profile"
 }
 check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
     "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
@@ -7132,6 +7155,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(wbyS4PinFile)
     inputs.property("wbyS4OrdinaryLife", wbyS4OrdinaryLife)
     inputs.property("wbyS4Shaders", wbyS4Shaders)
+    inputs.file(wbyS5PinFile)
+    inputs.property("wbyS5OverworldEcology", wbyS5OverworldEcology)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7299,9 +7324,37 @@ tasks.register("wbyS1ResolvePinnedMods") {
             }
             check(server.none { it.contains(expected) }) { "WBY S4 leaked client-only shader mod $mod to server: $expected" }
         }
+        val s5SharedMods = listOf(
+            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+            "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
+            "glitchCore", "geckolib", "smartBrainLib", "architectury",
+        )
+        s5SharedMods.forEach { mod ->
+            val expected = wbyS5Token(mod)
+            if (wbyS5OverworldEcology) {
+                check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                    "WBY S5 missing $mod on client/server: $expected"
+                }
+            } else {
+                check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                    "WBY S1-S4 unexpectedly resolved S5 $mod: $expected"
+                }
+            }
+        }
+        val s5ClientMods = listOf("yacl")
+        s5ClientMods.forEach { mod ->
+            val expected = wbyS5Token(mod)
+            if (wbyS5OverworldEcology) {
+                check(client.any { it.contains(expected) }) { "WBY S5 client missing config dependency $mod: $expected" }
+            } else {
+                check(client.none { it.contains(expected) }) { "WBY S5 unexpectedly resolved client config dependency $mod: $expected" }
+            }
+            check(server.none { it.contains(expected) }) { "WBY S5 leaked client-only dependency $mod to server: $expected" }
+        }
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
+        if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
         println("  atmosphere=accepted A4MC core plus Aeronautics compatibility; no second authority")
         println("  particleRain=deferred pending A4MC wind adapter")
         println("  flyHigher=deferred pending pressure-authority compatibility proof")
@@ -7354,7 +7407,14 @@ wbyS1StageClientMods.configure {
             listOf("farmersDelight", "hearthAndHarvest", "createCentralKitchen", "createDragonsPlus", "supplementaries", "moonlight")
                 .map { wbyS4Token(it) }
         } else emptyList()) +
-        (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList())
+        (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList()) +
+        (if (wbyS5OverworldEcology) {
+            listOf(
+                "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+                "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
+                "glitchCore", "geckolib", "smartBrainLib", "architectury", "yacl",
+            ).map { wbyS5Token(it) }
+        } else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8243,6 +8303,19 @@ dependencies {
         listOf("iris", "irisSimpleCloudsCompat").forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS4Pin(mod, "coordinate"))
         }
+    }
+    // S5 is opt-in cumulative ecology/biome content. Shared libraries are pinned once and
+    // resolved on both sides; YACL remains client-only for Fowl Play's config screen.
+    if (wbyS5OverworldEcology) {
+        listOf(
+            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+            "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
+            "glitchCore", "geckolib", "smartBrainLib", "architectury",
+        ).forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
+        }
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS5Pin("yacl", "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
