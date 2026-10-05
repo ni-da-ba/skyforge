@@ -9,7 +9,7 @@
 - Windy (NeoForge 1.21.1) upstream commit `3ba5523481d22179cdf0fa7dab0743210f136bb8`, advertised mod 1.2.0, MIT.
 - A4MC accepted 0.2.2 source commit `171d8dc593651d6b34e3bfecaf6469a11b53b433`, public Minecraft-independent API.
 
-Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies six intentionally narrow patches in order:
+Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies seven intentionally narrow patches in order:
 
 1. `0001-authoritative-wind-provider.patch` — adds an optional external vector-field hook to Windy's existing particles and ribbons. When externally bound, the internal randomized wind is skipped, missing samples fail closed, streaks sample each location, ribbons follow 3D local velocity rather than decorative horizontal weave, and high-altitude flight may spawn nearby ribbons.
 2. `0002-a4mc-client-authority-binding.patch` — binds the seam to `AeroClientWindApi.sample` with `SERVER_AGGREGATED_PREFERRED` (trusted coarse / aggregated flow, never client-only local voxel detail). A4MC remains the sole wind/pressure physics authority. The provider is registered only if A4MC is loaded.
@@ -17,6 +17,7 @@ Never edit the upstream sources in-place in this repository. CI checks out pinne
 4. `0004-trusted-wind-and-ambient-guard.patch` — admits only server-trusted A4MC airflow and suppresses Windy's unrelated biome particle drift while physical authority is active.
 5. `0005-physical-flight-cues.patch` — wisps advect with the local trusted 3D velocity at each tick, fail closed when flow disappears, and ribbons move at physical m/s ÷ 20 without their previous randomized speed factor. Uncalibrated tiny ambient wind-motes are suppressed in external-authority mode pending a bounded particle fidelity/performance trial.
 6. `0006-live-trusted-flow-probe.patch` — adds opt-in, once-per-client log markers distinguishing mod binding, missing wind and genuinely server-trusted wind. The actual-client CI profile explicitly enables this probe and requires a trusted sample within its dwell interval; normal users never incur the diagnostic logging.
+7. `0007-suspended-island-wind-corridors.patch` — permits physical wind wisps below island overhangs without disabling standalone sky exposure rules; anchors 3D ribbons near player altitude rather than island heightmap tops and rejects ribbon spawns inside terrain. Real Skyforge overhang captures are still a manual admission gate.
 
 ## Authority boundary
 
@@ -34,7 +35,7 @@ Skyforge / A4MC gameplay consumers remain untouched.
 ## Current boundaries / known TODOs
 
 - **Proof stage 1:** deterministic pinned-source build and bytecode presence through `wby-windy-a4mc-prototype.yml`; must be PASS before any staging claim.
-- **Actual client:** require proof of A4MC mod binding and live server-trusted wind reception (opt-in probe), then test no-source, still air, crosswind, shear, thermals, sink, near/above/between floating islands, two players at different heights and positions, reconnect/dimension switch, night/storm and sustained gliding. Verify against sampled A4MC public API traces, not just appearance.
+- **Actual client:** require proof of A4MC mod binding and live server-trusted wind reception (opt-in probe), then test no-source, still air, crosswind, shear, thermals, sink, near/above/**under** floating islands and inside sheltered flight corridors, two players at different heights and positions, reconnect/dimension switch, night/storm and sustained gliding. Verify against sampled A4MC public API traces, not just appearance.
 - **Visual issues:** WindRibbons still draws at `AFTER_TRANSLUCENT_BLOCKS` with a custom render type, so Iris/Atmospheric Shaders + DH/SSRD + Simple Clouds depth ordering remains unknown until a real client captures the overlap. Ordinary wisps may be retained independently if ribbons fail.
 - **Weather overlap:** The actual-client smoke explicitly blacklists `dev.fallingcloud.windy.particle.*` under A4MC's particle wind rules, which take precedence over whitelists; avoid duplicate snow/dust/rain when Particle Rain later enters the stack.
 - **Particle behavior boundary:** wisps and ribbons now sample physical m/s ÷ 20 travel; other debris effects (leaves, snow and dust) still have stylized drift, gravity and inertia and must not be treated as quantitative aircraft instrumentation. Dedicated same-position tracing and sustained flight p95 profiling remain required before promotion.

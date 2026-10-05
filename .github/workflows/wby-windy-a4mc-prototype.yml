@@ -64,7 +64,8 @@ jobs:
             0003-external-wind-command-guard.patch \
             0004-trusted-wind-and-ambient-guard.patch \
             0005-physical-flight-cues.patch \
-            0006-live-trusted-flow-probe.patch; do
+            0006-live-trusted-flow-probe.patch \
+            0007-suspended-island-wind-corridors.patch; do
             path="../third_party/patches/windy/$patch"
             git -C windy-upstream apply --check "$path"
             git -C windy-upstream apply "$path"
@@ -83,6 +84,8 @@ jobs:
           grep -Fq 'cfg.motes() && !external' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'SKYFORGE_WINDY_TRUSTED_SAMPLE' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
           grep -Fq 'SKYFORGE_WINDY_BOUND_A4MC' windy-upstream/src/main/java/dev/fallingcloud/windy/Windy.java
+          grep -Fq '!external && !level.canSeeSky(pos)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'atRibbon' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
 
       - name: Build patched Windy on actual NeoForge toolchain
         shell: bash
