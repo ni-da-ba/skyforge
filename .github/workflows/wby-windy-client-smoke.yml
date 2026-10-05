@@ -235,7 +235,11 @@ jobs:
             tail -n 120 "$client_latest"; exit 1
           fi
           burst_line="$(grep -m1 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest")"
-          available="$(printf '%s' "$burst_line" | sed -n 's/.*available=\\([0-9][0-9]*\\).*/\\1/p')"
+          if [[ "$burst_line" =~ available=([0-9]+) ]]; then
+            available="${BASH_REMATCH[1]}"
+          else
+            available=0
+          fi
           if [[ -z "$available" ]] || (( available < 120 )); then
             echo 'BLOCKED: fewer than 120/128 trusted samples in burst'; echo "$burst_line"; exit 1
           fi
