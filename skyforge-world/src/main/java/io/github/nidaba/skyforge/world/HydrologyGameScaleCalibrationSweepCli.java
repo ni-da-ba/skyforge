@@ -27,6 +27,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
     private static final double[] MANNING_ROUGHNESSES = {0.025, 0.035, 0.05};
     private static final double[] SIDE_SLOPES = {0.25, 0.5, 1.0};
     private static final double[] BED_INCISION_SCALES = {0.5, 1.0, 2.0};
+    private static final double[] MAXIMUM_DOWNSTREAM_BED_SLOPES = {0.05, 0.25, 1.0};
 
     private HydrologyGameScaleCalibrationSweepCli() {}
 
@@ -39,7 +40,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 "control,heldOut,province,cluster,key,parameterSet,metersPerWorldUnit,dischargeScale,"
                         + "manningRoughness,sideSlope,spanCount,qualified,rejected,hydraulicFailure,"
                         + "upstreamStageMismatch,deferred,invalidGeometry,maxEnergyResidualMeters,"
-                        + "maxUpstreamStageResidualMeters,bedIncisionScale\n");
+                        + "maxUpstreamStageResidualMeters,bedIncisionScale,maximumDownstreamBedSlope\n");
         Set<String> diagnostics = new TreeSet<>();
 
         for (Control control : List.of(
@@ -59,10 +60,12 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 for (double roughness : MANNING_ROUGHNESSES) {
                     for (double sideSlope : SIDE_SLOPES) {
                       for (double bedIncisionScale : BED_INCISION_SCALES) {
-                        SkyIslandGameScaleHydraulicCalibration calibration =
-                                new SkyIslandGameScaleHydraulicCalibration(
-                                        1.0, dischargeScale, roughness, sideSlope,
-                                        1.0, 9.81, 1.0e-8, 160, bedIncisionScale);
+                        for (double maximumBedSlope : MAXIMUM_DOWNSTREAM_BED_SLOPES) {
+                          SkyIslandGameScaleHydraulicCalibration calibration =
+                                  new SkyIslandGameScaleHydraulicCalibration(
+                                          1.0, dischargeScale, roughness, sideSlope,
+                                          1.0, 9.81, 1.0e-8, 160,
+                                          bedIncisionScale, maximumBedSlope);
                         Assessment assessment = assess(
                                 control, descriptor, plan, policy, terrain, terminalFates,
                                 planningSpacing, calibration, diagnostics);
@@ -71,7 +74,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                 .append(control.province()).append(',')
                                 .append(control.cluster()).append(',')
                                 .append(control.key()).append(',')
-                                .append(parameterSet(dischargeScale, roughness, sideSlope, bedIncisionScale)).append(',')
+                                .append(parameterSet(
+                                        dischargeScale, roughness, sideSlope, bedIncisionScale, maximumBedSlope))
+                                .append(',')
                                 .append(format(calibration.metersPerWorldUnit())).append(',')
                                 .append(format(dischargeScale)).append(',')
                                 .append(format(roughness)).append(',')
@@ -85,7 +90,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                 .append(assessment.invalidGeometry()).append(',')
                                 .append(format(assessment.maxEnergyResidualMeters())).append(',')
                                 .append(format(assessment.maxUpstreamStageResidualMeters())).append(',')
-                                .append(format(calibration.bedIncisionScale())).append('\n');
+                                .append(format(calibration.bedIncisionScale())).append(',')
+                                .append(format(calibration.maximumDownstreamBedSlope())).append('\n');
+                        }
                       }
                     }
                 }
@@ -105,9 +112,10 @@ public final class HydrologyGameScaleCalibrationSweepCli {
 
                 Fixed controls: accepted ordinary outlet 6/61/77; known rejected 8/81/287;
                 held-out audit identity 8/81/700. Key 700 is not used to choose parameters.
-                The sweep is a deterministic 3x3x3x3 grid over explicit discharge scale,
-                Manning roughness, trapezoid side slope, and bed-incision scale. The latter
-                scales the authored depth-potential-to-bed-incision hypothesis. One world unit
+                The sweep is a deterministic 3x3x3x3x3 grid over explicit discharge scale,
+                Manning roughness, trapezoid side slope, bed-incision scale, and maximum
+                downstream bed slope. The incision scale tests the depth-potential mapping;
+                the slope cap conditions one shared no-fill parent-reach bed profile. One world unit
                 is provisionally mapped to one metre; gravity and energy coefficient are
                 explicit SI values. Key 700 is diagnostic-only and excluded from selection.
                 No candidate is silently selected by this program.
@@ -531,10 +539,14 @@ public final class HydrologyGameScaleCalibrationSweepCli {
     }
 
     private static String parameterSet(
-            double discharge, double roughness, double sideSlope, double bedIncisionScale) {
+            double discharge,
+            double roughness,
+            double sideSlope,
+            double bedIncisionScale,
+            double maximumBedSlope) {
         return String.format(
-                Locale.ROOT, "q%.1f-n%.3f-m%.2f-i%.2f",
-                discharge, roughness, sideSlope, bedIncisionScale);
+                Locale.ROOT, "q%.1f-n%.3f-m%.2f-i%.2f-s%.2f",
+                discharge, roughness, sideSlope, bedIncisionScale, maximumBedSlope);
     }
 
     private static String format(double value) {
