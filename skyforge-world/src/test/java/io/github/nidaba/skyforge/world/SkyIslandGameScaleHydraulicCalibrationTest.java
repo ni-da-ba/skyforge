@@ -41,12 +41,12 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 20.0,
                 section.bottomWidthMeters()
                         + 2.0 * section.sideSlopeHorizontalToVertical()
-                                * 0.01 * reliefMeters,
+                                * 2.0 * 0.01 * reliefMeters,
                 1.0e-12);
     }
 
     @Test
-    void appliesExplicitBedIncisionScaleWithoutChangingBankfullGeometry() {
+    void appliesExplicitBedIncisionScaleWhilePreservingAuthoredBankfullTopWidth() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 77L));
         SkyIslandHydraulicGeometrySkeletonSample sample =
