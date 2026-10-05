@@ -260,12 +260,12 @@ if [[ "$mode" == "shaders" || "$mode" == "shaders-windy" ]]; then
     mkdir -p "$run_dir/mods" "$run_dir/config"
     install -m 0644 "$windy_jar" "$run_dir/mods/windy-1.2.0.jar"
     cat > "$run_dir/config/aerodynamics4mc-particles.json" <<'EOF'
-  {
-    "enabled": true,
-    "whitelist": [],
-    "blacklist": ["dev.fallingcloud.windy.particle.*"]
-  }
-  EOF
+{
+  "enabled": true,
+  "whitelist": [],
+  "blacklist": ["dev.fallingcloud.windy.particle.*"]
+}
+EOF
     sha256sum "$run_dir/mods/windy-1.2.0.jar" | tee "$bundle/windy-sha256.txt"
   fi
   JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
