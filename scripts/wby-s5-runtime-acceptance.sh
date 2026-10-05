@@ -186,7 +186,7 @@ test -f "$server_dir/s5-acceptance/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
-grep -Fq 'WBY S5 ORDINARY LIFE RESOLUTION PASS' wby-s5-gameplay-resolution.log
+grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s5-gameplay-resolution.log
 
 client_dir_abs="$PWD/$client_dir"
 launcher_python="${WBY_S4_LAUNCHER_PYTHON:-python3}"
