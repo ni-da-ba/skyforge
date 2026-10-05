@@ -1,12 +1,13 @@
-name: WBY S5 Life, Building, and Shader Profile
+name: WBY S5 Overworld Ecology Profile
 
 on:
   pull_request:
     paths:
       - ".github/workflows/wby-s5-overworld-ecology.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
-      - "skyforge-neoforge-1211/wby-s5-life-building.properties"
-      - "skyforge-neoforge-1211/wby-s5-policy/**"
+      - "skyforge-neoforge-1211/wby-s4-life-building.properties"
+      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
+      - "skyforge-neoforge-1211/wby-s4-policy/**"
       - "docs/mod-integration/S4_SUPPLEMENTARIES_POLICY.md"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
@@ -16,9 +17,8 @@ on:
       - "skyforge-neoforge-1211/wby-s0-5-policy/**"
       - "scripts/wby-s5-diagnostic-launch.sh"
       - "scripts/wby-s5-runtime-acceptance.sh"
-      - "scripts/wby-s5-diagnostic-launch.sh"
-      - "scripts/wby-s5-launch-production-client.py"
-      - "scripts/wby-s5-launcher-requirements.txt"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
 
 permissions:
@@ -81,7 +81,7 @@ jobs:
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true --no-configuration-cache | tee wby-s5-gameplay-resolution.log
           grep -Fq 'WBY S1 RESOLUTION PASS' wby-s5-gameplay-resolution.log
-          grep -Fq 'WBY S5 ORDINARY LIFE RESOLUTION PASS' wby-s5-gameplay-resolution.log
+          grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s5-gameplay-resolution.log
           grep -Fq 'distantHorizons=with-dh' wby-s5-gameplay-resolution.log
 
       - name: Resolve and stage the opt-in shader client overlay
@@ -94,7 +94,7 @@ jobs:
             -PwbyS2ComputingAvionics=true \
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=true --no-configuration-cache | tee wby-s5-shader-resolution.log
-          grep -Fq 'WBY S5 SHADER MOD RESOLUTION PASS' wby-s5-shader-resolution.log
+          grep -Fq 'WBY S4 SHADER MOD RESOLUTION PASS' wby-s5-shader-resolution.log
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
             -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
