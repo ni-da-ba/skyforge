@@ -8,14 +8,22 @@ case "$mode" in
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticClient"
     run_directory="run-wby-s5-shaders"
     shader_enabled=true
+    windy_overlay=false
+    ;;
+  shaders-windy)
+    task=":skyforge-neoforge-1211:runWbyS1DiagnosticClient"
+    run_directory="run-wby-s5-shaders-windy"
+    shader_enabled=true
+    windy_overlay=true
     ;;
   server)
     task=":skyforge-neoforge-1211:runWbyS1DiagnosticServer"
     run_directory="run-wby-s5-server"
     shader_enabled=false
+    windy_overlay=false
     ;;
   *)
-    echo "usage: $0 [shaders|server] [off|on]" >&2
+    echo "usage: $0 [shaders|shaders-windy|server] [off|on]" >&2
     exit 2
     ;;
 esac
@@ -44,7 +52,7 @@ fi
 run_dir="skyforge-neoforge-1211/$run_directory"
 mkdir -p .skyforge-diagnostics "$run_dir"
 
-if [[ "$mode" == "shaders" ]]; then
+if [[ "$mode" == "shaders" || "$mode" == "shaders-windy" ]]; then
   shaderpack="$run_dir/shaderpacks/AtmosphericShaders_0.2.zip"
   mkdir -p "$(dirname "$shaderpack")"
   if [[ ! -f "$shaderpack" ]]; then
@@ -202,7 +210,7 @@ else
 fi
 
 status=0
-if [[ "$mode" == "shaders" ]]; then
+if [[ "$mode" == "shaders" || "$mode" == "shaders-windy" ]]; then
   python_bin="$(command -v python3 || command -v python || true)"
   if [[ -z "$python_bin" ]]; then
     echo "Install Python 3.10 or newer, then rerun this command." >&2
@@ -242,6 +250,24 @@ if [[ "$mode" == "shaders" ]]; then
       -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=true \
       -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" --no-configuration-cache \
       2>&1 | tee "$bundle/profile-stage.log"
+  if [[ "$windy_overlay" == true ]]; then
+    windy_jar="$PWD/.skyforge-diagnostics/windy-1.2.0-skyforge-a4mc.jar"
+    if [[ ! -f "$windy_jar" ]]; then
+      echo "Missing patched Windy review JAR: $windy_jar" >&2
+      echo "Download it from the wby-s5-overworld-ecology-resolution Actions artifact." >&2
+      exit 2
+    fi
+    mkdir -p "$run_dir/mods" "$run_dir/config"
+    install -m 0644 "$windy_jar" "$run_dir/mods/windy-1.2.0.jar"
+    cat > "$run_dir/config/aerodynamics4mc-particles.json" <<'EOF'
+  {
+    "enabled": true,
+    "whitelist": [],
+    "blacklist": ["dev.fallingcloud.windy.particle.*"]
+  }
+  EOF
+    sha256sum "$run_dir/mods/windy-1.2.0.jar" | tee "$bundle/windy-sha256.txt"
+  fi
   JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
     ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy \
       -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1ThinAir=false \

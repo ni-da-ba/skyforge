@@ -227,7 +227,7 @@ grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
 grep -Fq '(hearthandharvest)' "$server_latest_log"
-for mod_id in naturalist fowlplay crittersandcompanions skywhales biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury; do
+for mod_id in naturalist fowlplay crittersandcompanions skywhales alexsmobs codxlib biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury; do
   grep -Fq "($mod_id)" "$server_latest_log"
 done
 test -f "$server_dir/s5-acceptance/level.dat"
@@ -235,6 +235,29 @@ cp "$server_latest_log" wby-s5-joined-server-latest.log
 client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
 cp "$client_latest_log" wby-s5-joined-client-latest.log
+if [[ "${WBY_S5_WINDY_OVERLAY:-false}" == true ]]; then
+  test ! -e "$server_dir/mods/windy-1.2.0.jar"
+  grep -Fq '[Windy] Initialised.' "$client_latest_log"
+  grep -Fq 'SKYFORGE_WINDY_BOUND_A4MC' "$client_latest_log"
+  trusted=false
+  for _ in $(seq 1 90); do
+    if grep -Fq 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest_log"; then trusted=true; break; fi
+    if ! kill -0 "$client_pid" 2>/dev/null || ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  test "$trusted" = true
+  sampled=false
+  for _ in $(seq 1 60); do
+    if grep -Fq 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest_log"; then sampled=true; break; fi
+    if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
+    sleep 1
+  done
+  test "$sampled" = true
+  burst_line="$(grep -m1 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest_log")"
+  if [[ "$burst_line" =~ available=([0-9]+) ]]; then available="${BASH_REMATCH[1]}"; else available=0; fi
+  (( available >= 120 ))
+  echo "$burst_line"
+fi
 
 stop_server "$server_log"
 kill -INT -- "-$client_pid" 2>/dev/null || true

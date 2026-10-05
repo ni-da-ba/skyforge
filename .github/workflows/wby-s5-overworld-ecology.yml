@@ -1,6 +1,15 @@
 name: WBY S5 Overworld Ecology Profile
 
 on:
+  push:
+    branches:
+      - "wby/s5-overworld-ecology"
+    paths:
+      - ".github/workflows/wby-s5-overworld-ecology.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
+      - "scripts/wby-s5-diagnostic-launch.sh"
+      - "scripts/wby-s5-runtime-acceptance.sh"
   pull_request:
     paths:
       - ".github/workflows/wby-s5-overworld-ecology.yml"
@@ -69,6 +78,44 @@ jobs:
           mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
           cp "$core" "$compat" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
           sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Checkout pinned Windy prototype patches
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ni-da-ba/skyforge
+          ref: 14c2ed90780515ebabdec396d8e6d77e20fa9a24
+          path: windy-patches
+          persist-credentials: false
+
+      - name: Checkout exact Windy 1.2.0 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: falling-colud/windy
+          ref: 3ba5523481d22179cdf0fa7dab0743210f136bb8
+          path: windy-upstream
+          persist-credentials: false
+
+      - name: Build patched Windy A4MC-authority overlay for client review
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd upstream-a4mc && ./gradlew :api:jar --no-daemon --no-configuration-cache)
+          api_jar="$(find upstream-a4mc/api/build/libs -maxdepth 1 -name 'aerodynamics4mc-api-*.jar' ! -name '*sources*' ! -name '*javadoc*' | head -n 1)"
+          test -n "$api_jar"
+          api_jar="$(realpath "$api_jar")"
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch 0008-wind-sample-profiling.patch 0009-trusted-burst-probe.patch; do
+            patch_path="../windy-patches/third_party/patches/windy/$patch"
+            git -C windy-upstream apply --check "$patch_path"
+            git -C windy-upstream apply "$patch_path"
+          done
+          git -C windy-upstream diff --check
+          (cd windy-upstream && SKYFORGE_A4MC_API_JAR="$api_jar" bash ./gradlew assemble --no-daemon --no-configuration-cache)
+          windy_jar="$GITHUB_WORKSPACE/windy-upstream/build/libs/windy-1.2.0.jar"
+          test -f "$windy_jar"
+          jar tf "$windy_jar" | grep -Fqx 'dev/fallingcloud/windy/A4mcWindStateProvider.class'
+          mkdir -p "$GITHUB_WORKSPACE/wind-review-artifact"
+          cp "$windy_jar" "$GITHUB_WORKSPACE/wind-review-artifact/windy-1.2.0-skyforge-a4mc.jar"
+          sha256sum "$GITHUB_WORKSPACE/wind-review-artifact/windy-1.2.0-skyforge-a4mc.jar" | tee wby-s5-windy-sha256.txt
 
       - name: Resolve cumulative S4 gameplay profile
         shell: bash
@@ -344,6 +391,17 @@ jobs:
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS5OverworldEcology=true -PwbyS4Shaders=false --no-configuration-cache
           echo "WBY S5 production client profile staged without the opt-in shader overlay."
+          client_mods="skyforge-neoforge-1211/run-wby-s5-join-client/mods"
+          cp "$GITHUB_WORKSPACE/wind-review-artifact/windy-1.2.0-skyforge-a4mc.jar" "$client_mods/windy-1.2.0.jar"
+          mkdir -p skyforge-neoforge-1211/run-wby-s5-join-client/config
+          cat > skyforge-neoforge-1211/run-wby-s5-join-client/config/aerodynamics4mc-particles.json <<'EOF'
+          {
+            "enabled": true,
+            "whitelist": [],
+            "blacklist": ["dev.fallingcloud.windy.particle.*"]
+          }
+          EOF
+          echo "Patched Windy is staged client-only; A4MC particle-wind pass excludes Windy particle classes."
 
       - name: Prepare pinned production client launcher
         shell: bash
@@ -354,10 +412,13 @@ jobs:
           "$launcher_venv/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s5-launcher-requirements.txt
           echo "WBY_S4_LAUNCHER_PYTHON=$launcher_venv/bin/python" >> "$GITHUB_ENV"
 
-      - name: Join S4 dedicated server from actual client and reopen the same world
+      - name: Join S5 dedicated server from actual client and reopen the same world
         shell: bash
+        env:
+          JAVA_TOOL_OPTIONS: "-Dskyforge.windy.flowProbe=true -Dskyforge.windy.sampleProfiler=true"
         run: |
-          export WBY_S4_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s5-production-server"
+          export WBY_S5_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s5-production-server"
+          export WBY_S5_WINDY_OVERLAY=true
           bash scripts/wby-s5-runtime-acceptance.sh
 
       - name: Upload S4 integration evidence
@@ -386,4 +447,6 @@ jobs:
             skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/skyforge/neoforge/biome_modifier/*.json
             skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/*.json
             a4mc-0.2.2/*.jar
+            wind-review-artifact/*.jar
+            wby-s5-windy-sha256.txt
           if-no-files-found: warn

@@ -7325,7 +7325,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
             check(server.none { it.contains(expected) }) { "WBY S4 leaked client-only shader mod $mod to server: $expected" }
         }
         val s5SharedMods = listOf(
-            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales", "alexsMobsContinued", "codxLib",
             "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
             "glitchCore", "geckolib", "smartBrainLib", "architectury",
         )
@@ -7410,7 +7410,7 @@ wbyS1StageClientMods.configure {
         (if (wbyS4Shaders) listOf("iris", "irisSimpleCloudsCompat").map { wbyS4Token(it) } else emptyList()) +
         (if (wbyS5OverworldEcology) {
             listOf(
-                "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+                "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales", "alexsMobsContinued", "codxLib",
                 "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
                 "glitchCore", "geckolib", "smartBrainLib", "architectury", "yacl",
             ).map { wbyS5Token(it) }
@@ -8308,7 +8308,7 @@ dependencies {
     // resolved on both sides; YACL remains client-only for Fowl Play's config screen.
     if (wbyS5OverworldEcology) {
         listOf(
-            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales",
+            "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales", "alexsMobsContinued", "codxLib",
             "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
             "glitchCore", "geckolib", "smartBrainLib", "architectury",
         ).forEach { mod ->
