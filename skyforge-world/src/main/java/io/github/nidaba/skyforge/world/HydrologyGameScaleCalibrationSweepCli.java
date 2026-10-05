@@ -26,6 +26,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
     private static final double[] DISCHARGE_SCALES = {0.1, 0.5, 2.0};
     private static final double[] MANNING_ROUGHNESSES = {0.025, 0.035, 0.05};
     private static final double[] SIDE_SLOPES = {0.25, 0.5, 1.0};
+    private static final double[] BED_INCISION_SCALES = {0.5, 1.0, 2.0};
 
     private HydrologyGameScaleCalibrationSweepCli() {}
 
@@ -38,7 +39,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 "control,heldOut,province,cluster,key,parameterSet,metersPerWorldUnit,dischargeScale,"
                         + "manningRoughness,sideSlope,spanCount,qualified,rejected,hydraulicFailure,"
                         + "upstreamStageMismatch,deferred,invalidGeometry,maxEnergyResidualMeters,"
-                        + "maxUpstreamStageResidualMeters\n");
+                        + "maxUpstreamStageResidualMeters,bedIncisionScale\n");
         Set<String> diagnostics = new TreeSet<>();
 
         for (Control control : List.of(
@@ -57,10 +58,11 @@ public final class HydrologyGameScaleCalibrationSweepCli {
             for (double dischargeScale : DISCHARGE_SCALES) {
                 for (double roughness : MANNING_ROUGHNESSES) {
                     for (double sideSlope : SIDE_SLOPES) {
+                      for (double bedIncisionScale : BED_INCISION_SCALES) {
                         SkyIslandGameScaleHydraulicCalibration calibration =
                                 new SkyIslandGameScaleHydraulicCalibration(
                                         1.0, dischargeScale, roughness, sideSlope,
-                                        1.0, 9.81, 1.0e-8, 160);
+                                        1.0, 9.81, 1.0e-8, 160, bedIncisionScale);
                         Assessment assessment = assess(
                                 control, descriptor, plan, policy, terrain, terminalFates,
                                 planningSpacing, calibration, diagnostics);
@@ -82,7 +84,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                 .append(assessment.deferred()).append(',')
                                 .append(assessment.invalidGeometry()).append(',')
                                 .append(format(assessment.maxEnergyResidualMeters())).append(',')
-                                .append(format(assessment.maxUpstreamStageResidualMeters())).append('\n');
+                                .append(format(assessment.maxUpstreamStageResidualMeters())).append(',')
+                                .append(format(calibration.bedIncisionScale())).append('\n');
+                      }
                     }
                 }
             }
@@ -101,9 +105,11 @@ public final class HydrologyGameScaleCalibrationSweepCli {
 
                 Fixed controls: accepted ordinary outlet 6/61/77; known rejected 8/81/287;
                 held-out audit identity 8/81/700. Key 700 is not used to choose parameters.
-                The sweep is a deterministic 3x3x3 grid over explicit discharge scale,
-                Manning roughness, and trapezoid side slope. One world unit is provisionally
-                mapped to one metre; gravity and energy coefficient are explicit SI values.
+                The sweep is a deterministic 3x3x3x3 grid over explicit discharge scale,
+                Manning roughness, trapezoid side slope, and bed-incision scale. The latter
+                scales the authored depth-potential-to-bed-incision hypothesis. One world unit
+                is provisionally mapped to one metre; gravity and energy coefficient are
+                explicit SI values. Key 700 is diagnostic-only and excluded from selection.
                 No candidate is silently selected by this program.
 
                 Each row screens ordinary spans with the standard-step gradually-varied-flow solver,
@@ -287,7 +293,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
         String parameters = parameterSet(
                 calibration.dischargeCubicMetersPerSecondPerRelativeUnit(),
                 calibration.manningRoughness(),
-                calibration.sideSlopeHorizontalToVertical());
+                calibration.sideSlopeHorizontalToVertical(),
+                calibration.bedIncisionScale());
 
         for (SkyIslandOrdinarySpanOutcome outcome : plan.outcomes()) {
             SkyIslandOrdinaryHydraulicSpan span;
@@ -507,8 +514,11 @@ public final class HydrologyGameScaleCalibrationSweepCli {
         return Map.copyOf(result);
     }
 
-    private static String parameterSet(double discharge, double roughness, double sideSlope) {
-        return String.format(Locale.ROOT, "q%.1f-n%.3f-m%.2f", discharge, roughness, sideSlope);
+    private static String parameterSet(
+            double discharge, double roughness, double sideSlope, double bedIncisionScale) {
+        return String.format(
+                Locale.ROOT, "q%.1f-n%.3f-m%.2f-i%.2f",
+                discharge, roughness, sideSlope, bedIncisionScale);
     }
 
     private static String format(double value) {
