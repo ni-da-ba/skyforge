@@ -62,6 +62,31 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 return joinProfiles(reach, station, jump, upstreamDepthMeters, parameters);
             }
         }
+        // The last section is the downstream critical control, so a supercritical branch cannot
+        // be marched all the way to it. Search the open interior of the final interval explicitly
+        // instead of silently excluding the reach immediately upstream of that control.
+        int terminalInterval = reach.size() - 2;
+        StationTrial previous = trials.get(terminalInterval);
+        for (int subdivision = 1; subdivision <= STATION_SUBDIVISIONS; subdivision++) {
+            double fraction = (double) subdivision / (STATION_SUBDIVISIONS + 1);
+            StationTrial sample;
+            try {
+                sample = evaluateInsideInterval(
+                        reach, terminalInterval, fraction, upstreamDepthMeters, parameters);
+            } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
+                previous = null;
+                continue;
+            }
+            if (previous != null
+                    && previous.forceResidual() * sample.forceResidual() <= 0.0) {
+                StationTrial jump = refineBracket(
+                        reach, terminalInterval, previous, sample, upstreamDepthMeters, parameters);
+                if (jump != null) {
+                    return joinProfiles(reach, terminalInterval, jump, upstreamDepthMeters, parameters);
+                }
+            }
+            previous = sample;
+        }
         throw new IllegalStateException(
                 "no admissible momentum-matched hydraulic jump connects source normal depth "
                         + "to the downstream critical control");
@@ -156,7 +181,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         StationTrial best = Math.abs(lower.forceResidual()) < Math.abs(upper.forceResidual())
                 ? lower : upper;
         for (int subdivision = 1; subdivision <= STATION_SUBDIVISIONS; subdivision++) {
-            double fraction = (double) subdivision / (STATION_SUBDIVISIONS + 1);
+            double fraction = 0.5 * (lower.fraction() + upper.fraction());
             StationTrial sample;
             try {
                 sample = evaluateInsideInterval(
