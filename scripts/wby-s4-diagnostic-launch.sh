@@ -96,7 +96,7 @@ assert_supplementaries_policy() {
       key = trim(substr(line, 1, split_at - 1))
       value = trim(substr(line, split_at + 1))
       gsub(/[[:space:]]/, "", key)
-      gsub(/[[:space:]\"]/, "", value)
+      gsub(/[[:space:]"]/, "", value)
       full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
       if (full_key in expected && value == expected[full_key]) found[full_key] = 1
     }
@@ -177,6 +177,7 @@ echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generat
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
   echo "Selected shader: Atmospheric Shaders 0.2 (DH fixes; Simple Clouds support)."
+  echo "S4 diagnostic override: Simple Clouds bridge interior fog/mesh suppression is disabled to isolate the reported blue cloud columns."
   echo "Run directory: $run_dir"
   echo "Diagnostics bundle: $bundle"
   echo "After the launcher opens, review cloud rendering, DH LOD visibility/blending, horizon fog, and terrain occlusion."
@@ -228,6 +229,69 @@ if [[ "$mode" == "shaders" ]]; then
       -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true \
       -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" --no-configuration-cache \
       2>&1 | tee "$bundle/profile-stage.log"
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
+    ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy \
+      -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds -PwbyS1ThinAir=false \
+      -PwbyS1RunDirectory="$run_directory" -PwbyS2ComputingAvionics=true \
+      -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+      -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true \
+      -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" --no-configuration-cache \
+      2>&1 | tee "$bundle/profile-policy-stage.log"
+  assert_supplementaries_policy "$run_dir/config/supplementaries-common.toml"
+  assert_hearthandharvest_policy "$run_dir/config/hearthandharvest-common.toml"
+  assert_hearthandharvest_worldgen_policy "$run_dir"
+  grep -Fq '[interior_clouds]' "$run_dir/config/oculus_for_simpleclouds-client.toml"
+  grep -Eq '^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*
+  "$launcher_python" scripts/wby-s4-launch-production-client.py \
+    --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s4-production-client" \
+    --game-directory "$PWD/$run_dir" \
+    --username WbyS4Review 2>&1 | tee "$log"
+  status=${PIPESTATUS[0]}
+  set -e
+else
+  set +e
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed" \
+    ./gradlew "$task" \
+      -PwbyS1Glider=combined \
+      -PwbyS1Clouds=simple-clouds \
+      -PwbyS1ThinAir=false \
+      -PwbyS1RunDirectory="$run_directory" \
+      -PwbyS2ComputingAvionics=true \
+      -PwbyS3DieselGenerators=true \
+      -PwbyS3CreateBigCannons=true \
+      -PwbyS4OrdinaryLife=true \
+      -PwbyS4Shaders="$shader_enabled" \
+      -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir" \
+      --no-configuration-cache 2>&1 | tee "$log"
+  status=${PIPESTATUS[0]}
+  set -e
+fi
+
+run_path="skyforge-neoforge-1211/$run_directory"
+if [[ "$status" -eq 0 ]]; then
+  if ! assert_supplementaries_policy "$run_path/config/supplementaries-common.toml"; then
+    echo "S4 Supplementaries worldgen policy was not active after the profile loaded." >&2
+    status=1
+  fi
+  if ! assert_hearthandharvest_policy "$run_path/config/hearthandharvest-common.toml"; then
+    echo "S4 Hearth and Harvest Corn Maze config policy was not active after the profile loaded." >&2
+    status=1
+  fi
+  if ! assert_hearthandharvest_worldgen_policy "$run_path"; then
+    echo "S4 Hearth and Harvest KubeJS worldgen policy was not staged correctly." >&2
+    status=1
+  fi
+fi
+test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
+test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
+test ! -d "$run_path/config" || cp -R "$run_path/config" "$bundle/config"
+test ! -d "$run_path/defaultconfigs" || cp -R "$run_path/defaultconfigs" "$bundle/defaultconfigs"
+test ! -d "$run_path/saves" || cp -R "$run_path/saves" "$bundle/saves"
+test ! -d "$run_path/mods" || find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
+echo "Send this diagnostics folder when finished: $bundle"
+exit "$status"
+ "$run_dir/config/oculus_for_simpleclouds-client.toml"
+  echo "S4 Simple Clouds bridge interior effect disabled for diagnostic review."
 
   set +e
   "$launcher_python" scripts/wby-s4-launch-production-client.py \

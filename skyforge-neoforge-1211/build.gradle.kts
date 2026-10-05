@@ -509,6 +509,31 @@ val wbyS3DieselGenerators = providers.gradleProperty("wbyS3DieselGenerators").or
 val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS4OrdinaryLife = providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+
+tasks.register<Copy>("wbyS1StagePolicy") {
+    group = "verification"
+    description = "Stage the accepted baseline, S4 worldgen, and opt-in shader policy fixtures."
+    from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) { into("kubejs") }
+    from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) { into("datapacks") }
+    from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
+        into("config/almostunified/unification")
+    }
+    if (wbyS4OrdinaryLife) {
+        from(layout.projectDirectory.dir("wby-s4-policy/kubejs")) { into("kubejs") }
+        from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
+            into("config")
+        }
+        from(layout.projectDirectory.file("wby-s4-policy/hearthandharvest-common.toml")) {
+            into("config")
+        }
+    }
+    if (wbyS4Shaders) {
+        from(layout.projectDirectory.file("wby-s4-policy/oculus_for_simpleclouds-client.toml")) {
+            into("config")
+        }
+    }
+    into(layout.projectDirectory.dir(wbyS1RunDirectory))
+}
 check(!wbyS4OrdinaryLife || (wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
     "WBY S4 requires the cumulative S2 + Diesel Generators + Create Big Cannons profile"
 }
@@ -2553,25 +2578,7 @@ neoForge {
             programArgument("--nogui")
             systemProperty("neoforge.enabledGameTestNamespaces", "skyforge")
             taskBefore(tasks.named(development.processResourcesTaskName))
-            taskBefore(tasks.register<Copy>("wbyS1StagePolicy") {
-                group = "verification"
-                description = "Stage the accepted inert S0.5 policy fixtures for WBY S1."
-                from(layout.projectDirectory.dir("wby-s0-5-policy/kubejs")) { into("kubejs") }
-                from(layout.projectDirectory.dir("wby-s0-5-policy/datapacks")) { into("datapacks") }
-                from(layout.projectDirectory.file("wby-s0-5-policy/config/almostunified/unification/skyforge.json")) {
-                    into("config/almostunified/unification")
-                }
-                if (wbyS4OrdinaryLife) {
-                    from(layout.projectDirectory.dir("wby-s4-policy/kubejs")) { into("kubejs") }
-                    from(layout.projectDirectory.file("wby-s4-policy/supplementaries-common.toml")) {
-                        into("config")
-                    }
-                    from(layout.projectDirectory.file("wby-s4-policy/hearthandharvest-common.toml")) {
-                        into("config")
-                    }
-                }
-                into(layout.projectDirectory.dir(wbyS1RunDirectory))
-            })
+            taskBefore(tasks.named("wbyS1StagePolicy"))
         }
 
         create("wbyS1DiagnosticClient") {

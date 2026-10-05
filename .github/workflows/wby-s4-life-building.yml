@@ -101,6 +101,27 @@ jobs:
             -PwbyS2ComputingAvionics=true \
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true --no-configuration-cache
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1RunDirectory=run-wby-s4-shaders \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=true --no-configuration-cache
+          policy="skyforge-neoforge-1211/run-wby-s4-shaders"
+          grep -Fq 'mineshaft_elevator = 0.0' "$policy/config/supplementaries-common.toml"
+          grep -Fq 'generateCornMazes = false' "$policy/config/hearthandharvest-common.toml"
+          awk '
+            /^\[interior_clouds\]$/ { in_interior = 1; next }
+            /^\[/ { in_interior = 0 }
+            in_interior && /^[[:space:]]*enabled[[:space:]]*=[[:space:]]*false[[:space:]]*$/ { found = 1 }
+            END { exit !found }
+          ' "$policy/config/oculus_for_simpleclouds-client.toml"
+          test -s "$policy/kubejs/data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_nests.json"
+          test -s "$policy/kubejs/data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
+          test -s "$policy/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
+          test -s "$policy/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
+          echo "WBY S4 shader profile policy staging PASS"
           staged="skyforge-neoforge-1211/run-wby-s4-shaders/mods"
           find "$staged" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort | tee wby-s4-client-stage.txt
           grep -Fq 'YL57xq9U-KduFYu4t' wby-s4-client-stage.txt
@@ -342,6 +363,8 @@ jobs:
             s4-production-server/config/*.toml
             s4-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s4-shaders/mods/*.jar
+            skyforge-neoforge-1211/run-wby-s4-shaders/config/*.toml
+            skyforge-neoforge-1211/run-wby-s4-shaders/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s4-join-client/mods/*.jar
             skyforge-neoforge-1211/run-wby-s4-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s4-server/config/supplementaries-common.toml
