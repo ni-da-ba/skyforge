@@ -115,6 +115,14 @@ jobs:
           jar tf "$windy_jar" | grep -Fqx 'dev/fallingcloud/windy/A4mcWindStateProvider.class'
           mkdir -p "$GITHUB_WORKSPACE/wind-review-artifact"
           cp "$windy_jar" "$GITHUB_WORKSPACE/wind-review-artifact/windy-1.2.0-skyforge-a4mc.jar"
+          cp windy-upstream/LICENSE "$GITHUB_WORKSPACE/wind-review-artifact/LICENSE"
+          cat > "$GITHUB_WORKSPACE/wind-review-artifact/NOTICE.txt" <<'EOF'
+          Windy 1.2.0 review build
+          Built from falling-colud/windy source commit 3ba5523481d22179cdf0fa7dab0743210f136bb8.
+          Skyforge A4MC-authority patch series: ni-da-ba/skyforge PR #1464 head 14c2ed90780515ebabdec396d8e6d77e20fa9a24.
+          This source-built jar is supplied only for private integration review. It is not an approved modpack/release artifact.
+          The accompanying LICENSE is the license from the exact pinned upstream source commit.
+          EOF
           sha256sum "$GITHUB_WORKSPACE/wind-review-artifact/windy-1.2.0-skyforge-a4mc.jar" | tee wby-s5-windy-sha256.txt
 
       - name: Resolve cumulative S4 gameplay profile
@@ -445,5 +453,7 @@ jobs:
             skyforge-neoforge-1211/run-wby-s5-server/kubejs/data/hearthandharvest/tags/worldgen/biome/has_structure/*.json
             a4mc-0.2.2/*.jar
             wind-review-artifact/*.jar
+            wind-review-artifact/LICENSE
+            wind-review-artifact/NOTICE.txt
             wby-s5-windy-sha256.txt
           if-no-files-found: warn
