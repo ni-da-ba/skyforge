@@ -434,13 +434,10 @@ jobs:
             wby-s5-server-reopen.log
             wby-s5-join-*.log
             s5-production-server/logs/latest.log
-            s5-production-server/mods/*.jar
             s5-production-server/config/*.toml
             s5-production-server/kubejs/data/**/*.json
-            skyforge-neoforge-1211/run-wby-s5-shaders/mods/*.jar
             skyforge-neoforge-1211/run-wby-s5-shaders/config/*.toml
             skyforge-neoforge-1211/run-wby-s5-shaders/kubejs/data/**/*.json
-            skyforge-neoforge-1211/run-wby-s5-join-client/mods/*.jar
             skyforge-neoforge-1211/run-wby-s5-server/logs/latest.log
             skyforge-neoforge-1211/run-wby-s5-server/config/supplementaries-common.toml
             skyforge-neoforge-1211/run-wby-s5-server/config/hearthandharvest-common.toml
