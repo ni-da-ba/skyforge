@@ -71,7 +71,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                 .append(control.province()).append(',')
                                 .append(control.cluster()).append(',')
                                 .append(control.key()).append(',')
-                                .append(parameterSet(dischargeScale, roughness, sideSlope)).append(',')
+                                .append(parameterSet(dischargeScale, roughness, sideSlope, bedIncisionScale)).append(',')
                                 .append(format(calibration.metersPerWorldUnit())).append(',')
                                 .append(format(dischargeScale)).append(',')
                                 .append(format(roughness)).append(',')
