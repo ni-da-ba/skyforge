@@ -7257,7 +7257,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
         forbidToken(server, "betterclouds", "server")
         forbidToken(server, "simpleclouds", "server")
-        forbidToken(server, "yacl", "server")
+        if (!wbyS5OverworldEcology) {
+            forbidToken(server, "yacl", "server")
+        }
         if (wbyS1ThinAir) {
             requireToken(client, "thinair", "client")
             requireToken(server, "thinair", "server")
@@ -7335,7 +7337,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         val s5SharedMods = listOf(
             "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales", "alexsMobsContinued", "codxLib",
             "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
-            "glitchCore", "geckolib", "smartBrainLib", "architectury",
+            "glitchCore", "geckolib", "smartBrainLib", "architectury", "yacl",
         )
         s5SharedMods.forEach { mod ->
             val expected = wbyS5Token(mod)
@@ -7349,16 +7351,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 }
             }
         }
-        val s5ClientMods = listOf("yacl")
-        s5ClientMods.forEach { mod ->
-            val expected = wbyS5Token(mod)
-            if (wbyS5OverworldEcology) {
-                check(client.any { it.contains(expected) }) { "WBY S5 client missing config dependency $mod: $expected" }
-            } else {
-                check(client.none { it.contains(expected) }) { "WBY S5 unexpectedly resolved client config dependency $mod: $expected" }
-            }
-            check(server.none { it.contains(expected) }) { "WBY S5 leaked client-only dependency $mod to server: $expected" }
-        }
+
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
@@ -8313,17 +8306,17 @@ dependencies {
         }
     }
     // S5 is opt-in cumulative ecology/biome content. Shared libraries are pinned once and
-    // resolved on both sides; YACL remains client-only for Fowl Play's config screen.
+    // resolved on both sides; YACL is also required by Fowl Play's NeoForge metadata
+    // during dedicated-server startup, and the upstream library supports both sides.
     if (wbyS5OverworldEcology) {
         listOf(
             "naturalist", "fowlPlay", "crittersAndCompanions", "skyWhales", "alexsMobsContinued", "codxLib",
             "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
-            "glitchCore", "geckolib", "smartBrainLib", "architectury",
+            "glitchCore", "geckolib", "smartBrainLib", "architectury", "yacl",
         ).forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
         }
-        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS5Pin("yacl", "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
