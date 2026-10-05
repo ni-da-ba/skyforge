@@ -18,7 +18,7 @@ concurrency:
 jobs:
   pinned-upstream-patch-build:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 55
     steps:
       - name: Check out isolated Skyforge prototype
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,3 +85,144 @@ jobs:
           jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/WindStateProvider.class'
           jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/WindRibbons.class'
           echo "PASS: patched Windy compiled with pinned A4MC API; no profile or world admission"
+
+      - name: Check out the accepted S1 integration profile without modifying it
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ni-da-ba/skyforge
+          ref: 3c505aae51346efa2c32eb8f09a75174a214b88a
+          path: s1-reference
+          persist-credentials: false
+
+      - name: Build accepted A4MC core and Aeronautics compatibility
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd a4mc-upstream && MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon)
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          source_dir="a4mc-upstream/build/libs/0.2.2"
+          for artifact in \
+            aerodynamics4mc-0.2.2-neoforge+1.21.1.jar \
+            aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar; do
+            test -s "$source_dir/$artifact"
+            cp "$source_dir/$artifact" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          done
+
+      - name: Prepare a strictly isolated Windy overlay for S1
+        shell: bash
+        run: |
+          set -euo pipefail
+          WINDY_JAR="$(find "$GITHUB_WORKSPACE/windy-upstream/build/libs" -maxdepth 1 -name '*.jar' ! -name '*sources*' | head -n 1)"
+          test -s "$WINDY_JAR"
+          echo "SKYFORGE_WINDY_JAR=$WINDY_JAR" >> "$GITHUB_ENV"
+          cat > s1-reference/windy-overlay.init.gradle <<'GROOVY'
+          // Validation only: append a client mod after the accepted S1 Sync task's own exact-set check.
+          // Never alter the canonical S1 Gradle task, pinned ledger, or server mod classpath.
+          gradle.projectsEvaluated {
+              def module = gradle.rootProject.project(':skyforge-neoforge-1211')
+              module.tasks.named('wbyS1StageClientMods').configure {
+                  doLast {
+                      def jar = new File(System.getenv('SKYFORGE_WINDY_JAR'))
+                      if (!jar.isFile()) throw new GradleException("Missing pinned Windy test artifact")
+                      project.copy {
+                          from(jar)
+                          into(destinationDir)
+                      }
+                      println("WINDY_S1_CLIENT_OVERLAY_PASS")
+                  }
+              }
+          }
+          GROOVY
+          cd s1-reference
+          bash -n scripts/wby-s1-diagnostic-launch.sh
+          mkdir -p skyforge-neoforge-1211/run-wby-windy-server skyforge-neoforge-1211/run-wby-windy-client
+          printf 'eula=true\n' > skyforge-neoforge-1211/run-wby-windy-server/eula.txt
+          printf 'online-mode=false\nserver-port=25565\n' > skyforge-neoforge-1211/run-wby-windy-server/server.properties
+          printf 'onboardAccessibility:false\npauseOnLostFocus:false\n' > skyforge-neoforge-1211/run-wby-windy-client/options.txt
+          mkdir -p skyforge-neoforge-1211/run-wby-windy-client/config
+          # Preserve the accepted Simple Clouds / Distant Horizons setting for this real client.
+          echo 'enableAdvancedGraphics=true' > skyforge-neoforge-1211/run-wby-windy-client/config/windy-s1-probe-only.txt
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
+            -I windy-overlay.init.gradle \
+            -PwbyS1RunDirectory=run-wby-windy-client \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            --no-daemon --no-configuration-cache | tee ../windy-s1-stage.log
+          grep -Fq 'WINDY_S1_CLIENT_OVERLAY_PASS' ../windy-s1-stage.log
+          test -f "skyforge-neoforge-1211/run-wby-windy-client/mods/$(basename "$SKYFORGE_WINDY_JAR")"
+          test ! -f "skyforge-neoforge-1211/run-wby-windy-server/mods/$(basename "$SKYFORGE_WINDY_JAR")"
+
+      - name: Smoke S1 dedicated server plus real Windy/A4MC/Simple Clouds/DH client
+        shell: bash
+        timeout-minutes: 21
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          set -euo pipefail
+          cd s1-reference
+          server_log="$GITHUB_WORKSPACE/windy-s1-server.log"
+          client_log="$GITHUB_WORKSPACE/windy-s1-client.log"
+          server_pid=""
+          client_pid=""
+          cleanup() {
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+                kill -KILL -- "-$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+          setsid ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-windy-server \
+            -PwbyS1Glider=combined -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            --no-configuration-cache > "$server_log" 2>&1 &
+          server_pid=$!
+          ready=0
+          for attempt in $(seq 1 360); do
+            if grep -Fq 'Done (' "$server_log" 2>/dev/null; then ready=1; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$ready" -ne 1 ]]; then
+            echo 'FAILED: S1 server did not boot'; tail -n 120 "$server_log"; exit 1
+          fi
+          setsid xvfb-run -a ./gradlew --no-daemon :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
+            -I windy-overlay.init.gradle -PwbyS1RunDirectory=run-wby-windy-client \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            --no-configuration-cache > "$client_log" 2>&1 &
+          client_pid=$!
+          joined=0
+          for attempt in $(seq 1 600); do
+            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log" \
+                || grep -Fq 'WbyS1Acceptance joined the game' \
+                  skyforge-neoforge-1211/run-wby-windy-server/logs/latest.log 2>/dev/null; then
+              joined=1
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null || ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          client_latest="skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log"
+          if [[ "$joined" -ne 1 ]] || ! grep -Fq '[Windy] Initialised.' "$client_latest" 2>/dev/null; then
+            echo 'FAILED: client join or Windy discovery';
+            tail -n 140 "$client_log" || true
+            tail -n 140 "$client_latest" 2>/dev/null || true
+            tail -n 100 "$server_log" || true
+            exit 1
+          fi
+          echo "WINDY_S1_ACTUAL_CLIENT_DISCOVERY_PASS"
+          echo "This does not establish accurate local 3D flow, shader correctness, performance, or human visual approval."
+
+      - name: Publish bounded loader evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: windy-s1-first-client-smoke
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            windy-s1-*.log
+            s1-reference/skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log
+            s1-reference/skyforge-neoforge-1211/run-wby-windy-server/logs/latest.log
