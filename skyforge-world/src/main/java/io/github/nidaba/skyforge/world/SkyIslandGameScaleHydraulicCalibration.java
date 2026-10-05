@@ -22,7 +22,28 @@ public record SkyIslandGameScaleHydraulicCalibration(
         double energyCoefficient,
         double gravityMetersPerSecondSquared,
         double relativeTolerance,
-        int maximumIterations) {
+        int maximumIterations,
+        double bedIncisionScale) {
+    public SkyIslandGameScaleHydraulicCalibration(
+            double metersPerWorldUnit,
+            double dischargeCubicMetersPerSecondPerRelativeUnit,
+            double manningRoughness,
+            double sideSlopeHorizontalToVertical,
+            double energyCoefficient,
+            double gravityMetersPerSecondSquared,
+            double relativeTolerance,
+            int maximumIterations) {
+        this(
+                metersPerWorldUnit,
+                dischargeCubicMetersPerSecondPerRelativeUnit,
+                manningRoughness,
+                sideSlopeHorizontalToVertical,
+                energyCoefficient,
+                gravityMetersPerSecondSquared,
+                relativeTolerance,
+                maximumIterations,
+                1.0);
+    }
     public SkyIslandGameScaleHydraulicCalibration {
         if (!Double.isFinite(metersPerWorldUnit) || metersPerWorldUnit <= 0.0
                 || !Double.isFinite(dischargeCubicMetersPerSecondPerRelativeUnit)
@@ -35,7 +56,8 @@ public record SkyIslandGameScaleHydraulicCalibration(
                 || gravityMetersPerSecondSquared <= 0.0
                 || !Double.isFinite(relativeTolerance)
                 || relativeTolerance <= 0.0 || relativeTolerance >= 1.0
-                || maximumIterations < 1) {
+                || maximumIterations < 1
+                || !Double.isFinite(bedIncisionScale) || bedIncisionScale <= 0.0) {
             throw new IllegalArgumentException("game-scale hydraulic calibration must be finite and physical");
         }
     }
@@ -64,7 +86,7 @@ public record SkyIslandGameScaleHydraulicCalibration(
                     "authored bankfull width/depth cannot form a positive trapezoidal bottom width");
         }
         double bedElevationMeters = (sample.terrainElevation()
-                        - sample.waterDepthPotential())
+                        - bedIncisionScale * sample.waterDepthPotential())
                 * reliefMeters;
         double discharge = sample.relativeDischarge()
                 * dischargeCubicMetersPerSecondPerRelativeUnit;
