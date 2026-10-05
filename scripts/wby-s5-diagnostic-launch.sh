@@ -69,7 +69,7 @@ else
   cat > "$run_dir/server.properties" <<'EOF'
 level-name=s5-acceptance
 level-seed=817304
-level-type=minecraft:flat
+level-type=minecraft:normal
 online-mode=false
 enforce-secure-profile=false
 spawn-protection=0
