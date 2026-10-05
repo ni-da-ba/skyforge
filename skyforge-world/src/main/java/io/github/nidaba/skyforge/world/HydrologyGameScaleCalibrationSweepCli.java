@@ -107,14 +107,163 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 No candidate is silently selected by this program.
 
                 Each row screens ordinary spans with the standard-step gradually-varied-flow solver,
-                then independently applies the existing D2 geomorphic evaluator. Fixed transition
-                stages still come from the current transition planners; deferred boundaries remain
-                deferred. This is calibration evidence, not production F3E/F4 admission, and grants
+                then independently applies the existing D2 geomorphic evaluator. For isolated interior
+                CASCADE runs, this version tests an explicit critical-inlet/supercritical-chute energy
+                transfer using authored cross-sections and Manning friction; confluence-coupled,
+                terminal, and multi-control cases remain fail-closed. This is calibration evidence,
+                not production F3E/F4 admission, and grants
                 no terrain mutation, water placement, Minecraft, or human-review authority.
                 The adjacent ordinary-span-diagnostics.txt reports control, span, parameter-set,
                 deferred-boundary, hydraulic-failure, D2-rejection, and boundary-mismatch details.
                 """, StandardCharsets.UTF_8);
         System.out.println(out.resolve("ordinary-span-sweep.csv").toAbsolutePath());
+    }
+
+    /**
+     * Replaces only an isolated interior CASCADE's D2-derived compatibility stages with a
+     * critical-inlet/supercritical-chute energy solution for this calibration candidate.
+     * Confluence-coupled, terminal, and multi-control cases remain fail-closed.
+     */
+    private static SkyIslandOrdinaryHydraulicSpan physicalCascadeControlSpan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinarySpanPlan plan,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates) {
+        SkyIslandHydraulicGeometrySkeletonPlan skeleton =
+                plan.cascadePlan().transitionGeometry().topology().skeletonPlan();
+        for (SkyIslandCascadeHeadCompatibilityOutcome cascade : plan.cascadePlan().outcomes()) {
+            SkyIslandHydraulicCascadeTransitionSite site = cascade.geometry().transitionSite();
+            if (site.reachStartCellIndex() != span.parentReachStartCellIndex()
+                    || site.reachEndCellIndex() != span.parentReachEndCellIndex()) {
+                continue;
+            }
+            boolean interior = plan.jointPlan().outcomes().stream()
+                            .noneMatch(joint -> joint.cascade().equals(cascade.geometry()))
+                    && skeleton.reaches().stream()
+                            .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex()
+                                            == site.reachStartCellIndex()
+                                    && reach.geomorphicRoute().semanticReach().endCellIndex()
+                                            == site.reachEndCellIndex())
+                            .anyMatch(reach -> site.firstProfileIndex() > 0
+                                    && site.lastProfileIndexExclusive()
+                                            < reach.geomorphicRoute().semanticReach().profiles().size());
+            if (!interior) {
+                continue;
+            }
+
+            boolean beforeCascade = Math.abs(
+                    span.parentEndArcLength() - site.upstreamBoundary().arcLength()) <= 1.0e-8;
+            boolean afterCascade = Math.abs(
+                    span.parentStartArcLength() - site.downstreamBoundary().arcLength()) <= 1.0e-8;
+            if (beforeCascade
+                    && span.upstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FREE) {
+                return withBoundaries(
+                        span,
+                        span.upstreamBoundary(),
+                        SkyIslandOrdinarySpanBoundary.cascadeCriticalControl(
+                                site.upstreamBoundary()));
+            }
+            if (afterCascade
+                    && span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FREE
+                    && terminalFates.get(span.parentReachEndCellIndex())
+                            == SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
+                SkyIslandHydraulicReachSkeleton parent = skeleton.reaches().stream()
+                        .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex()
+                                        == site.reachStartCellIndex()
+                                && reach.geomorphicRoute().semanticReach().endCellIndex()
+                                        == site.reachEndCellIndex())
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "missing parent reach for authored CASCADE interval"));
+                List<SkyIslandHydraulicGeometrySkeletonSample> cascadeSamples =
+                        cascadeSamples(parent.samples(), site);
+                List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
+                        calibration.crossSections(descriptor, cascadeSamples);
+                SkyIslandGraduallyVariedFlowSolver.Result profile =
+                        SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                                sections, calibration.solverParameters());
+                double downstreamHeadWorldUnits =
+                        profile.points().getLast().waterSurfaceElevationMeters()
+                                / calibration.metersPerWorldUnit();
+                return withBoundaries(
+                        span,
+                        SkyIslandOrdinarySpanBoundary.fixed(
+                                site.downstreamBoundary(), downstreamHeadWorldUnits),
+                        span.downstreamBoundary());
+            }
+        }
+        return span;
+    }
+
+    private static List<SkyIslandHydraulicGeometrySkeletonSample> cascadeSamples(
+            List<SkyIslandHydraulicGeometrySkeletonSample> reachSamples,
+            SkyIslandHydraulicCascadeTransitionSite site) {
+        List<SkyIslandHydraulicGeometrySkeletonSample> samples = new java.util.ArrayList<>();
+        samples.add(sampleAt(reachSamples, site.upstreamBoundary().arcLength()));
+        reachSamples.stream()
+                .filter(sample -> sample.arcLength()
+                                > site.upstreamBoundary().arcLength() + 1.0e-9
+                        && sample.arcLength()
+                                < site.downstreamBoundary().arcLength() - 1.0e-9)
+                .forEach(samples::add);
+        samples.add(sampleAt(reachSamples, site.downstreamBoundary().arcLength()));
+        samples.sort(java.util.Comparator.comparingDouble(
+                SkyIslandHydraulicGeometrySkeletonSample::arcLength));
+        if (samples.size() < 2) {
+            throw new IllegalStateException("authored CASCADE interval has fewer than two sections");
+        }
+        return List.copyOf(samples);
+    }
+
+    private static SkyIslandHydraulicGeometrySkeletonSample sampleAt(
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples, double arcLength) {
+        for (SkyIslandHydraulicGeometrySkeletonSample sample : samples) {
+            if (Math.abs(sample.arcLength() - arcLength) <= 1.0e-9) {
+                return sample;
+            }
+        }
+        for (int i = 0; i + 1 < samples.size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample first = samples.get(i);
+            SkyIslandHydraulicGeometrySkeletonSample second = samples.get(i + 1);
+            if (first.arcLength() < arcLength && arcLength < second.arcLength()) {
+                double fraction = (arcLength - first.arcLength())
+                        / (second.arcLength() - first.arcLength());
+                return new SkyIslandHydraulicGeometrySkeletonSample(
+                        new SkyIslandLocalPosition(
+                                lerp(first.position().x(), second.position().x(), fraction),
+                                lerp(first.position().z(), second.position().z(), fraction)),
+                        arcLength,
+                        lerp(first.stationFraction(), second.stationFraction(), fraction),
+                        lerp(first.relativeDischarge(), second.relativeDischarge(), fraction),
+                        lerp(first.bankfullHalfWidth(), second.bankfullHalfWidth(), fraction),
+                        lerp(first.waterDepthPotential(), second.waterDepthPotential(), fraction),
+                        lerp(first.terrainElevation(), second.terrainElevation(), fraction));
+            }
+        }
+        throw new IllegalArgumentException("CASCADE boundary lies outside parent hydraulic samples");
+    }
+
+    private static double lerp(double first, double second, double fraction) {
+        return first + (second - first) * fraction;
+    }
+
+    private static SkyIslandOrdinaryHydraulicSpan withBoundaries(
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandOrdinarySpanBoundary upstream,
+            SkyIslandOrdinarySpanBoundary downstream) {
+        return new SkyIslandOrdinaryHydraulicSpan(
+                span.parentReachStartCellIndex(),
+                span.parentReachEndCellIndex(),
+                span.parentStartStationFraction(),
+                span.parentEndStationFraction(),
+                span.parentStartArcLength(),
+                span.parentEndArcLength(),
+                span.samples(),
+                span.sampleProfileKinds(),
+                span.qualificationClass(),
+                upstream,
+                downstream);
     }
 
     private static Assessment assess(
@@ -141,7 +290,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 calibration.sideSlopeHorizontalToVertical());
 
         for (SkyIslandOrdinarySpanOutcome outcome : plan.outcomes()) {
-            SkyIslandOrdinaryHydraulicSpan span = outcome.span();
+            SkyIslandOrdinaryHydraulicSpan span = physicalCascadeControlSpan(
+                    descriptor, plan, outcome.span(), calibration, terminalFates);
             if (span.boundaryDeferred()) {
                 deferred++;
                 addDiagnostic(
