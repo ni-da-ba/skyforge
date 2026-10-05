@@ -290,8 +290,37 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 calibration.sideSlopeHorizontalToVertical());
 
         for (SkyIslandOrdinarySpanOutcome outcome : plan.outcomes()) {
-            SkyIslandOrdinaryHydraulicSpan span = physicalCascadeControlSpan(
-                    descriptor, plan, outcome.span(), calibration, terminalFates);
+            SkyIslandOrdinaryHydraulicSpan span;
+            try {
+                span = physicalCascadeControlSpan(
+                        descriptor, plan, outcome.span(), calibration, terminalFates);
+            } catch (IllegalArgumentException invalidCascadeGeometry) {
+                invalidGeometry++;
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        descriptor,
+                        outcome.span(),
+                        calibration,
+                        parameters,
+                        "INVALID_GEOMETRY_OR_CONTROL",
+                        invalidCascadeGeometry.getClass().getSimpleName()
+                                + ":" + invalidCascadeGeometry.getMessage());
+                continue;
+            } catch (IllegalStateException cascadeHydraulicNoSolution) {
+                hydraulicFailure++;
+                addDiagnostic(
+                        diagnostics,
+                        control,
+                        descriptor,
+                        outcome.span(),
+                        calibration,
+                        parameters,
+                        "HYDRAULIC_FAILURE",
+                        cascadeHydraulicNoSolution.getClass().getSimpleName()
+                                + ":" + cascadeHydraulicNoSolution.getMessage());
+                continue;
+            }
             if (span.boundaryDeferred()) {
                 deferred++;
                 addDiagnostic(
