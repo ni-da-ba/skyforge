@@ -200,7 +200,7 @@ jobs:
           grep -Fq 'lhGA9TYQ-ZxYGwlk0' wby-s5-client-stage.txt
           grep -Fq '1eAoo2KR-ACDNgCDA' wby-s5-client-stage.txt
 
-      - name: Boot cumulative S4 dedicated server in a disposable flat world
+      - name: Boot cumulative S5 dedicated server with normal Overworld generation
         shell: bash
         run: |
           set -euo pipefail
@@ -208,9 +208,9 @@ jobs:
           mkdir -p "$run_dir"
           printf 'eula=true\n' > "$run_dir/eula.txt"
           cat > "$run_dir/server.properties" <<'EOF'
-          level-name=s4-acceptance
+          level-name=s5-acceptance
           level-seed=817304
-          level-type=minecraft:flat
+          level-type=minecraft:normal
           online-mode=false
           enforce-secure-profile=false
           spawn-protection=0
@@ -244,7 +244,7 @@ jobs:
             echo "S4 dedicated server did not reach Done; outcome=$outcome" >&2
             exit 1
           fi
-          echo "WBY S5 dedicated server reached Done in a flat disposable world."
+          echo "WBY S5 dedicated server reached Done with normal Overworld generation."
           policy="$run_dir/config/supplementaries-common.toml"
           test -s "$policy"
           python3 - "$policy" <<'PY'
