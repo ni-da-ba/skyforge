@@ -36,7 +36,7 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 section.bedElevationMeters(),
                 1.0e-12);
         assertEquals(
-                20.0 - 2.0 * 0.01 * reliefMeters,
+                20.0,
                 section.bottomWidthMeters()
                         + 2.0 * section.sideSlopeHorizontalToVertical()
                                 * 0.01 * reliefMeters,
