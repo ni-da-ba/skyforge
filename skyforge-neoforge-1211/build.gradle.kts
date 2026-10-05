@@ -435,7 +435,7 @@ fun wbyS5Token(mod: String): String = wbyS5Pin(mod, "coordinate").split(":").let
 }
 check(wbyS5Pin("minecraft", "version") == "1.21.1")
 check(wbyS5Pin("neoforge", "version") == "21.1.249")
-check(wbyS5Pin("profile.base") == "wby-s4-life-building")
+check(requireNotNull(wbyS5Pins.getProperty("profile.base")) == "wby-s4-life-building")
 check(wbyS5Pin("biomesOPlenty", "releaseStatus") == "beta")
 check(wbyS5Pin("terraBlender", "releaseStatus") == "beta")
 check(wbyS5Pin("yacl", "coordinate") == wbyS1Pin("yacl", "coordinate")) {
