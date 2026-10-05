@@ -165,8 +165,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
                         prefix, upstreamDepthMeters, parameters);
         SkyIslandGraduallyVariedFlowSolver.Result subcritical =
-                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
-                        suffix, parameters);
+                solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
         return trial(
                 jumpSection,
                 interval,
