@@ -37,11 +37,12 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
                 (0.5 - 0.01) * reliefMeters,
                 section.bedElevationMeters(),
                 1.0e-12);
+        double bankfullDepthMeters = calibration.bedIncisionScale()
+                * sample.waterDepthPotential() * reliefMeters;
         assertEquals(
-                20.0,
+                2.0 * sample.bankfullHalfWidth(),
                 section.bottomWidthMeters()
-                        + 2.0 * section.sideSlopeHorizontalToVertical()
-                                * 2.0 * 0.01 * reliefMeters,
+                        + 2.0 * section.sideSlopeHorizontalToVertical() * bankfullDepthMeters,
                 1.0e-12);
     }
 
@@ -67,11 +68,12 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
 
         double reliefMeters = descriptor.reliefBudget();
         assertEquals((0.5 - 2.0 * 0.01) * reliefMeters, section.bedElevationMeters(), 1.0e-12);
+        double bankfullDepthMeters = calibration.bedIncisionScale()
+                * sample.waterDepthPotential() * reliefMeters;
         assertEquals(
-                20.0,
+                2.0 * sample.bankfullHalfWidth(),
                 section.bottomWidthMeters()
-                        + 2.0 * section.sideSlopeHorizontalToVertical()
-                                * 0.01 * reliefMeters,
+                        + 2.0 * section.sideSlopeHorizontalToVertical() * bankfullDepthMeters,
                 1.0e-12);
     }
 
