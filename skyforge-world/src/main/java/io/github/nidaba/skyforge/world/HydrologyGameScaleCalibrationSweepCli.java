@@ -185,7 +185,7 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 List<SkyIslandHydraulicGeometrySkeletonSample> cascadeSamples =
                         cascadeSamples(parent.samples(), site);
                 List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
-                        calibration.crossSections(descriptor, cascadeSamples);
+                        calibration.crossSections(descriptor, cascadeSamples, parent.samples());
                 SkyIslandGraduallyVariedFlowSolver.Result profile =
                         SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
                                 sections, calibration.solverParameters());
@@ -272,6 +272,19 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 downstream);
     }
 
+    private static List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples(
+            SkyIslandOrdinarySpanPlan plan, SkyIslandOrdinaryHydraulicSpan span) {
+        return plan.cascadePlan().transitionGeometry().topology().skeletonPlan().reaches().stream()
+                .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex()
+                                == span.parentReachStartCellIndex()
+                        && reach.geomorphicRoute().semanticReach().endCellIndex()
+                                == span.parentReachEndCellIndex())
+                .map(SkyIslandHydraulicReachSkeleton::samples)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "missing parent reach for ordinary hydraulic span"));
+    }
+
     private static Assessment assess(
             Control control,
             SkyIslandDescriptor descriptor,
@@ -346,6 +359,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 continue;
             }
             try {
+                List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples =
+                        parentReachSamples(plan, span);
                 SkyIslandOpenChannelOrdinarySpanSolver.Outcome solved =
                         SkyIslandOpenChannelOrdinarySpanSolver.solve(
                                 descriptor,
@@ -354,7 +369,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                                 policy,
                                 planningSpacing,
                                 calibration,
-                                terminalFates);
+                                terminalFates,
+                                parentReachSamples);
                 maxEnergyResidual = Math.max(
                         maxEnergyResidual,
                         solved.hydraulicProfile().maximumEnergyResidualMeters());
