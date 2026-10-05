@@ -107,7 +107,8 @@ public record SkyIslandGameScaleHydraulicCalibration(
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(sample, "sample");
         double reliefMeters = descriptor.reliefBudget() * metersPerWorldUnit;
-        double bankfullDepthMeters = sample.waterDepthPotential() * reliefMeters;
+        double bankfullDepthMeters =
+                bedIncisionScale * sample.waterDepthPotential() * reliefMeters;
         double bankfullWidthMeters = 2.0 * sample.bankfullHalfWidth() * metersPerWorldUnit;
         double bottomWidthMeters = bankfullWidthMeters
                 - 2.0 * sideSlopeHorizontalToVertical * bankfullDepthMeters;
