@@ -124,9 +124,10 @@ jobs:
                   doLast {
                       def jar = new File(System.getenv('SKYFORGE_WINDY_JAR'))
                       if (!jar.isFile()) throw new GradleException("Missing pinned Windy test artifact")
+                      def stageDir = destinationDir
                       project.copy {
                           from(jar)
-                          into(destinationDir)
+                          into(stageDir)
                       }
                       println("WINDY_S1_CLIENT_OVERLAY_PASS")
                   }
