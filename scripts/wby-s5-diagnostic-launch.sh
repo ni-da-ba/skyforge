@@ -188,9 +188,10 @@ bundle=".skyforge-diagnostics/wby-s5-$mode-$stamp"
 mkdir -p "$bundle"
 log="$bundle/console.log"
 
-echo "S4 gameplay stack: Farmer's Delight + Hearth and Harvest, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
-echo "Hearth and Harvest is present for CCK Cask GameTest linkage; its supported Corn Maze config toggle is off, while the staged KubeJS policy removes H&H structure eligibility, nests, and salt caves."
-echo "Cumulative base: S1 atmosphere/mobility + S2 computing + S3 Diesel Generators/CBC."
+echo "Cumulative gameplay: S1 atmosphere/mobility + S2 computing + S3 Diesel Generators/CBC + S4 life/building."
+echo "S4 content: Farmer's Delight, Hearth and Harvest, Create: Central Kitchen, Create: Dragons Plus, Supplementaries, Moonlight."
+echo "S5 candidate content: Naturalist, Fowl Play, Critters & Companions, Alex's Mobs Continued, Sky Whales, Biomes O' Plenty, Regions Unexplored, Nature's Spirit."
+echo "Create a fresh world with the Skyforge preset and seed 817304; do not reuse an existing save. Review biome transitions, duplicate/dense fauna, Sky Whales near sky islands, and unexpected worldgen."
 if [[ "$shader_enabled" == true ]]; then
   echo "Shader overlay: Iris 1.8.14 beta 1 + Iris/Oculus for Simple Clouds 1.1.3 NeoForge beta."
   echo "Selected shader: Atmospheric Shaders 0.2 (DH fixes; Simple Clouds support)."
@@ -201,8 +202,14 @@ if [[ "$shader_enabled" == true ]]; then
   fi
   echo "Run directory: $run_dir"
   echo "Diagnostics bundle: $bundle"
-  echo "After the launcher opens, review cloud rendering, DH LOD visibility/blending, horizon fog, and terrain occlusion."
-  echo "Do not count a successful title-screen launch alone: open a world and confirm Simple Clouds still renders with the shader selected."
+  if [[ "$windy_overlay" == true ]]; then
+    echo "Windy is a source-built, patched client-only review overlay; compare its A4MC-driven ribbons/wisps to physical airflow."
+    echo "Check open sky, below island overhangs, cloud intersections, and dusk/storm; note missing effects, visual conflicts, or frame-time drops."
+  else
+    echo "This is the baseline S5 shader profile without Windy; use the same fresh-world seed and route before comparing the separate Windy overlay."
+  fi
+  echo "Keep Atmospheric Shaders Cloud Style OFF. Review DH LOD visibility/blending, horizon fog, terrain occlusion, and worldgen leakage."
+  echo "A title-screen launch alone is insufficient: open the fresh Skyforge-preset world and inspect it in-game."
 else
   echo "This server profile intentionally excludes Iris, the Simple Clouds bridge, and all shaderpack files."
   echo "Run directory: $run_dir"
