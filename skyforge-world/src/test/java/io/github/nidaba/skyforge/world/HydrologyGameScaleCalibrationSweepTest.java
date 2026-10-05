@@ -14,14 +14,17 @@ class HydrologyGameScaleCalibrationSweepTest {
         HydrologyGameScaleCalibrationSweepCli.main(new String[] {output.toString()});
 
         String summary = Files.readString(output.resolve("ordinary-span-sweep.csv"));
-        assertEquals(244, summary.lines().count());
+        assertEquals(730, summary.lines().count());
         assertTrue(summary.contains("accepted-77,false,6,61,77"));
         assertTrue(summary.contains("rejected-287,false,8,81,287"));
         assertTrue(summary.contains("heldout-700,true,8,81,700"));
-        assertTrue(summary.contains("bedIncisionScale"));
+        assertTrue(summary.contains("bedIncisionScale,maximumDownstreamBedSlope"));
         assertTrue(summary.contains("i0.50"));
         assertTrue(summary.contains("i1.00"));
         assertTrue(summary.contains("i2.00"));
+        assertTrue(summary.contains("s0.05"));
+        assertTrue(summary.contains("s0.25"));
+        assertTrue(summary.contains("s1.00"));
         String diagnostics = Files.readString(output.resolve("ordinary-span-diagnostics.txt"));
         assertTrue(diagnostics.startsWith(
                 "control|heldOut|key|reach|parentStations|parameterSet|outcome|details"));
