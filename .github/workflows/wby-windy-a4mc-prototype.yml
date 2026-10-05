@@ -140,8 +140,11 @@ jobs:
           printf 'online-mode=false\nserver-port=25565\n' > skyforge-neoforge-1211/run-wby-windy-server/server.properties
           printf 'onboardAccessibility:false\npauseOnLostFocus:false\n' > skyforge-neoforge-1211/run-wby-windy-client/options.txt
           mkdir -p skyforge-neoforge-1211/run-wby-windy-client/config
-          # Preserve the accepted Simple Clouds / Distant Horizons setting for this real client.
-          echo 'enableAdvancedGraphics=true' > skyforge-neoforge-1211/run-wby-windy-client/config/windy-s1-probe-only.txt
+          # Mirror the accepted S1 headless-client guard; never let DH's updater block startup.
+          cat > skyforge-neoforge-1211/run-wby-windy-client/config/DistantHorizons.toml <<'EOF'
+          [client.advanced.autoUpdater]
+          enableAutoUpdater = false
+          EOF
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods \
             -I windy-overlay.init.gradle \
             -PwbyS1RunDirectory=run-wby-windy-client \
