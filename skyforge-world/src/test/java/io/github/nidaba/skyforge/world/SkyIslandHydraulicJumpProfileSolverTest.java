@@ -56,6 +56,31 @@ class SkyIslandHydraulicJumpProfileSolverTest {
     }
 
     @Test
+    void joinsToAnExplicitSubcriticalTailwaterDepth() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 4.0, 0.0),
+                section(10.0, 3.99, 0.0),
+                section(20.0, 3.98, 0.0),
+                section(30.0, 3.97, 0.0),
+                section(40.0, 3.96, 0.0));
+        var criticalProfile =
+                SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, PARAMETERS);
+        double tailwaterDepth =
+                criticalProfile.points().getLast().depthMeters() + 1.0e-4;
+
+        var profile = SkyIslandHydraulicJumpProfileSolver.solveToTailwater(
+                sections, 0.001, tailwaterDepth, PARAMETERS);
+
+        assertEquals(sections, profile.points().stream()
+                .map(SkyIslandGraduallyVariedFlowSolver.ProfilePoint::section)
+                .toList());
+        assertEquals(tailwaterDepth, profile.points().getLast().depthMeters(), 1.0e-12);
+        assertTrue(profile.points().getFirst().froudeNumber() > 1.0);
+        assertTrue(profile.points().getLast().froudeNumber() < 1.0);
+        assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-4);
+    }
+
+    @Test
     void findsAJumpInTheLastInteriorIntervalBeforeTheCriticalControl() {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
                 section(0.0, 4.0, 0.0),

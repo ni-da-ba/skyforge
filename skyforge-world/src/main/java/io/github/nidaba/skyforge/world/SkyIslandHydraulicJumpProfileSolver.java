@@ -21,6 +21,31 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             double upstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        return solveWithTailwater(sections, upstreamDepthMeters, null, parameters);
+    }
+
+    /**
+     * Joins a supercritical source to a specified subcritical tailwater depth.
+     *
+     * <p>This is used when a downstream junction supplies the water level; unlike the critical
+     * control overload, the caller must provide that boundary explicitly.
+     */
+    public static SkyIslandGraduallyVariedFlowSolver.Result solveToTailwater(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            double upstreamDepthMeters,
+            double downstreamDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        if (!Double.isFinite(downstreamDepthMeters) || downstreamDepthMeters <= 0.0) {
+            throw new IllegalArgumentException("tailwater depth must be finite and positive");
+        }
+        return solveWithTailwater(sections, upstreamDepthMeters, downstreamDepthMeters, parameters);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.Result solveWithTailwater(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            double upstreamDepthMeters,
+            Double downstreamDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         Objects.requireNonNull(sections, "sections");
         Objects.requireNonNull(parameters, "parameters");
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
@@ -39,7 +64,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         trials.add(null);
         for (int station = 1; station < reach.size() - 1; station++) {
             try {
-                trials.add(evaluateAtStation(reach, station, upstreamDepthMeters, parameters));
+                trials.add(evaluateAtStation(reach, station, upstreamDepthMeters, downstreamDepthMeters, parameters));
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
                 trials.add(null);
             }
@@ -57,7 +82,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                     station, 1.0, upper.section(), upper.upstreamDepth(), upper.downstreamDepth(),
                     upper.forceResidual(), upper.supercriticalProfile(), upper.subcriticalProfile());
             StationTrial jump = refineBracket(
-                    reach, station, lower, upperOnInterval, upstreamDepthMeters, parameters);
+                    reach, station, lower, upperOnInterval, upstreamDepthMeters, downstreamDepthMeters, parameters);
             if (jump != null) {
                 return joinProfiles(reach, station, jump, upstreamDepthMeters, parameters);
             }
@@ -72,7 +97,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             StationTrial sample;
             try {
                 sample = evaluateInsideInterval(
-                        reach, terminalInterval, fraction, upstreamDepthMeters, parameters);
+                        reach, terminalInterval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
                 previous = null;
                 continue;
@@ -80,7 +105,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             if (previous != null
                     && previous.forceResidual() * sample.forceResidual() <= 0.0) {
                 StationTrial jump = refineBracket(
-                        reach, terminalInterval, previous, sample, upstreamDepthMeters, parameters);
+                        reach, terminalInterval, previous, sample, upstreamDepthMeters, downstreamDepthMeters, parameters);
                 if (jump != null) {
                     return joinProfiles(reach, terminalInterval, jump, upstreamDepthMeters, parameters);
                 }
@@ -96,6 +121,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             int station,
             double upstreamDepthMeters,
+            Double downstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> prefix =
                 sections.subList(0, station + 1);
@@ -105,8 +131,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
                         prefix, upstreamDepthMeters, parameters);
         SkyIslandGraduallyVariedFlowSolver.Result subcritical =
-                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
-                        suffix, parameters);
+                solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
         double upstreamDepth = supercritical.points().getLast().depthMeters();
         double downstreamDepth = subcritical.points().getFirst().depthMeters();
         return trial(
@@ -125,6 +150,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             int interval,
             double fraction,
             double upstreamDepthMeters,
+            Double downstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         SkyIslandGraduallyVariedFlowSolver.CrossSection jumpSection =
                 interpolate(sections.get(interval), sections.get(interval + 1), fraction);
@@ -150,6 +176,17 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 supercritical,
                 subcritical,
                 parameters);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.Result solveSubcriticalProfile(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            Double downstreamDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        return downstreamDepthMeters == null
+                ? SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        sections, parameters)
+                : SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        sections, downstreamDepthMeters, parameters);
     }
 
     private static StationTrial trial(
@@ -185,7 +222,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             StationTrial sample;
             try {
                 sample = evaluateInsideInterval(
-                        sections, interval, fraction, upstreamDepthMeters, parameters);
+                        sections, interval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
                 continue;
             }
@@ -210,7 +247,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             StationTrial candidate;
             try {
                 candidate = evaluateInsideInterval(
-                        sections, interval, middle, upstreamDepthMeters, parameters);
+                        sections, interval, middle, upstreamDepthMeters, downstreamDepthMeters, parameters);
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
                 return admissible(best, parameters) ? best : null;
             }
