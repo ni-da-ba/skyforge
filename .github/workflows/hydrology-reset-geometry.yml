@@ -326,15 +326,15 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
-        if: success()
+        if: success() && github.event_name == 'workflow_dispatch'
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
 
       - name: Run game-scale ordinary-span calibration sweep (key 700 held out)
-        if: success()
+        if: success() && github.event_name == 'workflow_dispatch'
         run: ./gradlew :skyforge-reference:hydrologyGameScaleCalibrationSweep --no-configuration-cache
 
       - name: Print calibration sweep summary
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           summary=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-sweep.csv
           if [ -f "$summary" ]; then
@@ -345,7 +345,7 @@ jobs:
           fi
 
       - name: Print ordinary-span failure diagnostics
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           diagnostics=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-diagnostics.txt
           if [ -f "$diagnostics" ]; then
@@ -355,7 +355,7 @@ jobs:
           fi
 
       - name: Print natural-transition census summary
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           summary=skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/summary.csv
           if [ -f "$summary" ]; then
@@ -370,7 +370,7 @@ jobs:
           fi
 
       - name: Upload game-scale calibration sweep evidence
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: hydrology-game-scale-calibration-sweep-${{ github.sha }}
@@ -388,7 +388,7 @@ jobs:
           retention-days: 14
 
       - name: Upload natural-transition census evidence
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: hydrology-natural-transition-census-${{ github.sha }}
