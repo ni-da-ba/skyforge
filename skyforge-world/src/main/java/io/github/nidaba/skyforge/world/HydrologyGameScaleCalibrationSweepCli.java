@@ -315,7 +315,8 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 calibration.dischargeCubicMetersPerSecondPerRelativeUnit(),
                 calibration.manningRoughness(),
                 calibration.sideSlopeHorizontalToVertical(),
-                calibration.bedIncisionScale());
+                calibration.bedIncisionScale(),
+                calibration.maximumDownstreamBedSlope());
 
         for (SkyIslandOrdinarySpanOutcome outcome : plan.outcomes()) {
             SkyIslandOrdinaryHydraulicSpan span;
