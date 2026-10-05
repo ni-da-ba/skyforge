@@ -225,7 +225,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             return false;
         }
         try {
-            SkyIslandHydraulicJumpSolver.JumpResult conjugate =
+            SkyIslandHydraulicJumpSolver.Result conjugate =
                     SkyIslandHydraulicJumpSolver.solveConjugateDepth(
                             trial.section(), trial.upstreamDepth(),
                             parameters.gravityMetersPerSecondSquared(),
