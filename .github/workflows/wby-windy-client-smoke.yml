@@ -74,7 +74,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch; do
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch; do
             git -C windy-upstream apply --check "../third_party/patches/windy/$patch"
             git -C windy-upstream apply "../third_party/patches/windy/$patch"
           done
@@ -96,6 +96,10 @@ jobs:
           cat >> skyforge-s1/skyforge-neoforge-1211/build.gradle.kts <<'KOTLIN'
 
           // TEST-ONLY WBY Windy overlay. Not a production Gradle dependency.
+          // Explicit opt-in: runtime proof of A4MC binding and trusted sample reception.
+          neoForge.runs.named("wbyS1ClientJoinAcceptance") {
+              systemProperty("skyforge.windy.flowProbe", "true")
+          }
           val wbyWindyClientSmokeJar = providers.gradleProperty("skyforgeWindySmokeJar").orNull?.let { file(it) }
           if (wbyWindyClientSmokeJar != null) {
               check(wbyWindyClientSmokeJar.isFile) { "Missing smoke-only Windy jar" }
@@ -195,7 +199,29 @@ jobs:
             || grep -Fq '[Windy] Initialised.' \
                  skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log
           echo 'PASS: client Windy mod loaded in the S1 + Simple Clouds + DH profile'
-          echo 'BOUNDARY: no actual shader, 3D flow, visual-depth or aircraft-lift acceptance claimed'
+          client_latest="skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log"
+          grep -Fq 'SKYFORGE_WINDY_BOUND_A4MC' "$client_latest" || {
+            echo 'FAIL: A4MC-to-Windy binding was not observed in the live client'
+            tail -n 120 "$client_latest"; exit 1
+          }
+          trusted=false
+          for attempt in $(seq 1 90); do
+            if grep -Fq 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest"; then
+              trusted=true
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null || ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$trusted" != true ]]; then
+            echo 'BLOCKED: no trusted A4MC sample observed in the actual-client dwell window'
+            tail -n 120 "$client_latest"; exit 1
+          fi
+          grep -F 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest" | head -n 1
+          echo 'PASS: live Windy provider consumed a server-trusted A4MC wind sample'
+          echo 'BOUNDARY: no actual shader, 3D flight-line comparison, visual-depth or aircraft-lift acceptance claimed'
 
       - name: Upload exact smoke evidence
         if: always()
