@@ -1,6 +1,6 @@
 set -euo pipefail
-: "${WBY_S4_PRODUCTION_SERVER_DIR:?Set WBY_S4_PRODUCTION_SERVER_DIR to the installed NeoForge server directory}"
-server_dir="$WBY_S4_PRODUCTION_SERVER_DIR"
+: "${WBY_S5_PRODUCTION_SERVER_DIR:?Set WBY_S5_PRODUCTION_SERVER_DIR to the installed NeoForge server directory}"
+server_dir="$WBY_S5_PRODUCTION_SERVER_DIR"
 server_java="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 [[ -n "$server_java" ]] || server_java="$(command -v java)"
 client_dir="skyforge-neoforge-1211/run-wby-s5-join-client"
