@@ -74,7 +74,8 @@ class SkyIslandGraduallyVariedFlowSolverTest {
                         sections, 1.5, PARAMETERS);
 
         assertEquals(1.5, result.points().getLast().depthMeters(), 0.0);
-        assertTrue(result.points().getFirst().depthMeters() > 1.5);
+        assertTrue(result.points().getFirst().waterSurfaceElevationMeters()
+                > result.points().getLast().waterSurfaceElevationMeters());
         for (SkyIslandGraduallyVariedFlowSolver.ProfilePoint point : result.points()) {
             assertTrue(point.froudeNumber() < 1.0);
             assertTrue(Double.isFinite(point.waterSurfaceElevationMeters()));
@@ -134,8 +135,17 @@ class SkyIslandGraduallyVariedFlowSolverTest {
         for (SkyIslandGraduallyVariedFlowSolver.ProfilePoint point : result.points()) {
             assertTrue(point.froudeNumber() > 1.0);
         }
-        assertTrue(result.points().getLast().depthMeters()
-                < result.points().getFirst().depthMeters());
+        SkyIslandGraduallyVariedFlowSolver.ProfilePoint upstream =
+                result.points().getFirst();
+        SkyIslandGraduallyVariedFlowSolver.ProfilePoint downstream =
+                result.points().getLast();
+        double upstreamTotalHead = upstream.waterSurfaceElevationMeters()
+                + upstream.velocityMetersPerSecond() * upstream.velocityMetersPerSecond()
+                        / (2.0 * GRAVITY);
+        double downstreamTotalHead = downstream.waterSurfaceElevationMeters()
+                + downstream.velocityMetersPerSecond() * downstream.velocityMetersPerSecond()
+                        / (2.0 * GRAVITY);
+        assertTrue(upstreamTotalHead > downstreamTotalHead);
         assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> shiftedDatum = sections.stream()
