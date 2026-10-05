@@ -213,6 +213,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             StationTrial lower,
             StationTrial upper,
             double upstreamDepthMeters,
+            Double downstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         StationTrial best = Math.abs(lower.forceResidual()) < Math.abs(upper.forceResidual())
                 ? lower : upper;
