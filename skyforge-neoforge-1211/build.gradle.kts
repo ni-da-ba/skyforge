@@ -438,9 +438,6 @@ check(wbyS5Pin("neoforge", "version") == "21.1.249")
 check(requireNotNull(wbyS5Pins.getProperty("profile.base")) == "wby-s4-life-building")
 check(wbyS5Pin("biomesOPlenty", "releaseStatus") == "beta")
 check(wbyS5Pin("terraBlender", "releaseStatus") == "beta")
-check(wbyS5Pin("yacl", "coordinate") == wbyS1Pin("yacl", "coordinate")) {
-    "WBY S5 must reuse the S1 YACL artifact to avoid duplicate YACL versions"
-}
 
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
@@ -519,6 +516,9 @@ fun wbyS1Token(mod: String): String =
         check(parts.size == 3) { "expected group:module:version coordinate for WBY S1 $mod" }
         parts[1] + "-" + parts[2]
     }
+check(wbyS5Pin("yacl", "coordinate") == wbyS1Pin("yacl", "coordinate")) {
+    "WBY S5 must reuse the S1 YACL artifact to avoid duplicate YACL versions"
+}
 
 val wbyS1Glider = providers.gradleProperty("wbyS1Glider").orNull?.trim()?.lowercase() ?: "none"
 val wbyS1Clouds = providers.gradleProperty("wbyS1Clouds").orNull?.trim()?.lowercase() ?: "none"
