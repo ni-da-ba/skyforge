@@ -82,6 +82,15 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             SkyIslandGameScaleHydraulicCalibration calibration,
             Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates) {
+        if (span.downstreamBoundary().status()
+                == SkyIslandOrdinarySpanBoundaryStatus.CASCADE_CRITICAL_CONTROL) {
+            if (span.upstreamBoundary().status() != SkyIslandOrdinarySpanBoundaryStatus.FREE) {
+                throw new IllegalArgumentException(
+                        "CASCADE critical-control solve requires an independent upstream source boundary");
+            }
+            return SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                    sections, calibration.solverParameters());
+        }
         if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD) {
             double downstreamStageMeters =
                     span.downstreamBoundary().fixedHeadWorldUnits().orElseThrow()
