@@ -28,7 +28,7 @@ class SkyIslandHydraulicJumpProfileSolverTest {
                 section(0.0, 4.0, 0.0),
                 section(10.0, 3.99, 0.0),
                 section(20.0, 3.98, 0.0),
-                section(30.0, 3.97, 0.0),
+                section(30.0, 3.78, 0.0),
                 section(40.0, 3.96, 0.0));
 
         var profile = SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, PARAMETERS);
