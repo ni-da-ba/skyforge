@@ -173,13 +173,13 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
 
         List<Integer> intervals = new ArrayList<>();
-        intervals.add(primaryInterval);
-        if (primaryInterval > 0) {
-            intervals.add(primaryInterval - 1);
+        for (int interval = primaryInterval; interval >= 1; interval--) {
+            intervals.add(interval);
         }
-        if (primaryInterval < maximumInterval) {
-            intervals.add(primaryInterval + 1);
+        for (int interval = primaryInterval + 1; interval <= maximumInterval; interval++) {
+            intervals.add(interval);
         }
+        List<String> intervalDiagnostics = new ArrayList<>();
 
         double stageTolerance = Math.max(
                 MINIMUM_STAGE_RESIDUAL_METERS,
@@ -189,6 +189,9 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         RuntimeException lastFailure = null;
         for (int interval : intervals) {
             List<MixedStepTrial> trials = new ArrayList<>();
+            int validTrials = 0;
+            double minimumStageResidual = Double.POSITIVE_INFINITY;
+            double maximumStageResidual = Double.NEGATIVE_INFINITY;
             for (int sample = 0; sample <= 8; sample++) {
                 double fraction = sample / 8.0;
                 try {
@@ -199,6 +202,11 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                             upstreamDepthMeters,
                             stageTolerance,
                             parameters);
+                    validTrials++;
+                    minimumStageResidual = Math.min(
+                            minimumStageResidual, trial.upstreamStageResidualMeters());
+                    maximumStageResidual = Math.max(
+                            maximumStageResidual, trial.upstreamStageResidualMeters());
                     if (Math.abs(trial.upstreamStageResidualMeters()) <= stageTolerance) {
                         return joinMixedProfiles(
                                 sections,
@@ -213,6 +221,13 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                     trials.add(null);
                 }
             }
+            intervalDiagnostics.add(
+                    "interval=" + interval
+                            + ",validSamples=" + validTrials + "/9"
+                            + ",upstreamStageResidualRange="
+                            + (validTrials == 0
+                                    ? "none"
+                                    : minimumStageResidual + ".." + maximumStageResidual));
 
             for (int sample = 0; sample < 8; sample++) {
                 MixedStepTrial lowerTrial = trials.get(sample);
@@ -271,7 +286,8 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
         throw new IllegalStateException(
                 "no bracketed interior critical control matches the upstream stage"
-                        + (lastFailure == null ? "" : ": " + lastFailure.getMessage()));
+                        + "; candidateSearch=" + intervalDiagnostics
+                        + (lastFailure == null ? "" : "; lastFailure=" + lastFailure.getMessage()));
     }
 
     private static MixedStepTrial evaluateCriticalControl(
