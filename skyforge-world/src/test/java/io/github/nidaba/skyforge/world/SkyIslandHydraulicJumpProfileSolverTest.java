@@ -55,6 +55,26 @@ class SkyIslandHydraulicJumpProfileSolverTest {
         assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-4);
     }
 
+    @Test
+    void findsAJumpInTheLastInteriorIntervalBeforeTheCriticalControl() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 4.0, 0.0),
+                section(10.0, 3.99, 0.0),
+                section(20.0, 3.98, 0.0),
+                section(30.0, 3.97, 0.0));
+
+        var profile = SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, PARAMETERS);
+
+        assertEquals(sections, profile.points().stream()
+                .map(SkyIslandGraduallyVariedFlowSolver.ProfilePoint::section)
+                .toList());
+        assertTrue(profile.points().get(0).froudeNumber() > 1.0);
+        assertTrue(profile.points().get(2).froudeNumber() > 1.0,
+                "the jump must be located downstream of the penultimate cross section");
+        assertTrue(Math.abs(profile.points().getLast().froudeNumber() - 1.0) < 1.0e-6);
+        assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-4);
+    }
+
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(
             double chainage, double bed, double sideSlope) {
         return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
