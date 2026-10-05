@@ -1,0 +1,311 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -8,6 +8,7 @@
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.tags.BlockTags;
+ import net.minecraft.util.RandomSource;
++import net.minecraft.world.phys.Vec3;
+ import net.minecraft.world.level.biome.Biome;
+ import net.minecraft.world.level.block.Blocks;
+ import net.minecraft.world.level.block.state.BlockState;
+@@ -33,6 +34,37 @@
+ public final class WindDirector {
+     public static final WindDirector INSTANCE = new WindDirector();
+ 
++    // Optional injection seam: Skyforge can provide real wind without creating a competing simulation.
++    private static volatile WindStateProvider externalProvider;
++
++    public static void useExternalWind(WindStateProvider provider) {
++        externalProvider = java.util.Objects.requireNonNull(provider, "provider");
++    }
++
++    public static boolean hasExternalWind() {
++        return externalProvider != null;
++    }
++
++    /** Missing or failed samples are calm/unavailable; never silently generate substitute wind. */
++    public static WindStateProvider.Sample sampleExternal(ClientLevel level, Vec3 position) {
++        WindStateProvider provider = externalProvider;
++        if (provider == null) return WindStateProvider.Sample.UNAVAILABLE;
++        try {
++            WindStateProvider.Sample sample = provider.sample(level, position);
++            return sample == null ? WindStateProvider.Sample.UNAVAILABLE : sample;
++        } catch (RuntimeException ex) {
++            // A provider failure must not resurrect Windy's autonomous generator.
++            return WindStateProvider.Sample.UNAVAILABLE;
++        }
++    }
++
++    /** Exact normalized local airflow direction; this does not synthesize wind. */
++    public static Vec3 externalDirection(ClientLevel level, Vec3 point) {
++        WindStateProvider.Sample sample = sampleExternal(level, point);
++        return sample.available() && sample.velocityMetersPerSecond().lengthSqr() > 1.0e-8
++                ? sample.velocityMetersPerSecond().normalize() : Vec3.ZERO;
++    }
++
+     // ---- the wind itself ----
+     private float windYaw;              // radians; direction the wind blows TOWARD
+     private float baseStrength;         // 0..1 slow background wind
+@@ -41,13 +73,16 @@
+     private float gustPeak;             // 0.6..1.2 strength of the current gust
+     private int gustCooldown = 400;     // ticks until the next gust may start
+     private float lastEffective;        // the eff computed on the last live tick, for other systems
++    private float externalGust;
++    private double directionX, directionY, directionZ;
+     private long lastGameTime = Long.MIN_VALUE;
+ 
+     // ---- shared wind state (read by the ribbon renderer) ----
+-    public double windX() { return Math.cos(windYaw); }
+-    public double windZ() { return Math.sin(windYaw); }
++    public double windX() { return directionX; }
++    public double windY() { return directionY; }
++    public double windZ() { return directionZ; }
+     public float effectiveStrength() { return lastEffective; }
+-    public float gustStrength() { return gustEnvelope(); }
++    public float gustStrength() { return hasExternalWind() ? externalGust : gustEnvelope(); }
+ 
+     private WindDirector() {
+         this.windYaw = (float) (Math.random() * Math.PI * 2);
+@@ -104,22 +139,45 @@
+         if (now == lastGameTime) return; // don't advance twice on the same world tick
+         lastGameTime = now;
+ 
+-        // ---- advance the wind ----
+-        windYaw += (float) (rng.nextGaussian() * 0.004);
+-        baseStrength = clamp(0.46f
+-                + 0.30f * (float) Math.sin(now * 9.2e-4 + 1.7)
+-                + 0.22f * (float) Math.sin(now * 2.7e-4 + 4.1), 0f, 1f);
+-        if (gustTicksLeft > 0) {
+-            gustTicksLeft--;
+-        } else if (cfg.gustiness() > 0 && --gustCooldown <= 0) {
+-            startGust(0.6f + rng.nextFloat() * 0.6f, 70 + rng.nextInt(110));
+-            gustCooldown = 160 + rng.nextInt(1 + (int) (1400 * (1.05f - cfg.gustiness() / 100f)));
++        // ---- use physical wind when bound; otherwise preserve standalone Windy behavior ----
++        final boolean external = hasExternalWind();
++        float gust, eff;
++        if (external) {
++            WindStateProvider.Sample physical = sampleExternal(level, player.position());
++            if (!physical.available()) {
++                lastEffective = externalGust = 0f;
++                directionX = directionY = directionZ = 0.0;
++                return; // fail closed: no invented wind
++            }
++            Vec3 velocity = physical.velocityMetersPerSecond();
++            double speed = velocity.length();
++            Vec3 unit = speed > 1.0e-6 ? velocity.scale(1.0 / speed) : Vec3.ZERO;
++            directionX = unit.x;
++            directionY = unit.y;
++            directionZ = unit.z;
++            // Presentation scaling only. Physical velocity remains owned by the provider (m/s).
++            eff = clamp((float) (speed / 12.0), 0f, 1.4f);
++            gust = clamp(physical.gustMetersPerSecond() / 12.0f, 0f, 1.4f);
++            externalGust = gust;
++        } else {
++            windYaw += (float) (rng.nextGaussian() * 0.004);
++            baseStrength = clamp(0.46f
++                    + 0.30f * (float) Math.sin(now * 9.2e-4 + 1.7)
++                    + 0.22f * (float) Math.sin(now * 2.7e-4 + 4.1), 0f, 1f);
++            if (gustTicksLeft > 0) {
++                gustTicksLeft--;
++            } else if (cfg.gustiness() > 0 && --gustCooldown <= 0) {
++                startGust(0.6f + rng.nextFloat() * 0.6f, 70 + rng.nextInt(110));
++                gustCooldown = 160 + rng.nextInt(1 + (int) (1400 * (1.05f - cfg.gustiness() / 100f)));
++            }
++            gust = gustEnvelope();
++            eff = clamp(baseStrength * 0.45f + gust, 0f, 1.4f);
++            directionX = Math.cos(windYaw);
++            directionY = 0.0;
++            directionZ = Math.sin(windYaw);
+         }
+-
+-        float gust = gustEnvelope();
+-        float eff = clamp(baseStrength * 0.45f + gust, 0f, 1.4f);   // effective visible wind
+         lastEffective = eff;
+-        double wx = Math.cos(windYaw), wz = Math.sin(windYaw);      // unit wind direction
++        double wx = directionX, wy = directionY, wz = directionZ;
+ 
+         double densityMul = switch (cfg.intensity()) {
+             case SUBTLE -> 0.45;
+@@ -153,11 +211,13 @@
+                 BlockPos pos = BlockPos.containing(x, y, z);
+                 if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) continue;
+                 if (!level.canSeeSky(pos)) continue;
++                Vec3 airflow = external ? externalDirection(level, new Vec3(x, y, z)) : new Vec3(wx, wy, wz);
++                if (airflow.lengthSqr() < 1.0e-8) continue;
+                 double speed = 0.28 + 0.30 * eff + rng.nextDouble() * 0.10;
+                 level.addParticle(WindParticles.WISP.get(), force, x, y, z,
+-                        wx * speed + rng.nextGaussian() * 0.02,
+-                        (rng.nextDouble() - 0.45) * 0.02,
+-                        wz * speed + rng.nextGaussian() * 0.02);
++                        airflow.x * speed + rng.nextGaussian() * 0.02,
++                        airflow.y * speed + (rng.nextDouble() - 0.45) * 0.02,
++                        airflow.z * speed + rng.nextGaussian() * 0.02);
+             }
+         }
+ 
+@@ -173,11 +233,13 @@
+                 // near the surface is enough — motes drift under the canopy too, unlike wisps
+                 int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, pos.getX(), pos.getZ());
+                 if (y < top - 10) continue;
++                Vec3 airflow = external ? externalDirection(level, new Vec3(x, y, z)) : new Vec3(wx, wy, wz);
++                if (external && airflow.lengthSqr() < 1.0e-8) continue;
+                 double speed = (0.14 + 0.30 * eff) * (0.6 + rng.nextDouble() * 0.4);
+                 level.addParticle(WindParticles.MOTE.get(), force, x, y, z,
+-                        wx * speed + rng.nextGaussian() * 0.015,
+-                        (rng.nextDouble() - 0.4) * 0.015,
+-                        wz * speed + rng.nextGaussian() * 0.015);
++                        airflow.x * speed + rng.nextGaussian() * 0.015,
++                        airflow.y * speed + (rng.nextDouble() - 0.4) * 0.015,
++                        airflow.z * speed + rng.nextGaussian() * 0.015);
+             }
+         }
+ 
+@@ -200,11 +262,13 @@
+                 // inside the canopy's collision volume would be clamped by the leaf block below it,
+                 // freeze on contact and fade away buried in the tree instead of sailing off.
+                 double ly = top + 0.05 + rng.nextDouble() * 0.4;
++                Vec3 airflow = external ? externalDirection(level, new Vec3(lx, ly, lz)) : new Vec3(wx, wy, wz);
++                if (external && airflow.lengthSqr() < 1.0e-8) continue;
+                 double speed = 0.10 + 0.22 * eff;
+                 level.addParticle(WindParticles.LEAF.get(), force, lx, ly, lz,
+-                        wx * speed + rng.nextGaussian() * 0.03,
++                        airflow.x * speed + rng.nextGaussian() * 0.03,
+                         palette,
+-                        wz * speed + rng.nextGaussian() * 0.03);
++                        airflow.z * speed + rng.nextGaussian() * 0.03);
+             }
+         }
+ 
+@@ -223,12 +287,14 @@
+                 Biome biome = level.getBiome(pos).value();
+                 if (biome.getPrecipitationAt(pos) != Biome.Precipitation.SNOW) continue;
+                 if (!level.canSeeSky(pos)) continue;
++                Vec3 airflow = external ? externalDirection(level, new Vec3(x, y, z)) : new Vec3(wx, wy, wz);
++                if (external && airflow.lengthSqr() < 1.0e-8) continue;
+                 double speed = 0.30 + 0.35 * eff + rng.nextDouble() * 0.08;
+                 level.addParticle(WindParticles.SNOW.get(), force,
+                         x + rng.nextDouble(), y, z + rng.nextDouble(),
+-                        wx * speed + rng.nextGaussian() * 0.03,
+-                        -0.02 - rng.nextDouble() * 0.05,
+-                        wz * speed + rng.nextGaussian() * 0.03);
++                        airflow.x * speed + rng.nextGaussian() * 0.03,
++                        airflow.y * speed - 0.02 - rng.nextDouble() * 0.05,
++                        airflow.z * speed + rng.nextGaussian() * 0.03);
+             }
+         }
+ 
+@@ -245,12 +311,14 @@
+                 Biome biome = level.getBiome(surface).value();
+                 if (biome.getPrecipitationAt(surface) != Biome.Precipitation.NONE) continue; // deserts/badlands
+                 double y = top + 0.2 + rng.nextDouble() * 1.2;
++                Vec3 airflow = external ? externalDirection(level, new Vec3(x, y, z)) : new Vec3(wx, wy, wz);
++                if (external && airflow.lengthSqr() < 1.0e-8) continue;
+                 double speed = 0.16 + 0.28 * eff;
+                 level.addParticle(WindParticles.DUST.get(), force,
+                         x + rng.nextDouble(), y, z + rng.nextDouble(),
+-                        wx * speed + rng.nextGaussian() * 0.02,
+-                        0.004 + rng.nextDouble() * 0.006,
+-                        wz * speed + rng.nextGaussian() * 0.02);
++                        airflow.x * speed + rng.nextGaussian() * 0.02,
++                        airflow.y * speed + 0.004 + rng.nextDouble() * 0.006,
++                        airflow.z * speed + rng.nextGaussian() * 0.02);
+             }
+         }
+     }
+diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+--- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
++++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+@@ -111,6 +111,7 @@
+             default -> 1.0;
+         };
+         int target = (int) Math.min(MAX_RIBBONS, (2 + 4 * eff + 9 * gust) * intensityMul);
++        if (WindDirector.hasExternalWind() && eff < 0.08f) target = 0;
+ 
+         // ---- spawn toward the target population ----
+         int radius = Math.min(cfg.radius() + 10, 40);   // geometry, not particles: no 32-block cull
+@@ -122,7 +123,10 @@
+                 int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, col.getX(), col.getZ());
+                 Ribbon r = new Ribbon();
+                 r.x = sx;
+-                r.y = top + 1.2 + rng.nextDouble() * 4.5;
++                // Keep airflow visible around craft high above floating islands.
++                r.y = player.getY() > top + 18
++                        ? player.getY() + (rng.nextDouble() - 0.5) * 16
++                        : top + 1.2 + rng.nextDouble() * 4.5;
+                 r.z = sz;
+                 r.age = 0;
+                 r.lifetime = 90 + rng.nextInt(80);
+@@ -146,16 +150,29 @@
+                 continue;
+             }
+ 
+-            double speed = (0.30 + 0.34 * eff) * r.speedMul;
+-            // weave: swing across the wind, bob along it, so the stripe snakes instead of ruling a line
+-            double perpX = -wz, perpZ = wx;
+-            double weave = Math.sin(r.age * 0.11 + r.phase) * 0.34;
+-            r.vx = (wx + perpX * weave) * speed;
+-            r.vz = (wz + perpZ * weave) * speed;
+-            r.vy = Math.sin(r.age * 0.07 + r.phase * 2) * 0.022;
++            if (WindDirector.hasExternalWind()) {
++                WindStateProvider.Sample local = WindDirector.sampleExternal(level, new Vec3(r.x, r.y, r.z));
++                if (!local.available() || local.velocityMetersPerSecond().lengthSqr() < 1.0e-8) {
++                    it.remove();
++                    continue;
++                }
++                // A4MC metres/second -> Minecraft block/tick at 20 TPS. No invented gust/weave.
++                Vec3 drift = local.velocityMetersPerSecond().scale(0.05 * r.speedMul);
++                r.vx = drift.x;
++                r.vy = drift.y;
++                r.vz = drift.z;
++            } else {
++                double speed = (0.30 + 0.34 * eff) * r.speedMul;
++                // Standalone Windy retains its original decorative wind and terrain-following.
++                double perpX = -wz, perpZ = wx;
++                double weave = Math.sin(r.age * 0.11 + r.phase) * 0.34;
++                r.vx = (wx + perpX * weave) * speed;
++                r.vz = (wz + perpZ * weave) * speed;
++                r.vy = Math.sin(r.age * 0.07 + r.phase * 2) * 0.022;
++            }
+ 
+-            // follow the land: every few ticks, ease toward a lane a couple of blocks over the surface
+-            if (r.age % 4 == 0) {
++            // The physically governed streamlines must not be artificially clamped to terrain.
++            if (!WindDirector.hasExternalWind() && r.age % 4 == 0) {
+                 BlockPos here = BlockPos.containing(r.x, r.y, r.z);
+                 if (level.isLoaded(here)) {
+                     int top = level.getHeight(Heightmap.Types.MOTION_BLOCKING, here.getX(), here.getZ());
+diff --git a/src/main/java/dev/fallingcloud/windy/WindStateProvider.java b/src/main/java/dev/fallingcloud/windy/WindStateProvider.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/dev/fallingcloud/windy/WindStateProvider.java
+@@ -0,0 +1,29 @@
++package dev.fallingcloud.windy;
++
++import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.world.phys.Vec3;
++
++/**
++ * Optional presentation-only wind source. Velocity is actual world-space metres/second,
++ * including gust. Providers must return unavailable instead of inventing replacement weather.
++ * Gameplay and weather authority remain outside Windy.
++ */
++@FunctionalInterface
++public interface WindStateProvider {
++    Sample sample(ClientLevel level, Vec3 worldPosition);
++
++    record Sample(Vec3 velocityMetersPerSecond, float gustMetersPerSecond, boolean available) {
++        public static final Sample UNAVAILABLE = new Sample(Vec3.ZERO, 0f, false);
++
++        public Sample {
++            if (velocityMetersPerSecond == null
++                    || !Double.isFinite(velocityMetersPerSecond.x)
++                    || !Double.isFinite(velocityMetersPerSecond.y)
++                    || !Double.isFinite(velocityMetersPerSecond.z)
++                    || !Float.isFinite(gustMetersPerSecond)
++                    || gustMetersPerSecond < 0f) {
++                throw new IllegalArgumentException("Invalid wind sample");
++            }
++        }
++    }
++}
