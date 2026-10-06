@@ -9,7 +9,7 @@
 - Windy (NeoForge 1.21.1) upstream commit `3ba5523481d22179cdf0fa7dab0743210f136bb8`, advertised mod 1.2.0, MIT.
 - A4MC accepted 0.2.2 source commit `171d8dc593651d6b34e3bfecaf6469a11b53b433`, public Minecraft-independent API.
 
-Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies nine intentionally narrow patches in order:
+Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies ten intentionally narrow patches in order:
 
 1. `0001-authoritative-wind-provider.patch` — adds an optional external vector-field hook to Windy's existing particles and ribbons. When externally bound, the internal randomized wind is skipped, missing samples fail closed, streaks sample each location, ribbons follow 3D local velocity rather than decorative horizontal weave, and high-altitude flight may spawn nearby ribbons.
 2. `0002-a4mc-client-authority-binding.patch` — binds the seam to `AeroClientWindApi.sample` with `SERVER_AGGREGATED_PREFERRED` (trusted coarse / aggregated flow, never client-only local voxel detail). A4MC remains the sole wind/pressure physics authority. The provider is registered only if A4MC is loaded.
