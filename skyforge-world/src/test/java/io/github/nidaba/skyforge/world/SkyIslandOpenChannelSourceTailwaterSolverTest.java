@@ -137,9 +137,9 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
 
     @Test
     void fixedSupercriticalUpstreamStageUsesMomentumMatchedTailwaterClosure() {
-        double discharge = 10.0;
-        double width = 3.0;
-        double bedSlope = 0.04;
+        double discharge = 1.0;
+        double width = 8.0;
+        double bedSlope = 0.001;
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
                 section(0.0, 20.0, discharge, width),
                 section(10.0, 20.0 - bedSlope * 10.0, discharge, width),
@@ -185,7 +185,7 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
                 () -> SkyIslandOpenChannelOrdinarySpanSolver.solveAgainstDownstreamDepth(
                         sections,
                         normalDepth,
-                        boundary(SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD, 100.2),
+                        boundary(SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD, 100.0 + normalDepth + 0.2),
                         calibration));
     }
 
