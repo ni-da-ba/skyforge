@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+variant="${1:-base}"
+case "$variant" in
+  base) d07_variant=none ;;
+  structory) d07_variant=structory ;;
+  explorify) d07_variant=explorify ;;
+  both) d07_variant=both ;;
+  *)
+    echo "usage: bash scripts/wby-s6-diagnostic-launch.sh [base|structory|explorify|both]" >&2
+    exit 2
+    ;;
+esac
+
+run_directory="run-wby-s6-$variant"
+a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
+for jar in \
+  "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \
+  "$a4mc_mod_dir/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"; do
+  if [[ ! -f "$jar" ]]; then
+    cat >&2 <<EOF
+Missing pinned A4MC review dependency:
+  $jar
+Download and extract both A4MC 0.2.2 JARs from the S5/S6 GitHub Actions artifact into:
+  .skyforge-diagnostics/aerodynamics4mc-0.2.2-mods/
+EOF
+    exit 2
+  fi
+done
+
+mkdir -p .skyforge-diagnostics
+bundle=".skyforge-diagnostics/wby-s6-$variant-$(date -u +%Y%m%dT%H%M%SZ)"
+mkdir -p "$bundle"
+
+base_args=(
+  -PwbyS1Glider=combined
+  -PwbyS1Clouds=simple-clouds
+  -PwbyS1ThinAir=false
+  "-PwbyS1RunDirectory=$run_directory"
+  -PwbyS1A4mcBuiltModDir="$a4mc_mod_dir"
+  -PwbyS2ComputingAvionics=true
+  -PwbyS3DieselGenerators=true
+  -PwbyS3CreateBigCannons=true
+  -PwbyS4OrdinaryLife=true
+  -PwbyS4Shaders=false
+  -PwbyS5OverworldEcology=true
+  -PwbyS6StructuresCivilization=true
+  "-PwbyS6D07Variant=$d07_variant"
+  --no-configuration-cache
+)
+export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
+
+./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-resolution.log"
+grep -Fq "WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$d07_variant" "$bundle/profile-resolution.log"
+
+./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
+./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
+
+echo "S6 structure/civilization candidate: base S6 roster plus D-07 variant '$variant'."
+echo "Windy is excluded from this profile. Atmospheric Shaders are off; the validated Simple Clouds + DH baseline remains."
+echo "Create a fresh normal Overworld (not the development-only Skyforge preset) with seed 817304."
+echo "Review structure identity and variety, clustering/overlap, access/progression fit, visual fit, and unexpected native worldgen."
+echo "For D-07 comparison, use the same seed and similar travel route in separate runs: base, structory, explorify, and both."
+echo "Do not choose a winner or tune structure density during this review. Keep observations and screenshots."
+echo "Review run directory: skyforge-neoforge-1211/$run_directory"
+echo "Diagnostics bundle: $bundle"
+echo "Sky Whale Retexture remains required if Sky Whales are encountered; install the local ARR pack manually and enable it."
+echo "Launch starts now. Save and quit normally when you have finished reviewing."
+
+python_bin="$(command -v python3 || command -v python || true)"
+if [[ -z "$python_bin" ]]; then
+  echo "Install Python 3.10 or newer and rerun this command." >&2
+  exit 2
+fi
+launcher_venv="$PWD/.skyforge-diagnostics/wby-s5-launcher-venv"
+if [[ -x "$launcher_venv/Scripts/python.exe" ]]; then
+  launcher_python="$launcher_venv/Scripts/python.exe"
+else
+  launcher_python="$launcher_venv/bin/python"
+fi
+if [[ ! -x "$launcher_python" ]]; then
+  "$python_bin" -m venv "$launcher_venv"
+  if [[ -x "$launcher_venv/Scripts/python.exe" ]]; then
+    launcher_python="$launcher_venv/Scripts/python.exe"
+  else
+    launcher_python="$launcher_venv/bin/python"
+  fi
+fi
+if ! "$launcher_python" -c 'import minecraft_launcher_lib' >/dev/null 2>&1; then
+  "$launcher_python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+fi
+
+set +e
+"$launcher_python" scripts/wby-s4-launch-production-client.py \
+  --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s5-production-client" \
+  --game-directory "$PWD/skyforge-neoforge-1211/$run_directory" \
+  --username WbyS6Review 2>&1 | tee "$bundle/client.log"
+status=${PIPESTATUS[0]}
+set -e
+
+run_path="skyforge-neoforge-1211/$run_directory"
+test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
+test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
+test ! -f "$run_path/mods/"'*.jar' || find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
+echo "Send this diagnostics folder if anything failed: $bundle"
+exit "$status"
