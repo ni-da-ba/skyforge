@@ -8,6 +8,7 @@ import json
 import re
 import socket
 import struct
+import tomllib
 import zipfile
 from pathlib import Path
 from typing import Iterable
@@ -16,6 +17,7 @@ STRUCTURE = re.compile(r"^data/([^/]+)/worldgen/structure/(.+)\.json$")
 SET = re.compile(r"^data/([^/]+)/worldgen/structure_set/(.+)\.json$")
 S7_NAME_HINTS = (
     "friends", "foes", "pillage", "illager", "incontrol", "resourceful", "mowzie",
+    "iceandfire", "jupiter", "uranus",
 )
 PILLAGE_ENTITY_IDS = (
     "takesapillage:archer",
@@ -23,6 +25,7 @@ PILLAGE_ENTITY_IDS = (
     "takesapillage:skirmisher",
 )
 MOWZIE_ENTITY_IDS = ("mowziesmobs:foliaath",)
+ICE_AND_FIRE_ENTITY_IDS = ("iceandfire:fire_dragon", "iceandfire:stymphalian_bird")
 ENTITY_PROBE_IDS = PILLAGE_ENTITY_IDS + MOWZIE_ENTITY_IDS
 INVALID_LOCATE = re.compile(
     r"unknown (?:or incomplete )?command|unknown structure|invalid structure|"
@@ -109,11 +112,15 @@ def main() -> int:
     parser.add_argument("--seed", required=True)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--mowzie-output", required=True, type=Path)
+    parser.add_argument("--ice-and-fire", action="store_true")
+    parser.add_argument("--ice-and-fire-output", type=Path)
     parser.add_argument("--skip-entity-probes", action="store_true")
     parser.add_argument("--entities-only", action="store_true")
     args = parser.parse_args()
     if args.skip_entity_probes and args.entities_only:
         parser.error("--skip-entity-probes and --entities-only cannot be combined")
+    if args.ice_and_fire and args.ice_and_fire_output is None:
+        parser.error("--ice-and-fire-output is required with --ice-and-fire")
 
     mowzie_jars = sorted(
         jar for jar in args.mods.glob("*.jar")
@@ -123,6 +130,47 @@ def main() -> int:
         raise SystemExit(f"Expected the pinned Mowzie's Mobs jar; found {[jar.name for jar in mowzie_jars]}")
     mowzie_jar = mowzie_jars[0]
     mowzie_sha256 = hashlib.sha256(mowzie_jar.read_bytes()).hexdigest()
+    ice_fire_jar = None
+    ice_fire_sha256 = ""
+    ice_fire_structures: list[str] = []
+    ice_fire_structure_sets: list[str] = []
+    ice_fire_metadata_rows: list[list[object]] = []
+    if args.ice_and_fire:
+        ice_fire_jars = sorted(
+            jar for jar in args.mods.glob("*.jar")
+            if "iceandfire-ce-1040076-8929517" in jar.name.lower()
+        )
+        if len(ice_fire_jars) != 1:
+            raise SystemExit(f"Expected exactly the pinned Ice & Fire CE jar; found {[jar.name for jar in ice_fire_jars]}")
+        ice_fire_jar = ice_fire_jars[0]
+        ice_fire_sha256 = hashlib.sha256(ice_fire_jar.read_bytes()).hexdigest()
+        ice_fire_structure_sets, ice_fire_structures = read_archive(ice_fire_jar)
+        with zipfile.ZipFile(ice_fire_jar) as archive:
+            metadata_names = [
+                name for name in archive.namelist()
+                if name.lower() == "meta-inf/neoforge.mods.toml"
+            ]
+            if len(metadata_names) != 1:
+                raise SystemExit(f"Expected one NeoForge mods metadata file in {ice_fire_jar.name}; found {metadata_names}")
+            metadata = tomllib.loads(archive.read(metadata_names[0]).decode("utf-8"))
+        for mod in metadata.get("mods", []):
+            if mod.get("modId") == "iceandfire":
+                ice_fire_metadata_rows.append([
+                    "mod-metadata", ice_fire_jar.name, ice_fire_sha256, mod.get("modId", ""),
+                    mod.get("version", ""), mod.get("displayName", ""),
+                ])
+        if not ice_fire_metadata_rows:
+            raise SystemExit("Pinned Ice & Fire jar metadata did not declare mod id iceandfire")
+        dependency_map = metadata.get("dependencies", {})
+        for owner in ("iceandfire",):
+            entries = dependency_map.get(owner, [])
+            if isinstance(entries, dict):
+                entries = [entries]
+            for entry in entries:
+                ice_fire_metadata_rows.append([
+                    "dependency-metadata", ice_fire_jar.name, ice_fire_sha256,
+                    entry.get("modId", ""), entry.get("versionRange", ""), entry.get("side", ""),
+                ])
     with zipfile.ZipFile(mowzie_jar) as archive:
         mowzie_structures = sorted(
             name.removeprefix("data/mowziesmobs/worldgen/structure/").removesuffix(".json")
@@ -175,9 +223,11 @@ def main() -> int:
                 raise SystemExit(f"Live /locate did not recognize staged structure {structure_id}: {result}")
             accepted_locates += 1
 
+    entity_probe_ids = list(ENTITY_PROBE_IDS) + (list(ICE_AND_FIRE_ENTITY_IDS) if args.ice_and_fire else [])
     registered_entities = 0
+    ice_fire_entity_rows: list[list[object]] = []
     if not args.skip_entity_probes:
-        for entity_id in ENTITY_PROBE_IDS:
+        for entity_id in entity_probe_ids:
             kill_selector = (
                 f"@e[type={entity_id},distance=..8,sort=nearest,limit=1]"
                 if args.entities_only else f"@e[type={entity_id},limit=1]"
@@ -210,6 +260,11 @@ def main() -> int:
                 )
                 evidence = f"summon={summon_result}; live_uuid={uuid_result}"
                 rows.append(["entity", entity_id.split(":")[0], entity_id, "", "", "", evidence])
+                if entity_id.startswith("iceandfire:"):
+                    ice_fire_entity_rows.append([
+                        "entity", ice_fire_jar.name if ice_fire_jar else "", ice_fire_sha256,
+                        entity_id, evidence,
+                    ])
                 uuid_array = re.search(r"\[\s*I;\s*-?\d+(?:\s*,\s*-?\d+){3}\s*\]", uuid_result)
                 if not summon_result or not (uuid_array or "uuid" in uuid_result.lower()):
                     raise SystemExit(f"Live entity registration/spawn probe failed for {entity_id}: {evidence}")
@@ -222,7 +277,7 @@ def main() -> int:
 
     if not args.entities_only and not accepted_locates:
         raise SystemExit("No staged S7 structures were accepted by live /locate")
-    expected_entities = len(ENTITY_PROBE_IDS)
+    expected_entities = len(entity_probe_ids)
     if not args.skip_entity_probes and registered_entities != expected_entities:
         raise SystemExit(
             f"Only {registered_entities}/{expected_entities} S7 entity probes registered"
@@ -267,6 +322,25 @@ def main() -> int:
             encoding="utf-8",
         )
 
+    if args.ice_and_fire:
+        assert args.ice_and_fire_output is not None and ice_fire_jar is not None
+        ice_output = args.ice_and_fire_output
+        if args.entities_only and ice_output.is_file():
+            extra_rows = ice_fire_entity_rows
+            with ice_output.open("a", encoding="utf-8") as evidence_file:
+                evidence_file.write("\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in extra_rows) + ("\\n" if extra_rows else ""))
+        else:
+            ice_rows: list[list[object]] = [
+                ["record", "jar", "sha256", "registry_id", "value", "side_or_display_name"],
+                ["run", ice_fire_jar.name, ice_fire_sha256, "", "dimension=minecraft:overworld; seed=" + args.seed, ""],
+                ["worldgen-structures", ice_fire_jar.name, ice_fire_sha256, "", ",".join(ice_fire_structures) or "(none found)", ""],
+                ["worldgen-structure-sets", ice_fire_jar.name, ice_fire_sha256, "", ",".join(str(item["id"]) for item in ice_fire_structure_sets) or "(none found)", ""],
+            ]
+            ice_rows.extend(ice_fire_metadata_rows)
+            ice_rows.extend(ice_fire_entity_rows)
+            ice_output.parent.mkdir(parents=True, exist_ok=True)
+            ice_output.write_text("\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in ice_rows) + "\\n", encoding="utf-8")
+
     total_sets = sum(row[0] == "structure-set" for row in rows[1:])
     pillage_probes = sum(row[0] == "entity" and str(row[2]).startswith("takesapillage:") for row in rows)
     mowzie_probes = sum(row[0] == "entity" and str(row[2]).startswith("mowziesmobs:") for row in rows)
@@ -277,7 +351,8 @@ def main() -> int:
           + " spawned_mowzie_entities=" + str(mowzie_probes)
           + " mowzie_worldgen_structures=" + str(len(mowzie_structures))
           + " report=" + str(args.output)
-          + " mowzie_report=" + str(args.mowzie_output))
+          + " mowzie_report=" + str(args.mowzie_output)
+          + (" ice_and_fire_sha256=" + ice_fire_sha256 + " ice_and_fire_structures=" + str(len(ice_fire_structures)) + " ice_and_fire_report=" + str(args.ice_and_fire_output) if args.ice_and_fire else ""))
     if not args.entities_only and (total_sets == 0 or not locate_targets):
         raise SystemExit("No S7 structure-set metadata or custom structure IDs were found in staged candidate jars")
     return 0
