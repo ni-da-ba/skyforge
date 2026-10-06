@@ -88,6 +88,25 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
     }
 
     @Test
+    void rejectsSupercriticalTailwaterInsteadOfTreatingItAsSubcriticalControl() {
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                DISCHARGE, ROUGHNESS, BED_SLOPE, WIDTH, 0.0);
+        List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
+                List.of(new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH)),
+                        new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH)));
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> outlet =
+                List.of(section(200.0, 0.0, 2.0 * DISCHARGE, 2.0 * WIDTH),
+                        section(250.0, -0.05, 2.0 * DISCHARGE, 2.0 * WIDTH));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> SkyIslandHydraulicEnergyConfluenceComponentSolver
+                        .solveWithSubcriticalTailwater(
+                                incoming, outlet, normalDepth * 0.1, PARAMETERS, 0.0));
+    }
+
+    @Test
     void rejectsOutletDepthIncompatibleWithSourceControls() {
         double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
                 DISCHARGE, ROUGHNESS, BED_SLOPE, WIDTH, 0.0);
