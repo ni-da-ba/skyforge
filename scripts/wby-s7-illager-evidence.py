@@ -186,7 +186,8 @@ def main() -> int:
                 )
                 evidence = f"summon={summon_result}; live_uuid={uuid_result}"
                 rows.append(["entity", entity_id.split(":")[0], entity_id, "", "", "", evidence])
-                if not summon_result or not uuid_result or "uuid" not in uuid_result.lower():
+                uuid_array = re.search(r"\[\s*I;\s*-?\d+(?:\s*,\s*-?\d+){3}\s*\]", uuid_result)
+                if not summon_result or not (uuid_array or "uuid" in uuid_result.lower()):
                     raise SystemExit(f"Live entity registration/spawn probe failed for {entity_id}: {evidence}")
                 registered_entities += 1
             finally:
