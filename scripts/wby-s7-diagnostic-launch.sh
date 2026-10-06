@@ -58,10 +58,10 @@ grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "$bundle/profile-resolution.lo
 ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
 ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
 
-echo "S7 threat candidate: cumulative S6 roster with both Structory and Explorify, plus the selected illager stack."
+echo "S7 threat candidate: cumulative S6 roster with both Structory and Explorify, plus the selected illager and Mowzie's Mobs layers."
 echo "Windy and Atmospheric Shaders are excluded from this profile; accepted Simple Clouds + DH baseline remains."
 echo "Create a fresh normal Overworld (not the development-only Skyforge preset) with seed 817304."
-echo "Review illager structure placement and variety, hostile density and faction overlap, travel/vehicle pressure, and any progression bypasses. Record structure names/coordinates and screenshots."
+echo "Review illager and Mowzie structure/encounter variety, hostile density and faction overlap, travel/vehicle pressure, and any progression bypasses. Record structure names/coordinates and screenshots. In particular, check Foliaath behavior and note Mowzie's four worldgen structure resources."
 echo "Use creative mode only to locate candidate structures; then switch to Survival and Normal difficulty to inspect the encounter. Do not tune loot, recipes, or spawn density."
 echo "Leave density, loot, recipe, and progression decisions for the whole-stack policy pass."
 echo "Review run directory: skyforge-neoforge-1211/$run_directory"
