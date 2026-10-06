@@ -455,7 +455,7 @@ check(requireNotNull(wbyS6Pins.getProperty("profile.base")) == "wby-s5-overworld
 val wbyS6SharedMods = listOf(
     "townsAndTowers", "cristelLib", "clothConfig", "yungsBetterDungeons", "yungsBetterMineshafts",
     "createStructuresArise", "anvilCore", "createAeronauticsStructures", "createAeronauticsDiscovery",
-    "aeronauticalExplorations", "radioTowersLite",
+    "aeronauticalExplorations", "radioTowersLite", "berezkaLibrary",
 )
 val wbyS6D07Mods = mapOf(
     "structory" to listOf("structory"),
