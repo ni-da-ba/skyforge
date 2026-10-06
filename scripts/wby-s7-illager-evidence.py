@@ -16,6 +16,16 @@ SET = re.compile(r"^data/([^/]+)/worldgen/structure_set/(.+)\.json$")
 S7_NAME_HINTS = (
     "friends", "foes", "pillage", "illager", "incontrol", "resourceful",
 )
+PILLAGE_ENTITY_IDS = (
+    "takesapillage:archer",
+    "takesapillage:legioner",
+    "takesapillage:skirmisher",
+)
+INVALID_LOCATE = re.compile(
+    r"unknown (?:or incomplete )?command|unknown structure|invalid structure|"
+    r"could not find that structure",
+    re.IGNORECASE,
+)
 
 
 def packet(packet_id: int, packet_type: int, body: str) -> bytes:
@@ -118,6 +128,7 @@ def main() -> int:
         if structures:
             locate_targets.append((jar.name, structures[0]))
 
+    accepted_locates = 0
     for jar_name, structure_id in locate_targets[:16]:
         command = (
             "execute in minecraft:overworld positioned 0 64 0 "
@@ -125,9 +136,41 @@ def main() -> int:
         )
         try:
             result = rcon(command, args.host, args.port, args.password)
-        except Exception as exc:  # Preserve every attempted sample, including command failures.
-            result = type(exc).__name__ + ": " + str(exc)
+        except Exception as exc:  # Preserve the failure in the evidence before stopping.
+            result = "ERROR " + type(exc).__name__ + ": " + str(exc)
         rows.append(["locate", jar_name, structure_id, "", "", "", result or "(empty RCON response)"])
+        if not result or result.startswith("ERROR ") or INVALID_LOCATE.search(result):
+            raise SystemExit(f"Live /locate did not recognize staged structure {structure_id}: {result}")
+        accepted_locates += 1
+
+    registered_entities = 0
+    for entity_id in PILLAGE_ENTITY_IDS:
+        try:
+            summon_result = rcon(
+                f"summon {entity_id} 0 80 0", args.host, args.port, args.password,
+            )
+            uuid_result = rcon(
+                f"execute if entity @e[type={entity_id},limit=1] "
+                f"run data get entity @e[type={entity_id},limit=1] UUID",
+                args.host, args.port, args.password,
+            )
+            evidence = f"summon={summon_result}; live_uuid={uuid_result}"
+            rows.append(["entity", entity_id.split(":")[0], entity_id, "", "", "", evidence])
+            if not summon_result or not uuid_result or "uuid" not in uuid_result.lower():
+                raise SystemExit(f"Live entity registration/spawn probe failed for {entity_id}: {evidence}")
+            registered_entities += 1
+        finally:
+            try:
+                rcon(f"kill @e[type={entity_id},limit=1]", args.host, args.port, args.password)
+            except Exception:
+                pass
+
+    if not accepted_locates:
+        raise SystemExit("No staged S7 structures were accepted by live /locate")
+    if registered_entities != len(PILLAGE_ENTITY_IDS):
+        raise SystemExit(
+            f"Only {registered_entities}/{len(PILLAGE_ENTITY_IDS)} It Takes a Pillage entities registered"
+        )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
@@ -135,9 +178,10 @@ def main() -> int:
         encoding="utf-8",
     )
     total_sets = sum(row[0] == "structure-set" for row in rows[1:])
-    print("WBY S7 STRUCTURE EVIDENCE: seed=" + args.seed
+    print("WBY S7 STRUCTURE/ENTITY EVIDENCE: seed=" + args.seed
           + " structure_sets=" + str(total_sets)
-          + " locate_attempts=" + str(min(len(locate_targets), 16))
+          + " registered_locates=" + str(accepted_locates)
+          + " spawned_pillage_entities=" + str(registered_entities)
           + " report=" + str(args.output))
     if total_sets == 0 or not locate_targets:
         raise SystemExit("No S7 structure-set metadata or custom structure IDs were found in staged candidate jars")
