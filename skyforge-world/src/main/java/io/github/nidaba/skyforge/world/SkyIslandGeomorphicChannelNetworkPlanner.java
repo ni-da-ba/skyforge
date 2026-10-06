@@ -85,7 +85,7 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
             SkyIslandSemanticChannelReachPlan semantics,
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority) {
-        return plan(descriptor, semantics, terrain, interiority, null);
+        return plan(descriptor, semantics, terrain, interiority, null, null);
     }
 
     private static SkyIslandGeomorphicChannelNetworkPlan plan(
