@@ -112,6 +112,47 @@ class SkyIslandGameScaleHydraulicCalibrationTest {
         assertEquals(full.get(2).bedElevationMeters(), subspan.getLast().bedElevationMeters(), 1.0e-12);
     }
 
+    @Test
+    void mapsLocalSubspanStationsIntoGlobalParentBedCoordinates() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 77L));
+        List<SkyIslandHydraulicGeometrySkeletonSample> parent = List.of(
+                sample(0.0, 0.0, 0.81),
+                sample(10.0, 1.0 / 3.0, 0.11),
+                sample(20.0, 2.0 / 3.0, 0.91),
+                sample(30.0, 1.0, 0.81));
+        SkyIslandGameScaleHydraulicCalibration calibration =
+                new SkyIslandGameScaleHydraulicCalibration(
+                        2.0, 4.0, 0.035, 0.25, 1.0, 9.81, 1.0e-8, 160, 1.0, 0.05);
+        List<SkyIslandHydraulicGeometrySkeletonSample> local = List.of(
+                rebase(parent.get(1), 0.0, 0.0),
+                rebase(parent.get(2), 10.0, 1.0));
+
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> full =
+                calibration.crossSections(descriptor, parent);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> subspan =
+                calibration.crossSections(descriptor, local, parent, 10.0);
+
+        assertEquals(full.get(1).chainageMeters(), subspan.getFirst().chainageMeters(), 0.0);
+        assertEquals(full.get(1).bedElevationMeters(), subspan.getFirst().bedElevationMeters(), 1.0e-12);
+        assertEquals(full.get(2).chainageMeters(), subspan.getLast().chainageMeters(), 0.0);
+        assertEquals(full.get(2).bedElevationMeters(), subspan.getLast().bedElevationMeters(), 1.0e-12);
+    }
+
+    private static SkyIslandHydraulicGeometrySkeletonSample rebase(
+            SkyIslandHydraulicGeometrySkeletonSample source,
+            double localArcLength,
+            double localFraction) {
+        return new SkyIslandHydraulicGeometrySkeletonSample(
+                source.position(),
+                localArcLength,
+                localFraction,
+                source.relativeDischarge(),
+                source.bankfullHalfWidth(),
+                source.waterDepthPotential(),
+                source.terrainElevation());
+    }
+
     private static SkyIslandHydraulicGeometrySkeletonSample sample(
             double arcLength, double stationFraction, double terrainElevation) {
         return new SkyIslandHydraulicGeometrySkeletonSample(
