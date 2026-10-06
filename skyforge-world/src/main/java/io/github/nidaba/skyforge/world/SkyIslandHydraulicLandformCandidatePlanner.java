@@ -228,8 +228,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 target = centerTerrain
                         + (originalTerrain - centerTerrain) * smoothstep(recovery);
             }
-            double maximumCut = Math.max(0.0, originalTerrain - target);
-            if (maximumCut <= EPSILON) {
+            double maximumLateralCut = Math.max(0.0, centerTerrain - bedPotential);
+            target = Math.max(target, originalTerrain - maximumLateralCut);
+            if (originalTerrain - target <= EPSILON) {
                 return null;
             }
             return new CandidateSection(reach, Math.min(originalTerrain, clamp01(target)));
