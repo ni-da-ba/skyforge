@@ -12,12 +12,8 @@ on:
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
-      - "scripts/wby-s6-diagnostic-launch.sh"
-      - "scripts/wby-s6-runtime-acceptance.sh"
-      - "scripts/wby-s6-structure-evidence.py"
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
-      - "scripts/wby-s7-illager-evidence.py"
       - "scripts/wby-s7-illager-evidence.py"
   pull_request:
     paths:
@@ -35,6 +31,7 @@ on:
       - "skyforge-neoforge-1211/wby-wave1*.properties"
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
+      - "scripts/wby-s7-illager-evidence.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
@@ -181,6 +178,7 @@ jobs:
             wby-s7-*.log
             wby-s7-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
+            a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
             s7-production-server/kubejs/data/**/*.json
