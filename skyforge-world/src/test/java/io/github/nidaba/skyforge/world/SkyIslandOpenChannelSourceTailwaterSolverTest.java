@@ -14,6 +14,45 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
                     ROUGHNESS, 1.0, 9.81, 1.0e-8, 160);
 
     @Test
+    void propagatesSourceNormalDepthDownstreamInBothSupportedRegimes() {
+        double subcriticalDischarge = 2.0;
+        double subcriticalWidth = 4.0;
+        double mildSlope = 0.001;
+        double subcriticalNormalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                subcriticalDischarge, ROUGHNESS, mildSlope, subcriticalWidth, 0.0);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> mildReach = List.of(
+                section(0.0, 100.0, subcriticalDischarge, subcriticalWidth),
+                section(50.0, 100.0 - mildSlope * 50.0, subcriticalDischarge, subcriticalWidth),
+                section(100.0, 100.0 - mildSlope * 100.0, subcriticalDischarge, subcriticalWidth));
+
+        var subcritical = SkyIslandOpenChannelOrdinarySpanSolver
+                .solveSourceNormalDepthDownstream(mildReach, PARAMETERS);
+
+        assertTrue(subcritical.points().stream().allMatch(point -> point.froudeNumber() < 1.0));
+        assertTrue(subcritical.points().stream().allMatch(
+                point -> Math.abs(point.depthMeters() - subcriticalNormalDepth) < 1.0e-6));
+        assertTrue(subcritical.maximumEnergyResidualMeters() < 1.0e-7);
+
+        double supercriticalDischarge = 10.0;
+        double supercriticalWidth = 3.0;
+        double steepSlope = 0.04;
+        double supercriticalNormalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                supercriticalDischarge, ROUGHNESS, steepSlope, supercriticalWidth, 0.0);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> steepReach = List.of(
+                section(0.0, 20.0, supercriticalDischarge, supercriticalWidth),
+                section(10.0, 20.0 - steepSlope * 10.0, supercriticalDischarge, supercriticalWidth),
+                section(20.0, 20.0 - steepSlope * 20.0, supercriticalDischarge, supercriticalWidth));
+
+        var supercritical = SkyIslandOpenChannelOrdinarySpanSolver
+                .solveSourceNormalDepthDownstream(steepReach, PARAMETERS);
+
+        assertTrue(supercritical.points().stream().allMatch(point -> point.froudeNumber() > 1.0));
+        assertTrue(supercritical.points().stream().allMatch(
+                point -> Math.abs(point.depthMeters() - supercriticalNormalDepth) < 1.0e-6));
+        assertTrue(supercritical.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
     void checksSubcriticalTailwaterProfileAgainstSourceNormalDepth() {
         double discharge = 2.0;
         double width = 4.0;
