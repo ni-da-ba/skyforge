@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.world;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
@@ -48,7 +49,7 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> upstream =
                 List.copyOf(upstreamSections);
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chute =
-                List.copyOf(cascadeSections);
+                new ArrayList<>(cascadeSections);
         if (upstream.size() < 3) {
             throw new IllegalArgumentException(
                     "source-controlled reach requires at least three cross sections");
@@ -56,10 +57,17 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
         if (chute.size() < 2) {
             throw new IllegalArgumentException("CASCADE chute requires at least two cross sections");
         }
-        if (!upstream.getLast().equals(chute.getFirst())) {
+        SkyIslandGraduallyVariedFlowSolver.CrossSection sourceLip = upstream.getLast();
+        SkyIslandGraduallyVariedFlowSolver.CrossSection chuteLip = chute.getFirst();
+        if (!sameNumericalLip(sourceLip, chuteLip)) {
             throw new IllegalArgumentException(
-                    "source reach and CASCADE chute must share the exact lip cross-section");
+                    "source reach and CASCADE chute lip sections differ beyond numerical tolerance"
+                            + ";sourceLip=" + sourceLip + ";chuteLip=" + chuteLip);
         }
+        // The parent reach owns the shared section. Once independent interpolation has been
+        // shown to represent the same physical lip within floating-point tolerance, use one
+        // canonical section so both hydraulic marches close at exactly the same state geometry.
+        chute.set(0, sourceLip);
         if (!Double.isFinite(sourceNormalDepthMeters) || sourceNormalDepthMeters <= 0.0) {
             throw new IllegalArgumentException("source normal depth must be finite and positive");
         }
@@ -101,6 +109,26 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
         SkyIslandGraduallyVariedFlowSolver.Result cascade =
                 solveFromCriticalInlet(chute, parameters);
         return new SourceCascadeResult(incoming, cascade, sourceNormalDepthMeters, true);
+    }
+
+    private static boolean sameNumericalLip(
+            SkyIslandGraduallyVariedFlowSolver.CrossSection first,
+            SkyIslandGraduallyVariedFlowSolver.CrossSection second) {
+        return numericallyEqual(first.chainageMeters(), second.chainageMeters())
+                && numericallyEqual(first.bedElevationMeters(), second.bedElevationMeters())
+                && numericallyEqual(
+                        first.dischargeCubicMetersPerSecond(),
+                        second.dischargeCubicMetersPerSecond())
+                && numericallyEqual(first.bottomWidthMeters(), second.bottomWidthMeters())
+                && numericallyEqual(
+                        first.sideSlopeHorizontalToVertical(),
+                        second.sideSlopeHorizontalToVertical());
+    }
+
+    private static boolean numericallyEqual(double first, double second) {
+        double scale = Math.max(Math.abs(first), Math.abs(second));
+        double tolerance = Math.max(1.0e-8, 1.0e-8 * scale);
+        return Math.abs(first - second) <= tolerance;
     }
 
     /**
