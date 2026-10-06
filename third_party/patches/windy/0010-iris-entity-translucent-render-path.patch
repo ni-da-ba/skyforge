@@ -1,0 +1,42 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+--- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
++++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+@@ -8,8 +8,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.player.LocalPlayer;
+-import net.minecraft.client.renderer.GameRenderer;
+-import net.minecraft.client.renderer.RenderStateShard;
++import net.minecraft.client.renderer.LightTexture;
++import net.minecraft.client.renderer.OverlayTexture;
+ import net.minecraft.client.renderer.RenderType;
+ import net.minecraft.core.BlockPos;
+ import net.minecraft.resources.ResourceLocation;
+@@ -37,22 +37,7 @@ public final class WindRibbons {
+     private static final ResourceLocation RIBBON_TEX = ResourceLocation.parse("windy:textures/ribbon.png");
+ 
+     /** Textured, translucent, double-sided, depth-tested but not depth-writing. */
+-    private static final RenderType RIBBON = RenderType.create(
+-            "windy:ribbon",
+-            DefaultVertexFormat.POSITION_TEX_COLOR,
+-            VertexFormat.Mode.QUADS,
+-            4096,
+-            false, false,
+-            RenderType.CompositeState.builder()
+-                    .setShaderState(new RenderStateShard.ShaderStateShard(GameRenderer::getPositionTexColorShader))
+-                    .setTextureState(new RenderStateShard.TextureStateShard(RIBBON_TEX, true, false))
+-                    .setTransparencyState(RenderStateShard.TRANSLUCENT_TRANSPARENCY)
+-                    .setCullState(RenderStateShard.NO_CULL)
+-                    .setWriteMaskState(RenderStateShard.COLOR_WRITE)
+-                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
+-                    .createCompositeState(false));
++    private static final RenderType RIBBON = RenderType.entityTranslucent(RIBBON_TEX);
+@@ -210,7 +195,7 @@ public final class WindRibbons {
+         Tesselator tess = Tesselator.getInstance();
+-        BufferBuilder bb = tess.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
++        BufferBuilder bb = tess.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.NEW_ENTITY);
+@@ -285,6 +270,10 @@ public final class WindRibbons {
+         bb.addVertex(pose, (float) (p.x - cam.x), (float) (p.y - cam.y), (float) (p.z - cam.z))
+                 .setUv(u, v).setColor(235, 245, 252, a);
++                .setOverlay(OverlayTexture.NO_OVERLAY)
++                .setLight(LightTexture.FULL_BRIGHT)
++                .setNormal(0.0F, 1.0F, 0.0F);
+ }
