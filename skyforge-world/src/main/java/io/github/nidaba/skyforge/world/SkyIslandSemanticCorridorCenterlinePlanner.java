@@ -1106,6 +1106,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandLocalPosition candidate,
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        if (headEnvelopeGap == null) {
+            return new LocalHeadGapScore(0.0, 0.0);
+        }
         List<SkyIslandLocalPosition> candidatePoints = new ArrayList<>(points);
         candidatePoints.set(changedIndex, candidate);
         double[] candidateStations = stations(candidatePoints);
