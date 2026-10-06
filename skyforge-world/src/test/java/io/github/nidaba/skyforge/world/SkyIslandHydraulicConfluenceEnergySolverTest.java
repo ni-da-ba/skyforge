@@ -40,6 +40,31 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
     }
 
     @Test
+    void weightsIncomingTotalHeadByBranchDischarge() {
+        List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.0, 1.0), 0.8),
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.4, 2.0), 1.2));
+
+        var result = SkyIslandHydraulicConfluenceEnergySolver.solve(
+                incoming, section(2.0, 0.0, 3.0), PARAMETERS, 0.1);
+
+        double firstHead = totalHead(incoming.get(0));
+        double secondHead = totalHead(incoming.get(1));
+        double dischargeWeightedHead = (firstHead + 2.0 * secondHead) / 3.0;
+        assertEquals(
+                dischargeWeightedHead,
+                result.dischargeWeightedIncomingTotalHeadMeters(),
+                1.0e-12);
+        assertTrue(
+                Math.abs(result.dischargeWeightedIncomingTotalHeadMeters()
+                                - 0.5 * (firstHead + secondHead))
+                        > 1.0e-3);
+        assertTrue(result.energyResidualMeters() < 1.0e-6);
+    }
+
+    @Test
     void zeroLossCoefficientProducesNoJunctionLoss() {
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
@@ -129,6 +154,18 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
                 IllegalStateException.class,
                 () -> SkyIslandHydraulicConfluenceEnergySolver.solve(
                         incoming, section(2.0, 1.0, 0.2), PARAMETERS, 0.1));
+    }
+
+    private static double totalHead(
+            SkyIslandHydraulicConfluenceEnergySolver.IncomingState state) {
+        var section = state.section();
+        double area = state.depthMeters()
+                * (section.bottomWidthMeters()
+                        + section.sideSlopeHorizontalToVertical() * state.depthMeters());
+        double velocity = section.dischargeCubicMetersPerSecond() / area;
+        return section.bedElevationMeters() + state.depthMeters()
+                + PARAMETERS.energyCoefficient() * velocity * velocity
+                        / (2.0 * PARAMETERS.gravityMetersPerSecondSquared());
     }
 
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(
