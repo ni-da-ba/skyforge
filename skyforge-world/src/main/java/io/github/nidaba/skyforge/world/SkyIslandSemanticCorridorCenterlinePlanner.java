@@ -138,7 +138,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         int globalModeSearchStages = 0;
         double globalModeSearchMaximumBudget = 0.0;
         int relaxationSweeps = 0;
-        if (headEnvelopeGap != null
+        if ((headEnvelopeGap != null || longitudinalHeadFeasibility != null)
                 && (best.maximumHeadEnvelopeGap() > EPSILON
                         || best.maximumLocalEnvelopeConflict() > EPSILON
                         || best.maximumLongitudinalGradeConflict() > EPSILON
