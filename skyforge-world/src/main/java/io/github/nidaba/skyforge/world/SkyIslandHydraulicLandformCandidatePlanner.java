@@ -43,7 +43,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 String message = failure.getMessage();
                 if (message == null
                         || !message.startsWith(
-                                "bounded channel-bed candidate is infeasible under terrain, incision, and bed-grade constraints")) {
+                                "bounded channel-bed candidate is infeasible under terrain, incision, local-grade, and reach-trend constraints")) {
                     throw failure;
                 }
                 rejectedResolutions.add(
@@ -127,25 +127,32 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         }
 
         List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints =
-                new ArrayList<>(count - 1);
+                new ArrayList<>(count);
         for (int i = 0; i + 1 < count; i++) {
             SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = rawSections.get(i);
             SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = rawSections.get(i + 1);
             double spacing = downstream.chainageMeters() - upstream.chainageMeters();
-            double upstreamDepth = calibration.bedIncisionScale()
-                    * reach.samples().get(i).waterDepthPotential() * reliefMeters;
-            double downstreamDepth = calibration.bedIncisionScale()
-                    * reach.samples().get(i + 1).waterDepthPotential() * reliefMeters;
-            // Uniform-flow friction slope is a hydraulic reference state, not a hard lower
-            // bound on geometric bed slope. Gradually varied flow can close on milder slopes
-            // through backwater; let the physical solver determine whether this candidate works.
+            double localBedRelief =
+                    calibration.maximumDownstreamBedSlope() * spacing;
+            // Preserve a downstream-lowering trend across the semantic reach, but do not make
+            // every fine cross section a one-way step. Local bed reversals are admissible within
+            // the same game-scale grade envelope; the candidate target and hydraulic solve decide
+            // whether those local forms are useful and physically passable.
             gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
-                    "bed-grade:" + i,
+                    "local-bed-grade:" + i,
                     i,
                     i + 1,
-                    0.0,
-                    calibration.maximumDownstreamBedSlope() * spacing));
+                    -localBedRelief,
+                    localBedRelief));
         }
+        // A reach-scale trend is the geometric invariant; pointwise monotonicity is not. Bound
+        // the total rise by the available relief so this remains a finite, solver-native constraint.
+        gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                "reach-bed-trend",
+                0,
+                count - 1,
+                0.0,
+                reliefMeters));
 
         SkyIslandHydraulicQpResult qp =
                 SkyIslandHydraulicBoundedQpSolver.solve(
