@@ -82,7 +82,7 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
     @Test
     void isInvariantToUniformVerticalDatumTranslation() {
         var preciseParameters = new SkyIslandGraduallyVariedFlowSolver.Parameters(
-                ROUGHNESS, 1.0, 9.81, 1.0e-10, 200);
+                0.035, 1.0, 9.81, 1.0e-10, 200);
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
                         section(0.0, 0.0, 1.0), 1.0),
