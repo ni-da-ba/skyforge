@@ -14,6 +14,18 @@ case "$variant" in
 esac
 
 run_directory="run-wby-s6-$variant"
+run_path="skyforge-neoforge-1211/$run_directory"
+whale_retexture="$run_path/resourcepacks/Sky-Whale-Retexture.zip"
+if [[ ! -f "$whale_retexture" ]]; then
+  cat >&2 <<EOF
+Sky Whale Retexture is required for any S6 use of the whales:
+  $whale_retexture
+Download it from https://modrinth.com/resourcepack/sky-whale-retexture
+and save the ZIP there. Enable it in Options > Resource Packs after launch.
+The resource pack is a local review dependency and is not bundled or redistributed.
+EOF
+  exit 2
+fi
 a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
 for jar in \
   "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \
@@ -99,9 +111,10 @@ set +e
 status=${PIPESTATUS[0]}
 set -e
 
-run_path="skyforge-neoforge-1211/$run_directory"
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
-test ! -f "$run_path/mods/"'*.jar' || find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
+if [[ -d "$run_path/mods" ]]; then
+  find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
+fi
 echo "Send this diagnostics folder if anything failed: $bundle"
 exit "$status"
