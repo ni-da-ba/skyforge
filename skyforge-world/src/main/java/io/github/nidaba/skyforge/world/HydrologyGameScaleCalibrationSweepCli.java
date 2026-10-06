@@ -368,21 +368,55 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 continue;
             }
             try {
-                List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples =
+                List<SkyIslandHydraulicGeometrySkeletonSample> parentSamples =
                         parentReachSamples(plan, span);
-                SkyIslandOpenChannelOrdinarySpanSolver.Outcome solved =
-                        SkyIslandOpenChannelOrdinarySpanSolver.solve(
-                                descriptor,
-                                span,
-                                terrain,
-                                policy,
-                                planningSpacing,
-                                calibration,
-                                terminalFates,
-                                parentReachSamples);
+                SkyIslandHydraulicCascadeTransitionSite sourceCascade =
+                        sourceControlledCascadeAtSpan(plan, span);
+                SkyIslandOpenChannelOrdinarySpanSolver.Outcome solved;
+                double cascadeEnergyResidual = 0.0;
+                if (sourceCascade == null) {
+                    solved = SkyIslandOpenChannelOrdinarySpanSolver.solve(
+                            descriptor,
+                            span,
+                            terrain,
+                            policy,
+                            planningSpacing,
+                            calibration,
+                            terminalFates,
+                            parentSamples);
+                } else {
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sourceSections =
+                            calibration.crossSections(descriptor, span.samples(), parentSamples);
+                    List<SkyIslandHydraulicGeometrySkeletonSample> chuteSamples =
+                            cascadeSamples(parentSamples, sourceCascade);
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chuteSections =
+                            calibration.crossSections(descriptor, chuteSamples, parentSamples);
+                    double sourceNormalDepth =
+                            SkyIslandOpenChannelOrdinarySpanSolver.sourceNormalDepthMeters(
+                                    sourceSections, calibration.solverParameters());
+                    SkyIslandHydraulicCascadeTransitionSolver.SourceCascadeResult coupled =
+                            SkyIslandHydraulicCascadeTransitionSolver.solveSourceControlledCascade(
+                                    sourceSections,
+                                    chuteSections,
+                                    sourceNormalDepth,
+                                    calibration.solverParameters());
+                    cascadeEnergyResidual =
+                            coupled.cascadeProfile().maximumEnergyResidualMeters();
+                    solved = SkyIslandOpenChannelOrdinarySpanSolver.qualifyHydraulicProfile(
+                            descriptor,
+                            span,
+                            terrain,
+                            policy,
+                            planningSpacing,
+                            calibration,
+                            coupled.upstreamProfile(),
+                            parentSamples);
+                }
                 maxEnergyResidual = Math.max(
                         maxEnergyResidual,
-                        solved.hydraulicProfile().maximumEnergyResidualMeters());
+                        Math.max(
+                                solved.hydraulicProfile().maximumEnergyResidualMeters(),
+                                cascadeEnergyResidual));
                 if (solved.upstreamStageResidualMeters().isPresent()) {
                     maxUpstreamResidual = Math.max(
                             maxUpstreamResidual,
@@ -393,7 +427,9 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                         + ",upstreamStageResidual="
                         + solved.upstreamStageResidualMeters().map(String::valueOf).orElse("none")
                         + ",energyResidual="
-                        + solved.hydraulicProfile().maximumEnergyResidualMeters();
+                        + Math.max(
+                                solved.hydraulicProfile().maximumEnergyResidualMeters(),
+                                cascadeEnergyResidual);
                 if (!solved.geomorphicallyQualified()) {
                     rejected++;
                     result = "D2_REJECTED";
@@ -449,6 +485,41 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                 invalidGeometry,
                 maxEnergyResidual,
                 maxUpstreamResidual);
+    }
+
+    private static SkyIslandHydraulicCascadeTransitionSite sourceControlledCascadeAtSpan(
+            SkyIslandOrdinarySpanPlan plan,
+            SkyIslandOrdinaryHydraulicSpan span) {
+        if (span.upstreamBoundary().status() != SkyIslandOrdinarySpanBoundaryStatus.FREE
+                || span.downstreamBoundary().status()
+                        != SkyIslandOrdinarySpanBoundaryStatus.CASCADE_CRITICAL_CONTROL) {
+            return null;
+        }
+        SkyIslandHydraulicGeometrySkeletonPlan skeleton =
+                plan.cascadePlan().transitionGeometry().topology().skeletonPlan();
+        for (SkyIslandCascadeHeadCompatibilityOutcome cascade : plan.cascadePlan().outcomes()) {
+            SkyIslandHydraulicCascadeTransitionSite site = cascade.geometry().transitionSite();
+            if (site.reachStartCellIndex() != span.parentReachStartCellIndex()
+                    || site.reachEndCellIndex() != span.parentReachEndCellIndex()
+                    || Math.abs(span.parentEndArcLength()
+                            - site.upstreamBoundary().arcLength()) > 1.0e-8) {
+                continue;
+            }
+            boolean jointlyOwned = plan.jointPlan().outcomes().stream()
+                    .anyMatch(joint -> joint.cascade().equals(cascade.geometry()));
+            boolean interior = !jointlyOwned && skeleton.reaches().stream()
+                    .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex()
+                                    == site.reachStartCellIndex()
+                            && reach.geomorphicRoute().semanticReach().endCellIndex()
+                                    == site.reachEndCellIndex())
+                    .anyMatch(reach -> site.firstProfileIndex() > 0
+                            && site.lastProfileIndexExclusive()
+                                    < reach.geomorphicRoute().semanticReach().profiles().size());
+            if (interior) {
+                return site;
+            }
+        }
+        return null;
     }
 
     private static void addDiagnostic(
