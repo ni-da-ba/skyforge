@@ -225,12 +225,33 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
             SkyIslandGameScaleHydraulicCalibration calibration,
             Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates,
             List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples) {
+        return solve(
+                descriptor, span, terrain, policy, planningSpacing, calibration,
+                terminalFates, parentReachSamples,
+                calibration.crossSections(descriptor, parentReachSamples));
+    }
+
+    /**
+     * Solves against the exact bed profile owned by a coupled candidate, interpolating that
+     * parent profile at the ordinary span's stations while retaining local section geometry.
+     */
+    static Outcome solve(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy,
+            double planningSpacing,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates,
+            List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples,
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> candidateParentSections) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(span, "span");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(policy, "policy");
         Objects.requireNonNull(calibration, "calibration");
         Objects.requireNonNull(terminalFates, "terminalFates");
+        Objects.requireNonNull(candidateParentSections, "candidateParentSections");
         if (span.boundaryDeferred()) {
             throw new IllegalArgumentException("cannot solve an ordinary span with deferred boundaries");
         }
@@ -244,11 +265,75 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                         span.samples(),
                         parentReachSamples,
                         span.parentStartArcLength());
+        sections = withCandidateParentBed(sections, candidateParentSections);
         SkyIslandGraduallyVariedFlowSolver.Result hydraulicProfile =
                 solveHydraulics(descriptor, span, sections, calibration, terminalFates);
         return qualifyHydraulicProfile(
                 descriptor, span, terrain, policy, planningSpacing, calibration,
                 hydraulicProfile, parentReachSamples);
+    }
+
+    private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> withCandidateParentBed(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> spanSections,
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> candidateParentSections) {
+        if (candidateParentSections.size() < 2) {
+            throw new IllegalArgumentException("candidate parent bed requires at least two stations");
+        }
+        for (int i = 1; i < candidateParentSections.size(); i++) {
+            if (!(candidateParentSections.get(i).chainageMeters()
+                    > candidateParentSections.get(i - 1).chainageMeters())) {
+                throw new IllegalArgumentException(
+                        "candidate parent bed chainage must increase strictly downstream");
+            }
+        }
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> mapped =
+                new ArrayList<>(spanSections.size());
+        for (SkyIslandGraduallyVariedFlowSolver.CrossSection section : spanSections) {
+            double chainage = section.chainageMeters();
+            SkyIslandGraduallyVariedFlowSolver.CrossSection first =
+                    candidateParentSections.getFirst();
+            SkyIslandGraduallyVariedFlowSolver.CrossSection last =
+                    candidateParentSections.getLast();
+            double tolerance = 1.0e-9 * Math.max(
+                    1.0, Math.max(Math.abs(first.chainageMeters()), Math.abs(last.chainageMeters())));
+            if (chainage < first.chainageMeters() - tolerance
+                    || chainage > last.chainageMeters() + tolerance) {
+                throw new IllegalArgumentException(
+                        "ordinary-span station lies outside its coupled candidate parent bed");
+            }
+            double bed;
+            if (chainage <= first.chainageMeters() + tolerance) {
+                bed = first.bedElevationMeters();
+            } else if (chainage >= last.chainageMeters() - tolerance) {
+                bed = last.bedElevationMeters();
+            } else {
+                bed = Double.NaN;
+                for (int i = 0; i + 1 < candidateParentSections.size(); i++) {
+                    SkyIslandGraduallyVariedFlowSolver.CrossSection upstream =
+                            candidateParentSections.get(i);
+                    SkyIslandGraduallyVariedFlowSolver.CrossSection downstream =
+                            candidateParentSections.get(i + 1);
+                    if (chainage <= downstream.chainageMeters()) {
+                        double fraction = (chainage - upstream.chainageMeters())
+                                / (downstream.chainageMeters() - upstream.chainageMeters());
+                        bed = upstream.bedElevationMeters()
+                                + fraction * (downstream.bedElevationMeters()
+                                        - upstream.bedElevationMeters());
+                        break;
+                    }
+                }
+                if (!Double.isFinite(bed)) {
+                    throw new IllegalStateException("candidate parent bed interpolation failed");
+                }
+            }
+            mapped.add(new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                    section.chainageMeters(),
+                    bed,
+                    section.dischargeCubicMetersPerSecond(),
+                    section.bottomWidthMeters(),
+                    section.sideSlopeHorizontalToVertical()));
+        }
+        return List.copyOf(mapped);
     }
 
     static Outcome qualifyHydraulicProfile(
