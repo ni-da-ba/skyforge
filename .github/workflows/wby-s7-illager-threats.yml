@@ -5,7 +5,6 @@ on:
     branches:
       - "wby/s7-illager-threats"
     paths:
-      - ".github/workflows/wby-s6-structures-civilization.yml"
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
@@ -18,11 +17,9 @@ on:
       - "scripts/wby-s7-illager-evidence.py"
   pull_request:
     paths:
-      - ".github/workflows/wby-s7-structures-civilization.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s4-life-building.properties"
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
-      - "skyforge-neoforge-1211/wby-s7-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s0-5-*.properties"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
@@ -38,7 +35,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: wby-s7-structures-civilization-${{ github.event.pull_request.head.ref || github.ref_name }}
+  group: wby-s7-illager-threats-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
@@ -91,7 +88,6 @@ jobs:
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
-            -PwbyS7IllagerThreats=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true \
             --no-configuration-cache | tee "wby-s7-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s7-resolution.log"
@@ -116,7 +112,7 @@ jobs:
             -PwbyS1RunDirectory=run-wby-s7-join-client
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-server
-          echo "WBY S6 all-side profile staging PASS"
+          echo "WBY S7 all-side profile staging PASS"
 
       - name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
@@ -148,9 +144,9 @@ jobs:
           printf 'eula=true\n' > "$server_dir/eula.txt"
           find skyforge-neoforge-1211/run-wby-s7-server/server-mods -maxdepth 1 -type f -printf '%f\\n' \
             | grep -Ei 'yungs|structures|towns|radio|aeronautical|explorify|structory' \
-            > wby-s7-staged-structure-jars.txt
+            > wby-s7-staged-threat-jars.txt
           test -s wby-s7-staged-structure-jars.txt
-          echo "WBY S6 NeoForge server staging PASS"
+          echo "WBY S7 NeoForge server staging PASS"
 
       - name: Prepare the pinned production-client launcher
         shell: bash
@@ -172,11 +168,11 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-s7-structures-civilization-resolution
+          name: wby-s7-illager-threats-resolution
           path: |
             wby-s7-*.log
             wby-s7-staged-structure-jars.txt
-            wby-s7-structure-evidence.tsv
+            wby-s7-illager-evidence.tsv
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
             s7-production-server/kubejs/data/**/*.json
