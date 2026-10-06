@@ -11,7 +11,97 @@ import java.util.Objects;
  * model a hydraulic jump or infer an outlet; callers must fail closed when the reach needs either.
  */
 public final class SkyIslandHydraulicCascadeTransitionSolver {
+    /** Physical profiles for a source-controlled reach joined to its owned CASCADE chute. */
+    public record SourceCascadeResult(
+            SkyIslandGraduallyVariedFlowSolver.Result upstreamProfile,
+            SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile,
+            double sourceNormalDepthMeters,
+            boolean criticalControlAtCascadeInlet) {
+        public SourceCascadeResult {
+            upstreamProfile = Objects.requireNonNull(upstreamProfile, "upstreamProfile");
+            cascadeProfile = Objects.requireNonNull(cascadeProfile, "cascadeProfile");
+            if (!Double.isFinite(sourceNormalDepthMeters) || sourceNormalDepthMeters <= 0.0) {
+                throw new IllegalArgumentException("source normal depth must be finite and positive");
+            }
+        }
+    }
+
     private SkyIslandHydraulicCascadeTransitionSolver() {}
+
+    /**
+     * Closes one source-controlled ordinary reach into its explicitly owned cascade chute.
+     *
+     * <p>Subcritical source flow is solved upstream from the cascade's critical inlet, then checked
+     * against the source normal-depth boundary. Supercritical source flow is instead marched
+     * downstream to the lip and continued through the chute without imposing a critical inlet.
+     * Near-critical flow, an incompatible subcritical source boundary, or any regime change that
+     * needs a jump fails closed. The lip cross-section must be shared exactly by both profiles.
+     */
+    public static SourceCascadeResult solveSourceControlledCascade(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> upstreamSections,
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections,
+            double sourceNormalDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(upstreamSections, "upstreamSections");
+        Objects.requireNonNull(cascadeSections, "cascadeSections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> upstream =
+                List.copyOf(upstreamSections);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chute =
+                List.copyOf(cascadeSections);
+        if (upstream.size() < 3) {
+            throw new IllegalArgumentException(
+                    "source-controlled reach requires at least three cross sections");
+        }
+        if (chute.size() < 2) {
+            throw new IllegalArgumentException("CASCADE chute requires at least two cross sections");
+        }
+        if (!upstream.getLast().equals(chute.getFirst())) {
+            throw new IllegalArgumentException(
+                    "source reach and CASCADE chute must share the exact lip cross-section");
+        }
+        if (!Double.isFinite(sourceNormalDepthMeters) || sourceNormalDepthMeters <= 0.0) {
+            throw new IllegalArgumentException("source normal depth must be finite and positive");
+        }
+
+        SkyIslandGraduallyVariedFlowSolver.CrossSection source = upstream.getFirst();
+        double sourceFroude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                source, sourceNormalDepthMeters, parameters);
+        double regimeMargin = Math.max(1.0e-6, 10.0 * parameters.relativeTolerance());
+        if (sourceFroude > 1.0 + regimeMargin) {
+            SkyIslandGraduallyVariedFlowSolver.Result incoming =
+                    SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                            upstream, sourceNormalDepthMeters, parameters);
+            double lipDepth = incoming.points().getLast().depthMeters();
+            SkyIslandGraduallyVariedFlowSolver.Result cascade =
+                    solveFromSupercriticalInlet(chute, lipDepth, parameters);
+            return new SourceCascadeResult(
+                    incoming, cascade, sourceNormalDepthMeters, false);
+        }
+        if (sourceFroude >= 1.0 - regimeMargin) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary is near critical; CASCADE regime is unresolved");
+        }
+
+        SkyIslandGraduallyVariedFlowSolver.Result incoming =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        upstream, parameters);
+        double solvedSourceDepth = incoming.points().getFirst().depthMeters();
+        double sourceDepthTolerance = Math.max(
+                1.0e-6,
+                100.0 * parameters.relativeTolerance()
+                        * Math.max(1.0, sourceNormalDepthMeters));
+        if (Math.abs(solvedSourceDepth - sourceNormalDepthMeters) > sourceDepthTolerance) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary conflicts with cascade critical control"
+                            + "; normalDepthMeters=" + sourceNormalDepthMeters
+                            + "; solvedSourceDepthMeters=" + solvedSourceDepth
+                            + "; toleranceMeters=" + sourceDepthTolerance);
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result cascade =
+                solveFromCriticalInlet(chute, parameters);
+        return new SourceCascadeResult(incoming, cascade, sourceNormalDepthMeters, true);
+    }
 
     /**
      * Continues an already-supercritical incoming state through a finite cascade chute.
