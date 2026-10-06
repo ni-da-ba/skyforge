@@ -74,7 +74,7 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
     }
 
     @Test
-    void joinsSupercriticalNormalDepthSourceToExplicitSubcriticalTailwater() {
+    void rejectsSupercriticalSourceWhenTailwaterCannotSupportAMatchedJump() {
         double discharge = 10.0;
         double width = 3.0;
         double bedSlope = 0.04;
@@ -89,20 +89,9 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
         assertTrue(SkyIslandGraduallyVariedFlowSolver.froudeNumber(
                 sections.getFirst(), normalDepth, PARAMETERS) > 1.0);
 
-        var criticalTailwaterProfile =
-                SkyIslandHydraulicJumpProfileSolver.solve(
-                        sections, normalDepth, PARAMETERS);
-        double tailwaterDepth =
-                criticalTailwaterProfile.points().getLast().depthMeters() + 1.0e-4;
-
-        var profile =
-                SkyIslandOpenChannelOrdinarySpanSolver.solveSourceNormalDepthToTailwater(
-                        sections, tailwaterDepth, PARAMETERS);
-
-        assertTrue(profile.points().getFirst().froudeNumber() > 1.0);
-        assertTrue(profile.points().getLast().froudeNumber() < 1.0);
-        assertEquals(tailwaterDepth, profile.points().getLast().depthMeters(), 1.0e-12);
-        assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-4);
+        assertThrows(IllegalStateException.class,
+                () -> SkyIslandOpenChannelOrdinarySpanSolver
+                        .solveSourceNormalDepthToTailwater(sections, 0.01, PARAMETERS));
     }
 
     @Test
