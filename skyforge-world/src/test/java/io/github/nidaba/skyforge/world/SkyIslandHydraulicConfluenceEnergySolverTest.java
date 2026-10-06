@@ -104,6 +104,20 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
     }
 
     @Test
+    void rejectsSupercriticalIncomingBranchWithoutMomentumMatchedJunctionTreatment() {
+        List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.0, 1.0), 0.05),
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.0, 1.0), 1.0));
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandHydraulicConfluenceEnergySolver.solve(
+                        incoming, section(2.0, 0.0, 2.0), PARAMETERS, 0.1));
+    }
+
+    @Test
     void rejectsJunctionWithoutASubcriticalEnergyRoot() {
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
