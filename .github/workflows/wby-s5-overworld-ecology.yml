@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ni-da-ba/skyforge
-          ref: 14c2ed90780515ebabdec396d8e6d77e20fa9a24
+          ref: c97a1484eb8c89782469035c240caf7f9d6fded0
           path: windy-patches
           persist-credentials: false
 
@@ -108,6 +108,8 @@ jobs:
             git -C windy-upstream apply --check "$patch_path"
             git -C windy-upstream apply "$patch_path"
           done
+          python3 windy-patches/third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'RenderType.entityTranslucent(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           git -C windy-upstream diff --check
           (cd windy-upstream && SKYFORGE_A4MC_API_JAR="$api_jar" bash ./gradlew assemble --no-daemon --no-configuration-cache)
           windy_jar="$GITHUB_WORKSPACE/windy-upstream/build/libs/windy-1.2.0.jar"
@@ -119,7 +121,7 @@ jobs:
           cat > "$GITHUB_WORKSPACE/wind-review-artifact/NOTICE.txt" <<'EOF'
           Windy 1.2.0 review build
           Built from falling-colud/windy source commit 3ba5523481d22179cdf0fa7dab0743210f136bb8.
-          Skyforge A4MC-authority patch series: ni-da-ba/skyforge PR #1464 head 14c2ed90780515ebabdec396d8e6d77e20fa9a24.
+          Skyforge A4MC-authority patches plus asserted entity-translucent render experiment: ni-da-ba/skyforge PR #1464 head c97a1484eb8c89782469035c240caf7f9d6fded0.
           This source-built jar is supplied only for private integration review. It is not an approved modpack/release artifact.
           The accompanying LICENSE is the license from the exact pinned upstream source commit.
           EOF
