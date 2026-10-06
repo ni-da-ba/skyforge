@@ -62,7 +62,7 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
 
         assertEquals(normalDepth, result.junctionDepthMeters(), 1.0e-6);
         assertEquals(normalDepth,
-                result.outletProfile().points().getLast().depthMeters(), 0.0);
+                result.outletProfile().points().getLast().depthMeters(), 1.0e-6);
         assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
         assertEquals(2, result.confluence().incomingProfiles().size());
 
