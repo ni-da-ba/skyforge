@@ -134,13 +134,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private static NaturalComponentProbe probeNaturalKey700Component() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
-        SkyIslandHydraulicGeometrySkeletonPlan candidate =
-                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
-        SkyIslandHydraulicReachSkeleton first = requireReach(candidate, 660, 801);
-        SkyIslandHydraulicReachSkeleton second = requireReach(candidate, 1140, 801);
-        SkyIslandHydraulicReachSkeleton cascade = requireReach(candidate, 801, 1951);
+        SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
+        SkyIslandHydraulicReachSkeleton first = requireReach(candidateSkeleton, 660, 801);
+        SkyIslandHydraulicReachSkeleton second = requireReach(candidateSkeleton, 1140, 801);
+        SkyIslandHydraulicReachSkeleton cascade = requireReach(candidateSkeleton, 801, 1951);
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
-                CALIBRATION.crossSections(descriptor, cascade.samples());
+                candidate.requireReach(801, 1951).sections();
         int incomingBranches = 2;
         try {
             var parameters = CALIBRATION.solverParameters();
@@ -250,9 +251,10 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private static ProbeResult probe(long province, long cluster, long key) {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, province, cluster, key));
-        SkyIslandHydraulicGeometrySkeletonPlan candidate =
-                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
-        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
+        SkyIslandSemanticField terrain = candidate.terrain();
         SkyIslandGeomorphicQualificationPolicy policy =
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
