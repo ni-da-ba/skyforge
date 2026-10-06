@@ -386,7 +386,11 @@ public final class HydrologyGameScaleCalibrationSweepCli {
                             parentSamples);
                 } else {
                     List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sourceSections =
-                            calibration.crossSections(descriptor, span.samples(), parentSamples);
+                            calibration.crossSections(
+                                    descriptor,
+                                    span.samples(),
+                                    parentSamples,
+                                    span.parentStartArcLength());
                     List<SkyIslandHydraulicGeometrySkeletonSample> chuteSamples =
                             cascadeSamples(parentSamples, sourceCascade);
                     List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chuteSections =
