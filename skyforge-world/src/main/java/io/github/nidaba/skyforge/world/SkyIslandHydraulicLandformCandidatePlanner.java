@@ -163,7 +163,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     target, weight, upper, reach.samples(), reliefMeters,
                     gradeConstraints, calibration.bedIncisionScale());
             throw new IllegalStateException(
-                    "bounded channel-bed candidate is infeasible under terrain, incision, and bed-grade constraints"
+                    "bounded channel-bed candidate is infeasible under terrain, incision, local-grade, and reach-trend constraints"
                             + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
                             + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
                             + ";requiredUniformIncisionScale=" + requiredIncisionScale
