@@ -340,11 +340,11 @@ jobs:
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
 
       - name: Run game-scale ordinary-span calibration sweep (key 700 held out)
-        if: success() && github.event_name == 'workflow_dispatch'
+        if: success()
         run: ./gradlew :skyforge-reference:hydrologyGameScaleCalibrationSweep --no-configuration-cache
 
       - name: Print calibration sweep summary
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always()
         run: |
           summary=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-sweep.csv
           if [ -f "$summary" ]; then
@@ -355,7 +355,7 @@ jobs:
           fi
 
       - name: Print ordinary-span failure diagnostics
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always()
         run: |
           diagnostics=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-diagnostics.txt
           if [ -f "$diagnostics" ]; then
@@ -380,7 +380,7 @@ jobs:
           fi
 
       - name: Upload game-scale calibration sweep evidence
-        if: always() && github.event_name == 'workflow_dispatch'
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: hydrology-game-scale-calibration-sweep-${{ github.sha }}
