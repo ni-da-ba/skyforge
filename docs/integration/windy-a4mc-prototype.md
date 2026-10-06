@@ -20,6 +20,7 @@ Never edit the upstream sources in-place in this repository. CI checks out pinne
 7. `0007-suspended-island-wind-corridors.patch` — permits physical wind wisps below island overhangs without disabling standalone sky exposure rules; anchors 3D ribbons near player altitude rather than island heightmap tops and rejects ribbon spawns inside terrain. Real Skyforge overhang captures are still a manual admission gate.
 8. `0008-wind-sample-profiling.patch` — opt-in rolling 128-call sampling-window diagnostics with available-count and p50/p95/max query duration. **Startup windows may be entirely unavailable**, so they must not be treated as performance qualification.
 9. `0009-trusted-burst-probe.patch` — a one-time, development-only 128-position *API microbenchmark* executed only after trusted data arrives. It records how many nearby queries remain available, p50/p95/max call cost, and is required by CI to contain at least 120 available samples. It is deliberately not real-world frame time, sustained traffic, or visual-compositing evidence.
+10. `0010-iris-entity-translucent-render-path.patch` — experimental rendering fallback: replaces Windy's bespoke `POSITION_TEX_COLOR` ribbon type with Minecraft's built-in translucent entity render type and supplies its expected vertex attributes, so shader pipelines can classify the ribbons as entity translucency. This is a hypothesis to test, not accepted shader compatibility; it can change lighting/depth behavior and requires owner review.
 
 ## Authority boundary
 
