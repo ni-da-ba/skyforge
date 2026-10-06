@@ -185,6 +185,12 @@ assert_hearthandharvest_worldgen_policy() {
   test -s "$maze" && grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze"
 }
 
+if [[ "${WBY_S7_ICE_AND_FIRE:-false}" == "true" ]]; then
+  ice_fire_evidence_args=(--ice-and-fire --ice-and-fire-output "$GITHUB_WORKSPACE/wby-s7-ice-and-fire-evidence.tsv")
+else
+  ice_fire_evidence_args=()
+fi
+
 start_server "$server_log"
 test -f "$server_dir/s7-acceptance/level.dat"
 python3 scripts/wby-s7-illager-evidence.py \
@@ -192,7 +198,7 @@ python3 scripts/wby-s7-illager-evidence.py \
   --password skyforge-s7-local-probe --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
-  --skip-entity-probes
+  "${ice_fire_evidence_args[@]}" --skip-entity-probes
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
@@ -238,7 +244,7 @@ python3 scripts/wby-s7-illager-evidence.py \
   --password skyforge-s7-local-probe --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
-  --entities-only
+  "${ice_fire_evidence_args[@]}" --entities-only
 grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
@@ -246,11 +252,17 @@ grep -Fq '(hearthandharvest)' "$server_latest_log"
 for mod_id in naturalist fowlplay crittersandcompanions skywhales alexsmobs codxlib biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury friendsandfoes takesapillage illagerstructures resourcefullib incontrol mowziesmobs; do
   grep -Fq "($mod_id)" "$server_latest_log"
 done
+if [[ "${WBY_S7_ICE_AND_FIRE:-false}" == "true" ]]; then
+  for mod_id in iceandfire jupiter uranus; do grep -Fq "($mod_id)" "$server_latest_log"; done
+fi
 client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
 for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib mowziesmobs geckolib; do
   grep -Fq "($mod_id)" "$client_latest_log"
 done
+if [[ "${WBY_S7_ICE_AND_FIRE:-false}" == "true" ]]; then
+  for mod_id in iceandfire jupiter uranus; do grep -Fq "($mod_id)" "$client_latest_log"; done
+fi
 test -f "$server_dir/s7-acceptance/level.dat"
 cp "$server_latest_log" wby-s7-joined-server-latest.log
 cp "$client_latest_log" wby-s7-joined-client-latest.log
