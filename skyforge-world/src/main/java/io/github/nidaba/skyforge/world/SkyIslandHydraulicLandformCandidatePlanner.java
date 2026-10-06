@@ -32,8 +32,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         List<ReachCandidate> reaches = new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections =
                     calibration.crossSections(descriptor, reach.samples(), reach.samples());
+            CandidateBedResult bedResult =
+                    conditionBedProfile(descriptor, reach, rawSections, calibration, reliefMeters);
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = bedResult.sections();
             if (sections.size() != reach.samples().size()) {
                 throw new IllegalStateException(
                         "candidate bed sections must match candidate drainage geometry");
@@ -51,7 +54,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                     + i);
                 }
             }
-            reaches.add(new ReachCandidate(reach, sections));
+            reaches.add(new ReachCandidate(reach, sections, bedResult.qpResult()));
         }
 
         SkyIslandPreHydrologicTerrainField baseTerrain =
@@ -61,13 +64,125 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return new Plan(descriptor, skeleton, reaches, candidateTerrain);
     }
 
+    private static CandidateBedResult conditionBedProfile(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicReachSkeleton reach,
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            double reliefMeters) {
+        int count = rawSections.size();
+        double[] target = new double[count];
+        double[] weight = new double[count];
+        double[] lower = new double[count];
+        double[] upper = new double[count];
+        for (int i = 0; i < count; i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().get(i);
+            SkyIslandGraduallyVariedFlowSolver.CrossSection section = rawSections.get(i);
+            double surface = sample.terrainElevation() * reliefMeters;
+            double maximumIncision = calibration.bedIncisionScale()
+                    * sample.waterDepthPotential() * reliefMeters;
+            target[i] = section.bedElevationMeters();
+            lower[i] = Math.max(0.0, surface - maximumIncision);
+            upper[i] = surface;
+            double left = i == 0
+                    ? rawSections.get(1).chainageMeters() - section.chainageMeters()
+                    : section.chainageMeters() - rawSections.get(i - 1).chainageMeters();
+            double right = i + 1 == count
+                    ? section.chainageMeters() - rawSections.get(i - 1).chainageMeters()
+                    : rawSections.get(i + 1).chainageMeters() - section.chainageMeters();
+            weight[i] = 0.5 * (left + right);
+        }
+
+        List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints =
+                new ArrayList<>(count - 1);
+        for (int i = 0; i + 1 < count; i++) {
+            SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = rawSections.get(i);
+            SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = rawSections.get(i + 1);
+            double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+            double upstreamDepth = calibration.bedIncisionScale()
+                    * reach.samples().get(i).waterDepthPotential() * reliefMeters;
+            double downstreamDepth = calibration.bedIncisionScale()
+                    * reach.samples().get(i + 1).waterDepthPotential() * reliefMeters;
+            double upstreamNormalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
+                    upstream.dischargeCubicMetersPerSecond(),
+                    calibration.manningRoughness(),
+                    upstreamDepth,
+                    upstream.bottomWidthMeters(),
+                    upstream.sideSlopeHorizontalToVertical());
+            double downstreamNormalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
+                    downstream.dischargeCubicMetersPerSecond(),
+                    calibration.manningRoughness(),
+                    downstreamDepth,
+                    downstream.bottomWidthMeters(),
+                    downstream.sideSlopeHorizontalToVertical());
+            double minimumGrade = Math.max(upstreamNormalSlope, downstreamNormalSlope);
+            if (minimumGrade > calibration.maximumDownstreamBedSlope()) {
+                throw new IllegalStateException(
+                        "Manning reference grade exceeds the bounded candidate bed grade"
+                                + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
+                                + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
+                                + ";section=" + (i + 1)
+                                + ";requiredGrade=" + minimumGrade
+                                + ";maximumGrade=" + calibration.maximumDownstreamBedSlope());
+            }
+            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                    "bed-grade:" + i,
+                    i,
+                    i + 1,
+                    minimumGrade * spacing,
+                    calibration.maximumDownstreamBedSlope() * spacing));
+        }
+
+        SkyIslandHydraulicQpResult qp =
+                SkyIslandHydraulicBoundedQpSolver.solve(
+                        new SkyIslandHydraulicBoundedQpProblem(
+                                target, weight, lower, upper, gradeConstraints));
+        if (qp.status() != SkyIslandHydraulicQpStatus.SOLVED) {
+            throw new IllegalStateException(
+                    "bounded channel-bed candidate is infeasible under terrain, incision, and Manning-grade constraints"
+                            + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
+                            + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
+                            + ";diagnostic=" + qp.diagnostic().orElse("none"));
+        }
+
+        double[] bed = qp.solution();
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
+                new ArrayList<>(count);
+        for (int i = 0; i < count; i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().get(i);
+            double surface = sample.terrainElevation() * reliefMeters;
+            double maximumIncision = calibration.bedIncisionScale()
+                    * sample.waterDepthPotential() * reliefMeters;
+            if (bed[i] > surface + 1.0e-8
+                    || surface - bed[i] > maximumIncision + 1.0e-8
+                    || bed[i] < 0.0) {
+                throw new IllegalStateException(
+                        "bounded candidate bed escaped no-fill, incision, or vertical-domain bounds at section "
+                                + i);
+            }
+            SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
+            sections.add(new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                    raw.chainageMeters(),
+                    bed[i],
+                    raw.dischargeCubicMetersPerSecond(),
+                    raw.bottomWidthMeters(),
+                    raw.sideSlopeHorizontalToVertical()));
+        }
+        return new CandidateBedResult(List.copyOf(sections), qp);
+    }
+
     /** One semantic reach with a bed profile that is shared by terrain construction and hydraulics. */
     public record ReachCandidate(
             SkyIslandHydraulicReachSkeleton skeleton,
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections) {
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            SkyIslandHydraulicQpResult bedGeometrySolve) {
         public ReachCandidate {
             skeleton = Objects.requireNonNull(skeleton, "skeleton");
             sections = List.copyOf(Objects.requireNonNull(sections, "sections"));
+            bedGeometrySolve = Objects.requireNonNull(bedGeometrySolve, "bedGeometrySolve");
+            if (bedGeometrySolve.status() != SkyIslandHydraulicQpStatus.SOLVED) {
+                throw new IllegalArgumentException("candidate bed geometry must have a solved QP witness");
+            }
             if (sections.size() != skeleton.samples().size() || sections.size() < 2) {
                 throw new IllegalArgumentException(
                         "candidate sections must match at least two skeleton samples");
@@ -131,6 +246,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                     + startCellIndex + "->" + endCellIndex));
         }
     }
+
+    private record CandidateBedResult(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            SkyIslandHydraulicQpResult qpResult) {}
 
     private static final class CandidateTerrainField implements SkyIslandSemanticField {
         private final SkyIslandSemanticField baseTerrain;
