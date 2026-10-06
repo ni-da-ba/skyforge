@@ -286,13 +286,15 @@ class SkyIslandCandidateHydrologyCouplingTest {
         }
 
         Map<Long, List<SkyIslandHydraulicGeometrySkeletonSample>> parentSamples = new HashMap<>();
+        Map<Long, List<SkyIslandGraduallyVariedFlowSolver.CrossSection>> candidateParentBeds =
+                new HashMap<>();
         for (SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate reach :
                 candidate.reaches()) {
             SkyIslandSemanticChannelReach semantic =
                     reach.skeleton().geomorphicRoute().semanticReach();
-            parentSamples.put(
-                    reachKey(semantic.startCellIndex(), semantic.endCellIndex()),
-                    reach.skeleton().samples());
+            long key = reachKey(semantic.startCellIndex(), semantic.endCellIndex());
+            parentSamples.put(key, reach.skeleton().samples());
+            candidateParentBeds.put(key, reach.sections());
         }
 
         int attempted = 0;
@@ -315,6 +317,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 if (reachSamples == null) {
                     throw new IllegalStateException("candidate parent reach samples are missing");
                 }
+                List<SkyIslandGraduallyVariedFlowSolver.CrossSection> candidateBed =
+                        candidateParentBeds.get(
+                                reachKey(span.parentReachStartCellIndex(), span.parentReachEndCellIndex()));
+                if (candidateBed == null) {
+                    throw new IllegalStateException("candidate parent bed sections are missing");
+                }
                 SkyIslandOpenChannelOrdinarySpanSolver.Outcome physical =
                         SkyIslandOpenChannelOrdinarySpanSolver.solve(
                                 descriptor,
@@ -324,7 +332,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 candidate.skeletonPlan().geomorphicNetwork().planningSpacing(),
                                 CALIBRATION,
                                 Map.copyOf(terminalFates),
-                                reachSamples);
+                                reachSamples,
+                                candidateBed);
                 solved++;
                 maximumEnergyResidual = Math.max(
                         maximumEnergyResidual,
