@@ -45,7 +45,28 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 Objects.requireNonNull(
                         SkyIslandSemanticFieldSet.create(descriptor).interiority(),
                         "interiority field returned null");
-        return plan(descriptor, semantics, terrain, interiority);
+        return plan(descriptor, semantics, terrain, interiority, null);
+    }
+
+    /**
+     * Builds a candidate network whose shared physical nodes may move anywhere within the
+     * existing semantic route-corridor radius. Semantic identities and edges remain unchanged.
+     */
+    public static SkyIslandGeomorphicChannelNetworkPlan planHydraulicCandidate(
+            SkyIslandDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        SkyIslandSemanticChannelReachPlan semantics =
+                SkyIslandSemanticChannelReachPlanner.plan(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        return plan(
+                descriptor,
+                semantics,
+                terrain,
+                interiority,
+                ROUTE_CORRIDOR_SPACING_FRACTION);
     }
 
     static SkyIslandGeomorphicChannelNetworkPlan plan(
@@ -53,6 +74,15 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
             SkyIslandSemanticChannelReachPlan semantics,
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority) {
+        return plan(descriptor, semantics, terrain, interiority, null);
+    }
+
+    private static SkyIslandGeomorphicChannelNetworkPlan plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticChannelReachPlan semantics,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            Double candidateNodeRadiusFraction) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(semantics, "semantics");
         Objects.requireNonNull(terrain, "terrain");
@@ -103,11 +133,14 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                         "unsupported semantic network node degree at " + cellIndex + ": in=" + in + ", out=" + out);
             }
 
-            double radius = semantics.planningSpacing() * switch (kind) {
-                case SOURCE -> SOURCE_SEARCH_RADIUS_SPACING_FRACTION;
-                case CONFLUENCE -> CONFLUENCE_SEARCH_RADIUS_SPACING_FRACTION;
-                case TERMINAL -> TERMINAL_SEARCH_RADIUS_SPACING_FRACTION;
-            };
+            double radius = semantics.planningSpacing()
+                    * (candidateNodeRadiusFraction == null
+                            ? switch (kind) {
+                                case SOURCE -> SOURCE_SEARCH_RADIUS_SPACING_FRACTION;
+                                case CONFLUENCE -> CONFLUENCE_SEARCH_RADIUS_SPACING_FRACTION;
+                                case TERMINAL -> TERMINAL_SEARCH_RADIUS_SPACING_FRACTION;
+                            }
+                            : candidateNodeRadiusFraction);
             SkyIslandLocalPosition semanticCenter =
                     Objects.requireNonNull(
                             semanticCenters.get(cellIndex),
