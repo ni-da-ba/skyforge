@@ -140,7 +140,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     "");
         } catch (IllegalArgumentException | IllegalStateException failure) {
             String diagnostic = failure.getClass().getSimpleName() + ":" + failure.getMessage()
-                    + describeCascadeLimit(cascadeSections, parameters, failure.getMessage());
+                    + describeCascadeLimit(cascadeSections, CALIBRATION.solverParameters(), failure.getMessage());
             return new NaturalComponentProbe(
                     incomingBranches,
                     cascadeSections.size(),
@@ -196,7 +196,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     failed.dischargeCubicMetersPerSecond()
                             - lastValid.section().dischargeCubicMetersPerSecond(),
                     failed.bottomWidthMeters() - lastValid.section().bottomWidthMeters());
-        } catch (IllegalArgumentException | IllegalStateException | NumberFormatException diagnosticFailure) {
+        } catch (IllegalArgumentException | IllegalStateException diagnosticFailure) {
             return ";localCascadeDiagnosticsUnavailable="
                     + diagnosticFailure.getClass().getSimpleName() + ":" + diagnosticFailure.getMessage();
         }
