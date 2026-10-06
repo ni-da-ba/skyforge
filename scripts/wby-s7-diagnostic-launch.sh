@@ -6,7 +6,7 @@ run_path="skyforge-neoforge-1211/$run_directory"
 whale_retexture="$run_path/resourcepacks/Sky-Whale-Retexture.zip"
 if [[ ! -f "$whale_retexture" ]]; then
   cat >&2 <<EOF
-Sky Whale Retexture is required for any S6 use of the whales:
+Sky Whale Retexture is required for the cumulative S6/S7 client profile:
   $whale_retexture
 Download it from https://modrinth.com/resourcepack/sky-whale-retexture
 and save the ZIP there. Enable it in Options > Resource Packs after launch.
@@ -30,7 +30,7 @@ EOF
 done
 
 mkdir -p .skyforge-diagnostics
-bundle=".skyforge-diagnostics/wby-s7-$variant-$(date -u +%Y%m%dT%H%M%SZ)"
+bundle=".skyforge-diagnostics/wby-s7-threats-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$bundle"
 
 base_args=(
@@ -53,17 +53,17 @@ base_args=(
 export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
 
 ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-resolution.log"
-grep -Fq "WBY S7 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$d07_variant" "$bundle/profile-resolution.log"
+grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "$bundle/profile-resolution.log"
 
 ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
 ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
 
-echo "S6 structure/civilization candidate: base S6 roster plus D-07 variant '$variant'."
+echo "S7 threat candidate: cumulative S6 roster with both Structory and Explorify, plus the selected illager stack."
 echo "Windy and Atmospheric Shaders are excluded from this profile; accepted Simple Clouds + DH baseline remains."
 echo "Create a fresh normal Overworld (not the development-only Skyforge preset) with seed 817304."
 echo "Review illager structure placement and variety, hostile density and faction overlap, travel/vehicle pressure, and any progression bypasses. Record structure names/coordinates and screenshots."
 echo "Use creative mode only to locate candidate structures; then switch to Survival and Normal difficulty to inspect the encounter. Do not tune loot, recipes, or spawn density."
-echo "S6 selected both Structory and Explorify. Leave observations and balance decisions for the whole-stack policy pass."
+echo "Leave density, loot, recipe, and progression decisions for the whole-stack policy pass."
 echo "Review run directory: skyforge-neoforge-1211/$run_directory"
 echo "Diagnostics bundle: $bundle"
 echo "Sky Whale Retexture remains required if Sky Whales are encountered; install the local ARR pack manually and enable it."
