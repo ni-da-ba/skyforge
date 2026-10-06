@@ -23,7 +23,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
     public static SkyIslandHydraulicGeometrySkeletonPlan plan(SkyIslandDescriptor descriptor) {
         Objects.requireNonNull(descriptor, "descriptor");
         SkyIslandGeomorphicChannelNetworkPlan network =
-                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+                SkyIslandGeomorphicChannelNetworkPlanner.planHydraulicCandidate(descriptor);
         SkyIslandPreHydrologicTerrainField terrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField interiority =
