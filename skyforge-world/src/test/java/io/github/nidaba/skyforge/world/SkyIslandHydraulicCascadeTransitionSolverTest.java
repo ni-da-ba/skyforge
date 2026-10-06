@@ -29,6 +29,33 @@ class SkyIslandHydraulicCascadeTransitionSolverTest {
     }
 
     @Test
+    void supercriticalInletContinuesWithoutInventingCriticalControl() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(0.0, 10.0, 1.0, 2.0, 0.5),
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(10.0, 8.0, 1.0, 2.0, 0.5),
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(20.0, 6.0, 1.0, 2.0, 0.5));
+
+        SkyIslandGraduallyVariedFlowSolver.Result result =
+                SkyIslandHydraulicCascadeTransitionSolver.solveFromSupercriticalInlet(
+                        sections, 0.1, PARAMETERS);
+
+        assertEquals(0.1, result.points().getFirst().depthMeters(), 0.0);
+        assertTrue(result.points().stream().allMatch(point -> point.froudeNumber() > 1.0));
+        assertTrue(result.maximumEnergyResidualMeters() <= 1.0e-6);
+    }
+
+    @Test
+    void supercriticalInletContinuationRejectsSubcriticalBoundary() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(0.0, 10.0, 1.0, 2.0, 0.5),
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(10.0, 8.0, 1.0, 2.0, 0.5));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> SkyIslandHydraulicCascadeTransitionSolver.solveFromSupercriticalInlet(
+                        sections, 1.0, PARAMETERS));
+    }
+
+    @Test
     void chuteRequiresAtLeastTwoSections() {
         SkyIslandGraduallyVariedFlowSolver.CrossSection section =
                 new SkyIslandGraduallyVariedFlowSolver.CrossSection(
