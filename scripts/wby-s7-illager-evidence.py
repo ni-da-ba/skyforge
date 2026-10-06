@@ -169,7 +169,7 @@ def main() -> int:
             for mod in matching_mods:
                 ice_fire_metadata_rows.append([
                     "artifact", jar.name, digest, expected_mod_id,
-                    mod.get("version", ""), mod.get("displayName", ""),
+                    mod.get("version", ""), "", mod.get("displayName", ""),
                 ])
             dependency_map = metadata.get("dependencies", {})
             entries = dependency_map.get(expected_mod_id, [])
@@ -347,9 +347,9 @@ def main() -> int:
         else:
             ice_rows: list[list[object]] = [
                 ["record", "jar", "sha256", "registry_id", "value", "side", "details"],
-                ["run", ice_fire_jar.name, ice_fire_sha256, "", "dimension=minecraft:overworld; seed=" + args.seed, ""],
-                ["worldgen-structures", ice_fire_jar.name, ice_fire_sha256, "", ",".join(ice_fire_structures) or "(none found)", ""],
-                ["worldgen-structure-sets", ice_fire_jar.name, ice_fire_sha256, "", ",".join(str(item["id"]) for item in ice_fire_structure_sets) or "(none found)", ""],
+                ["run", ice_fire_jar.name, ice_fire_sha256, "", "dimension=minecraft:overworld; seed=" + args.seed, "", ""],
+                ["worldgen-structures", ice_fire_jar.name, ice_fire_sha256, "", ",".join(ice_fire_structures) or "(none found)", "", ""],
+                ["worldgen-structure-sets", ice_fire_jar.name, ice_fire_sha256, "", ",".join(str(item["id"]) for item in ice_fire_structure_sets) or "(none found)", "", ""],
             ]
             ice_rows.extend(ice_fire_metadata_rows)
             ice_rows.extend(ice_fire_entity_rows)
@@ -364,6 +364,7 @@ def main() -> int:
           + " registered_locates=" + str(accepted_locates)
           + " spawned_pillage_entities=" + str(pillage_probes)
           + " spawned_mowzie_entities=" + str(mowzie_probes)
+          + " spawned_ice_and_fire_entities=" + str(sum(row[0] == "entity" and str(row[2]).startswith("iceandfire:") for row in rows))
           + " mowzie_worldgen_structures=" + str(len(mowzie_structures))
           + " report=" + str(args.output)
           + " mowzie_report=" + str(args.mowzie_output)
