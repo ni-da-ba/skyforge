@@ -83,7 +83,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: ni-da-ba/skyforge
-          ref: 19323607a49dc436ff0914cf277a8af48801cd24
+          ref: 7eca0a434ce2f20bfdab84e1530a237f65e58e1a
           path: windy-patches
           persist-credentials: false
 
@@ -112,7 +112,11 @@ jobs:
           python3 windy-patches/third_party/patches/windy/apply-0011.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 windy-patches/third_party/patches/windy/apply-0012.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 windy-patches/third_party/patches/windy/apply-0013.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 windy-patches/third_party/patches/windy/apply-0014.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'RenderType.entityCutoutNoCull(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'eff > 0.10f : eff > 0.24f' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe") && count == 0' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe")) return;' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'Stage.AFTER_ENTITIES' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'bufferSource().endBatch(RIBBON)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           git -C windy-upstream diff --check
