@@ -190,7 +190,7 @@ test -f "$server_dir/s7-acceptance/level.dat"
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --password skyforge-s7-local-probe --seed 817304 \
-  --output "$GITHUB_WORKSPACE/wby-s7-structure-evidence.tsv"
+  --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
@@ -238,14 +238,13 @@ grep -Fq '(hearthandharvest)' "$server_latest_log"
 for mod_id in naturalist fowlplay crittersandcompanions skywhales alexsmobs codxlib biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury friendsandfoes takesapillage illagerstructures resourcefullib incontrol; do
   grep -Fq "($mod_id)" "$server_latest_log"
 done
+client_latest_log="$client_dir/logs/latest.log"
+test -f "$client_latest_log"
 for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib; do
   grep -Fq "($mod_id)" "$client_latest_log"
 done
 test -f "$server_dir/s7-acceptance/level.dat"
 cp "$server_latest_log" wby-s7-joined-server-latest.log
-client_latest_log="$client_dir/logs/latest.log"
-test -f "$client_latest_log"
-test -f "$client_latest_log"
 cp "$client_latest_log" wby-s7-joined-client-latest.log
 
 stop_server "$server_log"
