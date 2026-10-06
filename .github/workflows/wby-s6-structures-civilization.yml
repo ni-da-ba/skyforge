@@ -1,0 +1,177 @@
+name: WBY S6 Structures and Civilization Candidate
+
+on:
+  push:
+    branches:
+      - "wby/s6-structures-civilization"
+    paths:
+      - ".github/workflows/wby-s6-structures-civilization.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
+      - "scripts/wby-s6-diagnostic-launch.sh"
+      - "scripts/wby-s6-runtime-acceptance.sh"
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s6-structures-civilization.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s4-life-building.properties"
+      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
+      - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
+      - "skyforge-neoforge-1211/wby-s0-5-*.properties"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s3-industry.properties"
+      - "skyforge-neoforge-1211/wave-c*.properties"
+      - "skyforge-neoforge-1211/wby-wave1*.properties"
+      - "scripts/wby-s6-diagnostic-launch.sh"
+      - "scripts/wby-s6-runtime-acceptance.sh"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s6-structures-civilization-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  resolve-and-runtime-acceptance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Check S6 launcher and runtime script syntax
+        shell: bash
+        run: |
+          bash -n scripts/wby-s6-diagnostic-launch.sh
+          bash -n scripts/wby-s6-runtime-acceptance.sh
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Resolve S6 baseline and all fixed D-07 variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          for variant in none structory explorify both; do
+            ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+              -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+              -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+              -PwbyS2ComputingAvionics=true \
+              -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+              -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
+              -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
+              "-PwbyS6D07Variant=$variant" --no-configuration-cache | tee "wby-s6-$variant-resolution.log"
+            grep -Fq "WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$variant" "wby-s6-$variant-resolution.log"
+          done
+
+      - name: Stage the S6 combined D-07 server and client profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both
+            --no-configuration-cache
+          )
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s6-server
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s6-join-client
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s6-server
+          echo "WBY S6 all-side profile staging PASS"
+
+      - name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S6_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
+
+      - name: Install NeoForge server and stage S6 jars and policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          server_dir="$GITHUB_WORKSPACE/s6-production-server"
+          export JAVA_HOME="$WBY_S6_GRADLE_JAVA_HOME"
+          export PATH="$JAVA_HOME/bin:$PATH"
+          mkdir -p "$server_dir"
+          curl --fail --location --retry 3 \
+            https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar \
+            --output "$server_dir/neoforge-installer.jar"
+          (cd "$server_dir" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
+          mkdir -p "$server_dir/mods" "$server_dir/config" "$server_dir/kubejs/data"
+          cp skyforge-neoforge-1211/run-wby-s6-server/server-mods/*.jar "$server_dir/mods/"
+          cp skyforge-neoforge-1211/run-wby-s6-server/config/supplementaries-common.toml "$server_dir/config/"
+          cp skyforge-neoforge-1211/run-wby-s6-server/config/hearthandharvest-common.toml "$server_dir/config/"
+          cp -R skyforge-neoforge-1211/run-wby-s6-server/kubejs/data/. "$server_dir/kubejs/data/"
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          grep -E 'yungs|structures|towns|radio|aeronautical|explorify|structory' \
+            skyforge-neoforge-1211/run-wby-s6-server/server-mods/* > wby-s6-staged-structure-jars.txt
+          test -s wby-s6-staged-structure-jars.txt
+          echo "WBY S6 NeoForge server staging PASS"
+
+      - name: Prepare the pinned production-client launcher
+        shell: bash
+        run: |
+          set -euo pipefail
+          launcher_venv="$RUNNER_TEMP/wby-s6-launcher-venv"
+          python3 -m venv "$launcher_venv"
+          "$launcher_venv/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+          echo "WBY_S4_LAUNCHER_PYTHON=$launcher_venv/bin/python" >> "$GITHUB_ENV"
+
+      - name: Join S6 fixed-seed server and reopen the same world
+        shell: bash
+        run: |
+          export WBY_S6_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s6-production-server"
+          export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
+          bash scripts/wby-s6-runtime-acceptance.sh
+
+      - name: Upload S6 integration evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s6-structures-civilization-resolution
+          path: |
+            wby-s6-*.log
+            wby-s6-staged-structure-jars.txt
+            s6-production-server/logs/latest.log
+            s6-production-server/config/*.toml
+            s6-production-server/kubejs/data/**/*.json
+            skyforge-neoforge-1211/run-wby-s6-server/config/*.toml
+            skyforge-neoforge-1211/run-wby-s6-server/kubejs/data/**/*.json
+            skyforge-neoforge-1211/run-wby-s6-join-client/logs/latest.log
+          if-no-files-found: warn
