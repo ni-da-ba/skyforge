@@ -55,6 +55,41 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
     }
 
     @Test
+    void isInvariantToUniformVerticalDatumTranslation() {
+        List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.0, 1.0), 1.0),
+                new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                        section(0.0, 0.0, 1.0), 1.0));
+        List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> shiftedIncoming =
+                incoming.stream()
+                        .map(state -> new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
+                                section(
+                                        state.section().chainageMeters(),
+                                        state.section().bedElevationMeters() + 17.5,
+                                        state.section().dischargeCubicMetersPerSecond()),
+                                state.depthMeters()))
+                        .toList();
+
+        var baseline = SkyIslandHydraulicConfluenceEnergySolver.solve(
+                incoming, section(2.0, 0.0, 2.0), PARAMETERS, 0.1);
+        var shifted = SkyIslandHydraulicConfluenceEnergySolver.solve(
+                shiftedIncoming, section(2.0, 17.5, 2.0), PARAMETERS, 0.1);
+
+        assertEquals(baseline.downstreamDepthMeters(), shifted.downstreamDepthMeters(), 1.0e-9);
+        assertEquals(
+                baseline.downstreamWaterSurfaceElevationMeters() + 17.5,
+                shifted.downstreamWaterSurfaceElevationMeters(),
+                1.0e-9);
+        assertEquals(
+                baseline.dischargeWeightedIncomingTotalHeadMeters() + 17.5,
+                shifted.dischargeWeightedIncomingTotalHeadMeters(),
+                1.0e-9);
+        assertEquals(baseline.junctionLossMeters(), shifted.junctionLossMeters(), 1.0e-9);
+        assertEquals(baseline.energyResidualMeters(), shifted.energyResidualMeters(), 1.0e-9);
+    }
+
+    @Test
     void rejectsNonConservingJunctionDischarge() {
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
