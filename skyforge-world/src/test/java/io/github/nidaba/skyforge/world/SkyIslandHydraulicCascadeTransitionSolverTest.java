@@ -71,7 +71,7 @@ class SkyIslandHydraulicCascadeTransitionSolverTest {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chute = List.of(
                 new SkyIslandGraduallyVariedFlowSolver.CrossSection(
                         20.0 + 1.0e-9, 8.0 + 1.0e-9, 1.0 + 1.0e-9,
-                        2.0 + 1.0e-9, 0.5 + 1.0e-9),
+                        2.0 + 5.0e-4, 0.5 + 1.0e-9),
                 new SkyIslandGraduallyVariedFlowSolver.CrossSection(
                         25.0, 6.5, 1.0, 2.0, 0.5),
                 new SkyIslandGraduallyVariedFlowSolver.CrossSection(
