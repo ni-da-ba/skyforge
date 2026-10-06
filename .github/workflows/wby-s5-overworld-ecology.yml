@@ -200,7 +200,9 @@ jobs:
           grep -Fq '8BmcQJ2H-Grwn5rUB' wby-s5-client-stage.txt
           grep -Fq 'PuyPazRT-O5EpeqI3' wby-s5-client-stage.txt
           grep -Fq 'lhGA9TYQ-1IiqEQGl' wby-s5-client-stage.txt
-          grep -Fq '1eAoo2KR-ACDNgCDA' wby-s5-client-stage.txt
+          yacl_file_id="$(sed -n 's/^yacl.coordinate=maven.modrinth:1eAoo2KR:\([^[:space:]]*\)$/\1/p' skyforge-neoforge-1211/wby-s5-overworld-ecology.properties)"
+test -n "$yacl_file_id"
+grep -Fq "1eAoo2KR-$yacl_file_id.jar" wby-s5-client-stage.txt
 
       - name: Boot cumulative S5 dedicated server with normal Overworld generation
         shell: bash
