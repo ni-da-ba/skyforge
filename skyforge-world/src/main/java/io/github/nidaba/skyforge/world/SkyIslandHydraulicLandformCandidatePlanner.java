@@ -183,7 +183,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             return selected == null ? original : Math.min(original, selected.targetPotential());
         }
 
-        private static CandidateSection section(
+        private CandidateSection section(
                 ReachCandidate reach,
                 SkyIslandLocalPosition position,
                 double originalTerrain) {
