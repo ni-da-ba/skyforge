@@ -224,7 +224,8 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 sample = evaluateInsideInterval(
                         sections, interval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
-                continue;
+                // The bracket is unchanged; another iteration would retry the same midpoint.
+                break;
             }
             if (Math.abs(sample.forceResidual()) < Math.abs(best.forceResidual())) {
                 best = sample;
@@ -249,7 +250,30 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 candidate = evaluateInsideInterval(
                         sections, interval, middle, upstreamDepthMeters, downstreamDepthMeters, parameters);
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
-                return admissible(best, parameters) ? best : null;
+                double firstFraction = left + 0.25 * (right - left);
+                double secondFraction = left + 0.75 * (right - left);
+                StationTrial first = tryEvaluateInsideInterval(
+                        sections, interval, firstFraction,
+                        upstreamDepthMeters, downstreamDepthMeters, parameters);
+                StationTrial second = tryEvaluateInsideInterval(
+                        sections, interval, secondFraction,
+                        upstreamDepthMeters, downstreamDepthMeters, parameters);
+
+                // Narrow only across adjacent, valid trials with a sign change. Never bracket
+                // across an interval for which either hydraulic branch is inadmissible.
+                if (first != null && brackets(lower, first)) {
+                    upper = first;
+                } else if (first != null && second != null && brackets(first, second)) {
+                    lower = first;
+                    upper = second;
+                } else if (second != null && brackets(second, upper)) {
+                    lower = second;
+                } else {
+                    return admissible(best, parameters) ? best : null;
+                }
+                left = lower.fraction();
+                right = upper.fraction();
+                continue;
             }
             if (Math.abs(candidate.forceResidual()) < Math.abs(best.forceResidual())) {
                 best = candidate;
@@ -269,6 +293,27 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             }
         }
         return admissible(best, parameters) ? best : null;
+    }
+
+    private static StationTrial tryEvaluateInsideInterval(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            int interval,
+            double fraction,
+            double upstreamDepthMeters,
+            Double downstreamDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        try {
+            return evaluateInsideInterval(
+                    sections, interval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
+        } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
+            return null;
+        }
+    }
+
+    private static boolean brackets(StationTrial first, StationTrial second) {
+        return first.forceResidual() == 0.0
+                || second.forceResidual() == 0.0
+                || first.forceResidual() * second.forceResidual() < 0.0;
     }
 
     private static boolean admissible(
