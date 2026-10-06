@@ -151,9 +151,9 @@ jobs:
           cp -R skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/. "$server_dir/kubejs/data/"
           printf 'eula=true\n' > "$server_dir/eula.txt"
           find skyforge-neoforge-1211/run-wby-s7-server/server-mods -maxdepth 1 -type f -printf '%f\\n' \
-            | grep -Ei 'yungs|structures|towns|radio|aeronautical|explorify|structory' \
+            | grep -Ei 'friends|pillage|illager|incontrol' \
             > wby-s7-staged-threat-jars.txt
-          test -s wby-s7-staged-structure-jars.txt
+          test -s wby-s7-staged-threat-jars.txt
           echo "WBY S7 NeoForge server staging PASS"
 
       - name: Prepare the pinned production-client launcher
@@ -179,7 +179,7 @@ jobs:
           name: wby-s7-illager-threats-resolution
           path: |
             wby-s7-*.log
-            wby-s7-staged-structure-jars.txt
+            wby-s7-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
