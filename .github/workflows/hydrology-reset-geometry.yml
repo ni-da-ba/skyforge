@@ -315,6 +315,7 @@ jobs:
             --tests '*SkyIslandOpenChannelSourceTailwaterSolverTest' \
             --tests '*SkyIslandHydraulicEnergyConfluenceComponentSolverTest' \
             --tests '*SkyIslandHydraulicConfluenceEnergySolverTest' \
+            --tests '*SkyIslandCandidateHydrologyCouplingTest' \
             --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalProfileMarchesDownstreamFromUpstreamStageControl' \
             --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalDownstreamSolveRejectsSupercriticalSourceAndInsufficientHead' \
             --no-configuration-cache
@@ -340,6 +341,7 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicEnergyConfluenceComponentSolverTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandCandidateHydrologyCouplingTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
         if: success() && github.event_name == 'workflow_dispatch'
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
