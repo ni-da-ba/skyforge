@@ -662,100 +662,44 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double[] terrainPotential = new double[points.size()];
         double[] depthPotential = new double[points.size()];
         double[] chainageMeters = new double[points.size()];
-        double maximumDepthPotential = 0.0;
-        for (int i = 0; i < points.size(); i++) {
-            double station = cumulative[i] / pathLength;
-            terrainPotential[i] = clamp01(terrain.sample(points.get(i)));
-            depthPotential[i] = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
-                    discharge.atStation(station));
-            chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
-            maximumDepthPotential = Math.max(maximumDepthPotential, depthPotential[i]);
+        double maximumGradeConflict = 0.0;
+        double integratedSquaredConflict = 0.0;
+        double feasibleLower = Math.max(
+                0.0,
+                (terrainPotential[0]
+                        - calibration.bedIncisionScale() * depthPotential[0])
+                        * reliefMeters);
+        double feasibleUpper = terrainPotential[0] * reliefMeters;
+        for (int i = 1; i < points.size(); i++) {
+            double maximumDrop = calibration.maximumDownstreamBedSlope()
+                    * (chainageMeters[i] - chainageMeters[i - 1]);
+            double localLower = Math.max(
+                    0.0,
+                    (terrainPotential[i]
+                            - calibration.bedIncisionScale() * depthPotential[i])
+                            * reliefMeters);
+            double localUpper = terrainPotential[i] * reliefMeters;
+            double nextLower = Math.max(localLower, feasibleLower - maximumDrop);
+            double nextUpper = Math.min(localUpper, feasibleUpper);
+            double conflict = Math.max(0.0, nextLower - nextUpper);
+            if (conflict > 0.0) {
+                maximumGradeConflict = Math.max(maximumGradeConflict, conflict);
+                double ds = chainageMeters[i] - chainageMeters[i - 1];
+                integratedSquaredConflict += conflict * conflict * ds;
+                // Keep later stations informative without treating this violated path as feasible.
+                double midpoint = 0.5 * (nextLower + nextUpper);
+                nextLower = midpoint;
+                nextUpper = midpoint;
+            }
+            feasibleLower = nextLower;
+            feasibleUpper = nextUpper;
         }
-
-        double requiredScale = minimumFeasibleBedIncisionScale(
-                terrainPotential,
-                depthPotential,
-                chainageMeters,
-                reliefMeters,
-                calibration.maximumDownstreamBedSlope(),
-                calibration.bedIncisionScale());
-        double excessCutMeters = Math.max(
-                        0.0, requiredScale - calibration.bedIncisionScale())
-                * maximumDepthPotential
-                * reliefMeters;
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 0.0,
                 0.0,
-                excessCutMeters,
+                maximumGradeConflict,
                 0.0,
-                excessCutMeters * excessCutMeters);
-    }
-
-    /**
-     * Exact interval propagation for a one-dimensional bed profile with bounded incision,
-     * non-uphill flow direction, and a maximum downstream bed grade.
-     */
-    private static double minimumFeasibleBedIncisionScale(
-            double[] terrainPotential,
-            double[] depthPotential,
-            double[] chainageMeters,
-            double reliefMeters,
-            double maximumDownstreamBedSlope,
-            double currentScale) {
-        double low = currentScale;
-        double high = currentScale;
-        while (high < 1.0e6 && !bedProfileIntervalsFeasible(
-                terrainPotential, depthPotential, chainageMeters, reliefMeters,
-                maximumDownstreamBedSlope, high)) {
-            low = high;
-            high = Math.min(1.0e6, high * 2.0);
-        }
-        if (!bedProfileIntervalsFeasible(
-                terrainPotential, depthPotential, chainageMeters, reliefMeters,
-                maximumDownstreamBedSlope, high)) {
-            return high;
-        }
-        for (int i = 0; i < 40; i++) {
-            double middle = low + 0.5 * (high - low);
-            if (bedProfileIntervalsFeasible(
-                    terrainPotential, depthPotential, chainageMeters, reliefMeters,
-                    maximumDownstreamBedSlope, middle)) {
-                high = middle;
-            } else {
-                low = middle;
-            }
-        }
-        return high;
-    }
-
-    private static boolean bedProfileIntervalsFeasible(
-            double[] terrainPotential,
-            double[] depthPotential,
-            double[] chainageMeters,
-            double reliefMeters,
-            double maximumDownstreamBedSlope,
-            double incisionScale) {
-        int last = terrainPotential.length - 1;
-        double feasibleLower = Math.max(
-                0.0,
-                (terrainPotential[last] - incisionScale * depthPotential[last]) * reliefMeters);
-        double feasibleUpper = terrainPotential[last] * reliefMeters;
-        for (int i = last - 1; i >= 0; i--) {
-            double maximumDrop =
-                    maximumDownstreamBedSlope * (chainageMeters[i + 1] - chainageMeters[i]);
-            double lower = Math.max(
-                    0.0,
-                    (terrainPotential[i] - incisionScale * depthPotential[i]) * reliefMeters);
-            double upper = terrainPotential[i] * reliefMeters;
-            feasibleLower = Math.max(lower, feasibleLower);
-            feasibleUpper = Math.min(upper, feasibleUpper + maximumDrop);
-            if (feasibleLower > feasibleUpper + 1.0e-9) {
-                return false;
-            }
-        }
-        return true;
-    }
-
+                integratedSquaredConflict);
     static SkyIslandHydraulicReachSkeleton sampleReach(
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticField terrain,
