@@ -133,55 +133,65 @@ def main() -> int:
     ice_fire_jar = None
     ice_fire_sha256 = ""
     ice_fire_structures: list[str] = []
-    ice_fire_structure_sets: list[str] = []
+    ice_fire_structure_sets: list[dict[str, object]] = []
     ice_fire_metadata_rows: list[list[object]] = []
+    ice_fire_artifacts: dict[str, tuple[Path, str]] = {}
     if args.ice_and_fire:
-        ice_fire_jars = sorted(
-            jar for jar in args.mods.glob("*.jar")
-            if "iceandfire-ce-1040076-8929517" in jar.name.lower()
-        )
-        if len(ice_fire_jars) != 1:
-            raise SystemExit(f"Expected exactly the pinned Ice & Fire CE jar; found {[jar.name for jar in ice_fire_jars]}")
-        ice_fire_jar = ice_fire_jars[0]
-        ice_fire_sha256 = hashlib.sha256(ice_fire_jar.read_bytes()).hexdigest()
-        ice_fire_structure_sets, ice_fire_structures = read_archive(ice_fire_jar)
-        with zipfile.ZipFile(ice_fire_jar) as archive:
-            metadata_names = [
-                name for name in archive.namelist()
-                if name.lower() == "meta-inf/neoforge.mods.toml"
+        artifact_pins = {
+            "iceandfire-ce-1040076-8929517": "iceandfire",
+            "jupiter-1072905-7704602": "jupiter",
+            "uranus-1010827-8587525": "uranus",
+        }
+        for token, expected_mod_id in artifact_pins.items():
+            matches = sorted(
+                jar for jar in args.mods.glob("*.jar")
+                if token in jar.name.lower()
+            )
+            if len(matches) != 1:
+                raise SystemExit(f"Expected exactly one pinned {expected_mod_id} jar ({token}); found {[jar.name for jar in matches]}")
+            jar = matches[0]
+            digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+            ice_fire_artifacts[expected_mod_id] = (jar, digest)
+            with zipfile.ZipFile(jar) as archive:
+                metadata_names = [
+                    name for name in archive.namelist()
+                    if name.lower() == "meta-inf/neoforge.mods.toml"
+                ]
+                if len(metadata_names) != 1:
+                    raise SystemExit(f"Expected one NeoForge mods metadata file in {jar.name}; found {metadata_names}")
+                metadata = tomllib.loads(archive.read(metadata_names[0]).decode("utf-8"))
+            matching_mods = [
+                mod for mod in metadata.get("mods", [])
+                if mod.get("modId") == expected_mod_id
             ]
-            if len(metadata_names) != 1:
-                raise SystemExit(f"Expected one NeoForge mods metadata file in {ice_fire_jar.name}; found {metadata_names}")
-            metadata = tomllib.loads(archive.read(metadata_names[0]).decode("utf-8"))
-        for mod in metadata.get("mods", []):
-            if mod.get("modId") == "iceandfire":
+            if not matching_mods:
+                raise SystemExit(f"{jar.name} metadata did not declare expected mod id {expected_mod_id}")
+            for mod in matching_mods:
                 ice_fire_metadata_rows.append([
-                    "mod-metadata", ice_fire_jar.name, ice_fire_sha256, mod.get("modId", ""),
+                    "artifact", jar.name, digest, expected_mod_id,
                     mod.get("version", ""), mod.get("displayName", ""),
                 ])
-        if not ice_fire_metadata_rows:
-            raise SystemExit("Pinned Ice & Fire jar metadata did not declare mod id iceandfire")
-        dependency_map = metadata.get("dependencies", {})
-        for owner in ("iceandfire",):
-            entries = dependency_map.get(owner, [])
+            dependency_map = metadata.get("dependencies", {})
+            entries = dependency_map.get(expected_mod_id, [])
             if isinstance(entries, dict):
                 entries = [entries]
             for entry in entries:
                 ice_fire_metadata_rows.append([
-                    "dependency-metadata", ice_fire_jar.name, ice_fire_sha256,
+                    "dependency-metadata", jar.name, digest,
                     entry.get("modId", ""), entry.get("versionRange", ""), entry.get("side", ""),
                 ])
-    with zipfile.ZipFile(mowzie_jar) as archive:
-        mowzie_structures = sorted(
-            name.removeprefix("data/mowziesmobs/worldgen/structure/").removesuffix(".json")
-            for name in archive.namelist()
-            if name.startswith("data/mowziesmobs/worldgen/structure/") and name.endswith(".json")
-        )
-        mowzie_structure_sets = sorted(
-            name.removeprefix("data/mowziesmobs/worldgen/structure_set/").removesuffix(".json")
-            for name in archive.namelist()
-            if name.startswith("data/mowziesmobs/worldgen/structure_set/") and name.endswith(".json")
-        )
+        ice_fire_jar, ice_fire_sha256 = ice_fire_artifacts["iceandfire"]
+        with zipfile.ZipFile(ice_fire_jar) as archive:
+            ice_fire_structure_sets, ice_fire_structures = read_archive(ice_fire_jar)
+        required_libraries = {
+            row[3] for row in ice_fire_metadata_rows
+            if row[0] == "dependency-metadata" and row[3] in {"jupiter", "uranus"}
+        }
+        if required_libraries != {"jupiter", "uranus"}:
+            raise SystemExit(
+                "Ice & Fire runtime metadata did not declare both pinned required libraries; "
+                f"found {sorted(required_libraries)}"
+            )
 
     rows: list[list[object]] = [
         ["record", "jar", "registry_id", "spacing_chunks", "separation_chunks", "salt", "details"],
@@ -314,11 +324,11 @@ def main() -> int:
     if args.entities_only and args.mowzie_output.is_file():
         with args.mowzie_output.open("a", encoding="utf-8") as evidence_file:
             evidence_file.write(
-                "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in normalized_mowzie_entity_rows) + "\\n"
+                "\n".join("\t".join(safe_cell(cell) for cell in row) for row in normalized_mowzie_entity_rows) + "\n"
             )
     else:
         args.mowzie_output.write_text(
-            "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in mowzie_rows) + "\\n",
+            "\n".join("\t".join(safe_cell(cell) for cell in row) for row in mowzie_rows) + "\n",
             encoding="utf-8",
         )
 
@@ -328,7 +338,7 @@ def main() -> int:
         if args.entities_only and ice_output.is_file():
             extra_rows = ice_fire_entity_rows
             with ice_output.open("a", encoding="utf-8") as evidence_file:
-                evidence_file.write("\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in extra_rows) + ("\\n" if extra_rows else ""))
+                evidence_file.write("\n".join("\t".join(safe_cell(cell) for cell in row) for row in extra_rows) + ("\n" if extra_rows else ""))
         else:
             ice_rows: list[list[object]] = [
                 ["record", "jar", "sha256", "registry_id", "value", "side_or_display_name"],
@@ -339,7 +349,7 @@ def main() -> int:
             ice_rows.extend(ice_fire_metadata_rows)
             ice_rows.extend(ice_fire_entity_rows)
             ice_output.parent.mkdir(parents=True, exist_ok=True)
-            ice_output.write_text("\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in ice_rows) + "\\n", encoding="utf-8")
+            ice_output.write_text("\n".join("\t".join(safe_cell(cell) for cell in row) for row in ice_rows) + "\n", encoding="utf-8")
 
     total_sets = sum(row[0] == "structure-set" for row in rows[1:])
     pillage_probes = sum(row[0] == "entity" and str(row[2]).startswith("takesapillage:") for row in rows)
