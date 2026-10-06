@@ -463,6 +463,24 @@ val wbyS6D07Mods = mapOf(
     "both" to listOf("structory", "explorify"),
 )
 
+val wbyS7PinFile = layout.projectDirectory.file("wby-s7-illager-threats.properties")
+val wbyS7Pins = Properties().apply { wbyS7PinFile.asFile.inputStream().use(::load) }
+fun wbyS7Pin(mod: String, field: String): String =
+    requireNotNull(wbyS7Pins.getProperty("$mod.$field")) {
+        "missing WBY S7 pin: $mod.$field in " + wbyS7PinFile.asFile
+    }
+fun wbyS7Token(mod: String): String = wbyS7Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S7 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+check(wbyS7Pin("minecraft", "version") == "1.21.1")
+check(wbyS7Pin("neoforge", "version") == "21.1.249")
+check(requireNotNull(wbyS7Pins.getProperty("profile.base")) == "wby-s6-structures-civilization")
+val wbyS7SharedMods = listOf(
+    "friendsAndFoes", "itTakesAPillageContinuation", "illagerStructures", "resourcefulLib",
+)
+val wbyS7ServerMods = listOf("inControl")
+val wbyS7AllMods = wbyS7SharedMods + wbyS7ServerMods
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -555,6 +573,7 @@ val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equa
 val wbyS5OverworldEcology = providers.gradleProperty("wbyS5OverworldEcology").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS6StructuresCivilization = providers.gradleProperty("wbyS6StructuresCivilization").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS6D07Variant = providers.gradleProperty("wbyS6D07Variant").orNull?.trim()?.lowercase() ?: "none"
+val wbyS7IllagerThreats = providers.gradleProperty("wbyS7IllagerThreats").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -595,6 +614,9 @@ check(wbyS6D07Variant in setOf("none", "structory", "explorify", "both")) {
 check(!wbyS6StructuresCivilization || (wbyS5OverworldEcology && wbyS4OrdinaryLife &&
     wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
     "WBY S6 requires the cumulative S5 ecology profile"
+}
+check(!wbyS7IllagerThreats || wbyS6StructuresCivilization) {
+    "WBY S7 requires the cumulative S6 structure/civilization profile"
 }
 check(wbyS6StructuresCivilization || wbyS6D07Variant == "none") {
     "WBY S6 D-07 variants require the opt-in S6 profile"
@@ -7196,6 +7218,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(wbyS6PinFile)
     inputs.property("wbyS6StructuresCivilization", wbyS6StructuresCivilization)
     inputs.property("wbyS6D07Variant", wbyS6D07Variant)
+    inputs.file(wbyS7PinFile)
+    inputs.property("wbyS7IllagerThreats", wbyS7IllagerThreats)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7412,8 +7436,23 @@ tasks.register("wbyS1ResolvePinnedMods") {
             }
         }
 
+        val s7Mods = if (wbyS7IllagerThreats) wbyS7AllMods else emptyList()
+        s7Mods.forEach { mod ->
+            val expected = wbyS7Token(mod)
+            check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                "WBY S7 missing $mod on client/integrated-server and dedicated server: $expected"
+            }
+        }
+        (wbyS7AllMods - s7Mods).forEach { mod ->
+            val expected = wbyS7Token(mod)
+            check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                "WBY S1-S6 profile unexpectedly resolved S7 $mod: $expected"
+            }
+        }
+
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         if (wbyS6StructuresCivilization) println("WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$wbyS6D07Variant")
+        if (wbyS7IllagerThreats) println("WBY S7 ILLAGER THREATS RESOLUTION PASS")
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
@@ -7479,7 +7518,8 @@ wbyS1StageClientMods.configure {
         } else emptyList()) +
         (if (wbyS6StructuresCivilization) {
             (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).map(::wbyS6Token)
-        } else emptyList())
+        } else emptyList()) +
+        (if (wbyS7IllagerThreats) wbyS7AllMods.map(::wbyS7Token) else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8389,6 +8429,17 @@ dependencies {
         (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).distinct().forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS6Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS6Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS7IllagerThreats) {
+        wbyS7SharedMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+        }
+        wbyS7ServerMods.forEach { mod ->
+            // Server/singleplayer code stays available to integrated servers and dedicated servers.
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
         }
     }
 
@@ -10011,6 +10062,14 @@ tasks.register<Sync>("wbyS1StageServerMods") {
                 val expected = wbyS6Token(mod)
                 check(staged.any { it.contains(expected) }) {
                     "WBY S6 server staging missing $mod token '$expected': $staged"
+                }
+            }
+        }
+        if (wbyS7IllagerThreats) {
+            wbyS7AllMods.forEach { mod ->
+                val expected = wbyS7Token(mod)
+                check(staged.any { it.contains(expected) }) {
+                    "WBY S7 server staging missing $mod token '$expected': $staged"
                 }
             }
         }
