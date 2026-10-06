@@ -195,7 +195,7 @@ def main() -> int:
                 except Exception:
                     pass
 
-    if not args.entities_only and not args.skip_entity_probes and not accepted_locates:
+    if not args.entities_only and not accepted_locates:
         raise SystemExit("No staged S7 structures were accepted by live /locate")
     if not args.skip_entity_probes and registered_entities != len(PILLAGE_ENTITY_IDS):
         raise SystemExit(
