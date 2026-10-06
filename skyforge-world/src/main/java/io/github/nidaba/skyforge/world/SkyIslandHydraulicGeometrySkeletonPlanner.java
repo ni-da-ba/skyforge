@@ -662,6 +662,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         double[] terrainPotential = new double[points.size()];
         double[] depthPotential = new double[points.size()];
         double[] chainageMeters = new double[points.size()];
+        for (int i = 0; i < points.size(); i++) {
+            double station = cumulative[i] / pathLength;
+            terrainPotential[i] = clamp01(terrain.sample(points.get(i)));
+            depthPotential[i] = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
+                    discharge.atStation(station));
+            chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
+        }
         double maximumGradeConflict = 0.0;
         double integratedSquaredConflict = 0.0;
         double feasibleLower = Math.max(
@@ -683,9 +690,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double nextUpper = Math.min(localUpper, feasibleUpper);
             double conflict = Math.max(0.0, nextLower - nextUpper);
             if (conflict > 0.0) {
-                maximumGradeConflict = Math.max(maximumGradeConflict, conflict);
-                double ds = chainageMeters[i] - chainageMeters[i - 1];
-                integratedSquaredConflict += conflict * conflict * ds;
+                double conflictWorldUnits = conflict / calibration.metersPerWorldUnit();
+                maximumGradeConflict = Math.max(maximumGradeConflict, conflictWorldUnits);
+                double dsWorldUnits =
+                        (chainageMeters[i] - chainageMeters[i - 1])
+                                / calibration.metersPerWorldUnit();
+                integratedSquaredConflict += conflictWorldUnits * conflictWorldUnits
+                        * dsWorldUnits;
                 // Keep later stations informative without treating this violated path as feasible.
                 double midpoint = 0.5 * (nextLower + nextUpper);
                 nextLower = midpoint;
@@ -699,7 +710,9 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 0.0,
                 maximumGradeConflict,
                 0.0,
-                integratedSquaredConflict);
+                pathLength > 0.0 ? integratedSquaredConflict / pathLength : 0.0);
+    }
+
     static SkyIslandHydraulicReachSkeleton sampleReach(
             SkyIslandDescriptor descriptor,
             SkyIslandSemanticField terrain,
