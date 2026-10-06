@@ -263,9 +263,6 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 // across an interval for which either hydraulic branch is inadmissible.
                 if (first != null && brackets(lower, first)) {
                     upper = first;
-                } else if (first != null && second != null && brackets(first, second)) {
-                    lower = first;
-                    upper = second;
                 } else if (second != null && brackets(second, upper)) {
                     lower = second;
                 } else {
