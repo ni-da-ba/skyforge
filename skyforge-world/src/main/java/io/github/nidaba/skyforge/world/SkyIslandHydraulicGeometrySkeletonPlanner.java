@@ -659,58 +659,67 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             throw new IllegalStateException("candidate centerline must have positive length");
         }
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
-        double[] terrainPotential = new double[points.size()];
-        double[] depthPotential = new double[points.size()];
+        double[] terrainMeters = new double[points.size()];
+        double[] maximumIncisionPerScaleMeters = new double[points.size()];
         double[] chainageMeters = new double[points.size()];
+        double maximumIncisionPerScale = 0.0;
         for (int i = 0; i < points.size(); i++) {
             double station = cumulative[i] / pathLength;
-            terrainPotential[i] = clamp01(terrain.sample(points.get(i)));
-            depthPotential[i] = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
-                    discharge.atStation(station));
+            terrainMeters[i] = clamp01(terrain.sample(points.get(i))) * reliefMeters;
+            maximumIncisionPerScaleMeters[i] =
+                    SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
+                            discharge.atStation(station)) * reliefMeters;
+            maximumIncisionPerScale =
+                    Math.max(maximumIncisionPerScale, maximumIncisionPerScaleMeters[i]);
             chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
         }
-        double maximumGradeConflict = 0.0;
-        double integratedSquaredConflict = 0.0;
-        double feasibleLower = Math.max(
-                0.0,
-                (terrainPotential[0]
-                        - calibration.bedIncisionScale() * depthPotential[0])
-                        * reliefMeters);
-        double feasibleUpper = terrainPotential[0] * reliefMeters;
-        for (int i = 1; i < points.size(); i++) {
-            double maximumDrop = calibration.maximumDownstreamBedSlope()
-                    * (chainageMeters[i] - chainageMeters[i - 1]);
-            double localLower = Math.max(
-                    0.0,
-                    (terrainPotential[i]
-                            - calibration.bedIncisionScale() * depthPotential[i])
-                            * reliefMeters);
-            double localUpper = terrainPotential[i] * reliefMeters;
-            double nextLower = Math.max(localLower, feasibleLower - maximumDrop);
-            double nextUpper = Math.min(localUpper, feasibleUpper);
-            double conflict = Math.max(0.0, nextLower - nextUpper);
-            if (conflict > 0.0) {
-                double conflictWorldUnits = conflict / calibration.metersPerWorldUnit();
-                maximumGradeConflict = Math.max(maximumGradeConflict, conflictWorldUnits);
-                double dsWorldUnits =
-                        (chainageMeters[i] - chainageMeters[i - 1])
-                                / calibration.metersPerWorldUnit();
-                integratedSquaredConflict += conflictWorldUnits * conflictWorldUnits
-                        * dsWorldUnits;
-                // Keep later stations informative without treating this violated path as feasible.
-                double midpoint = 0.5 * (nextLower + nextUpper);
-                nextLower = midpoint;
-                nextUpper = midpoint;
-            }
-            feasibleLower = nextLower;
-            feasibleUpper = nextUpper;
+
+        // On a chain, interval feasibility under 0 <= bed[i]-bed[i+1] <= grade*ds
+        // is equivalent to two families of pairwise bounds. Their extrema are a suffix
+        // minimum and prefix maximum, so the exact minimum uniform incision scale is O(n).
+        double requiredScale = calibration.bedIncisionScale();
+        double suffixMinimum = Double.POSITIVE_INFINITY;
+        for (int upstream = points.size() - 2; upstream >= 0; upstream--) {
+            int downstream = upstream + 1;
+            suffixMinimum = Math.min(
+                    suffixMinimum,
+                    terrainMeters[downstream]
+                            + calibration.maximumDownstreamBedSlope()
+                                    * chainageMeters[downstream]);
+            double availableLowerBedBound =
+                    terrainMeters[upstream]
+                            + calibration.maximumDownstreamBedSlope()
+                                    * chainageMeters[upstream]
+                            - suffixMinimum;
+            requiredScale = Math.max(
+                    requiredScale,
+                    availableLowerBedBound / maximumIncisionPerScaleMeters[upstream]);
         }
+
+        double prefixMaximumTerrain = terrainMeters[0];
+        for (int downstream = 1; downstream < points.size(); downstream++) {
+            double requiredDownstreamIncision =
+                    terrainMeters[downstream] - prefixMaximumTerrain;
+            requiredScale = Math.max(
+                    requiredScale,
+                    requiredDownstreamIncision
+                            / maximumIncisionPerScaleMeters[downstream]);
+            prefixMaximumTerrain =
+                    Math.max(prefixMaximumTerrain, terrainMeters[downstream]);
+        }
+
+        double excessIncisionEquivalentWorldUnits =
+                Math.max(0.0, requiredScale - calibration.bedIncisionScale())
+                        * maximumIncisionPerScale
+                        / calibration.metersPerWorldUnit();
+        double squaredResidual = excessIncisionEquivalentWorldUnits
+                * excessIncisionEquivalentWorldUnits;
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 0.0,
                 0.0,
-                maximumGradeConflict,
+                excessIncisionEquivalentWorldUnits,
                 0.0,
-                pathLength > 0.0 ? integratedSquaredConflict / pathLength : 0.0);
+                squaredResidual);
     }
 
     static SkyIslandHydraulicReachSkeleton sampleReach(
