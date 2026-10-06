@@ -145,10 +145,9 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 } else {
                     d2Rejected++;
                 }
-                if (physical.solvedSamples().size() != span.samples().size()) {
-                    throw new IllegalStateException(
-                            "post-solve D2 measurements do not align with candidate geometry");
-                }
+                assertTrue(
+                        physical.solvedSamples().size() == span.samples().size(),
+                        "post-solve D2 measurements must align with candidate geometry");
             } catch (IllegalArgumentException | IllegalStateException failure) {
                 failures.merge(
                         failure.getClass().getSimpleName() + ":" + failure.getMessage(),
