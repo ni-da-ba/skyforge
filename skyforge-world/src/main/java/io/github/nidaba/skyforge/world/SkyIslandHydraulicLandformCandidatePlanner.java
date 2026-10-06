@@ -119,10 +119,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                         new SkyIslandHydraulicBoundedQpProblem(
                                 target, weight, lower, upper, gradeConstraints));
         if (qp.status() != SkyIslandHydraulicQpStatus.SOLVED) {
+            double requiredIncisionScale = minimumFeasibleIncisionScale(
+                    target, weight, upper, reach.samples(), reliefMeters,
+                    gradeConstraints, calibration.bedIncisionScale());
             throw new IllegalStateException(
                     "bounded channel-bed candidate is infeasible under terrain, incision, and bed-grade constraints"
                             + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
                             + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
+                            + ";requiredUniformIncisionScale=" + requiredIncisionScale
                             + ";diagnostic=" + qp.diagnostic().orElse("none"));
         }
 
@@ -150,6 +154,63 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     raw.sideSlopeHorizontalToVertical()));
         }
         return new CandidateBedResult(List.copyOf(sections), qp);
+    }
+
+    /**
+     * Measures how much uniform bed-incision authority this fixed candidate path would require
+     * before changing calibration. A finite result is diagnostic only; it does not relax the
+     * authored candidate envelope or approve the resulting terrain.
+     */
+    private static double minimumFeasibleIncisionScale(
+            double[] target,
+            double[] weight,
+            double[] upper,
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
+            double reliefMeters,
+            List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints,
+            double currentScale) {
+        double low = currentScale;
+        double high = currentScale;
+        while (high < 1.0e6 && !bedProfileSolvesAtScale(
+                target, weight, upper, samples, reliefMeters, gradeConstraints, high)) {
+            low = high;
+            high = Math.min(1.0e6, high * 2.0);
+        }
+        if (!bedProfileSolvesAtScale(
+                target, weight, upper, samples, reliefMeters, gradeConstraints, high)) {
+            return Double.POSITIVE_INFINITY;
+        }
+        for (int i = 0; i < 48; i++) {
+            double middle = low + 0.5 * (high - low);
+            if (bedProfileSolvesAtScale(
+                    target, weight, upper, samples, reliefMeters, gradeConstraints, middle)) {
+                high = middle;
+            } else {
+                low = middle;
+            }
+        }
+        return high;
+    }
+
+    private static boolean bedProfileSolvesAtScale(
+            double[] target,
+            double[] weight,
+            double[] upper,
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
+            double reliefMeters,
+            List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints,
+            double incisionScale) {
+        double[] lower = new double[samples.size()];
+        for (int i = 0; i < samples.size(); i++) {
+            double surface = samples.get(i).terrainElevation() * reliefMeters;
+            double maximumIncision =
+                    incisionScale * samples.get(i).waterDepthPotential() * reliefMeters;
+            lower[i] = Math.max(0.0, surface - maximumIncision);
+        }
+        return SkyIslandHydraulicBoundedQpSolver.solve(
+                        new SkyIslandHydraulicBoundedQpProblem(
+                                target, weight, lower, upper, gradeConstraints))
+                .status() == SkyIslandHydraulicQpStatus.SOLVED;
     }
 
     /** One semantic reach with a bed profile that is shared by terrain construction and hydraulics. */
