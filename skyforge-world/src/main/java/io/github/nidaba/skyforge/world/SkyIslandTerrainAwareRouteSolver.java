@@ -292,6 +292,21 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, null);
+    }
+
+    public static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            HydraulicRouteFeasibilityEnvelope feasibilityEnvelope) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -442,7 +457,14 @@ public final class SkyIslandTerrainAwareRouteSolver {
                                     + 0.5
                                             * (localCost[current.index()] + localCost[next])
                                             * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
+                                    + ASCENT_WEIGHT * ascent
+                                    + (feasibilityEnvelope == null
+                                            ? 0.0
+                                            : feasibilityEnvelope.transitionPenalty(
+                                                    elevations[current.index()],
+                                                    elevations[next],
+                                                    stepLength,
+                                                    normalizedLength));
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
@@ -609,6 +631,39 @@ public final class SkyIslandTerrainAwareRouteSolver {
 
     private static double square(double value) {
         return value * value;
+    }
+
+    /** Conservative local terrain envelope used only to rank coupled hydraulic candidates. */
+    public record HydraulicRouteFeasibilityEnvelope(
+            double maximumDownstreamBedGradePotentialPerWorldUnit,
+            double maximumIncisionPotential) {
+        public HydraulicRouteFeasibilityEnvelope {
+            if (!Double.isFinite(maximumDownstreamBedGradePotentialPerWorldUnit)
+                    || maximumDownstreamBedGradePotentialPerWorldUnit <= 0.0
+                    || !Double.isFinite(maximumIncisionPotential)
+                    || maximumIncisionPotential <= 0.0) {
+                throw new IllegalArgumentException(
+                        "hydraulic route feasibility envelope must be finite and positive");
+            }
+        }
+
+        private double transitionPenalty(
+                double upstreamTerrain,
+                double downstreamTerrain,
+                double stepLength,
+                double normalizedLength) {
+            double requiredCutForExcessBedDrop = Math.max(
+                    0.0,
+                    upstreamTerrain - downstreamTerrain
+                            - maximumDownstreamBedGradePotentialPerWorldUnit * stepLength);
+            double requiredCutForUpstreamRise = Math.max(
+                    0.0, downstreamTerrain - upstreamTerrain);
+            double excessCut = Math.max(
+                            requiredCutForExcessBedDrop, requiredCutForUpstreamRise)
+                    - maximumIncisionPotential;
+            double normalizedExcess = Math.max(0.0, excessCut) / maximumIncisionPotential;
+            return 16.0 * square(normalizedExcess) * normalizedLength;
+        }
     }
 
     private record OpenNode(int index, double cost, double estimatedTotal) {}

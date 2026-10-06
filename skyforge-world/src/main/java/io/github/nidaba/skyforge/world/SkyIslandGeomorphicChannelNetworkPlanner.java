@@ -45,7 +45,7 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 Objects.requireNonNull(
                         SkyIslandSemanticFieldSet.create(descriptor).interiority(),
                         "interiority field returned null");
-        return plan(descriptor, semantics, terrain, interiority, null, null);
+        return plan(descriptor, semantics, terrain, interiority, null, null, null);
     }
 
     /**
@@ -61,6 +61,13 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
     static SkyIslandGeomorphicChannelNetworkPlan planHydraulicCandidate(
             SkyIslandDescriptor descriptor,
             int routeDivisionsPerPlanningCell) {
+        return planHydraulicCandidate(descriptor, routeDivisionsPerPlanningCell, null);
+    }
+
+    static SkyIslandGeomorphicChannelNetworkPlan planHydraulicCandidate(
+            SkyIslandDescriptor descriptor,
+            int routeDivisionsPerPlanningCell,
+            SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope) {
         Objects.requireNonNull(descriptor, "descriptor");
         if (routeDivisionsPerPlanningCell < 2) {
             throw new IllegalArgumentException("candidate route resolution must be at least two");
@@ -77,7 +84,8 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 terrain,
                 interiority,
                 ROUTE_CORRIDOR_SPACING_FRACTION,
-                routeDivisionsPerPlanningCell);
+                routeDivisionsPerPlanningCell,
+                feasibilityEnvelope);
     }
 
     static SkyIslandGeomorphicChannelNetworkPlan plan(
@@ -85,7 +93,7 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
             SkyIslandSemanticChannelReachPlan semantics,
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority) {
-        return plan(descriptor, semantics, terrain, interiority, null, null);
+        return plan(descriptor, semantics, terrain, interiority, null, null, null);
     }
 
     private static SkyIslandGeomorphicChannelNetworkPlan plan(
@@ -94,7 +102,8 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority,
             Double candidateNodeRadiusFraction,
-            Integer candidateRouteResolution) {
+            Integer candidateRouteResolution,
+            SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(semantics, "semantics");
         Objects.requireNonNull(terrain, "terrain");
@@ -187,7 +196,8 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                             new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0),
                             candidateRouteResolution == null
                                     ? SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL
-                                    : candidateRouteResolution),
+                                    : candidateRouteResolution,
+                            feasibilityEnvelope),
                     "route solver returned null for semantic reach "
                             + reach.startCellIndex() + "->" + reach.endCellIndex());
             if (!route.points().getFirst().equals(start.physicalPosition())

@@ -27,11 +27,16 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(calibration, "calibration");
+        SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope =
+                new SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope(
+                        calibration.maximumDownstreamBedSlope() / descriptor.reliefBudget(),
+                        calibration.bedIncisionScale()
+                                * SkyIslandHydraulicGeometryCalibration.waterDepthPotential(1.0));
         List<String> rejectedResolutions = new ArrayList<>();
         for (int divisionsPerPlanningCell : new int[] {4, 8, 16}) {
             SkyIslandHydraulicGeometrySkeletonPlan skeleton =
                     SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(
-                            descriptor, divisionsPerPlanningCell);
+                            descriptor, divisionsPerPlanningCell, feasibilityEnvelope);
             try {
                 return buildPlan(descriptor, calibration, skeleton);
             } catch (IllegalStateException failure) {
