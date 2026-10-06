@@ -179,13 +179,18 @@ def main() -> int:
                 ice_fire_metadata_rows.append([
                     "dependency-metadata", jar.name, digest,
                     entry.get("modId", ""), entry.get("versionRange", ""), entry.get("side", ""),
+                    "type=" + str(entry.get("type", "")) + ";ordering=" + str(entry.get("ordering", "")),
                 ])
         ice_fire_jar, ice_fire_sha256 = ice_fire_artifacts["iceandfire"]
-        with zipfile.ZipFile(ice_fire_jar) as archive:
-            ice_fire_structure_sets, ice_fire_structures = read_archive(ice_fire_jar)
+        ice_fire_structure_sets, ice_fire_structures = read_archive(ice_fire_jar)
         required_libraries = {
             row[3] for row in ice_fire_metadata_rows
-            if row[0] == "dependency-metadata" and row[3] in {"jupiter", "uranus"}
+            if row[0] == "dependency-metadata"
+            and row[1] == ice_fire_jar.name
+            and row[3] in {"jupiter", "uranus"}
+            and "type=required" in str(row[6])
+            and row[5] == "BOTH"
+            and bool(row[4])
         }
         if required_libraries != {"jupiter", "uranus"}:
             raise SystemExit(
@@ -341,7 +346,7 @@ def main() -> int:
                 evidence_file.write("\n".join("\t".join(safe_cell(cell) for cell in row) for row in extra_rows) + ("\n" if extra_rows else ""))
         else:
             ice_rows: list[list[object]] = [
-                ["record", "jar", "sha256", "registry_id", "value", "side_or_display_name"],
+                ["record", "jar", "sha256", "registry_id", "value", "side", "details"],
                 ["run", ice_fire_jar.name, ice_fire_sha256, "", "dimension=minecraft:overworld; seed=" + args.seed, ""],
                 ["worldgen-structures", ice_fire_jar.name, ice_fire_sha256, "", ",".join(ice_fire_structures) or "(none found)", ""],
                 ["worldgen-structure-sets", ice_fire_jar.name, ice_fire_sha256, "", ",".join(str(item["id"]) for item in ice_fire_structure_sets) or "(none found)", ""],
