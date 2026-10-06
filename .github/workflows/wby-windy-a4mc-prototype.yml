@@ -78,6 +78,7 @@ jobs:
           grep -Fq 'if (external)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'if (!physical.available())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'if (WindDirector.hasExternalWind())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'RenderType.entityTranslucent(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'airflow belongs to A4MC' windy-upstream/src/main/java/dev/fallingcloud/windy/WindyCommands.java
           grep -Fq 'external physical wind unavailable' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'physical.isServerTrusted()' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
