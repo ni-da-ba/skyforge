@@ -103,33 +103,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     * reach.samples().get(i).waterDepthPotential() * reliefMeters;
             double downstreamDepth = calibration.bedIncisionScale()
                     * reach.samples().get(i + 1).waterDepthPotential() * reliefMeters;
-            double upstreamNormalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
-                    upstream.dischargeCubicMetersPerSecond(),
-                    calibration.manningRoughness(),
-                    upstreamDepth,
-                    upstream.bottomWidthMeters(),
-                    upstream.sideSlopeHorizontalToVertical());
-            double downstreamNormalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
-                    downstream.dischargeCubicMetersPerSecond(),
-                    calibration.manningRoughness(),
-                    downstreamDepth,
-                    downstream.bottomWidthMeters(),
-                    downstream.sideSlopeHorizontalToVertical());
-            double minimumGrade = Math.max(upstreamNormalSlope, downstreamNormalSlope);
-            if (minimumGrade > calibration.maximumDownstreamBedSlope()) {
-                throw new IllegalStateException(
-                        "Manning reference grade exceeds the bounded candidate bed grade"
-                                + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
-                                + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
-                                + ";section=" + (i + 1)
-                                + ";requiredGrade=" + minimumGrade
-                                + ";maximumGrade=" + calibration.maximumDownstreamBedSlope());
-            }
+            // Uniform-flow friction slope is a hydraulic reference state, not a hard lower
+            // bound on geometric bed slope. Gradually varied flow can close on milder slopes
+            // through backwater; let the physical solver determine whether this candidate works.
             gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
                     "bed-grade:" + i,
                     i,
                     i + 1,
-                    minimumGrade * spacing,
+                    0.0,
                     calibration.maximumDownstreamBedSlope() * spacing));
         }
 
@@ -139,7 +120,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 target, weight, lower, upper, gradeConstraints));
         if (qp.status() != SkyIslandHydraulicQpStatus.SOLVED) {
             throw new IllegalStateException(
-                    "bounded channel-bed candidate is infeasible under terrain, incision, and Manning-grade constraints"
+                    "bounded channel-bed candidate is infeasible under terrain, incision, and bed-grade constraints"
                             + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
                             + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
                             + ";diagnostic=" + qp.diagnostic().orElse("none"));
