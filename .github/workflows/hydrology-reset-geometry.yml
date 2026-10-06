@@ -22,6 +22,7 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpProfileSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelOrdinarySpanSolver.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelSourceTailwaterSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandCandidateHydrologyCouplingTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRationalRunoffCalibration.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConditionedDemFlowTest.java"
@@ -329,6 +330,11 @@ jobs:
         run: |
           cat skyforge-world/build/evidence/hydrology-key700-d2-component-test/key-700.txt
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml
+
+      - name: Print candidate coupling diagnostics
+        if: success()
+        run: |
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandCandidateHydrologyCouplingTest.xml
 
       - name: Dump generated hydrology evidence on failure
         if: failure()
