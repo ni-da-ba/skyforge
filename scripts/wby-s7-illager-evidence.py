@@ -130,6 +130,17 @@ def main() -> int:
         raise SystemExit(f"Expected the pinned Mowzie's Mobs jar; found {[jar.name for jar in mowzie_jars]}")
     mowzie_jar = mowzie_jars[0]
     mowzie_sha256 = hashlib.sha256(mowzie_jar.read_bytes()).hexdigest()
+    with zipfile.ZipFile(mowzie_jar) as archive:
+        mowzie_structures = sorted(
+            name.removeprefix("data/mowziesmobs/worldgen/structure/").removesuffix(".json")
+            for name in archive.namelist()
+            if name.startswith("data/mowziesmobs/worldgen/structure/") and name.endswith(".json")
+        )
+        mowzie_structure_sets = sorted(
+            name.removeprefix("data/mowziesmobs/worldgen/structure_set/").removesuffix(".json")
+            for name in archive.namelist()
+            if name.startswith("data/mowziesmobs/worldgen/structure_set/") and name.endswith(".json")
+        )
     ice_fire_jar = None
     ice_fire_sha256 = ""
     ice_fire_structures: list[str] = []
