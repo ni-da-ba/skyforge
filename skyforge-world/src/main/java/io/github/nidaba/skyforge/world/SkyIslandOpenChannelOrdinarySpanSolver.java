@@ -296,6 +296,7 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                 violations,
                 upstreamStageResidual,
                 stageTolerance);
+    }
 
     private static SkyIslandGraduallyVariedFlowSolver.Result solveHydraulics(
             SkyIslandDescriptor descriptor,
