@@ -1,11 +1,5 @@
 diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
 --- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
-+++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
-@@ -11,2 +11,2 @@
--import net.minecraft.client.renderer.GameRenderer;
--import net.minecraft.client.renderer.RenderStateShard;
-+import net.minecraft.client.renderer.LightTexture;
-+import net.minecraft.client.renderer.OverlayTexture;
 @@ -44,14 +44 @@
 -    private static final RenderType RIBBON = RenderType.create(
 -            "windy:ribbon",
@@ -28,6 +22,6 @@ diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/ja
 @@ -248,1 +235,4 @@
 -                .setUv(u, v).setColor(235, 245, 252, a);
 +                .setUv(u, v).setColor(235, 245, 252, a)
-+                .setOverlay(OverlayTexture.NO_OVERLAY)
-+                .setLight(LightTexture.FULL_BRIGHT)
++                .setOverlay(net.minecraft.client.renderer.OverlayTexture.NO_OVERLAY)
++                .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT)
 +                .setNormal(0.0F, 1.0F, 0.0F);
