@@ -21,6 +21,45 @@ public final class SkyIslandManningHydraulics {
     private SkyIslandManningHydraulics() {}
 
     /**
+     * Returns the uniform-flow friction/energy slope required to carry the supplied discharge
+     * at a specified depth in a trapezoidal section.
+     *
+     * <p>This is the inverse of the conveyance form of Manning's equation:
+     * {@code S_f = (Q n / (A R^(2/3)))^2}. It is a local uniform-flow reference state, not a
+     * gradually-varied-flow substitute.
+     */
+    public static double uniformFlowEnergySlope(
+            double dischargeCubicMetersPerSecond,
+            double manningRoughness,
+            double depthMeters,
+            double bottomWidthMeters,
+            double sideSlopeHorizontalPerVertical) {
+        requireFinitePositive(dischargeCubicMetersPerSecond, "discharge");
+        requireFinitePositive(manningRoughness, "Manning roughness");
+        requireFinitePositive(depthMeters, "depth");
+        requireFinitePositive(bottomWidthMeters, "bottom width");
+        if (!Double.isFinite(sideSlopeHorizontalPerVertical)
+                || sideSlopeHorizontalPerVertical < 0.0) {
+            throw new IllegalArgumentException("side slope must be finite and non-negative");
+        }
+        double area = depthMeters
+                * (bottomWidthMeters + sideSlopeHorizontalPerVertical * depthMeters);
+        double wettedPerimeter = bottomWidthMeters
+                + 2.0 * depthMeters
+                        * Math.hypot(1.0, sideSlopeHorizontalPerVertical);
+        double hydraulicRadius = area / wettedPerimeter;
+        double conveyanceWithoutRoughness =
+                area * Math.pow(hydraulicRadius, 2.0 / 3.0);
+        double scaledDischarge = dischargeCubicMetersPerSecond * manningRoughness
+                / conveyanceWithoutRoughness;
+        double slope = scaledDischarge * scaledDischarge;
+        if (!Double.isFinite(slope) || slope <= 0.0) {
+            throw new ArithmeticException("uniform-flow energy slope is not finite and positive");
+        }
+        return slope;
+    }
+
+    /**
      * Solves Manning's equation for trapezoidal-channel normal depth.
      *
      * @param dischargeCubicMetersPerSecond positive SI discharge Q
