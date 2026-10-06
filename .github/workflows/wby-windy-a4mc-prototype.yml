@@ -67,7 +67,8 @@ jobs:
             0006-live-trusted-flow-probe.patch \
             0007-suspended-island-wind-corridors.patch \
             0008-wind-sample-profiling.patch \
-            0009-trusted-burst-probe.patch; do
+            0009-trusted-burst-probe.patch \
+            0010-iris-entity-translucent-render-path.patch; do
             path="../third_party/patches/windy/$patch"
             git -C windy-upstream apply --check "$path"
             git -C windy-upstream apply "$path"
