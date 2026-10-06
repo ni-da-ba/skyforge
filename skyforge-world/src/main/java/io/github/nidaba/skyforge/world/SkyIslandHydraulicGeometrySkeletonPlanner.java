@@ -53,21 +53,13 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double maximumBankfullWidth =
                     2.0 * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                             descriptor.nominalRadius(), discharge.maximumDischarge());
-            double corridorHalfWidth = network.planningSpacing()
-                    * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-            SkyIslandGeomorphicCandidateRoute conditionedRoute =
-                    SkyIslandTerrainAwareRouteSolver.solveByPriorityFlood(
-                            terrain,
-                            interiority,
-                            route.semanticReach().guidancePoints(),
-                            network.planningSpacing(),
-                            corridorHalfWidth,
-                            new SkyIslandGeomorphicRouteAnchor(
-                                    route.route().points().getFirst(), 0.0),
-                            new SkyIslandGeomorphicRouteAnchor(
-                                    route.route().points().getLast(), 0.0));
-            SkyIslandGeomorphicReachRoute candidateRoute =
-                    new SkyIslandGeomorphicReachRoute(route.semanticReach(), conditionedRoute);
+            // The shared network planner has already selected a bounded, terrain-aware route
+            // between the candidate's common physical anchors. Re-routing each reach independently
+            // through a D8/priority-flood tree can add relief barriers after those shared anchors
+            // are fixed, making an otherwise admissible bed profile infeasible. Keep drainage and
+            // node geometry from the same joint candidate here; use the conditioning flow only as
+            // comparative routing evidence, not as a second authority over this reach.
+            SkyIslandGeomorphicReachRoute candidateRoute = route;
             SkyIslandContinuousChannelCenterline candidate =
                     SkyIslandSemanticCorridorCenterlinePlanner.refine(
                             conditionedRoute,
