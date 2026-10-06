@@ -35,7 +35,8 @@ diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/ja
 +        BufferBuilder bb = tess.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.NEW_ENTITY);
 @@ -285,6 +270,10 @@ public final class WindRibbons {
          bb.addVertex(pose, (float) (p.x - cam.x), (float) (p.y - cam.y), (float) (p.z - cam.z))
-                 .setUv(u, v).setColor(235, 245, 252, a);
+-                .setUv(u, v).setColor(235, 245, 252, a);
++                .setUv(u, v).setColor(235, 245, 252, a)
 +                .setOverlay(OverlayTexture.NO_OVERLAY)
 +                .setLight(LightTexture.FULL_BRIGHT)
 +                .setNormal(0.0F, 1.0F, 0.0F);
