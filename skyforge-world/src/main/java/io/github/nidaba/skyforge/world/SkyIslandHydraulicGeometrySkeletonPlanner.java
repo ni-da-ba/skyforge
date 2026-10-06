@@ -39,9 +39,17 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
      */
     public static SkyIslandHydraulicGeometrySkeletonPlan planHydraulicCandidate(
             SkyIslandDescriptor descriptor) {
+        return planHydraulicCandidate(
+                descriptor, SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL);
+    }
+
+    static SkyIslandHydraulicGeometrySkeletonPlan planHydraulicCandidate(
+            SkyIslandDescriptor descriptor,
+            int routeDivisionsPerPlanningCell) {
         Objects.requireNonNull(descriptor, "descriptor");
         SkyIslandGeomorphicChannelNetworkPlan network =
-                SkyIslandGeomorphicChannelNetworkPlanner.planHydraulicCandidate(descriptor);
+                SkyIslandGeomorphicChannelNetworkPlanner.planHydraulicCandidate(
+                        descriptor, routeDivisionsPerPlanningCell);
         SkyIslandPreHydrologicTerrainField terrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField interiority =
