@@ -21,6 +21,52 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
     private SkyIslandOpenChannelOrdinarySpanSolver() {}
 
     /**
+     * Propagates an authored source normal-depth state downstream in its declared regime.
+     *
+     * <p>Subcritical flow uses a deep-branch standard-step march; supercritical flow uses a
+     * shallow-branch march. A near-critical source or unsupported transition fails closed. The
+     * returned profile is hydraulic evidence only and still requires independent geomorphic
+     * qualification.
+     */
+    public static SkyIslandGraduallyVariedFlowSolver.Result
+            solveSourceNormalDepthDownstream(
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+                    SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 3) {
+            throw new IllegalArgumentException(
+                    "source normal-depth closure requires at least three cross sections");
+        }
+        SkyIslandGraduallyVariedFlowSolver.CrossSection source = reach.getFirst();
+        double sourceBedSlope = sourceEnergySlope(reach);
+        if (!Double.isFinite(sourceBedSlope) || sourceBedSlope <= 0.0) {
+            throw new IllegalStateException(
+                    "source normal-depth closure requires a positive local downstream bed slope");
+        }
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                source.dischargeCubicMetersPerSecond(),
+                parameters.manningRoughness(),
+                sourceBedSlope,
+                source.bottomWidthMeters(),
+                source.sideSlopeHorizontalToVertical());
+        double froude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                source, normalDepth, parameters);
+        double regimeMargin = Math.max(1.0e-6, 10.0 * parameters.relativeTolerance());
+        if (froude > 1.0 + regimeMargin) {
+            return SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                    reach, normalDepth, parameters);
+        }
+        if (froude >= 1.0 - regimeMargin) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary is near critical; mixed-regime closure is unsupported");
+        }
+        return SkyIslandGraduallyVariedFlowSolver.solveSubcriticalDownstream(
+                reach, normalDepth, parameters);
+    }
+
+    /**
      * Solves a source-controlled reach against an explicit physical downstream tailwater.
      *
      * <p>The source boundary is Manning normal depth on the reach's local upstream bed slope.
