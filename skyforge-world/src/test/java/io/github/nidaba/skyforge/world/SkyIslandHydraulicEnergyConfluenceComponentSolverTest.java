@@ -52,10 +52,14 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
                                 branchSections(DISCHARGE, WIDTH)),
                         new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
                                 branchSections(DISCHARGE, WIDTH)));
+        double outletWidth = 2.0 * WIDTH;
+        double outletDischarge = 2.0 * DISCHARGE;
+        double outletSlope = normalSlopeMetersPerMeter(
+                outletDischarge, outletWidth, normalDepth);
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> outlet =
-                List.of(section(200.0, 0.0, 2.0 * DISCHARGE, 2.0 * WIDTH),
-                        section(250.0, -0.05, 2.0 * DISCHARGE, 2.0 * WIDTH),
-                        section(300.0, -0.10, 2.0 * DISCHARGE, 2.0 * WIDTH));
+                List.of(section(200.0, 0.0, outletDischarge, outletWidth),
+                        section(250.0, -50.0 * outletSlope, outletDischarge, outletWidth),
+                        section(300.0, -100.0 * outletSlope, outletDischarge, outletWidth));
 
         var result = SkyIslandHydraulicEnergyConfluenceComponentSolver.solveWithSubcriticalTailwater(
                 incoming, outlet, normalDepth, PARAMETERS, 0.0);
@@ -73,9 +77,11 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
                         new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
                                 branchSections(DISCHARGE, WIDTH, datumShift)));
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> shiftedOutlet =
-                List.of(section(200.0, datumShift, 2.0 * DISCHARGE, 2.0 * WIDTH),
-                        section(250.0, datumShift - 0.05, 2.0 * DISCHARGE, 2.0 * WIDTH),
-                        section(300.0, datumShift - 0.10, 2.0 * DISCHARGE, 2.0 * WIDTH));
+                List.of(section(200.0, datumShift, outletDischarge, outletWidth),
+                        section(250.0, datumShift - 50.0 * outletSlope,
+                                outletDischarge, outletWidth),
+                        section(300.0, datumShift - 100.0 * outletSlope,
+                                outletDischarge, outletWidth));
         var shifted = SkyIslandHydraulicEnergyConfluenceComponentSolver.solveWithSubcriticalTailwater(
                 shiftedIncoming, shiftedOutlet, normalDepth, PARAMETERS, 0.0);
 
@@ -138,6 +144,14 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandHydraulicEnergyConfluenceComponentSolver.solve(
                         incoming, outlet, normalDepth, PARAMETERS, 0.0));
+    }
+
+    private static double normalSlopeMetersPerMeter(
+            double discharge, double width, double depth) {
+        double area = width * depth;
+        double hydraulicRadius = area / (width + 2.0 * depth);
+        double conveyance = area * Math.pow(hydraulicRadius, 2.0 / 3.0) / ROUGHNESS;
+        return Math.pow(discharge / conveyance, 2.0);
     }
 
     private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> branchSections(
