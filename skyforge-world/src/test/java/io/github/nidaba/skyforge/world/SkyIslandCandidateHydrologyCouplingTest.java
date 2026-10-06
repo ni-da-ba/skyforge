@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.world;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -135,7 +136,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             cascadeProfile.maximumEnergyResidualMeters(),
                             Math.max(
                                     component.maximumReachEnergyResidualMeters(),
-                                    component.confluence().confluence().energyResidualMeters())),
+                                    component.confluence().energyResidualMeters())),
                     "");
         } catch (IllegalArgumentException | IllegalStateException failure) {
             return new NaturalComponentProbe(
