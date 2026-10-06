@@ -17,6 +17,37 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     private static final double EPSILON = 1.0e-12;
 
     @Test
+    void hydraulicCandidateGeometryIsDeterministicAndKeepsTheAuthoredGraph() {
+        SkyIslandDescriptor descriptor = descriptor(77L);
+        SkyIslandHydraulicGeometrySkeletonPlan baseline =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan candidate =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan repeated =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+
+        assertEquals(candidate, repeated, "candidate route and section skeleton must be deterministic");
+        assertEquals(
+                baseline.geomorphicNetwork(),
+                candidate.geomorphicNetwork(),
+                "D2-independent geometry exploration must not edit the authored network");
+        assertEquals(
+                baseline.reaches().stream()
+                        .map(SkyIslandHydraulicGeometrySkeletonPlannerTest::reachIdentity)
+                        .toList(),
+                candidate.reaches().stream()
+                        .map(SkyIslandHydraulicGeometrySkeletonPlannerTest::reachIdentity)
+                        .toList(),
+                "candidate extraction must retain every semantic reach exactly once");
+        assertTrue(candidate.reaches().stream().allMatch(reach -> reach.pathLength() > 0.0));
+    }
+
+    private static String reachIdentity(SkyIslandHydraulicReachSkeleton reach) {
+        SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+        return semantic.startCellIndex() + "->" + semantic.endCellIndex();
+    }
+
+    @Test
     void naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes() throws Exception {
         SkyIslandDescriptor descriptor = descriptor(700L);
         SkyIslandGeomorphicChannelNetworkPlan network =
