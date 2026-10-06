@@ -13,7 +13,6 @@ on:
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialLandformCorpusTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipFluvialSpecimenSearchTest.java"
-      - "skyforge-reference/build.gradle.kts"
   workflow_dispatch:
 
 permissions:
