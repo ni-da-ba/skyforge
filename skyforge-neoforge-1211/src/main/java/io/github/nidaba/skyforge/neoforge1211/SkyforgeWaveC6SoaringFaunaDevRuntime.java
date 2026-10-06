@@ -377,6 +377,34 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         return HAWK_ID.equals(BuiltInRegistries.ENTITY_TYPE.getKey(entity.getType()).toString());
     }
 
+    /**
+     * Read-only #1180 instrumentation for one already-observed hawk.
+     *
+     * <p>Returning null means C6 has not adapted this entity. The snapshot never changes brain,
+     * schedule, navigation, or atmosphere state.
+     */
+    static DiagnosticSnapshot diagnosticSnapshot(Mob hawk) {
+        HawkState state = HAWKS.get(hawk);
+        if (state == null) {
+            return null;
+        }
+        return new DiagnosticSnapshot(
+                !state.disabled,
+                state.disabled,
+                state.decision.soaring(),
+                state.transitionCount,
+                state.steeringCommands,
+                state.handle != null && state.handle.thermalScheduleActive());
+    }
+
+    record DiagnosticSnapshot(
+            boolean adapted,
+            boolean disabled,
+            boolean soaring,
+            int transitionCount,
+            int steeringCommands,
+            boolean thermalScheduleActive) {}
+
     static int adaptedHawkCountForAcceptance() {
         synchronized (HAWKS) {
             return (int) HAWKS.values().stream().filter(state -> !state.disabled).count();
