@@ -57,7 +57,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         SkyIslandPreHydrologicTerrainField baseTerrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField candidateTerrain =
-                new CandidateTerrainField(baseTerrain, reaches);
+                new CandidateTerrainField(baseTerrain, reaches, descriptor.reliefBudget() * calibration.metersPerWorldUnit());
         return new Plan(descriptor, skeleton, reaches, candidateTerrain);
     }
 
@@ -135,11 +135,17 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private static final class CandidateTerrainField implements SkyIslandSemanticField {
         private final SkyIslandSemanticField baseTerrain;
         private final List<ReachCandidate> reaches;
+        private final double reliefMeters;
 
         private CandidateTerrainField(
                 SkyIslandSemanticField baseTerrain,
-                List<ReachCandidate> reaches) {
+                List<ReachCandidate> reaches,
+                double reliefMeters) {
             this.baseTerrain = Objects.requireNonNull(baseTerrain, "baseTerrain");
+            if (!Double.isFinite(reliefMeters) || reliefMeters <= 0.0) {
+                throw new IllegalArgumentException("reliefMeters must be finite and positive");
+            }
+            this.reliefMeters = reliefMeters;
             this.reaches = reaches.stream()
                     .map(reach -> Objects.requireNonNull(reach, "reach"))
                     .sorted(Comparator
@@ -199,13 +205,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 return null;
             }
 
-            SkyIslandGraduallyVariedFlowSolver.CrossSection bedSection =
-                    interpolate(reach.sections().get(i), reach.sections().get(i + 1), f);
-            double reliefMeters =
-                    reach.skeleton().geomorphicRoute().semanticReach().descriptor().reliefBudget();
-            // Cross-section bed elevations were calibrated in metres. Terrain potentials are
-            // dimensionless; use the reach's matching normalized bed from its game-scale geometry.
-            double bedPotential = normalizedBedPotential(reach, i, f);
+            // Cross-section bed elevations are converted with the same relief scale used to
+            // generate the SI sections; the solver and terrain candidate therefore share one bed.
+            double bedPotential = normalizedBedPotential(reach, i, f, this.reliefMeters);
             double centerTerrain = lerp(a.terrainElevation(), b.terrainElevation(), f);
             double distance = projection.distance();
             double target;
@@ -230,20 +232,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             if (maximumCut <= EPSILON) {
                 return null;
             }
-            // Keep references live in validation/debug builds and document the dimensional link.
-            if (!Double.isFinite(bedSection.bedElevationMeters()) || !Double.isFinite(reliefMeters)) {
-                throw new IllegalStateException("candidate bed/terrain mapping is non-finite");
-            }
             return new CandidateSection(reach, Math.min(originalTerrain, clamp01(target)));
         }
 
         private static double normalizedBedPotential(
-                ReachCandidate reach, int sampleIndex, double fraction) {
-            double reliefBudget =
-                    reach.skeleton().geomorphicRoute().semanticReach().descriptor().reliefBudget();
+                ReachCandidate reach, int sampleIndex, double fraction, double reliefMeters) {
             double bedAtA = reach.sections().get(sampleIndex).bedElevationMeters();
             double bedAtB = reach.sections().get(sampleIndex + 1).bedElevationMeters();
-            return (bedAtA + (bedAtB - bedAtA) * fraction) / reliefBudget;
+            return (bedAtA + (bedAtB - bedAtA) * fraction) / reliefMeters;
         }
 
         private static boolean sharesSemanticNode(ReachCandidate first, ReachCandidate second) {
@@ -303,20 +299,6 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 }
             }
             return best;
-        }
-
-        private static SkyIslandGraduallyVariedFlowSolver.CrossSection interpolate(
-                SkyIslandGraduallyVariedFlowSolver.CrossSection a,
-                SkyIslandGraduallyVariedFlowSolver.CrossSection b,
-                double fraction) {
-            return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
-                    lerp(a.chainageMeters(), b.chainageMeters(), fraction),
-                    lerp(a.bedElevationMeters(), b.bedElevationMeters(), fraction),
-                    lerp(a.dischargeCubicMetersPerSecond(),
-                            b.dischargeCubicMetersPerSecond(), fraction),
-                    lerp(a.bottomWidthMeters(), b.bottomWidthMeters(), fraction),
-                    lerp(a.sideSlopeHorizontalToVertical(),
-                            b.sideSlopeHorizontalToVertical(), fraction));
         }
 
         private static double smoothstep(double value) {
