@@ -22,7 +22,7 @@ for jar in \
     cat >&2 <<EOF
 Missing pinned A4MC review dependency:
   $jar
-Download and extract both A4MC 0.2.2 JARs from the S5/S6 GitHub Actions artifact into:
+Download and extract both A4MC 0.2.2 JARs from the S7 GitHub Actions artifact (wby-s7-illager-threats-resolution) into:
   .skyforge-diagnostics/aerodynamics4mc-0.2.2-mods/
 EOF
     exit 2
