@@ -130,7 +130,8 @@ jobs:
           cat > "$GITHUB_WORKSPACE/wind-review-artifact/NOTICE.txt" <<'EOF'
           Windy 1.2.0 review build
           Built from falling-colud/windy source commit 3ba5523481d22179cdf0fa7dab0743210f136bb8.
-          Skyforge A4MC-authority patches plus asserted entity-translucent render and entity-stage timing experiments: ni-da-ba/skyforge PR #1464 head 2ad9a1784f970235d1750709851d62d11df482ac.
+          Skyforge A4MC-authority patches and rendering experiments 0010-0014: ni-da-ba/skyforge PR #1464 head 7eca0a434ce2f20bfdab84e1530a237f65e58e1a.
+          This S5 review package enables the test-only particle-path probe with -Dskyforge.windy.shaderParticleProbe=true; it suppresses ribbons and raises Wisp visibility only for nonzero server-trusted A4MC flow.
           This source-built jar is supplied only for private integration review. It is not an approved modpack/release artifact.
           The accompanying LICENSE is the license from the exact pinned upstream source commit.
           EOF
