@@ -7,7 +7,6 @@ on:
       - ".github/actions/run-authorship-evidence/action.yml"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRegionalPetroleumSystemOpportunity*.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandRegionalPetroleumSystemOpportunityProfilerTest.java"
-      - "skyforge-reference/build.gradle.kts"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipRegionalPetroleumSystemOpportunityCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipRegionalPetroleumSystemOpportunityCorpusTest.java"
       - "docs/authorship/AUTH-0100-regional-petroleum-system-opportunity-inventory.md"
