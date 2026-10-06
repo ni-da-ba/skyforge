@@ -283,6 +283,29 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 maxUphillStep);
     }
 
+    public static SkyIslandGeomorphicCandidateRoute solveHydraulicCandidate(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor) {
+        // Candidate drainage must minimize the terrain-rise burden the downstream bed solver
+        // cannot excavate away. Keep the multiplier candidate-only; accepted controls and the
+        // held-out challenge evaluate this stronger longitudinal objective before integration.
+        return solveAtResolution(
+                terrain,
+                interiority,
+                guidance,
+                planningSpacing,
+                corridorHalfWidth,
+                startAnchor,
+                endAnchor,
+                FINE_DIVISIONS_PER_PLANNING_CELL,
+                3.0 * ASCENT_WEIGHT);
+    }
+
     public static SkyIslandGeomorphicCandidateRoute solveAtResolution(
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority,
@@ -292,6 +315,28 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain,
+                interiority,
+                guidance,
+                planningSpacing,
+                corridorHalfWidth,
+                startAnchor,
+                endAnchor,
+                divisionsPerPlanningCell,
+                ASCENT_WEIGHT);
+    }
+
+    private static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            double ascentWeight) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -442,7 +487,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                                     + 0.5
                                             * (localCost[current.index()] + localCost[next])
                                             * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
+                                    + ascentWeight * ascent;
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
