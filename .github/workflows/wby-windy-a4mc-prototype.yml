@@ -67,12 +67,12 @@ jobs:
             0006-live-trusted-flow-probe.patch \
             0007-suspended-island-wind-corridors.patch \
             0008-wind-sample-profiling.patch \
-            0009-trusted-burst-probe.patch \
-            0010-iris-entity-translucent-render-path.patch; do
+            0009-trusted-burst-probe.patch; do
             path="../third_party/patches/windy/$patch"
             git -C windy-upstream apply --check "$path"
             git -C windy-upstream apply "$path"
           done
+          python3 third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           git -C windy-upstream diff --check
           grep -Fq 'SERVER_AGGREGATED_PREFERRED' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
           grep -Fq 'if (external)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
