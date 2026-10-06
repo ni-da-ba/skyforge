@@ -35,7 +35,7 @@ replacements = [
     (
         "                .setUv(u, v).setColor(235, 245, 252, a);",
         """                .setUv(u, v).setColor(235, 245, 252, a)
-                .setOverlay(net.minecraft.client.renderer.OverlayTexture.NO_OVERLAY)
+                .setOverlay(net.minecraft.client.renderer.texture.OverlayTexture.NO_OVERLAY)
                 .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT)
                 .setNormal(0.0F, 1.0F, 0.0F);""",
         "entity vertex attributes",
