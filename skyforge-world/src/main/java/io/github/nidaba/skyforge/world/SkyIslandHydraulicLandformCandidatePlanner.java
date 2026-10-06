@@ -27,8 +27,33 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(calibration, "calibration");
-        SkyIslandHydraulicGeometrySkeletonPlan skeleton =
-                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+        List<String> rejectedResolutions = new ArrayList<>();
+        for (int divisionsPerPlanningCell : new int[] {4, 8, 16}) {
+            SkyIslandHydraulicGeometrySkeletonPlan skeleton =
+                    SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(
+                            descriptor, divisionsPerPlanningCell);
+            try {
+                return buildPlan(descriptor, calibration, skeleton);
+            } catch (IllegalStateException failure) {
+                String message = failure.getMessage();
+                if (message == null
+                        || !message.startsWith(
+                                "bounded channel-bed candidate is infeasible under terrain, incision, and bed-grade constraints")) {
+                    throw failure;
+                }
+                rejectedResolutions.add(
+                        divisionsPerPlanningCell + "x: " + message);
+            }
+        }
+        throw new IllegalStateException(
+                "no coupled drainage/bed candidate is feasible within the accepted corridor at route resolutions 4x/8x/16x"
+                        + ";rejectedCandidates=" + String.join(" || ", rejectedResolutions));
+    }
+
+    private static Plan buildPlan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            SkyIslandHydraulicGeometrySkeletonPlan skeleton) {
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         List<ReachCandidate> reaches = new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
@@ -60,7 +85,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         SkyIslandPreHydrologicTerrainField baseTerrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField candidateTerrain =
-                new CandidateTerrainField(baseTerrain, reaches, descriptor.reliefBudget() * calibration.metersPerWorldUnit());
+                new CandidateTerrainField(
+                        baseTerrain,
+                        reaches,
+                        descriptor.reliefBudget() * calibration.metersPerWorldUnit());
         return new Plan(descriptor, skeleton, reaches, candidateTerrain);
     }
 
