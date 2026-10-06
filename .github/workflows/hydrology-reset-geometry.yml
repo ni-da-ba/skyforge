@@ -15,6 +15,7 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolverTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpProfileSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelOrdinarySpanSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelSourceTailwaterSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRationalRunoffCalibration.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepTest.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConditionedDemFlowTest.java"
@@ -303,6 +304,9 @@ jobs:
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --tests '*SkyIslandHydraulicJumpSolverTest' \
             --tests '*SkyIslandHydraulicJumpProfileSolverTest' \
+            --tests '*SkyIslandOpenChannelSourceTailwaterSolverTest' \
+            --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalProfileMarchesDownstreamFromUpstreamStageControl' \
+            --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalDownstreamSolveRejectsSupercriticalSourceAndInsufficientHead' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
         if: always() && github.event_name == 'workflow_dispatch'
