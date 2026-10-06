@@ -3,7 +3,6 @@ name: AUTH-0105 Fluvial Landforms
 on:
   pull_request:
     paths:
-      - ".github/workflows/auth-0105-fluvial-landforms.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0105-fluvial-landform-realization.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandFluvialReachGeometry.java"
