@@ -139,8 +139,9 @@ jobs:
           cp skyforge-neoforge-1211/run-wby-s6-server/config/hearthandharvest-common.toml "$server_dir/config/"
           cp -R skyforge-neoforge-1211/run-wby-s6-server/kubejs/data/. "$server_dir/kubejs/data/"
           printf 'eula=true\n' > "$server_dir/eula.txt"
-          grep -E 'yungs|structures|towns|radio|aeronautical|explorify|structory' \
-            skyforge-neoforge-1211/run-wby-s6-server/server-mods/* > wby-s6-staged-structure-jars.txt
+          find skyforge-neoforge-1211/run-wby-s6-server/server-mods -maxdepth 1 -type f -printf '%f\\n' \
+            | grep -Ei 'yungs|structures|towns|radio|aeronautical|explorify|structory' \
+            > wby-s6-staged-structure-jars.txt
           test -s wby-s6-staged-structure-jars.txt
           echo "WBY S6 NeoForge server staging PASS"
 
