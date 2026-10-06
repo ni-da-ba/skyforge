@@ -81,6 +81,7 @@ jobs:
           python3 third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 third_party/patches/windy/apply-0011.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 third_party/patches/windy/apply-0012.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0013.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           git -C windy-upstream diff --check
           (cd windy-upstream && bash ./gradlew assemble --no-daemon)
           artifact="$PWD/windy-upstream/build/libs/windy-1.2.0.jar"
