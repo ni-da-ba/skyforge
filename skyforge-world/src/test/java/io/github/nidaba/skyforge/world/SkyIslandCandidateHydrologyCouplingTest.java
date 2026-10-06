@@ -26,6 +26,41 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     1.0, 0.5, 0.035, 0.5, 1.0, 9.81, 1.0e-8, 160, 1.0, 0.25);
 
     @Test
+    void coupledLandformCandidatePreservesSemanticGraphAndBuildsBoundedChannelValleys() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
+        SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+
+        assertEquals(
+                candidate.skeletonPlan().geomorphicNetwork().routes().size(),
+                candidate.reaches().size(),
+                "candidate landform geometry must preserve one reach per authored semantic edge");
+        for (SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate reach : candidate.reaches()) {
+            assertEquals(
+                    reach.skeleton().samples().size(),
+                    reach.sections().size(),
+                    "hydraulic sections and candidate drainage samples must share stations");
+            for (int i = 0; i < reach.sections().size(); i++) {
+                assertTrue(
+                        reach.sections().get(i).bedElevationMeters()
+                                < reach.skeleton().samples().get(i).terrainElevation()
+                                        * descriptor.reliefBudget()
+                                        * CALIBRATION.metersPerWorldUnit(),
+                        "candidate channel bed must remain below its source terrain");
+            }
+        }
+
+        SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate representative =
+                candidate.requireReach(801, 1951);
+        int sampleIndex = representative.skeleton().samples().size() / 2;
+        SkyIslandHydraulicGeometrySkeletonSample sample =
+                representative.skeleton().samples().get(sampleIndex);
+        double candidateElevation = candidate.terrain().sample(sample.position());
+        assertTrue(candidateElevation <= sample.terrainElevation());
+    }
+
+    @Test
     void candidateGeometryFeedsPhysicalSolverBeforeIndependentD2OnControlAndHeldOutKey() {
         ProbeResult acceptedControl = probe(6L, 61L, 77L);
         ProbeResult heldOutChallenge = probe(8L, 81L, 700L);
@@ -112,9 +147,9 @@ class SkyIslandCandidateHydrologyCouplingTest {
             List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
                     List.of(
                             new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
-                                    CALIBRATION.crossSections(descriptor, first.samples())),
+                                    candidate.requireReach(660, 801).sections()),
                             new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
-                                    CALIBRATION.crossSections(descriptor, second.samples())));
+                                    candidate.requireReach(1140, 801).sections()));
             SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile =
                     SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
                             cascadeSections, parameters);
@@ -222,7 +257,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
         SkyIslandWatershedPlan watershed = SkyIslandWatershedPlanner.plan(descriptor);
         SkyIslandHydraulicTransitionTopologyPlan topology =
-                SkyIslandHydraulicTransitionTopologyPlanner.plan(descriptor, candidate);
+                SkyIslandHydraulicTransitionTopologyPlanner.plan(descriptor, candidateSkeleton);
         SkyIslandHydraulicTransitionGeometryEvidencePlan geometry =
                 SkyIslandHydraulicTransitionGeometryEvidencePlanner.plan(descriptor, topology);
         SkyIslandConfluenceHeadCompatibilityPlan confluences =
