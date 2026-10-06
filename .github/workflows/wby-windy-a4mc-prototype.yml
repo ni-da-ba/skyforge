@@ -75,12 +75,13 @@ jobs:
           python3 third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 third_party/patches/windy/apply-0011.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           python3 third_party/patches/windy/apply-0012.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0013.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           git -C windy-upstream diff --check
           grep -Fq 'SERVER_AGGREGATED_PREFERRED' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
           grep -Fq 'if (external)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'if (!physical.available())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
           grep -Fq 'if (WindDirector.hasExternalWind())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
-          grep -Fq 'RenderType.entityTranslucent(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'RenderType.entityCutoutNoCull(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'Stage.AFTER_ENTITIES' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'bufferSource().endBatch(RIBBON)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
           grep -Fq 'airflow belongs to A4MC' windy-upstream/src/main/java/dev/fallingcloud/windy/WindyCommands.java
