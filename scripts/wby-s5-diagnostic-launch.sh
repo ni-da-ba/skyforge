@@ -219,6 +219,7 @@ if [[ "$shader_enabled" == true ]]; then
   echo "Diagnostics bundle: $bundle"
   if [[ "$windy_overlay" == true ]]; then
     echo "Windy is a source-built, patched client-only review overlay; compare its A4MC-driven ribbons/wisps to physical airflow."
+    echo "Shader-path probe: shaders-windy mode hides custom ribbons and increases physical Wisp particle visibility for renderer isolation."
     echo "Check open sky and cloud intersections; this production profile has no Skyforge island overhangs. If ribbons/wisps are missing, compare with the shader pack off and note visibility, conflicts, and frame-time drops."
   else
     echo "This is the baseline S5 shader profile without Windy; use the same fresh-world seed and route before comparing the separate Windy overlay."
@@ -310,6 +311,12 @@ EOF
   [[ "$cloud_interior" == "on" ]] && expected_cloud_interior=true
   grep -Fqx "enabled = $expected_cloud_interior" "$cloud_config"
   echo "S4 cloud diagnostic policy staging PASS (interior effect $cloud_interior)."
+  client_java_options="-Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
+  if [[ "$mode" == "shaders-windy" ]]; then
+    client_java_options="$client_java_options -Dskyforge.windy.shaderParticleProbe=true"
+  fi
+  JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} $client_java_options" \
+\
   "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s5-production-client" \
     --game-directory "$PWD/$run_dir" \
