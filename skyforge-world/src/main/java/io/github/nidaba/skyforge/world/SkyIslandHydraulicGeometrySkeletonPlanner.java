@@ -60,9 +60,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             // node geometry from the same joint candidate here; use the conditioning flow only as
             // comparative routing evidence, not as a second authority over this reach.
             SkyIslandGeomorphicReachRoute candidateRoute = route;
+            double corridorHalfWidth = network.planningSpacing()
+                    * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
             SkyIslandContinuousChannelCenterline candidate =
                     SkyIslandSemanticCorridorCenterlinePlanner.refine(
-                            conditionedRoute,
+                            route.route(),
                             route.semanticReach().guidancePoints(),
                             terrain,
                             interiority,
