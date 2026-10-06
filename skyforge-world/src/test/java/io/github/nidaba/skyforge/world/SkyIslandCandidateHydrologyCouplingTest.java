@@ -171,6 +171,10 @@ class SkyIslandCandidateHydrologyCouplingTest {
         assertEquals(2, naturalComponent.incomingBranches());
         assertTrue(naturalComponent.cascadeSections() >= 2);
         assertTrue(naturalComponent.attempted());
+        assertTrue(
+                naturalComponent.solved(),
+                "key 700's complete natural confluence/CASCADE component must solve before review: "
+                        + naturalComponent.failure());
     }
 
     private static NaturalComponentProbe probeNaturalKey700Component() {
