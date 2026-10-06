@@ -92,6 +92,15 @@ public final class SkyIslandHydraulicConfluenceEnergySolver {
         for (IncomingState state : incoming) {
             Objects.requireNonNull(state, "incoming state");
             SkyIslandGraduallyVariedFlowSolver.CrossSection section = state.section();
+            double incomingFroude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                    section, state.depthMeters(), parameters);
+            double regimeMargin = Math.max(1.0e-6, 10.0 * parameters.relativeTolerance());
+            if (!(incomingFroude < 1.0 - regimeMargin)) {
+                throw new IllegalArgumentException(
+                        "energy-based confluence closure requires strictly subcritical incoming branches"
+                                + "; froude=" + incomingFroude
+                                + "; margin=" + regimeMargin);
+            }
             double area = area(section, state.depthMeters());
             double velocity = section.dischargeCubicMetersPerSecond() / area;
             double totalHead = section.bedElevationMeters() + state.depthMeters()
