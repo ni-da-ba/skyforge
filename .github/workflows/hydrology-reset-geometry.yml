@@ -12,6 +12,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandManningHydraulics.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolver.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpProfileSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeTransitionSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeTransitionSolverTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicEnergyConfluenceComponentSolver.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceEnergySolver.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicEnergyConfluenceComponentSolverTest.java"
@@ -308,6 +310,7 @@ jobs:
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --tests '*SkyIslandHydraulicJumpSolverTest' \
             --tests '*SkyIslandHydraulicJumpProfileSolverTest' \
+            --tests '*SkyIslandHydraulicCascadeTransitionSolverTest' \
             --tests '*SkyIslandOpenChannelSourceTailwaterSolverTest' \
             --tests '*SkyIslandHydraulicEnergyConfluenceComponentSolverTest' \
             --tests '*SkyIslandHydraulicConfluenceEnergySolverTest' \
