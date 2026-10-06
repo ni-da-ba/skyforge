@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-run_directory="run-wby-s7-threats"
+run_directory="run-wby-s7-ice-and-fire"
 run_path="skyforge-neoforge-1211/$run_directory"
 whale_retexture="$run_path/resourcepacks/Sky-Whale-Retexture.zip"
 if [[ ! -f "$whale_retexture" ]]; then
@@ -22,7 +22,7 @@ for jar in \
     cat >&2 <<EOF
 Missing pinned A4MC review dependency:
   $jar
-Download and extract both A4MC 0.2.2 JARs from the S7 GitHub Actions artifact (wby-s7-illager-threats-resolution) into:
+Download and extract both A4MC 0.2.2 JARs from the S7 GitHub Actions artifact (wby-s7-ice-and-fire-resolution) into:
   .skyforge-diagnostics/aerodynamics4mc-0.2.2-mods/
 EOF
     exit 2
@@ -30,7 +30,7 @@ EOF
 done
 
 mkdir -p .skyforge-diagnostics
-bundle=".skyforge-diagnostics/wby-s7-threats-$(date -u +%Y%m%dT%H%M%SZ)"
+bundle=".skyforge-diagnostics/wby-s7-ice-and-fire-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$bundle"
 
 base_args=(
@@ -47,6 +47,7 @@ base_args=(
   -PwbyS5OverworldEcology=true
   -PwbyS6StructuresCivilization=true
   -PwbyS7IllagerThreats=true
+  -PwbyS7IceAndFire=true
   "-PwbyS6D07Variant=both"
   --no-configuration-cache
 )
@@ -54,14 +55,15 @@ export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25Petroleum
 
 ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-resolution.log"
 grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "$bundle/profile-resolution.log"
+grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "$bundle/profile-resolution.log"
 
 ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
 ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
 
-echo "S7 threat candidate: cumulative S6 roster with both Structory and Explorify, plus the selected illager and Mowzie's Mobs layers."
+echo "S7 threat candidate: cumulative S6 roster with both Structory and Explorify, plus the selected illager, Mowzie's Mobs, and Ice & Fire CE layers."
 echo "Windy and Atmospheric Shaders are excluded from this profile; accepted Simple Clouds + DH baseline remains."
-echo "Create a fresh normal Overworld (not the development-only Skyforge preset) with seed 817304."
-echo "Review illager and Mowzie structure/encounter variety, hostile density and faction overlap, travel/vehicle pressure, and any progression bypasses. Record structure names/coordinates and screenshots. In particular, check Foliaath behavior and note Mowzie's four worldgen structure resources."
+echo "Create a fresh normal Overworld (not the development-only Skyforge preset) with seed 817305."
+echo "Review illager, Mowzie, and Ice & Fire structure/encounter variety, hostile density and faction overlap, travel/vehicle pressure, destruction, and progression/access bypasses. Record structure names/coordinates and screenshots. Inspect dragons/fauna and note the S7 candidate structures; the Radio Towers Lite integration gap and whole-stack progression decisions remain deferred."
 echo "Use creative mode only to locate candidate structures; then switch to Survival and Normal difficulty to inspect the encounter. Do not tune loot, recipes, or spawn density."
 echo "Leave density, loot, recipe, and progression decisions for the whole-stack policy pass."
 echo "Review run directory: skyforge-neoforge-1211/$run_directory"
