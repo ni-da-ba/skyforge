@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -26,6 +27,37 @@ class SkyIslandHydraulicCascadeTransitionSolverTest {
         assertEquals(1.0, result.points().getFirst().froudeNumber(), 1.0e-6);
         assertTrue(result.points().getLast().froudeNumber() > 1.0);
         assertTrue(result.maximumEnergyResidualMeters() <= 1.0e-6);
+    }
+
+    @Test
+    void sourceControlledSupercriticalFlowContinuesAcrossItsCascadeLip() {
+        var lip = new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                20.0, 8.0, 1.0, 2.0, 0.5);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> upstream = List.of(
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(0.0, 10.0, 1.0, 2.0, 0.5),
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(10.0, 9.0, 1.0, 2.0, 0.5),
+                lip);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> chute = List.of(
+                lip,
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(25.0, 6.5, 1.0, 2.0, 0.5),
+                new SkyIslandGraduallyVariedFlowSolver.CrossSection(30.0, 5.0, 1.0, 2.0, 0.5));
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                1.0, 0.035, 0.1, 2.0, 0.5);
+
+        var result = SkyIslandHydraulicCascadeTransitionSolver.solveSourceControlledCascade(
+                upstream, chute, normalDepth, PARAMETERS);
+
+        assertFalse(result.criticalControlAtCascadeInlet());
+        assertEquals(normalDepth, result.upstreamProfile().points().getFirst().depthMeters(), 0.0);
+        assertEquals(
+                result.upstreamProfile().points().getLast().depthMeters(),
+                result.cascadeProfile().points().getFirst().depthMeters(),
+                0.0);
+        assertTrue(result.upstreamProfile().points().getLast().froudeNumber() > 1.0);
+        assertTrue(result.cascadeProfile().points().stream()
+                .allMatch(point -> point.froudeNumber() > 1.0));
+        assertTrue(result.upstreamProfile().maximumEnergyResidualMeters() <= 1.0e-6);
+        assertTrue(result.cascadeProfile().maximumEnergyResidualMeters() <= 1.0e-6);
     }
 
     @Test
