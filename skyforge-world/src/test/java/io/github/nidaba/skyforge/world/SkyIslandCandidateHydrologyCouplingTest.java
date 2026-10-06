@@ -360,6 +360,17 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 Map.copyOf(terminalFates),
                                 reachSamples,
                                 candidateBed);
+                for (int i = 0; i < span.samples().size(); i++) {
+                    double chainageMeters = (span.parentStartArcLength()
+                                    + span.samples().get(i).arcLength())
+                            * CALIBRATION.metersPerWorldUnit();
+                    assertEquals(
+                            interpolatedCandidateBed(candidateBed, chainageMeters),
+                            physical.hydraulicProfile().points().get(i)
+                                    .section().bedElevationMeters(),
+                            1.0e-9,
+                            "the physical solver must use the coupled candidate bed at every span station");
+                }
                 solved++;
                 maximumEnergyResidual = Math.max(
                         maximumEnergyResidual,
@@ -388,6 +399,22 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 d2Rejected,
                 maximumEnergyResidual,
                 Map.copyOf(failures));
+    }
+
+    private static double interpolatedCandidateBed(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> parentBed,
+            double chainageMeters) {
+        for (int i = 0; i + 1 < parentBed.size(); i++) {
+            SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = parentBed.get(i);
+            SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = parentBed.get(i + 1);
+            if (chainageMeters <= downstream.chainageMeters()) {
+                double fraction = (chainageMeters - upstream.chainageMeters())
+                        / (downstream.chainageMeters() - upstream.chainageMeters());
+                return upstream.bedElevationMeters()
+                        + fraction * (downstream.bedElevationMeters() - upstream.bedElevationMeters());
+            }
+        }
+        return parentBed.getLast().bedElevationMeters();
     }
 
     private static long reachKey(int startCellIndex, int endCellIndex) {
