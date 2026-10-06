@@ -81,6 +81,8 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
 
     @Test
     void isInvariantToUniformVerticalDatumTranslation() {
+        var preciseParameters = new SkyIslandGraduallyVariedFlowSolver.Parameters(
+                ROUGHNESS, 1.0, 9.81, 1.0e-10, 200);
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
                         section(0.0, 0.0, 1.0), 1.0),
@@ -97,9 +99,9 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
                         .toList();
 
         var baseline = SkyIslandHydraulicConfluenceEnergySolver.solve(
-                incoming, section(2.0, 0.0, 2.0), PARAMETERS, 0.1);
+                incoming, section(2.0, 0.0, 2.0), preciseParameters, 0.1);
         var shifted = SkyIslandHydraulicConfluenceEnergySolver.solve(
-                shiftedIncoming, section(2.0, 17.5, 2.0), PARAMETERS, 0.1);
+                shiftedIncoming, section(2.0, 17.5, 2.0), preciseParameters, 0.1);
 
         assertEquals(baseline.downstreamDepthMeters(), shifted.downstreamDepthMeters(), 1.0e-9);
         assertEquals(
