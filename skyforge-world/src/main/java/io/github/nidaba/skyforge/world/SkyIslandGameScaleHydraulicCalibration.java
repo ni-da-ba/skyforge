@@ -148,9 +148,28 @@ public record SkyIslandGameScaleHydraulicCalibration(
             SkyIslandDescriptor descriptor,
             List<SkyIslandHydraulicGeometrySkeletonSample> samples,
             List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples) {
+        return crossSections(descriptor, samples, parentReachSamples, 0.0);
+    }
+
+    /**
+     * Maps a local-arc subspan against its parent-reach bed profile.
+     *
+     * @param parentStartArcLengthWorldUnits global parent-reach arc coordinate represented by
+     *     local sample arc zero
+     */
+    public List<SkyIslandGraduallyVariedFlowSolver.CrossSection> crossSections(
+            SkyIslandDescriptor descriptor,
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
+            List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples,
+            double parentStartArcLengthWorldUnits) {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(samples, "samples");
         Objects.requireNonNull(parentReachSamples, "parentReachSamples");
+        if (!Double.isFinite(parentStartArcLengthWorldUnits)
+                || parentStartArcLengthWorldUnits < 0.0) {
+            throw new IllegalArgumentException(
+                    "parent start arc length must be finite and non-negative");
+        }
         if (parentReachSamples.size() < 2) {
             throw new IllegalArgumentException("parent hydraulic profile requires at least two samples");
         }
@@ -184,12 +203,29 @@ public record SkyIslandGameScaleHydraulicCalibration(
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
                 new ArrayList<>(samples.size());
+        double parentOffsetMeters =
+                parentStartArcLengthWorldUnits * metersPerWorldUnit;
         for (SkyIslandHydraulicGeometrySkeletonSample sample : samples) {
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = crossSection(descriptor, sample);
+            double parentChainageMeters = raw.chainageMeters() + parentOffsetMeters;
+            SkyIslandGraduallyVariedFlowSolver.CrossSection parentStation =
+                    withChainage(raw, parentChainageMeters);
             sections.add(withBedElevation(
-                    raw, interpolatedBedElevation(parent, raw.chainageMeters())));
+                    parentStation,
+                    interpolatedBedElevation(parent, parentChainageMeters)));
         }
         return List.copyOf(sections);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.CrossSection withChainage(
+            SkyIslandGraduallyVariedFlowSolver.CrossSection section,
+            double chainageMeters) {
+        return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                chainageMeters,
+                section.bedElevationMeters(),
+                section.dischargeCubicMetersPerSecond(),
+                section.bottomWidthMeters(),
+                section.sideSlopeHorizontalToVertical());
     }
 
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection withBedElevation(
