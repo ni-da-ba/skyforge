@@ -2,14 +2,15 @@ package io.github.nidaba.skyforge.world;
 
 import java.util.List;
 
-/** Scores route-wide feasibility of D2 head intervals under ordinary longitudinal grade limits. */
+/** Scores route-wide longitudinal grade feasibility as a bounded centerline objective. */
 @FunctionalInterface
 interface SkyIslandCenterlineLongitudinalHeadFeasibility {
     /**
-     * Returns a finite non-negative measure of interval-propagation conflicts for this candidate.
+     * Returns finite, non-negative evidence for head-envelope or candidate bed-profile grade
+     * conflicts on this centerline.
      *
-     * <p>The evaluator is diagnostic/objective evidence only; downstream ordinary-span and
-     * component planners remain the independent hard admission authority.
+     * <p>The evaluator is diagnostic/objective evidence only; downstream hydraulic solvers remain
+     * the independent hard admission authority.
      */
     Score evaluate(List<SkyIslandLocalPosition> centerlinePoints);
 

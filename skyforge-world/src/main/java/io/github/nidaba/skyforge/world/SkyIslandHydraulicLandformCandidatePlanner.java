@@ -36,7 +36,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         for (int divisionsPerPlanningCell : new int[] {4, 8, 16}) {
             SkyIslandHydraulicGeometrySkeletonPlan skeleton =
                     SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(
-                            descriptor, divisionsPerPlanningCell, feasibilityEnvelope);
+                            descriptor, divisionsPerPlanningCell, feasibilityEnvelope, calibration);
             try {
                 return buildPlan(descriptor, calibration, skeleton);
             } catch (IllegalStateException failure) {

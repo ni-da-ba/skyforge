@@ -53,6 +53,14 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             SkyIslandDescriptor descriptor,
             int routeDivisionsPerPlanningCell,
             SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope) {
+        return planHydraulicCandidate(descriptor, routeDivisionsPerPlanningCell, feasibilityEnvelope, null);
+    }
+
+    static SkyIslandHydraulicGeometrySkeletonPlan planHydraulicCandidate(
+            SkyIslandDescriptor descriptor,
+            int routeDivisionsPerPlanningCell,
+            SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope,
+            SkyIslandGameScaleHydraulicCalibration calibration) {
         Objects.requireNonNull(descriptor, "descriptor");
         SkyIslandGeomorphicChannelNetworkPlan network =
                 SkyIslandGeomorphicChannelNetworkPlanner.planHydraulicCandidate(
@@ -77,18 +85,37 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             SkyIslandGeomorphicReachRoute candidateRoute = route;
             double corridorHalfWidth = network.planningSpacing()
                     * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
-            SkyIslandContinuousChannelCenterline candidate =
-                    SkyIslandSemanticCorridorCenterlinePlanner.refine(
-                            route.route(),
-                            route.semanticReach().guidancePoints(),
-                            terrain,
-                            interiority,
-                            network.planningSpacing(),
-                            corridorHalfWidth,
-                            maximumBankfullWidth,
-                            station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
-                                    descriptor.nominalRadius(), discharge.atStation(station)),
-                            null);
+            SkyIslandContinuousChannelCenterline candidate;
+            if (calibration == null) {
+                candidate = SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                        route.route(),
+                        route.semanticReach().guidancePoints(),
+                        terrain,
+                        interiority,
+                        network.planningSpacing(),
+                        corridorHalfWidth,
+                        maximumBankfullWidth,
+                        station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                descriptor.nominalRadius(), discharge.atStation(station)),
+                        null);
+            } else {
+                var refinement =
+                        SkyIslandSemanticCorridorCenterlinePlanner.refineWithDiagnostics(
+                                route.route(),
+                                route.semanticReach().guidancePoints(),
+                                terrain,
+                                interiority,
+                                network.planningSpacing(),
+                                corridorHalfWidth,
+                                maximumBankfullWidth,
+                                station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                        descriptor.nominalRadius(), discharge.atStation(station)),
+                                null,
+                                points -> bedProfileFeasibilityScore(
+                                        descriptor, terrain, route.semanticReach(), points,
+                                        discharge, calibration));
+                candidate = refinement.centerline();
+            }
             reaches.add(sampleReach(descriptor, terrain, candidateRoute, candidate));
         }
         reaches.sort(Comparator
@@ -590,7 +617,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         return semanticDischargeProfile(semantic).atStation(station);
     }
 
-    private static SemanticDischargeProfile semanticDischargeProfile(
+    static SemanticDischargeProfile semanticDischargeProfile(
             SkyIslandSemanticChannelReach semantic) {
         List<SkyIslandLocalPosition> guidance = semantic.guidancePoints();
         double[] cumulativeDistance = cumulativeDistance(guidance);
@@ -617,6 +644,116 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
         return new SemanticDischargeProfile(
                 cumulativeDistance, totalLength, discharge);
+    }
+
+    private static SkyIslandCenterlineLongitudinalHeadFeasibility.Score bedProfileFeasibilityScore(
+            SkyIslandDescriptor descriptor,
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticChannelReach semantic,
+            List<SkyIslandLocalPosition> points,
+            SemanticDischargeProfile discharge,
+            SkyIslandGameScaleHydraulicCalibration calibration) {
+        double[] cumulative = cumulativeDistance(points);
+        double pathLength = cumulative[cumulative.length - 1];
+        if (!(pathLength > 0.0)) {
+            throw new IllegalStateException("candidate centerline must have positive length");
+        }
+        double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
+        double[] terrainPotential = new double[points.size()];
+        double[] depthPotential = new double[points.size()];
+        double[] chainageMeters = new double[points.size()];
+        double maximumDepthPotential = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            double station = cumulative[i] / pathLength;
+            terrainPotential[i] = clamp01(terrain.sample(points.get(i)));
+            depthPotential[i] = SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
+                    discharge.atStation(station));
+            chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
+            maximumDepthPotential = Math.max(maximumDepthPotential, depthPotential[i]);
+        }
+
+        double requiredScale = minimumFeasibleBedIncisionScale(
+                terrainPotential,
+                depthPotential,
+                chainageMeters,
+                reliefMeters,
+                calibration.maximumDownstreamBedSlope(),
+                calibration.bedIncisionScale());
+        double excessCutMeters = Math.max(
+                        0.0, requiredScale - calibration.bedIncisionScale())
+                * maximumDepthPotential
+                * reliefMeters;
+        return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
+                0.0,
+                0.0,
+                excessCutMeters,
+                0.0,
+                excessCutMeters * excessCutMeters);
+    }
+
+    /**
+     * Exact interval propagation for a one-dimensional bed profile with bounded incision,
+     * non-uphill flow direction, and a maximum downstream bed grade.
+     */
+    private static double minimumFeasibleBedIncisionScale(
+            double[] terrainPotential,
+            double[] depthPotential,
+            double[] chainageMeters,
+            double reliefMeters,
+            double maximumDownstreamBedSlope,
+            double currentScale) {
+        double low = currentScale;
+        double high = currentScale;
+        while (high < 1.0e6 && !bedProfileIntervalsFeasible(
+                terrainPotential, depthPotential, chainageMeters, reliefMeters,
+                maximumDownstreamBedSlope, high)) {
+            low = high;
+            high = Math.min(1.0e6, high * 2.0);
+        }
+        if (!bedProfileIntervalsFeasible(
+                terrainPotential, depthPotential, chainageMeters, reliefMeters,
+                maximumDownstreamBedSlope, high)) {
+            return high;
+        }
+        for (int i = 0; i < 40; i++) {
+            double middle = low + 0.5 * (high - low);
+            if (bedProfileIntervalsFeasible(
+                    terrainPotential, depthPotential, chainageMeters, reliefMeters,
+                    maximumDownstreamBedSlope, middle)) {
+                high = middle;
+            } else {
+                low = middle;
+            }
+        }
+        return high;
+    }
+
+    private static boolean bedProfileIntervalsFeasible(
+            double[] terrainPotential,
+            double[] depthPotential,
+            double[] chainageMeters,
+            double reliefMeters,
+            double maximumDownstreamBedSlope,
+            double incisionScale) {
+        int last = terrainPotential.length - 1;
+        double feasibleLower = Math.max(
+                0.0,
+                (terrainPotential[last] - incisionScale * depthPotential[last]) * reliefMeters);
+        double feasibleUpper = terrainPotential[last] * reliefMeters;
+        for (int i = last - 1; i >= 0; i--) {
+            double maximumDrop =
+                    maximumDownstreamBedSlope * (chainageMeters[i + 1] - chainageMeters[i]);
+            double lower = Math.max(
+                    0.0,
+                    (terrainPotential[i] - incisionScale * depthPotential[i]) * reliefMeters);
+            double upper = terrainPotential[i] * reliefMeters;
+            feasibleLower = Math.max(lower, feasibleLower);
+            feasibleUpper = Math.min(upper, feasibleUpper + maximumDrop);
+            if (feasibleLower > feasibleUpper + 1.0e-9) {
+                return false;
+            }
+        }
+        return true;
     }
 
     static SkyIslandHydraulicReachSkeleton sampleReach(
@@ -669,11 +806,11 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                 maximumDepth);
     }
 
-    private record SemanticDischargeProfile(
+    record SemanticDischargeProfile(
             double[] cumulativeDistance,
             double totalLength,
             double[] dischargeAtSegmentStart) {
-        private double maximumDischarge() {
+        double maximumDischarge() {
             return dischargeAtSegmentStart[dischargeAtSegmentStart.length - 1];
         }
 
@@ -691,7 +828,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             throw new IllegalStateException("station escaped semantic discharge profile");
         }
 
-        private double atStation(double station) {
+        double atStation(double station) {
             int i = segmentIndexAtStation(station);
             double startDistance = cumulativeDistance[i];
             double endDistance = cumulativeDistance[i + 1];
@@ -709,7 +846,7 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
     }
 
-    private static double[] cumulativeDistance(List<SkyIslandLocalPosition> points) {
+    static double[] cumulativeDistance(List<SkyIslandLocalPosition> points) {
         double[] cumulative = new double[points.size()];
         for (int i = 1; i < points.size(); i++) {
             cumulative[i] = cumulative[i - 1]
