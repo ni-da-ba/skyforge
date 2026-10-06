@@ -239,7 +239,11 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         }
 
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections =
-                calibration.crossSections(descriptor, span.samples(), parentReachSamples);
+                calibration.crossSections(
+                        descriptor,
+                        span.samples(),
+                        parentReachSamples,
+                        span.parentStartArcLength());
         SkyIslandGraduallyVariedFlowSolver.Result hydraulicProfile =
                 solveHydraulics(descriptor, span, sections, calibration, terminalFates);
         return qualifyHydraulicProfile(
