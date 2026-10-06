@@ -111,6 +111,103 @@ class SkyIslandOpenChannelSourceTailwaterSolverTest {
                         sections, normalDepth + 0.2, PARAMETERS));
     }
 
+    @Test
+    void fixedDownstreamControlUsesSourceNormalDepthWhenUpstreamBoundaryIsFree() {
+        double discharge = 2.0;
+        double width = 4.0;
+        double bedSlope = 0.001;
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                discharge, ROUGHNESS, bedSlope, width, 0.0);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 100.0, discharge, width),
+                section(50.0, 100.0 - bedSlope * 50.0, discharge, width),
+                section(100.0, 100.0 - bedSlope * 100.0, discharge, width));
+
+        var profile = SkyIslandOpenChannelOrdinarySpanSolver.solveAgainstDownstreamDepth(
+                sections,
+                normalDepth,
+                boundary(SkyIslandOrdinarySpanBoundaryStatus.FREE, 0.0),
+                new SkyIslandGameScaleHydraulicCalibration(
+                        1.0, 1.0, ROUGHNESS, 0.0, 1.0, 9.81, 1.0e-8, 160));
+
+        assertEquals(normalDepth, profile.points().getFirst().depthMeters(), 1.0e-6);
+        assertEquals(normalDepth, profile.points().getLast().depthMeters(), 1.0e-6);
+        assertTrue(profile.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
+    void fixedSupercriticalUpstreamStageUsesMomentumMatchedTailwaterClosure() {
+        double discharge = 10.0;
+        double width = 3.0;
+        double bedSlope = 0.04;
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 20.0, discharge, width),
+                section(10.0, 20.0 - bedSlope * 10.0, discharge, width),
+                section(20.0, 20.0 - bedSlope * 20.0, discharge, width),
+                section(30.0, 20.0 - bedSlope * 30.0, discharge, width),
+                section(40.0, 20.0 - bedSlope * 40.0, discharge, width));
+        SkyIslandGraduallyVariedFlowSolver.Parameters parameters =
+                new SkyIslandGraduallyVariedFlowSolver.Parameters(
+                        ROUGHNESS, 1.0, 9.81, 1.0e-8, 160);
+        var criticalProfile =
+                SkyIslandHydraulicJumpProfileSolver.solve(sections, 0.001, parameters);
+        double tailwaterDepth = criticalProfile.points().getLast().depthMeters() + 1.0e-4;
+        var calibration = new SkyIslandGameScaleHydraulicCalibration(
+                1.0, 1.0, ROUGHNESS, 0.0, 1.0, 9.81, 1.0e-8, 160);
+
+        var profile = SkyIslandOpenChannelOrdinarySpanSolver.solveAgainstDownstreamDepth(
+                sections,
+                tailwaterDepth,
+                boundary(SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD, 20.001),
+                calibration);
+
+        assertEquals(0.001, profile.points().getFirst().depthMeters(), 1.0e-12);
+        assertEquals(tailwaterDepth, profile.points().getLast().depthMeters(), 1.0e-12);
+        assertTrue(profile.points().getFirst().froudeNumber() > 1.0);
+        assertTrue(profile.points().getLast().froudeNumber() < 1.0);
+    }
+
+    @Test
+    void fixedSubcriticalUpstreamStageMustMatchDownstreamTailwater() {
+        double discharge = 2.0;
+        double width = 4.0;
+        double bedSlope = 0.001;
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                discharge, ROUGHNESS, bedSlope, width, 0.0);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 100.0, discharge, width),
+                section(50.0, 100.0 - bedSlope * 50.0, discharge, width),
+                section(100.0, 100.0 - bedSlope * 100.0, discharge, width));
+        var calibration = new SkyIslandGameScaleHydraulicCalibration(
+                1.0, 1.0, ROUGHNESS, 0.0, 1.0, 9.81, 1.0e-8, 160);
+
+        assertThrows(IllegalStateException.class,
+                () -> SkyIslandOpenChannelOrdinarySpanSolver.solveAgainstDownstreamDepth(
+                        sections,
+                        normalDepth,
+                        boundary(SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD, 100.2),
+                        calibration));
+    }
+
+    private static SkyIslandOrdinarySpanBoundary boundary(
+            SkyIslandOrdinarySpanBoundaryStatus status,
+            double fixedHead) {
+        var state = new SkyIslandHydraulicTransitionBoundaryState(
+                0,
+                1,
+                SkyIslandHydraulicTransitionBoundaryRole.OUTGOING,
+                0.0,
+                0.0,
+                new SkyIslandLocalPosition(0.0, 0.0),
+                1.0,
+                4.0,
+                0.25,
+                0.75);
+        return status == SkyIslandOrdinarySpanBoundaryStatus.FREE
+                ? SkyIslandOrdinarySpanBoundary.free(state)
+                : SkyIslandOrdinarySpanBoundary.fixed(state, fixedHead);
+    }
+
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(
             double chainage, double bed, double discharge, double width) {
         return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
