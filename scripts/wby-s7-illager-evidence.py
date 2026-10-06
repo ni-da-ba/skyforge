@@ -250,13 +250,16 @@ def main() -> int:
         ["structures", mowzie_jar.name, mowzie_sha256, "", ",".join(mowzie_structures) or "(none found in worldgen/structure resources)"],
         ["structure-sets", mowzie_jar.name, mowzie_sha256, "", ",".join(mowzie_structure_sets) or "(none found in worldgen/structure_set resources)"],
     ]
-    mowzie_rows.extend(mowzie_entity_rows)
+    normalized_mowzie_entity_rows = [
+        ["entity", row[1], mowzie_sha256, row[2], row[6]]
+        for row in mowzie_entity_rows
+    ]
+    mowzie_rows.extend(normalized_mowzie_entity_rows)
     args.mowzie_output.parent.mkdir(parents=True, exist_ok=True)
     if args.entities_only and args.mowzie_output.is_file():
-        dynamic_rows = mowzie_entity_rows
         with args.mowzie_output.open("a", encoding="utf-8") as evidence_file:
             evidence_file.write(
-                "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in dynamic_rows) + "\\n"
+                "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in normalized_mowzie_entity_rows) + "\\n"
             )
     else:
         args.mowzie_output.write_text(
