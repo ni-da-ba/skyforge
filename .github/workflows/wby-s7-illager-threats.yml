@@ -1,9 +1,10 @@
-name: WBY S7 Illager Threats Candidate
+name: WBY S7 Cumulative Threat Candidate
 
 on:
   push:
     branches:
       - "wby/s7-illager-threats"
+      - "wby/s7-ice-and-fire"
     paths:
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
@@ -95,9 +96,10 @@ jobs:
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
-            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true \
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
             --no-configuration-cache | tee "wby-s7-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s7-resolution.log"
+          grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s7-resolution.log"
 
       - name: Stage the S7 cumulative server and client profile
         shell: bash
@@ -110,7 +112,7 @@ jobs:
             -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
-            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
             --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
@@ -150,7 +152,7 @@ jobs:
           cp -R skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/. "$server_dir/kubejs/data/"
           printf 'eula=true\n' > "$server_dir/eula.txt"
           find skyforge-neoforge-1211/run-wby-s7-server/server-mods -maxdepth 1 -type f -printf '%f\\n' \
-            | grep -Ei 'friends|pillage|illager|incontrol|mowzie' \
+            | grep -Ei 'friends|pillage|illager|incontrol|mowzie|iceandfire|jupiter|uranus' \
             > wby-s7-staged-threat-jars.txt
           test -s wby-s7-staged-threat-jars.txt
           echo "WBY S7 NeoForge server staging PASS"
@@ -167,6 +169,7 @@ jobs:
       - name: Join S7 fixed-seed server and reopen the same world
         shell: bash
         run: |
+          export WBY_S7_ICE_AND_FIRE=true
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s7-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
           bash scripts/wby-s7-runtime-acceptance.sh
@@ -175,12 +178,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-s7-illager-threats-resolution
+          name: wby-s7-ice-and-fire-resolution
           path: |
             wby-s7-*.log
             wby-s7-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
             wby-s7-mowzie-evidence.tsv
+            wby-s7-ice-and-fire-evidence.tsv
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
