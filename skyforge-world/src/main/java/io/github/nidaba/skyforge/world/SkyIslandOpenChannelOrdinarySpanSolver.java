@@ -131,6 +131,78 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         return subcritical;
     }
 
+    static SkyIslandGraduallyVariedFlowSolver.Result solveAgainstDownstreamDepth(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            double downstreamDepthMeters,
+            SkyIslandOrdinarySpanBoundary upstreamBoundary,
+            SkyIslandGameScaleHydraulicCalibration calibration) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(upstreamBoundary, "upstreamBoundary");
+        Objects.requireNonNull(calibration, "calibration");
+        SkyIslandGraduallyVariedFlowSolver.Parameters parameters = calibration.solverParameters();
+        return switch (upstreamBoundary.status()) {
+            case FREE -> solveSourceNormalDepthToTailwater(
+                    sections, downstreamDepthMeters, parameters);
+            case FIXED_HEAD -> solveFixedStageToTailwater(
+                    sections,
+                    downstreamDepthMeters,
+                    upstreamBoundary.fixedHeadWorldUnits().orElseThrow()
+                            * calibration.metersPerWorldUnit(),
+                    calibration);
+            case CASCADE_CRITICAL_CONTROL -> throw new IllegalStateException(
+                    "a CASCADE outlet needs its explicit supercritical transition state before tailwater closure");
+            case DEFERRED -> throw new IllegalStateException(
+                    "cannot solve a downstream control from a deferred upstream boundary");
+        };
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.Result solveFixedStageToTailwater(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            double downstreamDepthMeters,
+            double upstreamStageMeters,
+            SkyIslandGameScaleHydraulicCalibration calibration) {
+        Objects.requireNonNull(sections, "sections");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 3) {
+            throw new IllegalArgumentException(
+                    "fixed-stage/tailwater closure requires at least three cross sections");
+        }
+        double upstreamDepthMeters =
+                upstreamStageMeters - reach.getFirst().bedElevationMeters();
+        if (!Double.isFinite(upstreamDepthMeters) || upstreamDepthMeters <= 0.0) {
+            throw new IllegalArgumentException(
+                    "upstream fixed stage must lie above the modeled channel bed");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Parameters parameters = calibration.solverParameters();
+        double froude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                reach.getFirst(), upstreamDepthMeters, parameters);
+        double regimeMargin = Math.max(1.0e-6, 10.0 * calibration.relativeTolerance());
+        if (froude > 1.0 + regimeMargin) {
+            return SkyIslandHydraulicJumpProfileSolver.solveToTailwater(
+                    reach, upstreamDepthMeters, downstreamDepthMeters, parameters);
+        }
+        if (froude >= 1.0 - regimeMargin) {
+            throw new IllegalStateException(
+                    "fixed upstream stage is near critical; mixed-regime closure is unsupported");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result profile =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        reach, downstreamDepthMeters, parameters);
+        double solvedUpstreamDepth = profile.points().getFirst().depthMeters();
+        double depthTolerance = Math.max(
+                MINIMUM_STAGE_RESIDUAL_METERS,
+                100.0 * calibration.relativeTolerance()
+                        * Math.max(1.0, upstreamDepthMeters));
+        if (Math.abs(solvedUpstreamDepth - upstreamDepthMeters) > depthTolerance) {
+            throw new IllegalStateException(
+                    "fixed upstream stage conflicts with downstream tailwater"
+                            + "; requestedDepthMeters=" + upstreamDepthMeters
+                            + "; solvedDepthMeters=" + solvedUpstreamDepth
+                            + "; toleranceMeters=" + depthTolerance);
+        }
+        return profile;
+    }
+
     public static Outcome solve(
             SkyIslandDescriptor descriptor,
             SkyIslandOrdinaryHydraulicSpan span,
@@ -221,10 +293,11 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                             * calibration.metersPerWorldUnit();
             double downstreamDepthMeters =
                     downstreamStageMeters - sections.getLast().bedElevationMeters();
-            return SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+            return solveAgainstDownstreamDepth(
                     sections,
                     downstreamDepthMeters,
-                    calibration.solverParameters());
+                    span.upstreamBoundary(),
+                    calibration);
         }
         if (span.downstreamBoundary().status() == SkyIslandOrdinarySpanBoundaryStatus.FREE
                 && terminalFates.get(span.parentReachEndCellIndex())
