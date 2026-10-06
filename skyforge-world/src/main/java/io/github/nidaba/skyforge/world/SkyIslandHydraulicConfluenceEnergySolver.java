@@ -6,10 +6,12 @@ import java.util.Objects;
 /**
  * Energy-based closure for a subcritical downstream state at a combining-flow junction.
  *
- * <p>The upstream total head is discharge-weighted. The explicit local-loss coefficient is
- * applied to downstream velocity head; it is never inferred from terrain or D2. Callers must
- * provide the solved terminal state for each incoming branch and an outlet section whose
- * discharge equals the sum of those branch discharges.
+ * <p>The upstream total head is discharge-weighted. Every incoming state must be strictly
+ * subcritical; a supercritical branch needs its jump/momentum transition resolved before this
+ * energy-only junction closure. The explicit local-loss coefficient is applied to downstream
+ * velocity head; it is never inferred from terrain or D2. Callers must provide the solved terminal
+ * state for each incoming branch and an outlet section whose discharge equals the sum of those
+ * branch discharges.
  */
 public final class SkyIslandHydraulicConfluenceEnergySolver {
     private static final double MINIMUM_DEPTH_METERS = 1.0e-12;
