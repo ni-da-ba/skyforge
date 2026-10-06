@@ -121,6 +121,51 @@ class SkyIslandGraduallyVariedFlowSolverTest {
     }
 
     @Test
+    void subcriticalProfileMarchesDownstreamFromUpstreamStageControl() {
+        double discharge = 2.0;
+        double width = 4.0;
+        double bedSlope = 0.001;
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                discharge, ROUGHNESS, bedSlope, width, 0.0);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 100.0, discharge, width),
+                section(50.0, 100.0 - bedSlope * 50.0, discharge, width),
+                section(100.0, 100.0 - bedSlope * 100.0, discharge, width));
+
+        SkyIslandGraduallyVariedFlowSolver.Result result =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalDownstream(
+                        sections, normalDepth, PARAMETERS);
+
+        assertEquals(sections.size(), result.points().size());
+        for (SkyIslandGraduallyVariedFlowSolver.ProfilePoint point : result.points()) {
+            assertEquals(normalDepth, point.depthMeters(), 1.0e-6);
+            assertTrue(point.froudeNumber() < 1.0);
+        }
+        assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
+    void subcriticalDownstreamSolveRejectsSupercriticalSourceAndInsufficientHead() {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
+                section(0.0, 0.0, 1.0, 2.0),
+                section(10.0, 0.0, 1.0, 2.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalDownstream(
+                        List.of(
+                                section(0.0, 0.0, 10.0, 3.0),
+                                section(10.0, -0.1, 10.0, 3.0)),
+                        0.2,
+                        PARAMETERS));
+        assertThrows(IllegalStateException.class,
+                () -> SkyIslandGraduallyVariedFlowSolver.solveSubcriticalDownstream(
+                        List.of(
+                                sections.getFirst(),
+                                section(10.0, 10.0, 1.0, 2.0)),
+                        1.0,
+                        PARAMETERS));
+    }
+
+    @Test
     void supercriticalProfileMarchesDownstreamFromUpstreamStageControl() {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = List.of(
                 section(0.0, 100.0, 10.0, 3.0),
