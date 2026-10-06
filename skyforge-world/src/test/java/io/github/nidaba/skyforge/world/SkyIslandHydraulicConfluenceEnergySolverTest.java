@@ -121,9 +121,9 @@ class SkyIslandHydraulicConfluenceEnergySolverTest {
     void rejectsJunctionWithoutASubcriticalEnergyRoot() {
         List<SkyIslandHydraulicConfluenceEnergySolver.IncomingState> incoming = List.of(
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
-                        section(0.0, 0.0, 0.1), 0.05),
+                        section(0.0, 0.0, 0.1), 0.5),
                 new SkyIslandHydraulicConfluenceEnergySolver.IncomingState(
-                        section(0.0, 0.0, 0.1), 0.05));
+                        section(0.0, 0.0, 0.1), 0.5));
 
         assertThrows(
                 IllegalStateException.class,
