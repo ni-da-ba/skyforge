@@ -76,7 +76,7 @@ jobs:
           set -euo pipefail
           (
             cd upstream-a4mc
-            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --no-daemon
+            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon
           )
           output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
           mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
