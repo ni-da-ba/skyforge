@@ -7444,7 +7444,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
 
         val s7Mods = if (wbyS7IllagerThreats) {
-            wbyS7AllMods + if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList()
+            wbyS7AllMods + (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList())
         } else emptyList()
         s7Mods.forEach { mod ->
             val expected = wbyS7Token(mod)
@@ -10083,7 +10083,7 @@ tasks.register<Sync>("wbyS1StageServerMods") {
             }
         }
         if (wbyS7IllagerThreats) {
-            (wbyS7AllMods + if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList()).forEach { mod ->
+            (wbyS7AllMods + (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList())).forEach { mod ->
                 val expected = wbyS7Token(mod)
                 check(staged.any { it.contains(expected) }) {
                     "WBY S7 server staging missing $mod token '$expected': $staged"
