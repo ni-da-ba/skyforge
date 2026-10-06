@@ -191,6 +191,7 @@ python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --password skyforge-s7-local-probe --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
+  --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   --skip-entity-probes
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
@@ -236,17 +237,18 @@ python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --password skyforge-s7-local-probe --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
+  --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   --entities-only
 grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
 grep -Fq '(hearthandharvest)' "$server_latest_log"
-for mod_id in naturalist fowlplay crittersandcompanions skywhales alexsmobs codxlib biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury friendsandfoes takesapillage illagerstructures resourcefullib incontrol; do
+for mod_id in naturalist fowlplay crittersandcompanions skywhales alexsmobs codxlib biomesoplenty regions_unexplored natures_spirit terrablender glitchcore geckolib smartbrainlib architectury friendsandfoes takesapillage illagerstructures resourcefullib incontrol mowziesmobs; do
   grep -Fq "($mod_id)" "$server_latest_log"
 done
 client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
-for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib; do
+for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib mowziesmobs geckolib; do
   grep -Fq "($mod_id)" "$client_latest_log"
 done
 test -f "$server_dir/s7-acceptance/level.dat"

@@ -478,6 +478,7 @@ check(wbyS7Pin("neoforge", "version") == "21.1.249")
 check(requireNotNull(wbyS7Pins.getProperty("profile.base")) == "wby-s6-structures-civilization")
 val wbyS7SharedMods = listOf(
     "friendsAndFoes", "itTakesAPillageContinuation", "illagerStructures", "resourcefulLib",
+    "mowziesMobs",
 )
 val wbyS7ServerMods = listOf("inControl")
 val wbyS7AllMods = wbyS7SharedMods + wbyS7ServerMods

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import socket
@@ -14,13 +15,15 @@ from typing import Iterable
 STRUCTURE = re.compile(r"^data/([^/]+)/worldgen/structure/(.+)\.json$")
 SET = re.compile(r"^data/([^/]+)/worldgen/structure_set/(.+)\.json$")
 S7_NAME_HINTS = (
-    "friends", "foes", "pillage", "illager", "incontrol", "resourceful",
+    "friends", "foes", "pillage", "illager", "incontrol", "resourceful", "mowzie",
 )
 PILLAGE_ENTITY_IDS = (
     "takesapillage:archer",
     "takesapillage:legioner",
     "takesapillage:skirmisher",
 )
+MOWZIE_ENTITY_IDS = ("mowziesmobs:foliaath",)
+ENTITY_PROBE_IDS = PILLAGE_ENTITY_IDS + MOWZIE_ENTITY_IDS
 INVALID_LOCATE = re.compile(
     r"unknown (?:or incomplete )?command|unknown structure|invalid structure|"
     r"could not find that structure",
@@ -105,11 +108,32 @@ def main() -> int:
     parser.add_argument("--password", required=True)
     parser.add_argument("--seed", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--mowzie-output", required=True, type=Path)
     parser.add_argument("--skip-entity-probes", action="store_true")
     parser.add_argument("--entities-only", action="store_true")
     args = parser.parse_args()
     if args.skip_entity_probes and args.entities_only:
         parser.error("--skip-entity-probes and --entities-only cannot be combined")
+
+    mowzie_jars = sorted(
+        jar for jar in args.mods.glob("*.jar")
+        if "mowzies-mobs-250498-7760267" in jar.name.lower()
+    )
+    if len(mowzie_jars) != 1:
+        raise SystemExit(f"Expected the pinned Mowzie's Mobs jar; found {[jar.name for jar in mowzie_jars]}")
+    mowzie_jar = mowzie_jars[0]
+    mowzie_sha256 = hashlib.sha256(mowzie_jar.read_bytes()).hexdigest()
+    with zipfile.ZipFile(mowzie_jar) as archive:
+        mowzie_structures = sorted(
+            name.removeprefix("data/mowziesmobs/worldgen/structure/").removesuffix(".json")
+            for name in archive.namelist()
+            if name.startswith("data/mowziesmobs/worldgen/structure/") and name.endswith(".json")
+        )
+        mowzie_structure_sets = sorted(
+            name.removeprefix("data/mowziesmobs/worldgen/structure_set/").removesuffix(".json")
+            for name in archive.namelist()
+            if name.startswith("data/mowziesmobs/worldgen/structure_set/") and name.endswith(".json")
+        )
 
     rows: list[list[object]] = [
         ["record", "jar", "registry_id", "spacing_chunks", "separation_chunks", "salt", "details"],
@@ -153,7 +177,7 @@ def main() -> int:
 
     registered_entities = 0
     if not args.skip_entity_probes:
-        for entity_id in PILLAGE_ENTITY_IDS:
+        for entity_id in ENTITY_PROBE_IDS:
             kill_selector = (
                 f"@e[type={entity_id},distance=..8,sort=nearest,limit=1]"
                 if args.entities_only else f"@e[type={entity_id},limit=1]"
@@ -198,9 +222,10 @@ def main() -> int:
 
     if not args.entities_only and not accepted_locates:
         raise SystemExit("No staged S7 structures were accepted by live /locate")
-    if not args.skip_entity_probes and registered_entities != len(PILLAGE_ENTITY_IDS):
+    expected_entities = len(ENTITY_PROBE_IDS)
+    if not args.skip_entity_probes and registered_entities != expected_entities:
         raise SystemExit(
-            f"Only {registered_entities}/{len(PILLAGE_ENTITY_IDS)} It Takes a Pillage entities registered"
+            f"Only {registered_entities}/{expected_entities} S7 entity probes registered"
         )
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -215,12 +240,44 @@ def main() -> int:
             "\n".join("\t".join(safe_cell(cell) for cell in row) for row in rows) + "\n",
             encoding="utf-8",
         )
+    mowzie_entity_rows = [
+        row for row in rows
+        if row[0] == "entity" and str(row[2]).startswith("mowziesmobs:")
+    ]
+    mowzie_rows = [
+        ["record", "jar", "sha256", "registry_id", "details"],
+        ["jar", mowzie_jar.name, mowzie_sha256, "mowziesmobs", "pinned Mowzie's Mobs artifact"],
+        ["structures", mowzie_jar.name, mowzie_sha256, "", ",".join(mowzie_structures) or "(none found in worldgen/structure resources)"],
+        ["structure-sets", mowzie_jar.name, mowzie_sha256, "", ",".join(mowzie_structure_sets) or "(none found in worldgen/structure_set resources)"],
+    ]
+    normalized_mowzie_entity_rows = [
+        ["entity", row[1], mowzie_sha256, row[2], row[6]]
+        for row in mowzie_entity_rows
+    ]
+    mowzie_rows.extend(normalized_mowzie_entity_rows)
+    args.mowzie_output.parent.mkdir(parents=True, exist_ok=True)
+    if args.entities_only and args.mowzie_output.is_file():
+        with args.mowzie_output.open("a", encoding="utf-8") as evidence_file:
+            evidence_file.write(
+                "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in normalized_mowzie_entity_rows) + "\\n"
+            )
+    else:
+        args.mowzie_output.write_text(
+            "\\n".join("\\t".join(safe_cell(cell) for cell in row) for row in mowzie_rows) + "\\n",
+            encoding="utf-8",
+        )
+
     total_sets = sum(row[0] == "structure-set" for row in rows[1:])
+    pillage_probes = sum(row[0] == "entity" and str(row[2]).startswith("takesapillage:") for row in rows)
+    mowzie_probes = sum(row[0] == "entity" and str(row[2]).startswith("mowziesmobs:") for row in rows)
     print("WBY S7 STRUCTURE/ENTITY EVIDENCE: seed=" + args.seed
           + " structure_sets=" + str(total_sets)
           + " registered_locates=" + str(accepted_locates)
-          + " spawned_pillage_entities=" + str(registered_entities)
-          + " report=" + str(args.output))
+          + " spawned_pillage_entities=" + str(pillage_probes)
+          + " spawned_mowzie_entities=" + str(mowzie_probes)
+          + " mowzie_worldgen_structures=" + str(len(mowzie_structures))
+          + " report=" + str(args.output)
+          + " mowzie_report=" + str(args.mowzie_output))
     if not args.entities_only and (total_sets == 0 or not locate_targets):
         raise SystemExit("No S7 structure-set metadata or custom structure IDs were found in staged candidate jars")
     return 0
