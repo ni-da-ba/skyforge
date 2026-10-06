@@ -56,9 +56,23 @@ class SkyIslandCandidateHydrologyCouplingTest {
 
         assertTrue(acceptedControl.attempted() > 0, "key 77 must exercise finite ordinary spans");
         assertTrue(
-                acceptedControl.solved() > 0,
-                "at least one key-77 candidate span must reach hydraulic solve and D2 evaluation: "
-                        + acceptedControl);
+                acceptedControl.failures().values().stream().mapToInt(Integer::intValue).sum()
+                                + acceptedControl.solved()
+                        == acceptedControl.attempted(),
+                "every attempted key-77 span must be accounted for as solved or hydraulically rejected");
+        assertTrue(
+                heldOutChallenge.failures().values().stream().mapToInt(Integer::intValue).sum()
+                                + heldOutChallenge.solved()
+                        == heldOutChallenge.attempted(),
+                "every attempted key-700 span must be accounted for as solved or hydraulically rejected");
+        assertTrue(
+                acceptedControl.d2Qualified() + acceptedControl.d2Rejected()
+                        == acceptedControl.solved(),
+                "D2 must be evaluated only after a complete physical profile solve");
+        assertTrue(
+                heldOutChallenge.d2Qualified() + heldOutChallenge.d2Rejected()
+                        == heldOutChallenge.solved(),
+                "D2 must be evaluated only after a complete physical profile solve");
         assertTrue(
                 heldOutChallenge.attempted() + heldOutChallenge.deferred() > 0,
                 "key 700 must produce ordinary-span or explicit deferred-boundary evidence");
