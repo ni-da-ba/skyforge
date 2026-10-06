@@ -78,6 +78,84 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 "key 700 must produce ordinary-span or explicit deferred-boundary evidence");
         assertTrue(Double.isFinite(acceptedControl.maximumEnergyResidualMeters()));
         assertTrue(Double.isFinite(heldOutChallenge.maximumEnergyResidualMeters()));
+
+        NaturalComponentProbe naturalComponent = probeNaturalKey700Component();
+        System.out.printf(
+                Locale.ROOT,
+                "NATURAL_COMPONENT key=700 incoming=%d cascadeSections=%d attempted=%s solved=%s "
+                        + "maxEnergyResidualMeters=%.9g failure=%s%n",
+                naturalComponent.incomingBranches(),
+                naturalComponent.cascadeSections(),
+                naturalComponent.attempted(),
+                naturalComponent.solved(),
+                naturalComponent.maximumEnergyResidualMeters(),
+                naturalComponent.failure());
+        assertEquals(2, naturalComponent.incomingBranches());
+        assertTrue(naturalComponent.cascadeSections() >= 2);
+        assertTrue(naturalComponent.attempted());
+    }
+
+    private static NaturalComponentProbe probeNaturalKey700Component() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
+        SkyIslandHydraulicGeometrySkeletonPlan candidate =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+        SkyIslandHydraulicReachSkeleton first = requireReach(candidate, 660, 801);
+        SkyIslandHydraulicReachSkeleton second = requireReach(candidate, 1140, 801);
+        SkyIslandHydraulicReachSkeleton cascade = requireReach(candidate, 801, 1951);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
+                CALIBRATION.crossSections(descriptor, cascade.samples());
+        int incomingBranches = 2;
+        try {
+            var parameters = CALIBRATION.solverParameters();
+            List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
+                    List.of(
+                            new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                    CALIBRATION.crossSections(descriptor, first.samples())),
+                            new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                    CALIBRATION.crossSections(descriptor, second.samples())));
+            SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile =
+                    SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                            cascadeSections, parameters);
+            double sharedJunctionDepth =
+                    cascadeProfile.points().getFirst().depthMeters();
+            SkyIslandHydraulicEnergyConfluenceComponentSolver.Result component =
+                    SkyIslandHydraulicEnergyConfluenceComponentSolver.solve(
+                            incoming,
+                            cascadeSections.getFirst(),
+                            sharedJunctionDepth,
+                            parameters,
+                            0.0);
+            return new NaturalComponentProbe(
+                    incomingBranches,
+                    cascadeSections.size(),
+                    true,
+                    true,
+                    Math.max(
+                            cascadeProfile.maximumEnergyResidualMeters(),
+                            Math.max(
+                                    component.maximumReachEnergyResidualMeters(),
+                                    component.confluence().confluence().energyResidualMeters())),
+                    "");
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            return new NaturalComponentProbe(
+                    incomingBranches,
+                    cascadeSections.size(),
+                    true,
+                    false,
+                    0.0,
+                    failure.getClass().getSimpleName() + ":" + failure.getMessage());
+        }
+    }
+
+    private static SkyIslandHydraulicReachSkeleton requireReach(
+            SkyIslandHydraulicGeometrySkeletonPlan candidate, int start, int end) {
+        return candidate.reaches().stream()
+                .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex() == start
+                        && reach.geomorphicRoute().semanticReach().endCellIndex() == end)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "missing candidate semantic reach " + start + "->" + end));
     }
 
     private static ProbeResult probe(long province, long cluster, long key) {
@@ -183,6 +261,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private static long reachKey(int startCellIndex, int endCellIndex) {
         return ((long) startCellIndex << 32) | (endCellIndex & 0xffffffffL);
     }
+
+    private record NaturalComponentProbe(
+            int incomingBranches,
+            int cascadeSections,
+            boolean attempted,
+            boolean solved,
+            double maximumEnergyResidualMeters,
+            String failure) {}
 
     private record ProbeResult(
             int spanCount,
