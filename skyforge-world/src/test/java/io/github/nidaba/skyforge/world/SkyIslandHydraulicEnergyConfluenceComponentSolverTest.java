@@ -44,6 +44,50 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
     }
 
     @Test
+    void closesIncomingBranchesThroughTailwaterControlledOutletAndIsDatumInvariant() {
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                DISCHARGE, ROUGHNESS, BED_SLOPE, WIDTH, 0.0);
+        List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
+                List.of(new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH)),
+                        new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH)));
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> outlet =
+                List.of(section(200.0, 0.0, 2.0 * DISCHARGE, 2.0 * WIDTH),
+                        section(250.0, -0.05, 2.0 * DISCHARGE, 2.0 * WIDTH),
+                        section(300.0, -0.10, 2.0 * DISCHARGE, 2.0 * WIDTH));
+
+        var result = SkyIslandHydraulicEnergyConfluenceComponentSolver.solveWithSubcriticalTailwater(
+                incoming, outlet, normalDepth, PARAMETERS, 0.0);
+
+        assertEquals(normalDepth, result.junctionDepthMeters(), 1.0e-6);
+        assertEquals(normalDepth,
+                result.outletProfile().points().getLast().depthMeters(), 0.0);
+        assertTrue(result.maximumEnergyResidualMeters() < 1.0e-7);
+        assertEquals(2, result.confluence().incomingProfiles().size());
+
+        double datumShift = 123.45;
+        List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> shiftedIncoming =
+                List.of(new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH, datumShift)),
+                        new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                branchSections(DISCHARGE, WIDTH, datumShift)));
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> shiftedOutlet =
+                List.of(section(200.0, datumShift, 2.0 * DISCHARGE, 2.0 * WIDTH),
+                        section(250.0, datumShift - 0.05, 2.0 * DISCHARGE, 2.0 * WIDTH),
+                        section(300.0, datumShift - 0.10, 2.0 * DISCHARGE, 2.0 * WIDTH));
+        var shifted = SkyIslandHydraulicEnergyConfluenceComponentSolver.solveWithSubcriticalTailwater(
+                shiftedIncoming, shiftedOutlet, normalDepth, PARAMETERS, 0.0);
+
+        assertEquals(result.junctionDepthMeters(), shifted.junctionDepthMeters(), 1.0e-6);
+        assertEquals(
+                result.confluence().confluence().downstreamDepthMeters(),
+                shifted.confluence().confluence().downstreamDepthMeters(),
+                1.0e-6);
+        assertTrue(shifted.maximumEnergyResidualMeters() < 1.0e-7);
+    }
+
+    @Test
     void rejectsOutletDepthIncompatibleWithSourceControls() {
         double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
                 DISCHARGE, ROUGHNESS, BED_SLOPE, WIDTH, 0.0);
@@ -79,10 +123,15 @@ class SkyIslandHydraulicEnergyConfluenceComponentSolverTest {
 
     private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> branchSections(
             double discharge, double width) {
+        return branchSections(discharge, width, 0.0);
+    }
+
+    private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> branchSections(
+            double discharge, double width, double datumShift) {
         return List.of(
-                section(0.0, 0.1, discharge, width),
-                section(50.0, 0.05, discharge, width),
-                section(100.0, 0.0, discharge, width));
+                section(0.0, datumShift + 0.1, discharge, width),
+                section(50.0, datumShift + 0.05, discharge, width),
+                section(100.0, datumShift, discharge, width));
     }
 
     private static SkyIslandGraduallyVariedFlowSolver.CrossSection section(
