@@ -57,7 +57,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
         SkyIslandHydraulicGeometrySkeletonSample sample =
                 representative.skeleton().samples().get(sampleIndex);
         double candidateElevation = candidate.terrain().sample(sample.position());
+        double reliefMeters = descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
+        double bedPotential =
+                representative.sections().get(sampleIndex).bedElevationMeters() / reliefMeters;
+        double maximumCut = sample.terrainElevation() - bedPotential;
         assertTrue(candidateElevation <= sample.terrainElevation());
+        assertTrue(
+                candidateElevation >= sample.terrainElevation() - maximumCut - 1.0e-9,
+                "valley side slopes must not excavate deeper than the bounded channel incision");
     }
 
     @Test
@@ -137,9 +144,6 @@ class SkyIslandCandidateHydrologyCouplingTest {
         SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
                 SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
         SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
-        SkyIslandHydraulicReachSkeleton first = requireReach(candidateSkeleton, 660, 801);
-        SkyIslandHydraulicReachSkeleton second = requireReach(candidateSkeleton, 1140, 801);
-        SkyIslandHydraulicReachSkeleton cascade = requireReach(candidateSkeleton, 801, 1951);
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
                 candidate.requireReach(801, 1951).sections();
         int incomingBranches = 2;
@@ -277,16 +281,18 @@ class SkyIslandCandidateHydrologyCouplingTest {
         Map<Integer, SkyIslandChannelTerminalFateKind> terminalFates = new HashMap<>();
         for (SkyIslandChannelTerminalFate fate :
                 SkyIslandChannelTerminalFatePlanner.plan(
-                        descriptor, candidate.geomorphicNetwork())) {
+                        descriptor, candidate.skeletonPlan().geomorphicNetwork())) {
             terminalFates.put(fate.channelTerminalCellIndex(), fate.kind());
         }
 
         Map<Long, List<SkyIslandHydraulicGeometrySkeletonSample>> parentSamples = new HashMap<>();
-        for (SkyIslandHydraulicReachSkeleton reach : candidate.reaches()) {
-            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+        for (SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate reach :
+                candidate.reaches()) {
+            SkyIslandSemanticChannelReach semantic =
+                    reach.skeleton().geomorphicRoute().semanticReach();
             parentSamples.put(
                     reachKey(semantic.startCellIndex(), semantic.endCellIndex()),
-                    reach.samples());
+                    reach.skeleton().samples());
         }
 
         int attempted = 0;
@@ -315,7 +321,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 span,
                                 terrain,
                                 policy,
-                                candidate.geomorphicNetwork().planningSpacing(),
+                                candidate.skeletonPlan().geomorphicNetwork().planningSpacing(),
                                 CALIBRATION,
                                 Map.copyOf(terminalFates),
                                 reachSamples);
