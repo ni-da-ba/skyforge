@@ -439,6 +439,29 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
         return subcritical;
     }
 
+    static double sourceNormalDepthMeters(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        if (sections.size() < 3) {
+            throw new IllegalArgumentException(
+                    "source normal-depth boundary requires at least three cross sections");
+        }
+        SkyIslandGraduallyVariedFlowSolver.CrossSection source = sections.getFirst();
+        double bedSlope = sourceEnergySlope(sections);
+        if (!Double.isFinite(bedSlope) || bedSlope <= 0.0) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary requires a positive local downstream bed slope");
+        }
+        return SkyIslandManningHydraulics.normalDepthMeters(
+                source.dischargeCubicMetersPerSecond(),
+                parameters.manningRoughness(),
+                bedSlope,
+                source.bottomWidthMeters(),
+                source.sideSlopeHorizontalToVertical());
+    }
+
     private static double sourceEnergySlope(
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections) {
         int windowEnd = Math.min(
