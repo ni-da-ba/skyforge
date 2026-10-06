@@ -134,10 +134,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double spacing = downstream.chainageMeters() - upstream.chainageMeters();
             double localBedRelief =
                     calibration.maximumDownstreamBedSlope() * spacing;
-            // Preserve a downstream-lowering trend across the semantic reach, but do not make
-            // every fine cross section a one-way step. Local bed reversals are admissible within
-            // the same game-scale grade envelope; the candidate target and hydraulic solve decide
-            // whether those local forms are useful and physically passable.
+            // Bound local bed reversals without imposing a reach-wide monotonicity rule. The
+            // candidate target proposes the bed; the physical energy solve determines whether the
+            // resulting longitudinal profile is passable.
             gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
                     "local-bed-grade:" + i,
                     i,

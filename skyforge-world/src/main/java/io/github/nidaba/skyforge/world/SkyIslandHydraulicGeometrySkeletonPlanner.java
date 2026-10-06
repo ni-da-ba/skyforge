@@ -675,8 +675,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
 
         // Score the same admissible bed family used by the joint candidate planner:
-        // symmetric bounded local grade plus a net downstream-lowering semantic-reach trend.
-        // A centerline must not be penalized merely because every fine sample is not monotone.
+        // symmetric bounded local grade only. Whole-reach passability is left to the hydraulic
+        // energy solve instead of being inferred from a terrain-only endpoint comparison.
         double requiredScale = calibration.bedIncisionScale();
         for (int upstream = 0; upstream + 1 < points.size(); upstream++) {
             int downstream = upstream + 1;
