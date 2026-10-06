@@ -190,7 +190,8 @@ test -f "$server_dir/s7-acceptance/level.dat"
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --password skyforge-s7-local-probe --seed 817304 \
-  --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv"
+  --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
+  --skip-entity-probes
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
@@ -231,6 +232,11 @@ for _ in $(seq 1 600); do
   sleep 1
 done
 test "$joined" = true
+python3 scripts/wby-s7-illager-evidence.py \
+  --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
+  --password skyforge-s7-local-probe --seed 817304 \
+  --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
+  --entities-only
 grep -Fq '(farmersdelight)' "$server_latest_log"
 grep -Fq '(supplementaries)' "$server_latest_log"
 grep -Fq '(create_central_kitchen)' "$server_latest_log" || grep -Fq '(createcentral_kitchen)' "$server_latest_log"
