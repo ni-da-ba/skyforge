@@ -20,6 +20,71 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
 
     private SkyIslandOpenChannelOrdinarySpanSolver() {}
 
+    /**
+     * Solves a source-controlled reach against an explicit physical downstream tailwater.
+     *
+     * <p>The source boundary is Manning normal depth on the reach's local upstream bed slope.
+     * Subcritical flow is marched upstream from the supplied tailwater and checked against that
+     * source depth; supercritical source flow is joined to the tailwater only by a momentum-matched
+     * hydraulic jump. Near-critical and unsupported mixed-regime cases fail closed. This method is
+     * hydraulic evidence only; callers must independently apply geomorphic qualification.
+     */
+    public static SkyIslandGraduallyVariedFlowSolver.Result
+            solveSourceNormalDepthToTailwater(
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+                    double downstreamDepthMeters,
+                    SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 3) {
+            throw new IllegalArgumentException(
+                    "source normal-depth closure requires at least three cross sections");
+        }
+        if (!Double.isFinite(downstreamDepthMeters) || downstreamDepthMeters <= 0.0) {
+            throw new IllegalArgumentException(
+                    "downstream tailwater depth must be finite and positive");
+        }
+        SkyIslandGraduallyVariedFlowSolver.CrossSection source = reach.getFirst();
+        double sourceBedSlope = sourceEnergySlope(reach);
+        if (!Double.isFinite(sourceBedSlope) || sourceBedSlope <= 0.0) {
+            throw new IllegalStateException(
+                    "source normal-depth closure requires a positive local downstream bed slope");
+        }
+        double normalDepth = SkyIslandManningHydraulics.normalDepthMeters(
+                source.dischargeCubicMetersPerSecond(),
+                parameters.manningRoughness(),
+                sourceBedSlope,
+                source.bottomWidthMeters(),
+                source.sideSlopeHorizontalToVertical());
+        double froude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
+                source, normalDepth, parameters);
+        double regimeMargin = Math.max(1.0e-6, 10.0 * parameters.relativeTolerance());
+        if (froude > 1.0 + regimeMargin) {
+            return SkyIslandHydraulicJumpProfileSolver.solveToTailwater(
+                    reach, normalDepth, downstreamDepthMeters, parameters);
+        }
+        if (froude >= 1.0 - regimeMargin) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary is near critical; mixed-regime closure is unsupported");
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result subcritical =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        reach, downstreamDepthMeters, parameters);
+        double solvedSourceDepth = subcritical.points().getFirst().depthMeters();
+        double sourceDepthTolerance = Math.max(
+                MINIMUM_STAGE_RESIDUAL_METERS,
+                100.0 * parameters.relativeTolerance() * Math.max(1.0, normalDepth));
+        if (Math.abs(solvedSourceDepth - normalDepth) > sourceDepthTolerance) {
+            throw new IllegalStateException(
+                    "source normal-depth boundary conflicts with downstream tailwater"
+                            + "; normalDepthMeters=" + normalDepth
+                            + "; solvedDepthMeters=" + solvedSourceDepth
+                            + "; toleranceMeters=" + sourceDepthTolerance);
+        }
+        return subcritical;
+    }
+
     public static Outcome solve(
             SkyIslandDescriptor descriptor,
             SkyIslandOrdinaryHydraulicSpan span,
