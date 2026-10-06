@@ -244,7 +244,7 @@ Key rules:
 - all mandatory first-aircraft materials are guaranteed inside the `WALK_BUILD` + `GLIDE` closure of the starting cluster;
 - reasonable early failures receive deterministic rebuild/recovery paths rather than world-soft-locks;
 - Copper and Zinc are post-flight Bootstrap Province guarantees and should prefer distinct regional specialization zones;
-- at least one eligible Guild-connected settlement is deliberately placed within the tested crude-aircraft envelope;
+- at least one eligible inhabited/service settlement is deliberately placed within the tested crude-aircraft envelope; full Guild realization is optional/post-alpha under HS-R15;
 - at least one economically motivated producer/consumer pair opens the first freight sandbox;
 - Petroleum and Levitite are not Bootstrap guarantees;
 - random loot never satisfies a mandatory Bootstrap guarantee unless the entire access/service/stock path is itself deterministic;
@@ -274,6 +274,74 @@ The accepted principles are:
 - full Studio polish, IDE replacement, exhaustive dashboards, and speculative platform engineering are not pre-Bootstrap requirements.
 
 This decision has crossed its platform gate. DR-70 remains open and is now the active bounded product-repair boundary; the recorded key-2885 findings remain authoritative and must not be reinterpreted as acceptance.
+
+### HS-R14 — Cohesive World / production-stack convergence before Bootstrap
+
+**Resolved direction:** after the active DR-70 human gate is accepted, do **not** jump directly from one accepted dressed environment into Bootstrap gameplay balancing.
+
+Insert a bounded Phase 2.5 whose purpose is to prove that the intended production substrate behaves coherently at the scales Skyforge actually depends on:
+
+```text
+island
+ -> cluster
+ -> province
+ -> coarse world
+```
+
+Canonical contract:
+`docs/architecture/COHESIVE_WORLD_CONVERGENCE.md`.
+
+The production dependency roster is a **baseline**, not a permanently frozen final mod list. Retained capabilities should be classified as `CORE / INTEGRATED / CANDIDATE / OPTIONAL / REJECTED / DEFERRED`, and only capabilities with a concrete Phase-2.5 or Bootstrap consumer should be allowed onto the pre-Bootstrap critical path.
+
+Phase 2.5 owns:
+
+- retained-mod / compatibility reconnaissance and bounded candidate selection;
+- semantic ownership and adapter convergence;
+- island-, cluster-, province-, and coarse-world integration proof;
+- combined-stack persistence/compatibility/performance unknowns that would otherwise contaminate Bootstrap playtesting.
+
+Phase 2.5 does **not** own final gameplay balance, final tutorial design, mature optional industry, fleet automation, dragons/whaling, full civilization breadth, final cinematic atmosphere presentation, or every planned mod/feature.
+
+Bootstrap remains the first complete player-experience convergence phase and should primarily answer whether progression, teaching, recovery, first flight, arrival at an inhabited/service location, freight/economy, recipes/rewards, and pacing are good.
+
+Issue #1063 records the owner decision. The roadmap source edit is intentionally isolated until the current DR-70 boundary can be reconciled safely because `PROGRAM_PROGRESSION.json` fingerprints `PROGRAM_ROADMAP.md`.
+
+### HS-R15 — first public alpha is systems-complete and content-light
+
+**Resolved direction:** first public alpha occurs before the bespoke-content-heavy regional/adventure/high-sky expansion phases.
+
+Canonical policy:
+`docs/architecture/FIRST_PUBLIC_ALPHA_SCOPE.md`.
+
+The alpha must contain every fundamental system required to demonstrate the advertised Skyforge core:
+
+- coherent island/environment generation;
+- coherent open-sky/airspace and atmosphere;
+- island -> cluster -> province -> coarse-world composition;
+- complete intentional integration of the selected alpha production mod stack;
+- survival/Create/gliding/practical aircraft;
+- environmental ecology/population authority with representative retained/adapted fauna;
+- structure/civilization substrate sufficient for inhabited/service locations;
+- real producer/consumer/freight/economy semantics;
+- navigation, persistence, performance, packaging, and representative multiplayer/server sanity;
+- sufficient presentation and guidance for meaningful external testing.
+
+Pre-alpha bespoke content is exception-driven. Retained/adapted content should prove roles wherever it can do so honestly. Build bespoke or semi-bespoke content before alpha only when it is the smallest practical way to prove a fundamental system.
+
+Explicitly post-alpha by default:
+
+- full Guild institutional/architectural/narrative realization;
+- Bellanca claim/liability/restitution bureaucracy;
+- playable Lower Sea beyond lore/minimal presentation;
+- bespoke Nether/End world authoring or custom reaching sequences;
+- complex air-war/custom combat AI;
+- bespoke dragons;
+- broad custom aerial bestiaries, full Sky Whale industry/migration, storm-dead/anomalous families;
+- broad archaeology/boss/faction/narrative catalogs.
+
+Post-alpha phases may broaden or deepen already-proven systems, but must not conceal a fundamental advertised alpha system that was simply absent.
+
+Issue #1063 comment 5799031828 records the owner decision.
 
 ---
 
@@ -336,49 +404,6 @@ undersides, and coherent terrain suitable for structures and hydrology.
 
 ---
 
-## HS-05 — Wild Blue Yonder first-public-alpha scope
-
-**Status:** OPEN — should be decided before Bootstrap Province grows into a release candidate.
-
-The Bootstrap Province defines a vertical slice, but the repository does not yet state exactly what
-must ship in the first public/playable alpha.
-
-Decide whether alpha requires:
-
-- only a production Overworld province or also Nether/End authored terrain;
-- one complete civilization archetype versus a broad civilization system;
-- hostile/civilian air traffic;
-- Bellanca and/or only the crude first powered aircraft;
-- adaptive music versus static soundtrack integration;
-- quests/onboarding depth;
-- multiplayer/server certification;
-- Distant Horizons as hard dependency;
-- exceptional phenomena;
-- final or provisional mod roster.
-
-### Audit recommendation
-
-Define an intentionally narrow alpha around:
-
-```text
-production Overworld province
-+ survival foothold
-+ glider
-+ first powered aircraft
-+ post-flight Copper/Zinc specialization
-+ one meaningful freight loop
-+ one sparse civilization/infrastructure encounter
-+ legible ecology/atmosphere
-+ save/reload/multiplayer sanity
-+ soundtrack/presentation sufficient to establish identity
-```
-
-Do not require complete Nether/End reauthoring, mature fleet automation, or every planned exceptional
-feature for first alpha.
-
-**Trigger:** before final Bootstrap Province implementation begins.
-
----
 
 ## HS-07 — Population tone: ecology, civilization, threats, and sky traffic
 
@@ -450,8 +475,9 @@ Human decisions eventually needed:
 - whether the 1:1 Nether scale is permanent WBY canon or provisional balance;
 - whether the End becomes the first fully authored second dimension;
 - whether Nether is eventually a Skyforge solid/cavern grammar;
-- how portals interact with aircraft, cargo, and infrastructure;
-- whether dimensions are required for first public alpha or later expansion.
+- how portals interact with aircraft, cargo, and infrastructure.
+
+Under HS-R15, bespoke Nether/End authoring and custom dimension-reaching content are **post-alpha by default**. Reopen that timing only if the selected alpha production stack exposes a concrete dependency that cannot be satisfied through retained vanilla/mod behavior.
 
 **Trigger:** before dimension terrain authorship or assembled-vehicle portal transfer becomes active
 roadmap work.
@@ -590,18 +616,22 @@ AFTER SF-IMP-0083 CLEAN BOUNDARY
     HS-03 post-morphology pivot
     HS-04 morphology tuning review
 
+AFTER ACCEPTED DR-70 / BEFORE BOOTSTRAP PRIMARY
+    HS-R14 Cohesive World / production-stack convergence
+
 BEFORE / DURING BOOTSTRAP PROVINCE
-    HS-05 first-alpha scope
-    HS-07 population tone
-    HS-08 civilization interaction when executable
+    apply HS-R15 systems-complete/content-light alpha policy
+    HS-07 population tone only to the degree required for representative alpha ecology
+    HS-08 civilization interaction only if executable alpha behavior requires a decision
 
-LATER ALPHA / PRODUCTIZATION
-    HS-09 dimensions
-    HS-10 dependencies/licensing
-    HS-11 supported performance environment
-    HS-12 audio presentation
+BEFORE FIRST PUBLIC ALPHA
+    resolve HS-10 dependencies/licensing for the selected alpha production stack
+    resolve HS-11 supported performance environment
+    HS-12 audio presentation only to the degree required for alpha identity
 
-POST-ALPHA
+POST-ALPHA CONTENT / PRODUCTIZATION
+    HS-09 bespoke dimension strategy unless promoted by a concrete alpha dependency
+    broader HS-07 / HS-08 content decisions
     HS-13 second backend
 ```
 
