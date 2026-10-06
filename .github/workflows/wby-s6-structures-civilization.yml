@@ -50,6 +50,7 @@ jobs:
         run: |
           bash -n scripts/wby-s6-diagnostic-launch.sh
           bash -n scripts/wby-s6-runtime-acceptance.sh
+          python3 -m py_compile scripts/wby-s6-structure-evidence.py
 
       - name: Checkout pinned Aerodynamics4MC 0.2.2 source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -169,6 +170,7 @@ jobs:
           path: |
             wby-s6-*.log
             wby-s6-staged-structure-jars.txt
+            wby-s6-structure-evidence.tsv
             s6-production-server/logs/latest.log
             s6-production-server/config/*.toml
             s6-production-server/kubejs/data/**/*.json

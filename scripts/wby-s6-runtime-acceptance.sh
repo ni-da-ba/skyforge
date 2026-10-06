@@ -20,6 +20,10 @@ simulation-distance=3
 max-tick-time=0
 max-players=1
 server-port=25565
+enable-rcon=true
+rcon.port=25575
+rcon.password=skyforge-s6-local-probe
+broadcast-rcon-to-ops=false
 EOF
 printf 'onboardAccessibility:false\n' > "$client_dir/options.txt"
 mkdir -p "$client_dir/config"
@@ -183,6 +187,10 @@ assert_hearthandharvest_worldgen_policy() {
 
 start_server "$server_log"
 test -f "$server_dir/s6-acceptance/level.dat"
+python3 scripts/wby-s6-structure-evidence.py \
+  --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
+  --password skyforge-s6-local-probe --seed 817304 \
+  --output "$GITHUB_WORKSPACE/wby-s6-structure-evidence.tsv"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
