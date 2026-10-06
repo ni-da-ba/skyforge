@@ -53,21 +53,34 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             double maximumBankfullWidth =
                     2.0 * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                             descriptor.nominalRadius(), discharge.maximumDischarge());
+            double corridorHalfWidth = network.planningSpacing()
+                    * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+            SkyIslandGeomorphicCandidateRoute conditionedRoute =
+                    SkyIslandTerrainAwareRouteSolver.solveByPriorityFlood(
+                            terrain,
+                            interiority,
+                            route.semanticReach().guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    route.route().points().getFirst(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    route.route().points().getLast(), 0.0));
+            SkyIslandGeomorphicReachRoute candidateRoute =
+                    new SkyIslandGeomorphicReachRoute(route.semanticReach(), conditionedRoute);
             SkyIslandContinuousChannelCenterline candidate =
                     SkyIslandSemanticCorridorCenterlinePlanner.refine(
-                            route.route(),
+                            conditionedRoute,
                             route.semanticReach().guidancePoints(),
                             terrain,
                             interiority,
                             network.planningSpacing(),
-                            network.planningSpacing()
-                                    * SkyIslandGeomorphicChannelNetworkPlanner
-                                            .ROUTE_CORRIDOR_SPACING_FRACTION,
+                            corridorHalfWidth,
                             maximumBankfullWidth,
                             station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
                                     descriptor.nominalRadius(), discharge.atStation(station)),
                             null);
-            reaches.add(sampleReach(descriptor, terrain, route, candidate));
+            reaches.add(sampleReach(descriptor, terrain, candidateRoute, candidate));
         }
         reaches.sort(Comparator
                 .comparingInt((SkyIslandHydraulicReachSkeleton reach) ->
