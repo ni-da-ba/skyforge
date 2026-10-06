@@ -70,6 +70,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
     @Test
     void candidateGeometryFeedsPhysicalSolverBeforeIndependentD2OnControlAndHeldOutKey() {
         ProbeResult acceptedControl = probe(6L, 61L, 77L);
+        ProbeResult rejectedControl = probe(8L, 81L, 287L);
         ProbeResult heldOutChallenge = probe(8L, 81L, 700L);
 
         System.out.printf(
@@ -84,6 +85,18 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 acceptedControl.d2Rejected(),
                 acceptedControl.maximumEnergyResidualMeters(),
                 acceptedControl.failures());
+        System.out.printf(
+                Locale.ROOT,
+                "CANDIDATE_COUPLING key=287 spans=%d attempted=%d deferred=%d solved=%d "
+                        + "d2Qualified=%d d2Rejected=%d maxEnergyResidualMeters=%.9g failures=%s%n",
+                rejectedControl.spanCount(),
+                rejectedControl.attempted(),
+                rejectedControl.deferred(),
+                rejectedControl.solved(),
+                rejectedControl.d2Qualified(),
+                rejectedControl.d2Rejected(),
+                rejectedControl.maximumEnergyResidualMeters(),
+                rejectedControl.failures());
         System.out.printf(
                 Locale.ROOT,
                 "CANDIDATE_COUPLING key=700 spans=%d attempted=%d deferred=%d solved=%d "
@@ -103,6 +116,18 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 + acceptedControl.solved()
                         == acceptedControl.attempted(),
                 "every attempted key-77 span must be accounted for as solved or hydraulically rejected");
+        assertTrue(
+                rejectedControl.failures().values().stream().mapToInt(Integer::intValue).sum()
+                                + rejectedControl.solved()
+                        == rejectedControl.attempted(),
+                "every attempted key-287 span must be accounted for as solved or hydraulically rejected");
+        assertTrue(
+                rejectedControl.d2Qualified() + rejectedControl.d2Rejected()
+                        == rejectedControl.solved(),
+                "key-287 D2 outcomes must be counted only after a complete physical profile solve");
+        assertTrue(
+                rejectedControl.attempted() + rejectedControl.deferred() > 0,
+                "key 287 must exercise candidate ordinary spans or explicit deferred-boundary evidence");
         assertTrue(
                 heldOutChallenge.failures().values().stream().mapToInt(Integer::intValue).sum()
                                 + heldOutChallenge.solved()
