@@ -1,7 +1,10 @@
 diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
 --- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
 +++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
-@@ -44,14 +44 @@
+@@ -41,20 +41,7 @@
+     private static final ResourceLocation RIBBON_TEX = ResourceLocation.parse("windy:textures/ribbon.png");
+ 
+     /** Textured, translucent, double-sided, depth-tested but not depth-writing. */
 -    private static final RenderType RIBBON = RenderType.create(
 -            "windy:ribbon",
 -            DefaultVertexFormat.POSITION_TEX_COLOR,
@@ -17,12 +20,22 @@ diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/ja
 -                    .setDepthTestState(RenderStateShard.LEQUAL_DEPTH_TEST)
 -                    .createCompositeState(false));
 +    private static final RenderType RIBBON = RenderType.entityTranslucent(RIBBON_TEX);
-@@ -191,1 +178,1 @@
+ 
+     private static final int MAX_POINTS = 24;    // trail length in ticks of travel
+     private static final int MAX_RIBBONS = 20;
+@@ -190,4 +177,4 @@
+         Tesselator tess = Tesselator.getInstance();
 -        BufferBuilder bb = tess.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR);
 +        BufferBuilder bb = tess.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.NEW_ENTITY);
-@@ -248,1 +235,4 @@
+ 
+         for (Ribbon r : ribbons) {
+@@ -246,5 +233,8 @@
+     private static void vtx(BufferBuilder bb, Matrix4f pose, Vec3 cam, Vec3 p, float u, float v, int a) {
+         bb.addVertex(pose, (float) (p.x - cam.x), (float) (p.y - cam.y), (float) (p.z - cam.z))
 -                .setUv(u, v).setColor(235, 245, 252, a);
 +                .setUv(u, v).setColor(235, 245, 252, a)
 +                .setOverlay(net.minecraft.client.renderer.OverlayTexture.NO_OVERLAY)
 +                .setLight(net.minecraft.client.renderer.LightTexture.FULL_BRIGHT)
 +                .setNormal(0.0F, 1.0F, 0.0F);
+     }
+ }
