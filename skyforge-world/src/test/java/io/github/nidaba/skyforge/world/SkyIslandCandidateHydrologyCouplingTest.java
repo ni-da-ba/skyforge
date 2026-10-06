@@ -48,6 +48,16 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                         * descriptor.reliefBudget()
                                         * CALIBRATION.metersPerWorldUnit(),
                         "candidate channel bed must remain below its source terrain");
+                if (i > 0) {
+                    var upstream = reach.sections().get(i - 1);
+                    var downstream = reach.sections().get(i);
+                    double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+                    double bedDrop = upstream.bedElevationMeters() - downstream.bedElevationMeters();
+                    assertTrue(bedDrop >= -1.0e-9, "candidate bed must not rise downstream");
+                    assertTrue(
+                            bedDrop <= CALIBRATION.maximumDownstreamBedSlope() * spacing + 1.0e-8,
+                            "candidate bed drop must stay within its explicit maximum grade");
+                }
             }
         }
 
