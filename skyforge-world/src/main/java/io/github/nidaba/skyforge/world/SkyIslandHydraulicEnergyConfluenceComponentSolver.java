@@ -66,14 +66,6 @@ public final class SkyIslandHydraulicEnergyConfluenceComponentSolver {
     }
 
     /**
-     * Solves a combining junction when downstream control has supplied the outlet depth.
-     *
-     * <p>Incoming tailwater depths are derived from the common node water-surface elevation, not
-     * copied as depths across channels with different bed elevations. Every source normal-depth
-     * boundary, reach energy equation, discharge continuity check, subcritical outlet state, and
-     * confluence energy balance must close; otherwise the component is rejected.
-     */
-    /**
      * Closes source-controlled incoming branches through a combining junction and an outlet reach.
      *
      * <p>The outlet reach is first marched upstream from its explicit downstream tailwater. Its
@@ -118,6 +110,14 @@ public final class SkyIslandHydraulicEnergyConfluenceComponentSolver {
                 confluence, outletProfile, junctionPoint.depthMeters(), maximumResidual);
     }
 
+    /**
+     * Solves a combining junction when downstream control has supplied the outlet depth.
+     *
+     * <p>Incoming tailwater depths are derived from the common node water-surface elevation, not
+     * copied as depths across channels with different bed elevations. Every source normal-depth
+     * boundary, reach energy equation, discharge continuity check, subcritical outlet state, and
+     * confluence energy balance must close; otherwise the component is rejected.
+     */
     public static Result solve(
             List<IncomingReach> incomingReaches,
             SkyIslandGraduallyVariedFlowSolver.CrossSection outletAtJunction,
