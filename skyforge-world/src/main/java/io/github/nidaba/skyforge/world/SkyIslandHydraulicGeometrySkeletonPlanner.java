@@ -674,39 +674,34 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
         }
 
-        // On a chain, interval feasibility under 0 <= bed[i]-bed[i+1] <= grade*ds
-        // is equivalent to two families of pairwise bounds. Their extrema are a suffix
-        // minimum and prefix maximum, so the exact minimum uniform incision scale is O(n).
+        // Score the same admissible bed family used by the joint candidate planner:
+        // symmetric bounded local grade plus a net downstream-lowering semantic-reach trend.
+        // A centerline must not be penalized merely because every fine sample is not monotone.
         double requiredScale = calibration.bedIncisionScale();
-        double suffixMinimum = Double.POSITIVE_INFINITY;
-        for (int upstream = points.size() - 2; upstream >= 0; upstream--) {
+        for (int upstream = 0; upstream + 1 < points.size(); upstream++) {
             int downstream = upstream + 1;
-            suffixMinimum = Math.min(
-                    suffixMinimum,
-                    terrainMeters[downstream]
-                            + calibration.maximumDownstreamBedSlope()
-                                    * chainageMeters[downstream]);
-            double availableLowerBedBound =
-                    terrainMeters[upstream]
-                            + calibration.maximumDownstreamBedSlope()
-                                    * chainageMeters[upstream]
-                            - suffixMinimum;
+            double spacing = chainageMeters[downstream] - chainageMeters[upstream];
+            double localGradeRelief =
+                    calibration.maximumDownstreamBedSlope() * spacing;
+            double upstreamTerrainExcess = Math.max(
+                    0.0,
+                    terrainMeters[upstream] - terrainMeters[downstream] - localGradeRelief);
+            double downstreamTerrainExcess = Math.max(
+                    0.0,
+                    terrainMeters[downstream] - terrainMeters[upstream] - localGradeRelief);
             requiredScale = Math.max(
                     requiredScale,
-                    availableLowerBedBound / maximumIncisionPerScaleMeters[upstream]);
-        }
-
-        double prefixMaximumTerrain = terrainMeters[0];
-        for (int downstream = 1; downstream < points.size(); downstream++) {
-            double requiredDownstreamIncision =
-                    terrainMeters[downstream] - prefixMaximumTerrain;
+                    upstreamTerrainExcess / maximumIncisionPerScaleMeters[upstream]);
             requiredScale = Math.max(
                     requiredScale,
-                    requiredDownstreamIncision
-                            / maximumIncisionPerScaleMeters[downstream]);
-            prefixMaximumTerrain =
-                    Math.max(prefixMaximumTerrain, terrainMeters[downstream]);
+                    downstreamTerrainExcess / maximumIncisionPerScaleMeters[downstream]);
         }
+        double reachTerrainRise = Math.max(
+                0.0, terrainMeters[terrainMeters.length - 1] - terrainMeters[0]);
+        requiredScale = Math.max(
+                requiredScale,
+                reachTerrainRise
+                        / maximumIncisionPerScaleMeters[maximumIncisionPerScaleMeters.length - 1]);
 
         double excessIncisionEquivalentWorldUnits =
                 Math.max(0.0, requiredScale - calibration.bedIncisionScale())
