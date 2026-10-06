@@ -226,6 +226,126 @@ public final class SkyIslandGraduallyVariedFlowSolver {
     }
 
     /**
+     * Solves a subcritical profile downstream from an explicit upstream depth control.
+     *
+     * <p>Each section is solved on the deep branch above critical depth. If the energy equation
+     * cannot retain a subcritical state at a downstream section, the method fails closed instead
+     * of silently changing regime; callers must provide an explicit critical control or jump model.
+     */
+    public static Result solveSubcriticalDownstream(
+            List<CrossSection> sections,
+            double upstreamDepthMeters,
+            Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        if (!Double.isFinite(upstreamDepthMeters) || upstreamDepthMeters <= 0.0) {
+            throw new IllegalArgumentException("upstream depth must be finite and positive");
+        }
+        List<CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 2) {
+            throw new IllegalArgumentException("GVF reach requires at least two cross sections");
+        }
+        for (int i = 0; i < reach.size(); i++) {
+            CrossSection section = Objects.requireNonNull(reach.get(i), "section");
+            if (i > 0 && !(section.chainageMeters() > reach.get(i - 1).chainageMeters())) {
+                throw new IllegalArgumentException("section chainage must increase strictly downstream");
+            }
+        }
+
+        CrossSection first = reach.getFirst();
+        double upstreamCritical = criticalDepth(first, parameters);
+        if (!(upstreamDepthMeters > upstreamCritical
+                * (1.0 + 10.0 * parameters.relativeTolerance()))) {
+            throw new IllegalArgumentException(
+                    "upstream boundary must be strictly subcritical");
+        }
+
+        double[] depths = new double[reach.size()];
+        depths[0] = upstreamDepthMeters;
+        double maximumResidual = 0.0;
+        for (int i = 0; i < reach.size() - 1; i++) {
+            CrossSection upstream = reach.get(i);
+            CrossSection downstream = reach.get(i + 1);
+            double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+            double critical = criticalDepth(downstream, parameters);
+            double lower = critical * (1.0 + 10.0 * parameters.relativeTolerance());
+            double lowerResidual = energyResidual(
+                    upstream, downstream, lower, depths[i], spacing,
+                    specificEnergy(downstream, lower, parameters), parameters);
+            double tolerance = energyTolerance(
+                    upstream, depths[i], downstream, lower, parameters);
+            if (lowerResidual < -tolerance) {
+                throw new IllegalStateException(
+                        "no subcritical standard-step solution beyond critical depth at section "
+                                + (i + 1));
+            }
+
+            double upper = Math.max(Math.max(depths[i], lower) * 2.0, lower + 1.0);
+            double upperResidual = energyResidual(
+                    upstream, downstream, upper, depths[i], spacing,
+                    specificEnergy(downstream, upper, parameters), parameters);
+            int expansion = 0;
+            while (upperResidual > 0.0 && expansion++ < parameters.maximumIterations()) {
+                upper *= 2.0;
+                if (!Double.isFinite(upper)) {
+                    break;
+                }
+                upperResidual = energyResidual(
+                        upstream, downstream, upper, depths[i], spacing,
+                        specificEnergy(downstream, upper, parameters), parameters);
+            }
+            if (!(upperResidual <= 0.0) || !Double.isFinite(upperResidual)) {
+                throw new IllegalStateException(
+                        "failed to bracket subcritical downstream depth at section " + (i + 1));
+            }
+
+            double root = Double.NaN;
+            for (int iteration = 0; iteration < parameters.maximumIterations(); iteration++) {
+                double middle = lower + 0.5 * (upper - lower);
+                double residual = energyResidual(
+                        upstream, downstream, middle, depths[i], spacing,
+                        specificEnergy(downstream, middle, parameters), parameters);
+                if (Math.abs(residual) <= energyTolerance(
+                                upstream, depths[i], downstream, middle, parameters)
+                        || upper - lower
+                                <= parameters.relativeTolerance() * Math.max(1.0, middle)) {
+                    root = middle;
+                    break;
+                }
+                if (residual > 0.0) {
+                    lower = middle;
+                } else {
+                    upper = middle;
+                }
+            }
+            if (!Double.isFinite(root)) {
+                throw new IllegalStateException(
+                        "subcritical downstream depth iteration did not converge at section "
+                                + (i + 1));
+            }
+            depths[i + 1] = root;
+            maximumResidual = Math.max(maximumResidual, Math.abs(energyResidual(
+                    upstream, downstream, root, depths[i], spacing,
+                    specificEnergy(downstream, root, parameters), parameters)));
+        }
+
+        List<ProfilePoint> points = new ArrayList<>(reach.size());
+        for (int i = 0; i < reach.size(); i++) {
+            CrossSection section = reach.get(i);
+            double depth = depths[i];
+            double area = area(section, depth);
+            points.add(new ProfilePoint(
+                    section,
+                    depth,
+                    section.bedElevationMeters() + depth,
+                    section.dischargeCubicMetersPerSecond() / area,
+                    frictionSlope(section, depth, parameters),
+                    froudeNumber(section, depth, parameters)));
+        }
+        return new Result(points, maximumResidual);
+    }
+
+    /**
      * Solves a supercritical profile downstream from an explicit upstream depth control.
      *
      * <p>Each section is solved on the shallow branch below critical depth. The method rejects
