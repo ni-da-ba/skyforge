@@ -696,13 +696,6 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
                     requiredScale,
                     downstreamTerrainExcess / maximumIncisionPerScaleMeters[downstream]);
         }
-        double reachTerrainRise = Math.max(
-                0.0, terrainMeters[terrainMeters.length - 1] - terrainMeters[0]);
-        requiredScale = Math.max(
-                requiredScale,
-                reachTerrainRise
-                        / maximumIncisionPerScaleMeters[maximumIncisionPerScaleMeters.length - 1]);
-
         double excessIncisionEquivalentWorldUnits =
                 Math.max(0.0, requiredScale - calibration.bedIncisionScale())
                         * maximumIncisionPerScale

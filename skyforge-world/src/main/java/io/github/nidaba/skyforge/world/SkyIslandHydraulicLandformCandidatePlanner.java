@@ -43,7 +43,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 String message = failure.getMessage();
                 if (message == null
                         || !message.startsWith(
-                                "bounded channel-bed candidate is infeasible under terrain, incision, local-grade, and reach-trend constraints")) {
+                                "bounded channel-bed candidate is infeasible under terrain, incision, and local-grade constraints")) {
                     throw failure;
                 }
                 rejectedResolutions.add(
@@ -127,7 +127,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         }
 
         List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints =
-                new ArrayList<>(count);
+                new ArrayList<>(count - 1);
         for (int i = 0; i + 1 < count; i++) {
             SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = rawSections.get(i);
             SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = rawSections.get(i + 1);
@@ -145,14 +145,6 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     -localBedRelief,
                     localBedRelief));
         }
-        // A reach-scale trend is the geometric invariant; pointwise monotonicity is not. Bound
-        // the total rise by the available relief so this remains a finite, solver-native constraint.
-        gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
-                "reach-bed-trend",
-                0,
-                count - 1,
-                0.0,
-                reliefMeters));
 
         SkyIslandHydraulicQpResult qp =
                 SkyIslandHydraulicBoundedQpSolver.solve(

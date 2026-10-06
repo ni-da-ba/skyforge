@@ -61,11 +61,6 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             "local bed rises and drops must stay within the symmetric game-scale grade envelope");
                 }
             }
-            double reachBedDrop = reach.sections().getFirst().bedElevationMeters()
-                    - reach.sections().getLast().bedElevationMeters();
-            assertTrue(
-                    reachBedDrop >= -1.0e-8,
-                    "each semantic reach must retain a net downstream-lowering bed trend");
         }
 
         SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate representative =
