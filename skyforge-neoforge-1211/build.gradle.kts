@@ -439,6 +439,30 @@ check(requireNotNull(wbyS5Pins.getProperty("profile.base")) == "wby-s4-life-buil
 check(wbyS5Pin("biomesOPlenty", "releaseStatus") == "beta")
 check(wbyS5Pin("terraBlender", "releaseStatus") == "beta")
 
+val wbyS6PinFile = layout.projectDirectory.file("wby-s6-structures-civilization.properties")
+val wbyS6Pins = Properties().apply { wbyS6PinFile.asFile.inputStream().use(::load) }
+fun wbyS6Pin(mod: String, field: String): String =
+    requireNotNull(wbyS6Pins.getProperty("$mod.$field")) {
+        "missing WBY S6 pin: $mod.$field in " + wbyS6PinFile.asFile
+    }
+fun wbyS6Token(mod: String): String = wbyS6Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S6 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+check(wbyS6Pin("minecraft", "version") == "1.21.1")
+check(wbyS6Pin("neoforge", "version") == "21.1.249")
+check(requireNotNull(wbyS6Pins.getProperty("profile.base")) == "wby-s5-overworld-ecology")
+val wbyS6SharedMods = listOf(
+    "townsAndTowers", "cristelLib", "clothConfig", "yungsBetterDungeons", "yungsBetterMineshafts",
+    "createStructuresArise", "anvilCore", "createAeronauticsStructures", "createAeronauticsDiscovery",
+    "aeronauticalExplorations", "radioTowersLite", "berezkaLibrary",
+)
+val wbyS6D07Mods = mapOf(
+    "structory" to listOf("structory"),
+    "explorify" to listOf("explorify"),
+    "both" to listOf("structory", "explorify"),
+)
+
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -529,6 +553,8 @@ val wbyS3CreateBigCannons = providers.gradleProperty("wbyS3CreateBigCannons").or
 val wbyS4OrdinaryLife = providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS4Shaders = providers.gradleProperty("wbyS4Shaders").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS5OverworldEcology = providers.gradleProperty("wbyS5OverworldEcology").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS6StructuresCivilization = providers.gradleProperty("wbyS6StructuresCivilization").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS6D07Variant = providers.gradleProperty("wbyS6D07Variant").orNull?.trim()?.lowercase() ?: "none"
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -562,6 +588,16 @@ check(!wbyS4Shaders || (wbyS4OrdinaryLife && wbyS1Clouds == "simple-clouds" && !
 }
 check(!wbyS5OverworldEcology || (wbyS4OrdinaryLife && wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
     "WBY S5 requires the cumulative S4 life/building profile"
+}
+check(wbyS6D07Variant in setOf("none", "structory", "explorify", "both")) {
+    "WBY S6 D-07 variant must be none, structory, explorify, or both"
+}
+check(!wbyS6StructuresCivilization || (wbyS5OverworldEcology && wbyS4OrdinaryLife &&
+    wbyS2ComputingAvionics && wbyS3DieselGenerators && wbyS3CreateBigCannons)) {
+    "WBY S6 requires the cumulative S5 ecology profile"
+}
+check(wbyS6StructuresCivilization || wbyS6D07Variant == "none") {
+    "WBY S6 D-07 variants require the opt-in S6 profile"
 }
 check(!wbyS3DieselGenerators || wbyS2ComputingAvionics) {
     "WBY S3 Diesel Generators requires the selected cumulative S2 profile"
@@ -7157,6 +7193,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.property("wbyS4Shaders", wbyS4Shaders)
     inputs.file(wbyS5PinFile)
     inputs.property("wbyS5OverworldEcology", wbyS5OverworldEcology)
+    inputs.file(wbyS6PinFile)
+    inputs.property("wbyS6StructuresCivilization", wbyS6StructuresCivilization)
+    inputs.property("wbyS6D07Variant", wbyS6D07Variant)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7352,7 +7391,29 @@ tasks.register("wbyS1ResolvePinnedMods") {
             }
         }
 
+        val s6Mods = buildList {
+            if (wbyS6StructuresCivilization) addAll(wbyS6SharedMods)
+            if (wbyS6StructuresCivilization) addAll(wbyS6D07Mods[wbyS6D07Variant].orEmpty())
+        }.distinct()
+        s6Mods.forEach { mod ->
+            val expected = wbyS6Token(mod)
+            check(client.any { it.contains(expected) }) {
+                "WBY S6 client missing $mod token '$expected': $client"
+            }
+            check(server.any { it.contains(expected) }) {
+                "WBY S6 server missing $mod token '$expected': $server"
+            }
+        }
+        val disabledS6Mods = (wbyS6SharedMods + wbyS6D07Mods.values.flatten()).distinct() - s6Mods
+        disabledS6Mods.forEach { mod ->
+            val expected = wbyS6Token(mod)
+            check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                "WBY S1-S5 profile unexpectedly resolved S6 $mod token '$expected'"
+            }
+        }
+
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
+        if (wbyS6StructuresCivilization) println("WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$wbyS6D07Variant")
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
@@ -7415,6 +7476,9 @@ wbyS1StageClientMods.configure {
                 "biomesOPlenty", "regionsUnexplored", "naturesSpirit", "terraBlender",
                 "glitchCore", "geckolib", "smartBrainLib", "architectury", "yacl",
             ).map { wbyS5Token(it) }
+        } else emptyList()) +
+        (if (wbyS6StructuresCivilization) {
+            (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).map(::wbyS6Token)
         } else emptyList())
     ).toSet()
 
@@ -8316,6 +8380,15 @@ dependencies {
         ).forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS5Pin(mod, "coordinate"))
+        }
+    }
+
+    // S6 remains opt-in. These structure providers are present on both client/integrated-server
+    // and dedicated-server runtime classpaths so the same candidate can be reviewed in either.
+    if (wbyS6StructuresCivilization) {
+        (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).distinct().forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS6Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS6Pin(mod, "coordinate"))
         }
     }
 
@@ -9933,6 +10006,14 @@ tasks.register<Sync>("wbyS1StageServerMods") {
             ?.sorted()
             ?: emptyList()
         check(staged.isNotEmpty()) { "WBY S1 server staging produced no NeoForge mod jars." }
+        if (wbyS6StructuresCivilization) {
+            (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).forEach { mod ->
+                val expected = wbyS6Token(mod)
+                check(staged.any { it.contains(expected) }) {
+                    "WBY S6 server staging missing $mod token '$expected': $staged"
+                }
+            }
+        }
         listOf("distanthorizons", "iris", "oculus-for-simpleclouds", "simpleclouds", "betterclouds")
             .forEach { forbidden ->
                 check(staged.none { it.contains(forbidden, ignoreCase = true) }) {
