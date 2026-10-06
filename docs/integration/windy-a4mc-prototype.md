@@ -9,7 +9,7 @@
 - Windy (NeoForge 1.21.1) upstream commit `3ba5523481d22179cdf0fa7dab0743210f136bb8`, advertised mod 1.2.0, MIT.
 - A4MC accepted 0.2.2 source commit `171d8dc593651d6b34e3bfecaf6469a11b53b433`, public Minecraft-independent API.
 
-Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies ten intentionally narrow patches in order:
+Never edit the upstream sources in-place in this repository. CI checks out pinned sources and applies nine ordered patches followed by one assertion-checked rendering transform:
 
 1. `0001-authoritative-wind-provider.patch` — adds an optional external vector-field hook to Windy's existing particles and ribbons. When externally bound, the internal randomized wind is skipped, missing samples fail closed, streaks sample each location, ribbons follow 3D local velocity rather than decorative horizontal weave, and high-altitude flight may spawn nearby ribbons.
 2. `0002-a4mc-client-authority-binding.patch` — binds the seam to `AeroClientWindApi.sample` with `SERVER_AGGREGATED_PREFERRED` (trusted coarse / aggregated flow, never client-only local voxel detail). A4MC remains the sole wind/pressure physics authority. The provider is registered only if A4MC is loaded.
@@ -20,7 +20,7 @@ Never edit the upstream sources in-place in this repository. CI checks out pinne
 7. `0007-suspended-island-wind-corridors.patch` — permits physical wind wisps below island overhangs without disabling standalone sky exposure rules; anchors 3D ribbons near player altitude rather than island heightmap tops and rejects ribbon spawns inside terrain. Real Skyforge overhang captures are still a manual admission gate.
 8. `0008-wind-sample-profiling.patch` — opt-in rolling 128-call sampling-window diagnostics with available-count and p50/p95/max query duration. **Startup windows may be entirely unavailable**, so they must not be treated as performance qualification.
 9. `0009-trusted-burst-probe.patch` — a one-time, development-only 128-position *API microbenchmark* executed only after trusted data arrives. It records how many nearby queries remain available, p50/p95/max call cost, and is required by CI to contain at least 120 available samples. It is deliberately not real-world frame time, sustained traffic, or visual-compositing evidence.
-10. `0010-iris-entity-translucent-render-path.patch` — experimental rendering fallback: replaces Windy's bespoke `POSITION_TEX_COLOR` ribbon type with Minecraft's built-in translucent entity render type and supplies its expected vertex attributes, so shader pipelines can classify the ribbons as entity translucency. This is a hypothesis to test, not accepted shader compatibility; it can change lighting/depth behavior and requires owner review.
+10. `apply-0010.py` — experimental rendering fallback: replaces Windy's bespoke `POSITION_TEX_COLOR` ribbon type with Minecraft's built-in translucent entity render type and supplies its expected vertex attributes, so shader pipelines can classify the ribbons as entity translucency. This is a hypothesis to test, not accepted shader compatibility; it can change lighting/depth behavior and requires owner review.
 
 ## Authority boundary
 
