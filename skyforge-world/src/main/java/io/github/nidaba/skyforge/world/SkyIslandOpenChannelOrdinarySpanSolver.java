@@ -242,6 +242,31 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                 calibration.crossSections(descriptor, span.samples(), parentReachSamples);
         SkyIslandGraduallyVariedFlowSolver.Result hydraulicProfile =
                 solveHydraulics(descriptor, span, sections, calibration, terminalFates);
+        return qualifyHydraulicProfile(
+                descriptor, span, terrain, policy, planningSpacing, calibration,
+                hydraulicProfile, parentReachSamples);
+    }
+
+    static Outcome qualifyHydraulicProfile(
+            SkyIslandDescriptor descriptor,
+            SkyIslandOrdinaryHydraulicSpan span,
+            SkyIslandSemanticField terrain,
+            SkyIslandGeomorphicQualificationPolicy policy,
+            double planningSpacing,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            SkyIslandGraduallyVariedFlowSolver.Result hydraulicProfile,
+            List<SkyIslandHydraulicGeometrySkeletonSample> parentReachSamples) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(span, "span");
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(policy, "policy");
+        Objects.requireNonNull(calibration, "calibration");
+        Objects.requireNonNull(hydraulicProfile, "hydraulicProfile");
+        Objects.requireNonNull(parentReachSamples, "parentReachSamples");
+        if (hydraulicProfile.points().size() != span.samples().size()) {
+            throw new IllegalArgumentException(
+                    "hydraulic profile stations must match ordinary-span geometry samples");
+        }
         List<SkyIslandHydraulicGeometrySample> solvedSamples =
                 reconstruct(span, hydraulicProfile, descriptor, calibration);
         List<SkyIslandLocalPosition> points = span.samples().stream()
@@ -271,7 +296,6 @@ public final class SkyIslandOpenChannelOrdinarySpanSolver {
                 violations,
                 upstreamStageResidual,
                 stageTolerance);
-    }
 
     private static SkyIslandGraduallyVariedFlowSolver.Result solveHydraulics(
             SkyIslandDescriptor descriptor,
