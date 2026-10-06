@@ -31,6 +31,52 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         return plan(descriptor, network, terrain, interiority);
     }
 
+    /**
+     * Builds an exploratory geometry candidate without using D2 head envelopes as hydraulic
+     * feasibility constraints. It preserves the authored network and existing C2 corridor,
+     * terrain-rise and bend-radius limits. The result is candidate geometry only: it is not
+     * hydraulically solved, D2-qualified, or authorized for terrain or Minecraft realization.
+     */
+    public static SkyIslandHydraulicGeometrySkeletonPlan planHydraulicCandidate(
+            SkyIslandDescriptor descriptor) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        SkyIslandGeomorphicChannelNetworkPlan network =
+                SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+        SkyIslandPreHydrologicTerrainField terrain =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        List<SkyIslandHydraulicReachSkeleton> reaches = new ArrayList<>(network.routes().size());
+        for (SkyIslandGeomorphicReachRoute route : network.routes()) {
+            SemanticDischargeProfile discharge =
+                    semanticDischargeProfile(route.semanticReach());
+            double maximumBankfullWidth =
+                    2.0 * SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                            descriptor.nominalRadius(), discharge.maximumDischarge());
+            SkyIslandContinuousChannelCenterline candidate =
+                    SkyIslandSemanticCorridorCenterlinePlanner.refine(
+                            route.route(),
+                            route.semanticReach().guidancePoints(),
+                            terrain,
+                            interiority,
+                            network.planningSpacing(),
+                            network.planningSpacing()
+                                    * SkyIslandGeomorphicChannelNetworkPlanner
+                                            .ROUTE_CORRIDOR_SPACING_FRACTION,
+                            maximumBankfullWidth,
+                            station -> SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                                    descriptor.nominalRadius(), discharge.atStation(station)),
+                            null);
+            reaches.add(sampleReach(descriptor, terrain, route, candidate));
+        }
+        reaches.sort(Comparator
+                .comparingInt((SkyIslandHydraulicReachSkeleton reach) ->
+                        reach.geomorphicRoute().semanticReach().startCellIndex())
+                .thenComparingInt(reach ->
+                        reach.geomorphicRoute().semanticReach().endCellIndex()));
+        return new SkyIslandHydraulicGeometrySkeletonPlan(descriptor, network, reaches);
+    }
+
     static SkyIslandHydraulicGeometrySkeletonPlan plan(
             SkyIslandDescriptor descriptor,
             SkyIslandGeomorphicChannelNetworkPlan network,
