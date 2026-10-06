@@ -11,9 +11,11 @@ SCHEMA_VERSION = "mech-0.1"
 PLAN_SCHEMA = "skyforge.functional-mechanism-plan.v1"
 COMPILER_VERSION = "mech-0.1-fixed-world"
 MECH_002_COMPILER_VERSION = "mech-0.2-fixed-world"
+MECH_003_COMPILER_VERSION = "mech-0.3-fixed-world"
 EXPECTED_TARGET_STACK = "C11_FLIGHT_EXACT_2026-09-05"
 MECH_001_CAPABILITY = "CREATE_KINETIC_NETWORK_LIFECYCLE"
 MECH_002_CAPABILITY = "CREATE_WATER_WHEEL_SOURCE_LIFECYCLE"
+MECH_003_CAPABILITY = "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE"
 
 _ALLOWED_MECHANISM_KEYS = {
     "orientation",
@@ -23,6 +25,10 @@ _ALLOWED_MECHANISM_KEYS = {
     "endpointRole",
     "mountingRole",
     "frontClearance",
+    "workflowRole",
+    "stagingRole",
+    "powerRole",
+    "operatorClearance",
 }
 
 
@@ -314,6 +320,174 @@ def _lower_mech_002_waterwheel_airflow_bench(mechanism: dict[str, Any]) -> dict[
     }
 
 
+
+def _operator_clearance(mechanism: dict[str, Any]) -> int:
+    clearance = mechanism.get("operatorClearance")
+    _require(
+        isinstance(clearance, int) and not isinstance(clearance, bool) and 1 <= clearance <= 3,
+        "operatorClearance must be an integer in [1, 3]",
+    )
+    return clearance
+
+
+def _lower_mech_003_portable_engine_workshop(mechanism: dict[str, Any]) -> dict[str, Any]:
+    """Lower one compact beltless manual CUT/PRESS workshop cell."""
+    _require(mechanism.get("orientation") == "east", "MECH-003 v0.3 supports only east orientation")
+    _require(
+        mechanism.get("workflowRole") == "manual_sequenced_processing",
+        "MECH-003 workflowRole must be manual_sequenced_processing",
+    )
+    _require(
+        mechanism.get("stagingRole") == "world_item_manual_handoff",
+        "MECH-003 stagingRole must be world_item_manual_handoff",
+    )
+    _require(
+        mechanism.get("powerRole") == "qualified_stationary_kinetic",
+        "MECH-003 powerRole must be qualified_stationary_kinetic",
+    )
+    _require(mechanism.get("mountingRole") == "masonry_pad", "MECH-003 mountingRole must be masonry_pad")
+    _require("sourceRole" not in mechanism, "MECH-003 does not accept a sourceRole")
+    _require("sourceEnvironmentRole" not in mechanism, "MECH-003 does not accept a source environment role")
+    _require("endpointRole" not in mechanism, "MECH-003 does not accept an endpointRole")
+    _require("transmissionLength" not in mechanism, "MECH-003 does not accept transmissionLength")
+    _require("frontClearance" not in mechanism, "MECH-003 does not accept frontClearance")
+    operator_clearance = _operator_clearance(mechanism)
+
+    placements: list[dict[str, Any]] = []
+    pad_z_max = 2 + operator_clearance
+    for x in range(7):
+        for z in range(pad_z_max + 1):
+            placements.append({
+                "id": f"pad_{x}_{z}",
+                "pos": [x, 0, z],
+                "mechanicalRole": "mounting_support",
+                "blockState": _block_state("minecraft:stone_bricks"),
+            })
+
+    placements.extend([
+        {
+            "id": "cut_power_source",
+            "pos": [0, 1, 2],
+            "mechanicalRole": "qualification_power_source",
+            "blockState": _block_state("create:creative_motor", facing="east"),
+        },
+        {
+            "id": "cut_power_relay",
+            "pos": [1, 1, 2],
+            "mechanicalRole": "qualification_power_relay",
+            "blockState": _block_state("create:shaft", axis="x"),
+        },
+        {
+            "id": "cut_station",
+            "pos": [2, 1, 2],
+            "mechanicalRole": "cut_station",
+            "blockState": _block_state(
+                "create:mechanical_saw", facing="up", axis_along_first="true", flipped="false"
+            ),
+        },
+        {
+            "id": "press_power_pier_lower",
+            "pos": [4, 1, 2],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_power_pier_upper",
+            "pos": [4, 2, 2],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_relay_pier_lower",
+            "pos": [5, 1, 2],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_relay_pier_upper",
+            "pos": [5, 2, 2],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_world_surface",
+            "pos": [6, 1, 2],
+            "mechanicalRole": "world_item_surface",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_frame_left_lower",
+            "pos": [6, 1, 1],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_frame_left_upper",
+            "pos": [6, 2, 1],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_frame_right_lower",
+            "pos": [6, 1, 3],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_frame_right_upper",
+            "pos": [6, 2, 3],
+            "mechanicalRole": "station_support",
+            "blockState": _block_state("minecraft:stone_bricks"),
+        },
+        {
+            "id": "press_power_source",
+            "pos": [4, 3, 2],
+            "mechanicalRole": "qualification_power_source",
+            "blockState": _block_state("create:creative_motor", facing="east"),
+        },
+        {
+            "id": "press_power_relay",
+            "pos": [5, 3, 2],
+            "mechanicalRole": "qualification_power_relay",
+            "blockState": _block_state("create:shaft", axis="x"),
+        },
+        {
+            "id": "press_station",
+            "pos": [6, 3, 2],
+            "mechanicalRole": "press_station",
+            "blockState": _block_state("create:mechanical_press", facing="east"),
+        },
+    ])
+
+    occupied = {tuple(p["pos"]) for p in placements}
+    _require(len(occupied) == len(placements), "compiled MECH-003 workshop has overlapping placements")
+
+    station_clearance = [[2, 2, 2], [2, 3, 2], [6, 2, 2]]
+    handoff_clearance: list[list[int]] = []
+    for z in range(3, pad_z_max + 1):
+        for x in range(1, 6):
+            handoff_clearance.append([x, 1, z])
+    handoff_clearance.append([6, 1, pad_z_max])
+    clearance_cells = station_clearance + handoff_clearance
+    _require(not occupied.intersection(map(tuple, clearance_cells)), "MECH-003 operator clearance overlaps a placement")
+
+    support_requirements = [
+        {"placementId": "cut_power_source", "supportBelow": [0, 0, 2]},
+        {"placementId": "cut_power_relay", "supportBelow": [1, 0, 2]},
+        {"placementId": "cut_station", "supportBelow": [2, 0, 2]},
+        {"placementId": "press_power_source", "supportBelow": [4, 2, 2]},
+        {"placementId": "press_power_relay", "supportBelow": [5, 2, 2]},
+        {"placementId": "press_world_surface", "supportBelow": [6, 0, 2]},
+    ]
+    return {
+        "operatorClearance": operator_clearance,
+        "padZMax": pad_z_max,
+        "placements": placements,
+        "clearanceCells": clearance_cells,
+        "handoffClearanceCells": handoff_clearance,
+        "supportRequirements": support_requirements,
+    }
+
 def _platform_evidence(capability: dict[str, Any], evidence: dict[str, Any]) -> dict[str, Any]:
     return {
         "status": capability["status"],
@@ -436,6 +610,80 @@ def _compile_mech_002(
     return plan
 
 
+
+def _compile_mech_003(
+    spec: dict[str, Any], mechanism: dict[str, Any], capability: dict[str, Any], evidence: dict[str, Any]
+) -> dict[str, Any]:
+    lowered = _lower_mech_003_portable_engine_workshop(mechanism)
+    pad_z_max = lowered["padZMax"]
+    plan: dict[str, Any] = {
+        "schema": PLAN_SCHEMA,
+        "assetId": spec["assetId"],
+        "compilerVersion": MECH_003_COMPILER_VERSION,
+        "seed": spec["seed"],
+        "targetStackAuthority": EXPECTED_TARGET_STACK,
+        "requiredPlatformCapability": MECH_003_CAPABILITY,
+        "sourcePolicy": "qualification_power_not_gameplay_canon",
+        "semanticInput": {
+            "orientation": "east",
+            "workflowRole": "manual_sequenced_processing",
+            "stagingRole": "world_item_manual_handoff",
+            "powerRole": "qualified_stationary_kinetic",
+            "mountingRole": "masonry_pad",
+            "operatorClearance": lowered["operatorClearance"],
+        },
+        "envelope": {"min": [0, 0, 0], "max": [6, 3, pad_z_max], "size": [7, 4, pad_z_max + 1]},
+        "mountingRegion": {"min": [0, 0, 0], "max": [6, 0, pad_z_max]},
+        "placements": lowered["placements"],
+        "connectivity": {
+            "nodes": [
+                "cut_power_source", "cut_power_relay", "cut_station",
+                "press_power_source", "press_power_relay", "press_station",
+            ],
+            "edges": [
+                ["cut_power_source", "cut_power_relay"], ["cut_power_relay", "cut_station"],
+                ["press_power_source", "press_power_relay"], ["press_power_relay", "press_station"],
+            ],
+            "severNode": "cut_power_relay",
+        },
+        "processingEnvelope": {
+            "stations": [
+                {"placementId": "cut_station", "role": "cut", "acquisitionMode": "fall_on_top"},
+                {"placementId": "press_station", "role": "press", "acquisitionMode": "grounded_world_item"},
+            ],
+            "pressWorldSurfacePlacementId": "press_world_surface",
+            "manualHandoff": {
+                "fromPlacementId": "cut_station",
+                "toPlacementId": "press_station",
+                "mode": "world_item_restage",
+                "retractionStagingCell": [3, 1, 3],
+                "clearanceCells": lowered["handoffClearanceCells"],
+            },
+            "forbiddenTransportBlocks": [
+                "create:belt", "create:depot", "create:andesite_funnel", "create:brass_funnel",
+                "create:chute", "create:smart_chute", "create:mechanical_arm",
+            ],
+        },
+        "productProcessingContract": {
+            "recipeAuthority": "live_exact_stack_recipe_manager",
+            "expectedStepRoles": ["cut", "press"],
+            "loopCountAuthority": "live_recipe",
+            "terminalResultPolicy": "live_weighted_result_pool",
+            "singleAttemptSuccessRequired": False,
+        },
+        "supportRequirements": lowered["supportRequirements"],
+        "clearanceCells": lowered["clearanceCells"],
+        "runtimeExpectations": {
+            "stationsPowered": {"cutSpeed": "nonzero", "pressSpeed": "nonzero", "hasSource": True},
+            "handoff": {"worldItem": True, "automatedTransport": False},
+            "terminal": {"sequencedComponentCleared": True, "resultMustBelongToLivePool": True},
+        },
+        "platformEvidence": _platform_evidence(capability, evidence),
+        "validation": {"passed": True, "issues": []},
+    }
+    plan["digestSha256"] = _canonical_digest(plan)
+    return plan
+
 def compile_functional_mechanism(
     spec: dict[str, Any],
     capability_ledger: dict[str, Any],
@@ -443,7 +691,18 @@ def compile_functional_mechanism(
     """Compile one bounded accepted fixed-world functional mechanism specimen."""
     mechanism = _validate_common_spec(spec)
     source_role = mechanism.get("sourceRole")
+    workflow_role = mechanism.get("workflowRole")
     capability_id = spec.get("requiredPlatformCapability")
+
+    if workflow_role == "manual_sequenced_processing":
+        _require(
+            capability_id == MECH_003_CAPABILITY,
+            f"requiredPlatformCapability must be {MECH_003_CAPABILITY}",
+        )
+        capability, evidence = _require_accepted_agent_c_capability(
+            capability_ledger, MECH_003_CAPABILITY, EXPECTED_TARGET_STACK
+        )
+        return _compile_mech_003(spec, mechanism, capability, evidence)
 
     if source_role == "qualified_kinetic_source":
         _require(
