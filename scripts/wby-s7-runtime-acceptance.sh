@@ -194,7 +194,7 @@ python3 scripts/wby-s7-illager-evidence.py \
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
-grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s7-both-resolution.log
+grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s7-resolution.log
 
 client_dir_abs="$PWD/$client_dir"
 launcher_python="${WBY_S4_LAUNCHER_PYTHON:-python3}"
@@ -244,6 +244,7 @@ done
 test -f "$server_dir/s7-acceptance/level.dat"
 cp "$server_latest_log" wby-s7-joined-server-latest.log
 client_latest_log="$client_dir/logs/latest.log"
+test -f "$client_latest_log"
 test -f "$client_latest_log"
 cp "$client_latest_log" wby-s7-joined-client-latest.log
 
