@@ -1,0 +1,115 @@
+name: WBY Windy A4MC Authority Prototype
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-windy-a4mc-prototype.yml"
+      - "third_party/patches/windy/**"
+      - "docs/integration/windy-a4mc-prototype.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-windy-a4mc-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pinned-upstream-patch-build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Check out isolated Skyforge prototype
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Check out exact Windy 1.2.0 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: falling-colud/windy
+          ref: 3ba5523481d22179cdf0fa7dab0743210f136bb8
+          path: windy-upstream
+          persist-credentials: false
+
+      - name: Check out accepted A4MC 0.2.2 API source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: a4mc-upstream
+          persist-credentials: false
+
+      - name: Set up Skyforge Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Build pinned A4MC public API
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd a4mc-upstream && ./gradlew :api:jar --no-daemon --no-configuration-cache)
+          api_jar="$(find a4mc-upstream/api/build/libs -maxdepth 1 -name 'aerodynamics4mc-api-*.jar' ! -name '*sources*' ! -name '*javadoc*' | head -n 1)"
+          test -n "$api_jar"
+          jar tf "$api_jar" | grep -Fqx 'com/aerodynamics4mc/api/client/AeroClientWindApi.class'
+          echo "SKYFORGE_A4MC_API_JAR=$(realpath "$api_jar")" >> "$GITHUB_ENV"
+
+      - name: Apply Windy authority seam and A4MC binding in order
+        shell: bash
+        run: |
+          set -euo pipefail
+          for patch in \
+            0001-authoritative-wind-provider.patch \
+            0002-a4mc-client-authority-binding.patch \
+            0003-external-wind-command-guard.patch \
+            0004-trusted-wind-and-ambient-guard.patch \
+            0005-physical-flight-cues.patch \
+            0006-live-trusted-flow-probe.patch \
+            0007-suspended-island-wind-corridors.patch \
+            0008-wind-sample-profiling.patch \
+            0009-trusted-burst-probe.patch; do
+            path="../third_party/patches/windy/$patch"
+            git -C windy-upstream apply --check "$path"
+            git -C windy-upstream apply "$path"
+          done
+          python3 third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0011.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0012.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0013.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0014.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          git -C windy-upstream diff --check
+          grep -Fq 'SERVER_AGGREGATED_PREFERRED' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+          grep -Fq 'if (external)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'if (!physical.available())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'if (WindDirector.hasExternalWind())' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'RenderType.entityCutoutNoCull(RIBBON_TEX)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'eff > 0.10f : eff > 0.24f' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe") && count == 0' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe")) return;' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'Stage.AFTER_ENTITIES' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'bufferSource().endBatch(RIBBON)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'airflow belongs to A4MC' windy-upstream/src/main/java/dev/fallingcloud/windy/WindyCommands.java
+          grep -Fq 'external physical wind unavailable' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'physical.isServerTrusted()' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+          grep -Fq 'WindDirector.hasExternalWind()' windy-upstream/src/main/java/dev/fallingcloud/windy/ambient/AmbianceDirector.java
+          grep -Fq 'Vec3 drift = local.velocityMetersPerSecond().scale(0.05);' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'Resample at each position' windy-upstream/src/main/java/dev/fallingcloud/windy/particle/WispParticle.java
+          grep -Fq 'cfg.motes() && !external' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'SKYFORGE_WINDY_TRUSTED_SAMPLE' windy-upstream/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+          grep -Fq 'SKYFORGE_WINDY_BOUND_A4MC' windy-upstream/src/main/java/dev/fallingcloud/windy/Windy.java
+          grep -Fq '!external && !level.canSeeSky(pos)' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'atRibbon' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          grep -Fq 'SKYFORGE_WINDY_SAMPLE_PROFILE' windy-upstream/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+          grep -Fq 'SKYFORGE_WINDY_TRUSTED_BURST' windy-upstream/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+
+      - name: Build patched Windy on actual NeoForge toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd windy-upstream && bash ./gradlew assemble --no-daemon)
+          jar_file="$(find windy-upstream/build/libs -maxdepth 1 -name '*.jar' ! -name '*sources*' | head -n 1)"
+          test -n "$jar_file"
+          jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/A4mcWindStateProvider.class'
+          jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/WindStateProvider.class'
+          jar tf "$jar_file" | grep -Fqx 'dev/fallingcloud/windy/WindRibbons.class'
+          echo "PASS: patched Windy compiled with pinned A4MC API; no profile or world admission"

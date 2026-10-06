@@ -1,0 +1,67 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -51,11 +51,16 @@
+     public static WindStateProvider.Sample sampleExternal(ClientLevel level, Vec3 position) {
+         WindStateProvider provider = externalProvider;
+         if (provider == null) return WindStateProvider.Sample.UNAVAILABLE;
++        long timingStart = WindSampleTelemetry.begin();
+         try {
+             WindStateProvider.Sample sample = provider.sample(level, position);
+-            return sample == null ? WindStateProvider.Sample.UNAVAILABLE : sample;
++            WindStateProvider.Sample result = sample == null
++                    ? WindStateProvider.Sample.UNAVAILABLE : sample;
++            WindSampleTelemetry.finish(timingStart, result.available());
++            return result;
+         } catch (RuntimeException ex) {
++            WindSampleTelemetry.finish(timingStart, false);
+             // A provider failure must not resurrect Windy's autonomous generator.
+             return WindStateProvider.Sample.UNAVAILABLE;
+         }
+     }
+diff --git a/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java b/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+@@ -0,0 +1,41 @@
++package dev.fallingcloud.windy;
++
++import java.util.Arrays;
++
++/**
++ * Bounded CI opt-in sample-cost telemetry; not a frame-time or rendering-quality metric.
++ * Zero allocations per wind sample. Does not change flow or physics authority.
++ */
++final class WindSampleTelemetry {
++    private static final int WINDOW = 128;
++    private static final boolean ENABLED = Boolean.getBoolean("skyforge.windy.sampleProfiler");
++    private static final long[] DURATIONS = new long[WINDOW];
++    private static int collected;
++    private static int available;
++
++    private WindSampleTelemetry() {
++    }
++
++    static long begin() {
++        return ENABLED ? System.nanoTime() : 0L;
++    }
++
++    static void finish(long started, boolean valid) {
++        if (!ENABLED || started == 0L) return;
++        DURATIONS[collected] = Math.max(0L, System.nanoTime() - started);
++        if (valid) available++;
++        collected++;
++        if (collected != WINDOW) return;
++
++        long[] sorted = DURATIONS.clone();
++        Arrays.sort(sorted);
++        long p50 = sorted[(WINDOW - 1) / 2];
++        long p95 = sorted[(int) Math.ceil(WINDOW * 0.95) - 1];
++        long maximum = sorted[WINDOW - 1];
++        Windy.LOGGER.info(
++                "SKYFORGE_WINDY_SAMPLE_PROFILE count={} available={} p50_ns={} p95_ns={} max_ns={}",
++                WINDOW, available, p50, p95, maximum);
++        collected = 0;
++        available = 0;
++    }
++}

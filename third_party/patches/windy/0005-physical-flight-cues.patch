@@ -1,0 +1,98 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -223,18 +223,26 @@
+                 BlockPos pos = BlockPos.containing(x, y, z);
+                 if (!level.isLoaded(pos) || !level.getBlockState(pos).isAir()) continue;
+                 if (!level.canSeeSky(pos)) continue;
++                // Wisps are navigation cues: actual wind (m/s) / 20 ticks, not an artistic speed.
++                Vec3 drift;
++                if (external) {
++                    WindStateProvider.Sample sample = sampleExternal(level, new Vec3(x, y, z));
++                    if (!sample.available() || sample.velocityMetersPerSecond().lengthSqr() < 1.0e-8) continue;
++                    drift = sample.velocityMetersPerSecond().scale(0.05);
++                } else {
++                    double speed = 0.28 + 0.30 * eff + rng.nextDouble() * 0.10;
++                    drift = new Vec3(wx * speed + rng.nextGaussian() * 0.02,
++                            wy * speed + (rng.nextDouble() - 0.45) * 0.02,
++                            wz * speed + rng.nextGaussian() * 0.02);
++                }
+-                Vec3 airflow = external ? externalDirection(level, new Vec3(x, y, z)) : new Vec3(wx, wy, wz);
+-                if (airflow.lengthSqr() < 1.0e-8) continue;
+-                double speed = 0.28 + 0.30 * eff + rng.nextDouble() * 0.10;
+                 level.addParticle(WindParticles.WISP.get(), force, x, y, z,
++                        drift.x, drift.y, drift.z);
+-                        airflow.x * speed + rng.nextGaussian() * 0.02,
+-                        airflow.y * speed + (rng.nextDouble() - 0.45) * 0.02,
+-                        airflow.z * speed + rng.nextGaussian() * 0.02);
+             }
+         }
+ 
+         // ---- motes: tiny specks tumbling in the airflow, everywhere the wind reaches ----
++        // Decorative motes are not calibrated to A4MC. Keep them off until field-driven.
++        if (cfg.motes() && !external) {
+-        if (cfg.motes()) {
+             int count = poisson(5.5 * densityMul * (0.30 + 0.55 * eff), rng);
+             for (int i = 0; i < count; i++) {
+                 double x = px + (rng.nextDouble() * 2 - 1) * radius;
+diff --git a/src/main/java/dev/fallingcloud/windy/WindRibbons.java b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+--- a/src/main/java/dev/fallingcloud/windy/WindRibbons.java
++++ b/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+@@ -157,7 +157,7 @@
+                     continue;
+                 }
+                 // A4MC metres/second -> Minecraft block/tick at 20 TPS. No invented gust/weave.
++                Vec3 drift = local.velocityMetersPerSecond().scale(0.05);
+-                Vec3 drift = local.velocityMetersPerSecond().scale(0.05 * r.speedMul);
+                 r.vx = drift.x;
+                 r.vy = drift.y;
+                 r.vz = drift.z;
+diff --git a/src/main/java/dev/fallingcloud/windy/particle/WispParticle.java b/src/main/java/dev/fallingcloud/windy/particle/WispParticle.java
+--- a/src/main/java/dev/fallingcloud/windy/particle/WispParticle.java
++++ b/src/main/java/dev/fallingcloud/windy/particle/WispParticle.java
+@@ -1,11 +1,14 @@
+ package dev.fallingcloud.windy.particle;
+ 
++import dev.fallingcloud.windy.WindDirector;
++import dev.fallingcloud.windy.WindStateProvider;
+ import net.minecraft.client.multiplayer.ClientLevel;
+ import net.minecraft.client.particle.Particle;
+ import net.minecraft.client.particle.ParticleProvider;
+ import net.minecraft.client.particle.ParticleRenderType;
+ import net.minecraft.client.particle.SpriteSet;
+ import net.minecraft.core.particles.SimpleParticleType;
++import net.minecraft.world.phys.Vec3;
+ 
+ /**
+  * A pale streak that rides the wind — the moment wind becomes visible. It flies fast along the wind the
+@@ -41,6 +44,21 @@
+ 
+     @Override
+     public void tick() {
++        final boolean physicalWind = WindDirector.hasExternalWind();
++        if (physicalWind) {
++            WindStateProvider.Sample sample = WindDirector.sampleExternal(
++                    this.level, new Vec3(this.x, this.y, this.z));
++            if (!sample.available() || sample.velocityMetersPerSecond().lengthSqr() < 1.0e-8) {
++                this.remove();
++                return;
++            }
++            // Resample at each position: shear, thermals and gusts bend the flight line.
++            Vec3 velocity = sample.velocityMetersPerSecond().scale(0.05);
++            this.xd = velocity.x;
++            this.yd = velocity.y;
++            this.zd = velocity.z;
++            this.friction = 1.0f;
++        }
+         super.tick();
+         if (this.removed) return;
+         float t = this.age / (float) this.lifetime;
+@@ -48,7 +66,7 @@
+         // streak's feathered ends would clip off instead of fading.
+         this.alpha = (float) Math.sin(Math.min(1.0f, t) * Math.PI) * 0.62f;
+         // gentle vertical wobble so the streak doesn't fly a laser-straight line
++        if (!physicalWind) this.yd += Math.sin(this.age * 0.35 + this.quadSize * 40) * 0.0012;
+-        this.yd += Math.sin(this.age * 0.35 + this.quadSize * 40) * 0.0012;
+     }
+ 
+     public record Provider(SpriteSet sprites) implements ParticleProvider<SimpleParticleType> {

@@ -1,0 +1,33 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+--- a/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
++++ b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+@@ -27,9 +27,7 @@
+                 A4mcVec3.of(point.x, point.y, point.z),
+                 SamplePolicy.SERVER_AGGREGATED_PREFERRED
+         );
++        if (!physical.hasFlow() || !physical.isServerTrusted()) {
+-        if (!physical.hasFlow()
+-                || physical.authority() == AeroWindSample.Authority.CLIENT_LOCAL
+-                || physical.authority() == AeroWindSample.Authority.UNTRUSTED) {
+             return Sample.UNAVAILABLE;
+         }
+         A4mcVec3 velocity = physical.effectiveVelocityVector();
+diff --git a/src/main/java/dev/fallingcloud/windy/ambient/AmbianceDirector.java b/src/main/java/dev/fallingcloud/windy/ambient/AmbianceDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/ambient/AmbianceDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/ambient/AmbianceDirector.java
+@@ -1,5 +1,6 @@
+ package dev.fallingcloud.windy.ambient;
+ 
++import dev.fallingcloud.windy.WindDirector;
+ import dev.fallingcloud.windy.WindyConfig;
+ 
+ import net.minecraft.client.Minecraft;
+@@ -29,6 +30,8 @@
+ 
+     @SubscribeEvent
+     public void onClientTick(ClientTickEvent.Post event) {
++        // With A4MC present, ambient motion must not invent a separate wind field.
++        if (WindDirector.hasExternalWind()) return;
+         WindyConfig cfg = WindyConfig.get();
+         if (!cfg.ambientEnabled() || cfg.ambientDensity() == WindyConfig.Density.OFF) return;
+ 

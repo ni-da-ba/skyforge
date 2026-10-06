@@ -1,0 +1,269 @@
+name: WBY Windy Actual-Client Smoke
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-windy-client-smoke.yml"
+      - "third_party/patches/windy/**"
+      - "docs/integration/windy-a4mc-prototype.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-windy-actual-client-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  isolated-accepted-s1-client-join:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Checkout prototype patches
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Checkout immutable accepted S1 integration code, read-only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ni-da-ba/skyforge
+          # WBY S1 PR #1447: accepted actual-client glider/cloud/DH baseline.
+          ref: 3c505aae51346efa2c32eb8f09a75174a214b88a
+          path: skyforge-s1
+          persist-credentials: false
+
+      - name: Checkout pinned Windy 1.2.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: falling-colud/windy
+          ref: 3ba5523481d22179cdf0fa7dab0743210f136bb8
+          path: windy-upstream
+          persist-credentials: false
+
+      - name: Checkout pinned A4MC 0.2.2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: a4mc-upstream
+          persist-credentials: false
+
+      - name: Set up Java 21/25 and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Build exact upstream A4MC core, compat, and public API
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd a4mc-upstream && MOD_IS_RELEASE=true ./gradlew buildAndCollect --no-daemon)
+          output="$PWD/a4mc-upstream/build/libs/0.2.2"
+          test -f "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar"
+          test -f "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \
+             "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" \
+             "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          api="$(find a4mc-upstream/api/build/libs -maxdepth 1 -name 'aerodynamics4mc-api-*.jar' ! -name '*sources*' ! -name '*javadoc*' | head -n 1)"
+          test -n "$api"
+          echo "SKYFORGE_A4MC_API_JAR=$(realpath "$api")" >> "$GITHUB_ENV"
+          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+
+      - name: Rebuild exact Windy patches, validate patched jar
+        shell: bash
+        run: |
+          set -euo pipefail
+          for patch in 0001-authoritative-wind-provider.patch 0002-a4mc-client-authority-binding.patch 0003-external-wind-command-guard.patch 0004-trusted-wind-and-ambient-guard.patch 0005-physical-flight-cues.patch 0006-live-trusted-flow-probe.patch 0007-suspended-island-wind-corridors.patch 0008-wind-sample-profiling.patch 0009-trusted-burst-probe.patch; do
+            git -C windy-upstream apply --check "../third_party/patches/windy/$patch"
+            git -C windy-upstream apply "../third_party/patches/windy/$patch"
+          done
+          python3 third_party/patches/windy/apply-0010.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0011.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0012.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0013.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          python3 third_party/patches/windy/apply-0014.py windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          git -C windy-upstream diff --check
+          grep -Fq 'eff > 0.10f : eff > 0.24f' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe") && count == 0' windy-upstream/src/main/java/dev/fallingcloud/windy/WindDirector.java
+          grep -Fq 'shaderParticleProbe")) return;' windy-upstream/src/main/java/dev/fallingcloud/windy/WindRibbons.java
+          (cd windy-upstream && bash ./gradlew assemble --no-daemon)
+          artifact="$PWD/windy-upstream/build/libs/windy-1.2.0.jar"
+          test -f "$artifact"
+          jar tf "$artifact" | grep -Fqx 'dev/fallingcloud/windy/A4mcWindStateProvider.class'
+          echo "SKYFORGE_WINDY_JAR=$artifact" >> "$GITHUB_ENV"
+          sha256sum "$artifact"
+
+      - name: Attach Windy to disposable S1 client-only runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never modify the S1 source branch. The local CI checkout alone receives an
+          # extra client-side runtime jar and a post-validation staging action. The
+          # S1 canonical dependency set remains unmodified and separately verifiable.
+          cat >> skyforge-s1/skyforge-neoforge-1211/build.gradle.kts <<'KOTLIN'
+
+          // TEST-ONLY WBY Windy overlay. Not a production Gradle dependency.
+          // Explicit opt-in: runtime proof of A4MC binding and trusted sample reception.
+          neoForge.runs.named("wbyS1ClientJoinAcceptance") {
+              systemProperty("skyforge.windy.flowProbe", "true")
+              systemProperty("skyforge.windy.sampleProfiler", "true")
+          }
+          val wbyWindyClientSmokeJar = providers.gradleProperty("skyforgeWindySmokeJar").orNull?.let { file(it) }
+          if (wbyWindyClientSmokeJar != null) {
+              check(wbyWindyClientSmokeJar.isFile) { "Missing smoke-only Windy jar" }
+              dependencies.add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, files(wbyWindyClientSmokeJar))
+              wbyS1StageClientMods.configure {
+                  doLast {
+                      copy { from(wbyWindyClientSmokeJar); into(destinationDir) }
+                  }
+              }
+          }
+          KOTLIN
+          mkdir -p skyforge-s1/skyforge-neoforge-1211/run-wby-windy-server
+          mkdir -p skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client
+          printf 'eula=true\nonline-mode=false\nserver-port=25565\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-server/eula.txt
+          printf 'online-mode=false\nserver-port=25565\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-server/server.properties
+          printf 'onboardAccessibility:false\npauseOnLostFocus:false\nclouds:true\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/options.txt
+          mkdir -p skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config
+          cat > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config/aerodynamics4mc-particles.json <<'EOF'
+          {
+            "enabled": true,
+            "whitelist": [],
+            "blacklist": ["dev.fallingcloud.windy.particle.*"]
+          }
+          EOF
+          printf '[client.advanced.autoUpdater]\nenableAutoUpdater = false\n' > skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/config/DistantHorizons.toml
+
+      - name: Launch S1 actual NeoForge dedicated server and Windy client
+        shell: bash
+        env:
+          ALSOFT_DRIVERS: "null"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          GALLIUM_DRIVER: "llvmpipe"
+        run: |
+          set -euo pipefail
+          cd skyforge-s1
+          server_log="$GITHUB_WORKSPACE/windy-smoke-server.log"
+          client_log="$GITHUB_WORKSPACE/windy-smoke-client.log"
+          server_pid=""
+          client_pid=""
+          cleanup() {
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -TERM -- "-$pid" 2>/dev/null || true
+              fi
+            done
+            sleep 2
+            for pid in "$client_pid" "$server_pid"; do
+              if [[ -n "$pid" ]]; then
+                kill -KILL -- "-$pid" 2>/dev/null || true
+              fi
+            done
+          }
+          trap cleanup EXIT
+          setsid ./gradlew :skyforge-neoforge-1211:runWbyS1DiagnosticServer \
+            -PwbyS1RunDirectory=run-wby-windy-server \
+            -PwbyS1Glider=combined \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            --no-daemon --no-configuration-cache > "$server_log" 2>&1 &
+          server_pid=$!
+          ready=false
+          for attempt in $(seq 1 180); do
+            if grep -Fq 'Done (' "$server_log"; then ready=true; break; fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 2
+          done
+          if [[ "$ready" != true ]]; then
+            echo 'S1 server failed to start'; tail -n 180 "$server_log"; exit 1
+          fi
+          test -f skyforge-neoforge-1211/run-wby-windy-server/world/level.dat
+          setsid xvfb-run -a ./gradlew :skyforge-neoforge-1211:runWbyS1ClientJoinAcceptance \
+            -PwbyS1RunDirectory=run-wby-windy-client \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PskyforgeWindySmokeJar="$SKYFORGE_WINDY_JAR" \
+            --no-daemon --no-configuration-cache > "$client_log" 2>&1 &
+          client_pid=$!
+          joined=false
+          for attempt in $(seq 1 600); do
+            if grep -Fq 'WbyS1Acceptance joined the game' "$server_log" \
+                || grep -Fq 'WbyS1Acceptance joined the game' \
+                     skyforge-neoforge-1211/run-wby-windy-server/logs/latest.log 2>/dev/null; then
+              joined=true; break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null || ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$joined" != true ]]; then
+            echo 'Patched Windy client did not join the dedicated server'
+            tail -n 180 "$server_log"; tail -n 180 "$client_log"
+            exit 1
+          fi
+          echo 'PASS: dedicated server accepted actual S1 + patched Windy client'
+          # Enforce real-client provenance: staged mod, classpath, and Windy init.
+          staged="skyforge-neoforge-1211/run-wby-windy-client/mods/windy-1.2.0.jar"
+          test -f "$staged"
+          grep -Fq '[Windy] Initialised.' "$client_log" \
+            || grep -Fq '[Windy] Initialised.' \
+                 skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log
+          echo 'PASS: client Windy mod loaded in the S1 + Simple Clouds + DH profile'
+          client_latest="skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log"
+          grep -Fq 'SKYFORGE_WINDY_BOUND_A4MC' "$client_latest" || {
+            echo 'FAIL: A4MC-to-Windy binding was not observed in the live client'
+            tail -n 120 "$client_latest"; exit 1
+          }
+          trusted=false
+          for attempt in $(seq 1 90); do
+            if grep -Fq 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest"; then
+              trusted=true
+              break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null || ! kill -0 "$server_pid" 2>/dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          if [[ "$trusted" != true ]]; then
+            echo 'BLOCKED: no trusted A4MC sample observed in the actual-client dwell window'
+            tail -n 120 "$client_latest"; exit 1
+          fi
+          grep -F 'SKYFORGE_WINDY_TRUSTED_SAMPLE' "$client_latest" | head -n 1
+          echo 'PASS: live Windy provider consumed a server-trusted A4MC wind sample'
+          sampled=false
+          for attempt in $(seq 1 60); do
+            if grep -Fq 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest"; then
+              sampled=true; break
+            fi
+            if ! kill -0 "$client_pid" 2>/dev/null; then break; fi
+            sleep 1
+          done
+          if [[ "$sampled" != true ]]; then
+            echo 'BLOCKED: no valid trusted burst microbenchmark after A4MC authority confirmation'
+            tail -n 120 "$client_latest"; exit 1
+          fi
+          burst_line="$(grep -m1 'SKYFORGE_WINDY_TRUSTED_BURST' "$client_latest")"
+          if [[ "$burst_line" =~ available=([0-9]+) ]]; then
+            available="${BASH_REMATCH[1]}"
+          else
+            available=0
+          fi
+          if [[ -z "$available" ]] || (( available < 120 )); then
+            echo 'BLOCKED: fewer than 120/128 trusted samples in burst'; echo "$burst_line"; exit 1
+          fi
+          echo "$burst_line"
+          echo 'PASS: verified 128-query A4MC trusted-airflow CI burst'
+          echo 'BOUNDARY: burst query p95 is NOT natural traffic or frame-time p95; no shader or flight-visual acceptance claimed'
+
+      - name: Upload exact smoke evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-windy-actual-client-smoke
+          path: |
+            windy-smoke-server.log
+            windy-smoke-client.log
+            skyforge-s1/skyforge-neoforge-1211/run-wby-windy-server/logs/latest.log
+            skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/logs/latest.log
+            skyforge-s1/skyforge-neoforge-1211/run-wby-windy-client/crash-reports/**
+          if-no-files-found: warn

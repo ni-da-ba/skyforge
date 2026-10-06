@@ -1,0 +1,87 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/Windy.java b/src/main/java/dev/fallingcloud/windy/Windy.java
+--- a/src/main/java/dev/fallingcloud/windy/Windy.java
++++ b/src/main/java/dev/fallingcloud/windy/Windy.java
+@@ -4,6 +4,7 @@
+ import net.neoforged.api.distmarker.Dist;
+ import net.neoforged.bus.api.IEventBus;
+ import net.neoforged.fml.ModContainer;
++import net.neoforged.fml.ModList;
+ import net.neoforged.fml.common.Mod;
+ import net.neoforged.fml.config.ModConfig;
+ import net.neoforged.neoforge.client.gui.ConfigurationScreen;
+@@ -44,6 +45,11 @@
+         NeoForge.EVENT_BUS.register(WindDirector.INSTANCE);
+         NeoForge.EVENT_BUS.register(dev.fallingcloud.windy.ambient.AmbianceDirector.INSTANCE);
+         NeoForge.EVENT_BUS.register(WindRibbons.INSTANCE);
++        // Skyforge presentation binding: A4MC owns all wind when present.
++        // Missing A4MC flow is calm/unavailable, never synthetic fallback gusts.
++        if (ModList.get().isLoaded("aerodynamics4mc")) {
++            WindDirector.useExternalWind(new A4mcWindStateProvider());
++        }
+         NeoForge.EVENT_BUS.addListener(WindyCommands::onRegisterClientCommands);
+         LOGGER.info("[Windy] Initialised.");
+     }
+diff --git a/build.gradle b/build.gradle
+--- a/build.gradle
++++ b/build.gradle
+@@ -18,6 +18,11 @@
+ // Sodium is still pulled in at dev runtime only, to sanity-check rendering against it.
+ dependencies {
+     additionalRuntimeClasspath "maven.modrinth:sodium:${project.sodium_version}"
++    // Exact pinned A4MC API is built separately from upstream source by Skyforge CI.
++    // Runtime dependency remains optional; Windy itself is not an atmosphere authority.
++    def a4mcApiJar = System.getenv("SKYFORGE_A4MC_API_JAR")
++    if (!a4mcApiJar) throw new GradleException("SKYFORGE_A4MC_API_JAR is required for the experimental Skyforge overlay")
++    compileOnly files(a4mcApiJar)
+ }
+ def targetJavaVersion = 21
+ tasks.withType(JavaCompile).configureEach { it.options.encoding = "UTF-8"; it.options.release = targetJavaVersion }
+diff --git a/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+new file mode 100644
+--- /dev/null
++++ b/src/main/java/dev/fallingcloud/windy/A4mcWindStateProvider.java
+@@ -0,0 +1,44 @@
++package dev.fallingcloud.windy;
++
++import com.aerodynamics4mc.api.A4mcId;
++import com.aerodynamics4mc.api.A4mcVec3;
++import com.aerodynamics4mc.api.A4mcWorldRef;
++import com.aerodynamics4mc.api.AeroWindSample;
++import com.aerodynamics4mc.api.SamplePolicy;
++import com.aerodynamics4mc.api.client.AeroClientWindApi;
++import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.resources.ResourceLocation;
++import net.minecraft.world.phys.Vec3;
++
++/**
++ * Client presentation adapter for A4MC's replicated physical flow.
++ * This adapter cannot submit wind or change game physics. Local-only L2 is deliberately
++ * excluded, since that visualization could claim lift that server-side gliders do not get.
++ */
++public final class A4mcWindStateProvider implements WindStateProvider {
++    @Override
++    public Sample sample(ClientLevel level, Vec3 point) {
++        if (!AeroClientWindApi.isAvailable()) return Sample.UNAVAILABLE;
++        ResourceLocation dim = level.dimension().location();
++        A4mcWorldRef world = A4mcWorldRef.client(A4mcId.of(dim.getNamespace(), dim.getPath()));
++
++        AeroWindSample physical = AeroClientWindApi.sample(
++                world,
++                A4mcVec3.of(point.x, point.y, point.z),
++                SamplePolicy.SERVER_AGGREGATED_PREFERRED
++        );
++        if (!physical.hasFlow()
++                || physical.authority() == AeroWindSample.Authority.CLIENT_LOCAL
++                || physical.authority() == AeroWindSample.Authority.UNTRUSTED) {
++            return Sample.UNAVAILABLE;
++        }
++        A4mcVec3 velocity = physical.effectiveVelocityVector();
++        A4mcVec3 gust = physical.gustVelocityVector();
++        double gustMagnitude = gust.length();
++        return new Sample(
++                new Vec3(velocity.x(), velocity.y(), velocity.z()),
++                (float) gustMagnitude,
++                true
++        );
++    }
++}

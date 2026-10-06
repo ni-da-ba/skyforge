@@ -1,0 +1,65 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -166,6 +166,8 @@
+                 directionX = directionY = directionZ = 0.0;
+                 return; // fail closed: no invented wind
+             }
++            // CI-only benchmark uses authoritative samples in nearby three-dimensional air.
++            WindSampleTelemetry.recordTrustedBurst(level, player.position());
+             Vec3 velocity = physical.velocityMetersPerSecond();
+             double speed = velocity.length();
+             Vec3 unit = speed > 1.0e-6 ? velocity.scale(1.0 / speed) : Vec3.ZERO;
+diff --git a/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java b/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+--- a/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
++++ b/src/main/java/dev/fallingcloud/windy/WindSampleTelemetry.java
+@@ -1,6 +1,8 @@
+ package dev.fallingcloud.windy;
+ 
+ import java.util.Arrays;
++import net.minecraft.client.multiplayer.ClientLevel;
++import net.minecraft.world.phys.Vec3;
+ 
+ /**
+  * Bounded CI opt-in sample-cost telemetry; not a frame-time or rendering-quality metric.
+@@ -12,10 +14,40 @@
+     private static final long[] DURATIONS = new long[WINDOW];
+     private static int collected;
+     private static int available;
++    private static boolean trustedBurstRecorded;
+ 
+     private WindSampleTelemetry() {
+     }
+ 
++    /**
++     * One-time opt-in *burst microbenchmark*, not representative frame time.
++     * Samples 128 nearby world positions after the first trusted authoritative reading.
++     * Never writes or synthesizes airflow and never runs in normal gameplay.
++     */
++    static void recordTrustedBurst(ClientLevel level, Vec3 center) {
++        if (!ENABLED || trustedBurstRecorded) return;
++        trustedBurstRecorded = true;
++        long[] measurements = new long[WINDOW];
++        int valid = 0;
++        for (int i = 0; i < WINDOW; i++) {
++            // Include small horizontal and vertical offsets, retaining server L1 coverage.
++            double dx = ((i & 3) - 1.5) * 1.5;
++            double dz = (((i >>> 2) & 3) - 1.5) * 1.5;
++            double dy = (((i >>> 4) & 3) - 1.5) * 0.75;
++            Vec3 point = center.add(dx, dy, dz);
++            long started = System.nanoTime();
++            WindStateProvider.Sample sample = WindDirector.sampleExternal(level, point);
++            measurements[i] = Math.max(0L, System.nanoTime() - started);
++            if (sample.available()) valid++;
++        }
++        Arrays.sort(measurements);
++        Windy.LOGGER.info(
++                "SKYFORGE_WINDY_TRUSTED_BURST count={} available={} p50_ns={} p95_ns={} max_ns={} mode=ci_burst",
++                WINDOW, valid, measurements[(WINDOW - 1) / 2],
++                measurements[(int) Math.ceil(WINDOW * 0.95) - 1],
++                measurements[WINDOW - 1]);
++    }
++
+     static long begin() {
+         return ENABLED ? System.nanoTime() : 0L;
+     }
