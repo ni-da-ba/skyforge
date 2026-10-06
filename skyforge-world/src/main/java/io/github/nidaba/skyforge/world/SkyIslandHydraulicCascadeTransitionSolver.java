@@ -119,7 +119,7 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
                 && numericallyEqual(
                         first.dischargeCubicMetersPerSecond(),
                         second.dischargeCubicMetersPerSecond())
-                && numericallyEqual(first.bottomWidthMeters(), second.bottomWidthMeters())
+                && widthNumericallyEqual(first.bottomWidthMeters(), second.bottomWidthMeters())
                 && numericallyEqual(
                         first.sideSlopeHorizontalToVertical(),
                         second.sideSlopeHorizontalToVertical());
@@ -128,6 +128,14 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
     private static boolean numericallyEqual(double first, double second) {
         double scale = Math.max(Math.abs(first), Math.abs(second));
         double tolerance = Math.max(1.0e-8, 1.0e-8 * scale);
+        return Math.abs(first - second) <= tolerance;
+    }
+
+    private static boolean widthNumericallyEqual(double first, double second) {
+        double scale = Math.max(Math.abs(first), Math.abs(second));
+        // Independent interpolation of the same parent lip can differ below millimetre scale.
+        // This is far below the world-grid resolution; larger width changes remain inadmissible.
+        double tolerance = Math.max(1.0e-3, 1.0e-8 * scale);
         return Math.abs(first - second) <= tolerance;
     }
 
