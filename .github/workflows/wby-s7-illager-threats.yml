@@ -7,6 +7,8 @@ on:
     paths:
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
       - "scripts/wby-s6-diagnostic-launch.sh"
