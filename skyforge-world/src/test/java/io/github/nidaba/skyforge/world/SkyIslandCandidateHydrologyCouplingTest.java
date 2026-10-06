@@ -317,9 +317,10 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 candidate.reaches()) {
             SkyIslandSemanticChannelReach semantic =
                     reach.skeleton().geomorphicRoute().semanticReach();
-            long key = reachKey(semantic.startCellIndex(), semantic.endCellIndex());
-            parentSamples.put(key, reach.skeleton().samples());
-            candidateParentBeds.put(key, reach.sections());
+            long reachIdentityKey = reachKey(
+                    semantic.startCellIndex(), semantic.endCellIndex());
+            parentSamples.put(reachIdentityKey, reach.skeleton().samples());
+            candidateParentBeds.put(reachIdentityKey, reach.sections());
         }
 
         int attempted = 0;
