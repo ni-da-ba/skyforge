@@ -127,8 +127,17 @@ public final class SkyIslandHydraulicConfluenceEnergySolver {
         double lowerResidual = energyResidual(
                 downstream, criticalDepth, incomingHead,
                 effectiveEnergyCoefficient, parameters);
-        double energyTolerance = parameters.relativeTolerance()
-                * Math.max(1.0, Math.abs(incomingHead));
+        double energyAboveOutletBed = incomingHead - downstream.bedElevationMeters();
+        if (!Double.isFinite(energyAboveOutletBed)) {
+            throw new IllegalStateException("relative confluence energy head is not finite");
+        }
+        double datumMagnitude = Math.max(
+                Math.abs(incomingHead), Math.abs(downstream.bedElevationMeters()));
+        double roundoffFloor = 8.0 * Math.ulp(datumMagnitude);
+        double energyTolerance = Math.max(
+                parameters.relativeTolerance()
+                        * Math.max(1.0, Math.abs(energyAboveOutletBed)),
+                roundoffFloor);
         if (lowerResidual > energyTolerance) {
             throw new IllegalStateException(
                     "incoming total head is below the minimum subcritical junction energy");
