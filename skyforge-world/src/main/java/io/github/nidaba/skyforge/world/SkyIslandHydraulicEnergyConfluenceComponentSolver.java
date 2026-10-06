@@ -13,6 +13,23 @@ import java.util.Objects;
  * component only; geomorphic/D2 qualification and larger-network terminal closure remain separate.
  */
 public final class SkyIslandHydraulicEnergyConfluenceComponentSolver {
+    /** Complete one controlled tree junction through an explicitly tailwater-controlled outlet reach. */
+    public record TailwaterControlledResult(
+            Result confluence,
+            SkyIslandGraduallyVariedFlowSolver.Result outletProfile,
+            double junctionDepthMeters,
+            double maximumEnergyResidualMeters) {
+        public TailwaterControlledResult {
+            confluence = Objects.requireNonNull(confluence, "confluence");
+            outletProfile = Objects.requireNonNull(outletProfile, "outletProfile");
+            if (!Double.isFinite(junctionDepthMeters) || junctionDepthMeters <= 0.0
+                    || !Double.isFinite(maximumEnergyResidualMeters)
+                    || maximumEnergyResidualMeters < 0.0) {
+                throw new IllegalArgumentException("tailwater-controlled result is invalid");
+            }
+        }
+    }
+
     private SkyIslandHydraulicEnergyConfluenceComponentSolver() {}
 
     public record IncomingReach(
@@ -56,6 +73,51 @@ public final class SkyIslandHydraulicEnergyConfluenceComponentSolver {
      * boundary, reach energy equation, discharge continuity check, subcritical outlet state, and
      * confluence energy balance must close; otherwise the component is rejected.
      */
+    /**
+     * Closes source-controlled incoming branches through a combining junction and an outlet reach.
+     *
+     * <p>The outlet reach is first marched upstream from its explicit downstream tailwater. Its
+     * solved junction depth then supplies the shared confluence stage. This preserves the physical
+     * control location instead of guessing a junction depth; source normal-depth, reach energy,
+     * mass continuity, and junction energy must all close. The method supports subcritical outlet
+     * profiles only and does not infer terminal-fate authority.
+     */
+    public static TailwaterControlledResult solveWithSubcriticalTailwater(
+            List<IncomingReach> incomingReaches,
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> outletSections,
+            double downstreamTailwaterDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters,
+            double junctionLossCoefficient) {
+        Objects.requireNonNull(incomingReaches, "incomingReaches");
+        Objects.requireNonNull(outletSections, "outletSections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> outletReach =
+                List.copyOf(outletSections);
+        if (outletReach.size() < 2) {
+            throw new IllegalArgumentException(
+                    "tailwater-controlled outlet reach requires at least two sections");
+        }
+
+        SkyIslandGraduallyVariedFlowSolver.Result outletProfile =
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                        outletReach, downstreamTailwaterDepthMeters, parameters);
+        SkyIslandGraduallyVariedFlowSolver.ProfilePoint junctionPoint =
+                outletProfile.points().getFirst();
+        Result confluence = solve(
+                incomingReaches,
+                junctionPoint.section(),
+                junctionPoint.depthMeters(),
+                parameters,
+                junctionLossCoefficient);
+        double maximumResidual = Math.max(
+                outletProfile.maximumEnergyResidualMeters(),
+                confluence.maximumReachEnergyResidualMeters());
+        maximumResidual = Math.max(
+                maximumResidual, confluence.confluence().energyResidualMeters());
+        return new TailwaterControlledResult(
+                confluence, outletProfile, junctionPoint.depthMeters(), maximumResidual);
+    }
+
     public static Result solve(
             List<IncomingReach> incomingReaches,
             SkyIslandGraduallyVariedFlowSolver.CrossSection outletAtJunction,
