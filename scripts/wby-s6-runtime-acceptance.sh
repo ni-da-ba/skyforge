@@ -186,7 +186,7 @@ test -f "$server_dir/s6-acceptance/level.dat"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
-grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s6-gameplay-resolution.log
+grep -Fq 'WBY S4 ORDINARY LIFE RESOLUTION PASS' wby-s6-both-resolution.log
 
 client_dir_abs="$PWD/$client_dir"
 launcher_python="${WBY_S4_LAUNCHER_PYTHON:-python3}"
@@ -195,7 +195,7 @@ setsid env ALSOFT_DRIVERS=null LIBGL_ALWAYS_SOFTWARE=1 GALLIUM_DRIVER=llvmpipe \
   xvfb-run -a "$launcher_python" scripts/wby-s4-launch-production-client.py \
     --minecraft-directory "$minecraft_dir" \
     --game-directory "$client_dir_abs" \
-    --username WbyS1Acceptance \
+    --username WbyS6Acceptance \
     --server 127.0.0.1:25565 \
     --java "$JAVA_HOME/bin/java" \
     --program-args-file "$GITHUB_WORKSPACE/skyforge-neoforge-1211/build/wby-s6-client-program-args.txt" \
@@ -211,13 +211,13 @@ test -s "$client_args_file"
 cp "$client_args_file" wby-s6-client-program-args.txt
 grep -Fq -- '--quickPlayMultiplayer' wby-s6-client-program-args.txt
 grep -Fq -- '127.0.0.1:25565' wby-s6-client-program-args.txt
-grep -Fq -- 'WbyS1Acceptance' wby-s6-client-program-args.txt
+grep -Fq -- 'WbyS6Acceptance' wby-s6-client-program-args.txt
 
 server_latest_log="$server_dir/logs/latest.log"
 joined=false
 for _ in $(seq 1 600); do
-  if grep -Fq 'WbyS1Acceptance joined the game' "$server_log" || \
-    grep -Fq 'WbyS1Acceptance joined the game' "$server_latest_log" 2>/dev/null; then joined=true; break; fi
+  if grep -Fq 'WbyS6Acceptance joined the game' "$server_log" || \
+    grep -Fq 'WbyS6Acceptance joined the game' "$server_latest_log" 2>/dev/null; then joined=true; break; fi
   if ! kill -0 "$client_pid" 2>/dev/null; then cat "$client_log"; exit 1; fi
   if ! kill -0 "$server_pid" 2>/dev/null; then cat "$server_log"; exit 1; fi
   sleep 1
