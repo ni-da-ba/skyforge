@@ -84,7 +84,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             StationTrial jump = refineBracket(
                     reach, station, lower, upperOnInterval, upstreamDepthMeters, downstreamDepthMeters, parameters);
             if (jump != null) {
-                return joinProfiles(reach, station, jump, upstreamDepthMeters, parameters);
+                return joinProfiles(reach, station, jump, upstreamDepthMeters, downstreamDepthMeters, parameters);
             }
         }
         // The last section is the downstream critical control, so a supercritical branch cannot
@@ -107,7 +107,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 StationTrial jump = refineBracket(
                         reach, terminalInterval, previous, sample, upstreamDepthMeters, downstreamDepthMeters, parameters);
                 if (jump != null) {
-                    return joinProfiles(reach, terminalInterval, jump, upstreamDepthMeters, parameters);
+                    return joinProfiles(reach, terminalInterval, jump, upstreamDepthMeters, downstreamDepthMeters, parameters);
                 }
             }
             previous = sample;
@@ -352,13 +352,16 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             int interval,
             StationTrial jump,
             double upstreamDepthMeters,
+            Double downstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         StationTrial resolved = jump;
         if (jump.fraction() == 0.0) {
-            return joinAtStation(sections, jump.interval(), upstreamDepthMeters, parameters);
+            return joinAtStation(
+                    sections, jump.interval(), upstreamDepthMeters, downstreamDepthMeters, parameters);
         }
         if (jump.fraction() == 1.0) {
-            return joinAtStation(sections, jump.interval() + 1, upstreamDepthMeters, parameters);
+            return joinAtStation(
+                    sections, jump.interval() + 1, upstreamDepthMeters, downstreamDepthMeters, parameters);
         }
         List<SkyIslandGraduallyVariedFlowSolver.ProfilePoint> points = new ArrayList<>();
         points.addAll(resolved.supercriticalProfile().points()
@@ -380,6 +383,7 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             int station,
             double upstreamDepthMeters,
+            Double downstreamDepthMeters,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         if (station <= 0 || station >= sections.size() - 1) {
             throw new IllegalStateException("hydraulic jump must lie inside the modeled reach");
@@ -387,9 +391,14 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         SkyIslandGraduallyVariedFlowSolver.Result supercritical =
                 SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
                         sections.subList(0, station + 1), upstreamDepthMeters, parameters);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> subcriticalSections =
+                sections.subList(station, sections.size());
         SkyIslandGraduallyVariedFlowSolver.Result subcritical =
-                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
-                        sections.subList(station, sections.size()), parameters);
+                downstreamDepthMeters == null
+                        ? SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                                subcriticalSections, parameters)
+                        : SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                                subcriticalSections, downstreamDepthMeters, parameters);
         List<SkyIslandGraduallyVariedFlowSolver.ProfilePoint> points = new ArrayList<>();
         points.addAll(supercritical.points().subList(0, supercritical.points().size() - 1));
         points.addAll(subcritical.points());
