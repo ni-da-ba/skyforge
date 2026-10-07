@@ -401,7 +401,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 CALIBRATION,
                 SkyIslandCandidateHydrologyCouplingTest::cascadeResidualVector,
                 1.0e-8,
-                2);
+                6);
         assertTrue(
                 feedback.optimization().residualNorm() <= initialResidual + 1.0e-8,
                 "bounded geometry feedback must not worsen the physical momentum mismatch");
