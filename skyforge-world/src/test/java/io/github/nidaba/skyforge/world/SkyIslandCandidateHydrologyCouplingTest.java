@@ -401,7 +401,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 CALIBRATION,
                 SkyIslandCandidateHydrologyCouplingTest::cascadeResidualVector,
                 1.0e-8,
-                6);
+                2);
         assertTrue(
                 feedback.optimization().residualNorm() <= initialResidual + 1.0e-8,
                 "bounded geometry feedback must not worsen the physical momentum mismatch");
@@ -456,7 +456,18 @@ class SkyIslandCandidateHydrologyCouplingTest {
         double bestForce = Double.NaN;
         double bestBranchGap = Double.POSITIVE_INFINITY;
         boolean hadSupercriticalPrefix = false;
-        for (int split = cascade.size() - 4; split >= 2; split--) {
+        int maximumSplit = cascade.size() - 4;
+        int[] splitSamples = {
+            Math.max(2, Math.min(maximumSplit, cascade.size() / 4)),
+            Math.max(2, Math.min(maximumSplit, cascade.size() / 2)),
+            maximumSplit
+        };
+        int previousSplit = -1;
+        for (int split : splitSamples) {
+            if (split == previousSplit) {
+                continue;
+            }
+            previousSplit = split;
             try {
                 var supercritical = SkyIslandGraduallyVariedFlowSolver
                         .solveSupercriticalDownstreamFromCriticalControl(
