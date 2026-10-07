@@ -289,6 +289,21 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // maximum geometrically admissible depth, and cap it by the accepted reach-grade limit.
         // Energy, jump, and CASCADE solvers remain the admission authority downstream.
         List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints = new ArrayList<>();
+        // A routed channel bed must not climb downstream. Enforce this in the same bounded
+        // candidate solve that determines the channel section geometry, rather than asking the
+        // hydraulic solver to traverse a sequence of locally adverse beds. The upper bound keeps
+        // the grade within the accepted game-scale corridor; source reaches add the stronger
+        // normal-depth window constraint below.
+        for (int i = 0; i + 1 < count; i++) {
+            double spacing = rawSections.get(i + 1).chainageMeters()
+                    - rawSections.get(i).chainageMeters();
+            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                    "downstream-non-rising-bed-" + i,
+                    i,
+                    i + 1,
+                    0.0,
+                    calibration.maximumDownstreamBedSlope() * spacing));
+        }
         if (sourceReach) {
             int windowEnd = Math.min(
                     count - 1, Math.max(2, (int) Math.ceil((count - 1) * 0.25)));
