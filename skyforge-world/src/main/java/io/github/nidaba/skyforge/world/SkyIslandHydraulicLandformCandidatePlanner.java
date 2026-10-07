@@ -55,6 +55,26 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                         + ";rejectedCandidates=" + String.join(" || ", rejectedResolutions));
     }
 
+    static Plan planAtResolution(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            int divisionsPerPlanningCell) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(calibration, "calibration");
+        if (divisionsPerPlanningCell < 1) {
+            throw new IllegalArgumentException("candidate route resolution must be positive");
+        }
+        SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope feasibilityEnvelope =
+                new SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope(
+                        calibration.maximumDownstreamBedSlope() / descriptor.reliefBudget(),
+                        calibration.bedIncisionScale()
+                                * SkyIslandHydraulicGeometryCalibration.waterDepthPotential(1.0));
+        SkyIslandHydraulicGeometrySkeletonPlan skeleton =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(
+                        descriptor, divisionsPerPlanningCell, feasibilityEnvelope, calibration);
+        return buildPlan(descriptor, calibration, skeleton);
+    }
+
     private static Plan buildPlan(
             SkyIslandDescriptor descriptor,
             SkyIslandGameScaleHydraulicCalibration calibration,
