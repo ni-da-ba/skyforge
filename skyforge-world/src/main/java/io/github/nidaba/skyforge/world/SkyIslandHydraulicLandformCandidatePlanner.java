@@ -60,12 +60,18 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             SkyIslandHydraulicGeometrySkeletonPlan skeleton) {
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
+        List<Integer> sourceNodes = skeleton.geomorphicNetwork().nodes().stream()
+                .filter(node -> node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE)
+                .map(SkyIslandGeomorphicNetworkNode::cellIndex)
+                .toList();
         List<ReachCandidate> reaches = new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections =
                     calibration.crossSections(descriptor, reach.samples(), reach.samples());
-            CandidateBedResult bedResult =
-                    conditionBedProfile(descriptor, reach, rawSections, calibration, reliefMeters);
+            boolean sourceReach = sourceNodes.contains(
+                    reach.geomorphicRoute().semanticReach().startCellIndex());
+            CandidateBedResult bedResult = conditionBedProfile(
+                    descriptor, reach, rawSections, calibration, reliefMeters, sourceReach);
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = bedResult.sections();
             if (sections.size() != reach.samples().size()) {
                 throw new IllegalStateException(
@@ -102,7 +108,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandHydraulicReachSkeleton reach,
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections,
             SkyIslandGameScaleHydraulicCalibration calibration,
-            double reliefMeters) {
+            double reliefMeters,
+            boolean sourceReach) {
         int count = rawSections.size();
         double[] target = new double[count];
         double[] weight = new double[count];
@@ -126,10 +133,44 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             weight[i] = 0.5 * (left + right);
         }
 
-        // Geometry is bounded by authored terrain and positive-width trapezoid cross sections.
-        // Do not impose a separate pointwise bed-grade law here; hydraulic energy, jump, and
-        // CASCADE solvers are the admission authority for the resulting profile.
-        List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints = List.of();
+        // Keep terrain fitting independent from the flow law except at a declared source:
+        // normal depth is only a valid source boundary when the candidate's first-quarter reach
+        // has a finite positive energy slope. Derive its minimum from Manning's equation at the
+        // maximum geometrically admissible depth, and cap it by the accepted reach-grade limit.
+        // Energy, jump, and CASCADE solvers remain the admission authority downstream.
+        List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints = new ArrayList<>();
+        if (sourceReach) {
+            int windowEnd = Math.min(
+                    count - 1, Math.max(2, (int) Math.ceil((count - 1) * 0.25)));
+            SkyIslandGraduallyVariedFlowSolver.CrossSection source = rawSections.getFirst();
+            double maximumDepth = calibration.maximumCrossSectionDepthMeters(reach.samples().getFirst());
+            double minimumSourceSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
+                    source.dischargeCubicMetersPerSecond(),
+                    calibration.manningRoughness(),
+                    maximumDepth,
+                    source.bottomWidthMeters(),
+                    source.sideSlopeHorizontalToVertical());
+            double windowLength = rawSections.get(windowEnd).chainageMeters()
+                    - source.chainageMeters();
+            double maximumWindowDrop = calibration.maximumDownstreamBedSlope() * windowLength;
+            double minimumWindowDrop = minimumSourceSlope * windowLength;
+            if (!(windowLength > 0.0)
+                    || !Double.isFinite(minimumWindowDrop)
+                    || minimumWindowDrop > maximumWindowDrop) {
+                throw new IllegalStateException(
+                        "source normal-depth bed window has no physically admissible grade"
+                                + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
+                                + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
+                                + ";minimumSlope=" + minimumSourceSlope
+                                + ";maximumSlope=" + calibration.maximumDownstreamBedSlope());
+            }
+            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                    "source-normal-depth-window",
+                    0,
+                    windowEnd,
+                    minimumWindowDrop,
+                    maximumWindowDrop));
+        }
 
         SkyIslandHydraulicQpResult qp =
                 SkyIslandHydraulicBoundedQpSolver.solve(
