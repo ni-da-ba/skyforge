@@ -387,6 +387,90 @@ class SkyIslandCandidateHydrologyCouplingTest {
                         "missing candidate semantic reach " + start + "->" + end));
     }
 
+    @Test
+    void hydraulicMomentumResidualFeedsBackIntoBoundedKey700BedCandidate() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
+        SkyIslandHydraulicLandformCandidatePlanner.Plan initial =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+        double initialResidual = cascadeSpecificForceResidual(initial);
+
+        var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
+                descriptor,
+                CALIBRATION,
+                SkyIslandCandidateHydrologyCouplingTest::cascadeSpecificForceResidual,
+                1.0e-8,
+                6);
+        assertTrue(
+                feedback.optimization().residualNorm() <= initialResidual + 1.0e-8,
+                "bounded geometry feedback must not worsen the physical momentum mismatch");
+        assertEquals(
+                initial.skeletonPlan().geomorphicNetwork().routes().size(),
+                feedback.plan().reaches().size(),
+                "bed feedback must preserve every authored semantic edge");
+        SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
+                feedback.plan().requireReach(801, 1951);
+        assertEquals(
+                0.0,
+                cascade.sections().getFirst().bedElevationMeters()
+                        - initial.requireReach(801, 1951).sections().getFirst().bedElevationMeters(),
+                1.0e-8,
+                "feedback must preserve the shared CASCADE inlet bed");
+        assertEquals(
+                0.0,
+                cascade.sections().getLast().bedElevationMeters()
+                        - initial.requireReach(801, 1951).sections().getLast().bedElevationMeters(),
+                1.0e-8,
+                "feedback must preserve the shared terminal bed");
+
+        System.out.printf(
+                Locale.ROOT,
+                "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialMomentumResidual=%.9g "
+                        + "finalMomentumResidual=%.9g controls=%s converged=%s%n",
+                initialResidual,
+                feedback.optimization().residualNorm(),
+                java.util.Arrays.toString(feedback.optimization().controls()),
+                feedback.hydraulicallyConverged());
+    }
+
+    private static double[] cascadeSpecificForceResidual(
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
+        return new double[] {cascadeSpecificForceResidual(candidate)};
+    }
+
+    private static double cascadeSpecificForceResidual(
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
+                candidate.requireReach(801, 1951).sections();
+        var parameters = CALIBRATION.solverParameters();
+        double best = Double.NaN;
+        for (int split = cascade.size() - 4; split >= 2; split--) {
+            try {
+                var supercritical = SkyIslandGraduallyVariedFlowSolver
+                        .solveSupercriticalDownstreamFromCriticalControl(
+                                cascade.subList(0, split + 1), parameters);
+                double residual = SkyIslandHydraulicJumpProfileSolver.bestSpecificForceResidual(
+                        cascade.subList(split, cascade.size()),
+                        supercritical.points().getLast().depthMeters(),
+                        null,
+                        parameters);
+                if (!Double.isFinite(best) || Math.abs(residual) < Math.abs(best)) {
+                    best = residual;
+                }
+            } catch (IllegalArgumentException | IllegalStateException inadmissibleSplit) {
+                // Other split locations may still provide valid flow branches and a useful residual.
+            }
+        }
+        if (!Double.isFinite(best)) {
+            throw new IllegalStateException("key-700 CASCADE has no admissible momentum-residual trial");
+        }
+        var section = cascade.get(cascade.size() / 2);
+        double forceScale = Math.max(1.0,
+                section.bottomWidthMeters() * section.bottomWidthMeters()
+                        * section.bottomWidthMeters());
+        return best / forceScale;
+    }
+
     private static ProbeResult probe(long province, long cluster, long key) {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, province, cluster, key));
