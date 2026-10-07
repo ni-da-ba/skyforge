@@ -264,6 +264,14 @@ if [[ "${WBY_S7_BOMD:-false}" == "true" ]]; then
   for mod_id in bosses_of_mass_destruction cerbons_api; do grep -Fq "($mod_id)" "$server_latest_log"; done
 fi
 client_latest_log="$client_dir/logs/latest.log"
+if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
+  python3 scripts/wby-s7-combat-evidence.py \
+    --mods "$server_dir/mods" \
+    --variant "$WBY_S7_COMBAT_VARIANT" \
+    --server-log "$server_latest_log" \
+    --client-log "$client_latest_log" \
+    --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv"
+fi
 test -f "$client_latest_log"
 for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib mowziesmobs geckolib; do
   grep -Fq "($mod_id)" "$client_latest_log"
