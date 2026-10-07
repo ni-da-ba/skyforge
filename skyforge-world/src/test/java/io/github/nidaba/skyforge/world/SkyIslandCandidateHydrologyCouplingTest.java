@@ -42,12 +42,24 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     reach.sections().size(),
                     "hydraulic sections and candidate drainage samples must share stations");
             for (int i = 0; i < reach.sections().size(); i++) {
+                SkyIslandHydraulicGeometrySkeletonSample sectionSample =
+                        reach.skeleton().samples().get(i);
+                double localTerrainMeters = sectionSample.terrainElevation()
+                        * descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
                 assertTrue(
-                        reach.sections().get(i).bedElevationMeters()
-                                < reach.skeleton().samples().get(i).terrainElevation()
-                                        * descriptor.reliefBudget()
-                                        * CALIBRATION.metersPerWorldUnit(),
+                        reach.sections().get(i).bedElevationMeters() < localTerrainMeters,
                         "candidate channel bed must remain below its source terrain");
+                double candidateDepth = localTerrainMeters
+                        - reach.sections().get(i).bedElevationMeters();
+                double reconstructedBankfullWidth =
+                        reach.sections().get(i).bottomWidthMeters()
+                                + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * candidateDepth;
+                assertEquals(
+                        2.0 * sectionSample.bankfullHalfWidth()
+                                * CALIBRATION.metersPerWorldUnit(),
+                        reconstructedBankfullWidth,
+                        1.0e-8,
+                        "conditioned bed depth and bottom width must preserve the authored bankfull top width");
                 if (i > 0) {
                     var upstream = reach.sections().get(i - 1);
                     var downstream = reach.sections().get(i);

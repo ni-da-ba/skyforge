@@ -660,54 +660,50 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
         }
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         double[] terrainMeters = new double[points.size()];
-        double[] maximumIncisionPerScaleMeters = new double[points.size()];
+        double[] maximumGeometricDepthMeters = new double[points.size()];
         double[] chainageMeters = new double[points.size()];
-        double maximumIncisionPerScale = 0.0;
         for (int i = 0; i < points.size(); i++) {
             double station = cumulative[i] / pathLength;
             terrainMeters[i] = clamp01(terrain.sample(points.get(i))) * reliefMeters;
-            maximumIncisionPerScaleMeters[i] =
-                    SkyIslandHydraulicGeometryCalibration.waterDepthPotential(
-                            discharge.atStation(station)) * reliefMeters;
-            maximumIncisionPerScale =
-                    Math.max(maximumIncisionPerScale, maximumIncisionPerScaleMeters[i]);
+            double bankfullHalfWidth = SkyIslandHydraulicGeometryCalibration.bankfullHalfWidth(
+                    descriptor.nominalRadius(), discharge.atStation(station));
+            maximumGeometricDepthMeters[i] = Math.min(
+                    terrainMeters[i],
+                    calibration.maximumCrossSectionDepthMeters(bankfullHalfWidth));
             chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
         }
 
-        // Score the same admissible bed family used by the joint candidate planner:
-        // symmetric bounded local grade only. Whole-reach passability is left to the hydraulic
-        // energy solve instead of being inferred from a terrain-only endpoint comparison.
-        double requiredScale = calibration.bedIncisionScale();
+        // Score the same geometric feasibility boundary used by the bed QP: an authored
+        // trapezoid's positive-bottom-width limit plus the bounded local bed-grade envelope.
+        double maximumGradeConflictWorldUnits = 0.0;
+        double integratedSquaredConflictWorldUnits = 0.0;
+        double pathLengthMeters = chainageMeters[chainageMeters.length - 1];
         for (int upstream = 0; upstream + 1 < points.size(); upstream++) {
             int downstream = upstream + 1;
             double spacing = chainageMeters[downstream] - chainageMeters[upstream];
             double localGradeRelief =
                     calibration.maximumDownstreamBedSlope() * spacing;
-            double upstreamTerrainExcess = Math.max(
+            double lowerUpstreamBed =
+                    Math.max(0.0, terrainMeters[upstream] - maximumGeometricDepthMeters[upstream]);
+            double lowerDownstreamBed =
+                    Math.max(0.0, terrainMeters[downstream] - maximumGeometricDepthMeters[downstream]);
+            double conflictMeters = Math.max(
                     0.0,
-                    terrainMeters[upstream] - terrainMeters[downstream] - localGradeRelief);
-            double downstreamTerrainExcess = Math.max(
-                    0.0,
-                    terrainMeters[downstream] - terrainMeters[upstream] - localGradeRelief);
-            requiredScale = Math.max(
-                    requiredScale,
-                    upstreamTerrainExcess / maximumIncisionPerScaleMeters[upstream]);
-            requiredScale = Math.max(
-                    requiredScale,
-                    downstreamTerrainExcess / maximumIncisionPerScaleMeters[downstream]);
+                    Math.max(
+                            lowerUpstreamBed - terrainMeters[downstream] - localGradeRelief,
+                            lowerDownstreamBed - terrainMeters[upstream] - localGradeRelief));
+            double conflictWorldUnits = conflictMeters / calibration.metersPerWorldUnit();
+            maximumGradeConflictWorldUnits =
+                    Math.max(maximumGradeConflictWorldUnits, conflictWorldUnits);
+            integratedSquaredConflictWorldUnits += conflictWorldUnits * conflictWorldUnits
+                    * spacing / pathLengthMeters;
         }
-        double excessIncisionEquivalentWorldUnits =
-                Math.max(0.0, requiredScale - calibration.bedIncisionScale())
-                        * maximumIncisionPerScale
-                        / calibration.metersPerWorldUnit();
-        double squaredResidual = excessIncisionEquivalentWorldUnits
-                * excessIncisionEquivalentWorldUnits;
         return new SkyIslandCenterlineLongitudinalHeadFeasibility.Score(
                 0.0,
                 0.0,
-                excessIncisionEquivalentWorldUnits,
+                maximumGradeConflictWorldUnits,
                 0.0,
-                squaredResidual);
+                integratedSquaredConflictWorldUnits);
     }
 
     static SkyIslandHydraulicReachSkeleton sampleReach(

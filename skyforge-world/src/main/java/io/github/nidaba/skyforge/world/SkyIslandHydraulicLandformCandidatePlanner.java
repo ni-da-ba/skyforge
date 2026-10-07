@@ -43,7 +43,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 String message = failure.getMessage();
                 if (message == null
                         || !message.startsWith(
-                                "bounded channel-bed candidate is infeasible under terrain, incision, and local-grade constraints")) {
+                                "bounded channel-bed candidate is infeasible within authored trapezoid geometry")) {
                     throw failure;
                 }
                 rejectedResolutions.add(
@@ -112,8 +112,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().get(i);
             SkyIslandGraduallyVariedFlowSolver.CrossSection section = rawSections.get(i);
             double surface = sample.terrainElevation() * reliefMeters;
-            double maximumIncision = calibration.bedIncisionScale()
-                    * sample.waterDepthPotential() * reliefMeters;
+            double maximumIncision = Math.min(
+                    surface, calibration.maximumCrossSectionDepthMeters(sample));
             target[i] = section.bedElevationMeters();
             lower[i] = Math.max(0.0, surface - maximumIncision);
             upper[i] = surface;
@@ -150,14 +150,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                         new SkyIslandHydraulicBoundedQpProblem(
                                 target, weight, lower, upper, gradeConstraints));
         if (qp.status() != SkyIslandHydraulicQpStatus.SOLVED) {
-            double requiredIncisionScale = minimumFeasibleIncisionScale(
-                    target, weight, upper, reach.samples(), reliefMeters,
-                    gradeConstraints, calibration.bedIncisionScale());
             throw new IllegalStateException(
-                    "bounded channel-bed candidate is infeasible under terrain, incision, and local-grade constraints"
+                    "bounded channel-bed candidate is infeasible within authored trapezoid geometry"
                             + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
                             + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
-                            + ";requiredUniformIncisionScale=" + requiredIncisionScale
                             + ";diagnostic=" + qp.diagnostic().orElse("none"));
         }
 
@@ -167,8 +163,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         for (int i = 0; i < count; i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().get(i);
             double surface = sample.terrainElevation() * reliefMeters;
-            double maximumIncision = calibration.bedIncisionScale()
-                    * sample.waterDepthPotential() * reliefMeters;
+            double maximumIncision = Math.min(
+                    surface, calibration.maximumCrossSectionDepthMeters(sample));
             if (bed[i] > surface + 1.0e-8
                     || surface - bed[i] > maximumIncision + 1.0e-8
                     || bed[i] < 0.0) {
@@ -177,71 +173,24 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 + i);
             }
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
+            double fullBankfullWidthMeters =
+                    2.0 * reach.samples().get(i).bankfullHalfWidth()
+                            * calibration.metersPerWorldUnit();
+            double bottomWidthMeters = fullBankfullWidthMeters
+                    - 2.0 * calibration.sideSlopeHorizontalToVertical() * (surface - bed[i]);
+            if (!Double.isFinite(bottomWidthMeters) || bottomWidthMeters <= 0.0) {
+                throw new IllegalStateException(
+                        "conditioned channel bed would collapse the authored trapezoid bottom width at section "
+                                + i);
+            }
             sections.add(new SkyIslandGraduallyVariedFlowSolver.CrossSection(
                     raw.chainageMeters(),
                     bed[i],
                     raw.dischargeCubicMetersPerSecond(),
-                    raw.bottomWidthMeters(),
-                    raw.sideSlopeHorizontalToVertical()));
+                    bottomWidthMeters,
+                    calibration.sideSlopeHorizontalToVertical()));
         }
         return new CandidateBedResult(List.copyOf(sections), qp);
-    }
-
-    /**
-     * Measures how much uniform bed-incision authority this fixed candidate path would require
-     * before changing calibration. A finite result is diagnostic only; it does not relax the
-     * authored candidate envelope or approve the resulting terrain.
-     */
-    private static double minimumFeasibleIncisionScale(
-            double[] target,
-            double[] weight,
-            double[] upper,
-            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
-            double reliefMeters,
-            List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints,
-            double currentScale) {
-        double low = currentScale;
-        double high = currentScale;
-        while (high < 1.0e6 && !bedProfileSolvesAtScale(
-                target, weight, upper, samples, reliefMeters, gradeConstraints, high)) {
-            low = high;
-            high = Math.min(1.0e6, high * 2.0);
-        }
-        if (!bedProfileSolvesAtScale(
-                target, weight, upper, samples, reliefMeters, gradeConstraints, high)) {
-            return Double.POSITIVE_INFINITY;
-        }
-        for (int i = 0; i < 48; i++) {
-            double middle = low + 0.5 * (high - low);
-            if (bedProfileSolvesAtScale(
-                    target, weight, upper, samples, reliefMeters, gradeConstraints, middle)) {
-                high = middle;
-            } else {
-                low = middle;
-            }
-        }
-        return high;
-    }
-
-    private static boolean bedProfileSolvesAtScale(
-            double[] target,
-            double[] weight,
-            double[] upper,
-            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
-            double reliefMeters,
-            List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints,
-            double incisionScale) {
-        double[] lower = new double[samples.size()];
-        for (int i = 0; i < samples.size(); i++) {
-            double surface = samples.get(i).terrainElevation() * reliefMeters;
-            double maximumIncision =
-                    incisionScale * samples.get(i).waterDepthPotential() * reliefMeters;
-            lower[i] = Math.max(0.0, surface - maximumIncision);
-        }
-        return SkyIslandHydraulicBoundedQpSolver.solve(
-                        new SkyIslandHydraulicBoundedQpProblem(
-                                target, weight, lower, upper, gradeConstraints))
-                .status() == SkyIslandHydraulicQpStatus.SOLVED;
     }
 
     /** One semantic reach with a bed profile that is shared by terrain construction and hydraulics. */

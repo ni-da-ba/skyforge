@@ -92,6 +92,28 @@ public record SkyIslandGameScaleHydraulicCalibration(
         }
     }
 
+    /**
+     * Maximum geometric flow depth for the authored trapezoid while retaining a positive bottom
+     * width. The tiny relative reserve is numerical, not an incision calibration.
+     */
+    public double maximumCrossSectionDepthMeters(double bankfullHalfWidthWorldUnits) {
+        if (!Double.isFinite(bankfullHalfWidthWorldUnits) || bankfullHalfWidthWorldUnits <= 0.0) {
+            throw new IllegalArgumentException("bankfullHalfWidthWorldUnits must be finite and positive");
+        }
+        if (sideSlopeHorizontalToVertical == 0.0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        double geometricLimit =
+                bankfullHalfWidthWorldUnits * metersPerWorldUnit / sideSlopeHorizontalToVertical;
+        return geometricLimit * (1.0 - 1.0e-6);
+    }
+
+    public double maximumCrossSectionDepthMeters(
+            SkyIslandHydraulicGeometrySkeletonSample sample) {
+        Objects.requireNonNull(sample, "sample");
+        return maximumCrossSectionDepthMeters(sample.bankfullHalfWidth());
+    }
+
     public SkyIslandGraduallyVariedFlowSolver.Parameters solverParameters() {
         return new SkyIslandGraduallyVariedFlowSolver.Parameters(
                 manningRoughness,
