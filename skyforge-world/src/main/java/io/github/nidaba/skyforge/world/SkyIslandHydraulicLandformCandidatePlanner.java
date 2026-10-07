@@ -433,7 +433,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             optimization = Objects.requireNonNull(optimization, "optimization");
         }
 
-        public boolean hydraulicallyConverged() {
+        public boolean residualsConverged() {
             return optimization.converged();
         }
     }
