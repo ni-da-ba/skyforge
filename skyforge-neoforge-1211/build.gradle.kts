@@ -484,6 +484,26 @@ val wbyS7ServerMods = listOf("inControl")
 val wbyS7AllMods = wbyS7SharedMods + wbyS7ServerMods
 val wbyS7IceAndFireMods = listOf("iceAndFireCE", "jupiter", "uranus")
 val wbyS7BomdMods = listOf("bossesOfMassDestruction", "cerbonsApi")
+val wbyS7CombatPinFile = layout.projectDirectory.file("wby-s7-combat.properties")
+val wbyS7CombatPins = Properties().apply { wbyS7CombatPinFile.asFile.inputStream().use(::load) }
+fun wbyS7CombatPin(mod: String, field: String): String =
+    requireNotNull(wbyS7CombatPins.getProperty("$mod.$field")) {
+        "missing WBY S7 combat pin: $mod.$field in " + wbyS7CombatPinFile.asFile
+    }
+fun wbyS7CombatToken(mod: String): String = wbyS7CombatPin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S7 combat coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+check(wbyS7CombatPin("minecraft", "version") == "1.21.1")
+check(wbyS7CombatPin("neoforge", "version") == "21.1.249")
+check(wbyS7CombatPin("profile.base") == "wby-s7-bomd")
+val wbyS7CombatEngineeringMods = listOf(
+    "createRadars", "createAeroRadars", "createFireControl", "mianbaosNewModernWarfare",
+    "cbcNeoWarfare", "cbcTerminalBallistics",
+)
+val wbyS7TaczMods = listOf("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
+val wbyS7ScorchedMods = listOf("scorchedGuns")
+val wbyS7CombatCandidateMods = wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -579,6 +599,13 @@ val wbyS6D07Variant = providers.gradleProperty("wbyS6D07Variant").orNull?.trim()
 val wbyS7IllagerThreats = providers.gradleProperty("wbyS7IllagerThreats").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS7IceAndFire = providers.gradleProperty("wbyS7IceAndFire").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS7Bomd = providers.gradleProperty("wbyS7Bomd").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS7CombatVariant = providers.gradleProperty("wbyS7CombatVariant").orNull?.trim()?.lowercase() ?: "none"
+val wbyS7CombatMods = when (wbyS7CombatVariant) {
+    "engineering" -> wbyS7CombatEngineeringMods
+    "tacz" -> wbyS7CombatEngineeringMods + wbyS7TaczMods
+    "scorched" -> wbyS7CombatEngineeringMods + wbyS7ScorchedMods
+    else -> emptyList()
+}
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -628,6 +655,12 @@ check(!wbyS7IceAndFire || wbyS7IllagerThreats) {
 }
 check(!wbyS7Bomd || wbyS7IceAndFire) {
     "WBY S7 BOMD requires the cumulative S7 Ice & Fire profile"
+}
+check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched")) {
+    "WBY S7 combat variant must be none, engineering, tacz, or scorched"
+}
+check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
+    "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
 }
 check(wbyS6StructuresCivilization || wbyS6D07Variant == "none") {
     "WBY S6 D-07 variants require the opt-in S6 profile"
@@ -7233,6 +7266,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.property("wbyS7IllagerThreats", wbyS7IllagerThreats)
     inputs.property("wbyS7IceAndFire", wbyS7IceAndFire)
     inputs.property("wbyS7Bomd", wbyS7Bomd)
+    inputs.file(wbyS7CombatPinFile)
+    inputs.property("wbyS7CombatVariant", wbyS7CombatVariant)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7467,11 +7502,30 @@ tasks.register("wbyS1ResolvePinnedMods") {
             }
         }
 
+        val expectedCombatNames = when (wbyS7CombatVariant) {
+            "engineering" -> wbyS7CombatEngineeringMods
+            "tacz" -> wbyS7CombatEngineeringMods + wbyS7TaczMods
+            "scorched" -> wbyS7CombatEngineeringMods + wbyS7ScorchedMods
+            else -> emptyList()
+        }
+        expectedCombatNames.forEach { mod ->
+            val expected = wbyS7CombatToken(mod)
+            check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                "WBY S7 combat missing $mod on client/server: $expected"
+            }
+        }
+        (wbyS7CombatCandidateMods - expectedCombatNames).forEach { mod ->
+            val expected = wbyS7CombatToken(mod)
+            check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                "WBY S7 combat arm leaked unselected candidate $mod: $expected"
+            }
+        }
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         if (wbyS6StructuresCivilization) println("WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$wbyS6D07Variant")
         if (wbyS7IllagerThreats) println("WBY S7 ILLAGER THREATS RESOLUTION PASS")
         if (wbyS7IceAndFire) println("WBY S7 ICE & FIRE RESOLUTION PASS")
         if (wbyS7Bomd) println("WBY S7 BOMD RESOLUTION PASS")
+        if (wbyS7CombatVariant != "none") println("WBY S7 COMBAT RESOLUTION PASS variant=$wbyS7CombatVariant")
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
@@ -7540,7 +7594,8 @@ wbyS1StageClientMods.configure {
         } else emptyList()) +
         (if (wbyS7IllagerThreats) wbyS7AllMods.map(::wbyS7Token) else emptyList()) +
         (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList()) +
-        (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList())
+        (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList()) +
+        wbyS7CombatMods.map(::wbyS7CombatToken)
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8473,6 +8528,12 @@ dependencies {
         wbyS7BomdMods.forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS7CombatVariant != "none") {
+        wbyS7CombatMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7CombatPin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7CombatPin(mod, "coordinate"))
         }
     }
 
@@ -10105,6 +10166,12 @@ tasks.register<Sync>("wbyS1StageServerMods") {
                 check(staged.any { it.contains(expected) }) {
                     "WBY S7 server staging missing $mod token '$expected': $staged"
                 }
+            }
+        }
+        wbyS7CombatMods.forEach { mod ->
+            val expected = wbyS7CombatToken(mod)
+            check(staged.any { it.contains(expected) }) {
+                "WBY S7 combat server staging missing $mod token '$expected': $staged"
             }
         }
         listOf("distanthorizons", "iris", "oculus-for-simpleclouds", "simpleclouds", "betterclouds")
