@@ -411,7 +411,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
 
     /** Immutable pre-solve geometry packet. Hydraulic and D2 qualification remain separate steps. */
     private static double bedFeedbackMode(double station, boolean sourceReach) {
-        double adjustedStation = clamp01(station);
+        double adjustedStation = Math.max(0.0, Math.min(1.0, station));
         if (sourceReach) {
             // Keep the normal-depth source-control window untouched. The feedback acts only
             // downstream of that window and returns to zero at the shared reach endpoint.
@@ -420,7 +420,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 return 0.0;
             }
         }
-        return Math.sin(Math.PI * clamp01(adjustedStation));
+        return Math.sin(Math.PI * Math.max(0.0, Math.min(1.0, adjustedStation)));
     }
 
     public record FeedbackResult(
