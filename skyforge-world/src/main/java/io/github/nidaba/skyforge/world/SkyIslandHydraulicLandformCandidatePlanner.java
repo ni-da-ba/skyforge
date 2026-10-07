@@ -75,6 +75,56 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return buildPlan(descriptor, calibration, skeleton);
     }
 
+    static Plan planPriorityFloodAtResolution(
+            SkyIslandDescriptor descriptor,
+            SkyIslandGameScaleHydraulicCalibration calibration,
+            int divisionsPerPlanningCell) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(calibration, "calibration");
+        if (divisionsPerPlanningCell < 2) {
+            throw new IllegalArgumentException("candidate route resolution must be at least two");
+        }
+        SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope envelope =
+                new SkyIslandTerrainAwareRouteSolver.HydraulicRouteFeasibilityEnvelope(
+                        calibration.maximumDownstreamBedSlope() / descriptor.reliefBudget(),
+                        calibration.bedIncisionScale()
+                                * SkyIslandHydraulicGeometryCalibration.waterDepthPotential(1.0));
+        SkyIslandHydraulicGeometrySkeletonPlan base =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(
+                        descriptor, divisionsPerPlanningCell, envelope, calibration);
+        SkyIslandGeomorphicChannelNetworkPlan network = base.geomorphicNetwork();
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandSemanticField interiority =
+                SkyIslandSemanticFieldSet.create(descriptor).interiority();
+        double corridorHalfWidth = network.planningSpacing()
+                * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION;
+        List<SkyIslandGeomorphicReachRoute> routes = new ArrayList<>(network.routes().size());
+        for (SkyIslandGeomorphicReachRoute route : network.routes()) {
+            SkyIslandSemanticChannelReach semantic = route.semanticReach();
+            SkyIslandGeomorphicNetworkNode start =
+                    network.requireNode(semantic.startCellIndex());
+            SkyIslandGeomorphicNetworkNode end =
+                    network.requireNode(semantic.endCellIndex());
+            SkyIslandGeomorphicCandidateRoute priorityFlood =
+                    SkyIslandTerrainAwareRouteSolver.solveByPriorityFlood(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0));
+            routes.add(new SkyIslandGeomorphicReachRoute(semantic, priorityFlood));
+        }
+        SkyIslandGeomorphicChannelNetworkPlan candidateNetwork =
+                new SkyIslandGeomorphicChannelNetworkPlan(
+                        descriptor, network.planningSpacing(), network.nodes(), routes);
+        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(
+                        descriptor, candidateNetwork, terrain, interiority);
+        return buildPlan(descriptor, calibration, candidateSkeleton);
+    }
+
     private static Plan buildPlan(
             SkyIslandDescriptor descriptor,
             SkyIslandGameScaleHydraulicCalibration calibration,
