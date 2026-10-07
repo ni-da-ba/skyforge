@@ -117,6 +117,56 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                         + "to the downstream critical control");
     }
 
+    /**
+     * Returns the signed momentum residual of the best admissible jump station without
+     * accepting it as a solved jump.
+     *
+     * <p>This diagnostic is a continuous feedback signal for bounded geometry search. Callers
+     * must still run {@link #solve(List, double, SkyIslandGraduallyVariedFlowSolver.Parameters)}
+     * or the explicit-tailwater solve for final hydraulic closure.
+     */
+    static double bestSpecificForceResidual(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            double upstreamDepthMeters,
+            Double downstreamDepthMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 4) {
+            throw new IllegalArgumentException("jump residual requires at least four cross sections");
+        }
+        StationTrial best = null;
+        for (int station = 1; station < reach.size() - 1; station++) {
+            try {
+                StationTrial candidate = evaluateAtStation(
+                        reach, station, upstreamDepthMeters, downstreamDepthMeters, parameters);
+                if (best == null || Math.abs(candidate.forceResidual()) < Math.abs(best.forceResidual())) {
+                    best = candidate;
+                }
+            } catch (IllegalArgumentException | IllegalStateException inadmissible) {
+                // A station without both valid flow branches contributes no momentum residual.
+            }
+        }
+        int interval = reach.size() - 2;
+        for (int subdivision = 1; subdivision <= STATION_SUBDIVISIONS; subdivision++) {
+            double fraction = (double) subdivision / (STATION_SUBDIVISIONS + 1);
+            try {
+                StationTrial candidate = evaluateInsideInterval(
+                        reach, interval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
+                if (best == null || Math.abs(candidate.forceResidual()) < Math.abs(best.forceResidual())) {
+                    best = candidate;
+                }
+            } catch (IllegalArgumentException | IllegalStateException inadmissible) {
+                // Preserve the best admissible interior trial.
+            }
+        }
+        if (best == null) {
+            throw new IllegalStateException("no admissible supercritical/subcritical branch pair for jump residual");
+        }
+        return best.forceResidual();
+    }
+
     private static StationTrial evaluateAtStation(
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             int station,
