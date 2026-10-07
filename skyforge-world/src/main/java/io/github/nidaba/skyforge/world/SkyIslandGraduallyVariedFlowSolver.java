@@ -528,7 +528,7 @@ public final class SkyIslandGraduallyVariedFlowSolver {
         return Math.pow(meanDischarge / meanConveyance, 2.0);
     }
 
-    private static double criticalDepth(CrossSection section, Parameters parameters) {
+    static double criticalDepth(CrossSection section, Parameters parameters) {
         double lower = Math.max(1.0e-12, Math.ulp(section.bottomWidthMeters()));
         double upper = Math.max(1.0, section.bottomWidthMeters());
         int expansion = 0;
