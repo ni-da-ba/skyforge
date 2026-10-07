@@ -88,7 +88,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         }
         double bound = maximumAmplitude;
         var result = SkyIslandHydraulicResidualFeedbackSolver.solve(
-                new double[SkyIslandChannelProfileKind.values().length],
+                new double[2 * SkyIslandChannelProfileKind.values().length],
                 filledControls(bound, false),
                 filledControls(bound, true),
                 controls -> hydraulicResidualEvaluator.apply(
@@ -100,7 +100,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     private static double[] filledControls(double value, boolean positive) {
-        double[] controls = new double[SkyIslandChannelProfileKind.values().length];
+        double[] controls = new double[2 * SkyIslandChannelProfileKind.values().length];
         java.util.Arrays.fill(controls, positive ? value : -value);
         return controls;
     }
@@ -188,8 +188,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             SkyIslandHydraulicGeometrySkeletonPlan skeleton,
             double[] feedbackControls) {
-        if (feedbackControls.length != SkyIslandChannelProfileKind.values().length) {
-            throw new IllegalArgumentException("hydraulic feedback must provide one control per profile kind");
+        if (feedbackControls.length != 2 * SkyIslandChannelProfileKind.values().length) {
+            throw new IllegalArgumentException(
+                    "hydraulic feedback must provide two bed-shape controls per profile kind");
         }
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         List<Integer> sourceNodes = skeleton.geomorphicNetwork().nodes().stream()
@@ -263,11 +264,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double surface = sample.terrainElevation() * reliefMeters;
             double maximumIncision = Math.min(
                     surface, calibration.maximumCrossSectionDepthMeters(sample));
+            int kind = profileKind(
+                    reach.geomorphicRoute().semanticReach().profiles(),
+                    sample.stationFraction()).ordinal();
+            double modeStation = bedFeedbackStation(sample.stationFraction(), sourceReach, count);
             target[i] = section.bedElevationMeters()
-                    + feedbackControls[profileKind(
-                            reach.geomorphicRoute().semanticReach().profiles(),
-                            sample.stationFraction()).ordinal()]
-                            * bedFeedbackMode(sample.stationFraction(), sourceReach, count);
+                    + feedbackControls[kind] * Math.sin(Math.PI * modeStation)
+                    + feedbackControls[SkyIslandChannelProfileKind.values().length + kind]
+                            * Math.sin(2.0 * Math.PI * modeStation);
             lower[i] = Math.max(0.0, surface - maximumIncision);
             upper[i] = surface;
             double left = i == 0
@@ -410,7 +414,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     /** Immutable pre-solve geometry packet. Hydraulic and D2 qualification remain separate steps. */
-    private static double bedFeedbackMode(double station, boolean sourceReach, int sectionCount) {
+    private static double bedFeedbackStation(double station, boolean sourceReach, int sectionCount) {
         double adjustedStation = Math.max(0.0, Math.min(1.0, station));
         if (sourceReach) {
             // Keep the exact discrete normal-depth source-control window untouched. The feedback
@@ -423,7 +427,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 return 0.0;
             }
         }
-        return Math.sin(Math.PI * Math.max(0.0, Math.min(1.0, adjustedStation)));
+        return Math.max(0.0, Math.min(1.0, adjustedStation));
     }
 
     public record FeedbackResult(
