@@ -64,6 +64,15 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 if (i > 0) {
                     double bedRise = reach.sections().get(i).bedElevationMeters()
                             - reach.sections().get(i - 1).bedElevationMeters();
+                    double chainageStep = reach.sections().get(i).chainageMeters()
+                            - reach.sections().get(i - 1).chainageMeters();
+                    assertTrue(
+                            bedRise <= 1.0e-8,
+                            "candidate channel beds must not climb downstream");
+                    assertTrue(
+                            -bedRise <= CALIBRATION.maximumDownstreamBedSlope() * chainageStep
+                                            + 1.0e-8,
+                            "candidate channel-bed drops must remain inside the accepted grade envelope");
                     if (bedRise > 1.0e-8) {
                         localBedRiseCount++;
                     }
