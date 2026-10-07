@@ -394,7 +394,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
         SkyIslandHydraulicLandformCandidatePlanner.Plan initial =
                 SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
-        double initialResidual = cascadeSpecificForceResidual(initial);
+        double initialResidual = residualNorm(cascadeResidualVector(initial));
 
         var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
                 descriptor,
@@ -438,8 +438,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
 
         System.out.printf(
                 Locale.ROOT,
-                "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialMomentumResidual=%.9g "
-                        + "finalMomentumResidual=%.9g controls=%s residualsConverged=%s "
+                "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialHydraulicResidual=%.9g "
+                        + "finalHydraulicResidual=%.9g controls=%s residualsConverged=%s "
                         + "exactJumpClosed=%s%n",
                 initialResidual,
                 feedback.optimization().residualNorm(),
@@ -450,40 +450,62 @@ class SkyIslandCandidateHydrologyCouplingTest {
 
     private static double[] cascadeResidualVector(
             SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
-        return new double[] {cascadeSpecificForceResidual(candidate)};
-    }
-
-    private static double cascadeSpecificForceResidual(
-            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
                 candidate.requireReach(801, 1951).sections();
         var parameters = CALIBRATION.solverParameters();
-        double best = Double.NaN;
+        double bestForce = Double.NaN;
+        double bestBranchGap = Double.POSITIVE_INFINITY;
+        boolean hadSupercriticalPrefix = false;
         for (int split = cascade.size() - 4; split >= 2; split--) {
             try {
                 var supercritical = SkyIslandGraduallyVariedFlowSolver
                         .solveSupercriticalDownstreamFromCriticalControl(
                                 cascade.subList(0, split + 1), parameters);
-                double residual = SkyIslandHydraulicJumpProfileSolver.bestSpecificForceResidual(
-                        cascade.subList(split, cascade.size()),
-                        supercritical.points().getLast().depthMeters(),
-                        null,
-                        parameters);
-                if (!Double.isFinite(best) || Math.abs(residual) < Math.abs(best)) {
-                    best = residual;
+                hadSupercriticalPrefix = true;
+                try {
+                    double residual = SkyIslandHydraulicJumpProfileSolver.bestSpecificForceResidual(
+                            cascade.subList(split, cascade.size()),
+                            supercritical.points().getLast().depthMeters(),
+                            null,
+                            parameters);
+                    if (!Double.isFinite(bestForce) || Math.abs(residual) < Math.abs(bestForce)) {
+                        bestForce = residual;
+                    }
+                } catch (IllegalArgumentException | IllegalStateException noPairedBranch) {
+                    double gap = SkyIslandGraduallyVariedFlowSolver
+                            .subcriticalCriticalControlEnergyGap(
+                                    cascade.subList(split, cascade.size()), parameters);
+                    bestBranchGap = Math.min(bestBranchGap, gap);
                 }
-            } catch (IllegalArgumentException | IllegalStateException inadmissibleSplit) {
-                // Other split locations may still provide valid flow branches and a useful residual.
+            } catch (IllegalArgumentException | IllegalStateException inadmissiblePrefix) {
+                // Try another possible jump station.
             }
         }
-        if (!Double.isFinite(best)) {
-            throw new IllegalStateException("key-700 CASCADE has no admissible momentum-residual trial");
+        if (Double.isFinite(bestForce)) {
+            var section = cascade.get(cascade.size() / 2);
+            double forceScale = Math.max(1.0,
+                    section.bottomWidthMeters() * section.bottomWidthMeters()
+                            * section.bottomWidthMeters());
+            return new double[] {bestForce / forceScale, 0.0};
         }
-        var section = cascade.get(cascade.size() / 2);
-        double forceScale = Math.max(1.0,
-                section.bottomWidthMeters() * section.bottomWidthMeters()
-                        * section.bottomWidthMeters());
-        return best / forceScale;
+        if (!hadSupercriticalPrefix) {
+            return new double[] {0.0, 1.0};
+        }
+        if (!Double.isFinite(bestBranchGap)) {
+            return new double[] {0.0, 1.0};
+        }
+        double headScale = Math.max(
+                1.0, SkyIslandGraduallyVariedFlowSolver.criticalDepth(
+                        cascade.getLast(), parameters));
+        return new double[] {0.0, bestBranchGap / headScale};
+    }
+
+    private static double residualNorm(double[] residuals) {
+        double sum = 0.0;
+        for (double residual : residuals) {
+            sum += residual * residual;
+        }
+        return Math.sqrt(sum);
     }
 
     private static ProbeResult probe(long province, long cluster, long key) {
