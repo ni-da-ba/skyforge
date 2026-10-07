@@ -17,7 +17,8 @@ STRUCTURE = re.compile(r"^data/([^/]+)/worldgen/structure/(.+)\.json$")
 SET = re.compile(r"^data/([^/]+)/worldgen/structure_set/(.+)\.json$")
 S7_NAME_HINTS = (
     "friends", "foes", "pillage", "illager", "incontrol", "resourceful", "mowzie",
-    "iceandfire", "jupiter", "uranus",
+    "iceandfire", "jupiter", "uranus", "bosses-of-mass-destruction",
+    "cerbons-api",
 )
 PILLAGE_ENTITY_IDS = (
     "takesapillage:archer",
@@ -26,6 +27,18 @@ PILLAGE_ENTITY_IDS = (
 )
 MOWZIE_ENTITY_IDS = ("mowziesmobs:foliaath",)
 ICE_AND_FIRE_ENTITY_IDS = ("iceandfire:fire_dragon", "iceandfire:stymphalian_bird")
+BOMD_ENTITY_IDS = (
+    "bosses_of_mass_destruction:lich",
+    "bosses_of_mass_destruction:obsidilith",
+    "bosses_of_mass_destruction:gauntlet",
+    "bosses_of_mass_destruction:void_blossom",
+)
+BOMD_STRUCTURE_DIMENSIONS = {
+    "bosses_of_mass_destruction:lich_tower": "minecraft:overworld",
+    "bosses_of_mass_destruction:void_blossom": "minecraft:overworld",
+    "bosses_of_mass_destruction:gauntlet_arena": "minecraft:the_nether",
+    "bosses_of_mass_destruction:obsidilith_arena": "minecraft:the_end",
+}
 ENTITY_PROBE_IDS = PILLAGE_ENTITY_IDS + MOWZIE_ENTITY_IDS
 INVALID_LOCATE = re.compile(
     r"unknown (?:or incomplete )?command|unknown structure|invalid structure|"
@@ -114,6 +127,8 @@ def main() -> int:
     parser.add_argument("--mowzie-output", required=True, type=Path)
     parser.add_argument("--ice-and-fire", action="store_true")
     parser.add_argument("--ice-and-fire-output", type=Path)
+    parser.add_argument("--bomd", action="store_true")
+    parser.add_argument("--bomd-output", type=Path)
     parser.add_argument("--skip-entity-probes", action="store_true")
     parser.add_argument("--entities-only", action="store_true")
     args = parser.parse_args()
@@ -121,6 +136,8 @@ def main() -> int:
         parser.error("--skip-entity-probes and --entities-only cannot be combined")
     if args.ice_and_fire and args.ice_and_fire_output is None:
         parser.error("--ice-and-fire-output is required with --ice-and-fire")
+    if args.bomd and args.bomd_output is None:
+        parser.error("--bomd-output is required with --bomd")
 
     mowzie_jars = sorted(
         jar for jar in args.mods.glob("*.jar")
@@ -209,6 +226,73 @@ def main() -> int:
                 f"found {sorted(required_libraries)}"
             )
 
+    bomd_jar: Path | None = None
+    bomd_artifacts: dict[str, tuple[Path, str]] = {}
+    bomd_metadata_rows: list[list[object]] = []
+    bomd_structures: list[str] = []
+    bomd_structure_sets: list[dict[str, object]] = []
+    if args.bomd:
+        artifact_pins = {
+            "bosses-of-mass-destruction-forge-941573-8448640": ("bosses_of_mass_destruction", "1.3.3"),
+            "cerbons-api-955605-6483943": ("cerbons_api", "1.3.0"),
+        }
+        for token, (expected_mod_id, expected_version) in artifact_pins.items():
+            matches = sorted(jar for jar in args.mods.glob("*.jar") if token in jar.name.lower())
+            if len(matches) != 1:
+                raise SystemExit(f"Expected exactly one pinned {expected_mod_id} jar ({token}); found {[jar.name for jar in matches]}")
+            jar = matches[0]
+            digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+            bomd_artifacts[expected_mod_id] = (jar, digest)
+            with zipfile.ZipFile(jar) as archive:
+                metadata_names = [name for name in archive.namelist() if name.lower() == "meta-inf/neoforge.mods.toml"]
+                if len(metadata_names) != 1:
+                    raise SystemExit(f"Expected one NeoForge mods metadata file in {jar.name}; found {metadata_names}")
+                metadata = tomllib.loads(archive.read(metadata_names[0]).decode("utf-8"))
+            matching_mods = [mod for mod in metadata.get("mods", []) if mod.get("modId") == expected_mod_id]
+            if len(matching_mods) != 1:
+                raise SystemExit(f"{jar.name} must declare exactly one {expected_mod_id} mod entry; found {matching_mods}")
+            mod = matching_mods[0]
+            actual_version = str(mod.get("version", ""))
+            license_name = str(mod.get("license", ""))
+            if actual_version != expected_version:
+                raise SystemExit(f"{jar.name} declares version {actual_version!r}; expected {expected_version}")
+            if not license_name:
+                raise SystemExit(f"{jar.name} does not declare a mod license")
+            bomd_metadata_rows.append([
+                "artifact", jar.name, digest, expected_mod_id, actual_version, "BOTH",
+                "license=" + license_name + ";displayName=" + str(mod.get("displayName", "")),
+            ])
+            dependency_map = metadata.get("dependencies", {})
+            entries = dependency_map.get(expected_mod_id, [])
+            if isinstance(entries, dict):
+                entries = [entries]
+            required_dependencies: set[str] = set()
+            for entry in entries:
+                dependency_id = str(entry.get("modId", ""))
+                dependency_type = str(entry.get("type", ""))
+                dependency_side = str(entry.get("side", ""))
+                version_range = str(entry.get("versionRange", ""))
+                bomd_metadata_rows.append([
+                    "dependency-metadata", jar.name, digest, dependency_id, version_range,
+                    dependency_side, "type=" + dependency_type + ";ordering=" + str(entry.get("ordering", "")),
+                ])
+                if dependency_type == "required" and dependency_side == "BOTH" and version_range:
+                    required_dependencies.add(dependency_id)
+            if expected_mod_id == "bosses_of_mass_destruction":
+                missing = {"cerbons_api", "geckolib", "cloth_config"} - required_dependencies
+                if missing:
+                    raise SystemExit(
+                        f"BOMD runtime metadata is missing required BOTH-side versioned dependencies: {sorted(missing)}; "
+                        f"found {sorted(required_dependencies)}"
+                    )
+        bomd_jar, _ = bomd_artifacts["bosses_of_mass_destruction"]
+        bomd_structure_sets, bomd_structures = read_archive(bomd_jar)
+        if not bomd_structures:
+            raise SystemExit("Pinned BOMD jar contains no registered worldgen structure resources")
+        missing_structures = set(BOMD_STRUCTURE_DIMENSIONS) - set(bomd_structures)
+        if missing_structures:
+            raise SystemExit(f"BOMD structure resources missing expected structures: {sorted(missing_structures)}")
+
     rows: list[list[object]] = [
         ["record", "jar", "registry_id", "spacing_chunks", "separation_chunks", "salt", "details"],
         ["run", "", "", "", "", "", "dimension=minecraft:overworld; locate_origin=0,64,0; seed=" + args.seed],
@@ -249,7 +333,11 @@ def main() -> int:
                 raise SystemExit(f"Live /locate did not recognize staged structure {structure_id}: {result}")
             accepted_locates += 1
 
-    entity_probe_ids = list(ENTITY_PROBE_IDS) + (list(ICE_AND_FIRE_ENTITY_IDS) if args.ice_and_fire else [])
+    entity_probe_ids = (
+        list(ENTITY_PROBE_IDS)
+        + (list(ICE_AND_FIRE_ENTITY_IDS) if args.ice_and_fire else [])
+        + (list(BOMD_ENTITY_IDS) if args.bomd else [])
+    )
     registered_entities = 0
     ice_fire_entity_rows: list[list[object]] = []
     if not args.skip_entity_probes:
@@ -367,6 +455,40 @@ def main() -> int:
             ice_output.parent.mkdir(parents=True, exist_ok=True)
             ice_output.write_text("\n".join("\t".join(safe_cell(cell) for cell in row) for row in ice_rows) + "\n", encoding="utf-8")
 
+    if args.bomd:
+        assert args.bomd_output is not None and bomd_jar is not None
+        bomd_output = args.bomd_output
+        _, bomd_sha256 = bomd_artifacts["bosses_of_mass_destruction"]
+        bomd_entity_rows = [
+            ["entity", jar, digest, str(row[2]), str(row[6])]
+            for row in rows
+            for mod_id, (jar_path, digest) in bomd_artifacts.items()
+            if row[0] == "entity" and str(row[2]).startswith("bosses_of_mass_destruction:")
+            for jar, jar_sha in [(jar_path.name, digest)]
+        ]
+        if args.entities_only and bomd_output.is_file():
+            with bomd_output.open("a", encoding="utf-8") as evidence_file:
+                evidence_file.write("\n".join("\t".join(safe_cell(cell) for cell in row) for row in bomd_entity_rows) + ("\n" if bomd_entity_rows else ""))
+        else:
+            bomd_rows: list[list[object]] = [
+                ["record", "jar", "sha256", "registry_id", "value", "side", "details"],
+                ["run", bomd_jar.name, bomd_sha256, "", "seed=" + args.seed, "", ""],
+                ["worldgen-structures", bomd_jar.name, bomd_sha256, "", ",".join(bomd_structures), "", ""],
+                ["worldgen-structure-sets", bomd_jar.name, bomd_sha256, "", ",".join(str(item["id"]) for item in bomd_structure_sets), "", ""],
+            ]
+            for structure_id, dimension in sorted(BOMD_STRUCTURE_DIMENSIONS.items()):
+                response = rcon(
+                    f"execute in {dimension} positioned 0 64 0 run locate structure {structure_id}",
+                    args.host, args.port, args.password,
+                )
+                if not response or INVALID_LOCATE.search(response):
+                    raise SystemExit(f"BOMD structure registry probe failed for {structure_id} in {dimension}: {response}")
+                bomd_rows.append(["locate-registry", bomd_jar.name, bomd_sha256, structure_id, dimension, "", response])
+            bomd_rows.extend(bomd_metadata_rows)
+            bomd_rows.extend(bomd_entity_rows)
+            bomd_output.parent.mkdir(parents=True, exist_ok=True)
+            bomd_output.write_text("\n".join("\t".join(safe_cell(cell) for cell in row) for row in bomd_rows) + "\n", encoding="utf-8")
+
     total_sets = sum(row[0] == "structure-set" for row in rows[1:])
     pillage_probes = sum(row[0] == "entity" and str(row[2]).startswith("takesapillage:") for row in rows)
     mowzie_probes = sum(row[0] == "entity" and str(row[2]).startswith("mowziesmobs:") for row in rows)
@@ -376,6 +498,7 @@ def main() -> int:
           + " spawned_pillage_entities=" + str(pillage_probes)
           + " spawned_mowzie_entities=" + str(mowzie_probes)
           + " spawned_ice_and_fire_entities=" + str(sum(row[0] == "entity" and str(row[2]).startswith("iceandfire:") for row in rows))
+          + " spawned_bomd_entities=" + str(sum(row[0] == "entity" and str(row[2]).startswith("bosses_of_mass_destruction:") for row in rows))
           + " mowzie_worldgen_structures=" + str(len(mowzie_structures))
           + " report=" + str(args.output)
           + " mowzie_report=" + str(args.mowzie_output)
