@@ -455,50 +455,47 @@ class SkyIslandCandidateHydrologyCouplingTest {
         var parameters = CALIBRATION.solverParameters();
         double bestForce = Double.NaN;
         double bestBranchGap = Double.POSITIVE_INFINITY;
-        boolean hadSupercriticalPrefix = false;
-        int maximumSplit = cascade.size() - 4;
-        for (int split = maximumSplit; split >= 2; split--) {
+        for (int station = 2; station <= cascade.size() - 4; station++) {
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> prefix =
+                    cascade.subList(0, station + 1);
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix =
+                    cascade.subList(station, cascade.size());
             try {
                 var supercritical = SkyIslandGraduallyVariedFlowSolver
-                        .solveSupercriticalDownstreamFromCriticalControl(
-                                cascade.subList(0, split + 1), parameters);
-                hadSupercriticalPrefix = true;
+                        .solveSupercriticalDownstreamFromCriticalControl(prefix, parameters);
                 try {
-                    double residual = SkyIslandHydraulicJumpProfileSolver.bestSpecificForceResidual(
-                            cascade.subList(split, cascade.size()),
-                            supercritical.points().getLast().depthMeters(),
-                            null,
-                            parameters);
-                    if (!Double.isFinite(bestForce) || Math.abs(residual) < Math.abs(bestForce)) {
-                        bestForce = residual;
+                    var subcritical = SkyIslandGraduallyVariedFlowSolver
+                            .solveSubcriticalUpstreamFromCriticalControl(suffix, parameters);
+                    var section = cascade.get(station);
+                    double mismatch = SkyIslandHydraulicJumpSolver.specificForce(
+                                    section,
+                                    supercritical.points().getLast().depthMeters(),
+                                    parameters.gravityMetersPerSecondSquared())
+                            - SkyIslandHydraulicJumpSolver.specificForce(
+                                    section,
+                                    subcritical.points().getFirst().depthMeters(),
+                                    parameters.gravityMetersPerSecondSquared());
+                    if (!Double.isFinite(bestForce) || Math.abs(mismatch) < Math.abs(bestForce)) {
+                        bestForce = mismatch;
                     }
-                } catch (IllegalArgumentException | IllegalStateException noPairedBranch) {
+                } catch (IllegalArgumentException | IllegalStateException noSubcriticalBranch) {
                     double gap = SkyIslandGraduallyVariedFlowSolver
-                            .subcriticalCriticalControlEnergyGap(
-                                    cascade.subList(split, cascade.size()), parameters);
+                            .subcriticalCriticalControlEnergyGap(suffix, parameters);
                     bestBranchGap = Math.min(bestBranchGap, gap);
                 }
-            } catch (IllegalArgumentException | IllegalStateException inadmissiblePrefix) {
-                // Try another possible jump station.
+            } catch (IllegalArgumentException | IllegalStateException noSupercriticalPrefix) {
+                // This station is beyond the admissible supercritical branch for this geometry.
             }
         }
-        if (Double.isFinite(bestForce)) {
-            var section = cascade.get(cascade.size() / 2);
-            double forceScale = Math.max(1.0,
-                    section.bottomWidthMeters() * section.bottomWidthMeters()
-                            * section.bottomWidthMeters());
-            return new double[] {bestForce / forceScale, 0.0};
-        }
-        if (!hadSupercriticalPrefix) {
-            return new double[] {0.0, 1.0};
-        }
-        if (!Double.isFinite(bestBranchGap)) {
-            return new double[] {0.0, 1.0};
-        }
-        double headScale = Math.max(
-                1.0, SkyIslandGraduallyVariedFlowSolver.criticalDepth(
-                        cascade.getLast(), parameters));
-        return new double[] {0.0, bestBranchGap / headScale};
+        var scaleSection = cascade.get(cascade.size() / 2);
+        double forceScale = Math.max(
+                1.0, Math.pow(scaleSection.bottomWidthMeters(), 3.0));
+        double energyScale = Math.max(
+                1.0, SkyIslandGraduallyVariedFlowSolver.criticalDepth(cascade.getLast(), parameters));
+        return new double[] {
+            Double.isFinite(bestForce) ? bestForce / forceScale : 1.0,
+            Double.isFinite(bestBranchGap) ? bestBranchGap / energyScale : 0.0
+        };
     }
 
     private static double residualNorm(double[] residuals) {
