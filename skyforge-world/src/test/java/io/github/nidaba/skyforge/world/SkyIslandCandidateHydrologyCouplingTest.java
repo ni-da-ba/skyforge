@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -423,14 +424,28 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 1.0e-8,
                 "feedback must preserve the shared terminal bed");
 
+        boolean exactJumpClosed;
+        try {
+            SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInletToCriticalOutlet(
+                    cascade.sections(), CALIBRATION.solverParameters());
+            exactJumpClosed = true;
+        } catch (IllegalArgumentException | IllegalStateException noPhysicalClosure) {
+            exactJumpClosed = false;
+        }
+        assertFalse(
+                feedback.residualsConverged() && !exactJumpClosed,
+                "a minimized momentum residual must still pass the exact cascade closure solver");
+
         System.out.printf(
                 Locale.ROOT,
                 "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialMomentumResidual=%.9g "
-                        + "finalMomentumResidual=%.9g controls=%s converged=%s%n",
+                        + "finalMomentumResidual=%.9g controls=%s residualsConverged=%s "
+                        + "exactJumpClosed=%s%n",
                 initialResidual,
                 feedback.optimization().residualNorm(),
                 java.util.Arrays.toString(feedback.optimization().controls()),
-                feedback.hydraulicallyConverged());
+                feedback.residualsConverged(),
+                exactJumpClosed);
     }
 
     private static double[] cascadeResidualVector(
