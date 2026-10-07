@@ -171,6 +171,70 @@ public final class SkyIslandHydraulicCascadeTransitionSolver {
         return result;
     }
 
+    /**
+     * Closes a CASCADE with explicit critical controls at both its inlet and free outlet.
+     *
+     * <p>The chute is first marched downstream from the authored inlet control. If that branch
+     * approaches critical flow before the outlet, the solver searches upstream for the last
+     * admissible supercritical section and joins it to the outlet-critical subcritical profile
+     * with a momentum-matched hydraulic jump. Callers may use this only when the downstream
+     * boundary is an authored free outlet; retained-water or unresolved terminals need an explicit
+     * tailwater stage instead.
+     */
+    public static SkyIslandGraduallyVariedFlowSolver.Result
+            solveFromCriticalInletToCriticalOutlet(
+                    List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+                    SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 6) {
+            throw new IllegalArgumentException(
+                    "critical-inlet/free-outlet CASCADE requires at least six cross sections");
+        }
+
+        String lastFailure = "no admissible supercritical inlet prefix";
+        for (int split = reach.size() - 4; split >= 2; split--) {
+            try {
+                SkyIslandGraduallyVariedFlowSolver.Result prefix =
+                        SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstreamFromCriticalControl(
+                                reach.subList(0, split + 1), parameters);
+                SkyIslandGraduallyVariedFlowSolver.ProfilePoint inlet =
+                        prefix.points().getLast();
+                double regimeMargin = Math.max(1.0e-6, 10.0 * parameters.relativeTolerance());
+                if (!(inlet.froudeNumber() > 1.0 + regimeMargin)) {
+                    lastFailure = "candidate jump inlet is not strictly supercritical at section " + split;
+                    continue;
+                }
+
+                SkyIslandGraduallyVariedFlowSolver.Result jumpAndTailwater =
+                        SkyIslandHydraulicJumpProfileSolver.solve(
+                                reach.subList(split, reach.size()),
+                                inlet.depthMeters(),
+                                parameters);
+                List<SkyIslandGraduallyVariedFlowSolver.ProfilePoint> points =
+                        new ArrayList<>(reach.size());
+                points.addAll(prefix.points().subList(0, prefix.points().size() - 1));
+                points.addAll(jumpAndTailwater.points());
+                if (points.size() != reach.size()) {
+                    throw new IllegalStateException(
+                            "critical-inlet/outlet profile must preserve all CASCADE sections");
+                }
+                return new SkyIslandGraduallyVariedFlowSolver.Result(
+                        points,
+                        Math.max(
+                                prefix.maximumEnergyResidualMeters(),
+                                jumpAndTailwater.maximumEnergyResidualMeters()));
+            } catch (IllegalArgumentException | IllegalStateException noAdmissibleSplit) {
+                lastFailure = noAdmissibleSplit.getClass().getSimpleName()
+                        + ":" + noAdmissibleSplit.getMessage();
+            }
+        }
+        throw new IllegalStateException(
+                "no momentum-matched interior hydraulic jump closes the explicit critical inlet and free outlet"
+                        + ";lastFailure=" + lastFailure);
+    }
+
     public static SkyIslandGraduallyVariedFlowSolver.Result solveFromCriticalInlet(
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
