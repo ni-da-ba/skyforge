@@ -452,23 +452,19 @@ public final class SkyIslandTerrainAwareRouteSolver {
                     double stepLength = Math.hypot(dx * step, dz * step);
                     double normalizedLength = stepLength / planningSpacing;
                     double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
-                    double envelopePenalty = feasibilityEnvelope == null
-                            ? 0.0
-                            : feasibilityEnvelope.transitionPenalty(
-                                    elevations[current.index()],
-                                    elevations[next],
-                                    stepLength,
-                                    normalizedLength);
-                    if (!Double.isFinite(envelopePenalty)) {
-                        continue;
-                    }
                     double transitionCost =
                             BASE_LENGTH_WEIGHT * normalizedLength
                                     + 0.5
                                             * (localCost[current.index()] + localCost[next])
                                             * normalizedLength
                                     + ASCENT_WEIGHT * ascent
-                                    + envelopePenalty;
+                                    + (feasibilityEnvelope == null
+                                            ? 0.0
+                                            : feasibilityEnvelope.transitionPenalty(
+                                                    elevations[current.index()],
+                                                    elevations[next],
+                                                    stepLength,
+                                                    normalizedLength));
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
@@ -665,12 +661,8 @@ public final class SkyIslandTerrainAwareRouteSolver {
             double excessCut = Math.max(
                             requiredCutForExcessBedDrop, requiredCutForUpstreamRise)
                     - maximumIncisionPotential;
-            if (excessCut > EPSILON) {
-                // This edge cannot produce a bed inside both the no-fill and incision envelope;
-                // reject it so route search can choose another centerline inside the same corridor.
-                return Double.POSITIVE_INFINITY;
-            }
-            return 0.0;
+            double normalizedExcess = Math.max(0.0, excessCut) / maximumIncisionPotential;
+            return 16.0 * square(normalizedExcess) * normalizedLength;
         }
     }
 
