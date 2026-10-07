@@ -459,12 +459,11 @@ def main() -> int:
         assert args.bomd_output is not None and bomd_jar is not None
         bomd_output = args.bomd_output
         _, bomd_sha256 = bomd_artifacts["bosses_of_mass_destruction"]
+        bomd_entity_jar, bomd_entity_sha256 = bomd_artifacts["bosses_of_mass_destruction"]
         bomd_entity_rows = [
-            ["entity", jar, digest, str(row[2]), str(row[6])]
+            ["entity", bomd_entity_jar.name, bomd_entity_sha256, str(row[2]), str(row[6])]
             for row in rows
-            for mod_id, (jar_path, digest) in bomd_artifacts.items()
             if row[0] == "entity" and str(row[2]).startswith("bosses_of_mass_destruction:")
-            for jar, jar_sha in [(jar_path.name, digest)]
         ]
         if args.entities_only and bomd_output.is_file():
             with bomd_output.open("a", encoding="utf-8") as evidence_file:
