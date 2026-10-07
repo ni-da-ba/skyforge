@@ -60,8 +60,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * Rebuilds bounded bed/valley candidates from hydraulic feedback controls and returns the
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
-     * <p>The feedback vector contains one bed-shape amplitude per channel profile kind. Each mode
-     * is zero at semantic reach endpoints, so authored junction elevations remain shared. Every
+     * <p>The feedback vector contains two bed-shape amplitudes per channel profile kind. Both modes
+     * are zero at semantic reach endpoints, so authored junction elevations remain shared. Every
      * trial is reprojected through the existing bounded bed QP; no-fill, incision, source-grade,
      * and trapezoid constraints remain hard. D2 qualification is deliberately not part of this
      * hydraulic objective.
@@ -180,7 +180,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             SkyIslandHydraulicGeometrySkeletonPlan skeleton) {
         return buildPlan(descriptor, calibration, skeleton,
-                new double[SkyIslandChannelProfileKind.values().length]);
+                new double[2 * SkyIslandChannelProfileKind.values().length]);
     }
 
     private static Plan buildPlan(
