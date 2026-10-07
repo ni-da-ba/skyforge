@@ -102,14 +102,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \\
-            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \\
-            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \\
-            -PwbyS2ComputingAvionics=true \\
-            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \\
-            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \\
-            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \\
-            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \\
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
             -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache | tee wby-s7-control-resolution.log
           ! grep -Fq "WBY S7 COMBAT RESOLUTION PASS" wby-s7-control-resolution.log
 
