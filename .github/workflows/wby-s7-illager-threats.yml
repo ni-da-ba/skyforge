@@ -5,6 +5,7 @@ on:
     branches:
       - "wby/s7-illager-threats"
       - "wby/s7-ice-and-fire"
+      - "wby/s7-bomd"
     paths:
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
@@ -15,6 +16,7 @@ on:
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
+      - "scripts/wby-s7-bomd-diagnostic-launch.sh"
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
@@ -32,6 +34,7 @@ on:
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
       - "skyforge-neoforge-1211/wave-c*.properties"
       - "skyforge-neoforge-1211/wby-wave1*.properties"
+      - "scripts/wby-s7-bomd-diagnostic-launch.sh"
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
@@ -59,6 +62,7 @@ jobs:
       - name: Check S7 launcher and runtime script syntax
         shell: bash
         run: |
+          bash -n scripts/wby-s7-bomd-diagnostic-launch.sh
           bash -n scripts/wby-s7-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
           python3 -m py_compile scripts/wby-s7-illager-evidence.py
@@ -97,9 +101,10 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
-            --no-configuration-cache | tee "wby-s7-resolution.log"
+            -PwbyS7Bomd=true --no-configuration-cache | tee "wby-s7-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s7-resolution.log"
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s7-resolution.log"
+          grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s7-resolution.log"
 
       - name: Stage the S7 cumulative server and client profile
         shell: bash
@@ -113,7 +118,7 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
-            --no-configuration-cache
+            -PwbyS7Bomd=true --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-server
@@ -152,7 +157,7 @@ jobs:
           cp -R skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/. "$server_dir/kubejs/data/"
           printf 'eula=true\n' > "$server_dir/eula.txt"
           find skyforge-neoforge-1211/run-wby-s7-server/server-mods -maxdepth 1 -type f -printf '%f\\n' \
-            | grep -Ei 'friends|pillage|illager|incontrol|mowzie|iceandfire|jupiter|uranus' \
+            | grep -Ei 'friends|pillage|illager|incontrol|mowzie|iceandfire|jupiter|uranus|mass-destruction|cerbons-api' \
             > wby-s7-staged-threat-jars.txt
           test -s wby-s7-staged-threat-jars.txt
           echo "WBY S7 NeoForge server staging PASS"
@@ -170,6 +175,7 @@ jobs:
         shell: bash
         run: |
           export WBY_S7_ICE_AND_FIRE=true
+          export WBY_S7_BOMD=true
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s7-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
           bash scripts/wby-s7-runtime-acceptance.sh
@@ -178,13 +184,14 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-s7-ice-and-fire-resolution
+          name: wby-s7-bomd-resolution
           path: |
             wby-s7-*.log
             wby-s7-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
             wby-s7-mowzie-evidence.tsv
             wby-s7-ice-and-fire-evidence.tsv
+            wby-s7-bomd-evidence.tsv
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml

@@ -483,6 +483,7 @@ val wbyS7SharedMods = listOf(
 val wbyS7ServerMods = listOf("inControl")
 val wbyS7AllMods = wbyS7SharedMods + wbyS7ServerMods
 val wbyS7IceAndFireMods = listOf("iceAndFireCE", "jupiter", "uranus")
+val wbyS7BomdMods = listOf("bossesOfMassDestruction", "cerbonsApi")
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -577,6 +578,7 @@ val wbyS6StructuresCivilization = providers.gradleProperty("wbyS6StructuresCivil
 val wbyS6D07Variant = providers.gradleProperty("wbyS6D07Variant").orNull?.trim()?.lowercase() ?: "none"
 val wbyS7IllagerThreats = providers.gradleProperty("wbyS7IllagerThreats").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 val wbyS7IceAndFire = providers.gradleProperty("wbyS7IceAndFire").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
+val wbyS7Bomd = providers.gradleProperty("wbyS7Bomd").orNull?.trim()?.equals("true", ignoreCase = true) ?: false
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -623,6 +625,9 @@ check(!wbyS7IllagerThreats || wbyS6StructuresCivilization) {
 }
 check(!wbyS7IceAndFire || wbyS7IllagerThreats) {
     "WBY S7 Ice & Fire requires the cumulative S7 threat profile"
+}
+check(!wbyS7Bomd || wbyS7IceAndFire) {
+    "WBY S7 BOMD requires the cumulative S7 Ice & Fire profile"
 }
 check(wbyS6StructuresCivilization || wbyS6D07Variant == "none") {
     "WBY S6 D-07 variants require the opt-in S6 profile"
@@ -7227,6 +7232,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.file(wbyS7PinFile)
     inputs.property("wbyS7IllagerThreats", wbyS7IllagerThreats)
     inputs.property("wbyS7IceAndFire", wbyS7IceAndFire)
+    inputs.property("wbyS7Bomd", wbyS7Bomd)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7444,7 +7450,9 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
 
         val s7Mods = if (wbyS7IllagerThreats) {
-            wbyS7AllMods + (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList())
+            wbyS7AllMods +
+                (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList()) +
+                (if (wbyS7Bomd) wbyS7BomdMods else emptyList())
         } else emptyList()
         s7Mods.forEach { mod ->
             val expected = wbyS7Token(mod)
@@ -7452,7 +7460,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S7 missing $mod on client/integrated-server and dedicated server: $expected"
             }
         }
-        ((wbyS7AllMods + wbyS7IceAndFireMods) - s7Mods).forEach { mod ->
+        ((wbyS7AllMods + wbyS7IceAndFireMods + wbyS7BomdMods) - s7Mods).forEach { mod ->
             val expected = wbyS7Token(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S1-S6 profile unexpectedly resolved S7 $mod: $expected"
@@ -7463,6 +7471,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         if (wbyS6StructuresCivilization) println("WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$wbyS6D07Variant")
         if (wbyS7IllagerThreats) println("WBY S7 ILLAGER THREATS RESOLUTION PASS")
         if (wbyS7IceAndFire) println("WBY S7 ICE & FIRE RESOLUTION PASS")
+        if (wbyS7Bomd) println("WBY S7 BOMD RESOLUTION PASS")
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
@@ -7530,7 +7539,8 @@ wbyS1StageClientMods.configure {
             (wbyS6SharedMods + wbyS6D07Mods[wbyS6D07Variant].orEmpty()).map(::wbyS6Token)
         } else emptyList()) +
         (if (wbyS7IllagerThreats) wbyS7AllMods.map(::wbyS7Token) else emptyList()) +
-        (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList())
+        (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList()) +
+        (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList())
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8455,6 +8465,12 @@ dependencies {
     }
     if (wbyS7IceAndFire) {
         wbyS7IceAndFireMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS7Bomd) {
+        wbyS7BomdMods.forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7Pin(mod, "coordinate"))
         }
@@ -10083,7 +10099,8 @@ tasks.register<Sync>("wbyS1StageServerMods") {
             }
         }
         if (wbyS7IllagerThreats) {
-            (wbyS7AllMods + (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList())).forEach { mod ->
+            (wbyS7AllMods + (if (wbyS7IceAndFire) wbyS7IceAndFireMods else emptyList()) +
+                (if (wbyS7Bomd) wbyS7BomdMods else emptyList())).forEach { mod ->
                 val expected = wbyS7Token(mod)
                 check(staged.any { it.contains(expected) }) {
                     "WBY S7 server staging missing $mod token '$expected': $staged"
