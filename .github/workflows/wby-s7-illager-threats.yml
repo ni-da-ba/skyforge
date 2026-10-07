@@ -6,6 +6,7 @@ on:
       - "wby/s7-illager-threats"
       - "wby/s7-ice-and-fire"
       - "wby/s7-bomd"
+      - "wby/s7-combat"
     paths:
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
@@ -13,6 +14,8 @@ on:
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
+      - "scripts/wby-s7-combat-evidence.py"
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
@@ -29,6 +32,7 @@ on:
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
       - "skyforge-neoforge-1211/wby-s0-5-*.properties"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
@@ -38,6 +42,7 @@ on:
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
+      - "scripts/wby-s7-combat-evidence.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
@@ -51,6 +56,10 @@ concurrency:
 
 jobs:
   resolve-and-runtime-acceptance:
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [engineering, tacz, scorched]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -65,7 +74,7 @@ jobs:
           bash -n scripts/wby-s7-bomd-diagnostic-launch.sh
           bash -n scripts/wby-s7-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s7-illager-evidence.py
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py
 
       - name: Checkout pinned Aerodynamics4MC 0.2.2 source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -89,6 +98,21 @@ jobs:
           cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
           sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
 
+      - name: Verify the cumulative S7 BOMD control has no combat overlay
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \\
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \\
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \\
+            -PwbyS2ComputingAvionics=true \\
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \\
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \\
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \\
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \\
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache | tee wby-s7-control-resolution.log
+          ! grep -Fq "WBY S7 COMBAT RESOLUTION PASS" wby-s7-control-resolution.log
+
       - name: Resolve cumulative S7 threat profile
         shell: bash
         run: |
@@ -101,10 +125,11 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
-            -PwbyS7Bomd=true --no-configuration-cache | tee "wby-s7-resolution.log"
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=${{ matrix.variant }} --no-configuration-cache | tee "wby-s7-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s7-resolution.log"
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s7-resolution.log"
           grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s7-resolution.log"
+          grep -Fq "WBY S7 COMBAT RESOLUTION PASS variant=${{ matrix.variant }}" "wby-s7-resolution.log"
 
       - name: Stage the S7 cumulative server and client profile
         shell: bash
@@ -118,7 +143,7 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
-            -PwbyS7Bomd=true --no-configuration-cache
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=${{ matrix.variant }} --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-server
@@ -176,6 +201,7 @@ jobs:
         run: |
           export WBY_S7_ICE_AND_FIRE=true
           export WBY_S7_BOMD=true
+          export WBY_S7_COMBAT_VARIANT=${{ matrix.variant }}
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s7-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
           bash scripts/wby-s7-runtime-acceptance.sh
@@ -184,7 +210,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-s7-bomd-resolution
+          name: wby-s7-combat-${{ matrix.variant }}-resolution
           path: |
             wby-s7-*.log
             wby-s7-staged-threat-jars.txt
@@ -192,6 +218,7 @@ jobs:
             wby-s7-mowzie-evidence.tsv
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
+            wby-s7-combat-evidence.tsv
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
