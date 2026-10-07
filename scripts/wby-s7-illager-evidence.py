@@ -17,7 +17,7 @@ STRUCTURE = re.compile(r"^data/([^/]+)/worldgen/structure/(.+)\.json$")
 SET = re.compile(r"^data/([^/]+)/worldgen/structure_set/(.+)\.json$")
 S7_NAME_HINTS = (
     "friends", "foes", "pillage", "illager", "incontrol", "resourceful", "mowzie",
-    "iceandfire", "jupiter", "uranus", "bosses-of-mass-destruction",
+    "iceandfire", "jupiter", "uranus",
     "cerbons-api",
 )
 PILLAGE_ENTITY_IDS = (
