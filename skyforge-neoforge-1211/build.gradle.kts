@@ -496,7 +496,7 @@ fun wbyS7CombatToken(mod: String): String = wbyS7CombatPin(mod, "coordinate").sp
 }
 check(wbyS7CombatPin("minecraft", "version") == "1.21.1")
 check(wbyS7CombatPin("neoforge", "version") == "21.1.249")
-check(wbyS7CombatPin("profile.base") == "wby-s7-bomd")
+check(wbyS7CombatPin("profile", "base") == "wby-s7-bomd")
 val wbyS7CombatEngineeringMods = listOf(
     "createRadars", "createAeroRadars", "createFireControl", "mianbaosNewModernWarfare",
     "cbcNeoWarfare", "cbcTerminalBallistics",
