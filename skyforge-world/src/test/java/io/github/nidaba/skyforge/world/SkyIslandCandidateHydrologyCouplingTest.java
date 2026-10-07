@@ -457,17 +457,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
         double bestBranchGap = Double.POSITIVE_INFINITY;
         boolean hadSupercriticalPrefix = false;
         int maximumSplit = cascade.size() - 4;
-        int[] splitSamples = {
-            Math.max(2, Math.min(maximumSplit, cascade.size() / 4)),
-            Math.max(2, Math.min(maximumSplit, cascade.size() / 2)),
-            maximumSplit
-        };
-        int previousSplit = -1;
-        for (int split : splitSamples) {
-            if (split == previousSplit) {
-                continue;
-            }
-            previousSplit = split;
+        for (int split = maximumSplit; split >= 2; split--) {
             try {
                 var supercritical = SkyIslandGraduallyVariedFlowSolver
                         .solveSupercriticalDownstreamFromCriticalControl(
