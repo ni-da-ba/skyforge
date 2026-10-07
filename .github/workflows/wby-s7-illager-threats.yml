@@ -16,6 +16,7 @@ on:
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
       - "skyforge-neoforge-1211/wby-s7-combat.properties"
       - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-diagnostic-launch.sh"
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
@@ -43,6 +44,7 @@ on:
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
       - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-diagnostic-launch.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
@@ -72,6 +74,7 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/wby-s7-bomd-diagnostic-launch.sh
+          bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s7-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
           python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py
