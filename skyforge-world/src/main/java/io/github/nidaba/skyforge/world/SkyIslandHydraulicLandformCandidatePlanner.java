@@ -123,6 +123,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return new Plan(descriptor, skeleton, reaches, candidateTerrain);
     }
 
+    private static SkyIslandChannelProfileKind profileKind(
+            List<SkyIslandChannelProfile> profiles,
+            double station) {
+        int index = Math.min(
+                profiles.size() - 1,
+                (int) Math.floor(Math.max(0.0, Math.min(0.999999999, station)) * profiles.size()));
+        return profiles.get(index).kind();
+    }
+
     private static CandidateBedResult conditionBedProfile(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicReachSkeleton reach,
@@ -178,7 +187,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     || !Double.isFinite(minimumWindowDrop)
                     || minimumWindowDrop > maximumWindowDrop) {
                 throw new IllegalStateException(
-                        "source normal-depth bed window has no physically admissible grade"
+                        "bounded channel-bed candidate is infeasible within authored trapezoid geometry"
+                                + ";source normal-depth bed window has no physically admissible grade"
                                 + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
                                 + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
                                 + ";minimumSlope=" + minimumSourceSlope
@@ -190,6 +200,58 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     windowEnd,
                     minimumWindowDrop,
                     maximumWindowDrop));
+        }
+
+        List<SkyIslandChannelProfile> profiles =
+                reach.geomorphicRoute().semanticReach().profiles();
+        for (int i = 0; i + 1 < count; i++) {
+            double midpointStation = 0.5 * (
+                    reach.samples().get(i).stationFraction()
+                            + reach.samples().get(i + 1).stationFraction());
+            if (profileKind(profiles, midpointStation) != SkyIslandChannelProfileKind.CASCADE) {
+                continue;
+            }
+            SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = rawSections.get(i);
+            SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = rawSections.get(i + 1);
+            double upstreamCriticalDepth =
+                    SkyIslandGraduallyVariedFlowSolver.criticalDepth(upstream, calibration.solverParameters());
+            double downstreamCriticalDepth =
+                    SkyIslandGraduallyVariedFlowSolver.criticalDepth(downstream, calibration.solverParameters());
+            double upstreamCriticalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
+                    upstream.dischargeCubicMetersPerSecond(),
+                    calibration.manningRoughness(),
+                    upstreamCriticalDepth,
+                    upstream.bottomWidthMeters(),
+                    upstream.sideSlopeHorizontalToVertical());
+            double downstreamCriticalSlope = SkyIslandManningHydraulics.uniformFlowEnergySlope(
+                    downstream.dischargeCubicMetersPerSecond(),
+                    calibration.manningRoughness(),
+                    downstreamCriticalDepth,
+                    downstream.bottomWidthMeters(),
+                    downstream.sideSlopeHorizontalToVertical());
+            double minimumCascadeSlope = 1.05 * Math.max(
+                    upstreamCriticalSlope, downstreamCriticalSlope);
+            double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+            double minimumDrop = minimumCascadeSlope * spacing;
+            double maximumDrop = calibration.maximumDownstreamBedSlope() * spacing;
+            if (!(spacing > 0.0)
+                    || !Double.isFinite(minimumDrop)
+                    || minimumDrop > maximumDrop) {
+                throw new IllegalStateException(
+                        "bounded channel-bed candidate is infeasible within authored trapezoid geometry"
+                                + ";CASCADE slope cannot remain above critical slope"
+                                + ";reach=" + reach.geomorphicRoute().semanticReach().startCellIndex()
+                                + "->" + reach.geomorphicRoute().semanticReach().endCellIndex()
+                                + ";section=" + i
+                                + ";minimumSlope=" + minimumCascadeSlope
+                                + ";maximumSlope=" + calibration.maximumDownstreamBedSlope());
+            }
+            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                    "cascade-supercritical-grade-" + i,
+                    i,
+                    i + 1,
+                    minimumDrop,
+                    maximumDrop));
         }
 
         SkyIslandHydraulicQpResult qp =
