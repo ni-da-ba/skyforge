@@ -32,7 +32,7 @@ def read_properties(path: Path) -> dict[str, str]:
         stripped = line.strip()
         if not stripped or stripped.startswith(("#", "!")):
             continue
-        match = re.match(r"([^:=\\s]+)\\s*[:=]\\s*(.*)$", stripped)
+        match = re.match(r"([^:=\s]+)\s*[:=]\s*(.*)$", stripped)
         if not match:
             raise SystemExit(f"{path}:{line_number}: malformed properties row")
         values[match.group(1)] = match.group(2).strip()
