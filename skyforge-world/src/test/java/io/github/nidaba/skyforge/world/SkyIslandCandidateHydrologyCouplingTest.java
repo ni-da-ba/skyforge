@@ -176,10 +176,11 @@ class SkyIslandCandidateHydrologyCouplingTest {
         NaturalComponentProbe naturalComponent = probeNaturalKey700Component();
         System.out.printf(
                 Locale.ROOT,
-                "NATURAL_COMPONENT key=700 incoming=%d cascadeSections=%d attempted=%s solved=%s "
+                "NATURAL_COMPONENT key=700 incoming=%d cascadeSections=%d terminalFate=%s attempted=%s solved=%s "
                         + "maxEnergyResidualMeters=%.9g failure=%s%n",
                 naturalComponent.incomingBranches(),
                 naturalComponent.cascadeSections(),
+                naturalComponent.terminalFate(),
                 naturalComponent.attempted(),
                 naturalComponent.solved(),
                 naturalComponent.maximumEnergyResidualMeters(),
@@ -201,6 +202,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
         SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
                 candidate.requireReach(801, 1951).sections();
+        SkyIslandChannelTerminalFate terminalFate =
+                SkyIslandChannelTerminalFatePlanner.plan(
+                                descriptor, candidateSkeleton.geomorphicNetwork())
+                        .stream()
+                        .filter(fate -> fate.channelTerminalCellIndex() == 1951)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "key-700 CASCADE has no authored terminal fate"));
         int incomingBranches = 2;
         try {
             var parameters = CALIBRATION.solverParameters();
@@ -211,8 +220,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
                                     candidate.requireReach(1140, 801).sections()));
             SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile =
-                    SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
-                            cascadeSections, parameters);
+                    terminalFate.kind() == SkyIslandChannelTerminalFateKind.EDGE_OUTLET
+                            ? SkyIslandHydraulicCascadeTransitionSolver
+                                    .solveFromCriticalInletToCriticalOutlet(
+                                            cascadeSections, parameters)
+                            : SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                                    cascadeSections, parameters);
             double sharedJunctionDepth =
                     cascadeProfile.points().getFirst().depthMeters();
             SkyIslandHydraulicEnergyConfluenceComponentSolver.Result component =
@@ -225,6 +238,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
             return new NaturalComponentProbe(
                     incomingBranches,
                     cascadeSections.size(),
+                    terminalFate.kind().name(),
                     true,
                     true,
                     Math.max(
@@ -232,17 +246,20 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             Math.max(
                                     component.maximumReachEnergyResidualMeters(),
                                     component.confluence().energyResidualMeters())),
-                    "");
+                    "",
+                    terminalFate.kind().name());
         } catch (IllegalArgumentException | IllegalStateException failure) {
             String diagnostic = failure.getClass().getSimpleName() + ":" + failure.getMessage()
                     + describeCascadeLimit(cascadeSections, CALIBRATION.solverParameters(), failure.getMessage());
             return new NaturalComponentProbe(
                     incomingBranches,
                     cascadeSections.size(),
+                    terminalFate.kind().name(),
                     true,
                     false,
                     0.0,
-                    diagnostic);
+                    diagnostic,
+                    terminalFate.kind().name());
         }
     }
 
@@ -454,10 +471,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private record NaturalComponentProbe(
             int incomingBranches,
             int cascadeSections,
+            String terminalFate,
             boolean attempted,
             boolean solved,
             double maximumEnergyResidualMeters,
-            String failure) {}
+            String failure,
+            String terminalFate) {}
 
     private record ProbeResult(
             int spanCount,
