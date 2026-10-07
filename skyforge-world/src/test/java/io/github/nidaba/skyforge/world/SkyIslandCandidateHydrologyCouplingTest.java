@@ -199,95 +199,131 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private static NaturalComponentProbe probeNaturalKey700Component() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
-        int incomingBranches = 2;
-        String lastFailure = "no candidate route resolution attempted";
-        String lastTerminalFate = "unknown";
-        int lastCascadeSections = 0;
+        NaturalComponentProbe last = new NaturalComponentProbe(
+                2, 0, "unknown", true, false, 0.0, "no candidate route resolution attempted");
         var parameters = CALIBRATION.solverParameters();
 
-        // Candidate generation and physical closure are tested together at progressively finer
-        // route resolutions. A coarser geometrically feasible candidate must not mask a finer
-        // candidate that permits the exact same physical boundary conditions to close.
+        // Compare geometry and physical closure together at progressively finer resolutions.
         for (int divisionsPerPlanningCell : List.of(4, 8, 16)) {
-            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate;
             try {
-                candidate = SkyIslandHydraulicLandformCandidatePlanner.planAtResolution(
-                        descriptor, CALIBRATION, divisionsPerPlanningCell);
-            } catch (IllegalArgumentException | IllegalStateException infeasibleCandidate) {
-                lastFailure = "resolution=" + divisionsPerPlanningCell + ": candidate "
-                        + infeasibleCandidate.getClass().getSimpleName()
-                        + ":" + infeasibleCandidate.getMessage();
-                continue;
-            }
-            SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
-                    candidate.requireReach(801, 1951).sections();
-            lastCascadeSections = cascadeSections.size();
-            SkyIslandChannelTerminalFate terminalFate =
-                    SkyIslandChannelTerminalFatePlanner.plan(
-                                    descriptor, candidateSkeleton.geomorphicNetwork())
-                            .stream()
-                            .filter(fate -> fate.channelTerminalCellIndex() == 1951)
-                            .findFirst()
-                            .orElseThrow(() -> new IllegalStateException(
-                                    "key-700 CASCADE has no authored terminal fate"));
-            lastTerminalFate = terminalFate.kind().name() + "@" + divisionsPerPlanningCell;
-            try {
-                List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
-                        List.of(
-                                new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
-                                        candidate.requireReach(660, 801).sections()),
-                                new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
-                                        candidate.requireReach(1140, 801).sections()));
-                SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile;
-                try {
-                    cascadeProfile = SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
-                            cascadeSections, parameters);
-                } catch (IllegalArgumentException | IllegalStateException noContinuousChute) {
-                    if (terminalFate.kind() != SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
-                        throw noContinuousChute;
-                    }
-                    cascadeProfile =
-                            SkyIslandHydraulicCascadeTransitionSolver
-                                    .solveFromCriticalInletToCriticalOutlet(
-                                            cascadeSections, parameters);
+                SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
+                        SkyIslandHydraulicLandformCandidatePlanner.planAtResolution(
+                                descriptor, CALIBRATION, divisionsPerPlanningCell);
+                last = solveNaturalCandidate(
+                        descriptor, candidate, "least-cost@" + divisionsPerPlanningCell, parameters);
+                if (last.solved()) {
+                    return last;
                 }
-                double sharedJunctionDepth =
-                        cascadeProfile.points().getFirst().depthMeters();
-                SkyIslandHydraulicEnergyConfluenceComponentSolver.Result component =
-                        SkyIslandHydraulicEnergyConfluenceComponentSolver.solve(
-                                incoming,
-                                cascadeSections.getFirst(),
-                                sharedJunctionDepth,
-                                parameters,
-                                0.0);
-                return new NaturalComponentProbe(
-                        incomingBranches,
-                        cascadeSections.size(),
-                        lastTerminalFate,
+            } catch (IllegalArgumentException | IllegalStateException infeasibleCandidate) {
+                last = new NaturalComponentProbe(
+                        2,
+                        0,
+                        "unknown@" + divisionsPerPlanningCell,
                         true,
-                        true,
-                        Math.max(
-                                cascadeProfile.maximumEnergyResidualMeters(),
-                                Math.max(
-                                        component.maximumReachEnergyResidualMeters(),
-                                        component.confluence().energyResidualMeters())),
-                        "");
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                lastFailure = "resolution=" + divisionsPerPlanningCell + ": "
-                        + failure.getClass().getSimpleName() + ":" + failure.getMessage()
-                        + describeCascadeLimit(
-                                cascadeSections, parameters, failure.getMessage());
+                        false,
+                        0.0,
+                        "least-cost candidate generation failed: "
+                                + infeasibleCandidate.getClass().getSimpleName()
+                                + ":" + infeasibleCandidate.getMessage());
             }
         }
-        return new NaturalComponentProbe(
-                incomingBranches,
-                lastCascadeSections,
-                lastTerminalFate,
-                true,
-                false,
-                0.0,
-                lastFailure);
+
+        // Independent established routing candidate, evaluated against the same physical controls.
+        try {
+            SkyIslandHydraulicLandformCandidatePlanner.Plan priorityFlood =
+                    SkyIslandHydraulicLandformCandidatePlanner.planPriorityFloodAtResolution(
+                            descriptor, CALIBRATION, 4);
+            NaturalComponentProbe result = solveNaturalCandidate(
+                    descriptor, priorityFlood, "priority-flood", parameters);
+            if (result.solved()) {
+                return result;
+            }
+            last = result;
+        } catch (IllegalArgumentException | IllegalStateException infeasibleCandidate) {
+            last = new NaturalComponentProbe(
+                    2,
+                    0,
+                    "priority-flood",
+                    true,
+                    false,
+                    0.0,
+                    "Priority-Flood candidate generation failed: "
+                            + infeasibleCandidate.getClass().getSimpleName()
+                            + ":" + infeasibleCandidate.getMessage());
+        }
+        return last;
+    }
+
+    private static NaturalComponentProbe solveNaturalCandidate(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate,
+            String candidateLabel,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        int incomingBranches = 2;
+        SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
+                candidate.requireReach(801, 1951).sections();
+        SkyIslandChannelTerminalFate terminalFate =
+                SkyIslandChannelTerminalFatePlanner.plan(
+                                descriptor, candidateSkeleton.geomorphicNetwork())
+                        .stream()
+                        .filter(fate -> fate.channelTerminalCellIndex() == 1951)
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "key-700 CASCADE has no authored terminal fate"));
+        String label = candidateLabel + ":" + terminalFate.kind().name();
+        try {
+            List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
+                    List.of(
+                            new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                    candidate.requireReach(660, 801).sections()),
+                            new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
+                                    candidate.requireReach(1140, 801).sections()));
+            SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile;
+            try {
+                cascadeProfile = SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                        cascadeSections, parameters);
+            } catch (IllegalArgumentException | IllegalStateException noContinuousChute) {
+                if (terminalFate.kind() != SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
+                    throw noContinuousChute;
+                }
+                cascadeProfile =
+                        SkyIslandHydraulicCascadeTransitionSolver
+                                .solveFromCriticalInletToCriticalOutlet(
+                                        cascadeSections, parameters);
+            }
+            double sharedJunctionDepth = cascadeProfile.points().getFirst().depthMeters();
+            SkyIslandHydraulicEnergyConfluenceComponentSolver.Result component =
+                    SkyIslandHydraulicEnergyConfluenceComponentSolver.solve(
+                            incoming,
+                            cascadeSections.getFirst(),
+                            sharedJunctionDepth,
+                            parameters,
+                            0.0);
+            return new NaturalComponentProbe(
+                    incomingBranches,
+                    cascadeSections.size(),
+                    label,
+                    true,
+                    true,
+                    Math.max(
+                            cascadeProfile.maximumEnergyResidualMeters(),
+                            Math.max(
+                                    component.maximumReachEnergyResidualMeters(),
+                                    component.confluence().energyResidualMeters())),
+                    "");
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            return new NaturalComponentProbe(
+                    incomingBranches,
+                    cascadeSections.size(),
+                    label,
+                    true,
+                    false,
+                    0.0,
+                    failure.getClass().getSimpleName() + ":" + failure.getMessage()
+                            + describeCascadeLimit(
+                                    cascadeSections, parameters, failure.getMessage()));
+        }
     }
 
     private static String describeCascadeLimit(
