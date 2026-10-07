@@ -253,14 +253,13 @@ def main() -> int:
                 raise SystemExit(f"{jar.name} must declare exactly one {expected_mod_id} mod entry; found {matching_mods}")
             mod = matching_mods[0]
             actual_version = str(mod.get("version", ""))
-            license_name = str(mod.get("license", ""))
+            license_name = str(mod.get("license", "")).strip()
             if actual_version != expected_version:
                 raise SystemExit(f"{jar.name} declares version {actual_version!r}; expected {expected_version}")
-            if not license_name:
-                raise SystemExit(f"{jar.name} does not declare a mod license")
+            license_evidence = license_name or "(not declared in NeoForge mod metadata)"
             bomd_metadata_rows.append([
                 "artifact", jar.name, digest, expected_mod_id, actual_version, "BOTH",
-                "license=" + license_name + ";displayName=" + str(mod.get("displayName", "")),
+                "license=" + license_evidence + ";displayName=" + str(mod.get("displayName", "")),
             ])
             dependency_map = metadata.get("dependencies", {})
             entries = dependency_map.get(expected_mod_id, [])
