@@ -246,8 +246,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             Math.max(
                                     component.maximumReachEnergyResidualMeters(),
                                     component.confluence().energyResidualMeters())),
-                    "",
-                    terminalFate.kind().name());
+                    "");
         } catch (IllegalArgumentException | IllegalStateException failure) {
             String diagnostic = failure.getClass().getSimpleName() + ":" + failure.getMessage()
                     + describeCascadeLimit(cascadeSections, CALIBRATION.solverParameters(), failure.getMessage());
@@ -258,8 +257,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     true,
                     false,
                     0.0,
-                    diagnostic,
-                    terminalFate.kind().name());
+                    diagnostic);
         }
     }
 
@@ -475,8 +473,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
             boolean attempted,
             boolean solved,
             double maximumEnergyResidualMeters,
-            String failure,
-            String terminalFate) {}
+            String failure) {}
 
     private record ProbeResult(
             int spanCount,
