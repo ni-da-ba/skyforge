@@ -90,6 +90,48 @@ public final class SkyIslandGraduallyVariedFlowSolver {
     }
 
     /**
+     * Measures the first standard-step energy-equation violation when marching a subcritical
+     * profile upstream from an explicit critical free-outfall control.
+     *
+     * <p>Zero means the complete branch is admissible; a positive value is an energy-head gap at
+     * the first inadmissible step. This is a diagnostic/optimization residual only and never
+     * substitutes for a completed standard-step solve.
+     */
+    static double subcriticalCriticalControlEnergyGap(
+            List<CrossSection> sections, Parameters parameters) {
+        Objects.requireNonNull(sections, "sections");
+        Objects.requireNonNull(parameters, "parameters");
+        List<CrossSection> reach = List.copyOf(sections);
+        if (reach.size() < 2) {
+            throw new IllegalArgumentException("critical-control diagnostic requires at least two sections");
+        }
+        double downstreamDepth = criticalDepth(reach.getLast(), parameters);
+        for (int i = reach.size() - 2; i >= 0; i--) {
+            CrossSection upstream = reach.get(i);
+            CrossSection downstream = reach.get(i + 1);
+            Result step;
+            try {
+                step = i == reach.size() - 2
+                        ? solveSubcriticalUpstreamFromCriticalControl(
+                                List.of(upstream, downstream), parameters)
+                        : solveSubcriticalUpstream(
+                                List.of(upstream, downstream), downstreamDepth, parameters);
+            } catch (IllegalArgumentException | IllegalStateException noAdmissibleStep) {
+                double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+                double critical = criticalDepth(upstream, parameters);
+                double lower = critical * (1.0 + 10.0 * parameters.relativeTolerance());
+                double downstreamEnergy = specificEnergy(downstream, downstreamDepth, parameters);
+                double residual = energyResidual(
+                        upstream, downstream, downstreamDepth, lower, spacing,
+                        downstreamEnergy, parameters);
+                return Math.abs(residual);
+            }
+            downstreamDepth = step.points().getFirst().depthMeters();
+        }
+        return 0.0;
+    }
+
+    /**
      * Solves upstream from an explicit critical-depth control at a free outfall.
      *
      * <p>The caller must already have authority to model this terminal as a free outfall. The
