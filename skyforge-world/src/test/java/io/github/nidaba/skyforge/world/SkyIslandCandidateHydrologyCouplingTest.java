@@ -398,7 +398,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
         var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
                 descriptor,
                 CALIBRATION,
-                SkyIslandCandidateHydrologyCouplingTest::cascadeSpecificForceResidual,
+                SkyIslandCandidateHydrologyCouplingTest::cascadeResidualVector,
                 1.0e-8,
                 6);
         assertTrue(
@@ -433,7 +433,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 feedback.hydraulicallyConverged());
     }
 
-    private static double[] cascadeSpecificForceResidual(
+    private static double[] cascadeResidualVector(
             SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
         return new double[] {cascadeSpecificForceResidual(candidate)};
     }
