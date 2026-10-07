@@ -267,7 +267,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     + feedbackControls[profileKind(
                             reach.geomorphicRoute().semanticReach().profiles(),
                             sample.stationFraction()).ordinal()]
-                            * bedFeedbackMode(sample.stationFraction(), sourceReach);
+                            * bedFeedbackMode(sample.stationFraction(), sourceReach, count);
             lower[i] = Math.max(0.0, surface - maximumIncision);
             upper[i] = surface;
             double left = i == 0
@@ -410,12 +410,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     /** Immutable pre-solve geometry packet. Hydraulic and D2 qualification remain separate steps. */
-    private static double bedFeedbackMode(double station, boolean sourceReach) {
+    private static double bedFeedbackMode(double station, boolean sourceReach, int sectionCount) {
         double adjustedStation = Math.max(0.0, Math.min(1.0, station));
         if (sourceReach) {
-            // Keep the normal-depth source-control window untouched. The feedback acts only
-            // downstream of that window and returns to zero at the shared reach endpoint.
-            adjustedStation = (adjustedStation - 0.25) / 0.75;
+            // Keep the exact discrete normal-depth source-control window untouched. The feedback
+            // acts downstream of that window and returns to zero at the shared reach endpoint.
+            int windowEnd = Math.min(
+                    sectionCount - 1, Math.max(2, (int) Math.ceil((sectionCount - 1) * 0.25)));
+            double windowFraction = (double) windowEnd / (sectionCount - 1);
+            adjustedStation = (adjustedStation - windowFraction) / (1.0 - windowFraction);
             if (adjustedStation <= 0.0) {
                 return 0.0;
             }
