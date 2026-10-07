@@ -126,24 +126,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             weight[i] = 0.5 * (left + right);
         }
 
-        List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints =
-                new ArrayList<>(count - 1);
-        for (int i = 0; i + 1 < count; i++) {
-            SkyIslandGraduallyVariedFlowSolver.CrossSection upstream = rawSections.get(i);
-            SkyIslandGraduallyVariedFlowSolver.CrossSection downstream = rawSections.get(i + 1);
-            double spacing = downstream.chainageMeters() - upstream.chainageMeters();
-            double localBedRelief =
-                    calibration.maximumDownstreamBedSlope() * spacing;
-            // Bound local bed reversals without imposing a reach-wide monotonicity rule. The
-            // candidate target proposes the bed; the physical energy solve determines whether the
-            // resulting longitudinal profile is passable.
-            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
-                    "local-bed-grade:" + i,
-                    i,
-                    i + 1,
-                    -localBedRelief,
-                    localBedRelief));
-        }
+        // Geometry is bounded by authored terrain and positive-width trapezoid cross sections.
+        // Do not impose a separate pointwise bed-grade law here; hydraulic energy, jump, and
+        // CASCADE solvers are the admission authority for the resulting profile.
+        List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints = List.of();
 
         SkyIslandHydraulicQpResult qp =
                 SkyIslandHydraulicBoundedQpSolver.solve(

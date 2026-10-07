@@ -673,8 +673,8 @@ public final class SkyIslandHydraulicGeometrySkeletonPlanner {
             chainageMeters[i] = cumulative[i] * calibration.metersPerWorldUnit();
         }
 
-        // Score the same geometric feasibility boundary used by the bed QP: an authored
-        // trapezoid's positive-bottom-width limit plus the bounded local bed-grade envelope.
+        // Prefer centerlines whose adjacent terrain does not demand abrupt bed changes, but keep
+        // this as a route-search preference only. Bed-grade passability is decided by hydraulics.
         double maximumGradeConflictWorldUnits = 0.0;
         double integratedSquaredConflictWorldUnits = 0.0;
         double pathLengthMeters = chainageMeters[chainageMeters.length - 1];
