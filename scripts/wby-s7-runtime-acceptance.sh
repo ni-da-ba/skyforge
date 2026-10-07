@@ -264,6 +264,7 @@ if [[ "${WBY_S7_BOMD:-false}" == "true" ]]; then
   for mod_id in bosses_of_mass_destruction cerbons_api; do grep -Fq "($mod_id)" "$server_latest_log"; done
 fi
 client_latest_log="$client_dir/logs/latest.log"
+test -f "$client_latest_log"
 if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
   python3 scripts/wby-s7-combat-evidence.py \
     --mods "$server_dir/mods" \
