@@ -640,10 +640,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 }
             }
         }
+        String subcriticalDetails = subcriticalCandidateDiagnostics(cascade, parameters);
         return String.format(
                 Locale.ROOT,
                 "splits=%d,inletValid=%d,paired=%d,unpaired=%d,bestSplit=%d,"
-                        + "bestAbsForceResidual=%.9g,firstPrefixFailure=%s,firstUnpairedFailure=%s",
+                        + "bestAbsForceResidual=%.9g,firstPrefixFailure=%s,firstUnpairedFailure=%s,"
+                        + "subcriticalCandidates={%s}",
                 candidateSplits,
                 validInletSplits,
                 pairedBranchSplits,
@@ -651,7 +653,149 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 bestSplit,
                 bestAbsoluteForceResidual,
                 firstPrefixFailure,
-                firstUnpairedFailure);
+                firstUnpairedFailure,
+                subcriticalDetails);
+    }
+
+    /**
+     * Reports branch availability at every integer and terminal-subdivision jump position
+     * reachable by the production split search, together with the local first failed step.
+     */
+    private static String subcriticalCandidateDiagnostics(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        int candidates = 0;
+        int valid = 0;
+        double minimumGap = Double.POSITIVE_INFINITY;
+        String firstFailure = "none";
+        String minimumGapContext = "none";
+        for (int start = 3; start <= cascade.size() - 2; start++) {
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix =
+                    cascade.subList(start, cascade.size());
+            candidates++;
+            try {
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        suffix, parameters);
+                valid++;
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                double gap = SkyIslandGraduallyVariedFlowSolver
+                        .subcriticalCriticalControlEnergyGap(suffix, parameters);
+                String context = subcriticalFailureContext(suffix, start, failure.getMessage(), gap, parameters);
+                if (firstFailure.equals("none")) {
+                    firstFailure = context;
+                }
+                if (gap < minimumGap) {
+                    minimumGap = gap;
+                    minimumGapContext = context;
+                }
+            }
+        }
+        int terminalInterval = cascade.size() - 2;
+        for (int subdivision = 1; subdivision <= 8; subdivision++) {
+            double fraction = (double) subdivision / 9.0;
+            var interpolated = interpolateSection(
+                    cascade.get(terminalInterval), cascade.get(terminalInterval + 1), fraction);
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix = List.of(
+                    interpolated, cascade.getLast());
+            candidates++;
+            try {
+                SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
+                        suffix, parameters);
+                valid++;
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                double gap = SkyIslandGraduallyVariedFlowSolver
+                        .subcriticalCriticalControlEnergyGap(suffix, parameters);
+                String context = "terminalFraction=" + fraction + ":" + failure.getMessage()
+                        + ":energyGapMeters=" + String.format(Locale.ROOT, "%.9g", gap);
+                if (firstFailure.equals("none")) {
+                    firstFailure = context;
+                }
+                if (gap < minimumGap) {
+                    minimumGap = gap;
+                    minimumGapContext = context;
+                }
+            }
+        }
+        return String.format(
+                Locale.ROOT,
+                "tested=%d,valid=%d,invalid=%d,minGapMeters=%.9g,minGapAt=%s,firstFailure=%s",
+                candidates,
+                valid,
+                candidates - valid,
+                minimumGap,
+                minimumGapContext,
+                firstFailure);
+    }
+
+    private static String subcriticalFailureContext(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix,
+            int absoluteStart,
+            String failure,
+            double gapMeters,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        String marker = "section ";
+        int markerIndex = failure == null ? -1 : failure.lastIndexOf(marker);
+        if (markerIndex < 0) {
+            return String.format(
+                    Locale.ROOT,
+                    "start=%d:%s:energyGapMeters=%.9g",
+                    absoluteStart, failure, gapMeters);
+        }
+        int numberStart = markerIndex + marker.length();
+        int numberEnd = numberStart;
+        while (numberEnd < failure.length() && Character.isDigit(failure.charAt(numberEnd))) {
+            numberEnd++;
+        }
+        try {
+            int localSection = Integer.parseInt(failure.substring(numberStart, numberEnd));
+            if (localSection < 0 || localSection + 1 >= suffix.size()) {
+                return String.format(
+                        Locale.ROOT,
+                        "start=%d:%s:energyGapMeters=%.9g",
+                        absoluteStart, failure, gapMeters);
+            }
+            var upstream = suffix.get(localSection);
+            var downstream = suffix.get(localSection + 1);
+            double spacing = downstream.chainageMeters() - upstream.chainageMeters();
+            return String.format(
+                    Locale.ROOT,
+                    "start=%d,failedLocal=%d,failedAbs=%d,energyGapMeters=%.9g,"
+                            + "bedRiseDownstream=%.9g,bedSlope=%.9g,dischargeDelta=%.9g,"
+                            + "bottomWidthDelta=%.9g,spacing=%.9g",
+                    absoluteStart,
+                    localSection,
+                    absoluteStart + localSection,
+                    gapMeters,
+                    downstream.bedElevationMeters() - upstream.bedElevationMeters(),
+                    (upstream.bedElevationMeters() - downstream.bedElevationMeters()) / spacing,
+                    downstream.dischargeCubicMetersPerSecond()
+                            - upstream.dischargeCubicMetersPerSecond(),
+                    downstream.bottomWidthMeters() - upstream.bottomWidthMeters(),
+                    spacing);
+        } catch (NumberFormatException malformedFailure) {
+            return String.format(
+                    Locale.ROOT,
+                    "start=%d:%s:energyGapMeters=%.9g",
+                    absoluteStart, failure, gapMeters);
+        }
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.CrossSection interpolateSection(
+            SkyIslandGraduallyVariedFlowSolver.CrossSection first,
+            SkyIslandGraduallyVariedFlowSolver.CrossSection second,
+            double fraction) {
+        return new SkyIslandGraduallyVariedFlowSolver.CrossSection(
+                lerp(first.chainageMeters(), second.chainageMeters(), fraction),
+                lerp(first.bedElevationMeters(), second.bedElevationMeters(), fraction),
+                lerp(first.dischargeCubicMetersPerSecond(),
+                        second.dischargeCubicMetersPerSecond(), fraction),
+                lerp(first.bottomWidthMeters(), second.bottomWidthMeters(), fraction),
+                lerp(first.sideSlopeHorizontalToVertical(),
+                        second.sideSlopeHorizontalToVertical(), fraction));
+    }
+
+    private static double lerp(double first, double second, double fraction) {
+        return first + fraction * (second - first);
     }
 
     private static CascadeResidualDiagnostics cascadeResidualDiagnostics(
