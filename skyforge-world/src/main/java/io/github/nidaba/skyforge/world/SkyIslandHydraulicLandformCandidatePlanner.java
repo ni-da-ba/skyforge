@@ -389,7 +389,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 }
             }
             if (edgeOutletReach && kind == SkyIslandChannelProfileKind.CASCADE.ordinal()) {
-                double outletRamp = smoothstep(clamp01((modeStation - 0.60) / 0.40));
+                double normalizedOutletRamp =
+                        Math.max(0.0, Math.min(1.0, (modeStation - 0.60) / 0.40));
+                double outletRamp = normalizedOutletRamp * normalizedOutletRamp
+                        * (3.0 - 2.0 * normalizedOutletRamp);
                 target[i] -= feedbackControls[
                                 2 * SkyIslandChannelProfileKind.values().length + 6]
                         * outletRamp;
