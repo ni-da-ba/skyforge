@@ -133,7 +133,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                         && (message.startsWith(
                                         "bounded channel-bed candidate is infeasible within authored trapezoid geometry")
                                 || message.startsWith(
-                                        "candidate bed is outside the no-fill normalized terrain domain"));
+                                        "candidate bed is outside the no-fill normalized terrain domain")
+                                || message.startsWith(
+                                        "conditioned channel bed would collapse the authored trapezoid bottom width"));
                 if (!boundedBedFailure) {
                     throw infeasibleCandidate;
                 }
