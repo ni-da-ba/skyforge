@@ -58,15 +58,12 @@ def metadata(jar: Path) -> dict[str, Any]:
         return tomllib.loads(archive.read(matches[0]).decode("utf-8"))
 
 
-def staged_profile(
-    mods_dir: Path,
-) -> tuple[set[str], dict[str, tuple[str, dict[str, Any]]], dict[str, list[tuple[str, str, str]]]]:
-    """Return jar hashes, metadata, and duplicate mod IDs for an exactly staged profile."""
+def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any]]]]:
+    """Return jar hashes and metadata for an exactly staged server profile."""
     if not mods_dir.is_dir():
         raise SystemExit(f"staged mods directory does not exist: {mods_dir}")
     hashes: set[str] = set()
     mods: dict[str, tuple[str, dict[str, Any]]] = {}
-    sources: dict[str, list[tuple[str, str, str]]] = {}
     for jar in sorted(mods_dir.glob("*.jar")):
         digest = hashlib.sha256(jar.read_bytes()).hexdigest()
         hashes.add(digest)
@@ -75,15 +72,11 @@ def staged_profile(
             mod_id = str(mod.get("modId", ""))
             if not mod_id:
                 raise SystemExit(f"{jar.name} declares a blank mod id")
-            version = str(mod.get("version", ""))
-            sources.setdefault(mod_id, []).append((jar.name, digest, version))
-            mods.setdefault(mod_id, (jar.name, doc))
-    duplicates = {
-        mod_id: sorted(entries)
-        for mod_id, entries in sources.items()
-        if len(entries) > 1
-    }
-    return hashes, mods, duplicates
+            previous = mods.get(mod_id)
+            if previous is not None and previous[0] != jar.name:
+                raise SystemExit(f"duplicate staged mod id {mod_id}: {previous[0]}, {jar.name}")
+            mods[mod_id] = (jar.name, doc)
+    return hashes, mods
 
 
 def required_server_dependency_ids(doc: dict[str, Any], mod_id: str) -> set[str]:
@@ -296,25 +289,10 @@ def main() -> int:
         summon, uuid = probe_tacz_npc(args.rcon_host, args.rcon_port, args.rcon_password)
         report.append(["entity-probe", args.variant, "", "", "", "tacznpcs:npc", "", "", "", f"summon={summon}; uuid={uuid}"])
     if args.control_mods and args.staged_mods:
-        control_hashes, control_mods, control_duplicates = staged_profile(args.control_mods)
-        staged_hashes, staged_mods, staged_duplicates = staged_profile(args.staged_mods)
+        control_hashes, control_mods = staged_profile(args.control_mods)
+        staged_hashes, staged_mods = staged_profile(args.staged_mods)
         control_ids = set(control_mods)
         staged_ids = set(staged_mods)
-        if staged_duplicates != control_duplicates:
-            changed = sorted(
-                mod_id for mod_id in set(control_duplicates) | set(staged_duplicates)
-                if control_duplicates.get(mod_id) != staged_duplicates.get(mod_id)
-            )
-            raise SystemExit(
-                "candidate staging changed the cumulative baseline's duplicate mod IDs: "
-                f"{changed}"
-            )
-        for mod_id, entries in sorted(staged_duplicates.items()):
-            for jar_name, digest, version in entries:
-                report.append([
-                    "baseline-duplicate-mod-id", args.variant, "", jar_name, digest,
-                    mod_id, version, "", "", "present identically in S7 control and candidate",
-                ])
         missing_base_hashes = control_hashes - staged_hashes
         if missing_base_hashes:
             raise SystemExit(
