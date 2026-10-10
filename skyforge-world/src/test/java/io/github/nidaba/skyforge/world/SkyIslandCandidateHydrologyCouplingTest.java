@@ -549,6 +549,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 + 1.0e-8,
                 "edge-outlet feedback may lower, but must not raise, the terminal bed");
 
+        String exactScanDetails = exactCascadeClosureDiagnostics(cascade.sections());
         boolean exactJumpClosed;
         String exactJumpFailure = "none";
         try {
@@ -568,11 +569,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 Locale.ROOT,
                 "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialHydraulicResidual=%.9g "
                         + "finalHydraulicResidual=%.9g controls=%s residualsConverged=%s "
-                        + "exactJumpClosed=%s exactJumpFailure=%s%n",
+                        + "exactScan=%s exactJumpClosed=%s exactJumpFailure=%s%n",
                 initialResidual,
                 feedback.optimization().residualNorm(),
                 java.util.Arrays.toString(feedback.optimization().controls()),
                 feedback.residualsConverged(),
+                exactScanDetails,
                 exactJumpClosed,
                 exactJumpFailure);
     }
@@ -588,6 +590,68 @@ class SkyIslandCandidateHydrologyCouplingTest {
             diagnostics.normalizedForceResidual(),
             diagnostics.normalizedBranchEnergyGap()
         };
+    }
+
+    /**
+     * Mirrors the production cascade solver's split search and the jump solver's complete
+     * station scan (including its terminal-interval subdivisions). This reports whether the
+     * production candidate set contains any paired branches; it does not accept a jump.
+     */
+    private static String exactCascadeClosureDiagnostics(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade) {
+        var parameters = CALIBRATION.solverParameters();
+        int candidateSplits = 0;
+        int validInletSplits = 0;
+        int pairedBranchSplits = 0;
+        int unpairedBranchSplits = 0;
+        int bestSplit = -1;
+        double bestAbsoluteForceResidual = Double.POSITIVE_INFINITY;
+        String firstPrefixFailure = "none";
+        String firstUnpairedFailure = "none";
+        for (int split = cascade.size() - 4; split >= 2; split--) {
+            candidateSplits++;
+            SkyIslandGraduallyVariedFlowSolver.Result prefix;
+            try {
+                prefix = SkyIslandGraduallyVariedFlowSolver
+                        .solveSupercriticalDownstreamFromCriticalControl(
+                                cascade.subList(0, split + 1), parameters);
+            } catch (IllegalArgumentException | IllegalStateException invalidPrefix) {
+                if (firstPrefixFailure.equals("none")) {
+                    firstPrefixFailure = "split=" + split + ":" + invalidPrefix.getMessage();
+                }
+                continue;
+            }
+            validInletSplits++;
+            double inletDepth = prefix.points().getLast().depthMeters();
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> jumpReach =
+                    cascade.subList(split, cascade.size());
+            try {
+                double forceResidual = SkyIslandHydraulicJumpProfileSolver
+                        .bestSpecificForceResidual(jumpReach, inletDepth, null, parameters);
+                pairedBranchSplits++;
+                if (Math.abs(forceResidual) < bestAbsoluteForceResidual) {
+                    bestAbsoluteForceResidual = Math.abs(forceResidual);
+                    bestSplit = split;
+                }
+            } catch (IllegalArgumentException | IllegalStateException noPairedBranch) {
+                unpairedBranchSplits++;
+                if (firstUnpairedFailure.equals("none")) {
+                    firstUnpairedFailure = "split=" + split + ":" + noPairedBranch.getMessage();
+                }
+            }
+        }
+        return String.format(
+                Locale.ROOT,
+                "splits=%d,inletValid=%d,paired=%d,unpaired=%d,bestSplit=%d,"
+                        + "bestAbsForceResidual=%.9g,firstPrefixFailure=%s,firstUnpairedFailure=%s",
+                candidateSplits,
+                validInletSplits,
+                pairedBranchSplits,
+                unpairedBranchSplits,
+                bestSplit,
+                bestAbsoluteForceResidual,
+                firstPrefixFailure,
+                firstUnpairedFailure);
     }
 
     private static CascadeResidualDiagnostics cascadeResidualDiagnostics(
