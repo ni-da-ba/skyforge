@@ -18,6 +18,7 @@ on:
       - "scripts/wby-s7-combat-evidence.py"
       - "scripts/wby-s7-combat-stage-preflight.py"
       - "scripts/wby-s7-combat-diagnostic-launch.sh"
+      - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
@@ -59,7 +60,55 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-pinned-a4mc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Migrate only the retired Fletching Table build coordinates
+        shell: bash
+        run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars once
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          (cd "$GITHUB_WORKSPACE/a4mc-0.2.2" && sha256sum *.jar | tee SHA256SUMS)
+          {
+            printf '%s\\n' "upstream=MozillaFiredoge/Aerodynamics4MC-Core@171d8dc593651d6b34e3bfecaf6469a11b53b433"
+            printf '%s\\n' "build-only-migration=fletching-table 0.1.0-alpha.22 -> 0.2.0-alpha.9"
+          } > "$GITHUB_WORKSPACE/a4mc-0.2.2/BUILD-PROVENANCE.txt"
+
+      - name: Upload immutable A4MC build output for the combat matrix
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s7-a4mc-0.2.2
+          path: a4mc-0.2.2/*
+          if-no-files-found: error
+
   resolve-and-runtime-acceptance:
+    needs: build-pinned-a4mc
+    needs: build-pinned-a4mc
     strategy:
       fail-fast: false
       matrix:
@@ -81,44 +130,11 @@ jobs:
           bash -n scripts/wby-s7-runtime-acceptance.sh
           python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py
 
-      - name: Check the pinned KikuGie Maven dependency before the A4MC build
-        shell: bash
-        run: |
-          set -euo pipefail
-          pom_url="https://maven.kikugie.dev/releases/dev/kikugie/fletching-table/0.1.0-alpha.22/fletching-table-0.1.0-alpha.22.pom"
-          for attempt in 1 2 3; do
-            if curl --fail --location --silent --show-error --connect-timeout 10 --max-time 20 "$pom_url" --output /dev/null; then
-              echo "Pinned KikuGie POM is reachable."
-              exit 0
-            fi
-            if [[ "$attempt" -lt 3 ]]; then
-              sleep 5
-            fi
-          done
-          echo "::error::Pinned A4MC build dependency is unreachable from maven.kikugie.dev after 3 attempts."
-          exit 1
-
-      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download the exact A4MC build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          repository: MozillaFiredoge/Aerodynamics4MC-Core
-          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
-          path: upstream-a4mc
-          persist-credentials: false
-
-      - name: Build pinned A4MC core and Aeronautics compatibility jars
-        shell: bash
-        run: |
-          set -euo pipefail
-          (
-            cd upstream-a4mc
-            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon
-          )
-          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
-          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
-          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
-          cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
-          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+          name: wby-s7-a4mc-0.2.2
+          path: a4mc-0.2.2
 
       - name: Verify the cumulative S7 BOMD control has no combat overlay
         shell: bash
