@@ -204,8 +204,36 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 2, 0, "unknown", true, false, 0.0, "no candidate route resolution attempted");
         var parameters = CALIBRATION.solverParameters();
 
-        // Compare geometry and physical closure together at progressively finer resolutions.
-        for (int divisionsPerPlanningCell : List.of(4, 8, 16)) {
+        // Let bounded bed/valley candidate generation respond to the exact natural component,
+        // not only to a local cascade residual. A complete confluence/CASCADE closure is the only
+        // zero-residual outcome; otherwise the physical cascade momentum residual ranks trials.
+        try {
+            var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
+                    descriptor,
+                    CALIBRATION,
+                    candidate -> naturalComponentResidualVector(descriptor, candidate, parameters),
+                    1.0e-8,
+                    6);
+            last = solveNaturalCandidate(descriptor, feedback.plan(), "coupled-feedback", parameters);
+            if (last.solved()) {
+                return last;
+            }
+        } catch (IllegalArgumentException | IllegalStateException infeasibleCandidate) {
+            last = new NaturalComponentProbe(
+                    2,
+                    0,
+                    "coupled-feedback",
+                    true,
+                    false,
+                    0.0,
+                    "coupled candidate generation failed: "
+                            + infeasibleCandidate.getClass().getSimpleName()
+                            + ":" + infeasibleCandidate.getMessage());
+        }
+
+        // Retain independent finer-resolution and established-routing controls so this bounded
+        // feedback experiment does not erase previously available candidate evidence.
+        for (int divisionsPerPlanningCell : List.of(8, 16)) {
             try {
                 SkyIslandHydraulicLandformCandidatePlanner.Plan candidate =
                         SkyIslandHydraulicLandformCandidatePlanner.planAtResolution(
@@ -253,6 +281,19 @@ class SkyIslandCandidateHydrologyCouplingTest {
                             + ":" + infeasibleCandidate.getMessage());
         }
         return last;
+    }
+
+    private static double[] naturalComponentResidualVector(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
+        NaturalComponentProbe result =
+                solveNaturalCandidate(descriptor, candidate, "candidate-feedback", parameters);
+        if (result.solved()) {
+            return new double[] {0.0, 0.0, 0.0};
+        }
+        double[] cascadeResiduals = cascadeResidualVector(candidate);
+        return new double[] {1.0, cascadeResiduals[0], cascadeResiduals[1]};
     }
 
     private static NaturalComponentProbe solveNaturalCandidate(
