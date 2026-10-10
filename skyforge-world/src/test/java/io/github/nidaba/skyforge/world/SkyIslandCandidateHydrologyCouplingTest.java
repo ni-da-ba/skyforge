@@ -334,9 +334,9 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 "HYDRAULIC_GEOMETRY_DIAGNOSTIC key=700 %s%n",
                 diagnostics);
         return new double[] {
-            1.0,
             diagnostics.normalizedForceResidual(),
-            diagnostics.normalizedBranchEnergyGap()
+            diagnostics.normalizedBranchEnergyGap(),
+            diagnostics.normalizedBranchStationSeparation()
         };
     }
 
@@ -825,79 +825,101 @@ class SkyIslandCandidateHydrologyCouplingTest {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
                 candidate.requireReach(801, 1951).sections();
         var parameters = CALIBRATION.solverParameters();
+        int sampledStations = cascade.size() - 5;
+        double[] supercriticalDepths = new double[cascade.size()];
+        double[] subcriticalDepths = new double[cascade.size()];
+        java.util.Arrays.fill(supercriticalDepths, Double.NaN);
+        java.util.Arrays.fill(subcriticalDepths, Double.NaN);
+
+        int supercriticalValid = 0;
+        int lastSupercriticalStation = -1;
+        String firstSupercriticalFailure = "none";
+        try {
+            var sourcePair = SkyIslandGraduallyVariedFlowSolver
+                    .solveSupercriticalDownstreamFromCriticalControl(cascade.subList(0, 2), parameters);
+            supercriticalDepths[0] = sourcePair.points().getFirst().depthMeters();
+            supercriticalDepths[1] = sourcePair.points().getLast().depthMeters();
+            for (int station = 2; station <= cascade.size() - 4; station++) {
+                try {
+                    var step = SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                            List.of(cascade.get(station - 1), cascade.get(station)),
+                            supercriticalDepths[station - 1],
+                            parameters);
+                    supercriticalDepths[station] = step.points().getLast().depthMeters();
+                    supercriticalValid++;
+                    lastSupercriticalStation = station;
+                } catch (IllegalArgumentException | IllegalStateException failure) {
+                    firstSupercriticalFailure = "station=" + station + ":" + failure.getMessage();
+                    break;
+                }
+            }
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            firstSupercriticalFailure = "station=2:" + failure.getMessage();
+        }
+        int supercriticalInvalid = sampledStations - supercriticalValid;
+
+        int subcriticalValid = 0;
+        int firstSubcriticalValidStation = -1;
+        String firstSubcriticalFailure = "none";
+        try {
+            int last = cascade.size() - 1;
+            var outletPair = SkyIslandGraduallyVariedFlowSolver
+                    .solveSubcriticalUpstreamFromCriticalControl(
+                            cascade.subList(last - 1, last + 1), parameters);
+            subcriticalDepths[last - 1] = outletPair.points().getFirst().depthMeters();
+            subcriticalDepths[last] = outletPair.points().getLast().depthMeters();
+            firstSubcriticalValidStation = last - 1;
+            for (int station = last - 2; station >= 3; station--) {
+                try {
+                    var step = SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstream(
+                            List.of(cascade.get(station), cascade.get(station + 1)),
+                            subcriticalDepths[station + 1],
+                            parameters);
+                    subcriticalDepths[station] = step.points().getFirst().depthMeters();
+                    firstSubcriticalValidStation = station;
+                } catch (IllegalArgumentException | IllegalStateException failure) {
+                    firstSubcriticalFailure = "station=" + station + ":" + failure.getMessage();
+                    break;
+                }
+            }
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            firstSubcriticalFailure = "station=" + (cascade.size() - 2) + ":" + failure.getMessage();
+        }
+        int firstCandidateStation = Math.max(2, firstSubcriticalValidStation);
+        int lastCandidateStation = cascade.size() - 4;
+        subcriticalValid = firstSubcriticalValidStation < 0
+                ? 0
+                : Math.max(0, lastCandidateStation - firstCandidateStation + 1);
+        int subcriticalInvalid = sampledStations - subcriticalValid;
+        int stationSeparation = firstSubcriticalValidStation < 0 || lastSupercriticalStation < 0
+                ? sampledStations
+                : Math.max(0, firstSubcriticalValidStation - lastSupercriticalStation);
+        double normalizedStationSeparation = (double) stationSeparation / Math.max(1, cascade.size());
+
         double bestForce = Double.NaN;
         int bestForceStation = -1;
         double bestUpstreamDepth = Double.NaN;
         double bestDownstreamDepth = Double.NaN;
         double bestUpstreamFroude = Double.NaN;
         double bestDownstreamFroude = Double.NaN;
-        double bestBranchGap = Double.POSITIVE_INFINITY;
-        int bestBranchGapStation = -1;
-        int supercriticalValid = 0;
-        int supercriticalInvalid = 0;
-        int subcriticalValid = 0;
-        int subcriticalInvalid = 0;
         int pairedStations = 0;
         int adjacentForceSignChanges = 0;
         int previousValidStation = -2;
         double previousForce = Double.NaN;
-        String firstSupercriticalFailure = "none";
-        String firstSubcriticalFailure = "none";
         for (int station = 2; station <= cascade.size() - 4; station++) {
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> prefix =
-                    cascade.subList(0, station + 1);
-            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix =
-                    cascade.subList(station, cascade.size());
-            SkyIslandGraduallyVariedFlowSolver.Result supercritical;
-            try {
-                supercritical = SkyIslandGraduallyVariedFlowSolver
-                        .solveSupercriticalDownstreamFromCriticalControl(prefix, parameters);
-                supercriticalValid++;
-            } catch (IllegalArgumentException | IllegalStateException noSupercriticalPrefix) {
-                supercriticalInvalid++;
-                if (firstSupercriticalFailure.equals("none")) {
-                    firstSupercriticalFailure =
-                            "station=" + station + ":" + noSupercriticalPrefix.getMessage();
-                }
+            double upstreamDepth = supercriticalDepths[station];
+            double downstreamDepth = subcriticalDepths[station];
+            if (!Double.isFinite(upstreamDepth) || !Double.isFinite(downstreamDepth)) {
                 previousValidStation = -2;
                 previousForce = Double.NaN;
                 continue;
             }
-
-            SkyIslandGraduallyVariedFlowSolver.Result subcritical;
-            try {
-                subcritical = SkyIslandGraduallyVariedFlowSolver
-                        .solveSubcriticalUpstreamFromCriticalControl(suffix, parameters);
-                subcriticalValid++;
-            } catch (IllegalArgumentException | IllegalStateException noSubcriticalBranch) {
-                subcriticalInvalid++;
-                if (firstSubcriticalFailure.equals("none")) {
-                    firstSubcriticalFailure =
-                            "station=" + station + ":" + noSubcriticalBranch.getMessage();
-                }
-                double gap = SkyIslandGraduallyVariedFlowSolver
-                        .subcriticalCriticalControlEnergyGap(suffix, parameters);
-                if (gap < bestBranchGap) {
-                    bestBranchGap = gap;
-                    bestBranchGapStation = station;
-                }
-                previousValidStation = -2;
-                previousForce = Double.NaN;
-                continue;
-            }
-
             pairedStations++;
             var section = cascade.get(station);
-            double upstreamDepth = supercritical.points().getLast().depthMeters();
-            double downstreamDepth = subcritical.points().getFirst().depthMeters();
             double mismatch = SkyIslandHydraulicJumpSolver.specificForce(
-                            section,
-                            upstreamDepth,
-                            parameters.gravityMetersPerSecondSquared())
+                            section, upstreamDepth, parameters.gravityMetersPerSecondSquared())
                     - SkyIslandHydraulicJumpSolver.specificForce(
-                            section,
-                            downstreamDepth,
-                            parameters.gravityMetersPerSecondSquared());
+                            section, downstreamDepth, parameters.gravityMetersPerSecondSquared());
             if (previousValidStation == station - 1
                     && Double.isFinite(previousForce)
                     && previousForce * mismatch <= 0.0) {
@@ -910,21 +932,26 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 bestForceStation = station;
                 bestUpstreamDepth = upstreamDepth;
                 bestDownstreamDepth = downstreamDepth;
-                bestUpstreamFroude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
-                        section, upstreamDepth, parameters);
-                bestDownstreamFroude = SkyIslandGraduallyVariedFlowSolver.froudeNumber(
-                        section, downstreamDepth, parameters);
+                bestUpstreamFroude =
+                        SkyIslandGraduallyVariedFlowSolver.froudeNumber(section, upstreamDepth, parameters);
+                bestDownstreamFroude =
+                        SkyIslandGraduallyVariedFlowSolver.froudeNumber(section, downstreamDepth, parameters);
             }
         }
+
+        int bestBranchGapStation = -1;
+        double bestBranchGap = 0.0;
+        if (pairedStations == 0 && lastSupercriticalStation >= 2) {
+            bestBranchGapStation = lastSupercriticalStation;
+            bestBranchGap = SkyIslandGraduallyVariedFlowSolver.subcriticalCriticalControlEnergyGap(
+                    cascade.subList(lastSupercriticalStation, cascade.size()), parameters);
+        }
         var scaleSection = cascade.get(cascade.size() / 2);
-        double forceScale = Math.max(
-                1.0, Math.pow(scaleSection.bottomWidthMeters(), 3.0));
+        double forceScale = Math.max(1.0, Math.pow(scaleSection.bottomWidthMeters(), 3.0));
         double energyScale = Math.max(
                 1.0, SkyIslandGraduallyVariedFlowSolver.criticalDepth(cascade.getLast(), parameters));
-        double normalizedForceResidual =
-                Double.isFinite(bestForce) ? bestForce / forceScale : 1.0;
-        double normalizedBranchGap =
-                Double.isFinite(bestBranchGap) ? bestBranchGap / energyScale : 0.0;
+        double normalizedForceResidual = Double.isFinite(bestForce) ? bestForce / forceScale : 1.0;
+        double normalizedBranchGap = bestBranchGap / energyScale;
         double conjugateDepthGap = Double.NaN;
         String conjugateCheck = "no-paired-station";
         if (bestForceStation >= 0) {
@@ -944,13 +971,16 @@ class SkyIslandCandidateHydrologyCouplingTest {
         return new CascadeResidualDiagnostics(
                 normalizedForceResidual,
                 normalizedBranchGap,
-                cascade.size() - 5,
+                normalizedStationSeparation,
+                sampledStations,
                 supercriticalValid,
                 supercriticalInvalid,
                 subcriticalValid,
                 subcriticalInvalid,
                 pairedStations,
                 adjacentForceSignChanges,
+                lastSupercriticalStation,
+                firstSubcriticalValidStation,
                 bestForceStation,
                 bestForce,
                 bestUpstreamDepth,
@@ -1129,6 +1159,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
     private record CascadeResidualDiagnostics(
             double normalizedForceResidual,
             double normalizedBranchEnergyGap,
+            double normalizedBranchStationSeparation,
             int sampledStations,
             int supercriticalValidStations,
             int supercriticalInvalidStations,
@@ -1136,6 +1167,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
             int subcriticalInvalidStations,
             int pairedStations,
             int adjacentForceSignChanges,
+            int lastSupercriticalStation,
+            int firstSubcriticalValidStation,
             int bestForceStation,
             double bestForceResidualCubicMeters,
             double bestUpstreamDepthMeters,
