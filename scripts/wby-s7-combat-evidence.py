@@ -55,6 +55,27 @@ def metadata(jar: Path) -> dict[str, Any]:
         return tomllib.loads(archive.read(matches[0]).decode("utf-8"))
 
 
+def staged_profile(mods_dir: Path) -> tuple[set[str], set[str]]:
+    """Return jar SHA-256s and mod IDs for an exactly staged server profile."""
+    if not mods_dir.is_dir():
+        raise SystemExit(f"staged mods directory does not exist: {mods_dir}")
+    hashes: set[str] = set()
+    ids: dict[str, str] = {}
+    for jar in sorted(mods_dir.glob("*.jar")):
+        digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+        hashes.add(digest)
+        doc = metadata(jar)
+        for mod in doc.get("mods", []):
+            mod_id = str(mod.get("modId", ""))
+            if not mod_id:
+                raise SystemExit(f"{jar.name} declares a blank mod id")
+            previous = ids.get(mod_id)
+            if previous is not None and previous != jar.name:
+                raise SystemExit(f"duplicate staged mod id {mod_id}: {previous}, {jar.name}")
+            ids[mod_id] = jar.name
+    return hashes, set(ids)
+
+
 def license_for(metadata_doc: dict[str, Any], mod_id: str) -> str:
     matches = [mod for mod in metadata_doc.get("mods", []) if str(mod.get("modId", "")) == mod_id]
     return str(matches[0].get("license", "")) if len(matches) == 1 else ""
@@ -67,12 +88,16 @@ def safe(value: object) -> str:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mods", type=Path, required=True)
+    parser.add_argument("--control-mods", type=Path)
+    parser.add_argument("--staged-mods", type=Path)
     parser.add_argument("--pins", type=Path, default=Path("skyforge-neoforge-1211/wby-s7-combat.properties"))
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
     parser.add_argument("--server-log", type=Path, required=True)
     parser.add_argument("--client-log", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
+    if bool(args.control_mods) != bool(args.staged_mods):
+        raise SystemExit("--control-mods and --staged-mods must be supplied together")
 
     pins = read_properties(args.pins)
     selected = set(ARMS[args.variant])
@@ -137,6 +162,31 @@ def main() -> int:
             raise SystemExit(f"Server runtime log did not discover {mod_id}")
         if marker not in client_log:
             raise SystemExit(f"Client runtime log did not discover {mod_id}")
+
+    profile_delta: set[str] = set()
+    if args.control_mods and args.staged_mods:
+        control_hashes, control_ids = staged_profile(args.control_mods)
+        staged_hashes, staged_ids = staged_profile(args.staged_mods)
+        missing_base_hashes = control_hashes - staged_hashes
+        if missing_base_hashes:
+            raise SystemExit(
+                "candidate staging changed or omitted cumulative baseline jars; "
+                f"missing hashes={sorted(missing_base_hashes)}"
+            )
+        if not control_ids <= staged_ids:
+            raise SystemExit(f"candidate server staging omitted baseline mod IDs: {sorted(control_ids - staged_ids)}")
+        profile_delta = staged_ids - control_ids
+        if not active_mod_ids <= profile_delta:
+            raise SystemExit(
+                "selected combat candidate IDs are not isolated additions to the control profile: "
+                f"missing={sorted(active_mod_ids - profile_delta)}"
+            )
+        report.append([
+            "profile-delta", args.variant, "", "", "", "", "", "", "",
+            "control_ids=" + ",".join(sorted(control_ids))
+            + ";candidate_added_ids=" + ",".join(sorted(profile_delta))
+            + ";baseline_jar_hashes_preserved=" + str(len(control_hashes)),
+        ])
 
     for label, path in (("server", args.server_log), ("client", args.client_log)):
         report.append(["runtime-load", args.variant, "", path.name, "", "", "", "", "", f"{label}:all selected mod ids loaded"])
