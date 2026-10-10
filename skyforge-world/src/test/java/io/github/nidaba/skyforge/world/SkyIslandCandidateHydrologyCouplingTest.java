@@ -58,7 +58,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * candidateDepth;
                 assertEquals(
                         2.0 * sectionSample.bankfullHalfWidth()
-                                * reach.channelWidthScale()
+                                * reach.channelWidthScaleAtSection(i)
                                 * CALIBRATION.metersPerWorldUnit(),
                         reconstructedBankfullWidth,
                         1.0e-8,
@@ -454,12 +454,16 @@ class SkyIslandCandidateHydrologyCouplingTest {
         SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
                 feedback.plan().requireReach(801, 1951);
         assertTrue(
-                cascade.channelWidthScale() >= 0.50 && cascade.channelWidthScale() <= 1.50,
+                cascade.sectionWidthScales().stream()
+                        .allMatch(scale -> scale >= 0.75 && scale <= 1.25),
                 "candidate channel width must remain inside the explicit morphology envelope");
-        assertTrue(
-                feedback.plan().reaches().stream()
-                        .allMatch(reach -> reach.channelWidthScale() == cascade.channelWidthScale()),
-                "incoming branches and the cascade must share one coupled width response");
+        for (int source : List.of(660, 1140)) {
+            SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate incoming =
+                    feedback.plan().requireReach(source, 801);
+            assertTrue(
+                    incoming.sectionWidthScales().stream().allMatch(scale -> scale == 1.0),
+                    "localized cascade-pool widening must leave source branches unchanged");
+        }
         for (int i = 0; i < cascade.sections().size(); i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = cascade.skeleton().samples().get(i);
             double localTerrainMeters = sample.terrainElevation()
@@ -469,7 +473,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * depth;
             assertEquals(
                     2.0 * sample.bankfullHalfWidth()
-                            * cascade.channelWidthScale()
+                            * cascade.channelWidthScaleAtSection(i)
                             * CALIBRATION.metersPerWorldUnit(),
                     reconstructedBankfullWidth,
                     1.0e-8,
