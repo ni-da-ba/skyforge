@@ -100,12 +100,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // the best responsive amplitude with downstream pool-width changes, which rebuild both
         // the trapezoidal sections and their valley terrain; geometry bounds remain enforced.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(-0.20, 2, 0, 0.60),
-            new CascadeShapeTrial(-0.10, 2, 0, 0.60),
-            new CascadeShapeTrial(-0.05, 2, 0, 0.60),
-            new CascadeShapeTrial(0.05, 2, 0, 0.60),
-            new CascadeShapeTrial(0.10, 2, 0, 0.60),
-            new CascadeShapeTrial(0.20, 2, 0, 0.60)
+            new CascadeShapeTrial(0.075, 2, 0, 0.60),
+            new CascadeShapeTrial(0.085, 2, 0, 0.60),
+            new CascadeShapeTrial(0.095, 2, 0, 0.60),
+            new CascadeShapeTrial(0.100, 2, 0, 0.60),
+            new CascadeShapeTrial(0.105, 2, 0, 0.60),
+            new CascadeShapeTrial(0.115, 2, 0, 0.60)
         };
         double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
