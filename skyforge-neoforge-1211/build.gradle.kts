@@ -498,11 +498,11 @@ check(wbyS7CombatPin("minecraft", "version") == "1.21.1")
 check(wbyS7CombatPin("neoforge", "version") == "21.1.249")
 check(wbyS7CombatPin("profile", "base") == "wby-s7-bomd")
 val wbyS7CombatEngineeringMods = listOf(
-    "createRadars", "createAeroRadars", "createFireControl", "mianbaosNewModernWarfare",
+    "copycatsPlus", "createRadars", "createAeroRadars", "createFireControl", "mianbaosNewModernWarfare",
     "cbcNeoWarfare", "cbcTerminalBallistics",
 )
 val wbyS7TaczMods = listOf("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
-val wbyS7ScorchedMods = listOf("scorchedGuns")
+val wbyS7ScorchedMods = listOf("scorchedGuns", "framework", "curios")
 val wbyS7CombatCandidateMods = wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
