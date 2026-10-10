@@ -156,6 +156,28 @@ def probe_tacz_npc(host: str, port: int, password: str) -> tuple[str, str]:
     return summon, uuid
 
 
+def probe_radar_debug_report(root: Path, host: str, port: int, password: str) -> tuple[str, str]:
+    response = rcon("radar debug gen_debug_file", host, port, password)
+    if "Create Radar debug generated:" not in response:
+        raise SystemExit(f"Create: Radars debug command did not report success: {response!r}")
+    report_dir = root / "create_radar_debug"
+    reports = sorted(report_dir.glob("debug_*.txt")) if report_dir.is_dir() else []
+    if not reports:
+        raise SystemExit(f"Create: Radars debug command did not write a report under {report_dir}")
+    report_path = reports[-1]
+    contents = report_path.read_text(encoding="utf-8", errors="replace")
+    required_sections = (
+        "=== Create Radar Debug Dump ===",
+        "=== radar dump_links ===",
+        "=== radar list_active_filters ===",
+        "=== radar debug weapon_endpoints ===",
+    )
+    missing = [section for section in required_sections if section not in contents]
+    if missing:
+        raise SystemExit(f"Create: Radars debug report is incomplete: missing {missing}")
+    return report_path.name, hashlib.sha256(report_path.read_bytes()).hexdigest()
+
+
 def config_signals(value: object, prefix: str = "") -> list[str]:
     signals: list[str] = []
     if isinstance(value, dict):
@@ -282,6 +304,15 @@ def main() -> int:
             raise SystemExit(f"Client runtime log did not discover {mod_id}")
 
     profile_delta: set[str] = set()
+    if not args.rcon_host or not args.rcon_password:
+        raise SystemExit("Combat arm requires RCON credentials for its radar diagnostic report probe")
+    radar_report, radar_digest = probe_radar_debug_report(
+        args.runtime_root, args.rcon_host, args.rcon_port, args.rcon_password
+    )
+    report.append([
+        "radar-debug-report", args.variant, "", radar_report, radar_digest, "", "", "", "",
+        "registered command generated links/filter/weapon-endpoint diagnostic sections",
+    ])
     append_runtime_config_evidence(args.runtime_root, args.variant, report)
     if args.variant == "tacz":
         if not args.rcon_host or not args.rcon_password:
