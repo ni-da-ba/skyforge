@@ -173,10 +173,24 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    scan_profile("control-server", args.control_server)
-    scan_profile("control-client", args.control_client)
-    scan_profile("candidate-server", args.candidate_server)
-    scan_profile("candidate-client", args.candidate_client)
+    control_server_ids, control_server_hashes = scan_profile("control-server", args.control_server)
+    control_client_ids, control_client_hashes = scan_profile("control-client", args.control_client)
+    candidate_server_ids, candidate_server_hashes = scan_profile("candidate-server", args.candidate_server)
+    candidate_client_ids, candidate_client_hashes = scan_profile("candidate-client", args.candidate_client)
+
+    for label, control_ids, control_hashes, candidate_ids, candidate_hashes in (
+        ("server", control_server_ids, control_server_hashes, candidate_server_ids, candidate_server_hashes),
+        ("client", control_client_ids, control_client_hashes, candidate_client_ids, candidate_client_hashes),
+    ):
+        missing_hashes = set(control_hashes) - set(candidate_hashes)
+        missing_ids = set(control_ids) - set(candidate_ids)
+        if missing_hashes or missing_ids:
+            raise SystemExit(
+                f"{label}: candidate profile altered the cumulative baseline; "
+                f"missing jar hashes={sorted(missing_hashes)} missing mod IDs={sorted(missing_ids)}"
+            )
+        print(f"S7 baseline preservation PASS side={label} jars={len(control_hashes)} mod_ids={len(control_ids)}")
+
     pins = read_properties(args.pins)
     candidate_identity(args.variant, pins, args.candidate_server, args.candidate_client, args.output)
     return 0
