@@ -101,12 +101,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // pools/steps at representative cascade positions. The QP and valley constructor enforce
         // the actual terrain and incision limits for each trial.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.25, 0, -1),
-            new CascadeShapeTrial(-0.25, 0, -1),
-            new CascadeShapeTrial(0.25, 1, 1),
-            new CascadeShapeTrial(-0.25, 1, 1),
-            new CascadeShapeTrial(0.25, 2, -1),
-            new CascadeShapeTrial(-0.25, 2, -1)
+            new CascadeShapeTrial(0.25, 0, -1, 0.0),
+            new CascadeShapeTrial(-0.25, 1, 1, 0.0),
+            new CascadeShapeTrial(0.25, 2, -1, 0.0),
+            new CascadeShapeTrial(0.0, 0, 0, 0.25),
+            new CascadeShapeTrial(0.0, 0, 0, 0.50),
+            new CascadeShapeTrial(0.0, 0, 0, 0.75)
         };
         double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
@@ -124,6 +124,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             controls[localControlStart + trial.localModeIndex()] =
                     trial.bedDirection() * localAmplitude;
             controls[localControlStart + 3 + trial.localModeIndex()] = trial.widthScaleOffset();
+            controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
             Plan candidate;
             try {
                 candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
@@ -162,11 +163,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     private static int feedbackControlCount() {
-        return 2 * SkyIslandChannelProfileKind.values().length + 6;
+        return 2 * SkyIslandChannelProfileKind.values().length + 7;
     }
 
     private record CascadeShapeTrial(
-            double widthScaleOffset, int localModeIndex, int bedDirection) {}
+            double widthScaleOffset,
+            int localModeIndex,
+            int bedDirection,
+            double terminalDropFraction) {}
 
     private static double localizedCascadeBump(double station, double center, double radius) {
         double normalizedDistance = Math.abs(station - center) / radius;
@@ -290,15 +294,22 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 .filter(node -> node.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE)
                 .map(SkyIslandGeomorphicNetworkNode::cellIndex)
                 .toList();
+        List<Integer> edgeOutletNodes = SkyIslandChannelTerminalFatePlanner.plan(
+                        descriptor, skeleton.geomorphicNetwork()).stream()
+                .filter(fate -> fate.kind() == SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
+                .map(SkyIslandChannelTerminalFate::channelTerminalCellIndex)
+                .toList();
         List<ReachCandidate> reaches = new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections =
                     calibration.crossSections(descriptor, reach.samples(), reach.samples());
             boolean sourceReach = sourceNodes.contains(
                     reach.geomorphicRoute().semanticReach().startCellIndex());
+            boolean edgeOutletReach = edgeOutletNodes.contains(
+                    reach.geomorphicRoute().semanticReach().endCellIndex());
             CandidateBedResult bedResult = conditionBedProfile(
                     descriptor, reach, rawSections, calibration, reliefMeters, sourceReach,
-                    feedbackControls);
+                    edgeOutletReach, feedbackControls);
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = bedResult.sections();
             if (sections.size() != reach.samples().size()) {
                 throw new IllegalStateException(
@@ -349,6 +360,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             double reliefMeters,
             boolean sourceReach,
+            boolean edgeOutletReach,
             double[] feedbackControls) {
         int count = rawSections.size();
         double[] target = new double[count];
@@ -375,6 +387,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                     2 * SkyIslandChannelProfileKind.values().length + localMode]
                             * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
                 }
+            }
+            if (edgeOutletReach && kind == SkyIslandChannelProfileKind.CASCADE.ordinal()) {
+                double outletRamp = smoothstep(clamp01((modeStation - 0.60) / 0.40));
+                target[i] -= feedbackControls[
+                                2 * SkyIslandChannelProfileKind.values().length + 6]
+                        * outletRamp;
             }
             lower[i] = Math.max(0.0, surface - maximumIncision);
             upper[i] = surface;
