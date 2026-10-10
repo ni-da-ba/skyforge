@@ -588,7 +588,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 diagnostics);
         return new double[] {
             diagnostics.normalizedForceResidual(),
-            diagnostics.normalizedBranchEnergyGap()
+            diagnostics.normalizedBranchEnergyGap(),
+            diagnostics.normalizedBranchStationSeparation()
         };
     }
 
