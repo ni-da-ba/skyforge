@@ -7576,7 +7576,9 @@ wbyS1StageClientMods.configure {
             .map { token(wbyWave1Pin(it, "coordinate")) } +
         wbyAlphaClientOptimizerMods.map { token(wbyWave1BPin(it, "coordinate")) } +
         wbyS05PackAuthorityMods.map(::wbyS05Token) +
-        wbyS05BQolClientServerMods.map(::wbyS05BQolToken) +
+        wbyS05BQolClientServerMods
+            .filterNot { wbyS4OrdinaryLife && it == "moonlight" }
+            .map(::wbyS05BQolToken) +
         wbyS05BQolClientOnlyMods.map(::wbyS05BQolToken) +
         listOf(
             wbyS1A4mcToken("core"),
