@@ -479,6 +479,21 @@ class SkyIslandCandidateHydrologyCouplingTest {
                     1.0e-8,
                     "hydraulic section width must match the jointly scaled valley/channel candidate");
         }
+        List<SkyIslandChannelProfile> cascadeProfiles =
+                cascade.skeleton().geomorphicRoute().semanticReach().profiles();
+        for (int i = 1; i < cascade.sections().size(); i++) {
+            SkyIslandChannelProfileKind upstreamKind = profileKindAt(
+                    cascadeProfiles, cascade.skeleton().samples().get(i - 1).stationFraction());
+            SkyIslandChannelProfileKind downstreamKind = profileKindAt(
+                    cascadeProfiles, cascade.skeleton().samples().get(i).stationFraction());
+            if (upstreamKind == SkyIslandChannelProfileKind.CASCADE
+                    && downstreamKind == SkyIslandChannelProfileKind.CASCADE) {
+                assertTrue(
+                        cascade.sections().get(i).bedElevationMeters()
+                                <= cascade.sections().get(i - 1).bedElevationMeters() + 1.0e-8,
+                        "CASCADE bed must not rise downstream within its controlled chute");
+            }
+        }
         assertEquals(
                 0.0,
                 cascade.sections().getFirst().bedElevationMeters()
@@ -564,6 +579,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
             Double.isFinite(bestForce) ? bestForce / forceScale : 1.0,
             Double.isFinite(bestBranchGap) ? bestBranchGap / energyScale : 0.0
         };
+    }
+
+    private static SkyIslandChannelProfileKind profileKindAt(
+            List<SkyIslandChannelProfile> profiles, double station) {
+        int index = Math.min(
+                profiles.size() - 1,
+                (int) Math.floor(Math.max(0.0, Math.min(0.999999999, station)) * profiles.size()));
+        return profiles.get(index).kind();
     }
 
     private static double residualNorm(double[] residuals) {
