@@ -58,6 +58,7 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * candidateDepth;
                 assertEquals(
                         2.0 * sectionSample.bankfullHalfWidth()
+                                * reach.channelWidthScale()
                                 * CALIBRATION.metersPerWorldUnit(),
                         reconstructedBankfullWidth,
                         1.0e-8,
@@ -452,6 +453,24 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 "bed feedback must preserve every authored semantic edge");
         SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
                 feedback.plan().requireReach(801, 1951);
+        assertTrue(
+                cascade.channelWidthScale() >= 0.75 && cascade.channelWidthScale() <= 1.25,
+                "candidate channel width must remain inside the explicit morphology envelope");
+        for (int i = 0; i < cascade.sections().size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = cascade.skeleton().samples().get(i);
+            double localTerrainMeters = sample.terrainElevation()
+                    * descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
+            double depth = localTerrainMeters - cascade.sections().get(i).bedElevationMeters();
+            double reconstructedBankfullWidth = cascade.sections().get(i).bottomWidthMeters()
+                    + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * depth;
+            assertEquals(
+                    2.0 * sample.bankfullHalfWidth()
+                            * cascade.channelWidthScale()
+                            * CALIBRATION.metersPerWorldUnit(),
+                    reconstructedBankfullWidth,
+                    1.0e-8,
+                    "hydraulic section width must match the jointly scaled valley/channel candidate");
+        }
         assertEquals(
                 0.0,
                 cascade.sections().getFirst().bedElevationMeters()
