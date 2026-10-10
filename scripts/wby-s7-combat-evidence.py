@@ -70,7 +70,7 @@ def staged_jar_metadata(
     owner: str,
     *,
     depth: int = 0,
-) -> list[tuple[str, dict[str, Any]]]:
+) -> list[tuple[str, dict[str, Any], str]]:
     """Read a jar and its bounded JarJar children for staged dependency closure."""
     if depth > 4:
         raise SystemExit(f"{owner}: JarJar nesting exceeds the supported depth")
@@ -79,7 +79,7 @@ def staged_jar_metadata(
     except (OSError, zipfile.BadZipFile) as exc:
         raise SystemExit(f"{owner}: invalid nested jar: {exc}") from exc
 
-    results: list[tuple[str, dict[str, Any]]] = []
+    results: list[tuple[str, dict[str, Any], str]] = []
     with archive:
         names = archive.namelist()
         metadata_entries = [name for name in names if name.lower() == TOML_PATH.lower()]
@@ -90,7 +90,7 @@ def staged_jar_metadata(
                 doc = tomllib.loads(archive.read(metadata_entries[0]).decode("utf-8"))
             except (UnicodeError, tomllib.TOMLDecodeError) as exc:
                 raise SystemExit(f"{owner}: invalid mod metadata: {exc}") from exc
-            results.append((owner, doc))
+            results.append((owner, doc, hashlib.sha256(jar_bytes).hexdigest()))
 
         jarjar_entries = [name for name in names if name.lower() == "meta-inf/jarjar/metadata.json"]
         if len(jarjar_entries) > 1:
@@ -125,27 +125,30 @@ def staged_jar_metadata(
     return results
 
 
-def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any]]]]:
+def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any], str]]]:
     """Return jar hashes and metadata for an exactly staged server profile."""
     if not mods_dir.is_dir():
         raise SystemExit(f"staged mods directory does not exist: {mods_dir}")
     hashes: set[str] = set()
-    mods: dict[str, tuple[str, dict[str, Any]]] = {}
+    mods: dict[str, tuple[str, dict[str, Any], str]] = {}
     for jar in sorted(mods_dir.glob("*.jar")):
         jar_bytes = jar.read_bytes()
         hashes.add(hashlib.sha256(jar_bytes).hexdigest())
         declarations = staged_jar_metadata(jar_bytes, jar.name)
         if not declarations:
             raise SystemExit(f"{jar.name}: no mod metadata in the outer jar or JarJar children")
-        for owner, doc in declarations:
+        for owner, doc, content_hash in declarations:
             for mod in doc.get("mods", []):
                 mod_id = str(mod.get("modId", ""))
                 if not mod_id:
                     raise SystemExit(f"{owner} declares a blank mod id")
                 previous = mods.get(mod_id)
-                if previous is not None and previous[0] != owner:
-                    raise SystemExit(f"duplicate staged mod id {mod_id}: {previous[0]}, {owner}")
-                mods[mod_id] = (owner, doc)
+                if previous is not None and previous[2] != content_hash:
+                    raise SystemExit(
+                        f"conflicting duplicate staged mod id {mod_id}: "
+                        f"{previous[0]} sha256={previous[2]}, {owner} sha256={content_hash}"
+                    )
+                mods[mod_id] = (owner, doc, content_hash)
     return hashes, mods
 
 
