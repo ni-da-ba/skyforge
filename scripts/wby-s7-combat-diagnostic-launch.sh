@@ -76,6 +76,7 @@ echo "Start a fresh normal Overworld (leave preset at Default/Normal) with seed 
 echo "Keep difficulty Normal. Begin in Survival; use Creative briefly only if needed to inspect item catalogs or place test targets."
 echo "Review the radar/IFF target picture, track handoff into Fire Control, targeting stability while an aircraft/vehicle is moving, and cannon alignment/fire timing with CBC 5.11.7."
 echo "Test projectiles against static blocks and moving Sable contraptions; note shielding, penetration, damage, recoil, reload/ammo supply, and whether weapons work after save/reopen."
+echo "After building/linking the radar and weapon network, run /radar debug gen_debug_file in the world to capture radar links, filters, and weapon endpoints."
 echo "For TaCZ, inspect aircraft-mounted guns, Create automation, TaCZ NPC behavior, and default NPC appearances at villages/outposts/mansions. For Scorched, inspect the distinct weapon/mob/structure/turret/ExoSuit catalogue and any shield-generator interaction."
 echo "Use JEI to record candidate ammo/material recipes and loot/spawn observations. Do not change recipes, drops, balance, or progression."
 echo "This is a compatibility/content-fit gate only; do not promote a firearm arm from this one run."
@@ -117,8 +118,9 @@ set -e
 
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
 test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
+test ! -d "$run_path/create_radar_debug" || cp -R "$run_path/create_radar_debug" "$bundle/create_radar_debug"
 if [[ -d "$run_path/mods" ]]; then
   find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
 fi
-echo "Send this diagnostics folder if anything failed: $bundle"
+echo "If a radar debug dump was generated, it is included under $bundle/create_radar_debug."\necho "Send this diagnostics folder if anything failed: $bundle"
 exit "$status"
