@@ -16,6 +16,7 @@ on:
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
       - "skyforge-neoforge-1211/wby-s7-combat.properties"
       - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
       - "scripts/wby-s7-combat-diagnostic-launch.sh"
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
@@ -44,6 +45,7 @@ on:
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
       - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
       - "scripts/wby-s7-combat-diagnostic-launch.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
@@ -77,7 +79,7 @@ jobs:
           bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s7-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py
 
       - name: Checkout pinned Aerodynamics4MC 0.2.2 source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -174,6 +176,16 @@ jobs:
             -PwbyS1RunDirectory=run-wby-s7-server
           echo "WBY S7 all-side profile staging PASS"
 
+      - name: Reject duplicate mod IDs before runtime launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/wby-s7-combat-stage-preflight.py \
+            --profile control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
+            --profile control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
+            --profile candidate-server skyforge-neoforge-1211/run-wby-s7-server/server-mods \
+            --profile candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods
+
       - name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
         run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
@@ -245,10 +257,12 @@ jobs:
             wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
+            s7-production-server/hs_err_pid*.log
             s7-production-server/config/*.toml
             s7-production-server/config/**/*.json
             s7-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s7-server/config/*.toml
             skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s7-join-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s7-join-client/hs_err_pid*.log
           if-no-files-found: warn
