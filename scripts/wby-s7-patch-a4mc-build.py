@@ -21,6 +21,15 @@ def replace_once(path: Path, before: str, after: str) -> None:
     path.write_text(text.replace(before, after), encoding="utf-8")
 
 
+def require_once(path: Path, expected: str) -> None:
+    text = path.read_text(encoding="utf-8")
+    count = text.count(expected)
+    if count != 1:
+        raise SystemExit(
+            f"Expected exactly one occurrence of {expected!r} in {path}; found {count}"
+        )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("upstream", type=Path)
@@ -32,13 +41,16 @@ def main() -> None:
                  'fletching-table = "0.2.0-alpha.9"')
     replace_once(versions, 'module = "dev.kikugie:fletching-table"',
                  'module = "dev.kikugie.fletching-table:fletching-table"')
-    replace_once(versions, 'id = "dev.kikugie.fletching-table"',
-                 'id = "dev.kikugie.fletching-table.neoforge"')
-    replace_once(plugin, '"dev.kikugie.fletching-table"',
-                 '"dev.kikugie.fletching-table.neoforge"')
 
-    print("Applied Fletching Table 0.2.0-alpha.9 build-tool migration.")
-    print("Upstream A4MC source files and runtime sources remain pinned and unchanged.")
+    # The 0.2 publication retains the stable plugin marker id. Only the module
+    # coordinates changed; changing this id to the old NeoForge-specific marker
+    # makes Gradle search for a plugin marker that was never published.
+    require_once(versions, 'id = "dev.kikugie.fletching-table"')
+    require_once(plugin, '"dev.kikugie.fletching-table"')
+
+    print("Applied Fletching Table 0.2.0-alpha.9 build-tool coordinate migration.")
+    print("Kept the published plugin marker id dev.kikugie.fletching-table.")
+    print("Upstream A4MC runtime source remains pinned and unchanged.")
 
 
 if __name__ == "__main__":
