@@ -122,5 +122,6 @@ test ! -d "$run_path/create_radar_debug" || cp -R "$run_path/create_radar_debug"
 if [[ -d "$run_path/mods" ]]; then
   find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
 fi
-echo "If a radar debug dump was generated, it is included under $bundle/create_radar_debug."\necho "Send this diagnostics folder if anything failed: $bundle"
+echo "If a radar debug dump was generated, it is included under $bundle/create_radar_debug."
+echo "Send this diagnostics folder if anything failed: $bundle"
 exit "$status"
