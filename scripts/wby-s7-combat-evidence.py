@@ -157,14 +157,29 @@ def probe_tacz_npc(host: str, port: int, password: str) -> tuple[str, str]:
 
 
 def probe_radar_debug_report(root: Path, host: str, port: int, password: str) -> tuple[str, str]:
+    report_dir = root / "create_radar_debug"
+
+    def signature(path: Path) -> tuple[int, int, int, str]:
+        stat = path.stat()
+        return (
+            stat.st_size,
+            stat.st_mtime_ns,
+            stat.st_ctime_ns,
+            hashlib.sha256(path.read_bytes()).hexdigest(),
+        )
+
+    before = {
+        path.name: signature(path)
+        for path in report_dir.glob("debug_*.txt")
+    } if report_dir.is_dir() else {}
     response = rcon("radar debug gen_debug_file", host, port, password)
     if "Create Radar debug generated:" not in response:
         raise SystemExit(f"Create: Radars debug command did not report success: {response!r}")
-    report_dir = root / "create_radar_debug"
     reports = sorted(report_dir.glob("debug_*.txt")) if report_dir.is_dir() else []
-    if not reports:
-        raise SystemExit(f"Create: Radars debug command did not write a report under {report_dir}")
-    report_path = reports[-1]
+    fresh = [path for path in reports if before.get(path.name) != signature(path)]
+    if not fresh:
+        raise SystemExit(f"Create: Radars debug command reported success but wrote no fresh report under {report_dir}")
+    report_path = max(fresh, key=lambda path: (path.stat().st_mtime_ns, path.name))
     contents = report_path.read_text(encoding="utf-8", errors="replace")
     required_sections = (
         "=== Create Radar Debug Dump ===",
