@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import io
 import json
 import re
 import socket
@@ -11,7 +12,7 @@ import struct
 import sys
 import tomllib
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any
 
 ENGINEERING = (
@@ -64,6 +65,66 @@ def metadata(jar: Path) -> dict[str, Any]:
         return tomllib.loads(archive.read(matches[0]).decode("utf-8"))
 
 
+def staged_jar_metadata(
+    jar_bytes: bytes,
+    owner: str,
+    *,
+    depth: int = 0,
+) -> list[tuple[str, dict[str, Any]]]:
+    """Read a jar and its bounded JarJar children for staged dependency closure."""
+    if depth > 4:
+        raise SystemExit(f"{owner}: JarJar nesting exceeds the supported depth")
+    try:
+        archive = zipfile.ZipFile(io.BytesIO(jar_bytes))
+    except (OSError, zipfile.BadZipFile) as exc:
+        raise SystemExit(f"{owner}: invalid nested jar: {exc}") from exc
+
+    results: list[tuple[str, dict[str, Any]]] = []
+    with archive:
+        names = archive.namelist()
+        metadata_entries = [name for name in names if name.lower() == TOML_PATH.lower()]
+        if len(metadata_entries) > 1:
+            raise SystemExit(f"{owner}: expected at most one {TOML_PATH}, found {metadata_entries}")
+        if metadata_entries:
+            try:
+                doc = tomllib.loads(archive.read(metadata_entries[0]).decode("utf-8"))
+            except (UnicodeError, tomllib.TOMLDecodeError) as exc:
+                raise SystemExit(f"{owner}: invalid mod metadata: {exc}") from exc
+            results.append((owner, doc))
+
+        jarjar_entries = [name for name in names if name.lower() == "meta-inf/jarjar/metadata.json"]
+        if len(jarjar_entries) > 1:
+            raise SystemExit(f"{owner}: duplicate JarJar metadata entries")
+        if not jarjar_entries:
+            return results
+        try:
+            jarjar = json.loads(archive.read(jarjar_entries[0]).decode("utf-8"))
+        except (UnicodeError, json.JSONDecodeError) as exc:
+            raise SystemExit(f"{owner}: invalid JarJar metadata: {exc}") from exc
+
+        children = jarjar.get("jars", []) if isinstance(jarjar, dict) else None
+        if not isinstance(children, list):
+            raise SystemExit(f"{owner}: JarJar metadata has no jars list")
+        for child in children:
+            if not isinstance(child, dict) or not isinstance(child.get("path"), str):
+                raise SystemExit(f"{owner}: JarJar entry has no path")
+            raw_path = child["path"]
+            path = PurePosixPath(raw_path)
+            if path.is_absolute() or not path.parts or ".." in path.parts or "\\" in raw_path:
+                raise SystemExit(f"{owner}: unsafe JarJar path {raw_path!r}")
+            matches = [info for info in archive.infolist() if info.filename == raw_path]
+            if len(matches) != 1:
+                raise SystemExit(f"{owner}: expected one JarJar child {raw_path!r}, found {len(matches)}")
+            info = matches[0]
+            if info.file_size > 128 * 1024 * 1024:
+                raise SystemExit(f"{owner}: JarJar child exceeds 128 MiB: {raw_path}")
+            child_owner = f"{owner}!{raw_path}"
+            results.extend(
+                staged_jar_metadata(archive.read(info), child_owner, depth=depth + 1)
+            )
+    return results
+
+
 def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any]]]]:
     """Return jar hashes and metadata for an exactly staged server profile."""
     if not mods_dir.is_dir():
@@ -71,17 +132,20 @@ def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[
     hashes: set[str] = set()
     mods: dict[str, tuple[str, dict[str, Any]]] = {}
     for jar in sorted(mods_dir.glob("*.jar")):
-        digest = hashlib.sha256(jar.read_bytes()).hexdigest()
-        hashes.add(digest)
-        doc = metadata(jar)
-        for mod in doc.get("mods", []):
-            mod_id = str(mod.get("modId", ""))
-            if not mod_id:
-                raise SystemExit(f"{jar.name} declares a blank mod id")
-            previous = mods.get(mod_id)
-            if previous is not None and previous[0] != jar.name:
-                raise SystemExit(f"duplicate staged mod id {mod_id}: {previous[0]}, {jar.name}")
-            mods[mod_id] = (jar.name, doc)
+        jar_bytes = jar.read_bytes()
+        hashes.add(hashlib.sha256(jar_bytes).hexdigest())
+        declarations = staged_jar_metadata(jar_bytes, jar.name)
+        if not declarations:
+            raise SystemExit(f"{jar.name}: no mod metadata in the outer jar or JarJar children")
+        for owner, doc in declarations:
+            for mod in doc.get("mods", []):
+                mod_id = str(mod.get("modId", ""))
+                if not mod_id:
+                    raise SystemExit(f"{owner} declares a blank mod id")
+                previous = mods.get(mod_id)
+                if previous is not None and previous[0] != owner:
+                    raise SystemExit(f"duplicate staged mod id {mod_id}: {previous[0]}, {owner}")
+                mods[mod_id] = (owner, doc)
     return hashes, mods
 
 
@@ -148,18 +212,33 @@ def rcon(command: str, host: str, port: int, password: str) -> str:
 
 
 def probe_tacz_npc(host: str, port: int, password: str) -> tuple[str, str]:
-    summon = rcon(
-        'execute at @a[limit=1] run summon tacznpcs:npc ~ ~ ~ {"template":""}',
-        host, port, password,
-    )
-    selector = "@e[type=tacznpcs:npc,distance=..16,sort=nearest,limit=1]"
-    uuid = rcon(
-        f"execute at @a[limit=1] if entity {selector} run data get entity {selector} UUID",
-        host, port, password,
-    )
-    if not summon or not uuid or "no entity" in uuid.lower():
-        raise SystemExit(f"TaCZ NPC spawn/registry probe failed: summon={summon!r}; uuid={uuid!r}")
-    return summon, uuid
+    selector = "@e[type=tacznpcs:npc,tag=skyforge_s7_tacz_probe,distance=..16,sort=nearest,limit=1]"
+    summon = ""
+    uuid = ""
+    try:
+        # Omitting template NBT intentionally selects TaCZ NPCs' documented default template.
+        summon = rcon(
+            'execute at @a[limit=1] run summon tacznpcs:npc ~ ~ ~ {"Tags":["skyforge_s7_tacz_probe"]}',
+            host, port, password,
+        )
+        uuid = rcon(
+            f"execute at @a[limit=1] if entity {selector} run data get entity {selector} UUID",
+            host, port, password,
+        )
+        if not uuid or "no entity" in uuid.lower():
+            raise SystemExit(f"TaCZ NPC spawn/registry probe failed: summon={summon!r}; uuid={uuid!r}")
+        return summon, uuid
+    finally:
+        # This is a bounded, uniquely tagged probe entity; always clean it up.
+        primary_error = sys.exc_info()[0]
+        try:
+            rcon(
+                "kill @e[type=tacznpcs:npc,tag=skyforge_s7_tacz_probe]",
+                host, port, password,
+            )
+        except Exception:
+            if primary_error is None:
+                raise
 
 
 def probe_radar_debug_report(root: Path, host: str, port: int, password: str) -> tuple[str, str]:
