@@ -77,7 +77,7 @@ jobs:
           path: upstream-a4mc
           persist-credentials: false
 
-      - name: Migrate only the retired Fletching Table build coordinates
+      - name: Apply bounded migration for retired A4MC build-tool APIs
         shell: bash
         run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
 
@@ -96,7 +96,7 @@ jobs:
           (cd "$GITHUB_WORKSPACE/a4mc-0.2.2" && sha256sum *.jar | tee SHA256SUMS)
           {
             printf '%s\n' "upstream=MozillaFiredoge/Aerodynamics4MC-Core@171d8dc593651d6b34e3bfecaf6469a11b53b433"
-            printf '%s\n' "build-only-migration=fletching-table 0.1.0-alpha.22 -> 0.2.0-alpha.9"
+            printf '%s\n' "build-only-migration=remove-unused-fletching-table; restore-tomlkt-jvm-0.3.7"
           } > "$GITHUB_WORKSPACE/a4mc-0.2.2/BUILD-PROVENANCE.txt"
 
       - name: Upload immutable A4MC build output for the combat matrix
