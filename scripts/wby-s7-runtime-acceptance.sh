@@ -278,6 +278,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --server-log "$server_latest_log" \
     --client-log "$client_latest_log" \
     --runtime-root "$server_dir" \
+    --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
     "${combat_profile_args[@]}"
 fi
