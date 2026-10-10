@@ -201,7 +201,7 @@ def main() -> int:
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--control-mods", type=Path)
     parser.add_argument("--staged-mods", type=Path)
-    parser.add_argument("--runtime-root", type=Path)
+    parser.add_argument("--runtime-root", type=Path, required=True)
     parser.add_argument("--rcon-host")
     parser.add_argument("--rcon-port", type=int, default=25575)
     parser.add_argument("--rcon-password")
@@ -279,8 +279,7 @@ def main() -> int:
             raise SystemExit(f"Client runtime log did not discover {mod_id}")
 
     profile_delta: set[str] = set()
-    if args.runtime_root:
-        append_runtime_config_evidence(args.runtime_root, args.variant, report)
+    append_runtime_config_evidence(args.runtime_root, args.variant, report)
     if args.variant == "tacz":
         if not args.rcon_host or not args.rcon_password:
             raise SystemExit("TaCZ arm requires RCON credentials for its live NPC spawn probe")
