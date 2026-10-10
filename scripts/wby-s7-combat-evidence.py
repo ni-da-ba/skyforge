@@ -105,7 +105,7 @@ def safe(value: object) -> str:
 
 
 def rcon_packet(packet_id: int, packet_type: int, body: str) -> bytes:
-    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\\x00\\x00"
+    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\x00\x00"
     return struct.pack("<i", len(payload)) + payload
 
 
