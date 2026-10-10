@@ -446,7 +446,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double spacing = rawSections.get(i + 1).chainageMeters()
                     - rawSections.get(i).chainageMeters();
             gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
-                    "cascade-non-rising-bed",
+                    "cascade-non-rising-bed-" + i,
                     i,
                     i + 1,
                     0.0,
