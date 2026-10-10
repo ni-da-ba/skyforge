@@ -60,11 +60,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * Rebuilds bounded bed/valley candidates from hydraulic feedback controls and returns the
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
-     * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind and three
-     * localized pool/step-shape amplitudes for CASCADE reaches. Every mode is zero at semantic
-     * reach endpoints, preserving shared junction elevations. Every trial is reprojected through
-     * the existing bounded bed QP; no-fill, incision, source-boundary, and trapezoid constraints
-     * remain hard. D2 qualification is deliberately not part of this hydraulic objective.
+     * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind, three
+     * localized CASCADE pool/step amplitudes, and one bounded CASCADE bankfull-width adjustment.
+     * Bed modes are zero at semantic reach endpoints, preserving shared junction elevations.
+     * Bed, cross-section, and valley terrain are rebuilt as one candidate; D2 qualification stays
+     * outside this hydraulic objective.
      */
     public static FeedbackResult planWithHydraulicFeedback(
             SkyIslandDescriptor descriptor,
@@ -96,16 +96,18 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
 
-        // The previous six-parameter finite-difference search spent most of its evaluations on
-        // flat residual branches where no hydraulic regime existed. Probe a small, deterministic
-        // family of cascade-only shapes instead: broad bed lowering/raising plus a gentler
-        // secondary mode. Every trial is still projected through the bounded geometry QP and
-        // judged by the exact caller-supplied hydraulic residual.
-        // Six localized alternatives: a shallow raised/lowered control at each quarter, middle,
-        // and three-quarter cascade station. The compact cosine window creates a pool/step form
-        // that broad whole-reach modes cannot represent.
-        int[] localModeSigns = {-1, 1, -1, 1, -1, 1};
-        int[] localModeStations = {0, 0, 1, 1, 2, 2};
+        // The former bed-only candidates did not move the key-700 physical residual. Probe
+        // coupled bed/section/valley forms: modest width changes paired with localized bed
+        // pools/steps at representative cascade positions. The QP and valley constructor enforce
+        // the actual terrain and incision limits for each trial.
+        CascadeShapeTrial[] trials = {
+            new CascadeShapeTrial(-0.20, 0, -1),
+            new CascadeShapeTrial(0.20, 0, -1),
+            new CascadeShapeTrial(-0.20, 1, 1),
+            new CascadeShapeTrial(0.20, 1, 1),
+            new CascadeShapeTrial(0.0, 0, 1),
+            new CascadeShapeTrial(0.0, 2, -1)
+        };
         double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -114,12 +116,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         double bestNorm = residualNorm(bestResiduals);
         int evaluated = 0;
         for (int candidateIndex = 0;
-                candidateIndex < localModeSigns.length && evaluated < maximumIterations;
+                candidateIndex < trials.length && evaluated < maximumIterations;
                 candidateIndex++) {
+            CascadeShapeTrial trial = trials[candidateIndex];
             double[] controls = new double[feedbackControlCount()];
-            int modeIndex = localModeStations[candidateIndex];
-            controls[2 * SkyIslandChannelProfileKind.values().length + modeIndex] =
-                    localModeSigns[candidateIndex] * localAmplitude;
+            int localControlStart = 2 * SkyIslandChannelProfileKind.values().length;
+            controls[localControlStart + trial.localModeIndex()] =
+                    trial.bedDirection() * localAmplitude;
+            controls[localControlStart + 3] = trial.widthScaleOffset();
             Plan candidate;
             try {
                 candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
@@ -156,8 +160,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     private static int feedbackControlCount() {
-        return 2 * SkyIslandChannelProfileKind.values().length + 3;
+        return 2 * SkyIslandChannelProfileKind.values().length + 4;
     }
+
+    private record CascadeShapeTrial(
+            double widthScaleOffset, int localModeIndex, int bedDirection) {}
 
     private static double localizedCascadeBump(double station, double center, double radius) {
         double normalizedDistance = Math.abs(station - center) / radius;
@@ -274,7 +281,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double[] feedbackControls) {
         if (feedbackControls.length != feedbackControlCount()) {
             throw new IllegalArgumentException(
-                    "hydraulic feedback must provide two broad controls per profile kind and three localized cascade controls");
+                    "hydraulic feedback control vector has an invalid length");
         }
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         List<Integer> sourceNodes = skeleton.geomorphicNetwork().nodes().stream()
@@ -287,8 +294,20 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     calibration.crossSections(descriptor, reach.samples(), reach.samples());
             boolean sourceReach = sourceNodes.contains(
                     reach.geomorphicRoute().semanticReach().startCellIndex());
+            boolean containsCascade = reach.geomorphicRoute().semanticReach().profiles().stream()
+                    .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE);
+            double channelWidthScale = containsCascade
+                    ? 1.0 + feedbackControls[2 * SkyIslandChannelProfileKind.values().length + 3]
+                    : 1.0;
+            if (!Double.isFinite(channelWidthScale)
+                    || channelWidthScale < 0.75
+                    || channelWidthScale > 1.25) {
+                throw new IllegalArgumentException(
+                        "candidate CASCADE bankfull width scale must remain within 0.75..1.25");
+            }
             CandidateBedResult bedResult = conditionBedProfile(
-                    descriptor, reach, rawSections, calibration, reliefMeters, sourceReach, feedbackControls);
+                    descriptor, reach, rawSections, calibration, reliefMeters, sourceReach,
+                    feedbackControls, channelWidthScale);
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = bedResult.sections();
             if (sections.size() != reach.samples().size()) {
                 throw new IllegalStateException(
@@ -307,7 +326,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                     + i);
                 }
             }
-            reaches.add(new ReachCandidate(reach, sections, bedResult.qpResult()));
+            reaches.add(new ReachCandidate(
+                    reach, sections, bedResult.qpResult(), channelWidthScale));
         }
 
         SkyIslandPreHydrologicTerrainField baseTerrain =
@@ -336,7 +356,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             double reliefMeters,
             boolean sourceReach,
-            double[] feedbackControls) {
+            double[] feedbackControls,
+            double channelWidthScale) {
         int count = rawSections.size();
         double[] target = new double[count];
         double[] weight = new double[count];
@@ -454,6 +475,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
             double fullBankfullWidthMeters =
                     2.0 * reach.samples().get(i).bankfullHalfWidth()
+                            * channelWidthScale
                             * calibration.metersPerWorldUnit();
             double bottomWidthMeters = fullBankfullWidthMeters
                     - 2.0 * calibration.sideSlopeHorizontalToVertical() * (surface - bed[i]);
@@ -476,11 +498,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     public record ReachCandidate(
             SkyIslandHydraulicReachSkeleton skeleton,
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
-            SkyIslandHydraulicQpResult bedGeometrySolve) {
+            SkyIslandHydraulicQpResult bedGeometrySolve,
+            double channelWidthScale) {
         public ReachCandidate {
             skeleton = Objects.requireNonNull(skeleton, "skeleton");
             sections = List.copyOf(Objects.requireNonNull(sections, "sections"));
             bedGeometrySolve = Objects.requireNonNull(bedGeometrySolve, "bedGeometrySolve");
+            if (!Double.isFinite(channelWidthScale) || channelWidthScale <= 0.0) {
+                throw new IllegalArgumentException("candidate channel width scale must be finite and positive");
+            }
             if (bedGeometrySolve.status() != SkyIslandHydraulicQpStatus.SOLVED) {
                 throw new IllegalArgumentException("candidate bed geometry must have a solved QP witness");
             }
@@ -644,7 +670,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double f = projection.segmentFraction();
             SkyIslandHydraulicGeometrySkeletonSample a = reach.skeleton().samples().get(i);
             SkyIslandHydraulicGeometrySkeletonSample b = reach.skeleton().samples().get(i + 1);
-            double bankfullHalfWidth = lerp(a.bankfullHalfWidth(), b.bankfullHalfWidth(), f);
+            double bankfullHalfWidth = lerp(a.bankfullHalfWidth(), b.bankfullHalfWidth(), f)
+                    * reach.channelWidthScale();
             double valleyHalfWidth =
                     bankfullHalfWidth
                             * valleyMultiplier(reach.skeleton().geomorphicRoute()
