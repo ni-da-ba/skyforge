@@ -108,7 +108,6 @@ jobs:
 
   resolve-and-runtime-acceptance:
     needs: build-pinned-a4mc
-    needs: build-pinned-a4mc
     strategy:
       fail-fast: false
       matrix:
