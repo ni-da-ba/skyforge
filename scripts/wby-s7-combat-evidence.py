@@ -125,12 +125,62 @@ def staged_jar_metadata(
     return results
 
 
+def compare_mod_versions(left: str, right: str) -> int:
+    """Compare common Maven-style mod versions conservatively for loader deduplication."""
+    qualifier_aliases = {
+        "a": "alpha", "b": "beta", "m": "milestone", "cr": "rc",
+        "ga": "", "final": "", "release": "",
+    }
+    qualifier_rank = {
+        "alpha": 0, "beta": 1, "milestone": 2, "rc": 3, "snapshot": 4,
+        "": 6, "sp": 7,
+    }
+
+    def tokens(value: str) -> list[tuple[str, object]]:
+        if not value or "${" in value:
+            raise ValueError(f"unresolved mod version {value!r}")
+        parts = re.findall(r"\\d+|[a-z]+", value.lower())
+        if not parts:
+            raise ValueError(f"unrecognized mod version {value!r}")
+        return [("number", int(part)) if part.isdigit() else ("text", qualifier_aliases.get(part, part))
+                for part in parts]
+
+    def compare_token(a: tuple[str, object] | None, b: tuple[str, object] | None) -> int:
+        if a is None and b is None:
+            return 0
+        if a is None:
+            # An omitted numeric component is zero; a release outranks a prerelease qualifier.
+            return compare_token(("number", 0), b) if b and b[0] == "number" else 1
+        if b is None:
+            return -compare_token(b, a)
+        if a[0] == b[0] == "number":
+            return (a[1] > b[1]) - (a[1] < b[1])
+        if a[0] != b[0]:
+            return 1 if a[0] == "number" else -1
+        qa, qb = str(a[1]), str(b[1])
+        ra, rb = qualifier_rank.get(qa, 5), qualifier_rank.get(qb, 5)
+        if ra != rb:
+            return (ra > rb) - (ra < rb)
+        if ra == 5 and qa != qb:
+            return (qa > qb) - (qa < qb)
+        return 0
+
+    a_tokens, b_tokens = tokens(left), tokens(right)
+    for index in range(max(len(a_tokens), len(b_tokens))):
+        a = a_tokens[index] if index < len(a_tokens) else None
+        b = b_tokens[index] if index < len(b_tokens) else None
+        result = compare_token(a, b)
+        if result:
+            return result
+    return 0
+
+
 def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any], str]]]:
-    """Return jar hashes and metadata for an exactly staged server profile."""
+    """Return staged hashes and the mod files selected by NeoForge's primary-ID version rule."""
     if not mods_dir.is_dir():
         raise SystemExit(f"staged mods directory does not exist: {mods_dir}")
     hashes: set[str] = set()
-    mods: dict[str, tuple[str, dict[str, Any], str]] = {}
+    candidates: dict[str, tuple[str, dict[str, Any], str, str]] = {}
     for jar in sorted(mods_dir.glob("*.jar")):
         jar_bytes = jar.read_bytes()
         hashes.add(hashlib.sha256(jar_bytes).hexdigest())
@@ -138,19 +188,52 @@ def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[
         if not declarations:
             raise SystemExit(f"{jar.name}: no mod metadata in the outer jar or JarJar children")
         for owner, doc, content_hash in declarations:
-            for mod in doc.get("mods", []):
-                mod_id = str(mod.get("modId", ""))
-                if not mod_id:
-                    raise SystemExit(f"{owner} declares a blank mod id")
-                previous = mods.get(mod_id)
-                if previous is not None and previous[2] != content_hash:
-                    raise SystemExit(
-                        f"conflicting duplicate staged mod id {mod_id}: "
-                        f"{previous[0]} sha256={previous[2]}, {owner} sha256={content_hash}"
-                    )
-                mods[mod_id] = (owner, doc, content_hash)
-    return hashes, mods
+            declared_mods = doc.get("mods", [])
+            if not isinstance(declared_mods, list) or not declared_mods:
+                raise SystemExit(f"{owner} has no mod declarations")
+            primary = declared_mods[0]
+            primary_id = str(primary.get("modId", "")).strip()
+            primary_version = str(primary.get("version", "")).strip()
+            if not primary_id:
+                raise SystemExit(f"{owner} declares a blank primary mod id")
+            previous = candidates.get(primary_id)
+            if previous is None:
+                candidates[primary_id] = (owner, doc, content_hash, primary_version)
+                continue
+            if previous[2] == content_hash:
+                continue
+            try:
+                comparison = compare_mod_versions(primary_version, previous[3])
+            except ValueError as exc:
+                raise SystemExit(
+                    f"cannot resolve duplicate staged primary mod id {primary_id}: "
+                    f"{previous[0]} version={previous[3]!r}; {owner} version={primary_version!r}; {exc}"
+                ) from exc
+            if comparison == 0:
+                raise SystemExit(
+                    f"same-version staged primary mod id {primary_id} has different bytes: "
+                    f"{previous[0]} version={previous[3]!r} sha256={previous[2]}, "
+                    f"{owner} version={primary_version!r} sha256={content_hash}"
+                )
+            if comparison > 0:
+                candidates[primary_id] = (owner, doc, content_hash, primary_version)
 
+    # NeoForge chooses the newest file per primary mod ID first; duplicate secondary IDs
+    # that remain across those selected files are still invalid and must not be hidden.
+    mods: dict[str, tuple[str, dict[str, Any], str]] = {}
+    for owner, doc, content_hash, _version in candidates.values():
+        for mod in doc.get("mods", []):
+            mod_id = str(mod.get("modId", "")).strip()
+            if not mod_id:
+                raise SystemExit(f"{owner} declares a blank mod id")
+            previous = mods.get(mod_id)
+            if previous is not None and previous[2] != content_hash:
+                raise SystemExit(
+                    f"duplicate selected staged mod id {mod_id}: "
+                    f"{previous[0]} sha256={previous[2]}, {owner} sha256={content_hash}"
+                )
+            mods[mod_id] = (owner, doc, content_hash)
+    return hashes, mods
 
 def required_server_dependency_ids(doc: dict[str, Any], mod_id: str) -> set[str]:
     required: set[str] = set()
