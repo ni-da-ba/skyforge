@@ -268,10 +268,20 @@ val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
 }
 
 // S4 pins Moonlight/Selene from Modrinth. A transitive CurseForge alias can otherwise stage
-// the same mod ID a second time. Keep the canonical pinned artifact and exclude that alias
-// from both cumulative runtime dependency graphs when the S4 content layer is enabled.
+// the same mod ID a second time. These source sets compose their parents as file collections, so
+// filter the alias at every owner configuration in the S0 -> S0.5A -> S0.5B -> S1 chain.
 if (providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) == true) {
     listOf(
+        sourceSets.main.get().runtimeOnlyConfigurationName,
+        sourceSets.main.get().runtimeClasspathConfigurationName,
+        wbyS05ClientRuntime.runtimeOnlyConfigurationName,
+        wbyS05ClientRuntime.runtimeClasspathConfigurationName,
+        wbyS05ServerRuntime.runtimeOnlyConfigurationName,
+        wbyS05ServerRuntime.runtimeClasspathConfigurationName,
+        wbyS05BClientRuntime.runtimeOnlyConfigurationName,
+        wbyS05BClientRuntime.runtimeClasspathConfigurationName,
+        wbyS05BServerRuntime.runtimeOnlyConfigurationName,
+        wbyS05BServerRuntime.runtimeClasspathConfigurationName,
         wbyS1ClientRuntime.runtimeOnlyConfigurationName,
         wbyS1ClientRuntime.runtimeClasspathConfigurationName,
         wbyS1ServerRuntime.runtimeOnlyConfigurationName,
