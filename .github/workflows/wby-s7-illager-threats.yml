@@ -81,6 +81,23 @@ jobs:
           bash -n scripts/wby-s7-runtime-acceptance.sh
           python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py
 
+      - name: Check the pinned KikuGie Maven dependency before the A4MC build
+        shell: bash
+        run: |
+          set -euo pipefail
+          pom_url="https://maven.kikugie.dev/releases/dev/kikugie/fletching-table/0.1.0-alpha.22/fletching-table-0.1.0-alpha.22.pom"
+          for attempt in 1 2 3; do
+            if curl --fail --location --silent --show-error --connect-timeout 10 --max-time 20 "$pom_url" --output /dev/null; then
+              echo "Pinned KikuGie POM is reachable."
+              exit 0
+            fi
+            if [[ "$attempt" -lt 3 ]]; then
+              sleep 5
+            fi
+          done
+          echo "::error::Pinned A4MC build dependency is unreachable from maven.kikugie.dev after 3 attempts."
+          exit 1
+
       - name: Checkout pinned Aerodynamics4MC 0.2.2 source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
