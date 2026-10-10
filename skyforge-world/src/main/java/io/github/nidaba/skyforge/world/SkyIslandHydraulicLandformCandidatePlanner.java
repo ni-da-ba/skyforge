@@ -126,10 +126,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             Plan candidate;
             try {
                 candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
-            } catch (IllegalStateException infeasibleCandidate) {
+            } catch (IllegalArgumentException | IllegalStateException infeasibleCandidate) {
                 String message = infeasibleCandidate.getMessage();
-                if (message == null || !message.startsWith(
-                        "bounded channel-bed candidate is infeasible within authored trapezoid geometry")) {
+                boolean boundedBedFailure = message != null
+                        && (message.startsWith(
+                                        "bounded channel-bed candidate is infeasible within authored trapezoid geometry")
+                                || message.startsWith(
+                                        "candidate bed is outside the no-fill normalized terrain domain"));
+                if (!boundedBedFailure) {
                     throw infeasibleCandidate;
                 }
                 evaluated++;
