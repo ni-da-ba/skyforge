@@ -431,6 +431,28 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     maximumWindowDrop));
         }
 
+        // A CASCADE reach is an authored chute: its bed may flatten into pools, but must not
+        // climb downstream. Keep this morphological grade constraint local to adjacent samples
+        // both owned by CASCADE; ordinary reaches and transitions retain their own controls.
+        List<SkyIslandChannelProfile> profiles =
+                reach.geomorphicRoute().semanticReach().profiles();
+        for (int i = 0; i + 1 < count; i++) {
+            if (profileKind(profiles, reach.samples().get(i).stationFraction())
+                            != SkyIslandChannelProfileKind.CASCADE
+                    || profileKind(profiles, reach.samples().get(i + 1).stationFraction())
+                            != SkyIslandChannelProfileKind.CASCADE) {
+                continue;
+            }
+            double spacing = rawSections.get(i + 1).chainageMeters()
+                    - rawSections.get(i).chainageMeters();
+            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
+                    "cascade-non-rising-bed",
+                    i,
+                    i + 1,
+                    0.0,
+                    calibration.maximumDownstreamBedSlope() * spacing));
+        }
+
         // Do not infer a locally uniform supercritical regime from bed grade alone. CASCADE
         // reaches may contain rapidly varied flow; the standard-step/jump solver evaluates the
         // candidate's actual depth and energy profile under its authored boundary conditions.
