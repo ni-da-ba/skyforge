@@ -277,6 +277,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --variant "$WBY_S7_COMBAT_VARIANT" \
     --server-log "$server_latest_log" \
     --client-log "$client_latest_log" \
+    --runtime-root "$server_dir" \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
     "${combat_profile_args[@]}"
 fi
