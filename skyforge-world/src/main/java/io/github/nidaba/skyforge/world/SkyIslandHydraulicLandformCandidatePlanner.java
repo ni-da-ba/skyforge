@@ -96,17 +96,16 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
 
-        // The former bed-only candidates did not move the key-700 physical residual. Probe
-        // coupled bed/section/valley forms: modest width changes paired with localized bed
-        // pools/steps at representative cascade positions. The QP and valley constructor enforce
-        // the actual terrain and incision limits for each trial.
+        // Exact key-700 scoring found the only material response in the explicit edge-outlet
+        // control. Refine that bounded terminal-bed amplitude around the best tested value; the
+        // QP still enforces the no-fill, incision, and relief-domain bounds.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.25, 0, -1, 0.0),
-            new CascadeShapeTrial(-0.25, 1, 1, 0.0),
-            new CascadeShapeTrial(0.25, 2, -1, 0.0),
-            new CascadeShapeTrial(0.0, 0, 0, 0.25),
-            new CascadeShapeTrial(0.0, 0, 0, 0.50),
-            new CascadeShapeTrial(0.0, 0, 0, 0.75)
+            new CascadeShapeTrial(0.0, 0, 0, 0.70),
+            new CascadeShapeTrial(0.0, 0, 0, 0.75),
+            new CascadeShapeTrial(0.0, 0, 0, 0.80),
+            new CascadeShapeTrial(0.0, 0, 0, 0.85),
+            new CascadeShapeTrial(0.0, 0, 0, 0.90),
+            new CascadeShapeTrial(0.0, 0, 0, 0.95)
         };
         double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
