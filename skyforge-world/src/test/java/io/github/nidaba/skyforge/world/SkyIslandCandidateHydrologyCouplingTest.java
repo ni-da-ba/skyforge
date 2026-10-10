@@ -577,6 +577,19 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 exactJumpFailure);
     }
 
+    private static double[] cascadeResidualVector(
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
+        CascadeResidualDiagnostics diagnostics = cascadeResidualDiagnostics(candidate);
+        System.out.printf(
+                Locale.ROOT,
+                "HYDRAULIC_GEOMETRY_DIAGNOSTIC key=700 %s%n",
+                diagnostics);
+        return new double[] {
+            diagnostics.normalizedForceResidual(),
+            diagnostics.normalizedBranchEnergyGap()
+        };
+    }
+
     private static CascadeResidualDiagnostics cascadeResidualDiagnostics(
             SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
