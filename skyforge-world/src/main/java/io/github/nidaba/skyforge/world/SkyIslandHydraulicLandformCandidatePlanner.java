@@ -76,33 +76,105 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         Objects.requireNonNull(calibration, "calibration");
         Objects.requireNonNull(hydraulicResidualEvaluator, "hydraulicResidualEvaluator");
         Plan initial = plan(descriptor, calibration);
+        if (!Double.isFinite(residualTolerance) || residualTolerance <= 0.0 || maximumIterations < 1) {
+            throw new IllegalArgumentException("tolerance and candidate limit must be positive");
+        }
+        int cascadeKind = SkyIslandChannelProfileKind.CASCADE.ordinal();
         double maximumAmplitude = 0.0;
         for (ReachCandidate reach : initial.reaches()) {
+            List<SkyIslandChannelProfile> profiles =
+                    reach.skeleton().geomorphicRoute().semanticReach().profiles();
             for (SkyIslandHydraulicGeometrySkeletonSample sample : reach.skeleton().samples()) {
-                maximumAmplitude = Math.max(
-                        maximumAmplitude, calibration.maximumCrossSectionDepthMeters(sample));
+                if (profileKind(profiles, sample.stationFraction())
+                        == SkyIslandChannelProfileKind.CASCADE) {
+                    maximumAmplitude = Math.max(
+                            maximumAmplitude, calibration.maximumCrossSectionDepthMeters(sample));
+                }
             }
         }
         if (!(maximumAmplitude > 0.0) || !Double.isFinite(maximumAmplitude)) {
-            throw new IllegalStateException("hydraulic bed feedback has no positive geometry envelope");
+            throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
-        double bound = maximumAmplitude;
-        var result = SkyIslandHydraulicResidualFeedbackSolver.solve(
-                new double[2 * SkyIslandChannelProfileKind.values().length],
-                filledControls(bound, false),
-                filledControls(bound, true),
-                controls -> hydraulicResidualEvaluator.apply(
-                        buildPlan(descriptor, calibration, initial.skeletonPlan(), controls)),
-                residualTolerance,
-                maximumIterations);
-        Plan selected = buildPlan(descriptor, calibration, initial.skeletonPlan(), result.controls());
+
+        // The previous six-parameter finite-difference search spent most of its evaluations on
+        // flat residual branches where no hydraulic regime existed. Probe a small, deterministic
+        // family of cascade-only shapes instead: broad bed lowering/raising plus a gentler
+        // secondary mode. Every trial is still projected through the bounded geometry QP and
+        // judged by the exact caller-supplied hydraulic residual.
+        double[][] candidates = {
+            {0.0, 0.0},
+            {-0.25, 0.0},
+            {0.25, 0.0},
+            {-0.50, 0.0},
+            {0.50, 0.0},
+            {0.0, -0.25},
+            {0.0, 0.25}
+        };
+        double[] bestControls = new double[2 * SkyIslandChannelProfileKind.values().length];
+        double[] bestResiduals = validatedResiduals(
+                hydraulicResidualEvaluator.apply(initial), -1);
+        Plan selected = initial;
+        double bestNorm = residualNorm(bestResiduals);
+        int evaluated = 0;
+        for (int candidateIndex = 1;
+                candidateIndex < candidates.length && evaluated < maximumIterations;
+                candidateIndex++) {
+            double[] controls = new double[2 * SkyIslandChannelProfileKind.values().length];
+            controls[cascadeKind] = candidates[candidateIndex][0] * maximumAmplitude;
+            controls[SkyIslandChannelProfileKind.values().length + cascadeKind] =
+                    candidates[candidateIndex][1] * maximumAmplitude;
+            Plan candidate;
+            try {
+                candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
+            } catch (IllegalStateException infeasibleCandidate) {
+                String message = infeasibleCandidate.getMessage();
+                if (message == null || !message.startsWith(
+                        "bounded channel-bed candidate is infeasible within authored trapezoid geometry")) {
+                    throw infeasibleCandidate;
+                }
+                evaluated++;
+                continue;
+            }
+            double[] residuals = validatedResiduals(
+                    hydraulicResidualEvaluator.apply(candidate), bestResiduals.length);
+            double norm = residualNorm(residuals);
+            evaluated++;
+            if (norm < bestNorm) {
+                bestNorm = norm;
+                bestControls = controls;
+                bestResiduals = residuals;
+                selected = candidate;
+            }
+        }
+        var result = new SkyIslandHydraulicResidualFeedbackSolver.Result(
+                bestControls,
+                bestResiduals,
+                evaluated,
+                bestNorm <= residualTolerance);
         return new FeedbackResult(selected, result);
     }
 
-    private static double[] filledControls(double value, boolean positive) {
-        double[] controls = new double[2 * SkyIslandChannelProfileKind.values().length];
-        java.util.Arrays.fill(controls, positive ? value : -value);
-        return controls;
+    private static double[] validatedResiduals(double[] values, int expectedLength) {
+        Objects.requireNonNull(values, "hydraulic residuals");
+        if (values.length == 0 || (expectedLength >= 0 && values.length != expectedLength)) {
+            throw new IllegalArgumentException(
+                    "hydraulic residual vector must have a stable positive length");
+        }
+        double[] copy = values.clone();
+        for (double value : copy) {
+            if (!Double.isFinite(value)) {
+                throw new IllegalArgumentException("hydraulic residuals must be finite");
+            }
+        }
+        return copy;
+    }
+
+    private static double residualNorm(double[] residuals) {
+        double sum = 0.0;
+        for (double residual : residuals) {
+            sum += residual * residual;
+        }
+        return Math.sqrt(sum);
     }
 
     static Plan planAtResolution(
@@ -289,21 +361,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // maximum geometrically admissible depth, and cap it by the accepted reach-grade limit.
         // Energy, jump, and CASCADE solvers remain the admission authority downstream.
         List<SkyIslandHydraulicDifferenceConstraint> gradeConstraints = new ArrayList<>();
-        // A routed channel bed must not climb downstream. Enforce this in the same bounded
-        // candidate solve that determines the channel section geometry, rather than asking the
-        // hydraulic solver to traverse a sequence of locally adverse beds. The upper bound keeps
-        // the grade within the accepted game-scale corridor; source reaches add the stronger
-        // normal-depth window constraint below.
-        for (int i = 0; i + 1 < count; i++) {
-            double spacing = rawSections.get(i + 1).chainageMeters()
-                    - rawSections.get(i).chainageMeters();
-            gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
-                    "downstream-non-rising-bed-" + i,
-                    i,
-                    i + 1,
-                    0.0,
-                    calibration.maximumDownstreamBedSlope() * spacing));
-        }
+        // Do not impose a globally monotone bed: local adverse grades and drops are valid parts
+        // of static cascade morphology. Source reaches retain only their explicit normal-depth
+        // control window; the exact hydraulic transition solvers decide whether the full profile
+        // is physically admissible.
         if (sourceReach) {
             int windowEnd = Math.min(
                     count - 1, Math.max(2, (int) Math.ceil((count - 1) * 0.25)));
