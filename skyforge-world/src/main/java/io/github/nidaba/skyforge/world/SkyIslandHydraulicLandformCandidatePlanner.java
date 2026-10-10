@@ -318,7 +318,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 }
             }
             reaches.add(new ReachCandidate(
-                    reach, sections, bedResult.qpResult(), bedResult.sectionWidthScales()));
+                    reach, sections, bedResult.sectionWidthScales(), bedResult.qpResult()));
         }
 
         SkyIslandPreHydrologicTerrainField baseTerrain =
