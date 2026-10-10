@@ -272,7 +272,9 @@ val wbyS1ServerRuntime = sourceSets.create("wbyS1ServerRuntime") {
 // from both cumulative runtime dependency graphs when the S4 content layer is enabled.
 if (providers.gradleProperty("wbyS4OrdinaryLife").orNull?.trim()?.equals("true", ignoreCase = true) == true) {
     listOf(
+        wbyS1ClientRuntime.runtimeOnlyConfigurationName,
         wbyS1ClientRuntime.runtimeClasspathConfigurationName,
+        wbyS1ServerRuntime.runtimeOnlyConfigurationName,
         wbyS1ServerRuntime.runtimeClasspathConfigurationName,
     ).forEach { configurationName ->
         configurations.named(configurationName) {
