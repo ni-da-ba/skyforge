@@ -131,7 +131,7 @@ jobs:
             -PwbyS1RunDirectory=run-wby-s7-combat-control
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${control_common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-combat-control
-          find skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\\n' | sort \
+          find skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\n | sort \
             > wby-s7-control-staged-mods.txt
 
       - name: Resolve cumulative S7 threat profile
