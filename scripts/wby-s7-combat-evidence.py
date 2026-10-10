@@ -139,7 +139,7 @@ def compare_mod_versions(left: str, right: str) -> int:
     def tokens(value: str) -> list[tuple[str, object]]:
         if not value or "${" in value:
             raise ValueError(f"unresolved mod version {value!r}")
-        parts = re.findall(r"\\d+|[a-z]+", value.lower())
+        parts = re.findall(r"\d+|[a-z]+", value.lower())
         if not parts:
             raise ValueError(f"unrecognized mod version {value!r}")
         return [("number", int(part)) if part.isdigit() else ("text", qualifier_aliases.get(part, part))
