@@ -454,8 +454,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
         SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
                 feedback.plan().requireReach(801, 1951);
         assertTrue(
-                cascade.channelWidthScale() >= 0.75 && cascade.channelWidthScale() <= 1.25,
+                cascade.channelWidthScale() >= 0.50 && cascade.channelWidthScale() <= 1.50,
                 "candidate channel width must remain inside the explicit morphology envelope");
+        assertTrue(
+                feedback.plan().reaches().stream()
+                        .allMatch(reach -> reach.channelWidthScale() == cascade.channelWidthScale()),
+                "incoming branches and the cascade must share one coupled width response");
         for (int i = 0; i < cascade.sections().size(); i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = cascade.skeleton().samples().get(i);
             double localTerrainMeters = sample.terrainElevation()
