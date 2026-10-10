@@ -226,12 +226,23 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 .mapToDouble(Double::doubleValue).min().orElse(1.0);
                         double maximumWidthScale = candidateCascade.sectionWidthScales().stream()
                                 .mapToDouble(Double::doubleValue).max().orElse(1.0);
+                        SkyIslandHydraulicGeometrySkeletonSample outletSample =
+                                baselineCascade.skeleton().samples().getLast();
+                        double outletSurfaceMeters = outletSample.terrainElevation()
+                                * descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
+                        double outletDepthMeters = outletSurfaceMeters
+                                - baselineCascade.sections().getLast().bedElevationMeters();
+                        double outletIncisionSlackMeters =
+                                CALIBRATION.maximumCrossSectionDepthMeters(outletSample)
+                                        - outletDepthMeters;
                         System.out.printf(
                                 Locale.ROOT,
                                 "HYDRAULIC_GEOMETRY_TRIAL key=700 trial=%d outletBedDeltaMeters=%.9g "
-                                        + "poolWidthScaleRange=%.6g..%.6g residuals=%s%n",
+                                        + "outletIncisionSlackMeters=%.9g poolWidthScaleRange=%.6g..%.6g "
+                                        + "residuals=%s%n",
                                 feedbackTrialIndex[0]++,
                                 outletBedDelta,
+                                outletIncisionSlackMeters,
                                 minimumWidthScale,
                                 maximumWidthScale,
                                 java.util.Arrays.toString(residuals));
