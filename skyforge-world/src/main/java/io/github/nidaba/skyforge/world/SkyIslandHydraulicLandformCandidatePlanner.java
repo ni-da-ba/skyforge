@@ -96,18 +96,18 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
 
-        // The bounded downstream pool-width sweep approaches, but does not close, the jump balance.
-        // Hold the near-closure width and vary the independent edge-outlet bed ramp to test
-        // whether a second authored geometry degree of freedom can close it.
+        // Hold the best measured pool-width and outlet-ramp conditions. The exact branch scan
+        // shows that upstream supercritical and downstream subcritical profiles are each available,
+        // but in disjoint station ranges. Probe bounded bed lowering through the middle/downstream
+        // CASCADE reach to test whether a jointly authored chute profile can bridge that gap.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, 2, 0, 0.45),
-            new CascadeShapeTrial(0.119, 2, 0, 0.50),
-            new CascadeShapeTrial(0.119, 2, 0, 0.55),
-            new CascadeShapeTrial(0.119, 2, 0, 0.60),
-            new CascadeShapeTrial(0.119, 2, 0, 0.65),
-            new CascadeShapeTrial(0.119, 2, 0, 0.70)
+            new CascadeShapeTrial(0.119, 1, -1, 0.10, 0.70),
+            new CascadeShapeTrial(0.119, 1, -1, 0.20, 0.70),
+            new CascadeShapeTrial(0.119, 1, -1, 0.30, 0.70),
+            new CascadeShapeTrial(0.119, 2, -1, 0.10, 0.70),
+            new CascadeShapeTrial(0.119, 2, -1, 0.20, 0.70),
+            new CascadeShapeTrial(0.119, 2, -1, 0.30, 0.70)
         };
-        double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
                 hydraulicResidualEvaluator.apply(initial), -1);
@@ -121,7 +121,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double[] controls = new double[feedbackControlCount()];
             int localControlStart = 2 * SkyIslandChannelProfileKind.values().length;
             controls[localControlStart + trial.localModeIndex()] =
-                    trial.bedDirection() * localAmplitude;
+                    trial.bedDirection() * trial.bedAmplitudeFraction() * maximumAmplitude;
             controls[localControlStart + 3 + trial.localModeIndex()] = trial.widthScaleOffset();
             controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
             Plan candidate;
@@ -169,6 +169,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double widthScaleOffset,
             int localModeIndex,
             int bedDirection,
+            double bedAmplitudeFraction,
             double terminalDropFraction) {}
 
     private static double localizedCascadeBump(double station, double center, double radius) {
