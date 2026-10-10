@@ -61,7 +61,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
      * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind, three
-     * localized CASCADE pool/step amplitudes, and one bounded CASCADE bankfull-width adjustment.
+     * localized CASCADE pool/step amplitudes, and one bounded network-wide bankfull-width adjustment.
      * Bed modes are zero at semantic reach endpoints, preserving shared junction elevations.
      * Bed, cross-section, and valley terrain are rebuilt as one candidate; D2 qualification stays
      * outside this hydraulic objective.
@@ -101,10 +101,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // pools/steps at representative cascade positions. The QP and valley constructor enforce
         // the actual terrain and incision limits for each trial.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(-0.20, 0, -1),
-            new CascadeShapeTrial(0.20, 0, -1),
-            new CascadeShapeTrial(-0.20, 1, 1),
-            new CascadeShapeTrial(0.20, 1, 1),
+            new CascadeShapeTrial(-0.50, 0, -1),
+            new CascadeShapeTrial(0.50, 0, -1),
+            new CascadeShapeTrial(-0.50, 1, 1),
+            new CascadeShapeTrial(0.50, 1, 1),
             new CascadeShapeTrial(0.0, 0, 1),
             new CascadeShapeTrial(0.0, 2, -1)
         };
@@ -296,16 +296,13 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     calibration.crossSections(descriptor, reach.samples(), reach.samples());
             boolean sourceReach = sourceNodes.contains(
                     reach.geomorphicRoute().semanticReach().startCellIndex());
-            boolean containsCascade = reach.geomorphicRoute().semanticReach().profiles().stream()
-                    .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE);
-            double channelWidthScale = containsCascade
-                    ? 1.0 + feedbackControls[2 * SkyIslandChannelProfileKind.values().length + 3]
-                    : 1.0;
+            double channelWidthScale =
+                    1.0 + feedbackControls[2 * SkyIslandChannelProfileKind.values().length + 3];
             if (!Double.isFinite(channelWidthScale)
-                    || channelWidthScale < 0.75
-                    || channelWidthScale > 1.25) {
+                    || channelWidthScale < 0.50
+                    || channelWidthScale > 1.50) {
                 throw new IllegalArgumentException(
-                        "candidate CASCADE bankfull width scale must remain within 0.75..1.25");
+                        "candidate network bankfull width scale must remain within 0.50..1.50");
             }
             CandidateBedResult bedResult = conditionBedProfile(
                     descriptor, reach, rawSections, calibration, reliefMeters, sourceReach,
@@ -416,7 +413,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     source.dischargeCubicMetersPerSecond(),
                     calibration.manningRoughness(),
                     maximumDepth,
-                    source.bottomWidthMeters(),
+                    source.bottomWidthMeters() * channelWidthScale,
                     source.sideSlopeHorizontalToVertical());
             double windowLength = rawSections.get(windowEnd).chainageMeters()
                     - source.chainageMeters();
