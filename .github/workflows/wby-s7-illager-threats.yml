@@ -115,6 +115,24 @@ jobs:
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
             -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache | tee wby-s7-control-resolution.log
           ! grep -Fq "WBY S7 COMBAT RESOLUTION PASS" wby-s7-control-resolution.log
+          control_common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache
+          )
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          find skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\\n' | sort \
+            > wby-s7-control-staged-mods.txt
 
       - name: Resolve cumulative S7 threat profile
         shell: bash
@@ -205,6 +223,8 @@ jobs:
           export WBY_S7_ICE_AND_FIRE=true
           export WBY_S7_BOMD=true
           export WBY_S7_COMBAT_VARIANT=${{ matrix.variant }}
+          export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
+          export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-server/server-mods"
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s7-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
           bash scripts/wby-s7-runtime-acceptance.sh
@@ -222,6 +242,7 @@ jobs:
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
             wby-s7-combat-evidence.tsv
+            wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
