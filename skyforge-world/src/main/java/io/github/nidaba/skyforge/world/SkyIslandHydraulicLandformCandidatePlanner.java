@@ -443,14 +443,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                             != SkyIslandChannelProfileKind.CASCADE) {
                 continue;
             }
-            double spacing = rawSections.get(i + 1).chainageMeters()
-                    - rawSections.get(i).chainageMeters();
             gradeConstraints.add(new SkyIslandHydraulicDifferenceConstraint(
                     "cascade-non-rising-bed-" + i,
                     i,
                     i + 1,
                     0.0,
-                    calibration.maximumDownstreamBedSlope() * spacing));
+                    reliefMeters));
         }
 
         // Do not infer a locally uniform supercritical regime from bed grade alone. CASCADE
