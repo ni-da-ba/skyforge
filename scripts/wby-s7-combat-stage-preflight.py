@@ -19,12 +19,14 @@ ENGINEERING = (
 )
 TACZ = ("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
 SCORCHED = ("scorchedGuns", "framework", "curios")
+FIREPOWER = ("cbcFirepowerComponents",)
 ARMS = {
     "engineering": ENGINEERING,
     "tacz": ENGINEERING + TACZ,
     "scorched": ENGINEERING + SCORCHED,
+    "firepower": ENGINEERING + FIREPOWER,
 }
-ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED
+ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED + FIREPOWER
 METADATA_PATHS = {
     "meta-inf/neoforge.mods.toml",
     "meta-inf/mods.toml",

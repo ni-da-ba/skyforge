@@ -3,9 +3,9 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  engineering|tacz|scorched) ;;
+  engineering|tacz|scorched|firepower) ;;
   *)
-    echo "Usage: bash scripts/wby-s7-combat-diagnostic-launch.sh {engineering|tacz|scorched}" >&2
+    echo "Usage: bash scripts/wby-s7-combat-diagnostic-launch.sh {engineering|tacz|scorched|firepower}" >&2
     exit 2
     ;;
 esac
@@ -70,7 +70,11 @@ grep -Fq "WBY S7 COMBAT RESOLUTION PASS variant=$variant" "$bundle/profile-resol
 ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
 ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
 
-echo "S7 candidate: cumulative S0-S7 BOMD plus combat engineering and exactly the '$variant' personal-firearm arm."
+if [[ "$variant" == "firepower" ]]; then
+  echo "S7 candidate: cumulative S0-S7 BOMD plus combat engineering and CBC: Firepower Components; no TaCZ or Scorched Guns."
+else
+  echo "S7 candidate: cumulative S0-S7 BOMD plus combat engineering and exactly the '$variant' personal-firearm arm."
+fi
 echo "Atmospheric Shaders are excluded; the accepted Simple Clouds + Distant Horizons setup remains."
 echo "Start a fresh normal Overworld (leave preset at Default/Normal) with seed 817306 in each arm so the worlds are comparable."
 echo "Keep difficulty Normal. Begin in Survival; use Creative briefly only if needed to inspect item catalogs or place test targets."
@@ -78,6 +82,11 @@ echo "Review the radar/IFF target picture, track handoff into Fire Control, targ
 echo "Test projectiles against static blocks and moving Sable contraptions; note shielding, penetration, damage, recoil, reload/ammo supply, and whether weapons work after save/reopen."
 echo "After building/linking the radar and weapon network, run /radar debug gen_debug_file in the world to capture radar links, filters, and weapon endpoints."
 echo "For TaCZ, inspect aircraft-mounted guns, Create automation, TaCZ NPC behavior, and default NPC appearances at villages/outposts/mansions. For Scorched, inspect the distinct weapon/mob/structure/turret/ExoSuit catalogue and any shield-generator interaction."
+if [[ "$variant" == "firepower" ]]; then
+  echo "Inspect compact cannon/autocannon mounts, mount orientation/limits, projectile loading, magazines, ready racks, ammo feeds, and automatic controller behavior on static CBC mounts and moving Sable craft."
+  echo "Create: Radars is pinned to 0.4.9.4, so this exercises Firepower Components' legacy Radar compatibility path. Verify tracking and aim, then confirm firing stops after target loss, data-link changes, mount reassignment, and controller unload."
+  echo "Check whether Create: Fire Control, CBC Neo Warfare, and Terminal Ballistics coexist with the mounts and ammo system. Radar 5.0 EA API behavior is outside this review."
+fi
 echo "Use JEI to record candidate ammo/material recipes and loot/spawn observations. Do not change recipes, drops, balance, or progression."
 echo "This is a compatibility/content-fit gate only; do not promote a firearm arm from this one run."
 echo "Review run directory: $run_path"

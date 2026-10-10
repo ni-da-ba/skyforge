@@ -529,7 +529,9 @@ val wbyS7CombatEngineeringMods = listOf(
 )
 val wbyS7TaczMods = listOf("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
 val wbyS7ScorchedMods = listOf("scorchedGuns", "framework", "curios")
-val wbyS7CombatCandidateMods = wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods
+val wbyS7FirepowerComponentsMods = listOf("cbcFirepowerComponents")
+val wbyS7CombatCandidateMods =
+    wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods + wbyS7FirepowerComponentsMods
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
@@ -630,6 +632,7 @@ val wbyS7CombatMods = when (wbyS7CombatVariant) {
     "engineering" -> wbyS7CombatEngineeringMods
     "tacz" -> wbyS7CombatEngineeringMods + wbyS7TaczMods
     "scorched" -> wbyS7CombatEngineeringMods + wbyS7ScorchedMods
+    "firepower" -> wbyS7CombatEngineeringMods + wbyS7FirepowerComponentsMods
     else -> emptyList()
 }
 
@@ -682,8 +685,8 @@ check(!wbyS7IceAndFire || wbyS7IllagerThreats) {
 check(!wbyS7Bomd || wbyS7IceAndFire) {
     "WBY S7 BOMD requires the cumulative S7 Ice & Fire profile"
 }
-check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched")) {
-    "WBY S7 combat variant must be none, engineering, tacz, or scorched"
+check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched", "firepower")) {
+    "WBY S7 combat variant must be none, engineering, tacz, scorched, or firepower"
 }
 check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
     "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
@@ -7532,6 +7535,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
             "engineering" -> wbyS7CombatEngineeringMods
             "tacz" -> wbyS7CombatEngineeringMods + wbyS7TaczMods
             "scorched" -> wbyS7CombatEngineeringMods + wbyS7ScorchedMods
+            "firepower" -> wbyS7CombatEngineeringMods + wbyS7FirepowerComponentsMods
             else -> emptyList()
         }
         expectedCombatNames.forEach { mod ->

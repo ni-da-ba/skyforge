@@ -25,8 +25,14 @@ ENGINEERING = (
 )
 TACZ = ("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
 SCORCHED = ("scorchedGuns", "framework", "curios")
-ARMS = {"engineering": ENGINEERING, "tacz": ENGINEERING + TACZ, "scorched": ENGINEERING + SCORCHED}
-ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED
+FIREPOWER = ("cbcFirepowerComponents",)
+ARMS = {
+    "engineering": ENGINEERING,
+    "tacz": ENGINEERING + TACZ,
+    "scorched": ENGINEERING + SCORCHED,
+    "firepower": ENGINEERING + FIREPOWER,
+}
+ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED + FIREPOWER
 TOML_PATH = "META-INF/neoforge.mods.toml"
 
 
@@ -211,7 +217,7 @@ def config_signals(value: object, prefix: str = "") -> list[str]:
 def append_runtime_config_evidence(root: Path, variant: str, report: list[list[object]]) -> None:
     if not root.is_dir():
         raise SystemExit(f"candidate runtime directory does not exist: {root}")
-    candidate_markers = ("tacz", "scorched", "scguns", "firecontrol", "fire_control", "modernwarfare")
+    candidate_markers = ("tacz", "scorched", "scguns", "firecontrol", "fire_control", "modernwarfare", "firepower")
     config_roots = {"config", "serverconfig", "defaultconfigs"}
     files = sorted(
         path for path in root.rglob("*")
@@ -307,7 +313,7 @@ def main() -> int:
                     ",".join(sorted(worldgen)),
                 ])
         elif matches:
-            raise SystemExit(f"Unselected firearm candidate {key} leaked into {args.variant}: {[p.name for p in matches]}")
+            raise SystemExit(f"Unselected combat candidate {key} leaked into {args.variant}: {[p.name for p in matches]}")
 
     server_log = args.server_log.read_text(encoding="utf-8", errors="replace")
     client_log = args.client_log.read_text(encoding="utf-8", errors="replace")
