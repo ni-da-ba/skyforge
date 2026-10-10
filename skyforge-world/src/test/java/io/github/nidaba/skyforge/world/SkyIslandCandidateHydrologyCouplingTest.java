@@ -204,6 +204,9 @@ class SkyIslandCandidateHydrologyCouplingTest {
         NaturalComponentProbe last = new NaturalComponentProbe(
                 2, 0, "unknown", true, false, 0.0, "no candidate route resolution attempted");
         var parameters = CALIBRATION.solverParameters();
+        SkyIslandHydraulicLandformCandidatePlanner.Plan baseline =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+        int[] feedbackTrialIndex = {0};
 
         // Let bounded bed/valley candidate generation respond to the exact natural component,
         // not only to a local cascade residual. A complete confluence/CASCADE closure is the only
@@ -212,7 +215,28 @@ class SkyIslandCandidateHydrologyCouplingTest {
             var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
                     descriptor,
                     CALIBRATION,
-                    candidate -> naturalComponentResidualVector(descriptor, candidate, parameters),
+                    candidate -> {
+                        double[] residuals =
+                                naturalComponentResidualVector(descriptor, candidate, parameters);
+                        var candidateCascade = candidate.requireReach(801, 1951);
+                        var baselineCascade = baseline.requireReach(801, 1951);
+                        double outletBedDelta = candidateCascade.sections().getLast().bedElevationMeters()
+                                - baselineCascade.sections().getLast().bedElevationMeters();
+                        double minimumWidthScale = candidateCascade.sectionWidthScales().stream()
+                                .mapToDouble(Double::doubleValue).min().orElse(1.0);
+                        double maximumWidthScale = candidateCascade.sectionWidthScales().stream()
+                                .mapToDouble(Double::doubleValue).max().orElse(1.0);
+                        System.out.printf(
+                                Locale.ROOT,
+                                "HYDRAULIC_GEOMETRY_TRIAL key=700 trial=%d outletBedDeltaMeters=%.9g "
+                                        + "poolWidthScaleRange=%.6g..%.6g residuals=%s%n",
+                                feedbackTrialIndex[0]++,
+                                outletBedDelta,
+                                minimumWidthScale,
+                                maximumWidthScale,
+                                java.util.Arrays.toString(residuals));
+                        return residuals;
+                    },
                     1.0e-8,
                     6);
             last = solveNaturalCandidate(descriptor, feedback.plan(), "coupled-feedback", parameters);
