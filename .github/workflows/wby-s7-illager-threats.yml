@@ -246,6 +246,7 @@ jobs:
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
             s7-production-server/config/*.toml
+            s7-production-server/config/**/*.json
             s7-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s7-server/config/*.toml
             skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/**/*.json
