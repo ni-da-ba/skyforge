@@ -46,7 +46,7 @@ def main() -> None:
     replace_once(
         versions,
         'serialization-toml = { module = "dev.eav.tomlkt:tomlkt", version.ref = "serialization-toml" }',
-        'serialization-toml = { module = "net.peanuuutz:tomlkt-jvm", version.ref = "serialization-toml" }',
+        'serialization-toml = { module = "net.peanuuutz.tomlkt:tomlkt-jvm", version.ref = "serialization-toml" }',
     )
 
     # Fletching Table 0.2 split/changed the old build API. A4MC's exact NeoForge
@@ -89,7 +89,7 @@ def main() -> None:
 
     require_once(
         versions,
-        'serialization-toml = { module = "net.peanuuutz:tomlkt-jvm", version.ref = "serialization-toml" }',
+        'serialization-toml = { module = "net.peanuuutz.tomlkt:tomlkt-jvm", version.ref = "serialization-toml" }',
     )
     require_once(build_logic, "implementation(libs.serialization.toml)")
     require_once(plugin, "configureProcessResources(ctx)")
@@ -98,7 +98,7 @@ def main() -> None:
         raise SystemExit("Fletching Table plugin references remain in the patched build logic")
     if "fletching-table" in versions.read_text(encoding="utf-8"):
         raise SystemExit("Fletching Table catalog references remain after migration")
-    if "net.peanuuutz:tomlkt-jvm" not in versions.read_text(encoding="utf-8"):
+    if "net.peanuuutz.tomlkt:tomlkt-jvm" not in versions.read_text(encoding="utf-8"):
         raise SystemExit("Pinned source's matching Tomlkt JVM artifact was not installed")
 
     print("Applied build-only migration: removed the unused Fletching Table extension and matched Tomlkt 0.3.7 JVM coordinates.")
