@@ -55,12 +55,12 @@ def metadata(jar: Path) -> dict[str, Any]:
         return tomllib.loads(archive.read(matches[0]).decode("utf-8"))
 
 
-def staged_profile(mods_dir: Path) -> tuple[set[str], set[str]]:
-    """Return jar SHA-256s and mod IDs for an exactly staged server profile."""
+def staged_profile(mods_dir: Path) -> tuple[set[str], dict[str, tuple[str, dict[str, Any]]]]:
+    """Return jar hashes and metadata for an exactly staged server profile."""
     if not mods_dir.is_dir():
         raise SystemExit(f"staged mods directory does not exist: {mods_dir}")
     hashes: set[str] = set()
-    ids: dict[str, str] = {}
+    mods: dict[str, tuple[str, dict[str, Any]]] = {}
     for jar in sorted(mods_dir.glob("*.jar")):
         digest = hashlib.sha256(jar.read_bytes()).hexdigest()
         hashes.add(digest)
@@ -69,11 +69,27 @@ def staged_profile(mods_dir: Path) -> tuple[set[str], set[str]]:
             mod_id = str(mod.get("modId", ""))
             if not mod_id:
                 raise SystemExit(f"{jar.name} declares a blank mod id")
-            previous = ids.get(mod_id)
-            if previous is not None and previous != jar.name:
-                raise SystemExit(f"duplicate staged mod id {mod_id}: {previous}, {jar.name}")
-            ids[mod_id] = jar.name
-    return hashes, set(ids)
+            previous = mods.get(mod_id)
+            if previous is not None and previous[0] != jar.name:
+                raise SystemExit(f"duplicate staged mod id {mod_id}: {previous[0]}, {jar.name}")
+            mods[mod_id] = (jar.name, doc)
+    return hashes, mods
+
+
+def required_server_dependency_ids(doc: dict[str, Any], mod_id: str) -> set[str]:
+    required: set[str] = set()
+    entries = doc.get("dependencies", {}).get(mod_id, [])
+    if isinstance(entries, dict):
+        entries = [entries]
+    for entry in entries:
+        if str(entry.get("type", "")) != "required":
+            continue
+        if str(entry.get("side", "BOTH")) not in {"", "BOTH", "SERVER"}:
+            continue
+        dependency_id = str(entry.get("modId", ""))
+        if dependency_id:
+            required.add(dependency_id)
+    return required
 
 
 def license_for(metadata_doc: dict[str, Any], mod_id: str) -> str:
@@ -165,8 +181,10 @@ def main() -> int:
 
     profile_delta: set[str] = set()
     if args.control_mods and args.staged_mods:
-        control_hashes, control_ids = staged_profile(args.control_mods)
-        staged_hashes, staged_ids = staged_profile(args.staged_mods)
+        control_hashes, control_mods = staged_profile(args.control_mods)
+        staged_hashes, staged_mods = staged_profile(args.staged_mods)
+        control_ids = set(control_mods)
+        staged_ids = set(staged_mods)
         missing_base_hashes = control_hashes - staged_hashes
         if missing_base_hashes:
             raise SystemExit(
@@ -175,11 +193,24 @@ def main() -> int:
             )
         if not control_ids <= staged_ids:
             raise SystemExit(f"candidate server staging omitted baseline mod IDs: {sorted(control_ids - staged_ids)}")
+
         profile_delta = staged_ids - control_ids
-        if not active_mod_ids <= profile_delta:
+        expected_additions = set(active_mod_ids)
+        pending = list(active_mod_ids)
+        while pending:
+            mod_id = pending.pop()
+            staged_entry = staged_mods.get(mod_id)
+            if staged_entry is None:
+                raise SystemExit(f"candidate dependency closure is missing required mod ID {mod_id}")
+            for dependency_id in required_server_dependency_ids(staged_entry[1], mod_id):
+                if dependency_id not in control_ids and dependency_id not in expected_additions:
+                    expected_additions.add(dependency_id)
+                    pending.append(dependency_id)
+        if profile_delta != expected_additions:
             raise SystemExit(
-                "selected combat candidate IDs are not isolated additions to the control profile: "
-                f"missing={sorted(active_mod_ids - profile_delta)}"
+                "candidate profile differs from its declared required dependency closure: "
+                f"unexpected={sorted(profile_delta - expected_additions)} "
+                f"missing={sorted(expected_additions - profile_delta)}"
             )
         report.append([
             "profile-delta", args.variant, "", "", "", "", "", "", "",
