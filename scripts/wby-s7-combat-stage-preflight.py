@@ -135,18 +135,20 @@ def candidate_identity(
         if not server_declarations:
             raise SystemExit(f"{key}: no mod declaration in {server_jar.name}")
         expected_version = pins.get(f"{key}.version", "").strip()
+        expected_metadata_version = pins.get(f"{key}.metadataVersion", expected_version).strip()
         expected_license = pins.get(f"{key}.license", "").strip()
         source = pins.get(f"{key}.source", "").strip()
-        if not expected_version or not expected_license or not source.startswith("https://"):
-            raise SystemExit(f"{key}: manifest must pin version, license, and HTTPS source")
+        if not expected_version or not expected_metadata_version or not expected_license or not source.startswith("https://"):
+            raise SystemExit(f"{key}: manifest must pin release version, metadata version, license, and HTTPS source")
         expected_hash = pins.get(f"{key}.sha256", "").strip().lower()
         if expected_hash and digest.lower() != expected_hash:
             raise SystemExit(f"{key}: SHA-256 mismatch; expected={expected_hash} actual={digest}")
         for declaration in server_declarations:
             actual_version = str(declaration.get("version", "")).strip()
-            if actual_version and actual_version not in {expected_version, "${file.jarVersion}"}:
+            if actual_version and actual_version not in {expected_metadata_version, "${file.jarVersion}"}:
                 raise SystemExit(
-                    f"{key}: metadata version mismatch; expected={expected_version!r} actual={actual_version!r}"
+                    f"{key}: JAR metadata version mismatch; expected={expected_metadata_version!r} "
+                    f"for release={expected_version!r}, actual={actual_version!r}"
                 )
         primary = server_declarations[0]
         metadata_version = str(primary.get("version", "")).strip()
