@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ENGINEERING = (
+    "copycatsPlus",
     "createRadars",
     "createAeroRadars",
     "createFireControl",
@@ -20,7 +21,7 @@ ENGINEERING = (
     "cbcTerminalBallistics",
 )
 TACZ = ("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
-SCORCHED = ("scorchedGuns",)
+SCORCHED = ("scorchedGuns", "framework", "curios")
 ARMS = {"engineering": ENGINEERING, "tacz": ENGINEERING + TACZ, "scorched": ENGINEERING + SCORCHED}
 ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED
 TOML_PATH = "META-INF/neoforge.mods.toml"
