@@ -90,6 +90,26 @@ class SkyIslandHydraulicComponentGeometryRefinementTest {
 
     @Test
     void key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly() {
+        List<SkyIslandChannelProfileKind> transitionKinds = List.of(
+                SkyIslandChannelProfileKind.ALLUVIAL,
+                SkyIslandChannelProfileKind.CASCADE,
+                SkyIslandChannelProfileKind.INCISED,
+                SkyIslandChannelProfileKind.INCISED);
+        double[] justBeforeBoundary = SkyIslandHydraulicLandformCandidatePlanner
+                .profileFeedbackWeights(transitionKinds, 0.5 - 1.0e-8);
+        double[] atBoundary = SkyIslandHydraulicLandformCandidatePlanner
+                .profileFeedbackWeights(transitionKinds, 0.5);
+        double[] justAfterBoundary = SkyIslandHydraulicLandformCandidatePlanner
+                .profileFeedbackWeights(transitionKinds, 0.5 + 1.0e-8);
+        assertEquals(0.5,
+                atBoundary[SkyIslandChannelProfileKind.CASCADE.ordinal()], 1.0e-12);
+        assertEquals(0.5,
+                atBoundary[SkyIslandChannelProfileKind.INCISED.ordinal()], 1.0e-12);
+        for (int kind = 0; kind < atBoundary.length; kind++) {
+            assertTrue(Math.abs(justBeforeBoundary[kind] - atBoundary[kind]) < 1.0e-6);
+            assertTrue(Math.abs(justAfterBoundary[kind] - atBoundary[kind]) < 1.0e-6);
+        }
+
         SkyIslandDescriptor descriptor = descriptor();
         SkyIslandHydraulicGeometrySkeletonPlan base =
                 SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
