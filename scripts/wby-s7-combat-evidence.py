@@ -101,11 +101,52 @@ def safe(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace("\t", " ").replace("\n", " ")
 
 
+def config_signals(value: object, prefix: str = "") -> list[str]:
+    signals: list[str] = []
+    if isinstance(value, dict):
+        for key, child in value.items():
+            path = f"{prefix}.{key}" if prefix else str(key)
+            if any(marker in str(key).lower() for marker in ("spawn", "structure", "worldgen", "mob", "entity")):
+                if not isinstance(child, (dict, list)):
+                    signals.append(f"{path}={child}")
+            signals.extend(config_signals(child, path))
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            signals.extend(config_signals(child, f"{prefix}[{index}]"))
+    return signals
+
+
+def append_runtime_config_evidence(root: Path, variant: str, report: list[list[object]]) -> None:
+    if not root.is_dir():
+        raise SystemExit(f"candidate runtime directory does not exist: {root}")
+    candidate_markers = ("tacz", "scorched", "scguns", "firecontrol", "fire_control", "modernwarfare")
+    files = sorted(
+        path for path in root.rglob("*")
+        if path.is_file()
+        and path.suffix.lower() in {".toml", ".json"}
+        and any(marker in str(path.relative_to(root)).lower() for marker in candidate_markers)
+    )
+    for path in files:
+        relative = path.relative_to(root).as_posix()
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        report.append(["runtime-config", variant, "", relative, digest, "", "", "", "", "candidate configuration"])
+        try:
+            if path.suffix.lower() == ".json":
+                decoded: object = json.loads(path.read_text(encoding="utf-8"))
+            else:
+                decoded = tomllib.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError, tomllib.TOMLDecodeError) as exc:
+            raise SystemExit(f"candidate config cannot be parsed: {relative}: {exc}") from exc
+        for signal in config_signals(decoded):
+            report.append(["config-signal", variant, "", relative, digest, "", "", "", "", signal])
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--control-mods", type=Path)
     parser.add_argument("--staged-mods", type=Path)
+    parser.add_argument("--runtime-root", type=Path)
     parser.add_argument("--pins", type=Path, default=Path("skyforge-neoforge-1211/wby-s7-combat.properties"))
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
     parser.add_argument("--server-log", type=Path, required=True)
@@ -180,6 +221,8 @@ def main() -> int:
             raise SystemExit(f"Client runtime log did not discover {mod_id}")
 
     profile_delta: set[str] = set()
+    if args.runtime_root:
+        append_runtime_config_evidence(args.runtime_root, args.variant, report)
     if args.control_mods and args.staged_mods:
         control_hashes, control_mods = staged_profile(args.control_mods)
         staged_hashes, staged_mods = staged_profile(args.staged_mods)
