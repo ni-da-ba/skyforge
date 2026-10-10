@@ -181,10 +181,13 @@ jobs:
         run: |
           set -euo pipefail
           python3 scripts/wby-s7-combat-stage-preflight.py \
-            --profile control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
-            --profile control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
-            --profile candidate-server skyforge-neoforge-1211/run-wby-s7-server/server-mods \
-            --profile candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods
+            --control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
+            --control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
+            --candidate-server skyforge-neoforge-1211/run-wby-s7-server/server-mods \
+            --candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --pins skyforge-neoforge-1211/wby-s7-combat.properties \
+            --variant ${{ matrix.variant }} \
+            --output wby-s7-candidate-pins.tsv
 
       - name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
@@ -254,6 +257,7 @@ jobs:
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
             wby-s7-combat-evidence.tsv
+            wby-s7-candidate-pins.tsv
             wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
