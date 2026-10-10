@@ -552,6 +552,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         public int endCellIndex() {
             return skeleton.geomorphicRoute().semanticReach().endCellIndex();
         }
+
+        public double channelWidthScale() {
+            return sectionWidthScales.stream().mapToDouble(Double::doubleValue).average().orElse(1.0);
+        }
+
+        public double channelWidthScaleAtSection(int index) {
+            return sectionWidthScales.get(index);
+        }
     }
 
     /** Immutable pre-solve geometry packet. Hydraulic and D2 qualification remain separate steps. */
@@ -621,13 +629,6 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                     + startCellIndex + "->" + endCellIndex));
         }
 
-        public double channelWidthScale() {
-            return sectionWidthScales.stream().mapToDouble(Double::doubleValue).average().orElse(1.0);
-        }
-
-        public double channelWidthScaleAtSection(int index) {
-            return sectionWidthScales.get(index);
-        }
     }
 
     private record CandidateBedResult(
