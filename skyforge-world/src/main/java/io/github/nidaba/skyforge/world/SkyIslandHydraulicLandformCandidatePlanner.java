@@ -96,16 +96,16 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
 
-        // The outlet-bed amplitude showed a residual plateau across its bounded scalar sweep. Pair
-        // the best responsive amplitude with downstream pool-width changes, which rebuild both
-        // the trapezoidal sections and their valley terrain; geometry bounds remain enforced.
+        // The bounded downstream pool-width sweep approaches, but does not close, the jump balance.
+        // Hold the near-closure width and vary the independent edge-outlet bed ramp to test
+        // whether a second authored geometry degree of freedom can close it.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.11900, 2, 0, 0.60),
-            new CascadeShapeTrial(0.11905, 2, 0, 0.60),
-            new CascadeShapeTrial(0.11910, 2, 0, 0.60),
-            new CascadeShapeTrial(0.11915, 2, 0, 0.60),
-            new CascadeShapeTrial(0.11920, 2, 0, 0.60),
-            new CascadeShapeTrial(0.11925, 2, 0, 0.60)
+            new CascadeShapeTrial(0.119, 2, 0, 0.45),
+            new CascadeShapeTrial(0.119, 2, 0, 0.50),
+            new CascadeShapeTrial(0.119, 2, 0, 0.55),
+            new CascadeShapeTrial(0.119, 2, 0, 0.60),
+            new CascadeShapeTrial(0.119, 2, 0, 0.65),
+            new CascadeShapeTrial(0.119, 2, 0, 0.70)
         };
         double localAmplitude = 0.75 * maximumAmplitude;
         double[] bestControls = new double[feedbackControlCount()];
