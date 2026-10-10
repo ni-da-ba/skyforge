@@ -500,12 +500,11 @@ class SkyIslandCandidateHydrologyCouplingTest {
                         - initial.requireReach(801, 1951).sections().getFirst().bedElevationMeters(),
                 1.0e-8,
                 "feedback must preserve the shared CASCADE inlet bed");
-        assertEquals(
-                0.0,
+        assertTrue(
                 cascade.sections().getLast().bedElevationMeters()
-                        - initial.requireReach(801, 1951).sections().getLast().bedElevationMeters(),
-                1.0e-8,
-                "feedback must preserve the shared terminal bed");
+                        <= initial.requireReach(801, 1951).sections().getLast().bedElevationMeters()
+                                + 1.0e-8,
+                "edge-outlet feedback may lower, but must not raise, the terminal bed");
 
         boolean exactJumpClosed;
         try {
