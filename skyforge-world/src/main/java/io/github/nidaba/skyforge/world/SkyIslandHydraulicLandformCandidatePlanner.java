@@ -60,11 +60,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * Rebuilds bounded bed/valley candidates from hydraulic feedback controls and returns the
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
-     * <p>The feedback vector contains two bed-shape amplitudes per channel profile kind. Both modes
-     * are zero at semantic reach endpoints, so authored junction elevations remain shared. Every
-     * trial is reprojected through the existing bounded bed QP; no-fill, incision, source-grade,
-     * and trapezoid constraints remain hard. D2 qualification is deliberately not part of this
-     * hydraulic objective.
+     * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind and three
+     * localized pool/step-shape amplitudes for CASCADE reaches. Every mode is zero at semantic
+     * reach endpoints, preserving shared junction elevations. Every trial is reprojected through
+     * the existing bounded bed QP; no-fill, incision, source-boundary, and trapezoid constraints
+     * remain hard. D2 qualification is deliberately not part of this hydraulic objective.
      */
     public static FeedbackResult planWithHydraulicFeedback(
             SkyIslandDescriptor descriptor,
@@ -101,28 +101,25 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // family of cascade-only shapes instead: broad bed lowering/raising plus a gentler
         // secondary mode. Every trial is still projected through the bounded geometry QP and
         // judged by the exact caller-supplied hydraulic residual.
-        double[][] candidates = {
-            {0.0, 0.0},
-            {-0.25, 0.0},
-            {0.25, 0.0},
-            {-0.50, 0.0},
-            {0.50, 0.0},
-            {0.0, -0.25},
-            {0.0, 0.25}
-        };
-        double[] bestControls = new double[2 * SkyIslandChannelProfileKind.values().length];
+        // Six localized alternatives: a shallow raised/lowered control at each quarter, middle,
+        // and three-quarter cascade station. The compact cosine window creates a pool/step form
+        // that broad whole-reach modes cannot represent.
+        int[] localModeSigns = {-1, 1, -1, 1, -1, 1};
+        int[] localModeStations = {0, 0, 1, 1, 2, 2};
+        double localAmplitude = 0.75 * maximumAmplitude;
+        double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
                 hydraulicResidualEvaluator.apply(initial), -1);
         Plan selected = initial;
         double bestNorm = residualNorm(bestResiduals);
         int evaluated = 0;
-        for (int candidateIndex = 1;
-                candidateIndex < candidates.length && evaluated < maximumIterations;
+        for (int candidateIndex = 0;
+                candidateIndex < localModeSigns.length && evaluated < maximumIterations;
                 candidateIndex++) {
-            double[] controls = new double[2 * SkyIslandChannelProfileKind.values().length];
-            controls[cascadeKind] = candidates[candidateIndex][0] * maximumAmplitude;
-            controls[SkyIslandChannelProfileKind.values().length + cascadeKind] =
-                    candidates[candidateIndex][1] * maximumAmplitude;
+            double[] controls = new double[feedbackControlCount()];
+            int modeIndex = localModeStations[candidateIndex];
+            controls[2 * SkyIslandChannelProfileKind.values().length + modeIndex] =
+                    localModeSigns[candidateIndex] * localAmplitude;
             Plan candidate;
             try {
                 candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
@@ -156,6 +153,18 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 evaluated,
                 bestNorm <= residualTolerance);
         return new FeedbackResult(selected, result);
+    }
+
+    private static int feedbackControlCount() {
+        return 2 * SkyIslandChannelProfileKind.values().length + 3;
+    }
+
+    private static double localizedCascadeBump(double station, double center, double radius) {
+        double normalizedDistance = Math.abs(station - center) / radius;
+        if (normalizedDistance >= 1.0) {
+            return 0.0;
+        }
+        return 0.5 * (1.0 + Math.cos(Math.PI * normalizedDistance));
     }
 
     private static double[] validatedResiduals(double[] values, int expectedLength) {
@@ -255,8 +264,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandDescriptor descriptor,
             SkyIslandGameScaleHydraulicCalibration calibration,
             SkyIslandHydraulicGeometrySkeletonPlan skeleton) {
-        return buildPlan(descriptor, calibration, skeleton,
-                new double[2 * SkyIslandChannelProfileKind.values().length]);
+        return buildPlan(descriptor, calibration, skeleton, new double[feedbackControlCount()]);
     }
 
     private static Plan buildPlan(
@@ -264,9 +272,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             SkyIslandGameScaleHydraulicCalibration calibration,
             SkyIslandHydraulicGeometrySkeletonPlan skeleton,
             double[] feedbackControls) {
-        if (feedbackControls.length != 2 * SkyIslandChannelProfileKind.values().length) {
+        if (feedbackControls.length != feedbackControlCount()) {
             throw new IllegalArgumentException(
-                    "hydraulic feedback must provide two bed-shape controls per profile kind");
+                    "hydraulic feedback must provide two broad controls per profile kind and three localized cascade controls");
         }
         double reliefMeters = descriptor.reliefBudget() * calibration.metersPerWorldUnit();
         List<Integer> sourceNodes = skeleton.geomorphicNetwork().nodes().stream()
@@ -348,6 +356,13 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     + feedbackControls[kind] * Math.sin(Math.PI * modeStation)
                     + feedbackControls[SkyIslandChannelProfileKind.values().length + kind]
                             * Math.sin(2.0 * Math.PI * modeStation);
+            if (kind == SkyIslandChannelProfileKind.CASCADE.ordinal()) {
+                for (int localMode = 0; localMode < 3; localMode++) {
+                    target[i] += feedbackControls[
+                                    2 * SkyIslandChannelProfileKind.values().length + localMode]
+                            * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
+                }
+            }
             lower[i] = Math.max(0.0, surface - maximumIncision);
             upper[i] = surface;
             double left = i == 0
