@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 import re
+import socket
+import struct
 import sys
 import tomllib
 import zipfile
@@ -102,6 +104,58 @@ def safe(value: object) -> str:
     return str(value).replace("\\", "\\\\").replace("\t", " ").replace("\n", " ")
 
 
+def rcon_packet(packet_id: int, packet_type: int, body: str) -> bytes:
+    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\\x00\\x00"
+    return struct.pack("<i", len(payload)) + payload
+
+
+def rcon_response(sock: socket.socket) -> tuple[int, str]:
+    chunks = bytearray()
+    while len(chunks) < 4:
+        chunk = sock.recv(4 - len(chunks))
+        if not chunk:
+            raise ConnectionError("RCON closed before packet length")
+        chunks.extend(chunk)
+    length = struct.unpack("<i", chunks)[0]
+    payload = bytearray()
+    while len(payload) < length:
+        chunk = sock.recv(length - len(payload))
+        if not chunk:
+            raise ConnectionError("RCON closed before packet body")
+        payload.extend(chunk)
+    packet_id = struct.unpack("<i", payload[:4])[0]
+    return packet_id, bytes(payload[8:-2]).decode("utf-8", errors="replace").strip()
+
+
+def rcon(command: str, host: str, port: int, password: str) -> str:
+    with socket.create_connection((host, port), timeout=15) as sock:
+        sock.settimeout(30)
+        sock.sendall(rcon_packet(1, 3, password))
+        packet_id, _ = rcon_response(sock)
+        if packet_id != 1:
+            raise PermissionError("RCON authentication failed")
+        sock.sendall(rcon_packet(2, 2, command))
+        packet_id, body = rcon_response(sock)
+        if packet_id != 2:
+            raise RuntimeError("RCON response did not match the command")
+        return body
+
+
+def probe_tacz_npc(host: str, port: int, password: str) -> tuple[str, str]:
+    summon = rcon(
+        'execute at @a[limit=1] run summon tacznpcs:npc ~ ~ ~ {"template":""}',
+        host, port, password,
+    )
+    selector = "@e[type=tacznpcs:npc,distance=..16,sort=nearest,limit=1]"
+    uuid = rcon(
+        f"execute at @a[limit=1] if entity {selector} run data get entity {selector} UUID",
+        host, port, password,
+    )
+    if not summon or not uuid or "no entity" in uuid.lower():
+        raise SystemExit(f"TaCZ NPC spawn/registry probe failed: summon={summon!r}; uuid={uuid!r}")
+    return summon, uuid
+
+
 def config_signals(value: object, prefix: str = "") -> list[str]:
     signals: list[str] = []
     if isinstance(value, dict):
@@ -148,6 +202,9 @@ def main() -> int:
     parser.add_argument("--control-mods", type=Path)
     parser.add_argument("--staged-mods", type=Path)
     parser.add_argument("--runtime-root", type=Path)
+    parser.add_argument("--rcon-host")
+    parser.add_argument("--rcon-port", type=int, default=25575)
+    parser.add_argument("--rcon-password")
     parser.add_argument("--pins", type=Path, default=Path("skyforge-neoforge-1211/wby-s7-combat.properties"))
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
     parser.add_argument("--server-log", type=Path, required=True)
@@ -224,6 +281,11 @@ def main() -> int:
     profile_delta: set[str] = set()
     if args.runtime_root:
         append_runtime_config_evidence(args.runtime_root, args.variant, report)
+    if args.variant == "tacz":
+        if not args.rcon_host or not args.rcon_password:
+            raise SystemExit("TaCZ arm requires RCON credentials for its live NPC spawn probe")
+        summon, uuid = probe_tacz_npc(args.rcon_host, args.rcon_port, args.rcon_password)
+        report.append(["entity-probe", args.variant, "", "", "", "tacznpcs:npc", "", "", "", f"summon={summon}; uuid={uuid}"])
     if args.control_mods and args.staged_mods:
         control_hashes, control_mods = staged_profile(args.control_mods)
         staged_hashes, staged_mods = staged_profile(args.staged_mods)
