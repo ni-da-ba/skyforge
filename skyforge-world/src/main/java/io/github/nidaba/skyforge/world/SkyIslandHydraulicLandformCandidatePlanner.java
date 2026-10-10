@@ -172,6 +172,47 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double localBedLoweringFraction,
             double terminalDropFraction) {}
 
+    static double[] profileFeedbackWeights(
+            List<SkyIslandChannelProfileKind> profileKinds, double station) {
+        Objects.requireNonNull(profileKinds, "profileKinds");
+        if (profileKinds.isEmpty() || !Double.isFinite(station)) {
+            throw new IllegalArgumentException("profile kinds and finite station are required");
+        }
+        double clampedStation = Math.max(0.0, Math.min(0.999999999, station));
+        int profileCount = profileKinds.size();
+        double scaledStation = clampedStation * profileCount;
+        int index = Math.min(profileCount - 1, (int) Math.floor(scaledStation));
+        double withinProfile = scaledStation - index;
+        double[] weights = new double[SkyIslandChannelProfileKind.values().length];
+        SkyIslandChannelProfileKind current = Objects.requireNonNull(
+                profileKinds.get(index), "profile kind");
+        weights[current.ordinal()] = 1.0;
+        double blendHalfWidth = 0.25;
+        if (index > 0
+                && withinProfile < blendHalfWidth
+                && profileKinds.get(index - 1) != current) {
+            SkyIslandChannelProfileKind previous = profileKinds.get(index - 1);
+            double currentWeight = smoothStep01(
+                    (withinProfile + blendHalfWidth) / (2.0 * blendHalfWidth));
+            weights[previous.ordinal()] = 1.0 - currentWeight;
+            weights[current.ordinal()] = currentWeight;
+        } else if (index + 1 < profileCount
+                && withinProfile > 1.0 - blendHalfWidth
+                && profileKinds.get(index + 1) != current) {
+            SkyIslandChannelProfileKind next = profileKinds.get(index + 1);
+            double nextWeight = smoothStep01(
+                    (withinProfile - (1.0 - blendHalfWidth)) / (2.0 * blendHalfWidth));
+            weights[current.ordinal()] = 1.0 - nextWeight;
+            weights[next.ordinal()] = nextWeight;
+        }
+        return weights;
+    }
+
+    private static double smoothStep01(double value) {
+        double x = Math.max(0.0, Math.min(1.0, value));
+        return x * x * (3.0 - 2.0 * x);
+    }
+
     private static double localizedCascadeBump(double station, double center, double radius) {
         double normalizedDistance = Math.abs(station - center) / radius;
         if (normalizedDistance >= 1.0) {
@@ -367,23 +408,33 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         double[] weight = new double[count];
         double[] lower = new double[count];
         double[] upper = new double[count];
+        List<SkyIslandChannelProfile> profiles =
+                reach.geomorphicRoute().semanticReach().profiles();
+        double[][] profileWeightsAtSection = new double[count][];
+        List<SkyIslandChannelProfileKind> profileKinds =
+                profiles.stream().map(SkyIslandChannelProfile::kind).toList();
         for (int i = 0; i < count; i++) {
             SkyIslandHydraulicGeometrySkeletonSample sample = reach.samples().get(i);
             SkyIslandGraduallyVariedFlowSolver.CrossSection section = rawSections.get(i);
             double surface = sample.terrainElevation() * reliefMeters;
             double maximumIncision = Math.min(
                     surface, calibration.maximumCrossSectionDepthMeters(sample));
-            int kind = profileKind(
-                    reach.geomorphicRoute().semanticReach().profiles(),
-                    sample.stationFraction()).ordinal();
+            double[] profileWeights =
+                    profileFeedbackWeights(profileKinds, sample.stationFraction());
+            profileWeightsAtSection[i] = profileWeights;
+            double cascadeWeight = profileWeights[SkyIslandChannelProfileKind.CASCADE.ordinal()];
             double modeStation = bedFeedbackStation(sample.stationFraction(), sourceReach, count);
-            target[i] = section.bedElevationMeters()
-                    + feedbackControls[kind] * Math.sin(Math.PI * modeStation)
-                    + feedbackControls[SkyIslandChannelProfileKind.values().length + kind]
-                            * Math.sin(2.0 * Math.PI * modeStation);
-            if (kind == SkyIslandChannelProfileKind.CASCADE.ordinal()) {
+            double targetOffset = 0.0;
+            for (SkyIslandChannelProfileKind kind : SkyIslandChannelProfileKind.values()) {
+                targetOffset += profileWeights[kind.ordinal()]
+                        * (feedbackControls[kind.ordinal()] * Math.sin(Math.PI * modeStation)
+                                + feedbackControls[SkyIslandChannelProfileKind.values().length + kind.ordinal()]
+                                        * Math.sin(2.0 * Math.PI * modeStation));
+            }
+            target[i] = section.bedElevationMeters() + targetOffset;
+            if (cascadeWeight > 0.0) {
                 for (int localMode = 0; localMode < 3; localMode++) {
-                    target[i] += feedbackControls[
+                    target[i] += cascadeWeight * feedbackControls[
                                     2 * SkyIslandChannelProfileKind.values().length + localMode]
                             * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
                 }
@@ -455,12 +506,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // A CASCADE reach is an authored chute: its bed may flatten into pools, but must not
         // climb downstream. Keep this morphological grade constraint local to adjacent samples
         // both owned by CASCADE; ordinary reaches and transitions retain their own controls.
-        List<SkyIslandChannelProfile> profiles =
-                reach.geomorphicRoute().semanticReach().profiles();
         for (int i = 0; i + 1 < count; i++) {
             if (profileKind(profiles, reach.samples().get(i).stationFraction())
                             != SkyIslandChannelProfileKind.CASCADE
-                    || profileKind(profiles, reach.samples().get(i + 1).stationFraction())
+                    && profileKind(profiles, reach.samples().get(i + 1).stationFraction())
                             != SkyIslandChannelProfileKind.CASCADE) {
                 continue;
             }
@@ -508,15 +557,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             }
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
             double sectionWidthScale = 1.0;
-            if (profileKind(
-                            reach.geomorphicRoute().semanticReach().profiles(),
-                            reach.samples().get(i).stationFraction())
-                    == SkyIslandChannelProfileKind.CASCADE) {
+            double cascadeWeight =
+                    profileWeightsAtSection[i][SkyIslandChannelProfileKind.CASCADE.ordinal()];
+            if (cascadeWeight > 0.0) {
                 double modeStation = bedFeedbackStation(
                         reach.samples().get(i).stationFraction(), sourceReach, count);
                 int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
                 for (int localMode = 0; localMode < 3; localMode++) {
-                    sectionWidthScale += feedbackControls[widthControlStart + localMode]
+                    sectionWidthScale += cascadeWeight
+                            * feedbackControls[widthControlStart + localMode]
                             * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
                 }
             }
