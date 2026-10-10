@@ -602,6 +602,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
         var parameters = CALIBRATION.solverParameters();
         int candidateSplits = 0;
         int validInletSplits = 0;
+        int minimumValidSplit = Integer.MAX_VALUE;
+        int maximumValidSplit = -1;
         int pairedBranchSplits = 0;
         int unpairedBranchSplits = 0;
         int bestSplit = -1;
@@ -622,6 +624,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 continue;
             }
             validInletSplits++;
+            minimumValidSplit = Math.min(minimumValidSplit, split);
+            maximumValidSplit = Math.max(maximumValidSplit, split);
             double inletDepth = prefix.points().getLast().depthMeters();
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> jumpReach =
                     cascade.subList(split, cascade.size());
@@ -641,18 +645,22 @@ class SkyIslandCandidateHydrologyCouplingTest {
             }
         }
         String subcriticalDetails = subcriticalCandidateDiagnostics(cascade, parameters);
+        String firstPrefixContext = firstPrefixFailure
+                + describeCascadeLimit(cascade, parameters, firstPrefixFailure);
         return String.format(
                 Locale.ROOT,
-                "splits=%d,inletValid=%d,paired=%d,unpaired=%d,bestSplit=%d,"
+                "splits=%d,inletValid=%d,inletSplitRange=%d..%d,paired=%d,unpaired=%d,bestSplit=%d,"
                         + "bestAbsForceResidual=%.9g,firstPrefixFailure=%s,firstUnpairedFailure=%s,"
                         + "subcriticalCandidates={%s}",
                 candidateSplits,
                 validInletSplits,
+                minimumValidSplit == Integer.MAX_VALUE ? -1 : minimumValidSplit,
+                maximumValidSplit,
                 pairedBranchSplits,
                 unpairedBranchSplits,
                 bestSplit,
                 bestAbsoluteForceResidual,
-                firstPrefixFailure,
+                firstPrefixContext,
                 firstUnpairedFailure,
                 subcriticalDetails);
     }
@@ -666,6 +674,8 @@ class SkyIslandCandidateHydrologyCouplingTest {
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         int candidates = 0;
         int valid = 0;
+        String firstValidCandidate = "none";
+        String lastValidCandidate = "none";
         double minimumGap = Double.POSITIVE_INFINITY;
         String firstFailure = "none";
         String minimumGapContext = "none";
@@ -677,6 +687,10 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
                         suffix, parameters);
                 valid++;
+                if (firstValidCandidate.equals("none")) {
+                    firstValidCandidate = "section=" + start;
+                }
+                lastValidCandidate = "section=" + start;
             } catch (IllegalArgumentException | IllegalStateException failure) {
                 double gap = SkyIslandGraduallyVariedFlowSolver
                         .subcriticalCriticalControlEnergyGap(suffix, parameters);
@@ -702,6 +716,11 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 SkyIslandGraduallyVariedFlowSolver.solveSubcriticalUpstreamFromCriticalControl(
                         suffix, parameters);
                 valid++;
+                String candidate = "terminalFraction=" + fraction;
+                if (firstValidCandidate.equals("none")) {
+                    firstValidCandidate = candidate;
+                }
+                lastValidCandidate = candidate;
             } catch (IllegalArgumentException | IllegalStateException failure) {
                 double gap = SkyIslandGraduallyVariedFlowSolver
                         .subcriticalCriticalControlEnergyGap(suffix, parameters);
@@ -718,10 +737,13 @@ class SkyIslandCandidateHydrologyCouplingTest {
         }
         return String.format(
                 Locale.ROOT,
-                "tested=%d,valid=%d,invalid=%d,minGapMeters=%.9g,minGapAt=%s,firstFailure=%s",
+                "tested=%d,valid=%d,invalid=%d,validRange=%s..%s,"
+                        + "minGapMeters=%.9g,minGapAt=%s,firstFailure=%s",
                 candidates,
                 valid,
                 candidates - valid,
+                firstValidCandidate,
+                lastValidCandidate,
                 minimumGap,
                 minimumGapContext,
                 firstFailure);
