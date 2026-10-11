@@ -220,6 +220,33 @@ class SkyIslandCandidateHydrologyCouplingTest {
                                 naturalComponentResidualVector(descriptor, candidate, parameters);
                         var candidateCascade = candidate.requireReach(801, 1951);
                         var baselineCascade = baseline.requireReach(801, 1951);
+                        if (feedbackTrialIndex[0] <= 1) {
+                            List<SkyIslandChannelProfile> profiles = candidateCascade.skeleton()
+                                    .geomorphicRoute().semanticReach().profiles();
+                            for (int stationIndex : List.of(35, 36, 42, 43, 244, 245, 246, 247)) {
+                                if (stationIndex >= candidateCascade.sections().size()) {
+                                    continue;
+                                }
+                                SkyIslandHydraulicGeometrySkeletonSample sample =
+                                        candidateCascade.skeleton().samples().get(stationIndex);
+                                int profileIndex = Math.min(
+                                        profiles.size() - 1,
+                                        (int) Math.floor(Math.max(
+                                                0.0, Math.min(0.999999999, sample.stationFraction()))
+                                                * profiles.size()));
+                                var section = candidateCascade.sections().get(stationIndex);
+                                System.out.printf(
+                                        Locale.ROOT,
+                                        "HYDRAULIC_GEOMETRY_STATION trial=%d index=%d fraction=%.9g profile=%s bed=%.9g bottomWidth=%.9g widthScale=%.9g%n",
+                                        feedbackTrialIndex[0],
+                                        stationIndex,
+                                        sample.stationFraction(),
+                                        profiles.get(profileIndex).kind(),
+                                        section.bedElevationMeters(),
+                                        section.bottomWidthMeters(),
+                                        candidateCascade.channelWidthScaleAtSection(stationIndex));
+                            }
+                        }
                         double outletBedDelta = candidateCascade.sections().getLast().bedElevationMeters()
                                 - baselineCascade.sections().getLast().bedElevationMeters();
                         double minimumWidthScale = candidateCascade.sectionWidthScales().stream()
