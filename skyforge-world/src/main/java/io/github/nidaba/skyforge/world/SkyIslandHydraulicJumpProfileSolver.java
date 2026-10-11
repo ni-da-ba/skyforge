@@ -71,6 +71,18 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         }
         trials.add(null);
 
+        int validStationTrials = 0;
+        double minimumForceResidual = Double.POSITIVE_INFINITY;
+        double maximumForceResidual = Double.NEGATIVE_INFINITY;
+        for (StationTrial trial : trials) {
+            if (trial == null) {
+                continue;
+            }
+            validStationTrials++;
+            minimumForceResidual = Math.min(minimumForceResidual, trial.forceResidual());
+            maximumForceResidual = Math.max(maximumForceResidual, trial.forceResidual());
+        }
+
         for (int station = 1; station < reach.size() - 2; station++) {
             StationTrial lower = trials.get(station);
             StationTrial upper = trials.get(station + 1);
@@ -98,6 +110,9 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             try {
                 sample = evaluateInsideInterval(
                         reach, terminalInterval, fraction, upstreamDepthMeters, downstreamDepthMeters, parameters);
+                validStationTrials++;
+                minimumForceResidual = Math.min(minimumForceResidual, sample.forceResidual());
+                maximumForceResidual = Math.max(maximumForceResidual, sample.forceResidual());
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
                 previous = null;
                 continue;
@@ -114,7 +129,14 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         }
         throw new IllegalStateException(
                 "no admissible momentum-matched hydraulic jump connects source normal depth "
-                        + "to the downstream critical control");
+                        + "to the downstream tailwater"
+                        + ";sourceDepthMeters=" + upstreamDepthMeters
+                        + ";tailwaterDepthMeters=" + downstreamDepthMeters
+                        + ";validStationTrials=" + validStationTrials
+                        + ";forceResidualRange="
+                        + (validStationTrials == 0
+                                ? "none"
+                                : minimumForceResidual + ".." + maximumForceResidual));
     }
 
     /**
