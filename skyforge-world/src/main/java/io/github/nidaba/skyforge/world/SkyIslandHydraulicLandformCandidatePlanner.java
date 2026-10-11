@@ -101,12 +101,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, 0.05, -0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.05, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, -0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.25, -0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.25, 0.10, 0.70)
+            new CascadeShapeTrial(0.119, 0.05, 0.05, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.119, 0.05, -0.05, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.119, 0.15, 0.05, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.119, 0.15, 0.05, 0.05, -0.05, 0.70),
+            new CascadeShapeTrial(0.119, 0.15, 0.05, -0.05, -0.05, 0.70),
+            new CascadeShapeTrial(0.119, 0.25, 0.10, 0.00, -0.05, 0.70)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -123,7 +123,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             controls[cascadeKind] = -trial.broadBedLoweringFraction() * maximumAmplitude;
             for (int localMode = 0; localMode < 3; localMode++) {
                 controls[localControlStart + localMode] =
-                        trial.localBedAdjustmentFraction() * maximumAmplitude;
+                        trial.localBedAdjustmentFraction(localMode) * maximumAmplitude;
             }
             // The third local mode is outlet-centered; widen that approach smoothly to reduce
             // the measured terminal width step without collapsing the trapezoid bottom width.
@@ -173,8 +173,19 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private record CascadeShapeTrial(
             double widthScaleOffset,
             double broadBedLoweringFraction,
-            double localBedAdjustmentFraction,
-            double terminalDropFraction) {}
+            double inletBedAdjustmentFraction,
+            double middleBedAdjustmentFraction,
+            double outletBedAdjustmentFraction,
+            double terminalDropFraction) {
+        private double localBedAdjustmentFraction(int localMode) {
+            return switch (localMode) {
+                case 0 -> inletBedAdjustmentFraction;
+                case 1 -> middleBedAdjustmentFraction;
+                case 2 -> outletBedAdjustmentFraction;
+                default -> throw new IllegalArgumentException("local bed mode must be in 0..2");
+            };
+        }
+    }
 
     static double[] profileFeedbackWeights(
             List<SkyIslandChannelProfileKind> profileKinds, double station) {
