@@ -102,15 +102,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            // Anchor the previously measured near-closed outlet pool, then sweep only the
-            // upstream bed mode around its best-known setting. The inlet mode is localized near
-            // station 0.15, so the tailwater-side closure remains an independent measurement.
-            new CascadeShapeTrial(0.200, -0.200, 0.15, -0.10, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.15, -0.05, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.15,  0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.15,  0.05, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.15,  0.10, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.15,  0.15, -0.05, -0.10, -0.02)
+            // Keep the measured near-closed outlet controls fixed. First test the upper end of
+            // the accepted local-width envelope at the inlet energy bottleneck, then vary broad
+            // bed curvature only if width alone cannot create branch overlap.
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.225, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.250, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.250, -0.200, 0.10, 0.00, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.250, -0.200, 0.20, 0.00, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.250, -0.200, 0.15, 0.00,  0.00, -0.10, -0.02)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
