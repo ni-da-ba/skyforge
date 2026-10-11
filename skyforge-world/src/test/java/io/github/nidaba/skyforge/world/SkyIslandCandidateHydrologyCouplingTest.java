@@ -613,11 +613,49 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 Locale.ROOT,
                 "HYDRAULIC_GEOMETRY_DIAGNOSTIC key=700 %s%n",
                 diagnostics);
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
+                candidate.requireReach(801, 1951).sections();
+        double energyScale = Math.max(
+                1.0e-6,
+                SkyIslandGraduallyVariedFlowSolver.criticalDepth(
+                        cascade.getLast(), CALIBRATION.solverParameters()));
+        double supercriticalLimit = diagnosticValue(
+                diagnostics.firstSupercriticalFailure(), "criticalLimitResidualMeters");
+        double subcriticalLimit = diagnosticValue(
+                diagnostics.firstSubcriticalFailure(), "criticalBranchResidualMeters");
+        double supercriticalDeficit = Double.isFinite(supercriticalLimit)
+                ? Math.max(0.0, -supercriticalLimit) / energyScale
+                : diagnostics.normalizedBranchEnergyGap();
+        double subcriticalDeficit = Double.isFinite(subcriticalLimit)
+                ? Math.max(0.0, subcriticalLimit) / energyScale
+                : 0.0;
+        double forceResidual = diagnostics.pairedStations() > 0
+                ? diagnostics.normalizedForceResidual()
+                : 0.0;
         return new double[] {
-            diagnostics.normalizedForceResidual(),
-            diagnostics.normalizedBranchEnergyGap(),
-            diagnostics.normalizedBranchStationSeparation()
+            supercriticalDeficit,
+            subcriticalDeficit,
+            diagnostics.normalizedBranchStationSeparation(),
+            forceResidual
         };
+    }
+
+    private static double diagnosticValue(String diagnostic, String key) {
+        int valueStart = diagnostic == null ? -1 : diagnostic.indexOf(key + "=");
+        if (valueStart < 0) {
+            return Double.NaN;
+        }
+        valueStart += key.length() + 1;
+        int valueEnd = valueStart;
+        while (valueEnd < diagnostic.length()
+                && ",;] )".indexOf(diagnostic.charAt(valueEnd)) < 0) {
+            valueEnd++;
+        }
+        try {
+            return Double.parseDouble(diagnostic.substring(valueStart, valueEnd));
+        } catch (NumberFormatException malformedDiagnostic) {
+            return Double.NaN;
+        }
     }
 
     /**
