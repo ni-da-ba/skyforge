@@ -395,6 +395,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 .filter(fate -> fate.kind() == SkyIslandChannelTerminalFateKind.EDGE_OUTLET)
                 .map(SkyIslandChannelTerminalFate::channelTerminalCellIndex)
                 .toList();
+        Map<Integer, Double> sharedNodeBedTargets =
+                SkyIslandHydraulicSharedNodeBedCoupler.sharedNodeBedTargets(
+                        descriptor, calibration, skeleton);
         List<ReachCandidate> reaches = new ArrayList<>(skeleton.reaches().size());
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> rawSections =
@@ -405,7 +408,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     reach.geomorphicRoute().semanticReach().endCellIndex());
             CandidateBedResult bedResult = conditionBedProfile(
                     descriptor, reach, rawSections, calibration, reliefMeters, sourceReach,
-                    edgeOutletReach, feedbackControls);
+                    edgeOutletReach, feedbackControls, sharedNodeBedTargets);
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = bedResult.sections();
             if (sections.size() != reach.samples().size()) {
                 throw new IllegalStateException(
@@ -428,8 +431,6 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     reach, sections, bedResult.sectionWidthScales(), bedResult.qpResult()));
         }
 
-        reaches = new ArrayList<>(SkyIslandHydraulicSharedNodeBedCoupler.couple(
-                descriptor, calibration, skeleton, reaches));
         SkyIslandPreHydrologicTerrainField baseTerrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField candidateTerrain =
@@ -459,7 +460,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double reliefMeters,
             boolean sourceReach,
             boolean edgeOutletReach,
-            double[] feedbackControls) {
+            double[] feedbackControls,
+            Map<Integer, Double> sharedNodeBedTargets) {
         int count = rawSections.size();
         double[] target = new double[count];
         double[] weight = new double[count];
@@ -554,6 +556,19 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     ? section.chainageMeters() - rawSections.get(i - 1).chainageMeters()
                     : rawSections.get(i + 1).chainageMeters() - section.chainageMeters();
             weight[i] = 0.5 * (left + right);
+        }
+
+        SkyIslandSemanticChannelReach semantic =
+                reach.geomorphicRoute().semanticReach();
+        Double sharedStartBed = sharedNodeBedTargets.get(semantic.startCellIndex());
+        if (sharedStartBed != null) {
+            lower[0] = sharedStartBed;
+            upper[0] = sharedStartBed;
+        }
+        Double sharedEndBed = sharedNodeBedTargets.get(semantic.endCellIndex());
+        if (sharedEndBed != null) {
+            lower[count - 1] = sharedEndBed;
+            upper[count - 1] = sharedEndBed;
         }
 
         // Keep terrain fitting independent from the flow law except at a declared source:
