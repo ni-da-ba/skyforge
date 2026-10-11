@@ -76,6 +76,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
             }
         }
 
+        Map<Integer, Double> sharedNodeBeds = new HashMap<>();
+        for (SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate reach : candidate.reaches()) {
+            SkyIslandSemanticChannelReach semantic =
+                    reach.skeleton().geomorphicRoute().semanticReach();
+            assertSharedNodeBed(sharedNodeBeds, semantic.startCellIndex(), reach.sections().getFirst());
+            assertSharedNodeBed(sharedNodeBeds, semantic.endCellIndex(), reach.sections().getLast());
+        }
+
         System.out.printf(
                 Locale.ROOT,
                 "CANDIDATE_BED key=700 localRises=%d totalSections=%d%n",
@@ -1327,6 +1335,20 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 d2Rejected,
                 maximumEnergyResidual,
                 Map.copyOf(failures));
+    }
+
+    private static void assertSharedNodeBed(
+            Map<Integer, Double> sharedNodeBeds,
+            int nodeCellIndex,
+            SkyIslandGraduallyVariedFlowSolver.CrossSection section) {
+        Double previousBed = sharedNodeBeds.putIfAbsent(nodeCellIndex, section.bedElevationMeters());
+        if (previousBed != null) {
+            assertEquals(
+                    previousBed,
+                    section.bedElevationMeters(),
+                    1.0e-7,
+                    "all candidate reach beds incident to one semantic node must share an elevation");
+        }
     }
 
     private static double interpolatedCandidateBed(
