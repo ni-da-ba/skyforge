@@ -472,8 +472,6 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 maximumEnergyResidual = Math.max(
                         maximumEnergyResidual, ordinaryProfile.maximumEnergyResidualMeters());
 
-                SkyIslandHydraulicCascadeTransitionSite downstreamSite =
-                        cascadeSites.get(siteIndex + 1);
                 List<SkyIslandGraduallyVariedFlowSolver.CrossSection> downstreamCascadeSections =
                         candidateSectionsBetween(
                                 naturalReach,
