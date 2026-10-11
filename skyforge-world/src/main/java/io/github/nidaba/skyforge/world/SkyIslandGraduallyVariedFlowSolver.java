@@ -201,7 +201,14 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                     downstreamEnergy, parameters);
             if (lowerResidual > energyTolerance(upstream, lower, downstream, depths[i + 1], parameters)) {
                 throw new IllegalStateException(
-                        "no subcritical standard-step solution before critical depth at section " + i);
+                        "no subcritical standard-step solution before critical depth at section " + i
+                                + ";upstreamBedMeters=" + upstream.bedElevationMeters()
+                                + ";downstreamBedMeters=" + downstream.bedElevationMeters()
+                                + ";spacingMeters=" + spacing
+                                + ";upstreamCriticalDepthMeters=" + critical
+                                + ";criticalBranchResidualMeters=" + lowerResidual
+                                + ";energyToleranceMeters="
+                                + energyTolerance(upstream, lower, downstream, depths[i + 1], parameters));
             }
 
             double upper = Math.max(Math.max(depths[i + 1], lower) * 2.0, lower + 1.0);
