@@ -37,11 +37,7 @@ public final class SkyIslandManningHydraulics {
         requireFinitePositive(dischargeCubicMetersPerSecond, "discharge");
         requireFinitePositive(manningRoughness, "Manning roughness");
         requireFinitePositive(depthMeters, "depth");
-        requireFinitePositive(bottomWidthMeters, "bottom width");
-        if (!Double.isFinite(sideSlopeHorizontalPerVertical)
-                || sideSlopeHorizontalPerVertical < 0.0) {
-            throw new IllegalArgumentException("side slope must be finite and non-negative");
-        }
+        requirePhysicalSection(bottomWidthMeters, sideSlopeHorizontalPerVertical);
         double area = depthMeters
                 * (bottomWidthMeters + sideSlopeHorizontalPerVertical * depthMeters);
         double wettedPerimeter = bottomWidthMeters
@@ -65,7 +61,7 @@ public final class SkyIslandManningHydraulics {
      * @param dischargeCubicMetersPerSecond positive SI discharge Q
      * @param manningRoughness SI Manning coefficient n (s/m^(1/3))
      * @param energySlope positive dimensionless friction/energy slope S
-     * @param bottomWidthMeters positive channel bottom width b
+     * @param bottomWidthMeters nonnegative channel bottom width b (zero is triangular when z > 0)
      * @param sideSlopeHorizontalPerVertical nonnegative trapezoid side slope z (H:V)
      * @return positive normal depth in meters
      */
@@ -78,11 +74,7 @@ public final class SkyIslandManningHydraulics {
         requireFinitePositive(dischargeCubicMetersPerSecond, "discharge");
         requireFinitePositive(manningRoughness, "Manning roughness");
         requireFinitePositive(energySlope, "energy slope");
-        requireFinitePositive(bottomWidthMeters, "bottom width");
-        if (!Double.isFinite(sideSlopeHorizontalPerVertical)
-                || sideSlopeHorizontalPerVertical < 0.0) {
-            throw new IllegalArgumentException("side slope must be finite and non-negative");
-        }
+        requirePhysicalSection(bottomWidthMeters, sideSlopeHorizontalPerVertical);
 
         double targetConveyance = dischargeCubicMetersPerSecond * manningRoughness
                 / Math.sqrt(energySlope);
@@ -124,6 +116,22 @@ public final class SkyIslandManningHydraulics {
                         * Math.hypot(1.0, sideSlopeHorizontalPerVertical);
         double hydraulicRadius = area / wettedPerimeter;
         return area * Math.pow(hydraulicRadius, 2.0 / 3.0);
+    }
+
+    private static void requirePhysicalSection(
+            double bottomWidthMeters, double sideSlopeHorizontalPerVertical) {
+        requireFiniteNonNegative(bottomWidthMeters, "bottom width");
+        requireFiniteNonNegative(sideSlopeHorizontalPerVertical, "side slope");
+        if (bottomWidthMeters == 0.0 && sideSlopeHorizontalPerVertical == 0.0) {
+            throw new IllegalArgumentException(
+                    "channel section must have positive bottom width or positive side slope");
+        }
+    }
+
+    private static void requireFiniteNonNegative(double value, String name) {
+        if (!Double.isFinite(value) || value < 0.0) {
+            throw new IllegalArgumentException(name + " must be finite and non-negative");
+        }
     }
 
     private static void requireFinitePositive(double value, String name) {
