@@ -102,12 +102,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // upstream subcritical profile. Shared reach endpoints and the hydraulic acceptance rules
         // remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(-0.119, 0.05, 0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.10, 0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.15, 0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.20, 0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.25, 0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.30, 0.05, 0.70)
+            new CascadeShapeTrial(0.119, 0.05, 0.025, 0.70),
+            new CascadeShapeTrial(0.119, 0.10, 0.025, 0.70),
+            new CascadeShapeTrial(0.119, 0.15, 0.025, 0.70),
+            new CascadeShapeTrial(0.119, 0.20, 0.025, 0.70),
+            new CascadeShapeTrial(0.119, 0.25, 0.025, 0.70),
+            new CascadeShapeTrial(0.119, 0.30, 0.025, 0.70)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -126,8 +126,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 controls[localControlStart + localMode] =
                         -trial.localBedLoweringFraction() * maximumAmplitude;
             }
-            // The third local mode is outlet-centered; test a bounded contraction there because
-            // the current subcritical failure is a sharp terminal widening.
+            // The third local mode is outlet-centered; widen that approach smoothly to reduce
+            // the measured terminal width step without collapsing the trapezoid bottom width.
             controls[localControlStart + 3 + 2] = trial.widthScaleOffset();
             controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
             Plan candidate;
