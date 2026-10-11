@@ -599,7 +599,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     reach.samples().get(i).stationFraction(), sourceReach, count);
             int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
             for (int localMode = 0; localMode < 3; localMode++) {
-                sectionWidthScale += feedbackControls[widthControlStart + localMode]
+                sectionWidthScale += cascadeWeight
+                        * feedbackControls[widthControlStart + localMode]
                         * localizedReachBump(
                                 modeStation,
                                 reachWidthModeCenter(localMode),
