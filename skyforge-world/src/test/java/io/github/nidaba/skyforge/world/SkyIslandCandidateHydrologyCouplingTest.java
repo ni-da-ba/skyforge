@@ -560,6 +560,112 @@ class SkyIslandCandidateHydrologyCouplingTest {
                         + stationFraction);
     }
 
+    @Test
+    void hydraulicMomentumResidualFeedsBackIntoBoundedKey700BedCandidate() {
+        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
+        SkyIslandHydraulicLandformCandidatePlanner.Plan initial =
+                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
+        double initialResidual = residualNorm(cascadeResidualVector(initial));
+
+        var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
+                descriptor,
+                CALIBRATION,
+                SkyIslandCandidateHydrologyCouplingTest::cascadeResidualVector,
+                1.0e-8,
+                6);
+        assertTrue(
+                feedback.optimization().residualNorm() <= initialResidual + 1.0e-8,
+                "bounded geometry feedback must not worsen the physical momentum mismatch");
+        assertEquals(
+                initial.skeletonPlan().geomorphicNetwork().routes().size(),
+                feedback.plan().reaches().size(),
+                "bed feedback must preserve every authored semantic edge");
+        SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
+                feedback.plan().requireReach(801, 1951);
+        assertTrue(
+                cascade.sectionWidthScales().stream()
+                        .allMatch(scale -> scale >= 0.75 && scale <= 1.25),
+                "candidate channel width must remain inside the explicit morphology envelope");
+        for (int source : List.of(660, 1140)) {
+            SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate incoming =
+                    feedback.plan().requireReach(source, 801);
+            assertTrue(
+                    incoming.sectionWidthScales().stream().allMatch(scale -> scale == 1.0),
+                    "localized cascade-pool widening must leave source branches unchanged");
+        }
+        for (int i = 0; i < cascade.sections().size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample sample = cascade.skeleton().samples().get(i);
+            double localTerrainMeters = sample.terrainElevation()
+                    * descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
+            double depth = localTerrainMeters - cascade.sections().get(i).bedElevationMeters();
+            double reconstructedBankfullWidth = cascade.sections().get(i).bottomWidthMeters()
+                    + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * depth;
+            assertEquals(
+                    2.0 * sample.bankfullHalfWidth()
+                            * cascade.channelWidthScaleAtSection(i)
+                            * CALIBRATION.metersPerWorldUnit(),
+                    reconstructedBankfullWidth,
+                    1.0e-8,
+                    "hydraulic section width must match the jointly scaled valley/channel candidate");
+        }
+        List<SkyIslandChannelProfile> cascadeProfiles =
+                cascade.skeleton().geomorphicRoute().semanticReach().profiles();
+        for (int i = 1; i < cascade.sections().size(); i++) {
+            SkyIslandChannelProfileKind upstreamKind = profileKindAt(
+                    cascadeProfiles, cascade.skeleton().samples().get(i - 1).stationFraction());
+            SkyIslandChannelProfileKind downstreamKind = profileKindAt(
+                    cascadeProfiles, cascade.skeleton().samples().get(i).stationFraction());
+            if (upstreamKind == SkyIslandChannelProfileKind.CASCADE
+                    && downstreamKind == SkyIslandChannelProfileKind.CASCADE) {
+                assertTrue(
+                        cascade.sections().get(i).bedElevationMeters()
+                                <= cascade.sections().get(i - 1).bedElevationMeters() + 1.0e-8,
+                        "CASCADE bed must not rise downstream within its controlled chute");
+            }
+        }
+        assertEquals(
+                0.0,
+                cascade.sections().getFirst().bedElevationMeters()
+                        - initial.requireReach(801, 1951).sections().getFirst().bedElevationMeters(),
+                1.0e-8,
+                "feedback must preserve the shared CASCADE inlet bed");
+        assertTrue(
+                cascade.sections().getLast().bedElevationMeters()
+                        <= initial.requireReach(801, 1951).sections().getLast().bedElevationMeters()
+                                + 1.0e-8,
+                "edge-outlet feedback may lower, but must not raise, the terminal bed");
+
+        String exactScanDetails = exactCascadeClosureDiagnostics(cascade.sections());
+        boolean exactJumpClosed;
+        String exactJumpFailure = "none";
+        try {
+            SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInletToCriticalOutlet(
+                    cascade.sections(), CALIBRATION.solverParameters());
+            exactJumpClosed = true;
+        } catch (IllegalArgumentException | IllegalStateException noPhysicalClosure) {
+            exactJumpClosed = false;
+            exactJumpFailure = noPhysicalClosure.getClass().getSimpleName()
+                    + ":" + noPhysicalClosure.getMessage();
+        }
+        assertFalse(
+                feedback.residualsConverged() && !exactJumpClosed,
+                "a minimized momentum residual must still pass the exact cascade closure solver");
+
+        System.out.printf(
+                Locale.ROOT,
+                "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialHydraulicResidual=%.9g "
+                        + "finalHydraulicResidual=%.9g controls=%s residualsConverged=%s "
+                        + "exactScan=%s exactJumpClosed=%s exactJumpFailure=%s%n",
+                initialResidual,
+                feedback.optimization().residualNorm(),
+                java.util.Arrays.toString(feedback.optimization().controls()),
+                feedback.residualsConverged(),
+                exactScanDetails,
+                exactJumpClosed,
+                exactJumpFailure);
+    }
+
     private static double[] cascadeResidualVector(
             SkyIslandHydraulicLandformCandidatePlanner.Plan candidate) {
         CascadeResidualDiagnostics diagnostics = cascadeResidualDiagnostics(candidate);
