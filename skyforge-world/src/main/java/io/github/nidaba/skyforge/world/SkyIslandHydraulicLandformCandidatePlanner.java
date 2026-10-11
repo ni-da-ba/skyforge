@@ -452,7 +452,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 reach.geomorphicRoute().semanticReach().profiles();
         boolean cascadeReach = profiles.stream()
                 .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE);
-        double localCascadeModeWeight = cascadeReach ? 1.0 : 0.0;
+        // These local modes are for the terminal CASCADE pool/chute candidate only.
+        // Applying them to every route that merely contains a CASCADE profile also changes
+        // upstream source reaches, invalidating their authored source-control geometry.
+        double localCascadeModeWeight = cascadeReach && edgeOutletReach ? 1.0 : 0.0;
         double[][] profileWeightsAtSection = new double[count][];
         double[] sectionWidthScaleBySample = new double[count];
         double[] fullBankfullWidthBySample = new double[count];
