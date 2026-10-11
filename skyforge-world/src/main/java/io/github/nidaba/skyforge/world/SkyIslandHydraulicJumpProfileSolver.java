@@ -60,6 +60,12 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                     "hydraulic-jump profile requires a supercritical source state");
         }
 
+        int validStationTrials = 0;
+        int supercriticalBranchFailures = 0;
+        int subcriticalBranchFailures = 0;
+        String firstBranchFailure = "none";
+        double minimumForceResidual = Double.POSITIVE_INFINITY;
+        double maximumForceResidual = Double.NEGATIVE_INFINITY;
         List<StationTrial> trials = new ArrayList<>(reach.size());
         trials.add(null);
         for (int station = 1; station < reach.size() - 1; station++) {
@@ -80,12 +86,6 @@ public final class SkyIslandHydraulicJumpProfileSolver {
         }
         trials.add(null);
 
-        int validStationTrials = 0;
-        int supercriticalBranchFailures = 0;
-        int subcriticalBranchFailures = 0;
-        String firstBranchFailure = "none";
-        double minimumForceResidual = Double.POSITIVE_INFINITY;
-        double maximumForceResidual = Double.NEGATIVE_INFINITY;
         for (StationTrial trial : trials) {
             if (trial == null) {
                 continue;
