@@ -102,12 +102,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, -0.119, 0.00, -0.05, 0.00, 0.00, 0.00),
-            new CascadeShapeTrial(0.200, -0.200, 0.05, -0.10, 0.00, 0.00, 0.00),
-            new CascadeShapeTrial(0.119, -0.200, 0.15, -0.10, -0.05, 0.00, 0.00),
-            new CascadeShapeTrial(0.200, -0.119, 0.15, -0.05, -0.10, 0.00, 0.00),
-            new CascadeShapeTrial(0.119, -0.200, 0.25, -0.10, -0.05, 0.00, 0.00),
-            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.10, -0.05, 0.00, 0.00)
+            new CascadeShapeTrial(0.119, -0.119, 0.00, -0.05, 0.00, -0.05, -0.01),
+            new CascadeShapeTrial(0.200, -0.200, 0.05, -0.10, -0.05, -0.05, -0.01),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, -0.10, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.200, -0.150, 0.15, -0.15, -0.05, -0.05, -0.02),
+            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.10, -0.05, -0.10, -0.02),
+            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.15, -0.10, -0.10, -0.02)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -244,13 +244,13 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return switch (localMode) {
             case 0 -> 0.15;
             case 1 -> 0.50;
-            case 2 -> 0.88;
+            case 2 -> 0.95;
             default -> throw new IllegalArgumentException("reach width mode must be in 0..2");
         };
     }
 
     private static double reachWidthModeRadius(int localMode) {
-        return localMode == 0 ? 0.04 : (localMode == 2 ? 0.04 : 0.20);
+        return localMode == 0 ? 0.04 : (localMode == 2 ? 0.12 : 0.20);
     }
 
     private static double localizedReachBump(double station, double center, double radius) {
@@ -450,6 +450,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         double[] upper = new double[count];
         List<SkyIslandChannelProfile> profiles =
                 reach.geomorphicRoute().semanticReach().profiles();
+        boolean cascadeReach = profiles.stream()
+                .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE);
+        double localCascadeModeWeight = cascadeReach ? 1.0 : 0.0;
         double[][] profileWeightsAtSection = new double[count][];
         double[] sectionWidthScaleBySample = new double[count];
         double[] fullBankfullWidthBySample = new double[count];
@@ -469,7 +472,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double modeStation = bedFeedbackStation(sample.stationFraction(), sourceReach, count);
             double sectionWidthScale = 1.0;
             for (int localMode = 0; localMode < 3; localMode++) {
-                sectionWidthScale += cascadeWeight
+                sectionWidthScale += localCascadeModeWeight
                         * feedbackControls[widthControlStart + localMode]
                         * localizedReachBump(
                                 modeStation,
@@ -495,7 +498,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             }
             target[i] = section.bedElevationMeters() + targetOffset;
             for (int localMode = 0; localMode < 3; localMode++) {
-                target[i] += cascadeWeight
+                target[i] += localCascadeModeWeight
                         * Math.sin(Math.PI * modeStation)
                         * feedbackControls[
                                 2 * SkyIslandChannelProfileKind.values().length + localMode]
