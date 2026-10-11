@@ -560,6 +560,67 @@ class SkyIslandCandidateHydrologyCouplingTest {
                         + stationFraction);
     }
 
+    private static String describeCascadeLimit(
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
+            SkyIslandGraduallyVariedFlowSolver.Parameters parameters,
+            String message) {
+        if (message == null) {
+            return "";
+        }
+        String marker = "section ";
+        int markerIndex = message.lastIndexOf(marker);
+        if (markerIndex < 0) {
+            return "";
+        }
+        int numberStart = markerIndex + marker.length();
+        int numberEnd = numberStart;
+        while (numberEnd < message.length() && Character.isDigit(message.charAt(numberEnd))) {
+            numberEnd++;
+        }
+        if (numberEnd == numberStart) {
+            return "";
+        }
+        try {
+            int failedIndex = Integer.parseInt(message.substring(numberStart, numberEnd));
+            if (failedIndex <= 0 || failedIndex >= sections.size()) {
+                return "";
+            }
+            SkyIslandGraduallyVariedFlowSolver.Result validPrefix =
+                    SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstreamFromCriticalControl(
+                            sections.subList(0, failedIndex), parameters);
+            SkyIslandGraduallyVariedFlowSolver.ProfilePoint lastValid =
+                    validPrefix.points().getLast();
+            SkyIslandGraduallyVariedFlowSolver.CrossSection failed = sections.get(failedIndex);
+            double spacing = failed.chainageMeters() - lastValid.section().chainageMeters();
+            double downstreamBedSlope =
+                    (lastValid.section().bedElevationMeters() - failed.bedElevationMeters()) / spacing;
+            return String.format(
+                    Locale.ROOT,
+                    ";lastValidSection=%d,depthMeters=%.9g,froude=%.9g,bedSlopeToFailed=%.9g,"
+                            + "dischargeChange=%.9g,bottomWidthChange=%.9g",
+                    failedIndex - 1,
+                    lastValid.depthMeters(),
+                    lastValid.froudeNumber(),
+                    downstreamBedSlope,
+                    failed.dischargeCubicMetersPerSecond()
+                            - lastValid.section().dischargeCubicMetersPerSecond(),
+                    failed.bottomWidthMeters() - lastValid.section().bottomWidthMeters());
+        } catch (IllegalArgumentException | IllegalStateException diagnosticFailure) {
+            return ";localCascadeDiagnosticsUnavailable="
+                    + diagnosticFailure.getClass().getSimpleName() + ":" + diagnosticFailure.getMessage();
+        }
+    }
+
+    private static SkyIslandHydraulicReachSkeleton requireReach(
+            SkyIslandHydraulicGeometrySkeletonPlan candidate, int start, int end) {
+        return candidate.reaches().stream()
+                .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex() == start
+                        && reach.geomorphicRoute().semanticReach().endCellIndex() == end)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "missing candidate semantic reach " + start + "->" + end));
+    }
+
     @Test
     void hydraulicMomentumResidualFeedsBackIntoBoundedKey700BedCandidate() {
         SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
