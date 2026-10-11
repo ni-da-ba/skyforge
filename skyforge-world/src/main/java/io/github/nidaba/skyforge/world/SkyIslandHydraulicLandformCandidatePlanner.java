@@ -218,13 +218,26 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return x * x * (3.0 - 2.0 * x);
     }
 
-    private static double cascadeLocalModeCenter(int localMode) {
+    private static double reachLocalBedModeCenter(int localMode) {
         return switch (localMode) {
             case 0 -> 0.15;
             case 1 -> 0.50;
             case 2 -> 0.90;
-            default -> throw new IllegalArgumentException("cascade local mode must be in 0..2");
+            default -> throw new IllegalArgumentException("local bed mode must be in 0..2");
         };
+    }
+
+    private static double cascadeWidthModeCenter(int localMode) {
+        return switch (localMode) {
+            case 0 -> 0.25;
+            case 1 -> 0.50;
+            case 2 -> 0.88;
+            default -> throw new IllegalArgumentException("cascade width mode must be in 0..2");
+        };
+    }
+
+    private static double cascadeWidthModeRadius(int localMode) {
+        return localMode == 2 ? 0.04 : 0.20;
     }
 
     private static double localizedCascadeBump(double station, double center, double radius) {
@@ -446,12 +459,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                         * Math.sin(2.0 * Math.PI * modeStation));
             }
             target[i] = section.bedElevationMeters() + targetOffset;
-            if (cascadeWeight > 0.0) {
-                for (int localMode = 0; localMode < 3; localMode++) {
-                    target[i] += cascadeWeight * feedbackControls[
+            for (int localMode = 0; localMode < 3; localMode++) {
+                target[i] += Math.sin(Math.PI * modeStation) * feedbackControls[
                                     2 * SkyIslandChannelProfileKind.values().length + localMode]
-                            * localizedCascadeBump(modeStation, cascadeLocalModeCenter(localMode), 0.20);
-                }
+                            * localizedCascadeBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
             }
             if (edgeOutletReach) {
                 double normalizedOutletRamp =
@@ -580,7 +591,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 for (int localMode = 0; localMode < 3; localMode++) {
                     sectionWidthScale += cascadeWeight
                             * feedbackControls[widthControlStart + localMode]
-                            * localizedCascadeBump(modeStation, cascadeLocalModeCenter(localMode), 0.20);
+                            * localizedCascadeBump(
+                                    modeStation,
+                                    cascadeWidthModeCenter(localMode),
+                                    cascadeWidthModeRadius(localMode));
                 }
             }
             if (!Double.isFinite(sectionWidthScale)
