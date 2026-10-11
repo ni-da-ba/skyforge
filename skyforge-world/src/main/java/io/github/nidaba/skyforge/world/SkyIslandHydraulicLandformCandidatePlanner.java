@@ -102,12 +102,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(-0.119, 0.119, 0.05, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.000, 0.119, 0.05, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.119, 0.15, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.000, 0.119, 0.15, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(-0.119, 0.119, 0.25, 0.10, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.000, 0.119, 0.25, 0.10, 0.00, -0.05, 0.70)
+            new CascadeShapeTrial(0.119, -0.119, 0.00, -0.05, 0.00, 0.00, 0.00),
+            new CascadeShapeTrial(0.200, -0.200, 0.05, -0.10, 0.00, 0.00, 0.00),
+            new CascadeShapeTrial(0.119, -0.200, 0.15, -0.10, -0.05, 0.00, 0.00),
+            new CascadeShapeTrial(0.200, -0.119, 0.15, -0.05, -0.10, 0.00, 0.00),
+            new CascadeShapeTrial(0.119, -0.200, 0.25, -0.10, -0.05, 0.00, 0.00),
+            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.10, -0.05, 0.00, 0.00)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -473,9 +473,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             }
             target[i] = section.bedElevationMeters() + targetOffset;
             for (int localMode = 0; localMode < 3; localMode++) {
-                target[i] += Math.sin(Math.PI * modeStation) * feedbackControls[
-                                    2 * SkyIslandChannelProfileKind.values().length + localMode]
-                            * localizedReachBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
+                target[i] += cascadeWeight
+                        * Math.sin(Math.PI * modeStation)
+                        * feedbackControls[
+                                2 * SkyIslandChannelProfileKind.values().length + localMode]
+                        * localizedReachBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
             }
             if (edgeOutletReach) {
                 double normalizedOutletRamp =
