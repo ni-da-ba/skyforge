@@ -353,18 +353,14 @@ class SkyIslandCandidateHydrologyCouplingTest {
         NaturalComponentProbe result =
                 solveNaturalCandidate(descriptor, candidate, "candidate-feedback", parameters);
         if (result.solved()) {
-            return new double[] {0.0, 0.0, 0.0};
+            return new double[] {0.0, 0.0, 0.0, 0.0};
         }
         CascadeResidualDiagnostics diagnostics = cascadeResidualDiagnostics(candidate);
         System.out.printf(
                 Locale.ROOT,
                 "HYDRAULIC_GEOMETRY_DIAGNOSTIC key=700 %s%n",
                 diagnostics);
-        return new double[] {
-            diagnostics.normalizedForceResidual(),
-            diagnostics.normalizedBranchEnergyGap(),
-            diagnostics.normalizedBranchStationSeparation()
-        };
+        return hydraulicClosureResidualVector(candidate, diagnostics);
     }
 
     private static NaturalComponentProbe solveNaturalCandidate(
@@ -613,6 +609,12 @@ class SkyIslandCandidateHydrologyCouplingTest {
                 Locale.ROOT,
                 "HYDRAULIC_GEOMETRY_DIAGNOSTIC key=700 %s%n",
                 diagnostics);
+        return hydraulicClosureResidualVector(candidate, diagnostics);
+    }
+
+    private static double[] hydraulicClosureResidualVector(
+            SkyIslandHydraulicLandformCandidatePlanner.Plan candidate,
+            CascadeResidualDiagnostics diagnostics) {
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascade =
                 candidate.requireReach(801, 1951).sections();
         double energyScale = Math.max(
