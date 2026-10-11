@@ -3,7 +3,6 @@ name: AUTH-0097 Directional Surface Access
 on:
   pull_request:
     paths:
-      - ".github/workflows/auth-0097-directional-surface-access.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0097-directional-surface-access-evidence.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandWatershedPhysicalSurfaceGrid.java"
@@ -17,7 +16,6 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceAccessCapabilityProfilerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipDirectionalSurfaceAccessCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipDirectionalSurfaceAccessCorpusTest.java"
-      - "skyforge-reference/build.gradle.kts"
   workflow_dispatch:
 
 permissions:

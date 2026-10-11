@@ -4,5 +4,6 @@ package io.github.nidaba.skyforge.world;
 public enum SkyIslandOrdinarySpanBoundaryStatus {
     FREE,
     FIXED_HEAD,
+    CASCADE_CRITICAL_CONTROL,
     DEFERRED
 }

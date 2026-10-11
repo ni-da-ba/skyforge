@@ -17,6 +17,73 @@ class SkyIslandHydraulicGeometrySkeletonPlannerTest {
     private static final double EPSILON = 1.0e-12;
 
     @Test
+    void hydraulicCandidateGeometryIsDeterministicAndKeepsTheAuthoredGraph() {
+        SkyIslandDescriptor descriptor = descriptor(77L);
+        SkyIslandHydraulicGeometrySkeletonPlan baseline =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan candidate =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan repeated =
+                SkyIslandHydraulicGeometrySkeletonPlanner.planHydraulicCandidate(descriptor);
+
+        assertEquals(candidate, repeated, "candidate route and section skeleton must be deterministic");
+        assertEquals(
+                baseline.geomorphicNetwork().nodes().stream()
+                        .map(node -> node.cellIndex() + ":" + node.kind())
+                        .toList(),
+                candidate.geomorphicNetwork().nodes().stream()
+                        .map(node -> node.cellIndex() + ":" + node.kind())
+                        .toList(),
+                "candidate geometry may move physical anchors but must preserve semantic node identities and kinds");
+        assertEquals(
+                baseline.geomorphicNetwork().routes().stream()
+                        .map(route -> reachIdentity(route.semanticReach()))
+                        .toList(),
+                candidate.geomorphicNetwork().routes().stream()
+                        .map(route -> reachIdentity(route.semanticReach()))
+                        .toList(),
+                "candidate routing must preserve semantic reach identities and connectivity");
+        for (SkyIslandGeomorphicNetworkNode node : candidate.geomorphicNetwork().nodes()) {
+            assertTrue(
+                    node.searchRadius()
+                            <= candidate.geomorphicNetwork().planningSpacing()
+                                    * SkyIslandGeomorphicChannelNetworkPlanner.ROUTE_CORRIDOR_SPACING_FRACTION
+                                    + EPSILON,
+                    "candidate node displacement bound must remain within the accepted route corridor");
+            assertTrue(node.displacement() <= node.searchRadius() + EPSILON);
+        }
+        for (SkyIslandGeomorphicReachRoute route : candidate.geomorphicNetwork().routes()) {
+            SkyIslandSemanticChannelReach semantic = route.semanticReach();
+            assertEquals(
+                    candidate.geomorphicNetwork().requireNode(semantic.startCellIndex()).physicalPosition(),
+                    route.route().points().getFirst(),
+                    "all outgoing reaches must share their candidate source anchor");
+            assertEquals(
+                    candidate.geomorphicNetwork().requireNode(semantic.endCellIndex()).physicalPosition(),
+                    route.route().points().getLast(),
+                    "all incoming reaches must share their candidate terminal/confluence anchor");
+        }
+        assertEquals(
+                baseline.reaches().stream()
+                        .map(SkyIslandHydraulicGeometrySkeletonPlannerTest::reachIdentity)
+                        .toList(),
+                candidate.reaches().stream()
+                        .map(SkyIslandHydraulicGeometrySkeletonPlannerTest::reachIdentity)
+                        .toList(),
+                "candidate extraction must retain every semantic reach exactly once");
+        assertTrue(candidate.reaches().stream().allMatch(reach -> reach.pathLength() > 0.0));
+    }
+
+    private static String reachIdentity(SkyIslandHydraulicReachSkeleton reach) {
+        SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+        return semantic.startCellIndex() + "->" + semantic.endCellIndex();
+    }
+
+    private static String reachIdentity(SkyIslandSemanticChannelReach semantic) {
+        return semantic.startCellIndex() + "->" + semantic.endCellIndex();
+    }
+
+    @Test
     void naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes() throws Exception {
         SkyIslandDescriptor descriptor = descriptor(700L);
         SkyIslandGeomorphicChannelNetworkPlan network =

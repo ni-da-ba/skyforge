@@ -3,7 +3,6 @@ name: AUTH-0098 Petroleum System Opportunity
 on:
   pull_request:
     paths:
-      - ".github/workflows/auth-0098-petroleum-system-opportunity.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0098-petroleum-system-geological-opportunity.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandPetroleumSystemOpportunityCell.java"
@@ -12,7 +11,6 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandPetroleumSystemOpportunityProfilerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipPetroleumSystemOpportunityCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipPetroleumSystemOpportunityCorpusTest.java"
-      - "skyforge-reference/build.gradle.kts"
   workflow_dispatch:
 
 permissions:

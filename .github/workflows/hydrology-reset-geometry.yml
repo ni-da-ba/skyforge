@@ -4,6 +4,31 @@ on:
   pull_request:
     paths:
       - ".github/workflows/hydrology-reset-geometry.yml"
+      - "skyforge-reference/build.gradle.kts"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepCli.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandConditionedDemFlow.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGameScaleHydraulicCalibration.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGraduallyVariedFlowSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandManningHydraulics.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpProfileSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeTransitionSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicCascadeTransitionSolverTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicEnergyConfluenceComponentSolver.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceEnergySolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicEnergyConfluenceComponentSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicConfluenceEnergySolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydraulicJumpProfileSolverTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelOrdinarySpanSolver.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandOpenChannelSourceTailwaterSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandCandidateHydrologyCouplingTest.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandRationalRunoffCalibration.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/HydrologyGameScaleCalibrationSweepTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandConditionedDemFlowTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandGraduallyVariedFlowSolverTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandManningHydraulicsTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandRationalRunoffCalibrationTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_A.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_B.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C.md"
@@ -282,11 +307,21 @@ jobs:
           ./gradlew \
             :skyforge-world:test \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
+            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.hydraulicCandidateGeometryIsDeterministicAndKeepsTheAuthoredGraph' \
             --tests '*SkyIslandHydraulicComponentGeometryRefinementTest.key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly' \
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
+            --tests '*SkyIslandHydraulicJumpSolverTest' \
+            --tests '*SkyIslandHydraulicJumpProfileSolverTest' \
+            --tests '*SkyIslandHydraulicCascadeTransitionSolverTest' \
+            --tests '*SkyIslandOpenChannelSourceTailwaterSolverTest' \
+            --tests '*SkyIslandHydraulicEnergyConfluenceComponentSolverTest' \
+            --tests '*SkyIslandHydraulicConfluenceEnergySolverTest' \
+            --tests '*SkyIslandCandidateHydrologyCouplingTest' \
+            --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalProfileMarchesDownstreamFromUpstreamStageControl' \
+            --tests '*SkyIslandGraduallyVariedFlowSolverTest.subcriticalDownstreamSolveRejectsSupercriticalSourceAndInsufficientHead' \
             --no-configuration-cache
       - name: Prepare and verify the persisted F4H/F4D review specimen
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
 
@@ -295,6 +330,11 @@ jobs:
         run: |
           cat skyforge-world/build/evidence/hydrology-key700-d2-component-test/key-700.txt
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml
+
+      - name: Print candidate coupling diagnostics
+        if: success()
+        run: |
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandCandidateHydrologyCouplingTest.xml
 
       - name: Dump generated hydrology evidence on failure
         if: failure()
@@ -306,12 +346,39 @@ jobs:
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml || true
           cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicEnergyConfluenceComponentSolverTest.xml || true
+          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandCandidateHydrologyCouplingTest.xml || true
       - name: Run bounded natural confluence/CASCADE census
-        if: success()
+        if: success() && github.event_name == 'workflow_dispatch'
         run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
 
+      - name: Run game-scale ordinary-span calibration sweep (key 700 held out)
+        if: success() && github.event_name == 'workflow_dispatch'
+        run: ./gradlew :skyforge-reference:hydrologyGameScaleCalibrationSweep --no-configuration-cache
+
+      - name: Print calibration sweep summary
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: |
+          summary=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-sweep.csv
+          if [ -f "$summary" ]; then
+            awk -F, 'NR == 1 { print "control,heldOut,parameterSet,qualified,rejected,hydraulicFailure,upstreamStageMismatch,deferred,invalidGeometry,maxEnergyResidualMeters,maxUpstreamStageResidualMeters"; next } { print $1 "," $2 "," $6 "," $12 "," $13 "," $14 "," $15 "," $16 "," $17 "," $18 "," $19 }' "$summary"
+            echo "Calibration sweep total rows: $(($(wc -l < "$summary") - 1))"
+          else
+            echo "Game-scale calibration sweep summary was not produced."
+          fi
+
+      - name: Print ordinary-span failure diagnostics
+        if: always() && github.event_name == 'workflow_dispatch'
+        run: |
+          diagnostics=skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/ordinary-span-diagnostics.txt
+          if [ -f "$diagnostics" ]; then
+            cat "$diagnostics"
+          else
+            echo "Ordinary-span diagnostics were not produced."
+          fi
+
       - name: Print natural-transition census summary
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         run: |
           summary=skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/summary.csv
           if [ -f "$summary" ]; then
@@ -325,8 +392,17 @@ jobs:
             awk -F, 'NR == 1 || $7 == "true" { print }' "$manifest"
           fi
 
+      - name: Upload game-scale calibration sweep evidence
+        if: always() && github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: hydrology-game-scale-calibration-sweep-${{ github.sha }}
+          path: skyforge-reference/build/evidence/hydrology-game-scale-calibration-sweep-v1/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Upload F4K review preparation evidence
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: f4k-hydrology-review-prep-${{ github.sha }}
@@ -335,7 +411,7 @@ jobs:
           retention-days: 14
 
       - name: Upload natural-transition census evidence
-        if: always()
+        if: always() && github.event_name == 'workflow_dispatch'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: hydrology-natural-transition-census-${{ github.sha }}

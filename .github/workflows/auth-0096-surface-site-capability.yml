@@ -3,7 +3,6 @@ name: AUTH-0096 Surface Site Capability
 on:
   pull_request:
     paths:
-      - ".github/workflows/auth-0096-surface-site-capability.yml"
       - ".github/actions/run-authorship-evidence/action.yml"
       - "docs/authorship/AUTH-0096-local-surface-site-capability.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityCell.java"
@@ -12,7 +11,6 @@ on:
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSurfaceSiteCapabilityProfilerTest.java"
       - "skyforge-reference/src/main/java/io/github/nidaba/skyforge/reference/AuthorshipSurfaceSiteCapabilityCorpusCli.java"
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/AuthorshipSurfaceSiteCapabilityCorpusTest.java"
-      - "skyforge-reference/build.gradle.kts"
   workflow_dispatch:
 
 permissions:

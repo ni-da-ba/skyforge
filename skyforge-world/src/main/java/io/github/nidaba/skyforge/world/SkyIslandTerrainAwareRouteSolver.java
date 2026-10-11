@@ -51,6 +51,238 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 FINE_DIVISIONS_PER_PLANNING_CELL);
     }
 
+    /**
+     * Builds a deterministic, outlet-rooted drainage candidate using Priority-Flood over the
+     * same bounded semantic corridor as {@link #solve}. The filled elevation is used only to
+     * select a downhill drainage tree; returned points remain on the original sampled terrain.
+     * This does not alter semantic topology or authorize terrain carving.
+     */
+    public static SkyIslandGeomorphicCandidateRoute solveByPriorityFlood(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor) {
+        Objects.requireNonNull(terrain, "terrain");
+        Objects.requireNonNull(interiority, "interiority");
+        guidance = List.copyOf(guidance);
+        guidance.forEach(point -> Objects.requireNonNull(point, "guidance point"));
+        startAnchor = Objects.requireNonNull(startAnchor, "startAnchor");
+        endAnchor = Objects.requireNonNull(endAnchor, "endAnchor");
+        if (guidance.size() < 2) {
+            throw new IllegalArgumentException("guidance requires at least two positions");
+        }
+        if (!Double.isFinite(planningSpacing) || planningSpacing <= 0.0) {
+            throw new IllegalArgumentException("planningSpacing must be finite and positive");
+        }
+        if (!Double.isFinite(corridorHalfWidth) || corridorHalfWidth <= 0.0) {
+            throw new IllegalArgumentException("corridorHalfWidth must be finite and positive");
+        }
+
+        int divisionsPerPlanningCell = FINE_DIVISIONS_PER_PLANNING_CELL;
+        double step = planningSpacing / divisionsPerPlanningCell;
+        double padding = corridorHalfWidth + Math.max(startAnchor.radius(), endAnchor.radius()) + step;
+        Bounds rawBounds = bounds(guidance, startAnchor.center(), endAnchor.center(), padding);
+        int minimumGridX = (int) Math.floor(rawBounds.minX() / step);
+        int maximumGridX = (int) Math.ceil(rawBounds.maxX() / step);
+        int minimumGridZ = (int) Math.floor(rawBounds.minZ() / step);
+        int maximumGridZ = (int) Math.ceil(rawBounds.maxZ() / step);
+        int width = Math.max(2, Math.addExact(Math.subtractExact(maximumGridX, minimumGridX), 1));
+        int height = Math.max(2, Math.addExact(Math.subtractExact(maximumGridZ, minimumGridZ), 1));
+        int count = Math.multiplyExact(width, height);
+
+        SkyIslandLocalPosition[] positions = new SkyIslandLocalPosition[count];
+        double[] elevations = new double[count];
+        double[] localRidge = new double[count];
+        double[] valleyAdvantage = new double[count];
+        double[] guidanceDeviation = new double[count];
+        double[] localCost = new double[count];
+        double[] filledElevation = new double[count];
+        double[] routeCost = new double[count];
+        int[] previous = new int[count];
+        boolean[] valid = new boolean[count];
+        boolean[] start = new boolean[count];
+        boolean[] goal = new boolean[count];
+        boolean[] discovered = new boolean[count];
+        Arrays.fill(filledElevation, Double.POSITIVE_INFINITY);
+        Arrays.fill(routeCost, Double.POSITIVE_INFINITY);
+        Arrays.fill(previous, -1);
+
+        double anchorTolerance = 0.75 * step;
+        double probeRadius = planningSpacing * RIDGE_PROBE_RADIUS_PLANNING_FRACTION;
+        int startCount = 0;
+        int goalCount = 0;
+        for (int z = 0; z < height; z++) {
+            for (int x = 0; x < width; x++) {
+                int index = index(x, z, width);
+                int globalGridX = Math.addExact(minimumGridX, x);
+                int globalGridZ = Math.addExact(minimumGridZ, z);
+                SkyIslandLocalPosition position =
+                        new SkyIslandLocalPosition(globalGridX * step, globalGridZ * step);
+                double deviation = distanceToPolyline(position, guidance);
+                boolean inStart = anchorContains(startAnchor, position, anchorTolerance);
+                boolean inGoal = anchorContains(endAnchor, position, anchorTolerance);
+                if (deviation > corridorHalfWidth + EPSILON && !inStart && !inGoal) {
+                    continue;
+                }
+
+                double elevation = terrain.sample(position);
+                double surroundingMean = surroundingMean(terrain, position, probeRadius);
+                double ridge = Math.max(0.0, elevation - surroundingMean);
+                double valley = surroundingMean - elevation;
+                double exteriorPenalty = Math.max(
+                        0.0, LOW_INTERIORITY_THRESHOLD - interiority.sample(position));
+
+                positions[index] = position;
+                elevations[index] = elevation;
+                localRidge[index] = ridge;
+                valleyAdvantage[index] = valley;
+                guidanceDeviation[index] = deviation;
+                localCost[index] = RIDGE_WEIGHT * ridge
+                        + TERRAIN_LEVEL_WEIGHT * elevation
+                        + GUIDANCE_DEVIATION_WEIGHT * square(deviation / corridorHalfWidth)
+                        + LOW_INTERIORITY_WEIGHT * exteriorPenalty;
+                valid[index] = true;
+                if (inStart) {
+                    start[index] = true;
+                    startCount++;
+                }
+                if (inGoal) {
+                    goal[index] = true;
+                    goalCount++;
+                }
+            }
+        }
+        if (startCount == 0 || goalCount == 0) {
+            throw new IllegalStateException("route corridor does not contain both endpoint anchor regions");
+        }
+
+        PriorityQueue<FloodNode> open = new PriorityQueue<>(Comparator
+                .comparingDouble(FloodNode::filledElevation)
+                .thenComparingDouble(FloodNode::routeCost)
+                .thenComparingInt(FloodNode::index));
+        for (int i = 0; i < count; i++) {
+            if (goal[i]) {
+                discovered[i] = true;
+                filledElevation[i] = elevations[i];
+                routeCost[i] = 0.0;
+                open.add(new FloodNode(i, filledElevation[i], routeCost[i]));
+            }
+        }
+
+        while (!open.isEmpty()) {
+            FloodNode current = open.remove();
+            int currentIndex = current.index();
+            int cx = currentIndex % width;
+            int cz = currentIndex / width;
+            for (int dz = -1; dz <= 1; dz++) {
+                for (int dx = -1; dx <= 1; dx++) {
+                    if (dx == 0 && dz == 0) {
+                        continue;
+                    }
+                    int nx = cx + dx;
+                    int nz = cz + dz;
+                    if (nx < 0 || nz < 0 || nx >= width || nz >= height) {
+                        continue;
+                    }
+                    int next = index(nx, nz, width);
+                    if (!valid[next] || discovered[next]) {
+                        continue;
+                    }
+
+                    double stepLength = Math.hypot(dx * step, dz * step);
+                    double normalizedLength = stepLength / planningSpacing;
+                    double candidateFill = Math.max(filledElevation[currentIndex], elevations[next]);
+                    double candidateCost = routeCost[currentIndex]
+                            + BASE_LENGTH_WEIGHT * normalizedLength
+                            + 0.5 * Math.max(0.0, localCost[currentIndex] + localCost[next]) * normalizedLength;
+
+                    // Priority-Flood claims each cell once. The queue's fill elevation is the
+                    // primary order; deterministic route cost/index only order equal spill levels.
+                    discovered[next] = true;
+                    filledElevation[next] = candidateFill;
+                    routeCost[next] = candidateCost;
+                    previous[next] = currentIndex;
+                    open.add(new FloodNode(next, candidateFill, candidateCost));
+                }
+            }
+        }
+
+        int selectedStart = -1;
+        for (int i = 0; i < count; i++) {
+            if (!start[i]) {
+                continue;
+            }
+            if (selectedStart < 0
+                    || filledElevation[i] < filledElevation[selectedStart] - EPSILON
+                    || (Math.abs(filledElevation[i] - filledElevation[selectedStart]) <= EPSILON
+                            && (routeCost[i] < routeCost[selectedStart] - EPSILON
+                                    || (Math.abs(routeCost[i] - routeCost[selectedStart]) <= EPSILON
+                                            && i < selectedStart)))) {
+                selectedStart = i;
+            }
+        }
+        if (selectedStart < 0 || !Double.isFinite(filledElevation[selectedStart])) {
+            throw new IllegalStateException("Priority-Flood found no outlet path inside the semantic corridor");
+        }
+
+        List<Integer> reversed = new ArrayList<>();
+        int cursor = selectedStart;
+        while (cursor >= 0) {
+            reversed.add(cursor);
+            if (goal[cursor]) {
+                break;
+            }
+            cursor = previous[cursor];
+        }
+        if (reversed.isEmpty() || !goal[reversed.getLast()]) {
+            throw new IllegalStateException("Priority-Flood route is missing its outlet predecessor chain");
+        }
+
+        List<SkyIslandLocalPosition> points = new ArrayList<>(reversed.size());
+        double pathLength = 0.0;
+        double maxDeviation = 0.0;
+        int uphillSteps = 0;
+        int ridgeSamples = 0;
+        double valleySum = 0.0;
+        double maxUphillStep = 0.0;
+        SkyIslandLocalPosition prior = null;
+        double priorElevation = 0.0;
+        for (int i = 0; i < reversed.size(); i++) {
+            int node = reversed.get(i);
+            SkyIslandLocalPosition point = positions[node];
+            points.add(point);
+            maxDeviation = Math.max(maxDeviation, guidanceDeviation[node]);
+            valleySum += valleyAdvantage[node];
+            if (localRidge[node] > RIDGE_DIAGNOSTIC_THRESHOLD) {
+                ridgeSamples++;
+            }
+            if (prior != null) {
+                pathLength += Math.hypot(point.x() - prior.x(), point.z() - prior.z());
+                double rise = elevations[node] - priorElevation;
+                if (rise > EPSILON) {
+                    uphillSteps++;
+                    maxUphillStep = Math.max(maxUphillStep, rise);
+                }
+            }
+            prior = point;
+            priorElevation = elevations[node];
+        }
+
+        int stepCount = Math.max(1, points.size() - 1);
+        return new SkyIslandGeomorphicCandidateRoute(
+                points,
+                routeCost[selectedStart],
+                pathLength,
+                maxDeviation,
+                (double) uphillSteps / stepCount,
+                (double) ridgeSamples / points.size(),
+                valleySum / points.size(),
+                maxUphillStep);
+    }
+
     public static SkyIslandGeomorphicCandidateRoute solveAtResolution(
             SkyIslandSemanticField terrain,
             SkyIslandSemanticField interiority,
@@ -60,6 +292,21 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, null);
+    }
+
+    public static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            HydraulicRouteFeasibilityEnvelope feasibilityEnvelope) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -210,7 +457,14 @@ public final class SkyIslandTerrainAwareRouteSolver {
                                     + 0.5
                                             * (localCost[current.index()] + localCost[next])
                                             * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
+                                    + ASCENT_WEIGHT * ascent
+                                    + (feasibilityEnvelope == null
+                                            ? 0.0
+                                            : feasibilityEnvelope.transitionPenalty(
+                                                    elevations[current.index()],
+                                                    elevations[next],
+                                                    stepLength,
+                                                    normalizedLength));
                     double candidate = current.cost() + transitionCost;
                     if (candidate < best[next] - EPSILON
                             || (Math.abs(candidate - best[next]) <= EPSILON
@@ -379,7 +633,42 @@ public final class SkyIslandTerrainAwareRouteSolver {
         return value * value;
     }
 
+    /** Conservative local terrain envelope used only to rank coupled hydraulic candidates. */
+    public record HydraulicRouteFeasibilityEnvelope(
+            double maximumDownstreamBedGradePotentialPerWorldUnit,
+            double maximumIncisionPotential) {
+        public HydraulicRouteFeasibilityEnvelope {
+            if (!Double.isFinite(maximumDownstreamBedGradePotentialPerWorldUnit)
+                    || maximumDownstreamBedGradePotentialPerWorldUnit <= 0.0
+                    || !Double.isFinite(maximumIncisionPotential)
+                    || maximumIncisionPotential <= 0.0) {
+                throw new IllegalArgumentException(
+                        "hydraulic route feasibility envelope must be finite and positive");
+            }
+        }
+
+        private double transitionPenalty(
+                double upstreamTerrain,
+                double downstreamTerrain,
+                double stepLength,
+                double normalizedLength) {
+            double requiredCutForExcessBedDrop = Math.max(
+                    0.0,
+                    upstreamTerrain - downstreamTerrain
+                            - maximumDownstreamBedGradePotentialPerWorldUnit * stepLength);
+            double requiredCutForUpstreamRise = Math.max(
+                    0.0, downstreamTerrain - upstreamTerrain);
+            double excessCut = Math.max(
+                            requiredCutForExcessBedDrop, requiredCutForUpstreamRise)
+                    - maximumIncisionPotential;
+            double normalizedExcess = Math.max(0.0, excessCut) / maximumIncisionPotential;
+            return 16.0 * square(normalizedExcess) * normalizedLength;
+        }
+    }
+
     private record OpenNode(int index, double cost, double estimatedTotal) {}
+
+    private record FloodNode(int index, double filledElevation, double routeCost) {}
 
     private record Bounds(double minX, double maxX, double minZ, double maxZ) {}
 }

@@ -138,7 +138,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         int globalModeSearchStages = 0;
         double globalModeSearchMaximumBudget = 0.0;
         int relaxationSweeps = 0;
-        if (headEnvelopeGap != null
+        if ((headEnvelopeGap != null || longitudinalHeadFeasibility != null)
                 && (best.maximumHeadEnvelopeGap() > EPSILON
                         || best.maximumLocalEnvelopeConflict() > EPSILON
                         || best.maximumLongitudinalGradeConflict() > EPSILON
@@ -195,7 +195,7 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             boolean unchanged = next.equals(current);
             current = next;
 
-            if (headEnvelopeGap == null
+            if (headEnvelopeGap == null && longitudinalHeadFeasibility == null
                     && (minimumBendRadius <= EPSILON
                             || candidate.maximumCurvature() * minimumBendRadius
                                     <= 1.0 + EPSILON)) {
@@ -834,15 +834,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         long lateralCandidateCurvatureRejected = 0;
         long lateralCandidateGapImproving = 0;
         long selectedLateralMoves = 0;
-        double[] stationSnapshot = headEnvelopeGap == null ? stations(current) : null;
+        boolean objectiveActive =
+                headEnvelopeGap != null || longitudinalHeadFeasibility != null;
+        double[] stationSnapshot = objectiveActive ? null : stations(current);
         for (int i = 1; i < current.size() - 1; i++) {
             // D2 geometry depends on physical station through discharge-scaled width and depth.
             // Re-score each lateral move against the path already updated in this sweep.
-            List<SkyIslandLocalPosition> working =
-                    headEnvelopeGap == null ? current : result;
-            double station = headEnvelopeGap == null
-                    ? stationSnapshot[i]
-                    : stations(working)[i];
+            List<SkyIslandLocalPosition> working = objectiveActive ? result : current;
+            double station = objectiveActive
+                    ? stations(working)[i]
+                    : stationSnapshot[i];
             SkyIslandLocalPosition previous = working.get(i - 1);
             SkyIslandLocalPosition point = working.get(i);
             SkyIslandLocalPosition next = working.get(i + 1);
@@ -861,13 +862,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         "bankfull half-width must be finite and non-negative");
             }
             double currentGap = 0.0;
-            if (headEnvelopeGap != null && halfWidth > EPSILON) {
-                currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
+            if (objectiveActive && halfWidth > EPSILON) {
+                if (headEnvelopeGap != null) {
+                    currentGap = checkedGap(headEnvelopeGap, point, station, tangent, halfWidth);
+                }
                 SkyIslandCenterlineLongitudinalHeadFeasibility.Score longitudinalScore =
                         checkedLongitudinalScore(longitudinalHeadFeasibility, working);
                 if (currentGap > EPSILON
                         || longitudinalScore.maximumLocalEnvelopeConflictWorldUnits() > EPSILON
-                        || longitudinalScore.maximumGradePropagationConflictWorldUnits() > EPSILON) {
+                        || longitudinalScore.maximumGradePropagationConflictWorldUnits() > EPSILON
+                        || longitudinalScore.integratedSquaredConflictWorldUnits() > EPSILON) {
                     for (int direction = -1; direction <= 1; direction += 2) {
                         double offset = 0.5 * halfWidth;
                         int backtracks = 0;
@@ -908,10 +912,10 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                         option, searchRoute, semanticGuidance, terrain, interiority,
                         semanticCorridorHalfWidth);
                 boolean curvatureAllowed =
-                        headEnvelopeGap == null
+                        !objectiveActive
                                 || curvatureAdmissible(
                                         result, i, option, minimumBendRadius);
-                if (headEnvelopeGap != null && optionIndex > 0) {
+                if (objectiveActive && optionIndex > 0) {
                     lateralCandidateProposals++;
                     if (!admission.insideSemanticCorridor()) lateralCandidateCorridorRejected++;
                     if (!admission.withinTerrainRise()) lateralCandidateTerrainRejected++;
@@ -919,8 +923,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     if (!curvatureAllowed) lateralCandidateCurvatureRejected++;
                     if (admission.allowed() && curvatureAllowed) {
                         lateralCandidateAdmissible++;
-                        if (checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
-                                < currentGap - EPSILON) {
+                        if (headEnvelopeGap != null
+                                && checkedGap(headEnvelopeGap, option, station, tangent, halfWidth)
+                                        < currentGap - EPSILON) {
                             lateralCandidateGapImproving++;
                         }
                     }
@@ -1101,6 +1106,9 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             SkyIslandLocalPosition candidate,
             DoubleUnaryOperator bankfullHalfWidthAtStation,
             SkyIslandCenterlineHeadEnvelopeGap headEnvelopeGap) {
+        if (headEnvelopeGap == null) {
+            return new LocalHeadGapScore(0.0, 0.0);
+        }
         List<SkyIslandLocalPosition> candidatePoints = new ArrayList<>(points);
         candidatePoints.set(changedIndex, candidate);
         double[] candidateStations = stations(candidatePoints);

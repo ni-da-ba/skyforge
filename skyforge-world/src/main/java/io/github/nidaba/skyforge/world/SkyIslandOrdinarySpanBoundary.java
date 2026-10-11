@@ -31,6 +31,12 @@ public record SkyIslandOrdinarySpanBoundary(
                     throw new IllegalArgumentException("FIXED_HEAD boundary requires only a fixed head");
                 }
             }
+            case CASCADE_CRITICAL_CONTROL -> {
+                if (fixedHeadWorldUnits.isPresent() || diagnostic.isPresent()) {
+                    throw new IllegalArgumentException(
+                            "CASCADE_CRITICAL_CONTROL carries neither a guessed stage nor deferral");
+                }
+            }
             case DEFERRED -> {
                 if (fixedHeadWorldUnits.isPresent() || diagnostic.isEmpty()) {
                     throw new IllegalArgumentException("DEFERRED boundary requires only a diagnostic");
@@ -52,6 +58,15 @@ public record SkyIslandOrdinarySpanBoundary(
                 state,
                 SkyIslandOrdinarySpanBoundaryStatus.FIXED_HEAD,
                 Optional.of(headWorldUnits),
+                Optional.empty());
+    }
+
+    public static SkyIslandOrdinarySpanBoundary cascadeCriticalControl(
+            SkyIslandHydraulicTransitionBoundaryState state) {
+        return new SkyIslandOrdinarySpanBoundary(
+                state,
+                SkyIslandOrdinarySpanBoundaryStatus.CASCADE_CRITICAL_CONTROL,
+                Optional.empty(),
                 Optional.empty());
     }
 
