@@ -451,6 +451,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         List<SkyIslandChannelProfile> profiles =
                 reach.geomorphicRoute().semanticReach().profiles();
         double[][] profileWeightsAtSection = new double[count][];
+        double[] sectionWidthScaleBySample = new double[count];
+        double[] fullBankfullWidthBySample = new double[count];
+        int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
         List<SkyIslandChannelProfileKind> profileKinds =
                 profiles.stream().map(SkyIslandChannelProfile::kind).toList();
         for (int i = 0; i < count; i++) {
@@ -464,6 +467,25 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             profileWeightsAtSection[i] = profileWeights;
             double cascadeWeight = profileWeights[SkyIslandChannelProfileKind.CASCADE.ordinal()];
             double modeStation = bedFeedbackStation(sample.stationFraction(), sourceReach, count);
+            double sectionWidthScale = 1.0;
+            for (int localMode = 0; localMode < 3; localMode++) {
+                sectionWidthScale += cascadeWeight
+                        * feedbackControls[widthControlStart + localMode]
+                        * localizedReachBump(
+                                modeStation,
+                                reachWidthModeCenter(localMode),
+                                reachWidthModeRadius(localMode));
+            }
+            if (!Double.isFinite(sectionWidthScale)
+                    || sectionWidthScale < 0.75
+                    || sectionWidthScale > 1.25) {
+                throw new IllegalArgumentException(
+                        "candidate channel width scale must remain within 0.75..1.25");
+            }
+            sectionWidthScaleBySample[i] = sectionWidthScale;
+            double fullBankfullWidth = 2.0 * sample.bankfullHalfWidth()
+                    * sectionWidthScale * calibration.metersPerWorldUnit();
+            fullBankfullWidthBySample[i] = fullBankfullWidth;
             double targetOffset = 0.0;
             for (SkyIslandChannelProfileKind kind : SkyIslandChannelProfileKind.values()) {
                 targetOffset += profileWeights[kind.ordinal()]
@@ -488,7 +510,16 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 2 * SkyIslandChannelProfileKind.values().length + 6]
                         * outletRamp;
             }
-            lower[i] = Math.max(0.0, surface - maximumIncision);
+            double minimumBottomWidth = Math.max(1.0e-8, fullBankfullWidth * 1.0e-8);
+            double maximumDepthFromWidth =
+                    (fullBankfullWidth - minimumBottomWidth)
+                            / (2.0 * calibration.sideSlopeHorizontalToVertical());
+            if (!(maximumDepthFromWidth > 0.0) || !Double.isFinite(maximumDepthFromWidth)) {
+                throw new IllegalStateException(
+                        "candidate channel width cannot support a positive trapezoid bottom width");
+            }
+            lower[i] = Math.max(
+                    0.0, surface - Math.min(maximumIncision, maximumDepthFromWidth));
             upper[i] = surface;
             double left = i == 0
                     ? rawSections.get(1).chainageMeters() - section.chainageMeters()
@@ -596,30 +627,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 + i);
             }
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
-            double sectionWidthScale = 1.0;
-            double cascadeWeight = profileWeightsAtSection[i][
-                    SkyIslandChannelProfileKind.CASCADE.ordinal()];
-            double modeStation = bedFeedbackStation(
-                    reach.samples().get(i).stationFraction(), sourceReach, count);
-            int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
-            for (int localMode = 0; localMode < 3; localMode++) {
-                sectionWidthScale += cascadeWeight
-                        * feedbackControls[widthControlStart + localMode]
-                        * localizedReachBump(
-                                modeStation,
-                                reachWidthModeCenter(localMode),
-                                reachWidthModeRadius(localMode));
-            }
-            if (!Double.isFinite(sectionWidthScale)
-                    || sectionWidthScale < 0.75
-                    || sectionWidthScale > 1.25) {
-                throw new IllegalArgumentException(
-                        "candidate channel width scale must remain within 0.75..1.25");
-            }
-            double fullBankfullWidthMeters =
-                    2.0 * reach.samples().get(i).bankfullHalfWidth()
-                            * sectionWidthScale
-                            * calibration.metersPerWorldUnit();
+            double sectionWidthScale = sectionWidthScaleBySample[i];
+            double fullBankfullWidthMeters = fullBankfullWidthBySample[i];
             double bottomWidthMeters = fullBankfullWidthMeters
                     - 2.0 * calibration.sideSlopeHorizontalToVertical() * (surface - bed[i]);
             if (!Double.isFinite(bottomWidthMeters) || bottomWidthMeters <= 0.0) {
