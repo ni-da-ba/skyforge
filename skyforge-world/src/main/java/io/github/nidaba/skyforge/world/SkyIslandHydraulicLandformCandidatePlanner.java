@@ -504,7 +504,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 2 * SkyIslandChannelProfileKind.values().length + localMode]
                         * localizedReachBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
             }
-            if (edgeOutletReach) {
+            if (edgeOutletReach && cascadeReach) {
                 double normalizedOutletRamp =
                         Math.max(0.0, Math.min(1.0, (modeStation - 0.60) / 0.40));
                 double outletRamp = normalizedOutletRamp * normalizedOutletRamp
