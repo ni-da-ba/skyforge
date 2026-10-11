@@ -61,8 +61,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
      * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind, three
-     * endpoint-vanishing local bed modes across the reach, three bounded CASCADE width modes, and
-     * one edge-outlet ramp. Bed modes preserve shared semantic reach endpoints.
+     * endpoint-vanishing local bed modes, three bounded local width modes, and one edge-outlet
+     * ramp. Bed modes preserve shared semantic reach endpoints; candidate width and bed geometry
+     * are rebuilt together for hydraulic evaluation.
      * Bed, cross-section, and valley terrain are rebuilt as one candidate; D2 qualification stays
      * outside this hydraulic objective.
      */
