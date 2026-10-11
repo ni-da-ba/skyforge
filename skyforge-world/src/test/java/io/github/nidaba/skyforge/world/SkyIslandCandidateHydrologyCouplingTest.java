@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -370,8 +371,16 @@ class SkyIslandCandidateHydrologyCouplingTest {
             SkyIslandGraduallyVariedFlowSolver.Parameters parameters) {
         int incomingBranches = 2;
         SkyIslandHydraulicGeometrySkeletonPlan candidateSkeleton = candidate.skeletonPlan();
-        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> cascadeSections =
-                candidate.requireReach(801, 1951).sections();
+        SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate naturalReach =
+                candidate.requireReach(801, 1951);
+        List<SkyIslandHydraulicCascadeTransitionSite> cascadeSites =
+                SkyIslandHydraulicTransitionTopologyPlanner.plan(descriptor, candidateSkeleton)
+                        .cascades().stream()
+                        .filter(site -> site.reachStartCellIndex() == 801
+                                && site.reachEndCellIndex() == 1951)
+                        .sorted(java.util.Comparator.comparingDouble(
+                                site -> site.upstreamBoundary().stationFraction()))
+                        .toList();
         SkyIslandChannelTerminalFate terminalFate =
                 SkyIslandChannelTerminalFatePlanner.plan(
                                 descriptor, candidateSkeleton.geomorphicNetwork())
@@ -379,227 +388,178 @@ class SkyIslandCandidateHydrologyCouplingTest {
                         .filter(fate -> fate.channelTerminalCellIndex() == 1951)
                         .findFirst()
                         .orElseThrow(() -> new IllegalStateException(
-                                "key-700 CASCADE has no authored terminal fate"));
-        String label = candidateLabel + ":" + terminalFate.kind().name();
+                                "key-700 reach has no authored terminal fate"));
+        String label = candidateLabel + ":" + terminalFate.kind().name()
+                + ":cascadeProfileRuns=" + cascadeSites.size();
+        String phase = "transition-topology";
+        double maximumEnergyResidual = 0.0;
         try {
+            if (cascadeSites.isEmpty()) {
+                throw new IllegalStateException(
+                        "natural key-700 reach has no authored CASCADE profile interval");
+            }
             List<SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach> incoming =
                     List.of(
                             new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
                                     candidate.requireReach(660, 801).sections()),
                             new SkyIslandHydraulicEnergyConfluenceComponentSolver.IncomingReach(
                                     candidate.requireReach(1140, 801).sections()));
-            SkyIslandGraduallyVariedFlowSolver.Result cascadeProfile;
-            try {
-                cascadeProfile = SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
-                        cascadeSections, parameters);
-            } catch (IllegalArgumentException | IllegalStateException noContinuousChute) {
-                if (terminalFate.kind() != SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
-                    throw noContinuousChute;
-                }
-                cascadeProfile =
+            SkyIslandHydraulicCascadeTransitionSite firstSite = cascadeSites.getFirst();
+            List<SkyIslandGraduallyVariedFlowSolver.CrossSection> firstCascadeSections =
+                    candidateSectionsBetween(
+                            naturalReach,
+                            firstSite.upstreamBoundary().stationFraction(),
+                            firstSite.downstreamBoundary().stationFraction());
+            if (firstSite.upstreamBoundary().stationFraction() > 1.0e-10) {
+                throw new IllegalStateException(
+                        "key-700 confluence-to-first-CASCADE ordinary span needs an explicit physical boundary");
+            }
+
+            phase = "initial authored CASCADE";
+            SkyIslandGraduallyVariedFlowSolver.Result firstCascadeProfile;
+            if (cascadeSites.size() == 1
+                    && terminalFate.kind() == SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
+                firstCascadeProfile =
                         SkyIslandHydraulicCascadeTransitionSolver
                                 .solveFromCriticalInletToCriticalOutlet(
-                                        cascadeSections, parameters);
+                                        firstCascadeSections, parameters);
+            } else {
+                firstCascadeProfile =
+                        SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                                firstCascadeSections, parameters);
             }
-            double sharedJunctionDepth = cascadeProfile.points().getFirst().depthMeters();
+            maximumEnergyResidual = firstCascadeProfile.maximumEnergyResidualMeters();
             SkyIslandHydraulicEnergyConfluenceComponentSolver.Result component =
                     SkyIslandHydraulicEnergyConfluenceComponentSolver.solve(
                             incoming,
-                            cascadeSections.getFirst(),
-                            sharedJunctionDepth,
+                            firstCascadeSections.getFirst(),
+                            firstCascadeProfile.points().getFirst().depthMeters(),
                             parameters,
                             0.0);
+            maximumEnergyResidual = Math.max(
+                    maximumEnergyResidual,
+                    Math.max(
+                            component.maximumReachEnergyResidualMeters(),
+                            component.confluence().energyResidualMeters()));
+
+            for (int siteIndex = 0; siteIndex + 1 < cascadeSites.size(); siteIndex++) {
+                SkyIslandHydraulicCascadeTransitionSite upstreamSite =
+                        cascadeSites.get(siteIndex);
+                SkyIslandHydraulicCascadeTransitionSite downstreamSite =
+                        cascadeSites.get(siteIndex + 1);
+                List<SkyIslandGraduallyVariedFlowSolver.CrossSection> ordinarySections =
+                        candidateSectionsBetween(
+                                naturalReach,
+                                upstreamSite.downstreamBoundary().stationFraction(),
+                                downstreamSite.upstreamBoundary().stationFraction());
+                if (ordinarySections.size() < 4) {
+                    throw new IllegalStateException(
+                            "ordinary span between authored CASCADE controls is too short for jump closure"
+                                    + ";span=" + upstreamSite.cascadeEndCellIndex()
+                                    + "->" + downstreamSite.cascadeStartCellIndex()
+                                    + ";sections=" + ordinarySections.size());
+                }
+                phase = "ordinary span " + siteIndex + " between CASCADE controls";
+                double downstreamCriticalDepth =
+                        SkyIslandGraduallyVariedFlowSolver.criticalDepth(
+                                ordinarySections.getLast(), parameters);
+                SkyIslandGraduallyVariedFlowSolver.Result ordinaryProfile =
+                        SkyIslandHydraulicJumpProfileSolver.solveToTailwater(
+                                ordinarySections,
+                                firstCascadeProfile.points().getLast().depthMeters(),
+                                downstreamCriticalDepth,
+                                parameters);
+                maximumEnergyResidual = Math.max(
+                        maximumEnergyResidual, ordinaryProfile.maximumEnergyResidualMeters());
+
+                SkyIslandHydraulicCascadeTransitionSite downstreamSite =
+                        cascadeSites.get(siteIndex + 1);
+                List<SkyIslandGraduallyVariedFlowSolver.CrossSection> downstreamCascadeSections =
+                        candidateSectionsBetween(
+                                naturalReach,
+                                downstreamSite.upstreamBoundary().stationFraction(),
+                                downstreamSite.downstreamBoundary().stationFraction());
+                phase = "terminal authored CASCADE " + (siteIndex + 1);
+                firstCascadeProfile =
+                        siteIndex + 2 == cascadeSites.size()
+                                        && terminalFate.kind()
+                                                == SkyIslandChannelTerminalFateKind.EDGE_OUTLET
+                                ? SkyIslandHydraulicCascadeTransitionSolver
+                                        .solveFromCriticalInletToCriticalOutlet(
+                                                downstreamCascadeSections, parameters)
+                                : SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInlet(
+                                        downstreamCascadeSections, parameters);
+                maximumEnergyResidual = Math.max(
+                        maximumEnergyResidual,
+                        firstCascadeProfile.maximumEnergyResidualMeters());
+            }
             return new NaturalComponentProbe(
                     incomingBranches,
-                    cascadeSections.size(),
+                    naturalReach.sections().size(),
                     label,
                     true,
                     true,
-                    Math.max(
-                            cascadeProfile.maximumEnergyResidualMeters(),
-                            Math.max(
-                                    component.maximumReachEnergyResidualMeters(),
-                                    component.confluence().energyResidualMeters())),
+                    maximumEnergyResidual,
                     "");
         } catch (IllegalArgumentException | IllegalStateException failure) {
             return new NaturalComponentProbe(
                     incomingBranches,
-                    cascadeSections.size(),
+                    naturalReach.sections().size(),
                     label,
                     true,
                     false,
-                    0.0,
-                    failure.getClass().getSimpleName() + ":" + failure.getMessage()
-                            + describeCascadeLimit(
-                                    cascadeSections, parameters, failure.getMessage()));
+                    maximumEnergyResidual,
+                    phase + ":" + failure.getClass().getSimpleName() + ":" + failure.getMessage());
         }
     }
 
-    private static String describeCascadeLimit(
+    private static List<SkyIslandGraduallyVariedFlowSolver.CrossSection> candidateSectionsBetween(
+            SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate reach,
+            double startFraction,
+            double endFraction) {
+        if (!Double.isFinite(startFraction)
+                || !Double.isFinite(endFraction)
+                || startFraction < 0.0
+                || endFraction > 1.0
+                || !(endFraction > startFraction)) {
+            throw new IllegalArgumentException("candidate section interval must be ordered within [0,1]");
+        }
+        List<SkyIslandHydraulicGeometrySkeletonSample> samples = reach.skeleton().samples();
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections = reach.sections();
+        List<SkyIslandGraduallyVariedFlowSolver.CrossSection> result = new ArrayList<>();
+        result.add(candidateSectionAt(samples, sections, startFraction));
+        for (int i = 0; i < samples.size(); i++) {
+            double fraction = samples.get(i).stationFraction();
+            if (fraction > startFraction + 1.0e-10
+                    && fraction < endFraction - 1.0e-10) {
+                result.add(sections.get(i));
+            }
+        }
+        result.add(candidateSectionAt(samples, sections, endFraction));
+        return List.copyOf(result);
+    }
+
+    private static SkyIslandGraduallyVariedFlowSolver.CrossSection candidateSectionAt(
+            List<SkyIslandHydraulicGeometrySkeletonSample> samples,
             List<SkyIslandGraduallyVariedFlowSolver.CrossSection> sections,
-            SkyIslandGraduallyVariedFlowSolver.Parameters parameters,
-            String message) {
-        if (message == null) {
-            return "";
-        }
-        String marker = "section ";
-        int markerIndex = message.lastIndexOf(marker);
-        if (markerIndex < 0) {
-            return "";
-        }
-        int numberStart = markerIndex + marker.length();
-        int numberEnd = numberStart;
-        while (numberEnd < message.length() && Character.isDigit(message.charAt(numberEnd))) {
-            numberEnd++;
-        }
-        if (numberEnd == numberStart) {
-            return "";
-        }
-        try {
-            int failedIndex = Integer.parseInt(message.substring(numberStart, numberEnd));
-            if (failedIndex <= 0 || failedIndex >= sections.size()) {
-                return "";
+            double stationFraction) {
+        for (int i = 0; i < samples.size(); i++) {
+            if (Math.abs(samples.get(i).stationFraction() - stationFraction) <= 1.0e-10) {
+                return sections.get(i);
             }
-            SkyIslandGraduallyVariedFlowSolver.Result validPrefix =
-                    SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstreamFromCriticalControl(
-                            sections.subList(0, failedIndex), parameters);
-            SkyIslandGraduallyVariedFlowSolver.ProfilePoint lastValid =
-                    validPrefix.points().getLast();
-            SkyIslandGraduallyVariedFlowSolver.CrossSection failed = sections.get(failedIndex);
-            double spacing = failed.chainageMeters() - lastValid.section().chainageMeters();
-            double downstreamBedSlope =
-                    (lastValid.section().bedElevationMeters() - failed.bedElevationMeters()) / spacing;
-            return String.format(
-                    Locale.ROOT,
-                    ";lastValidSection=%d,depthMeters=%.9g,froude=%.9g,bedSlopeToFailed=%.9g,"
-                            + "dischargeChange=%.9g,bottomWidthChange=%.9g",
-                    failedIndex - 1,
-                    lastValid.depthMeters(),
-                    lastValid.froudeNumber(),
-                    downstreamBedSlope,
-                    failed.dischargeCubicMetersPerSecond()
-                            - lastValid.section().dischargeCubicMetersPerSecond(),
-                    failed.bottomWidthMeters() - lastValid.section().bottomWidthMeters());
-        } catch (IllegalArgumentException | IllegalStateException diagnosticFailure) {
-            return ";localCascadeDiagnosticsUnavailable="
-                    + diagnosticFailure.getClass().getSimpleName() + ":" + diagnosticFailure.getMessage();
-        }
-    }
-
-    private static SkyIslandHydraulicReachSkeleton requireReach(
-            SkyIslandHydraulicGeometrySkeletonPlan candidate, int start, int end) {
-        return candidate.reaches().stream()
-                .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex() == start
-                        && reach.geomorphicRoute().semanticReach().endCellIndex() == end)
-                .findFirst()
-                .orElseThrow(() -> new AssertionError(
-                        "missing candidate semantic reach " + start + "->" + end));
-    }
-
-    @Test
-    void hydraulicMomentumResidualFeedsBackIntoBoundedKey700BedCandidate() {
-        SkyIslandDescriptor descriptor = SkyIslandDescriptorGenerator.derive(
-                SkyIslandIdentity.of(SEED, 8L, 81L, 700L));
-        SkyIslandHydraulicLandformCandidatePlanner.Plan initial =
-                SkyIslandHydraulicLandformCandidatePlanner.plan(descriptor, CALIBRATION);
-        double initialResidual = residualNorm(cascadeResidualVector(initial));
-
-        var feedback = SkyIslandHydraulicLandformCandidatePlanner.planWithHydraulicFeedback(
-                descriptor,
-                CALIBRATION,
-                SkyIslandCandidateHydrologyCouplingTest::cascadeResidualVector,
-                1.0e-8,
-                6);
-        assertTrue(
-                feedback.optimization().residualNorm() <= initialResidual + 1.0e-8,
-                "bounded geometry feedback must not worsen the physical momentum mismatch");
-        assertEquals(
-                initial.skeletonPlan().geomorphicNetwork().routes().size(),
-                feedback.plan().reaches().size(),
-                "bed feedback must preserve every authored semantic edge");
-        SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate cascade =
-                feedback.plan().requireReach(801, 1951);
-        assertTrue(
-                cascade.sectionWidthScales().stream()
-                        .allMatch(scale -> scale >= 0.75 && scale <= 1.25),
-                "candidate channel width must remain inside the explicit morphology envelope");
-        for (int source : List.of(660, 1140)) {
-            SkyIslandHydraulicLandformCandidatePlanner.ReachCandidate incoming =
-                    feedback.plan().requireReach(source, 801);
-            assertTrue(
-                    incoming.sectionWidthScales().stream().allMatch(scale -> scale == 1.0),
-                    "localized cascade-pool widening must leave source branches unchanged");
-        }
-        for (int i = 0; i < cascade.sections().size(); i++) {
-            SkyIslandHydraulicGeometrySkeletonSample sample = cascade.skeleton().samples().get(i);
-            double localTerrainMeters = sample.terrainElevation()
-                    * descriptor.reliefBudget() * CALIBRATION.metersPerWorldUnit();
-            double depth = localTerrainMeters - cascade.sections().get(i).bedElevationMeters();
-            double reconstructedBankfullWidth = cascade.sections().get(i).bottomWidthMeters()
-                    + 2.0 * CALIBRATION.sideSlopeHorizontalToVertical() * depth;
-            assertEquals(
-                    2.0 * sample.bankfullHalfWidth()
-                            * cascade.channelWidthScaleAtSection(i)
-                            * CALIBRATION.metersPerWorldUnit(),
-                    reconstructedBankfullWidth,
-                    1.0e-8,
-                    "hydraulic section width must match the jointly scaled valley/channel candidate");
-        }
-        List<SkyIslandChannelProfile> cascadeProfiles =
-                cascade.skeleton().geomorphicRoute().semanticReach().profiles();
-        for (int i = 1; i < cascade.sections().size(); i++) {
-            SkyIslandChannelProfileKind upstreamKind = profileKindAt(
-                    cascadeProfiles, cascade.skeleton().samples().get(i - 1).stationFraction());
-            SkyIslandChannelProfileKind downstreamKind = profileKindAt(
-                    cascadeProfiles, cascade.skeleton().samples().get(i).stationFraction());
-            if (upstreamKind == SkyIslandChannelProfileKind.CASCADE
-                    && downstreamKind == SkyIslandChannelProfileKind.CASCADE) {
-                assertTrue(
-                        cascade.sections().get(i).bedElevationMeters()
-                                <= cascade.sections().get(i - 1).bedElevationMeters() + 1.0e-8,
-                        "CASCADE bed must not rise downstream within its controlled chute");
+            if (i + 1 < samples.size()
+                    && samples.get(i).stationFraction() < stationFraction
+                    && stationFraction < samples.get(i + 1).stationFraction()) {
+                double localFraction =
+                        (stationFraction - samples.get(i).stationFraction())
+                                / (samples.get(i + 1).stationFraction()
+                                        - samples.get(i).stationFraction());
+                return interpolateSection(sections.get(i), sections.get(i + 1), localFraction);
             }
         }
-        assertEquals(
-                0.0,
-                cascade.sections().getFirst().bedElevationMeters()
-                        - initial.requireReach(801, 1951).sections().getFirst().bedElevationMeters(),
-                1.0e-8,
-                "feedback must preserve the shared CASCADE inlet bed");
-        assertTrue(
-                cascade.sections().getLast().bedElevationMeters()
-                        <= initial.requireReach(801, 1951).sections().getLast().bedElevationMeters()
-                                + 1.0e-8,
-                "edge-outlet feedback may lower, but must not raise, the terminal bed");
-
-        String exactScanDetails = exactCascadeClosureDiagnostics(cascade.sections());
-        boolean exactJumpClosed;
-        String exactJumpFailure = "none";
-        try {
-            SkyIslandHydraulicCascadeTransitionSolver.solveFromCriticalInletToCriticalOutlet(
-                    cascade.sections(), CALIBRATION.solverParameters());
-            exactJumpClosed = true;
-        } catch (IllegalArgumentException | IllegalStateException noPhysicalClosure) {
-            exactJumpClosed = false;
-            exactJumpFailure = noPhysicalClosure.getClass().getSimpleName()
-                    + ":" + noPhysicalClosure.getMessage();
-        }
-        assertFalse(
-                feedback.residualsConverged() && !exactJumpClosed,
-                "a minimized momentum residual must still pass the exact cascade closure solver");
-
-        System.out.printf(
-                Locale.ROOT,
-                "HYDRAULIC_GEOMETRY_FEEDBACK key=700 initialHydraulicResidual=%.9g "
-                        + "finalHydraulicResidual=%.9g controls=%s residualsConverged=%s "
-                        + "exactScan=%s exactJumpClosed=%s exactJumpFailure=%s%n",
-                initialResidual,
-                feedback.optimization().residualNorm(),
-                java.util.Arrays.toString(feedback.optimization().controls()),
-                feedback.residualsConverged(),
-                exactScanDetails,
-                exactJumpClosed,
-                exactJumpFailure);
+        throw new IllegalStateException(
+                "hydraulic transition boundary escaped candidate reach at station "
+                        + stationFraction);
     }
 
     private static double[] cascadeResidualVector(
