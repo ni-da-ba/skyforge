@@ -61,9 +61,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
      * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind, three
-     * endpoint-vanishing local bed modes, three bounded local width modes, and one edge-outlet
-     * ramp. Bed modes preserve shared semantic reach endpoints; candidate width and bed geometry
-     * are rebuilt together for hydraulic evaluation.
+     * endpoint-vanishing local bed modes, three bounded local width modes, one edge-outlet ramp,
+     * and one smooth inlet-grade drop. Bed modes preserve shared semantic reach endpoints;
+     * candidate width and bed geometry are rebuilt together for hydraulic evaluation.
      * Bed, cross-section, and valley terrain are rebuilt as one candidate; D2 qualification stays
      * outside this hydraulic objective.
      */
@@ -102,15 +102,14 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            // Keep the measured near-closed outlet controls fixed. First test the upper end of
-            // the accepted local-width envelope at the inlet energy bottleneck, then vary broad
-            // bed curvature only if width alone cannot create branch overlap.
-            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.225, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.250, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.250, -0.200, 0.10, 0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.250, -0.200, 0.20, 0.00, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.250, -0.200, 0.15, 0.00,  0.00, -0.10, -0.02)
+            // Preserve the measured outlet closure and all prior controls. Sweep a smooth local
+            // inlet-grade drop in small increments around the observed 2.8 mm critical-energy gap.
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0010),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0020),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0030),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0040),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0060),
+            new CascadeShapeTrial(0.200, -0.200, 0.15, 0.00, -0.05, -0.10, -0.02, 0.0080)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -134,6 +133,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             controls[localControlStart + 3] = trial.inletWidthScaleOffset();
             controls[localControlStart + 3 + 2] = trial.outletWidthScaleOffset();
             controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
+            controls[localControlStart + 7] = trial.inletGradeDropFraction() * maximumAmplitude;
             Plan candidate;
             try {
                 candidate = buildPlan(descriptor, calibration, initial.skeletonPlan(), controls);
@@ -172,7 +172,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     private static int feedbackControlCount() {
-        return 2 * SkyIslandChannelProfileKind.values().length + 7;
+        return 2 * SkyIslandChannelProfileKind.values().length + 8;
     }
 
     private record CascadeShapeTrial(
@@ -182,7 +182,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double inletBedAdjustmentFraction,
             double middleBedAdjustmentFraction,
             double outletBedAdjustmentFraction,
-            double terminalDropFraction) {
+            double terminalDropFraction,
+            double inletGradeDropFraction) {
         private double localBedAdjustmentFraction(int localMode) {
             return switch (localMode) {
                 case 0 -> inletBedAdjustmentFraction;
@@ -232,6 +233,17 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private static double smoothStep01(double value) {
         double x = Math.max(0.0, Math.min(1.0, value));
         return x * x * (3.0 - 2.0 * x);
+    }
+
+    /**
+     * Smoothly lowers the terminal-cascade candidate immediately downstream of its inlet lip,
+     * then tapers the offset back to zero before the shared edge endpoint. This adds a bounded
+     * hydraulic grade degree of freedom without a discontinuous bed step or endpoint shift.
+     */
+    private static double inletGradeFeedbackWeight(double station) {
+        double entry = smoothStep01((station - 0.105) / 0.030);
+        double exit = 1.0 - smoothStep01((station - 0.78) / 0.17);
+        return entry * exit;
     }
 
     private static double reachLocalBedModeCenter(int localMode) {
@@ -510,6 +522,9 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                                 2 * SkyIslandChannelProfileKind.values().length + localMode]
                         * localizedReachBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
             }
+            target[i] -= localCascadeModeWeight
+                    * feedbackControls[2 * SkyIslandChannelProfileKind.values().length + 7]
+                    * inletGradeFeedbackWeight(modeStation);
             if (edgeOutletReach && cascadeReach) {
                 double normalizedOutletRamp =
                         Math.max(0.0, Math.min(1.0, (modeStation - 0.60) / 0.40));
