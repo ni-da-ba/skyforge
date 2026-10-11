@@ -96,9 +96,11 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             throw new IllegalStateException("hydraulic bed feedback has no positive cascade geometry envelope");
         }
 
-        // The measured branches are separated across most of the CASCADE reach. Hold the
-        // best pool-width, outlet-ramp, and local-pool shape; sweep a bounded broad bed mode to
-        // reshape the intervening chute while preserving shared reach endpoints.
+        // Sweep a bounded reach-scale bed mode together with three overlapping local modes.
+        // The local centers cover the measured near-inlet and terminal failure zones, while a
+        // bounded outlet-width contraction tests whether the terminal expansion blocks the
+        // upstream subcritical profile. Shared reach endpoints and the hydraulic acceptance rules
+        // remain unchanged.
         CascadeShapeTrial[] trials = {
             new CascadeShapeTrial(-0.119, 0.05, 0.05, 0.70),
             new CascadeShapeTrial(-0.119, 0.10, 0.05, 0.70),
