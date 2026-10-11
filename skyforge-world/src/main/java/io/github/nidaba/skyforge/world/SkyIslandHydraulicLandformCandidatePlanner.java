@@ -595,6 +595,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             }
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
             double sectionWidthScale = 1.0;
+            double cascadeWeight = profileWeightsAtSection[i][
+                    SkyIslandChannelProfileKind.CASCADE.ordinal()];
             double modeStation = bedFeedbackStation(
                     reach.samples().get(i).stationFraction(), sourceReach, count);
             int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
