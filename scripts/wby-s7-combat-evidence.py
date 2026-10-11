@@ -522,11 +522,31 @@ def main() -> int:
         profile_delta = staged_ids - control_ids
         expected_additions = set(active_mod_ids)
         pending = list(active_mod_ids)
+        visited: set[str] = set()
         while pending:
             mod_id = pending.pop()
+            if mod_id in visited:
+                continue
+            visited.add(mod_id)
             staged_entry = staged_mods.get(mod_id)
             if staged_entry is None:
                 raise SystemExit(f"candidate dependency closure is missing required mod ID {mod_id}")
+
+            # JarJar children are runtime mods bundled inside the selected parent JAR, not
+            # standalone declared dependencies. staged_profile preserves that provenance in
+            # the owner path (parent.jar!META-INF/jarjar/child.jar), so include only children
+            # whose bytes are actually nested under a mod already in this candidate closure.
+            embedded_owner_prefix = staged_entry[0] + "!"
+            embedded_ids = {
+                embedded_id
+                for embedded_id, embedded_entry in staged_mods.items()
+                if embedded_entry[0].startswith(embedded_owner_prefix)
+            }
+            for embedded_id in sorted(embedded_ids):
+                if embedded_id not in control_ids:
+                    expected_additions.add(embedded_id)
+                pending.append(embedded_id)
+
             for dependency_id in required_server_dependency_ids(staged_entry[1], mod_id):
                 # Minecraft and NeoForge are provided by the runtime, not staged as mod JARs.
                 if dependency_id in {"minecraft", "neoforge"}:
