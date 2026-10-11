@@ -101,12 +101,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, 0.05, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.119, 0.05, -0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 0.05, 0.00, -0.05, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 0.05, 0.05, -0.05, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 0.05, -0.05, -0.05, 0.70),
-            new CascadeShapeTrial(0.119, 0.25, 0.10, 0.00, -0.05, 0.70)
+            new CascadeShapeTrial(-0.119, 0.119, 0.05, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.000, 0.119, 0.05, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.119, 0.15, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.000, 0.119, 0.15, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.119, 0.25, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70),
+            new CascadeShapeTrial(0.000, 0.119, 0.25, 0.00, -0.05, 0.05, 0.00, 0.00, -0.05, 0.70)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -125,9 +125,10 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 controls[localControlStart + localMode] =
                         trial.localBedAdjustmentFraction(localMode) * maximumAmplitude;
             }
-            // The third local mode is outlet-centered; widen that approach smoothly to reduce
-            // the measured terminal width step without collapsing the trapezoid bottom width.
-            controls[localControlStart + 3 + 2] = trial.widthScaleOffset();
+            // Local width controls change the upstream ALLUVIAL section and terminal CASCADE
+            // expansion independently, while remaining inside the section's bounded scale range.
+            controls[localControlStart + 3] = trial.inletWidthScaleOffset();
+            controls[localControlStart + 3 + 2] = trial.outletWidthScaleOffset();
             controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
             Plan candidate;
             try {
@@ -171,7 +172,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     }
 
     private record CascadeShapeTrial(
-            double widthScaleOffset,
+            double inletWidthScaleOffset,
+            double outletWidthScaleOffset,
             double broadBedLoweringFraction,
             double inletBedAdjustmentFraction,
             double middleBedAdjustmentFraction,
@@ -237,17 +239,17 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         };
     }
 
-    private static double cascadeWidthModeCenter(int localMode) {
+    private static double reachWidthModeCenter(int localMode) {
         return switch (localMode) {
-            case 0 -> 0.25;
+            case 0 -> 0.15;
             case 1 -> 0.50;
             case 2 -> 0.88;
-            default -> throw new IllegalArgumentException("cascade width mode must be in 0..2");
+            default -> throw new IllegalArgumentException("reach width mode must be in 0..2");
         };
     }
 
-    private static double cascadeWidthModeRadius(int localMode) {
-        return localMode == 2 ? 0.04 : 0.20;
+    private static double reachWidthModeRadius(int localMode) {
+        return localMode == 0 ? 0.04 : (localMode == 2 ? 0.04 : 0.20);
     }
 
     private static double localizedReachBump(double station, double center, double radius) {
@@ -592,26 +594,21 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             }
             SkyIslandGraduallyVariedFlowSolver.CrossSection raw = rawSections.get(i);
             double sectionWidthScale = 1.0;
-            double cascadeWeight =
-                    profileWeightsAtSection[i][SkyIslandChannelProfileKind.CASCADE.ordinal()];
-            if (cascadeWeight > 0.0) {
-                double modeStation = bedFeedbackStation(
-                        reach.samples().get(i).stationFraction(), sourceReach, count);
-                int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
-                for (int localMode = 0; localMode < 3; localMode++) {
-                    sectionWidthScale += cascadeWeight
-                            * feedbackControls[widthControlStart + localMode]
-                            * localizedReachBump(
-                                    modeStation,
-                                    cascadeWidthModeCenter(localMode),
-                                    cascadeWidthModeRadius(localMode));
-                }
+            double modeStation = bedFeedbackStation(
+                    reach.samples().get(i).stationFraction(), sourceReach, count);
+            int widthControlStart = 2 * SkyIslandChannelProfileKind.values().length + 3;
+            for (int localMode = 0; localMode < 3; localMode++) {
+                sectionWidthScale += feedbackControls[widthControlStart + localMode]
+                        * localizedReachBump(
+                                modeStation,
+                                reachWidthModeCenter(localMode),
+                                reachWidthModeRadius(localMode));
             }
             if (!Double.isFinite(sectionWidthScale)
                     || sectionWidthScale < 0.75
                     || sectionWidthScale > 1.25) {
                 throw new IllegalArgumentException(
-                        "candidate CASCADE pool width scale must remain within 0.75..1.25");
+                        "candidate channel width scale must remain within 0.75..1.25");
             }
             double fullBankfullWidthMeters =
                     2.0 * reach.samples().get(i).bankfullHalfWidth()
