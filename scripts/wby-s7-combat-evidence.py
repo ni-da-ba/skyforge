@@ -528,6 +528,9 @@ def main() -> int:
             if staged_entry is None:
                 raise SystemExit(f"candidate dependency closure is missing required mod ID {mod_id}")
             for dependency_id in required_server_dependency_ids(staged_entry[1], mod_id):
+                # Minecraft and NeoForge are provided by the runtime, not staged as mod JARs.
+                if dependency_id in {"minecraft", "neoforge"}:
+                    continue
                 if dependency_id not in control_ids and dependency_id not in expected_additions:
                     expected_additions.add(dependency_id)
                     pending.append(dependency_id)
