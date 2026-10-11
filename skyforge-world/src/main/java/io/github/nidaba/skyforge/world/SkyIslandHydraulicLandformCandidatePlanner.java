@@ -102,12 +102,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // upstream subcritical profile. Shared reach endpoints and the hydraulic acceptance rules
         // remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, 0.05, 0.025, 0.70),
-            new CascadeShapeTrial(0.119, 0.10, 0.025, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 0.025, 0.70),
-            new CascadeShapeTrial(0.119, 0.20, 0.025, 0.70),
-            new CascadeShapeTrial(0.119, 0.25, 0.025, 0.70),
-            new CascadeShapeTrial(0.119, 0.30, 0.025, 0.70)
+            new CascadeShapeTrial(0.22, 0.05, -0.025, 0.70),
+            new CascadeShapeTrial(0.22, 0.05, 0.025, 0.70),
+            new CascadeShapeTrial(0.22, 0.15, -0.025, 0.70),
+            new CascadeShapeTrial(0.22, 0.15, 0.025, 0.70),
+            new CascadeShapeTrial(0.22, 0.25, -0.025, 0.70),
+            new CascadeShapeTrial(0.22, 0.25, 0.025, 0.70)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -124,7 +124,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             controls[cascadeKind] = -trial.broadBedLoweringFraction() * maximumAmplitude;
             for (int localMode = 0; localMode < 3; localMode++) {
                 controls[localControlStart + localMode] =
-                        -trial.localBedLoweringFraction() * maximumAmplitude;
+                        trial.localBedAdjustmentFraction() * maximumAmplitude;
             }
             // The third local mode is outlet-centered; widen that approach smoothly to reduce
             // the measured terminal width step without collapsing the trapezoid bottom width.
@@ -174,7 +174,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private record CascadeShapeTrial(
             double widthScaleOffset,
             double broadBedLoweringFraction,
-            double localBedLoweringFraction,
+            double localBedAdjustmentFraction,
             double terminalDropFraction) {}
 
     static double[] profileFeedbackWeights(
