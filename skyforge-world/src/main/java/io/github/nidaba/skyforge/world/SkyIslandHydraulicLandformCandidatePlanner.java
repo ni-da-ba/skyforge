@@ -428,6 +428,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                     reach, sections, bedResult.sectionWidthScales(), bedResult.qpResult()));
         }
 
+        reaches = new ArrayList<>(SkyIslandHydraulicSharedNodeBedCoupler.couple(
+                descriptor, calibration, skeleton, reaches));
         SkyIslandPreHydrologicTerrainField baseTerrain =
                 SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandSemanticField candidateTerrain =
