@@ -31,8 +31,9 @@ public final class SkyIslandGraduallyVariedFlowSolver {
                     || !Double.isFinite(bottomWidthMeters)
                     || !Double.isFinite(sideSlopeHorizontalToVertical)
                     || dischargeCubicMetersPerSecond <= 0.0
-                    || bottomWidthMeters <= 0.0
-                    || sideSlopeHorizontalToVertical < 0.0) {
+                    || bottomWidthMeters < 0.0
+                    || sideSlopeHorizontalToVertical < 0.0
+                    || (bottomWidthMeters == 0.0 && sideSlopeHorizontalToVertical == 0.0)) {
                 throw new IllegalArgumentException("cross-section values must be finite and physical");
             }
         }
