@@ -100,12 +100,12 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // best pool-width, outlet-ramp, and local-pool shape; sweep a bounded broad bed mode to
         // reshape the intervening chute while preserving shared reach endpoints.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, 0.05, 2, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.10, 2, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.15, 2, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.20, 2, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.25, 2, 0.10, 0.70),
-            new CascadeShapeTrial(0.119, 0.30, 2, 0.10, 0.70)
+            new CascadeShapeTrial(-0.119, 0.05, 0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.10, 0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.15, 0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.20, 0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.25, 0.05, 0.70),
+            new CascadeShapeTrial(-0.119, 0.30, 0.05, 0.70)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
@@ -120,9 +120,13 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             double[] controls = new double[feedbackControlCount()];
             int localControlStart = 2 * SkyIslandChannelProfileKind.values().length;
             controls[cascadeKind] = -trial.broadBedLoweringFraction() * maximumAmplitude;
-            controls[localControlStart + trial.localModeIndex()] =
-                    -trial.localBedLoweringFraction() * maximumAmplitude;
-            controls[localControlStart + 3 + trial.localModeIndex()] = trial.widthScaleOffset();
+            for (int localMode = 0; localMode < 3; localMode++) {
+                controls[localControlStart + localMode] =
+                        -trial.localBedLoweringFraction() * maximumAmplitude;
+            }
+            // The third local mode is outlet-centered; test a bounded contraction there because
+            // the current subcritical failure is a sharp terminal widening.
+            controls[localControlStart + 3 + 2] = trial.widthScaleOffset();
             controls[localControlStart + 6] = trial.terminalDropFraction() * maximumAmplitude;
             Plan candidate;
             try {
@@ -168,7 +172,6 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private record CascadeShapeTrial(
             double widthScaleOffset,
             double broadBedLoweringFraction,
-            int localModeIndex,
             double localBedLoweringFraction,
             double terminalDropFraction) {}
 
@@ -211,6 +214,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
     private static double smoothStep01(double value) {
         double x = Math.max(0.0, Math.min(1.0, value));
         return x * x * (3.0 - 2.0 * x);
+    }
+
+    private static double cascadeLocalModeCenter(int localMode) {
+        return switch (localMode) {
+            case 0 -> 0.15;
+            case 1 -> 0.50;
+            case 2 -> 0.90;
+            default -> throw new IllegalArgumentException("cascade local mode must be in 0..2");
+        };
     }
 
     private static double localizedCascadeBump(double station, double center, double radius) {
@@ -436,7 +448,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 for (int localMode = 0; localMode < 3; localMode++) {
                     target[i] += cascadeWeight * feedbackControls[
                                     2 * SkyIslandChannelProfileKind.values().length + localMode]
-                            * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
+                            * localizedCascadeBump(modeStation, cascadeLocalModeCenter(localMode), 0.20);
                 }
             }
             if (edgeOutletReach) {
@@ -566,7 +578,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 for (int localMode = 0; localMode < 3; localMode++) {
                     sectionWidthScale += cascadeWeight
                             * feedbackControls[widthControlStart + localMode]
-                            * localizedCascadeBump(modeStation, 0.25 + 0.25 * localMode, 0.22);
+                            * localizedCascadeBump(modeStation, cascadeLocalModeCenter(localMode), 0.20);
                 }
             }
             if (!Double.isFinite(sectionWidthScale)
