@@ -102,12 +102,15 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         // localized CASCADE width response targets the measured terminal expansion. Shared reach
         // endpoints and hydraulic acceptance rules remain unchanged.
         CascadeShapeTrial[] trials = {
-            new CascadeShapeTrial(0.119, -0.119, 0.00, -0.05, 0.00, -0.05, -0.01),
-            new CascadeShapeTrial(0.200, -0.200, 0.05, -0.10, -0.05, -0.05, -0.01),
-            new CascadeShapeTrial(0.200, -0.200, 0.15, -0.10, -0.05, -0.10, -0.02),
+            // Preserve the near-closed outlet pool while sweeping only the inlet bed mode that
+            // controls the upstream critical-energy bottleneck. This isolates whether the two
+            // regimes can overlap without trading one boundary closure for the other.
             new CascadeShapeTrial(0.200, -0.150, 0.15, -0.15, -0.05, -0.05, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.10, -0.05, -0.10, -0.02),
-            new CascadeShapeTrial(0.200, -0.200, 0.25, -0.15, -0.10, -0.10, -0.02)
+            new CascadeShapeTrial(0.200, -0.150, 0.15, -0.10, -0.05, -0.05, -0.02),
+            new CascadeShapeTrial(0.200, -0.150, 0.15, -0.05, -0.05, -0.05, -0.02),
+            new CascadeShapeTrial(0.200, -0.150, 0.15,  0.00, -0.05, -0.05, -0.02),
+            new CascadeShapeTrial(0.200, -0.150, 0.15,  0.05, -0.05, -0.05, -0.02),
+            new CascadeShapeTrial(0.200, -0.150, 0.15, -0.10,  0.00, -0.05, -0.02)
         };
         double[] bestControls = new double[feedbackControlCount()];
         double[] bestResiduals = validatedResiduals(
