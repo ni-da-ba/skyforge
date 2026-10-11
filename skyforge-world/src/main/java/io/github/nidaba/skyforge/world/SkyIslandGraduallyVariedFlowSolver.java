@@ -470,7 +470,14 @@ public final class SkyIslandGraduallyVariedFlowSolver {
             if (!(lowerResidual <= 0.0 && upperResidual >= 0.0)) {
                 throw new IllegalStateException(
                         "no supercritical standard-step solution before critical depth at section "
-                                + (i + 1));
+                                + (i + 1)
+                                + ";upstreamBedMeters=" + upstream.bedElevationMeters()
+                                + ";downstreamBedMeters=" + downstream.bedElevationMeters()
+                                + ";spacingMeters=" + spacing
+                                + ";upstreamDepthMeters=" + depths[i]
+                                + ";downstreamCriticalDepthMeters=" + critical
+                                + ";shallowBranchResidualMeters=" + lowerResidual
+                                + ";criticalLimitResidualMeters=" + upperResidual);
             }
 
             double root = Double.NaN;
