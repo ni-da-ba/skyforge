@@ -66,12 +66,24 @@ public final class SkyIslandHydraulicJumpProfileSolver {
             try {
                 trials.add(evaluateAtStation(reach, station, upstreamDepthMeters, downstreamDepthMeters, parameters));
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
+                String diagnostic = noAdmissibleBranch.getMessage();
+                if (diagnostic != null && diagnostic.startsWith("upstream-supercritical:")) {
+                    supercriticalBranchFailures++;
+                } else if (diagnostic != null && diagnostic.startsWith("downstream-subcritical:")) {
+                    subcriticalBranchFailures++;
+                }
+                if ("none".equals(firstBranchFailure)) {
+                    firstBranchFailure = "station=" + station + ":" + diagnostic;
+                }
                 trials.add(null);
             }
         }
         trials.add(null);
 
         int validStationTrials = 0;
+        int supercriticalBranchFailures = 0;
+        int subcriticalBranchFailures = 0;
+        String firstBranchFailure = "none";
         double minimumForceResidual = Double.POSITIVE_INFINITY;
         double maximumForceResidual = Double.NEGATIVE_INFINITY;
         for (StationTrial trial : trials) {
@@ -114,6 +126,15 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 minimumForceResidual = Math.min(minimumForceResidual, sample.forceResidual());
                 maximumForceResidual = Math.max(maximumForceResidual, sample.forceResidual());
             } catch (IllegalArgumentException | IllegalStateException noAdmissibleBranch) {
+                String diagnostic = noAdmissibleBranch.getMessage();
+                if (diagnostic != null && diagnostic.startsWith("upstream-supercritical:")) {
+                    supercriticalBranchFailures++;
+                } else if (diagnostic != null && diagnostic.startsWith("downstream-subcritical:")) {
+                    subcriticalBranchFailures++;
+                }
+                if ("none".equals(firstBranchFailure)) {
+                    firstBranchFailure = "terminalFraction=" + fraction + ":" + diagnostic;
+                }
                 previous = null;
                 continue;
             }
@@ -133,6 +154,9 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                         + ";sourceDepthMeters=" + upstreamDepthMeters
                         + ";tailwaterDepthMeters=" + downstreamDepthMeters
                         + ";validStationTrials=" + validStationTrials
+                        + ";upstreamBranchFailures=" + supercriticalBranchFailures
+                        + ";downstreamBranchFailures=" + subcriticalBranchFailures
+                        + ";firstBranchFailure=" + firstBranchFailure
                         + ";forceResidualRange="
                         + (validStationTrials == 0
                                 ? "none"
@@ -199,11 +223,21 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 sections.subList(0, station + 1);
         List<SkyIslandGraduallyVariedFlowSolver.CrossSection> suffix =
                 sections.subList(station, sections.size());
-        SkyIslandGraduallyVariedFlowSolver.Result supercritical =
-                SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
-                        prefix, upstreamDepthMeters, parameters);
-        SkyIslandGraduallyVariedFlowSolver.Result subcritical =
-                solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
+        SkyIslandGraduallyVariedFlowSolver.Result supercritical;
+        try {
+            supercritical = SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                    prefix, upstreamDepthMeters, parameters);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            throw new IllegalStateException("upstream-supercritical:station=" + station
+                    + ":" + failure.getMessage(), failure);
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result subcritical;
+        try {
+            subcritical = solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            throw new IllegalStateException("downstream-subcritical:station=" + station
+                    + ":" + failure.getMessage(), failure);
+        }
         double upstreamDepth = supercritical.points().getLast().depthMeters();
         double downstreamDepth = subcritical.points().getFirst().depthMeters();
         return trial(
@@ -233,11 +267,21 @@ public final class SkyIslandHydraulicJumpProfileSolver {
                 new ArrayList<>();
         suffix.add(jumpSection);
         suffix.addAll(sections.subList(interval + 1, sections.size()));
-        SkyIslandGraduallyVariedFlowSolver.Result supercritical =
-                SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
-                        prefix, upstreamDepthMeters, parameters);
-        SkyIslandGraduallyVariedFlowSolver.Result subcritical =
-                solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
+        SkyIslandGraduallyVariedFlowSolver.Result supercritical;
+        try {
+            supercritical = SkyIslandGraduallyVariedFlowSolver.solveSupercriticalDownstream(
+                    prefix, upstreamDepthMeters, parameters);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            throw new IllegalStateException("upstream-supercritical:interval=" + interval
+                    + ";fraction=" + fraction + ":" + failure.getMessage(), failure);
+        }
+        SkyIslandGraduallyVariedFlowSolver.Result subcritical;
+        try {
+            subcritical = solveSubcriticalProfile(suffix, downstreamDepthMeters, parameters);
+        } catch (IllegalArgumentException | IllegalStateException failure) {
+            throw new IllegalStateException("downstream-subcritical:interval=" + interval
+                    + ";fraction=" + fraction + ":" + failure.getMessage(), failure);
+        }
         return trial(
                 jumpSection,
                 interval,
