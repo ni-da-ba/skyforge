@@ -61,8 +61,8 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
      * best candidate found by minimizing caller-supplied physical energy/momentum residuals.
      *
      * <p>The feedback vector contains two broad bed-shape amplitudes per profile kind, three
-     * localized CASCADE pool/step bed amplitudes, and three colocated bounded CASCADE pool-width adjustments.
-     * Bed modes are zero at semantic reach endpoints, preserving shared junction elevations.
+     * endpoint-vanishing local bed modes across the reach, three bounded CASCADE width modes, and
+     * one edge-outlet ramp. Bed modes preserve shared semantic reach endpoints.
      * Bed, cross-section, and valley terrain are rebuilt as one candidate; D2 qualification stays
      * outside this hydraulic objective.
      */
@@ -240,7 +240,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
         return localMode == 2 ? 0.04 : 0.20;
     }
 
-    private static double localizedCascadeBump(double station, double center, double radius) {
+    private static double localizedReachBump(double station, double center, double radius) {
         double normalizedDistance = Math.abs(station - center) / radius;
         if (normalizedDistance >= 1.0) {
             return 0.0;
@@ -462,7 +462,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
             for (int localMode = 0; localMode < 3; localMode++) {
                 target[i] += Math.sin(Math.PI * modeStation) * feedbackControls[
                                     2 * SkyIslandChannelProfileKind.values().length + localMode]
-                            * localizedCascadeBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
+                            * localizedReachBump(modeStation, reachLocalBedModeCenter(localMode), 0.20);
             }
             if (edgeOutletReach) {
                 double normalizedOutletRamp =
@@ -591,7 +591,7 @@ public final class SkyIslandHydraulicLandformCandidatePlanner {
                 for (int localMode = 0; localMode < 3; localMode++) {
                     sectionWidthScale += cascadeWeight
                             * feedbackControls[widthControlStart + localMode]
-                            * localizedCascadeBump(
+                            * localizedReachBump(
                                     modeStation,
                                     cascadeWidthModeCenter(localMode),
                                     cascadeWidthModeRadius(localMode));
