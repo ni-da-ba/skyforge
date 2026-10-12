@@ -19,21 +19,20 @@ ENGINEERING = (
     "copycatsPlus",
     "createRadars",
     "createAeroRadars",
-    "createFireControl",
-    "mianbaosNewModernWarfare",
     "cbcNeoWarfare",
     "cbcTerminalBallistics",
 )
 TACZ = ("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
 SCORCHED = ("scorchedGuns", "framework", "curios")
 FIREPOWER = ("cbcFirepowerComponents",)
+DEFERRED = ("createFireControl", "mianbaosNewModernWarfare")
 ARMS = {
     "engineering": ENGINEERING,
     "tacz": ENGINEERING + TACZ,
     "scorched": ENGINEERING + SCORCHED,
     "firepower": ENGINEERING + FIREPOWER,
 }
-ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED + FIREPOWER
+ALL_CANDIDATES = ENGINEERING + TACZ + SCORCHED + FIREPOWER + DEFERRED
 TOML_PATH = "META-INF/neoforge.mods.toml"
 
 
