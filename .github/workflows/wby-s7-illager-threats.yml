@@ -6,6 +6,7 @@ on:
       - "wby/s7-illager-threats"
       - "wby/s7-ice-and-fire"
       - "wby/s7-bomd"
+      - "wby/s7-combat"
     paths:
       - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
@@ -13,6 +14,11 @@ on:
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
+      - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
+      - "scripts/wby-s7-combat-diagnostic-launch.sh"
+      - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s6-diagnostic-launch.sh"
       - "scripts/wby-s6-runtime-acceptance.sh"
       - "scripts/wby-s6-structure-evidence.py"
@@ -29,6 +35,7 @@ on:
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
       - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
       - "skyforge-neoforge-1211/wby-s0-5-*.properties"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s3-industry.properties"
@@ -38,6 +45,9 @@ on:
       - "scripts/wby-s7-diagnostic-launch.sh"
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s7-illager-evidence.py"
+      - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
+      - "scripts/wby-s7-combat-diagnostic-launch.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
@@ -50,7 +60,58 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  build-pinned-a4mc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+
+      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+
+      - name: Apply bounded migration for retired A4MC build-tool APIs
+        shell: bash
+        run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
+
+      - name: Build pinned A4MC core and Aeronautics compatibility jars once
+        shell: bash
+        run: |
+          set -euo pipefail
+          (
+            cd upstream-a4mc
+            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon
+          )
+          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
+          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
+          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
+          (cd "$GITHUB_WORKSPACE/a4mc-0.2.2" && sha256sum *.jar | tee SHA256SUMS)
+          {
+            printf '%s\n' "upstream=MozillaFiredoge/Aerodynamics4MC-Core@171d8dc593651d6b34e3bfecaf6469a11b53b433"
+            printf '%s\n' "build-only-migration=remove-unused-fletching-table; net.peanuuutz.tomlkt:tomlkt-jvm:0.3.7"
+          } > "$GITHUB_WORKSPACE/a4mc-0.2.2/BUILD-PROVENANCE.txt"
+
+      - name: Upload immutable A4MC build output for the combat matrix
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s7-a4mc-0.2.2
+          path: a4mc-0.2.2/*
+          if-no-files-found: error
+
   resolve-and-runtime-acceptance:
+    needs: build-pinned-a4mc
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [engineering, tacz, scorched, firepower]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -63,31 +124,49 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/wby-s7-bomd-diagnostic-launch.sh
+          bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s7-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s7-illager-evidence.py
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py
 
-      - name: Checkout pinned Aerodynamics4MC 0.2.2 source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Download the exact A4MC build output
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          repository: MozillaFiredoge/Aerodynamics4MC-Core
-          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
-          path: upstream-a4mc
-          persist-credentials: false
+          name: wby-s7-a4mc-0.2.2
+          path: a4mc-0.2.2
 
-      - name: Build pinned A4MC core and Aeronautics compatibility jars
+      - name: Verify the cumulative S7 BOMD control has no combat overlay
         shell: bash
         run: |
           set -euo pipefail
-          (
-            cd upstream-a4mc
-            MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon
+          ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
+            -PwbyS2ComputingAvionics=true \
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true \
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache | tee wby-s7-control-resolution.log
+          ! grep -Fq "WBY S7 COMBAT RESOLUTION PASS" wby-s7-control-resolution.log
+          control_common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=none --no-configuration-cache
           )
-          output="$GITHUB_WORKSPACE/upstream-a4mc/build/libs/0.2.2"
-          mkdir -p "$GITHUB_WORKSPACE/a4mc-0.2.2"
-          cp "$output/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
-          cp "$output/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar" "$GITHUB_WORKSPACE/a4mc-0.2.2/"
-          sha256sum "$GITHUB_WORKSPACE/a4mc-0.2.2/"*.jar
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${control_common[@]}" \
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          find skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort \
+            > wby-s7-control-staged-mods.txt
 
       - name: Resolve cumulative S7 threat profile
         shell: bash
@@ -101,10 +180,11 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
-            -PwbyS7Bomd=true --no-configuration-cache | tee "wby-s7-resolution.log"
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=${{ matrix.variant }} --no-configuration-cache | tee "wby-s7-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s7-resolution.log"
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s7-resolution.log"
           grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s7-resolution.log"
+          grep -Fq "WBY S7 COMBAT RESOLUTION PASS variant=${{ matrix.variant }}" "wby-s7-resolution.log"
 
       - name: Stage the S7 cumulative server and client profile
         shell: bash
@@ -118,7 +198,7 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
-            -PwbyS7Bomd=true --no-configuration-cache
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=${{ matrix.variant }} --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-server
@@ -127,6 +207,19 @@ jobs:
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s7-server
           echo "WBY S7 all-side profile staging PASS"
+
+      - name: Reject duplicate mod IDs before runtime launch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/wby-s7-combat-stage-preflight.py \
+            --control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
+            --control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
+            --candidate-server skyforge-neoforge-1211/run-wby-s7-server/server-mods \
+            --candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --pins skyforge-neoforge-1211/wby-s7-combat.properties \
+            --variant ${{ matrix.variant }} \
+            --output wby-s7-candidate-pins.tsv
 
       - name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
@@ -176,6 +269,9 @@ jobs:
         run: |
           export WBY_S7_ICE_AND_FIRE=true
           export WBY_S7_BOMD=true
+          export WBY_S7_COMBAT_VARIANT=${{ matrix.variant }}
+          export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
+          export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-server/server-mods"
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s7-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
           bash scripts/wby-s7-runtime-acceptance.sh
@@ -184,7 +280,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wby-s7-bomd-resolution
+          name: wby-s7-combat-${{ matrix.variant }}-resolution
           path: |
             wby-s7-*.log
             wby-s7-staged-threat-jars.txt
@@ -192,11 +288,18 @@ jobs:
             wby-s7-mowzie-evidence.tsv
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
+            wby-s7-combat-evidence.tsv
+            wby-s7-candidate-pins.tsv
+            wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
             s7-production-server/logs/latest.log
+            s7-production-server/hs_err_pid*.log
             s7-production-server/config/*.toml
+            s7-production-server/config/**/*.json
+            s7-production-server/create_radar_debug/**/*.txt
             s7-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s7-server/config/*.toml
             skyforge-neoforge-1211/run-wby-s7-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s7-join-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s7-join-client/hs_err_pid*.log
           if-no-files-found: warn

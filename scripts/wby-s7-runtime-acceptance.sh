@@ -265,6 +265,24 @@ if [[ "${WBY_S7_BOMD:-false}" == "true" ]]; then
 fi
 client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
+if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
+  combat_profile_args=()
+  if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then
+    : "${WBY_S7_COMBAT_CONTROL_MODS:?Set the staged S7 control mods directory}"
+    : "${WBY_S7_COMBAT_STAGED_MODS:?Set the staged candidate server mods directory}"
+    combat_profile_args+=(--control-mods "$WBY_S7_COMBAT_CONTROL_MODS" --staged-mods "$WBY_S7_COMBAT_STAGED_MODS")
+  fi
+  python3 scripts/wby-s7-combat-evidence.py \
+    --mods "$server_dir/mods" \
+    --variant "$WBY_S7_COMBAT_VARIANT" \
+    --server-log "$server_latest_log" \
+    --client-log "$client_latest_log" \
+    --runtime-root "$server_dir" \
+    --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
+    --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
+    "${combat_profile_args[@]}"
+fi
+test -f "$client_latest_log"
 for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib mowziesmobs geckolib; do
   grep -Fq "($mod_id)" "$client_latest_log"
 done
