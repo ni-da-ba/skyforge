@@ -22,8 +22,8 @@ class SkyIslandHydraulicCandidateBedPlannerTest {
         int candidates = 0;
 
         for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
-            var first = SkyIslandHydraulicCandidateBedPlanner.plan(descriptor, reach, policy);
-            var second = SkyIslandHydraulicCandidateBedPlanner.plan(descriptor, reach, policy);
+            var first = SkyIslandHydraulicCandidateBedPlanner.plan(descriptor, skeleton, reach, policy);
+            var second = SkyIslandHydraulicCandidateBedPlanner.plan(descriptor, skeleton, reach, policy);
             assertEquals(first, second);
             if (first.isEmpty()) {
                 continue;
@@ -64,22 +64,26 @@ class SkyIslandHydraulicCandidateBedPlannerTest {
     }
 
     @Test
-    void naturalKey700CascadeBedRemainsOwnedByAnExplicitTransition() {
+    void key700ConfluenceAndCascadeGeometryRemainTransitionOwned() {
         SkyIslandDescriptor descriptor = descriptor(700L);
         SkyIslandHydraulicGeometrySkeletonPlan skeleton =
                 SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
-        SkyIslandHydraulicReachSkeleton cascade = skeleton.reaches().stream()
-                .filter(reach -> reach.geomorphicRoute().semanticReach().startCellIndex() == 801
-                        && reach.geomorphicRoute().semanticReach().endCellIndex() == 1951)
-                .findFirst()
-                .orElseThrow();
+        SkyIslandGeomorphicQualificationPolicy policy =
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked();
 
-        assertTrue(cascade.geomorphicRoute().semanticReach().profiles().stream()
-                .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE));
-        assertFalse(SkyIslandHydraulicCandidateBedPlanner.plan(
-                descriptor,
-                cascade,
-                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()).isPresent());
+        for (SkyIslandHydraulicReachSkeleton reach : skeleton.reaches()) {
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            if (semantic.startCellIndex() == 801 && semantic.endCellIndex() == 1951) {
+                assertTrue(semantic.profiles().stream()
+                        .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE));
+                assertFalse(SkyIslandHydraulicCandidateBedPlanner.plan(
+                        descriptor, skeleton, reach, policy).isPresent());
+            }
+            if (semantic.endCellIndex() == 801) {
+                assertFalse(SkyIslandHydraulicCandidateBedPlanner.plan(
+                        descriptor, skeleton, reach, policy).isPresent());
+            }
+        }
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
