@@ -42,6 +42,12 @@ mkdir -p .skyforge-diagnostics
 bundle=".skyforge-diagnostics/wby-s7-combat-$variant-$(date -u +%Y%m%dT%H%M%SZ)"
 mkdir -p "$bundle"
 
+launcher_username="WbyS7Review"
+if (( ${#launcher_username} > 16 )); then
+  echo "Minecraft usernames cannot exceed 16 characters: $launcher_username" >&2
+  exit 2
+fi
+
 base_args=(
   -PwbyS1Glider=combined
   -PwbyS1Clouds=simple-clouds
@@ -117,16 +123,31 @@ if ! "$launcher_python" -c 'import minecraft_launcher_lib' >/dev/null 2>&1; then
   "$launcher_python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
 fi
 
+crash_report_manifest="$bundle/crash-reports-before.txt"
+if [[ -d "$run_path/crash-reports" ]]; then
+  find "$run_path/crash-reports" -maxdepth 1 -type f -printf '%f\n' | sort > "$crash_report_manifest"
+else
+  : > "$crash_report_manifest"
+fi
+
 set +e
 "$launcher_python" scripts/wby-s4-launch-production-client.py \
   --minecraft-directory "$PWD/.skyforge-diagnostics/wby-s5-production-client" \
   --game-directory "$PWD/$run_path" \
-  --username WbyS7CombatReview 2>&1 | tee "$bundle/client.log"
+  --username "$launcher_username" 2>&1 | tee "$bundle/client.log"
 status=${PIPESTATUS[0]}
 set -e
 
 test ! -f "$run_path/logs/latest.log" || cp "$run_path/logs/latest.log" "$bundle/latest.log"
-test ! -d "$run_path/crash-reports" || cp -R "$run_path/crash-reports" "$bundle/crash-reports"
+if [[ -d "$run_path/crash-reports" ]]; then
+  while IFS= read -r report; do
+    [[ -n "$report" ]] || continue
+    if ! grep -Fxq -- "$report" "$crash_report_manifest"; then
+      mkdir -p "$bundle/crash-reports"
+      cp "$run_path/crash-reports/$report" "$bundle/crash-reports/$report"
+    fi
+  done < <(find "$run_path/crash-reports" -maxdepth 1 -type f -printf '%f\n' | sort)
+fi
 test ! -d "$run_path/create_radar_debug" || cp -R "$run_path/create_radar_debug" "$bundle/create_radar_debug"
 if [[ -d "$run_path/mods" ]]; then
   find "$run_path/mods" -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort > "$bundle/staged-mods.txt"
