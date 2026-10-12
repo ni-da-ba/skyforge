@@ -30,13 +30,13 @@ done
 
 # The owner excluded these mods. Remove only their JARs from this fresh manual copy;
 # the pre-existing staged profile and its worlds remain untouched.
-find "$run_path/mods" -maxdepth 1 -type f \\( \\
-  -iname 'create-fire-control-*.jar' -o -iname 'mianbaos-newmodernwarfare-*.jar' \\
-\\) -delete
+find "$run_path/mods" -maxdepth 1 -type f \( \
+  -iname 'create-fire-control-*.jar' -o -iname 'mianbaos-newmodernwarfare-*.jar' \
+\) -delete
 
 a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
-for jar in \\
-  "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \\
+for jar in \
+  "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \
   "$a4mc_mod_dir/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"; do
   if [[ ! -f "$jar" ]]; then
     cat >&2 <<EOF
@@ -71,8 +71,8 @@ if (( ${#launcher_username} > 16 )); then
   exit 2
 fi
 
-printf '%s\\n' "Manual profile copied from $source_run_path; GitHub Actions owns machine validation." | tee "$bundle/profile-stage.log"
-printf '%s\\n' "Deferred mods removed from the new copy: Create: Fire Control and Mianbao's NewModernWarfare." | tee "$bundle/policy-stage.log"
+printf '%s\n' "Manual profile copied from $source_run_path; GitHub Actions owns machine validation." | tee "$bundle/profile-stage.log"
+printf '%s\n' "Deferred mods removed from the new copy: Create: Fire Control and Mianbao's NewModernWarfare." | tee "$bundle/policy-stage.log"
 
 if [[ "$variant" == "firepower" ]]; then
   echo "S7 candidate: cumulative S0-S7 BOMD plus combat engineering and CBC: Firepower Components; no TaCZ or Scorched Guns."
