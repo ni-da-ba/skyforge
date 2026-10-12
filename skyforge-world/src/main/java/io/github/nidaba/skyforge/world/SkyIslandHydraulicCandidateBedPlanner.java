@@ -64,6 +64,7 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
         }
         SkyIslandGeomorphicProfileLimits limits = policy.limits(semantic);
         double maximumIncision = limits.maximumCenterlineLoweringPotential() * relief;
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
         List<SkyIslandLocalPosition> centerline = reach.centerline().points();
         List<SkyIslandHydraulicCandidateBed.Station> stations =
                 new ArrayList<>(reach.samples().size());
@@ -86,13 +87,13 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
                     2.0 * bankHalfWidth,
                     lowering / (2.0 * limits.maximumReliefToValleyWidthRatio()));
             double originalLeftBank = elevationAt(
-                    terrainField(descriptor), sample.position(), normal, bankHalfWidth, relief);
+                    terrain, sample.position(), normal, bankHalfWidth, relief);
             double originalRightBank = elevationAt(
-                    terrainField(descriptor), sample.position(), normal, -bankHalfWidth, relief);
+                    terrain, sample.position(), normal, -bankHalfWidth, relief);
             double originalLeftShoulder = elevationAt(
-                    terrainField(descriptor), sample.position(), normal, valleyHalfWidth, relief);
+                    terrain, sample.position(), normal, valleyHalfWidth, relief);
             double originalRightShoulder = elevationAt(
-                    terrainField(descriptor), sample.position(), normal, -valleyHalfWidth, relief);
+                    terrain, sample.position(), normal, -valleyHalfWidth, relief);
             if (originalLeftBank < bed || originalRightBank < bed
                     || originalLeftShoulder < bed || originalRightShoulder < bed) {
                 return Optional.empty();
@@ -131,10 +132,6 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
                 reach.centerline(),
                 stations,
                 reach.pathLength()));
-    }
-
-    private static SkyIslandSemanticField terrainField(SkyIslandDescriptor descriptor) {
-        return SkyIslandPreHydrologicTerrainField.create(descriptor);
     }
 
     private static double elevationAt(
