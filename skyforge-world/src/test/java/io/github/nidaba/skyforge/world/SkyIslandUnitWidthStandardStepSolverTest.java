@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -41,6 +42,64 @@ class SkyIslandUnitWidthStandardStepSolverTest {
     }
 
     @Test
+    void swashesMacDonaldProfilesConvergeUnderStandardStepMeshRefinement() {
+        assertMacDonaldProfileConverges(
+                2.0,
+                0.033,
+                0.5,
+                16.0,
+                SkyIslandUnitWidthStandardStepSolver.FlowRegime.SUBCRITICAL);
+        assertMacDonaldProfileConverges(
+                2.5,
+                0.04,
+                -0.2,
+                36.0,
+                SkyIslandUnitWidthStandardStepSolver.FlowRegime.SUPERCRITICAL);
+    }
+
+    private static void assertMacDonaldProfileConverges(
+            double unitDischarge,
+            double roughness,
+            double amplitude,
+            double gaussianExponent,
+            SkyIslandUnitWidthStandardStepSolver.FlowRegime regime) {
+        double coarseError = maximumMacDonaldProfileError(
+                unitDischarge, roughness, amplitude, gaussianExponent, regime, 20);
+        double mediumError = maximumMacDonaldProfileError(
+                unitDischarge, roughness, amplitude, gaussianExponent, regime, 10);
+        double fineError = maximumMacDonaldProfileError(
+                unitDischarge, roughness, amplitude, gaussianExponent, regime, 5);
+
+        assertTrue(mediumError < coarseError,
+                regime + " 10 m mesh should improve on 20 m mesh: " + mediumError + " vs " + coarseError);
+        assertTrue(fineError < mediumError,
+                regime + " 5 m mesh should improve on 10 m mesh: " + fineError + " vs " + mediumError);
+        assertTrue(fineError < PROFILE_TOLERANCE_METRES,
+                regime + " 5 m maximum depth error should remain below "
+                        + PROFILE_TOLERANCE_METRES + " m, got " + fineError);
+    }
+
+    private static double maximumMacDonaldProfileError(
+            double unitDischarge,
+            double roughness,
+            double amplitude,
+            double gaussianExponent,
+            SkyIslandUnitWidthStandardStepSolver.FlowRegime regime,
+            int solverIntervalMetres) {
+        double[] recovered = solvePublishedMacDonaldProfile(
+                unitDischarge, roughness, amplitude, gaussianExponent, regime, solverIntervalMetres);
+        double maximumError = 0.0;
+        for (int i = 0; i < recovered.length; i++) {
+            double station = i * (double) solverIntervalMetres;
+            maximumError = Math.max(
+                    maximumError,
+                    Math.abs(recovered[i] - macDonaldDepth(
+                            station, unitDischarge, amplitude, gaussianExponent)));
+        }
+        return maximumError;
+    }
+
+    @Test
     void rejectsCriticalBoundaryAndNonMonotoneStations() {
         double criticalDepth = Math.cbrt(4.0 / GRAVITY_METRES_PER_SECOND_SQUARED);
         assertThrows(
@@ -69,15 +128,26 @@ class SkyIslandUnitWidthStandardStepSolverTest {
             double amplitude,
             double gaussianExponent,
             SkyIslandUnitWidthStandardStepSolver.FlowRegime regime) {
+        return solvePublishedMacDonaldProfile(
+                unitDischarge, roughness, amplitude, gaussianExponent, regime, SOLVER_INTERVAL_METRES);
+    }
+
+    private static double[] solvePublishedMacDonaldProfile(
+            double unitDischarge,
+            double roughness,
+            double amplitude,
+            double gaussianExponent,
+            SkyIslandUnitWidthStandardStepSolver.FlowRegime regime,
+            int solverIntervalMetres) {
         int referenceIntervals = (int) (CHANNEL_LENGTH_METRES / BED_REFERENCE_INTERVAL_METRES);
-        int solverIntervals = (int) (CHANNEL_LENGTH_METRES / SOLVER_INTERVAL_METRES);
+        int solverIntervals = (int) (CHANNEL_LENGTH_METRES / solverIntervalMetres);
         double[] fineBed = constructMacDonaldBed(
                 referenceIntervals, unitDischarge, roughness, amplitude, gaussianExponent);
         double[] stations = new double[solverIntervals + 1];
         double[] bed = new double[solverIntervals + 1];
         for (int i = 0; i <= solverIntervals; i++) {
-            stations[i] = i * (double) SOLVER_INTERVAL_METRES;
-            bed[i] = fineBed[i * SOLVER_INTERVAL_METRES / BED_REFERENCE_INTERVAL_METRES];
+            stations[i] = i * (double) solverIntervalMetres;
+            bed[i] = fineBed[i * solverIntervalMetres / BED_REFERENCE_INTERVAL_METRES];
         }
 
         double boundaryDepth = macDonaldDepth(
