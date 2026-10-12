@@ -37,6 +37,7 @@ class SkyIslandHydraulicCandidateBedPlannerTest {
                 SkyIslandHydraulicGeometrySkeletonSample source = reach.samples().get(i);
                 assertEquals(source.position(), station.position());
                 assertEquals(source.arcLength(), station.stationWorldUnits(), EPSILON);
+                assertEquals(source.bankfullHalfWidth(), station.bankfullHalfWidthWorldUnits(), EPSILON);
                 assertEquals(
                         source.waterDepthPotential() * descriptor.reliefBudget(),
                         station.targetFlowDepthWorldUnits(),
@@ -49,6 +50,14 @@ class SkyIslandHydraulicCandidateBedPlannerTest {
                                 .maximumCenterlineLoweringPotential()
                                 * descriptor.reliefBudget()
                                 + EPSILON);
+                assertEquals(5, station.crossSection().size());
+                assertTrue(station.crossSection().stream()
+                        .allMatch(point -> point.candidateElevationWorldUnits()
+                                <= point.originalElevationWorldUnits() + EPSILON));
+                assertTrue(station.crossSection().stream()
+                        .anyMatch(point -> point.lateralOffsetWorldUnits() == 0.0
+                                && Math.abs(point.candidateElevationWorldUnits()
+                                        - station.candidateBedElevationWorldUnits()) <= EPSILON));
             }
         }
         assertTrue(candidates > 0, "the accepted ordinary key-77 control must produce bed candidates");
