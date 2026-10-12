@@ -14,39 +14,48 @@ import java.util.Optional;
  * geomorphic limits bound the proposed incision/section and must still be evaluated independently
  * after the hydraulic solve.
  *
- * <p>CASCADE-owned reaches are deferred: their bed/drop geometry belongs to an explicit transition
- * candidate, not an ordinary channel profile.
+ * <p>CASCADE, confluence, and non-edge-terminal reaches remain owned by their explicit transition
+ * or retained-water boundary. They are deferred rather than absorbed into an ordinary profile.
  */
 public final class SkyIslandHydraulicCandidateBedPlanner {
     private SkyIslandHydraulicCandidateBedPlanner() {}
 
     public static Optional<SkyIslandHydraulicCandidateBed> plan(
             SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicGeometrySkeletonPlan skeleton,
             SkyIslandHydraulicReachSkeleton reach,
             SkyIslandGeomorphicQualificationPolicy policy) {
         Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(skeleton, "skeleton");
         Objects.requireNonNull(reach, "reach");
         Objects.requireNonNull(policy, "policy");
-        return plan(
-                descriptor,
-                reach,
-                SkyIslandPreHydrologicTerrainField.create(descriptor),
-                policy);
-    }
-
-    static Optional<SkyIslandHydraulicCandidateBed> plan(
-            SkyIslandDescriptor descriptor,
-            SkyIslandHydraulicReachSkeleton reach,
-            SkyIslandSemanticField terrain,
-            SkyIslandGeomorphicQualificationPolicy policy) {
-        Objects.requireNonNull(descriptor, "descriptor");
-        Objects.requireNonNull(reach, "reach");
-        Objects.requireNonNull(terrain, "terrain");
-        Objects.requireNonNull(policy, "policy");
+        if (!descriptor.equals(skeleton.descriptor())
+                || skeleton.reaches().stream().noneMatch(reach::equals)) {
+            throw new IllegalArgumentException("candidate reach must belong to the descriptor skeleton");
+        }
+        SkyIslandGeomorphicChannelNetworkPlan network = skeleton.geomorphicNetwork();
         SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
         if (semantic.profiles().stream()
                 .anyMatch(profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE)) {
             return Optional.empty();
+        }
+        SkyIslandGeomorphicNetworkNode startNode = network.requireNode(semantic.startCellIndex());
+        SkyIslandGeomorphicNetworkNode endNode = network.requireNode(semantic.endCellIndex());
+        if (startNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                || endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
+            return Optional.empty();
+        }
+        if (endNode.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL) {
+            SkyIslandChannelTerminalFate fate = SkyIslandChannelTerminalFatePlanner
+                    .plan(descriptor, network)
+                    .stream()
+                    .filter(candidate -> candidate.channelTerminalCellIndex() == endNode.cellIndex())
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "candidate terminal is missing explicit watershed fate"));
+            if (SkyIslandChannelTerminalFatePolicy.deferralReason(fate.kind()).isPresent()) {
+                return Optional.empty();
+            }
         }
 
         double relief = descriptor.reliefBudget();
@@ -77,14 +86,15 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
                     2.0 * bankHalfWidth,
                     lowering / (2.0 * limits.maximumReliefToValleyWidthRatio()));
             double originalLeftBank = elevationAt(
-                    terrain, sample.position(), normal, bankHalfWidth, relief);
+                    terrainField(descriptor), sample.position(), normal, bankHalfWidth, relief);
             double originalRightBank = elevationAt(
-                    terrain, sample.position(), normal, -bankHalfWidth, relief);
+                    terrainField(descriptor), sample.position(), normal, -bankHalfWidth, relief);
             double originalLeftShoulder = elevationAt(
-                    terrain, sample.position(), normal, valleyHalfWidth, relief);
+                    terrainField(descriptor), sample.position(), normal, valleyHalfWidth, relief);
             double originalRightShoulder = elevationAt(
-                    terrain, sample.position(), normal, -valleyHalfWidth, relief);
-            if (originalLeftBank < bed || originalRightBank < bed) {
+                    terrainField(descriptor), sample.position(), normal, -valleyHalfWidth, relief);
+            if (originalLeftBank < bed || originalRightBank < bed
+                    || originalLeftShoulder < bed || originalRightShoulder < bed) {
                 return Optional.empty();
             }
             double candidateLeftBank = Math.min(
@@ -93,9 +103,6 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
             double candidateRightBank = Math.min(
                     originalRightBank,
                     bed + limits.maximumLateralRecoveryGrade() * bankHalfWidth);
-            if (originalLeftShoulder < bed || originalRightShoulder < bed) {
-                return Optional.empty();
-            }
 
             List<SkyIslandHydraulicCandidateBed.CrossSectionPoint> crossSection = List.of(
                     new SkyIslandHydraulicCandidateBed.CrossSectionPoint(
@@ -124,6 +131,10 @@ public final class SkyIslandHydraulicCandidateBedPlanner {
                 reach.centerline(),
                 stations,
                 reach.pathLength()));
+    }
+
+    private static SkyIslandSemanticField terrainField(SkyIslandDescriptor descriptor) {
+        return SkyIslandPreHydrologicTerrainField.create(descriptor);
     }
 
     private static double elevationAt(
