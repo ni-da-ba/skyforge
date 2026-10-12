@@ -3,29 +3,40 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  engineering|tacz|scorched|firepower) ;;
+  engineering|tacz|firepower) ;;
   *)
-    echo "Usage: bash scripts/wby-s7-combat-diagnostic-launch.sh {engineering|tacz|scorched|firepower}" >&2
+    echo "Usage: bash scripts/wby-s7-combat-diagnostic-launch.sh {engineering|tacz|firepower}" >&2
     exit 2
     ;;
 esac
 
-run_directory="run-wby-s7-combat-$variant"
-run_path="skyforge-neoforge-1211/$run_directory"
-whale_retexture="$run_path/resourcepacks/Sky-Whale-Retexture.zip"
-if [[ ! -f "$whale_retexture" ]]; then
+source_run_path="skyforge-neoforge-1211/run-wby-s7-combat-$variant"
+if [[ ! -d "$source_run_path/mods" ]]; then
   cat >&2 <<EOF
-Sky Whale Retexture is required for the cumulative S6/S7 client profile:
-  $whale_retexture
-Download it from https://modrinth.com/resourcepack/sky-whale-retexture
-and copy it there before running this command. Do not redistribute the pack.
+Missing the already-staged local profile:
+  $source_run_path/mods
+This manual launcher copies existing staged files only. It does not run Gradle or create a profile.
 EOF
   exit 2
 fi
 
+review_stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+run_directory="run-wby-s7-combat-$variant-manual-$review_stamp"
+run_path="skyforge-neoforge-1211/$run_directory"
+mkdir -p "$run_path"
+for folder in mods config serverconfig defaultconfigs kubejs datapacks resourcepacks tacz; do
+  [[ ! -d "$source_run_path/$folder" ]] || cp -R "$source_run_path/$folder" "$run_path/"
+done
+
+# The owner excluded these mods. Remove only their JARs from this fresh manual copy;
+# the pre-existing staged profile and its worlds remain untouched.
+find "$run_path/mods" -maxdepth 1 -type f \\( \\
+  -iname 'create-fire-control-*.jar' -o -iname 'mianbaos-newmodernwarfare-*.jar' \\
+\\) -delete
+
 a4mc_mod_dir="$PWD/.skyforge-diagnostics/aerodynamics4mc-0.2.2-mods"
-for jar in \
-  "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \
+for jar in \\
+  "$a4mc_mod_dir/aerodynamics4mc-0.2.2-neoforge+1.21.1.jar" \\
   "$a4mc_mod_dir/aerodynamics4mc-compat-create-aeronautics-0.2.2-neoforge+1.21.1.jar"; do
   if [[ ! -f "$jar" ]]; then
     cat >&2 <<EOF
@@ -36,7 +47,19 @@ Download the wby-s7-combat-$variant-resolution Actions artifact and extract both
 EOF
     exit 2
   fi
+  cp -f "$jar" "$run_path/mods/"
 done
+
+whale_retexture="$run_path/resourcepacks/Sky-Whale-Retexture.zip"
+if [[ ! -f "$whale_retexture" ]]; then
+  cat >&2 <<EOF
+Sky Whale Retexture is required for the cumulative S6/S7 client profile:
+  $whale_retexture
+Copy Sky-Whale-Retexture.zip into $run_path/resourcepacks/
+The resource pack is a local review dependency; do not redistribute it.
+EOF
+  exit 2
+fi
 
 mkdir -p .skyforge-diagnostics
 bundle=".skyforge-diagnostics/wby-s7-combat-$variant-$(date -u +%Y%m%dT%H%M%SZ)"
@@ -48,33 +71,8 @@ if (( ${#launcher_username} > 16 )); then
   exit 2
 fi
 
-base_args=(
-  -PwbyS1Glider=combined
-  -PwbyS1Clouds=simple-clouds
-  -PwbyS1ThinAir=false
-  "-PwbyS1RunDirectory=$run_directory"
-  "-PwbyS1A4mcBuiltModDir=$a4mc_mod_dir"
-  -PwbyS2ComputingAvionics=true
-  -PwbyS3DieselGenerators=true
-  -PwbyS3CreateBigCannons=true
-  -PwbyS4OrdinaryLife=true
-  -PwbyS4Shaders=false
-  -PwbyS5OverworldEcology=true
-  -PwbyS6StructuresCivilization=true
-  -PwbyS7IllagerThreats=true
-  -PwbyS7IceAndFire=true
-  -PwbyS7Bomd=true
-  "-PwbyS7CombatVariant=$variant"
-  -PwbyS6D07Variant=both
-  --no-configuration-cache
-)
-export JAVA_TOOL_OPTIONS="${JAVA_TOOL_OPTIONS:-} -Dskyforge.dev.waveC25PetroleumAuthority=suppressed"
-
-./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-resolution.log"
-grep -Fq "WBY S7 COMBAT RESOLUTION PASS variant=$variant" "$bundle/profile-resolution.log"
-
-./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${base_args[@]}" 2>&1 | tee "$bundle/profile-stage.log"
-./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${base_args[@]}" 2>&1 | tee "$bundle/policy-stage.log"
+printf '%s\\n' "Manual profile copied from $source_run_path; GitHub Actions owns machine validation." | tee "$bundle/profile-stage.log"
+printf '%s\\n' "Deferred mods removed from the new copy: Create: Fire Control and Mianbao's NewModernWarfare." | tee "$bundle/policy-stage.log"
 
 if [[ "$variant" == "firepower" ]]; then
   echo "S7 candidate: cumulative S0-S7 BOMD plus combat engineering and CBC: Firepower Components; no TaCZ or Scorched Guns."
@@ -89,8 +87,6 @@ echo "Test projectiles against static blocks and moving Sable contraptions; note
 echo "For Radar 4.9 evidence where applicable, run /radar debug gen_debug_file to capture radar links, filters, and weapon endpoints."
 if [[ "$variant" == "tacz" ]]; then
   echo "Inspect aircraft-mounted TaCZ guns, the existing Create: TaCZ manufacturing flow, firearm handling, and TaCZ NPC behavior and default appearances at villages/outposts/mansions."
-elif [[ "$variant" == "scorched" ]]; then
-  echo "Scorched Guns is not selected for the pack; this arm is machine-only comparison evidence. No manual review is requested."
 fi
 if [[ "$variant" == "firepower" ]]; then
   echo "Inspect compact cannon/autocannon mounts, vertical mounting, pitch/yaw limits, ammunition loading/feeds/racks, and manual aiming/firing on static CBC mounts and moving Sable craft."
