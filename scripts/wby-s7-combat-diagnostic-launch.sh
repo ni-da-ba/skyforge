@@ -86,8 +86,12 @@ echo "Start a fresh normal Overworld (leave preset at Default/Normal) with seed 
 echo "Keep difficulty Normal. Begin in Survival; use Creative briefly only if needed to inspect item catalogs or place test targets."
 echo "Review the radar/IFF target picture, CBC 5.11.7 projectile behavior, and weapon use while an aircraft/vehicle is moving. Create: Fire Control and its Mianbao dependency are deferred and absent."
 echo "Test projectiles against static blocks and moving Sable contraptions; note shielding, penetration, damage, recoil, reload/ammo supply, and whether weapons work after save/reopen."
-echo "After building/linking the radar and weapon network, run /radar debug gen_debug_file in the world to capture radar links, filters, and weapon endpoints."
-echo "For TaCZ, inspect aircraft-mounted guns, Create automation, TaCZ NPC behavior, and default NPC appearances at villages/outposts/mansions. For Scorched, inspect the distinct weapon/mob/structure/turret/ExoSuit catalogue and any shield-generator interaction."
+echo "For Radar 4.9 evidence where applicable, run /radar debug gen_debug_file to capture radar links, filters, and weapon endpoints."
+if [[ "$variant" == "tacz" ]]; then
+  echo "Inspect aircraft-mounted TaCZ guns, the existing Create: TaCZ manufacturing flow, firearm handling, and TaCZ NPC behavior and default appearances at villages/outposts/mansions."
+elif [[ "$variant" == "scorched" ]]; then
+  echo "Scorched Guns is not selected for the pack; this arm is machine-only comparison evidence. No manual review is requested."
+fi
 if [[ "$variant" == "firepower" ]]; then
   echo "Inspect compact cannon/autocannon mounts, vertical mounting, pitch/yaw limits, ammunition loading/feeds/racks, and manual aiming/firing on static CBC mounts and moving Sable craft."
   echo "Create: Radars is pinned to 0.4.9.4; observe the Firepower Components legacy Radar compatibility path. Automatic Fire Control handoff and fail-closed behavior are deferred with Create: Fire Control."
