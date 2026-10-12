@@ -84,14 +84,14 @@ fi
 echo "Atmospheric Shaders are excluded; the accepted Simple Clouds + Distant Horizons setup remains."
 echo "Start a fresh normal Overworld (leave preset at Default/Normal) with seed 817306 in each arm so the worlds are comparable."
 echo "Keep difficulty Normal. Begin in Survival; use Creative briefly only if needed to inspect item catalogs or place test targets."
-echo "Review the radar/IFF target picture, track handoff into Fire Control, targeting stability while an aircraft/vehicle is moving, and cannon alignment/fire timing with CBC 5.11.7."
+echo "Review the radar/IFF target picture, CBC 5.11.7 projectile behavior, and weapon use while an aircraft/vehicle is moving. Create: Fire Control and its Mianbao dependency are deferred and absent."
 echo "Test projectiles against static blocks and moving Sable contraptions; note shielding, penetration, damage, recoil, reload/ammo supply, and whether weapons work after save/reopen."
 echo "After building/linking the radar and weapon network, run /radar debug gen_debug_file in the world to capture radar links, filters, and weapon endpoints."
 echo "For TaCZ, inspect aircraft-mounted guns, Create automation, TaCZ NPC behavior, and default NPC appearances at villages/outposts/mansions. For Scorched, inspect the distinct weapon/mob/structure/turret/ExoSuit catalogue and any shield-generator interaction."
 if [[ "$variant" == "firepower" ]]; then
-  echo "Inspect compact cannon/autocannon mounts, mount orientation/limits, projectile loading, magazines, ready racks, ammo feeds, and automatic controller behavior on static CBC mounts and moving Sable craft."
-  echo "Create: Radars is pinned to 0.4.9.4, so this exercises Firepower Components' legacy Radar compatibility path. Verify tracking and aim, then confirm firing stops after target loss, data-link changes, mount reassignment, and controller unload."
-  echo "Check whether Create: Fire Control, CBC Neo Warfare, and Terminal Ballistics coexist with the mounts and ammo system. Radar 5.0 EA API behavior is outside this review."
+  echo "Inspect compact cannon/autocannon mounts, vertical mounting, pitch/yaw limits, ammunition loading/feeds/racks, and manual aiming/firing on static CBC mounts and moving Sable craft."
+  echo "Create: Radars is pinned to 0.4.9.4; observe the Firepower Components legacy Radar compatibility path. Automatic Fire Control handoff and fail-closed behavior are deferred with Create: Fire Control."
+  echo "Check CBC Neo Warfare and Terminal Ballistics coexist with the mounts and ammo system. Radar 5.0 EA API behavior is outside this review."
 fi
 echo "Use JEI to record candidate ammo/material recipes and loot/spawn observations. Do not change recipes, drops, balance, or progression."
 echo "This is a compatibility/content-fit gate only; do not promote a firearm arm from this one run."
