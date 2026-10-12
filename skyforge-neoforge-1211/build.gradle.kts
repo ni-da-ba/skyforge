@@ -524,14 +524,17 @@ check(wbyS7CombatPin("minecraft", "version") == "1.21.1")
 check(wbyS7CombatPin("neoforge", "version") == "21.1.249")
 check(wbyS7CombatPin("profile", "base") == "wby-s7-bomd")
 val wbyS7CombatEngineeringMods = listOf(
-    "copycatsPlus", "createRadars", "createAeroRadars", "createFireControl", "mianbaosNewModernWarfare",
+    "copycatsPlus", "createRadars", "createAeroRadars",
     "cbcNeoWarfare", "cbcTerminalBallistics",
 )
 val wbyS7TaczMods = listOf("tacz", "createTacz", "taczAeronauticsCompat", "taczNpcs")
 val wbyS7ScorchedMods = listOf("scorchedGuns", "framework", "curios")
 val wbyS7FirepowerComponentsMods = listOf("cbcFirepowerComponents")
+// Create: Fire Control requires Mianbao's NewModernWarfare; owner decision defers both.
+val wbyS7CombatDeferredMods = listOf("createFireControl", "mianbaosNewModernWarfare")
 val wbyS7CombatCandidateMods =
-    wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods + wbyS7FirepowerComponentsMods
+    wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods + wbyS7FirepowerComponentsMods +
+        wbyS7CombatDeferredMods
 
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
