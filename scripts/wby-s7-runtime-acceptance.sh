@@ -209,7 +209,7 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
   python3 scripts/wby-s8-nether-evidence.py \
     --variant "$WBY_S8_NETHER_VARIANT" \
     --mods "$server_dir/mods" \
-    --datapacks "$server_dir/datapacks" \
+    --datapacks "$server_dir/s7-acceptance/datapacks" \
     --live --host 127.0.0.1 --port 25575 --password skyforge-s7-local-probe \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
