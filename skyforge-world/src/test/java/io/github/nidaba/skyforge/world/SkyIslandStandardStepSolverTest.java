@@ -58,21 +58,21 @@ class SkyIslandStandardStepSolverTest {
     @Test
     void standardStepUsesDischargeAtEachSectionForSubcriticalEnergy() {
         SkyIslandStandardStepSolver.CrossSection section = rectangularSection(5.0);
-        double upstreamDepth = 10.0;
+        double downstreamDepth = 10.0;
         double[] depths = SkyIslandStandardStepSolver.solve(
                 new double[] {0.0, 1.0},
                 new double[] {0.0, 0.0},
                 new SkyIslandStandardStepSolver.CrossSection[] {section, section},
                 new double[] {10.0, 20.0},
                 1.0e-12,
-                upstreamDepth,
+                downstreamDepth,
                 SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL);
 
-        double upstreamEnergy = upstreamDepth
-                + Math.pow(10.0 / section.area(upstreamDepth), 2.0)
+        double upstreamEnergy = depths[0]
+                + Math.pow(10.0 / section.area(depths[0]), 2.0)
                         / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
-        double downstreamEnergy = depths[1]
-                + Math.pow(20.0 / section.area(depths[1]), 2.0)
+        double downstreamEnergy = downstreamDepth
+                + Math.pow(20.0 / section.area(downstreamDepth), 2.0)
                         / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
         assertEquals(upstreamEnergy, downstreamEnergy, 1.0e-8);
     }
