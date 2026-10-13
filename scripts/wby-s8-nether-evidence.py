@@ -35,7 +35,7 @@ def safe(name: str) -> bool:
 
 
 def packet(packet_id: int, packet_type: int, body: str) -> bytes:
-    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\\x00\\x00"
+    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\x00\x00"
     return struct.pack("<i", len(payload)) + payload
 
 def receive_exact(sock: socket.socket, size: int) -> bytes:
@@ -139,7 +139,7 @@ def main() -> int:
             response = rcon(command, args.host, args.port, args.password)
             if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
-            rows.append(f"live_probe\\t{label}\\t\\t\\t\\tseed={args.seed}; command={command}; response={response}")
+            rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; command={command}; response={response}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
