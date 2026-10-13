@@ -8,12 +8,13 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 
 /**
- * Deterministic bounded least-cost search for a fine hydrologic route over pre-fluvial terrain.
+ * Generates deterministic fine routing candidates over pre-fluvial terrain within a bounded
+ * corridor around coarse semantic guidance.
  *
- * <p>The route remains inside a corridor around coarse semantic guidance, but ordinary coarse
- * planning positions are not mandatory waypoints. Cost strongly penalizes raw-terrain ascent and
- * local ridge occupancy, mildly prefers lower terrain, and penalizes deviation from the semantic
- * corridor center. This class does not carve terrain, solve a hydraulic grade, or rasterize blocks.
+ * <p>The existing least-cost method penalizes raw-terrain ascent and ridge occupancy. The
+ * Priority-Flood method conditions depressions to semantic outlet anchors and follows the resulting
+ * D8 receiver tree, with deterministic tie handling on flats. Neither method changes graph authority,
+ * constructs a hydraulic bed, solves a water-surface profile, or rasterizes blocks.
  */
 public final class SkyIslandTerrainAwareRouteSolver {
     public static final int FINE_DIVISIONS_PER_PLANNING_CELL = 4;
