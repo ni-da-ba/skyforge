@@ -8,6 +8,7 @@ import json
 import re
 import socket
 import struct
+import time
 import zipfile
 from pathlib import Path, PurePosixPath
 
@@ -163,7 +164,9 @@ def main() -> int:
             ("enabled_datapacks", "datapack list enabled"),
         )
         for label, command in commands:
+            started = time.perf_counter()
             response = rcon(command, args.host, args.port, args.password)
+            probe_ms = round((time.perf_counter() - started) * 1000, 1)
             if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
             if label == "enabled_datapacks":
@@ -172,14 +175,16 @@ def main() -> int:
                     raise SystemExit(f"Incendium ZIP is staged but is not enabled in the test world: {response}")
                 if args.variant != "incendium" and has_incendium:
                     raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
-            rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; command={command}; response={response}")
+            rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; probe_ms={probe_ms}; command={command}; response={response}")
         for kind in ("biome", "structure"):
             for resource in sorted(candidate_resources[kind])[:3]:
                 command = f"execute in minecraft:the_nether run locate {kind} {resource}"
+                started = time.perf_counter()
                 response = rcon(command, args.host, args.port, args.password)
+                probe_ms = round((time.perf_counter() - started) * 1000, 1)
                 if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                     raise SystemExit(f"Candidate resource is not registered in the live world: {resource}: {response}")
-                rows.append(f"candidate_locate\t{resource}\t\t\t{kind}\tseed={args.seed}; response={response}")
+                rows.append(f"candidate_locate\t{resource}\t\t\t{kind}\tseed={args.seed}; probe_ms={probe_ms}; response={response}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
