@@ -9,7 +9,7 @@ import re
 import socket
 import struct
 import zipfile
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 MOD_ID = re.compile(r'(?m)^\s*modId\s*=\s*"([^"]+)"')
 WORLDGEN = re.compile(r"^data/[^/]+/worldgen/(biome|structure|structure_set|configured_feature|placed_feature)/")
@@ -80,6 +80,16 @@ def main() -> int:
 
     rows = ["kind\tname\tsha256\tmod_ids\tworldgen_resource_counts\tnotes"]
     found: set[str] = set()
+    candidate_namespaces = {
+        "control": set(),
+        "control-mnd": {"mynethersdelight"},
+        "jne": {"netherexp"},
+        "jne-mnd": {"netherexp", "mynethersdelight"},
+        "incendium": {"incendium"},
+    }[args.variant]
+    candidate_resources: dict[str, set[str]] = {
+        kind: set() for kind in ("biome", "structure", "structure_set", "configured_feature", "placed_feature")
+    }
     for jar in sorted(args.mods.glob("*.jar")):
         ids: set[str] = set()
         counts = {kind: 0 for kind in ("biome", "structure", "structure_set", "configured_feature", "placed_feature")}
@@ -92,7 +102,12 @@ def main() -> int:
             for name in archive.namelist():
                 match = WORLDGEN.match(name)
                 if match:
-                    counts[match.group(1)] += 1
+                    kind = match.group(1)
+                    counts[kind] += 1
+                    parts = PurePosixPath(name).parts
+                    if len(parts) >= 5 and parts[0] == "data" and parts[1] in candidate_namespaces and parts[2] == "worldgen":
+                        resource = PurePosixPath(*parts[4:]).with_suffix("")
+                        candidate_resources[kind].add(f"{parts[1]}:{resource.as_posix()}")
         found.update(ids)
         count_text = ",".join(f"{kind}:{counts[kind]}" for kind in counts)
         rows.append(f"mod\t{jar.name}\t{sha256(jar)}\t{','.join(sorted(ids))}\t{count_text}\t")
@@ -126,10 +141,21 @@ def main() -> int:
             if not isinstance(pack_format, int):
                 raise SystemExit(f"Incendium pack.mcmeta has no integer pack_format: {pack_section}")
             rows.append(f"datapack\t{pack.name}\t{sha256(pack)}\t\t\tpack_format={pack_format}; files={len(names)}")
+            for name in names:
+                match = WORLDGEN.match(name)
+                if match:
+                    kind = match.group(1)
+                    parts = PurePosixPath(name).parts
+                    if len(parts) >= 5 and parts[0] == "data" and parts[1] in candidate_namespaces and parts[2] == "worldgen":
+                        resource = PurePosixPath(*parts[4:]).with_suffix("")
+                        candidate_resources[kind].add(f"{parts[1]}:{resource.as_posix()}")
     if args.variant != "incendium" and args.datapacks.exists():
         candidate_names = [p.name for p in args.datapacks.glob("*") if p.name.lower().startswith("incendium")]
         if candidate_names:
             raise SystemExit(f"S8 {args.variant} profile leaked Incendium: {candidate_names}")
+    for kind, resources in candidate_resources.items():
+        for resource in sorted(resources):
+            rows.append(f"candidate_resource\t{resource}\t\t\t{kind}\t")
     if args.live:
         commands = (
             ("nether_fortress", "execute in minecraft:the_nether run locate structure minecraft:fortress"),
@@ -147,6 +173,13 @@ def main() -> int:
                 if args.variant != "incendium" and has_incendium:
                     raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
             rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; command={command}; response={response}")
+        for kind in ("biome", "structure"):
+            for resource in sorted(candidate_resources[kind])[:3]:
+                command = f"execute in minecraft:the_nether run locate {kind} {resource}"
+                response = rcon(command, args.host, args.port, args.password)
+                if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
+                    raise SystemExit(f"Candidate resource is not registered in the live world: {resource}: {response}")
+                rows.append(f"candidate_locate\t{resource}\t\t\t{kind}\tseed={args.seed}; response={response}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
