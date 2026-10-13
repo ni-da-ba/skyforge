@@ -662,6 +662,7 @@ val wbyS7CombatMods = when (wbyS7CombatVariant) {
 }
 val wbyS8NetherVariant = providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() ?: "none"
 val wbyS8NetherMods = when (wbyS8NetherVariant) {
+    "control-mnd" -> wbyS8MndMods
     "jne" -> wbyS8JneMods
     "jne-mnd" -> wbyS8JneMods + wbyS8MndMods
     else -> emptyList()
@@ -738,8 +739,8 @@ check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched", "fi
 check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
     "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
 }
-check(wbyS8NetherVariant in setOf("none", "control", "jne", "jne-mnd", "incendium")) {
-    "WBY S8 Nether variant must be none, control, jne, jne-mnd, or incendium"
+check(wbyS8NetherVariant in setOf("none", "control", "control-mnd", "jne", "jne-mnd", "incendium")) {
+    "WBY S8 Nether variant must be none, control, control-mnd, jne, jne-mnd, or incendium"
 }
 check(wbyS8NetherVariant == "none" || (wbyS7CombatVariant == "tacz" && wbyS7Bomd)) {
     "WBY S8 requires the cumulative S0-S7 BOMD plus selected TaCZ profile"
@@ -8651,7 +8652,7 @@ dependencies {
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
         }
     }
-    if (wbyS8NetherVariant == "jne-mnd") {
+    if (wbyS8NetherVariant in setOf("control-mnd", "jne-mnd")) {
         wbyS8MndMods.forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
