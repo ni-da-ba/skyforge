@@ -6,6 +6,8 @@ import argparse
 import hashlib
 import json
 import re
+import socket
+import struct
 import zipfile
 from pathlib import Path
 
@@ -32,12 +34,48 @@ def safe(name: str) -> bool:
     return not path.is_absolute() and ".." not in path.parts
 
 
+def packet(packet_id: int, packet_type: int, body: str) -> bytes:
+    payload = struct.pack("<ii", packet_id, packet_type) + body.encode("utf-8") + b"\\x00\\x00"
+    return struct.pack("<i", len(payload)) + payload
+
+def receive_exact(sock: socket.socket, size: int) -> bytes:
+    chunks = bytearray()
+    while len(chunks) < size:
+        chunk = sock.recv(size - len(chunks))
+        if not chunk:
+            raise ConnectionError("RCON closed before completing a packet")
+        chunks.extend(chunk)
+    return bytes(chunks)
+
+def receive_packet(sock: socket.socket) -> tuple[int, int, str]:
+    length = struct.unpack("<i", receive_exact(sock, 4))[0]
+    payload = receive_exact(sock, length)
+    packet_id, packet_type = struct.unpack("<ii", payload[:8])
+    return packet_id, packet_type, payload[8:-2].decode("utf-8", errors="replace")
+
+def rcon(command: str, host: str, port: int, password: str) -> str:
+    with socket.create_connection((host, port), timeout=15) as sock:
+        sock.settimeout(180)
+        sock.sendall(packet(1, 3, password))
+        response_id, _, _ = receive_packet(sock)
+        if response_id != 1:
+            raise PermissionError("RCON authentication failed")
+        sock.sendall(packet(2, 2, command))
+        response_id, _, body = receive_packet(sock)
+        if response_id != 2:
+            raise RuntimeError("RCON response did not match its command")
+        return body.strip()
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--variant", choices=("control", "jne", "jne-mnd", "incendium"), required=True)
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--datapacks", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--live", action="store_true")
+    parser.add_argument("--host", default="127.0.0.1")
+    parser.add_argument("--port", type=int, default=25575)
+    parser.add_argument("--password", default="skyforge-s7-local-probe")
+    parser.add_argument("--seed", default="817304")
     args = parser.parse_args()
 
     rows = ["kind\tname\tsha256\tmod_ids\tworldgen_resource_counts\tnotes"]
@@ -92,6 +130,16 @@ def main() -> int:
         candidate_names = [p.name for p in args.datapacks.glob("*") if p.name.lower().startswith("incendium")]
         if candidate_names:
             raise SystemExit(f"S8 {args.variant} profile leaked Incendium: {candidate_names}")
+    if args.live:
+        commands = (
+            ("nether_fortress", "execute in minecraft:the_nether run locate structure minecraft:fortress"),
+            ("nether_wastes", "execute in minecraft:the_nether run locate biome minecraft:nether_wastes"),
+        )
+        for label, command in commands:
+            response = rcon(command, args.host, args.port, args.password)
+            if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
+                raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
+            rows.append(f"live_probe\\t{label}\\t\\t\\t\\tseed={args.seed}; command={command}; response={response}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
