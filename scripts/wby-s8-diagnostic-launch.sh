@@ -3,7 +3,7 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  control|jne|jne-mnd|incendium) ;;
+  control|control-mnd|jne|jne-mnd|incendium) ;;
   *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|jne|jne-mnd|incendium}" >&2; exit 2 ;;
 esac
 
@@ -30,7 +30,6 @@ done
 downloads=".skyforge-diagnostics/s8-nether-downloads"
 if [[ "$variant" == "jne" || "$variant" == "jne-mnd" ]]; then
   patterns=('*jadens-nether-expansion*.jar' '*elysium-api*.jar' '*lodestone*.jar')
-  if [[ "$variant" == "jne-mnd" ]]; then patterns+=('*mynethersdelight*.jar' '*MyNethersDelight*.jar'); fi
   for pattern in "${patterns[@]}"; do
     mapfile -t matches < <(find "$downloads" -maxdepth 1 -type f -iname "$pattern" -print)
     if (( ${#matches[@]} != 1 )); then
@@ -48,6 +47,15 @@ EOF
     fi
     cp -f "${matches[0]}" "$run/mods/"
   done
+fi
+
+if [[ "$variant" == "control-mnd" || "$variant" == "jne-mnd" ]]; then
+  mapfile -t matches < <(find "$downloads" -maxdepth 1 -type f -iname '*mynethersdelight*.jar' -print)
+  if (( ${#matches[@]} != 1 )); then
+    echo "Expected exactly one My Nether's Delight 1.10.4.1 JAR in $downloads (download link: https://www.curseforge.com/minecraft/mc-mods/my-nethers-delight/files/8854319)" >&2
+    exit 2
+  fi
+  cp -f "${matches[0]}" "$run/mods/"
 fi
 
 if [[ "$variant" == "incendium" ]]; then
@@ -71,8 +79,8 @@ echo "Create a NEW normal/default world, not the Skyforge preset, with seed 8173
 echo "Use the same game mode/difficulty and settings. Do not reuse or copy generated Nether chunks between arms."
 echo "Enter the Nether through a portal and compare biome geography, scale/connectivity, lava, routes, flight and DH/Simple Clouds rendering."
 echo "Check for fortresses and Blaze access, bastion/candidate structures, duplicate or suppressed structures, and obvious progression bypasses."
-echo "For JNE, specifically revisit the Powdery Cannon structure and cave-like lighting reports with My Nether's Delight absent. The separate jne-mnd arm is a focused compatibility probe; report its structure/lighting behavior separately from substrate ranking."
-echo "Record coordinates, screenshots, and concerns. The control/JNE/Incendium arms inform substrate choice. The jne-mnd run is a separate interaction check, not another substrate. Do not tune recipes, drops, spawn rates, loot, or balance."
+echo "For JNE, specifically revisit the Powdery Cannon structure and cave-like lighting reports with My Nether's Delight absent. Compare control-mnd with jne-mnd to see whether JNE suppresses the Powdery Cannon under My Nether's Delight. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness, but do not attribute that report to MND."
+echo "Record coordinates, screenshots, and concerns. The control/JNE/Incendium arms inform substrate choice. The control-mnd and jne-mnd runs form a matched Powdery Cannon interaction check, not additional substrate candidates. Do not tune recipes, drops, spawn rates, loot, or balance."
 echo "Run directory: $run"
 echo "Diagnostics: $bundle"
 echo "Launching the copied profile now. Save and quit normally when finished."
