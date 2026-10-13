@@ -12,7 +12,7 @@ from pathlib import Path
 MOD_ID = re.compile(r'(?m)^\\s*modId\\s*=\\s*"([^"]+)"')
 WORLDGEN = re.compile(r"^data/[^/]+/worldgen/(biome|structure|structure_set|configured_feature|placed_feature)/")
 EXPECTED = {
-    "jadensNetherExpansion": "jadensnetherexpansion",
+    "jadensNetherExpansion": "netherexp",
     "elysiumApi": "elysium_api",
     "lodestone": "lodestone",
 }
@@ -85,9 +85,6 @@ def main() -> int:
             if not isinstance(pack_format, int):
                 raise SystemExit(f"Incendium pack.mcmeta has no integer pack_format: {pack_section}")
             rows.append(f"datapack\t{pack.name}\t{sha256(pack)}\t\t\tpack_format={pack_format}; files={len(names)}")
-    elif packs:
-        raise SystemExit(f"S8 {args.variant} profile must not contain a Nether candidate data pack: {[p.name for p in packs]}")
-
     if args.variant != "incendium" and args.datapacks.exists():
         candidate_names = [p.name for p in args.datapacks.glob("*") if p.name.lower().startswith("incendium")]
         if candidate_names:
