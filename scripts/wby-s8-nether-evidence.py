@@ -9,7 +9,7 @@ import re
 import zipfile
 from pathlib import Path
 
-MOD_ID = re.compile(r'(?m)^\\s*modId\\s*=\\s*"([^"]+)"')
+MOD_ID = re.compile(r'(?m)^\s*modId\s*=\s*"([^"]+)"')
 WORLDGEN = re.compile(r"^data/[^/]+/worldgen/(biome|structure|structure_set|configured_feature|placed_feature)/")
 EXPECTED = {
     "jadensNetherExpansion": "netherexp",
@@ -34,7 +34,7 @@ def safe(name: str) -> bool:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--variant", choices=("control", "jne", "incendium"), required=True)
+    parser.add_argument("--variant", choices=("control", "jne", "jne-mnd", "incendium"), required=True)
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--datapacks", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
