@@ -99,6 +99,27 @@ class SkyIslandStandardStepSolverTest {
         assertEquals(upstreamEnergy, downstreamEnergy, 1.0e-8);
     }
 
+    @Test
+    void standardStepHandlesChangingSectionsAndDischargeWithAverageConveyance() {
+        SkyIslandStandardStepSolver.CrossSection upstreamSection = rectangularSection(4.0);
+        SkyIslandStandardStepSolver.CrossSection downstreamSection = rectangularSection(8.0);
+        double[] depths = SkyIslandStandardStepSolver.solve(
+                new double[] {0.0, 100.0},
+                new double[] {2.0, 0.0},
+                new SkyIslandStandardStepSolver.CrossSection[] {
+                    upstreamSection, downstreamSection
+                },
+                new double[] {8.0, 12.0},
+                0.035,
+                4.0,
+                SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL);
+
+        // Independently evaluated standard-step root for these two sections, using
+        // section-local velocities and HEC-RAS average conveyance with Manning n=0.035.
+        assertEquals(1.968826460254086, depths[0], 1.0e-8);
+        assertEquals(4.0, depths[1], 0.0);
+    }
+
     private static SkyIslandStandardStepSolver.CrossSection rectangularSection(double widthMetres) {
         return new SkyIslandStandardStepSolver.CrossSection() {
             @Override
