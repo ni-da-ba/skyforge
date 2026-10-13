@@ -4,7 +4,7 @@ set -euo pipefail
 variant="${1:-}"
 case "$variant" in
   control|jne|jne-mnd|incendium) ;;
-  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|jne|incendium}" >&2; exit 2 ;;
+  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|jne|jne-mnd|incendium}" >&2; exit 2 ;;
 esac
 
 base="skyforge-neoforge-1211/run-wby-s8-control"
@@ -56,8 +56,9 @@ if [[ "$variant" == "incendium" ]]; then
     echo "Download the official whole Incendium 5.4.4 data pack from https://modrinth.com/datapack/incendium/version/7mVvV9Th and save it as $pack" >&2
     exit 2
   fi
-  mkdir -p "$run/datapacks"
-  cp -f "$pack" "$run/datapacks/incendium-5.4.4.zip"
+  echo "During Create World > Data Packs > Open Pack Folder, copy this ZIP into the opened world datapacks folder:"
+  echo "  $pack"
+  echo "Select Incendium in the Data Packs screen before creating the world."
 fi
 
 if [[ -f "$downloads/Sky-Whale-Retexture.zip" ]]; then
