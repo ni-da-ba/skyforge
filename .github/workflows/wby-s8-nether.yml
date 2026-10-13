@@ -9,51 +9,21 @@ on:
       - "wby/s7-combat"
       - "wby/s8-nether"
     paths:
-      - ".github/workflows/wby-s8-illager-threats.yml"
+      - ".github/workflows/wby-s8-nether.yml"
+      - ".github/workflows/wby-s7-illager-threats.yml"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
       - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
       - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
-      - "skyforge-neoforge-1211/wby-s8-illager-threats.properties"
-      - "skyforge-neoforge-1211/wby-s8-combat.properties"
+      - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
       - "skyforge-neoforge-1211/wby-s8-nether.properties"
-      - "scripts/wby-s8-combat-evidence.py"
+      - "scripts/wby-s7-illager-evidence.py"
+      - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
+      - "scripts/wby-s7-runtime-acceptance.sh"
+      - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s8-nether-evidence.py"
-      - "scripts/wby-s8-combat-stage-preflight.py"
-      - "scripts/wby-s8-combat-diagnostic-launch.sh"
-      - "scripts/wby-s8-diagnostic-launch.sh"
-      - "scripts/wby-s8-patch-a4mc-build.py"
-      - "scripts/wby-s6-diagnostic-launch.sh"
-      - "scripts/wby-s6-runtime-acceptance.sh"
-      - "scripts/wby-s6-structure-evidence.py"
-      - "scripts/wby-s8-bomd-diagnostic-launch.sh"
-      - "scripts/wby-s8-diagnostic-launch.sh"
-      - "scripts/wby-s8-runtime-acceptance.sh"
-      - "scripts/wby-s8-illager-evidence.py"
-  pull_request:
-    paths:
-      - ".github/workflows/wby-s8-illager-threats.yml"
-      - ".github/workflows/wby-s6-structures-civilization.yml"
-      - "skyforge-neoforge-1211/build.gradle.kts"
-      - "skyforge-neoforge-1211/wby-s4-life-building.properties"
-      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
-      - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
-      - "skyforge-neoforge-1211/wby-s8-illager-threats.properties"
-      - "skyforge-neoforge-1211/wby-s8-combat.properties"
-      - "skyforge-neoforge-1211/wby-s8-nether.properties"
-      - "skyforge-neoforge-1211/wby-s0-5-*.properties"
-      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
-      - "skyforge-neoforge-1211/wby-s3-industry.properties"
-      - "skyforge-neoforge-1211/wave-c*.properties"
-      - "skyforge-neoforge-1211/wby-wave1*.properties"
-      - "scripts/wby-s8-bomd-diagnostic-launch.sh"
-      - "scripts/wby-s8-diagnostic-launch.sh"
-      - "scripts/wby-s8-runtime-acceptance.sh"
-      - "scripts/wby-s8-illager-evidence.py"
-      - "scripts/wby-s8-combat-evidence.py"
-      - "scripts/wby-s8-nether-evidence.py"
-      - "scripts/wby-s8-combat-stage-preflight.py"
-      - "scripts/wby-s8-combat-diagnostic-launch.sh"
       - "scripts/wby-s8-diagnostic-launch.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
@@ -86,7 +56,7 @@ jobs:
 
       - name: Apply bounded migration for retired A4MC build-tool APIs
         shell: bash
-        run: python3 scripts/wby-s8-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
+        run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
 
       - name: Build pinned A4MC core and Aeronautics compatibility jars once
         shell: bash
@@ -130,12 +100,11 @@ jobs:
       - name: Check S7 and S8 launcher/runtime script syntax
         shell: bash
         run: |
-          bash -n scripts/wby-s8-bomd-diagnostic-launch.sh
-          bash -n scripts/wby-s8-combat-diagnostic-launch.sh
+          bash -n scripts/wby-s7-bomd-diagnostic-launch.sh
+          bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s8-diagnostic-launch.sh
-          bash -n scripts/wby-s8-diagnostic-launch.sh
-          bash -n scripts/wby-s8-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s8-illager-evidence.py scripts/wby-s8-combat-evidence.py scripts/wby-s8-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py
+          bash -n scripts/wby-s7-runtime-acceptance.sh
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py
 
       - name: Download the exact A4MC build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -168,13 +137,13 @@ jobs:
             -PwbyS7Bomd=true -PwbyS7CombatVariant=none -PwbyS8NetherVariant=none --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${control_common[@]}" \
-            -PwbyS1RunDirectory=run-wby-s8-s7-control
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${control_common[@]}" \
-            -PwbyS1RunDirectory=run-wby-s8-s7-control
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${control_common[@]}" \
-            -PwbyS1RunDirectory=run-wby-s8-s7-control
-          find skyforge-neoforge-1211/run-wby-s8-s7-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort \
-            > wby-s8-s7-control-staged-mods.txt
+            -PwbyS1RunDirectory=run-wby-s7-combat-control
+          find skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods -maxdepth 1 -type f -name '*.jar' -printf '%f\n' | sort \
+            > wby-s7-control-staged-mods.txt
 
       - name: Resolve cumulative S8 substrate candidate
         shell: bash
@@ -193,6 +162,7 @@ jobs:
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 COMBAT RESOLUTION PASS variant=tacz" "wby-s8-resolution.log"
+          grep -Fq "WBY S8 NETHER RESOLUTION PASS variant=${{ matrix.variant }}" "wby-s8-resolution.log"
 
       - name: Stage the S8 cumulative server and client profile
         shell: bash
@@ -211,22 +181,30 @@ jobs:
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" \
-            -PwbyS1RunDirectory=run-wby-s8-join-client
+            -PwbyS1RunDirectory=run-wby-s7-join-client
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
-          echo ./gradlew :skyforge-neoforge-1211:wbyS8StageNetherDatapack "${common[@]}" -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
+          ./gradlew :skyforge-neoforge-1211:wbyS8StageNetherDatapack "${common[@]}" -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
+          python3 scripts/wby-s8-nether-evidence.py --variant "${{ matrix.variant }}" \
+            --mods "skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods" \
+            --datapacks "skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/datapacks" \
+            --output "wby-s8-nether-evidence.tsv"
+          if [[ "${{ matrix.variant }}" == "control" ]]; then
+            ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s8-control
+            ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" -PwbyS1RunDirectory=run-wby-s8-control
+          fi
           echo "WBY S8 all-side profile staging PASS"
 
       - name: Reject duplicate mod IDs before runtime launch
         shell: bash
         run: |
           set -euo pipefail
-          python3 scripts/wby-s8-combat-stage-preflight.py \
-            --control-server skyforge-neoforge-1211/run-wby-s8-s7-control/server-mods \
-            --control-client skyforge-neoforge-1211/run-wby-s8-s7-control/mods \
+          python3 scripts/wby-s7-combat-stage-preflight.py \
+            --control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
+            --control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
             --candidate-server skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods \
-            --candidate-client skyforge-neoforge-1211/run-wby-s8-join-client/mods \
-            --pins skyforge-neoforge-1211/wby-s8-combat.properties \
+            --candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --pins skyforge-neoforge-1211/wby-s7-combat.properties \
             --variant tacz \
             --output wby-s8-candidate-pins.tsv
 
@@ -283,11 +261,11 @@ jobs:
           export WBY_S7_BOMD=true
           export WBY_S7_COMBAT_VARIANT=tacz
           export WBY_S8_NETHER_VARIANT=${{ matrix.variant }}
-          export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-s7-control/server-mods"
+          export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
           export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods"
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s8-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
-          bash scripts/wby-s8-runtime-acceptance.sh
+          bash scripts/wby-s7-runtime-acceptance.sh
 
       - name: Upload S8 substrate integration evidence
         if: always()
@@ -298,13 +276,13 @@ jobs:
             wby-s8-*.log
           wby-s8-nether-evidence.tsv
             wby-s8-staged-threat-jars.txt
-            wby-s8-illager-evidence.tsv
-            wby-s8-mowzie-evidence.tsv
-            wby-s8-ice-and-fire-evidence.tsv
-            wby-s8-bomd-evidence.tsv
-            wby-s8-combat-evidence.tsv
+            wby-s7-illager-evidence.tsv
+            wby-s7-mowzie-evidence.tsv
+            wby-s7-ice-and-fire-evidence.tsv
+            wby-s7-bomd-evidence.tsv
+            wby-s7-combat-evidence.tsv
             wby-s8-candidate-pins.tsv
-            wby-s8-s7-control-staged-mods.txt
+            wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
             s8-production-server/logs/latest.log
             s8-production-server/hs_err_pid*.log
@@ -314,8 +292,8 @@ jobs:
             s8-production-server/kubejs/data/**/*.json
             skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/config/*.toml
             skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/kubejs/data/**/*.json
-            skyforge-neoforge-1211/run-wby-s8-join-client/logs/latest.log
-            skyforge-neoforge-1211/run-wby-s8-join-client/hs_err_pid*.log
+            skyforge-neoforge-1211/run-wby-s7-join-client/logs/latest.log
+            skyforge-neoforge-1211/run-wby-s7-join-client/hs_err_pid*.log
           if-no-files-found: warn
 
       - name: Upload the S8 control client profile for local candidate review
