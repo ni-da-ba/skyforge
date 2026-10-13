@@ -27,6 +27,25 @@ on:
       - "scripts/wby-s8-diagnostic-launch.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s8-nether.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s1-atmosphere-mobility.properties"
+      - "skyforge-neoforge-1211/wby-s5-overworld-ecology.properties"
+      - "skyforge-neoforge-1211/wby-s6-structures-civilization.properties"
+      - "skyforge-neoforge-1211/wby-s7-illager-threats.properties"
+      - "skyforge-neoforge-1211/wby-s7-combat.properties"
+      - "skyforge-neoforge-1211/wby-s8-nether.properties"
+      - "scripts/wby-s7-illager-evidence.py"
+      - "scripts/wby-s7-combat-evidence.py"
+      - "scripts/wby-s7-combat-stage-preflight.py"
+      - "scripts/wby-s7-runtime-acceptance.sh"
+      - "scripts/wby-s7-patch-a4mc-build.py"
+      - "scripts/wby-s8-nether-evidence.py"
+      - "scripts/wby-s8-diagnostic-launch.sh"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
 
 permissions:
@@ -243,7 +262,7 @@ jobs:
             | grep -Ei 'friends|pillage|illager|incontrol|mowzie|iceandfire|jupiter|uranus|mass-destruction|cerbons-api' \
             > wby-s8-staged-threat-jars.txt
           test -s wby-s8-staged-threat-jars.txt
-          echo "WBY S7 NeoForge server staging PASS"
+          echo "WBY S8 NeoForge server staging PASS"
 
       - name: Prepare the pinned production-client launcher
         shell: bash
@@ -254,7 +273,7 @@ jobs:
           "$launcher_venv/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
           echo "WBY_S4_LAUNCHER_PYTHON=$launcher_venv/bin/python" >> "$GITHUB_ENV"
 
-      - name: Join S7 fixed-seed server and reopen the same world
+      - name: Join S8 fixed-seed server and reopen the same world
         shell: bash
         run: |
           export WBY_S7_ICE_AND_FIRE=true
@@ -274,7 +293,7 @@ jobs:
           name: wby-s8-nether-${{ matrix.variant }}-resolution
           path: |
             wby-s8-*.log
-          wby-s8-nether-evidence.tsv
+            wby-s8-nether-evidence.tsv
             wby-s8-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
             wby-s7-mowzie-evidence.tsv
@@ -297,7 +316,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload the S8 control client profile for local candidate review
-        if: matrix.variant == 'control' && always()
+        if: matrix.variant == 'control' && success()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wby-s8-control-client-profile
