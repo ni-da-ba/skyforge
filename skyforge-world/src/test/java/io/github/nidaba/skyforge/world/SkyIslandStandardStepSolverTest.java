@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 class SkyIslandStandardStepSolverTest {
     private static final double DISCHARGE_CUBIC_METRES_PER_SECOND = 20.0;
     private static final double MANNING_ROUGHNESS = 0.035;
+    private static final double GRAVITY_METRES_PER_SECOND_SQUARED = 9.81;
     private static final double SIDE_SLOPE_HORIZONTAL_TO_VERTICAL = 2.0;
     private static final double TEST_C_PART_ONE_SLOPE = 0.001;
     private static final double TEST_C_PART_TWO_SLOPE = 0.02;
@@ -52,6 +53,69 @@ class SkyIslandStandardStepSolverTest {
                 normalDepth(TEST_C_PART_TWO_SLOPE),
                 SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL);
         assertPublishedProfile(levels, TEST_C_PART_TWO_WATER_LEVELS_UPSTREAM_TO_DOWNSTREAM, 0.02);
+    }
+
+    @Test
+    void standardStepUsesDischargeAtEachSectionForSubcriticalEnergy() {
+        SkyIslandStandardStepSolver.CrossSection section = rectangularSection(5.0);
+        double upstreamDepth = 10.0;
+        double[] depths = SkyIslandStandardStepSolver.solve(
+                new double[] {0.0, 1.0},
+                new double[] {0.0, 0.0},
+                new SkyIslandStandardStepSolver.CrossSection[] {section, section},
+                new double[] {10.0, 20.0},
+                1.0e-12,
+                upstreamDepth,
+                SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL);
+
+        double upstreamEnergy = upstreamDepth
+                + Math.pow(10.0 / section.area(upstreamDepth), 2.0)
+                        / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+        double downstreamEnergy = depths[1]
+                + Math.pow(20.0 / section.area(depths[1]), 2.0)
+                        / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+        assertEquals(upstreamEnergy, downstreamEnergy, 1.0e-8);
+    }
+
+    @Test
+    void standardStepUsesDischargeAtEachSectionForSupercriticalEnergy() {
+        SkyIslandStandardStepSolver.CrossSection section = rectangularSection(5.0);
+        double upstreamDepth = 0.5;
+        double[] depths = SkyIslandStandardStepSolver.solve(
+                new double[] {0.0, 1.0},
+                new double[] {0.0, 0.0},
+                new SkyIslandStandardStepSolver.CrossSection[] {section, section},
+                new double[] {10.0, 12.0},
+                1.0e-12,
+                upstreamDepth,
+                SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL);
+
+        double upstreamEnergy = upstreamDepth
+                + Math.pow(10.0 / section.area(upstreamDepth), 2.0)
+                        / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+        double downstreamEnergy = depths[1]
+                + Math.pow(12.0 / section.area(depths[1]), 2.0)
+                        / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+        assertEquals(upstreamEnergy, downstreamEnergy, 1.0e-8);
+    }
+
+    private static SkyIslandStandardStepSolver.CrossSection rectangularSection(double widthMetres) {
+        return new SkyIslandStandardStepSolver.CrossSection() {
+            @Override
+            public double area(double depthMetres) {
+                return widthMetres * depthMetres;
+            }
+
+            @Override
+            public double wettedPerimeter(double depthMetres) {
+                return widthMetres + 2.0 * depthMetres;
+            }
+
+            @Override
+            public double topWidth(double depthMetres) {
+                return widthMetres;
+            }
+        };
     }
 
     private static double[] solveProfile(
