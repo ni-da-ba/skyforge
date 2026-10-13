@@ -4,7 +4,7 @@ set -euo pipefail
 variant="${1:-}"
 case "$variant" in
   control|control-mnd|jne|jne-mnd|incendium) ;;
-  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|jne|jne-mnd|incendium}" >&2; exit 2 ;;
+  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium}" >&2; exit 2 ;;
 esac
 
 base="skyforge-neoforge-1211/run-wby-s8-control"
@@ -40,7 +40,7 @@ Download official JNE 2.4.1, Elysium API 2.0.1, and Lodestone 1.8.2 from:
   https://www.curseforge.com/minecraft/mc-mods/jadens-nether-expansion/files/8707156
   https://www.curseforge.com/minecraft/mc-mods/elysium-api/files/8707151
   https://www.curseforge.com/minecraft/mc-mods/lodestone/files/7264731
-  https://www.curseforge.com/minecraft/mc-mods/my-nethers-delight/files/8854319 (jne-mnd arm only)
+  https://www.curseforge.com/minecraft/mc-mods/my-nethers-delight/files/8854319 (control-mnd and jne-mnd arms)
 Save the original JARs in $downloads. JNE's license metadata conflicts with its upstream source license; keep it local to this review pending resolution. MND is All Rights Reserved.
 EOF
       exit 2
@@ -79,7 +79,7 @@ echo "Create a NEW normal/default world, not the Skyforge preset, with seed 8173
 echo "Use the same game mode/difficulty and settings. Do not reuse or copy generated Nether chunks between arms."
 echo "Enter the Nether through a portal and compare biome geography, scale/connectivity, lava, routes, flight and DH/Simple Clouds rendering."
 echo "Check for fortresses and Blaze access, bastion/candidate structures, duplicate or suppressed structures, and obvious progression bypasses."
-echo "For JNE, specifically revisit the Powdery Cannon structure and cave-like lighting reports with My Nether's Delight absent. Compare control-mnd with jne-mnd to see whether JNE suppresses the Powdery Cannon under My Nether's Delight. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness, but do not attribute that report to MND."
+echo "The jne arm excludes My Nether's Delight, so assess its substrate/rendering independently. Compare control-mnd with jne-mnd on the same seed to see whether JNE suppresses Powdery Cannon generation. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness without attributing that report to MND."
 echo "Record coordinates, screenshots, and concerns. The control/JNE/Incendium arms inform substrate choice. The control-mnd and jne-mnd runs form a matched Powdery Cannon interaction check, not additional substrate candidates. Do not tune recipes, drops, spawn rates, loot, or balance."
 echo "Run directory: $run"
 echo "Diagnostics: $bundle"
