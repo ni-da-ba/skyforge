@@ -3,7 +3,7 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  control|jne|incendium) ;;
+  control|jne|jne-mnd|incendium) ;;
   *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|jne|incendium}" >&2; exit 2 ;;
 esac
 
@@ -28,8 +28,10 @@ for folder in mods config serverconfig defaultconfigs kubejs datapacks resourcep
 done
 
 downloads=".skyforge-diagnostics/s8-nether-downloads"
-if [[ "$variant" == "jne" ]]; then
-  for pattern in '*jadens-nether-expansion*.jar' '*elysium-api*.jar' '*lodestone*.jar'; do
+if [[ "$variant" == "jne" || "$variant" == "jne-mnd" ]]; then
+  patterns=('*jadens-nether-expansion*.jar' '*elysium-api*.jar' '*lodestone*.jar')
+  if [[ "$variant" == "jne-mnd" ]]; then patterns+=('*mynethersdelight*.jar' '*MyNethersDelight*.jar'); fi
+  for pattern in "${patterns[@]}"; do
     mapfile -t matches < <(find "$downloads" -maxdepth 1 -type f -iname "$pattern" -print)
     if (( ${#matches[@]} != 1 )); then
       cat >&2 <<EOF
@@ -39,7 +41,8 @@ Download official JNE 2.4.1, Elysium API 2.0.1, and Lodestone 1.8.2 from:
   https://www.curseforge.com/minecraft/mc-mods/jadens-nether-expansion/files/8707156
   https://www.curseforge.com/minecraft/mc-mods/elysium-api/files/8707151
   https://www.curseforge.com/minecraft/mc-mods/lodestone/files/7264731
-Save the three original JARs in $downloads. JNE's CurseForge metadata and upstream source license disagree; keep it local to this review only pending resolution.
+  https://www.curseforge.com/minecraft/mc-mods/my-nethers-delight/files/8854319 (jne-mnd arm only)
+Save the original JARs in $downloads. JNE's license metadata conflicts with its upstream source license; keep it local to this review pending resolution. MND is All Rights Reserved.
 EOF
       exit 2
     fi
@@ -67,8 +70,8 @@ echo "Create a NEW normal/default world, not the Skyforge preset, with seed 8173
 echo "Use the same game mode/difficulty and settings. Do not reuse or copy generated Nether chunks between arms."
 echo "Enter the Nether through a portal and compare biome geography, scale/connectivity, lava, routes, flight and DH/Simple Clouds rendering."
 echo "Check for fortresses and Blaze access, bastion/candidate structures, duplicate or suppressed structures, and obvious progression bypasses."
-echo "For JNE, specifically revisit the Powdery Cannon location and cave-like lighting reports with the planned My Nether's Delight layer absent in Step A."
-echo "Record coordinates, screenshots, and concerns. This gate decides the substrate only; do not tune recipes, drops, spawn rates, loot, or balance."
+echo "For JNE, specifically revisit the Powdery Cannon structure and cave-like lighting reports with My Nether's Delight absent. The separate jne-mnd arm is a focused compatibility probe; report its structure/lighting behavior separately from substrate ranking."
+echo "Record coordinates, screenshots, and concerns. The control/JNE/Incendium arms inform substrate choice. The jne-mnd run is a separate interaction check, not another substrate. Do not tune recipes, drops, spawn rates, loot, or balance."
 echo "Run directory: $run"
 echo "Diagnostics: $bundle"
 echo "Launching the copied profile now. Save and quit normally when finished."
