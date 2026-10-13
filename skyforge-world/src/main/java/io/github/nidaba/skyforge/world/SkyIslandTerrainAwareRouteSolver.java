@@ -60,6 +60,36 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, false);
+    }
+
+    /** Uses Priority-Flood depression conditioning and its D8 receiver tree to extract a candidate. */
+    public static SkyIslandGeomorphicCandidateRoute solvePriorityFloodAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, true);
+    }
+
+    private static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            boolean priorityFlood) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -163,6 +193,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 .thenComparingDouble(OpenNode::cost)
                 .thenComparingInt(OpenNode::index));
 
+        if (!priorityFlood) {
         for (int i = 0; i < count; i++) {
             if (!start[i]) {
                 continue;
@@ -226,25 +257,69 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 }
             }
         }
+        }
 
-        if (selectedGoal < 0) {
+        if (!priorityFlood && selectedGoal < 0) {
             throw new IllegalStateException("terrain-aware search found no route inside the semantic corridor");
         }
 
-        List<Integer> reversed = new ArrayList<>();
-        int cursor = selectedGoal;
-        while (cursor >= 0) {
-            reversed.add(cursor);
-            if (start[cursor]) {
-                break;
+        List<Integer> pathIndices;
+        double candidateCost;
+        if (priorityFlood) {
+            double[] incrementalFlow = new double[count];
+            for (int i = 0; i < count; i++) {
+                if (valid[i]) {
+                    incrementalFlow[i] = 1.0;
+                }
             }
-            cursor = previous[cursor];
-        }
-        if (reversed.isEmpty() || !start[reversed.getLast()]) {
-            throw new IllegalStateException("terrain-aware route is missing a start predecessor chain");
+            SkyIslandPriorityFloodConditioner.Result conditioned =
+                    SkyIslandPriorityFloodConditioner.condition(
+                            elevations, incrementalFlow, width, height, valid, goal);
+            double[] spillSurface = conditioned.conditionedElevations();
+            int selectedStart = -1;
+            double bestSpill = Double.POSITIVE_INFINITY;
+            double bestLocalCost = Double.POSITIVE_INFINITY;
+            for (int i = 0; i < count; i++) {
+                if (!start[i]) {
+                    continue;
+                }
+                if (spillSurface[i] < bestSpill - EPSILON
+                        || (Math.abs(spillSurface[i] - bestSpill) <= EPSILON
+                                && localCost[i] < bestLocalCost - EPSILON)) {
+                    selectedStart = i;
+                    bestSpill = spillSurface[i];
+                    bestLocalCost = localCost[i];
+                }
+            }
+            if (selectedStart < 0) {
+                throw new IllegalStateException("Priority-Flood route has no valid source anchor");
+            }
+            pathIndices = conditioned.traceToOutlet(selectedStart);
+            if (!goal[pathIndices.getLast()]) {
+                throw new IllegalStateException("Priority-Flood candidate did not reach a semantic outlet anchor");
+            }
+            candidateCost = pathCost(pathIndices, positions, elevations, localCost, planningSpacing);
+        } else {
+            List<Integer> reversed = new ArrayList<>();
+            int cursor = selectedGoal;
+            while (cursor >= 0) {
+                reversed.add(cursor);
+                if (start[cursor]) {
+                    break;
+                }
+                cursor = previous[cursor];
+            }
+            if (reversed.isEmpty() || !start[reversed.getLast()]) {
+                throw new IllegalStateException("terrain-aware route is missing a start predecessor chain");
+            }
+            pathIndices = new ArrayList<>(reversed.size());
+            for (int i = reversed.size() - 1; i >= 0; i--) {
+                pathIndices.add(reversed.get(i));
+            }
+            candidateCost = best[selectedGoal];
         }
 
-        List<SkyIslandLocalPosition> points = new ArrayList<>(reversed.size());
+        List<SkyIslandLocalPosition> points = new ArrayList<>(pathIndices.size());
         double pathLength = 0.0;
         double maxDeviation = 0.0;
         int uphillSteps = 0;
@@ -254,8 +329,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
         SkyIslandLocalPosition prior = null;
         double priorElevation = 0.0;
 
-        for (int i = reversed.size() - 1; i >= 0; i--) {
-            int node = reversed.get(i);
+        for (int node : pathIndices) {
             SkyIslandLocalPosition point = positions[node];
             points.add(point);
             maxDeviation = Math.max(maxDeviation, guidanceDeviation[node]);
@@ -278,13 +352,35 @@ public final class SkyIslandTerrainAwareRouteSolver {
         int stepCount = Math.max(1, points.size() - 1);
         return new SkyIslandGeomorphicCandidateRoute(
                 points,
-                best[selectedGoal],
+                candidateCost,
                 pathLength,
                 maxDeviation,
                 (double) uphillSteps / stepCount,
                 (double) ridgeSamples / points.size(),
                 valleySum / points.size(),
                 maxUphillStep);
+    }
+
+    private static double pathCost(
+            List<Integer> path,
+            SkyIslandLocalPosition[] positions,
+            double[] elevations,
+            double[] localCost,
+            double planningSpacing) {
+        double total = 0.0;
+        for (int i = 1; i < path.size(); i++) {
+            int prior = path.get(i - 1);
+            int next = path.get(i);
+            double stepLength = Math.hypot(
+                    positions[next].x() - positions[prior].x(),
+                    positions[next].z() - positions[prior].z());
+            double normalizedLength = stepLength / planningSpacing;
+            double ascent = Math.max(0.0, elevations[next] - elevations[prior]);
+            total += BASE_LENGTH_WEIGHT * normalizedLength
+                    + 0.5 * (localCost[prior] + localCost[next]) * normalizedLength
+                    + ASCENT_WEIGHT * ascent;
+        }
+        return total;
     }
 
     private static boolean anchorContains(
