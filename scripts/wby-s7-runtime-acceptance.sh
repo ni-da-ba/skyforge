@@ -198,6 +198,14 @@ fi
 
 start_server "$server_log"
 test -f "$server_dir/s7-acceptance/level.dat"
+if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
+  python3 scripts/wby-s8-nether-evidence.py \
+    --variant "$WBY_S8_NETHER_VARIANT" \
+    --mods "$server_dir/mods" \
+    --datapacks "$server_dir/datapacks" \
+    --live --host 127.0.0.1 --port 25575 --password skyforge-s7-local-probe \
+    --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
+fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --password skyforge-s7-local-probe --seed 817304 \
