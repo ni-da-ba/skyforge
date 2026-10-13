@@ -107,7 +107,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [control, jne, incendium]
+        variant: [control, jne, jne-mnd, incendium]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
