@@ -39,7 +39,7 @@ Download official JNE 2.4.1, Elysium API 2.0.1, and Lodestone 1.8.2 from:
   https://www.curseforge.com/minecraft/mc-mods/jadens-nether-expansion/files/8707156
   https://www.curseforge.com/minecraft/mc-mods/elysium-api/files/8707151
   https://www.curseforge.com/minecraft/mc-mods/lodestone/files/7264731
-Save the three original JARs in $downloads. JNE is All Rights Reserved; this is local review only.
+Save the three original JARs in $downloads. JNE's CurseForge metadata and upstream source license disagree; keep it local to this review only pending resolution.
 EOF
       exit 2
     fi
