@@ -551,6 +551,7 @@ check(wbyS8Pin("minecraft", "version") == "1.21.1")
 check(wbyS8Pin("neoforge", "version") == "21.1.249")
 check(wbyS8Pin("profile", "base") == "wby-s7-combat")
 val wbyS8JneMods = listOf("jadensNetherExpansion", "elysiumApi", "lodestone")
+val wbyS8MndMods = listOf("myNethersDelight")
 val wbyS8IncendiumDataPack = configurations.create("wbyS8IncendiumDataPack") {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -660,7 +661,11 @@ val wbyS7CombatMods = when (wbyS7CombatVariant) {
     else -> emptyList()
 }
 val wbyS8NetherVariant = providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() ?: "none"
-val wbyS8NetherMods = if (wbyS8NetherVariant == "jne") wbyS8JneMods else emptyList()
+val wbyS8NetherMods = when (wbyS8NetherVariant) {
+    "jne" -> wbyS8JneMods
+    "jne-mnd" -> wbyS8JneMods + wbyS8MndMods
+    else -> emptyList()
+}
 
 tasks.register<Copy>("wbyS8StageNetherDatapack") {
     group = "verification"
@@ -733,8 +738,8 @@ check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched", "fi
 check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
     "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
 }
-check(wbyS8NetherVariant in setOf("none", "control", "jne", "incendium")) {
-    "WBY S8 Nether variant must be none, control, jne, or incendium"
+check(wbyS8NetherVariant in setOf("none", "control", "jne", "jne-mnd", "incendium")) {
+    "WBY S8 Nether variant must be none, control, jne, jne-mnd, or incendium"
 }
 check(wbyS8NetherVariant == "none" || (wbyS7CombatVariant == "tacz" && wbyS7Bomd)) {
     "WBY S8 requires the cumulative S0-S7 BOMD plus selected TaCZ profile"
@@ -7606,7 +7611,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S8 Nether $wbyS8NetherVariant missing $mod on client/server: $expected"
             }
         }
-        (wbyS8JneMods - wbyS8NetherMods).forEach { mod ->
+        ((wbyS8JneMods + wbyS8MndMods) - wbyS8NetherMods).forEach { mod ->
             val expected = wbyS8Token(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S8 Nether arm leaked unselected JNE dependency $mod: $expected"
@@ -8640,8 +8645,14 @@ dependencies {
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7CombatPin(mod, "coordinate"))
         }
     }
-    if (wbyS8NetherVariant == "jne") {
+    if (wbyS8NetherVariant in setOf("jne", "jne-mnd")) {
         wbyS8JneMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS8NetherVariant == "jne-mnd") {
+        wbyS8MndMods.forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
         }
