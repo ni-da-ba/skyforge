@@ -193,74 +193,77 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 .thenComparingDouble(OpenNode::cost)
                 .thenComparingInt(OpenNode::index));
 
-        if (!priorityFlood) {
-        for (int i = 0; i < count; i++) {
-            if (!start[i]) {
-                continue;
-            }
-            best[i] = 0.0;
-            open.add(new OpenNode(
-                    i,
-                    0.0,
-                    heuristic(positions[i], endAnchor, planningSpacing)));
-        }
-
         int selectedGoal = -1;
-        while (!open.isEmpty()) {
-            OpenNode current = open.remove();
-            if (current.cost() > best[current.index()] + EPSILON) {
-                continue;
-            }
-            if (goal[current.index()]) {
-                selectedGoal = current.index();
-                break;
+        if (!priorityFlood) {
+            for (int i = 0; i < count; i++) {
+                if (!start[i]) {
+                    continue;
+                }
+                best[i] = 0.0;
+                open.add(new OpenNode(
+                        i,
+                        0.0,
+                        heuristic(positions[i], endAnchor, planningSpacing)));
             }
 
-            int cx = current.index() % width;
-            int cz = current.index() / width;
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dz == 0) {
-                        continue;
-                    }
-                    int nx = cx + dx;
-                    int nz = cz + dz;
-                    if (nx < 0 || nz < 0 || nx >= width || nz >= height) {
-                        continue;
-                    }
-                    int next = index(nx, nz, width);
-                    if (!valid[next]) {
-                        continue;
-                    }
+            while (!open.isEmpty()) {
+                OpenNode current = open.remove();
+                if (current.cost() > best[current.index()] + EPSILON) {
+                    continue;
+                }
+                if (goal[current.index()]) {
+                    selectedGoal = current.index();
+                    break;
+                }
 
-                    double stepLength = Math.hypot(dx * step, dz * step);
-                    double normalizedLength = stepLength / planningSpacing;
-                    double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
-                    double transitionCost =
-                            BASE_LENGTH_WEIGHT * normalizedLength
-                                    + 0.5
-                                            * (localCost[current.index()] + localCost[next])
-                                            * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
-                    double candidate = current.cost() + transitionCost;
-                    if (candidate < best[next] - EPSILON
-                            || (Math.abs(candidate - best[next]) <= EPSILON
-                                    && (previous[next] < 0 || current.index() < previous[next]))) {
-                        best[next] = candidate;
-                        previous[next] = current.index();
-                        open.add(new OpenNode(
-                                next,
-                                candidate,
-                                candidate + heuristic(
-                                        positions[next], endAnchor, planningSpacing)));
+                int cx = current.index() % width;
+                int cz = current.index() / width;
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        if (dx == 0 && dz == 0) {
+                            continue;
+                        }
+                        int nx = cx + dx;
+                        int nz = cz + dz;
+                        if (nx < 0 || nz < 0 || nx >= width || nz >= height) {
+                            continue;
+                        }
+                        int next = index(nx, nz, width);
+                        if (!valid[next]) {
+                            continue;
+                        }
+
+                        double stepLength = Math.hypot(dx * step, dz * step);
+                        double normalizedLength = stepLength / planningSpacing;
+                        double ascent = Math.max(
+                                0.0, elevations[next] - elevations[current.index()]);
+                        double transitionCost =
+                                BASE_LENGTH_WEIGHT * normalizedLength
+                                        + 0.5
+                                                * (localCost[current.index()] + localCost[next])
+                                                * normalizedLength
+                                        + ASCENT_WEIGHT * ascent;
+                        double candidate = current.cost() + transitionCost;
+                        if (candidate < best[next] - EPSILON
+                                || (Math.abs(candidate - best[next]) <= EPSILON
+                                        && (previous[next] < 0
+                                                || current.index() < previous[next]))) {
+                            best[next] = candidate;
+                            previous[next] = current.index();
+                            open.add(new OpenNode(
+                                    next,
+                                    candidate,
+                                    candidate + heuristic(
+                                            positions[next], endAnchor, planningSpacing)));
+                        }
                     }
                 }
             }
         }
-        }
 
         if (!priorityFlood && selectedGoal < 0) {
-            throw new IllegalStateException("terrain-aware search found no route inside the semantic corridor");
+            throw new IllegalStateException(
+                    "terrain-aware search found no route inside the semantic corridor");
         }
 
         List<Integer> pathIndices;
