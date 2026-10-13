@@ -1,6 +1,6 @@
 # WBY S8 Nether substrate human gate
 
-This gate compares the vanilla control, Jaden's Nether Expansion/Mosaic, and Incendium as mutually exclusive substrates on the cumulative S0-S7 profile. TaCZ remains in every arm. This is a world and compatibility comparison, not a recipe/balance pass or a substrate selection by the project.
+This gate compares three mutually exclusive substrate arms (vanilla control, Jaden's Nether Expansion/Mosaic, and Incendium) on the cumulative S0-S7 profile, plus a matched `control-mnd` / `jne-mnd` pair to probe the reported Powdery Cannon interaction. TaCZ remains in every arm. The MND pair is excluded from substrate ranking.
 
 ## One-time setup
 
@@ -17,6 +17,7 @@ In Git Bash, from the review checkout root, run one command per fresh world:
 
 ```bash
 bash scripts/wby-s8-diagnostic-launch.sh control
+bash scripts/wby-s8-diagnostic-launch.sh control-mnd
 bash scripts/wby-s8-diagnostic-launch.sh jne
 bash scripts/wby-s8-diagnostic-launch.sh jne-mnd
 bash scripts/wby-s8-diagnostic-launch.sh incendium
