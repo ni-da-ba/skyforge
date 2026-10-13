@@ -197,6 +197,45 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void priorityFloodCandidatesUseTheDepressionConditionedRidgeGap() {
+        SkyIslandSemanticField terrain =
+                position -> syntheticRidgeTerrain(position.x(), position.z());
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(20.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(20.0, 0.0), 0.0);
+
+        for (int divisions : new int[] {4, 8, 16}) {
+            SkyIslandGeomorphicCandidateRoute route =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain, interiority, guidance, 4.0, 6.0,
+                            start, end, divisions);
+            SkyIslandGeomorphicCandidateRoute repeat =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain, interiority, guidance, 4.0, 6.0,
+                            start, end, divisions);
+
+            assertEquals(route, repeat);
+            assertEquals(start.center(), route.points().getFirst());
+            assertEquals(end.center(), route.points().getLast());
+            assertTrue(route.maxGuidanceDeviation() <= 6.0 + EPSILON);
+            SkyIslandLocalPosition nearRidge = route.points().stream()
+                    .min(Comparator.comparingDouble(
+                            point -> Math.abs(point.x() - 10.0)))
+                    .orElseThrow();
+            assertTrue(
+                    nearRidge.z() > 2.0,
+                    "Priority-Flood should route through the positive-z outlet spill gap");
+        }
+    }
+
+    @Test
     void zeroRadiusGlobalLatticeAnchorsArePreservedExactly() {
         double planningSpacing = 4.0;
         double step = planningSpacing / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
