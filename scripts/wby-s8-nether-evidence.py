@@ -67,7 +67,7 @@ def rcon(command: str, host: str, port: int, password: str) -> str:
         return body.strip()
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--variant", choices=("control", "jne", "jne-mnd", "incendium"), required=True)
+    parser.add_argument("--variant", choices=("control", "control-mnd", "jne", "jne-mnd", "incendium"), required=True)
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--datapacks", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -98,7 +98,7 @@ def main() -> int:
         rows.append(f"mod\t{jar.name}\t{sha256(jar)}\t{','.join(sorted(ids))}\t{count_text}\t")
 
     expected = set(EXPECTED[mod] for mod in ("jadensNetherExpansion", "elysiumApi", "lodestone")) if args.variant in {"jne", "jne-mnd"} else set()
-    if args.variant == "jne-mnd":
+    if args.variant in {"control-mnd", "jne-mnd"}:
         expected.add(EXPECTED["myNethersDelight"])
     for mod_id in expected:
         if mod_id not in found:
