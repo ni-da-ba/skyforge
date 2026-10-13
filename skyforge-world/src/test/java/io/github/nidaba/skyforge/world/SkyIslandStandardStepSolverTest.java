@@ -14,7 +14,7 @@ class SkyIslandStandardStepSolverTest {
         6.012, 5.712, 5.412, 5.112, 4.812, 4.512, 4.212, 3.912, 3.612, 3.312, 3.000
     };
     private static final double[] TEST_C_PART_TWO_WATER_LEVELS_UPSTREAM_TO_DOWNSTREAM = {
-        4.718, 4.418, 4.118, 3.818, 3.518, 3.218, 2.918, 2.618, 2.318, 2.018, 1.718
+        4.700, 4.437, 4.118, 3.818, 3.518, 3.218, 2.918, 2.618, 2.319, 2.020, 1.721
     };
 
     /**
@@ -39,7 +39,7 @@ class SkyIslandStandardStepSolverTest {
      * Environment Agency Benchmark Test C, Part 2: 11 triangular sections at 15 m spacing,
      * Q=20 m³/s, n=0.035, bed slope 0.02. Its supercritical profile is controlled upstream;
      * normal depth is therefore used at the upstream boundary and the downstream stage is not
-     * imposed on the calculation. The published profile is used with a 0.02 m tolerance.
+     * imposed on the calculation. The published HEC-RAS steady profile is used with a 0.02 m tolerance.
      */
     @Test
     void reproducesEnvironmentAgencyTestCPartTwoSupercriticalProfile() {
