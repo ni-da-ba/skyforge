@@ -134,11 +134,18 @@ def main() -> int:
         commands = (
             ("nether_fortress", "execute in minecraft:the_nether run locate structure minecraft:fortress"),
             ("nether_wastes", "execute in minecraft:the_nether run locate biome minecraft:nether_wastes"),
+            ("enabled_datapacks", "datapack list enabled"),
         )
         for label, command in commands:
             response = rcon(command, args.host, args.port, args.password)
             if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
+            if label == "enabled_datapacks":
+                has_incendium = "incendium" in response.lower()
+                if args.variant == "incendium" and not has_incendium:
+                    raise SystemExit(f"Incendium ZIP is staged but is not enabled in the test world: {response}")
+                if args.variant != "incendium" and has_incendium:
+                    raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
             rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; command={command}; response={response}")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
