@@ -284,6 +284,8 @@ jobs:
           export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods"
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s8-production-server"
           export WBY_S4_MINECRAFT_DIRECTORY="$GITHUB_WORKSPACE/s4-minecraft"
+          # The shared S7 acceptance script checks the S4 resolution marker; S8 captures the same cumulative resolution output under its own name.
+          cp wby-s8-resolution.log wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
 
       - name: Upload S8 substrate integration evidence
@@ -293,6 +295,7 @@ jobs:
           name: wby-s8-nether-${{ matrix.variant }}-resolution
           path: |
             wby-s8-*.log
+            wby-s7-resolution.log
             wby-s8-nether-evidence.tsv
             wby-s8-staged-threat-jars.txt
             wby-s7-illager-evidence.tsv
