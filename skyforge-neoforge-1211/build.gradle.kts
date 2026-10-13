@@ -536,6 +536,27 @@ val wbyS7CombatCandidateMods =
     wbyS7CombatEngineeringMods + wbyS7TaczMods + wbyS7ScorchedMods + wbyS7FirepowerComponentsMods +
         wbyS7CombatDeferredMods
 
+// S8 Step A compares mutually exclusive Nether substrates on the cumulative S7 combat profile.
+val wbyS8PinFile = layout.projectDirectory.file("wby-s8-nether.properties")
+val wbyS8Pins = Properties().apply { wbyS8PinFile.asFile.inputStream().use(::load) }
+fun wbyS8Pin(mod: String, field: String): String =
+    requireNotNull(wbyS8Pins.getProperty("$mod.$field")) {
+        "missing WBY S8 Nether pin: $mod.$field in " + wbyS8PinFile.asFile
+    }
+fun wbyS8Token(mod: String): String = wbyS8Pin(mod, "coordinate").split(":").let { parts ->
+    check(parts.size == 3) { "invalid WBY S8 coordinate for $mod" }
+    parts[1] + "-" + parts[2]
+}
+check(wbyS8Pin("minecraft", "version") == "1.21.1")
+check(wbyS8Pin("neoforge", "version") == "21.1.249")
+check(wbyS8Pin("profile", "base") == "wby-s7-combat")
+val wbyS8JneMods = listOf("jadensNetherExpansion", "elysiumApi", "lodestone")
+val wbyS8IncendiumDataPack = configurations.create("wbyS8IncendiumDataPack") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    isTransitive = false
+}
+
 // The AAL artifact identity is supplied by #441's immutable released-artifact evidence. This is
 // intentionally a validation manifest, not a production dependency declaration or API contract.
 val sfImp0084AalPinFile = layout.projectDirectory.file("sf-imp-0084-aal.properties")
@@ -638,6 +659,24 @@ val wbyS7CombatMods = when (wbyS7CombatVariant) {
     "firepower" -> wbyS7CombatEngineeringMods + wbyS7FirepowerComponentsMods
     else -> emptyList()
 }
+val wbyS8NetherVariant = providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() ?: "none"
+val wbyS8NetherMods = if (wbyS8NetherVariant == "jne") wbyS8JneMods else emptyList()
+
+tasks.register<Copy>("wbyS8StageNetherDatapack") {
+    group = "verification"
+    description = "Stage the exact official Incendium data pack into the isolated S8 review profile."
+    onlyIf { wbyS8NetherVariant == "incendium" }
+    from(wbyS8IncendiumDataPack)
+    into(layout.projectDirectory.dir("$wbyS1RunDirectory/datapacks"))
+    rename { "incendium-5.4.4.zip" }
+    doLast {
+        val staged = destinationDir.resolve("incendium-5.4.4.zip")
+        check(staged.isFile) { "WBY S8 Incendium data pack was not staged: $staged" }
+        val digest = MessageDigest.getInstance("SHA-256").digest(staged.readBytes())
+            .joinToString("") { "%02x".format(it) }
+        println("WBY S8 INCENDIUM STAGING PASS sha256=$digest path=${staged.absolutePath}")
+    }
+}
 
 tasks.register<Copy>("wbyS1StagePolicy") {
     group = "verification"
@@ -693,6 +732,12 @@ check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched", "fi
 }
 check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
     "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
+}
+check(wbyS8NetherVariant in setOf("none", "control", "jne", "incendium")) {
+    "WBY S8 Nether variant must be none, control, jne, or incendium"
+}
+check(wbyS8NetherVariant == "none" || (wbyS7CombatVariant == "tacz" && wbyS7Bomd)) {
+    "WBY S8 requires the cumulative S0-S7 BOMD plus selected TaCZ profile"
 }
 check(wbyS6StructuresCivilization || wbyS6D07Variant == "none") {
     "WBY S6 D-07 variants require the opt-in S6 profile"
@@ -7300,6 +7345,8 @@ tasks.register("wbyS1ResolvePinnedMods") {
     inputs.property("wbyS7Bomd", wbyS7Bomd)
     inputs.file(wbyS7CombatPinFile)
     inputs.property("wbyS7CombatVariant", wbyS7CombatVariant)
+    inputs.file(wbyS8PinFile)
+    inputs.property("wbyS8NetherVariant", wbyS8NetherVariant)
     doLast {
         val client = wbyS1ClientRuntime.runtimeClasspath.files.map { it.name }.sorted()
         val server = wbyS1ServerRuntime.runtimeClasspath.files.map { it.name }.sorted()
@@ -7553,12 +7600,34 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S7 combat arm leaked unselected candidate $mod: $expected"
             }
         }
+        wbyS8NetherMods.forEach { mod ->
+            val expected = wbyS8Token(mod)
+            check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
+                "WBY S8 Nether $wbyS8NetherVariant missing $mod on client/server: $expected"
+            }
+        }
+        (wbyS8JneMods - wbyS8NetherMods).forEach { mod ->
+            val expected = wbyS8Token(mod)
+            check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
+                "WBY S8 Nether arm leaked unselected JNE dependency $mod: $expected"
+            }
+        }
+        if (wbyS8NetherVariant == "incendium") {
+            val pack = wbyS8IncendiumDataPack.singleFile
+            check(pack.isFile && pack.extension.equals("zip", ignoreCase = true)) {
+                "WBY S8 Incendium must resolve to the official whole .zip data pack: $pack"
+            }
+            val digest = MessageDigest.getInstance("SHA-256").digest(pack.readBytes())
+                .joinToString("") { "%02x".format(it) }
+            println("WBY S8 INCENDIUM DATAPACK PASS file=${pack.name} sha256=$digest")
+        }
         println("  clientFiles=" + client.size + " serverFiles=" + server.size)
         if (wbyS6StructuresCivilization) println("WBY S6 STRUCTURES/CIVILIZATION RESOLUTION PASS variant=$wbyS6D07Variant")
         if (wbyS7IllagerThreats) println("WBY S7 ILLAGER THREATS RESOLUTION PASS")
         if (wbyS7IceAndFire) println("WBY S7 ICE & FIRE RESOLUTION PASS")
         if (wbyS7Bomd) println("WBY S7 BOMD RESOLUTION PASS")
         if (wbyS7CombatVariant != "none") println("WBY S7 COMBAT RESOLUTION PASS variant=$wbyS7CombatVariant")
+        if (wbyS8NetherVariant != "none") println("WBY S8 NETHER RESOLUTION PASS variant=$wbyS8NetherVariant")
         if (wbyS4OrdinaryLife) println("WBY S4 ORDINARY LIFE RESOLUTION PASS")
         if (wbyS4Shaders) println("WBY S4 SHADER MOD RESOLUTION PASS (shader ZIP installed manually on client)")
         if (wbyS5OverworldEcology) println("WBY S5 OVERWORLD ECOLOGY RESOLUTION PASS")
@@ -8570,6 +8639,15 @@ dependencies {
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS7CombatPin(mod, "coordinate"))
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS7CombatPin(mod, "coordinate"))
         }
+    }
+    if (wbyS8NetherVariant == "jne") {
+        wbyS8JneMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
+    }
+    if (wbyS8NetherVariant == "incendium") {
+        add(wbyS8IncendiumDataPack.name, wbyS8Pin("incendium", "coordinate"))
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
@@ -10207,6 +10285,12 @@ tasks.register<Sync>("wbyS1StageServerMods") {
             val expected = wbyS7CombatToken(mod)
             check(staged.any { it.contains(expected) }) {
                 "WBY S7 combat server staging missing $mod token '$expected': $staged"
+            }
+        }
+        wbyS8NetherMods.forEach { mod ->
+            val expected = wbyS8Token(mod)
+            check(staged.any { it.contains(expected) }) {
+                "WBY S8 Nether server staging missing $mod token '$expected': $staged"
             }
         }
         listOf("distanthorizons", "iris", "oculus-for-simpleclouds", "simpleclouds", "betterclouds")
