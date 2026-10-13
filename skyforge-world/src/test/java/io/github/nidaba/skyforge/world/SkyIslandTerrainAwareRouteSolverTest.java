@@ -236,6 +236,63 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void priorityFloodCandidateRunsOnAcceptedAndRejectedHydrologyControls() {
+        long seed = 0x534B59464F524745L;
+        for (long islandKey : new long[] {77L, 287L}) {
+            var descriptor = SkyIslandDescriptorGenerator.derive(
+                    io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(
+                            seed, 8L, 81L, islandKey));
+            SkyIslandGeomorphicChannelNetworkPlan network =
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+            SkyIslandGeomorphicReachRoute reach = network.routes().getFirst();
+            SkyIslandSemanticChannelReach semantic = reach.semanticReach();
+            SkyIslandGeomorphicNetworkNode startNode =
+                    network.requireNode(semantic.startCellIndex());
+            SkyIslandGeomorphicNetworkNode endNode =
+                    network.requireNode(semantic.endCellIndex());
+            SkyIslandSemanticField terrain =
+                    SkyIslandPreHydrologicTerrainField.create(descriptor);
+            SkyIslandSemanticField interiority =
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
+            double corridorHalfWidth =
+                    network.planningSpacing()
+                            * SkyIslandGeomorphicChannelNetworkPlanner
+                                    .ROUTE_CORRIDOR_SPACING_FRACTION;
+
+            SkyIslandGeomorphicCandidateRoute candidate =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    startNode.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    endNode.physicalPosition(), 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL);
+            SkyIslandGeomorphicCandidateRoute repeat =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    startNode.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    endNode.physicalPosition(), 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL);
+
+            assertEquals(candidate, repeat, "key " + islandKey + " candidate must be deterministic");
+            assertEquals(startNode.physicalPosition(), candidate.points().getFirst());
+            assertEquals(endNode.physicalPosition(), candidate.points().getLast());
+            assertTrue(candidate.pathLength() > 0.0);
+            assertTrue(candidate.maxGuidanceDeviation() <= corridorHalfWidth + EPSILON);
+        }
+    }
+
+    @Test
     void zeroRadiusGlobalLatticeAnchorsArePreservedExactly() {
         double planningSpacing = 4.0;
         double step = planningSpacing / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
