@@ -9,7 +9,7 @@ This gate compares the vanilla control, Jaden's Nether Expansion/Mosaic, and Inc
 3. Put the official candidate downloads in `.skyforge-diagnostics/s8-nether-downloads`:
    - JNE arm: [JNE 2.4.1](https://www.curseforge.com/minecraft/mc-mods/jadens-nether-expansion/files/8707156), [Elysium API 2.0.1](https://www.curseforge.com/minecraft/mc-mods/elysium-api/files/8707151), and [Lodestone 1.8.2](https://www.curseforge.com/minecraft/mc-mods/lodestone/files/7264731), saved as their original downloaded JAR names.
    - Incendium arm: [official Incendium 5.4.4 ZIP](https://modrinth.com/datapack/incendium/version/7mVvV9Th), saved as `Incendium-5.4.4.zip`.
-   - The JNE project is All Rights Reserved. Use these binaries for local review only; do not republish or bundle them without permission.
+   - JNE's CurseForge metadata says All Rights Reserved, while the upstream 1.21.1 repository declares CC BY-NC-ND 4.0. Keep JNE local to this review until the license discrepancy is resolved; do not republish or bundle it.
 
 ## Launch
 
@@ -21,7 +21,7 @@ bash scripts/wby-s8-diagnostic-launch.sh jne
 bash scripts/wby-s8-diagnostic-launch.sh incendium
 ```
 
-For each run, create a NEW normal/default world (not the Skyforge preset) with seed `817304`. Do not copy worlds or Nether chunks between arms. Use matching difficulty and game mode. Let generation finish, enter the Nether, and compare the same exploration route.
+For each run, create a NEW normal/default world (not the Skyforge preset) with seed `817304`. Do not copy worlds or Nether chunks between arms. Use matching difficulty and game mode. Keep shaders disabled and Simple Clouds' cloud style set to Off (the accepted severe-artifact workaround); keep Distant Horizons and clouds enabled in all three runs. Let generation finish, enter the Nether, and compare the same exploration route.
 
 ## Review and report
 
