@@ -15,6 +15,7 @@ EXPECTED = {
     "jadensNetherExpansion": "netherexp",
     "elysiumApi": "elysium_api",
     "lodestone": "lodestone",
+    "myNethersDelight": "mynethersdelight",
 }
 
 
@@ -58,7 +59,9 @@ def main() -> int:
         count_text = ",".join(f"{kind}:{counts[kind]}" for kind in counts)
         rows.append(f"mod\t{jar.name}\t{sha256(jar)}\t{','.join(sorted(ids))}\t{count_text}\t")
 
-    expected = set(EXPECTED.values()) if args.variant == "jne" else set()
+    expected = set(EXPECTED[mod] for mod in ("jadensNetherExpansion", "elysiumApi", "lodestone")) if args.variant in {"jne", "jne-mnd"} else set()
+    if args.variant == "jne-mnd":
+        expected.add(EXPECTED["myNethersDelight"])
     for mod_id in expected:
         if mod_id not in found:
             raise SystemExit(f"S8 {args.variant} profile is missing expected mod id {mod_id}; found {sorted(found)}")
