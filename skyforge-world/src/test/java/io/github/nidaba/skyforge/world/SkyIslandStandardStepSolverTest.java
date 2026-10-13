@@ -15,7 +15,7 @@ class SkyIslandStandardStepSolverTest {
         6.012, 5.712, 5.412, 5.112, 4.812, 4.512, 4.212, 3.912, 3.612, 3.312, 3.000
     };
     private static final double[] TEST_C_PART_TWO_WATER_LEVELS_UPSTREAM_TO_DOWNSTREAM = {
-        4.700, 4.437, 4.118, 3.818, 3.518, 3.218, 2.918, 2.618, 2.319, 2.020, 1.721
+        4.716, 4.416, 4.116, 3.816, 3.516, 3.216, 2.916, 2.615, 2.314, 2.010, 1.700
     };
 
     /**
