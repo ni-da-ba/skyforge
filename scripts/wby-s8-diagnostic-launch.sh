@@ -29,7 +29,7 @@ done
 
 downloads=".skyforge-diagnostics/s8-nether-downloads"
 if [[ "$variant" == "jne" || "$variant" == "jne-mnd" ]]; then
-  patterns=('*jadens-nether-expansion*.jar' '*elysium-api*.jar' '*lodestone*.jar')
+  patterns=('*jadens-nether-expansion*.jar' '*elysium*api*.jar' '*lodestone*.jar')
   for pattern in "${patterns[@]}"; do
     mapfile -t matches < <(find "$downloads" -maxdepth 1 -type f -iname "$pattern" -print)
     if (( ${#matches[@]} != 1 )); then
