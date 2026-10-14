@@ -61,6 +61,40 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
+    void accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan plan =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
+                plan.assemblyPlan()
+                        .ordinarySpanPlan()
+                        .cascadePlan()
+                        .transitionGeometry()
+                        .topology()
+                        .skeletonPlan();
+        SkyIslandPreHydrologicTerrainField original =
+                SkyIslandPreHydrologicTerrainField.create(descriptor);
+
+        for (SkyIslandHydraulicReachGeometry realized : plan.terrainField().acceptedReaches()) {
+            SkyIslandSemanticChannelReach semantic = realized.geomorphicRoute().semanticReach();
+            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                    .filter(candidate -> candidate.geomorphicRoute().semanticReach().equals(semantic))
+                    .findFirst()
+                    .orElseThrow();
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution solution =
+                    SkyIslandGameScaleHydraulicModel.solveSourceReach(descriptor, skeleton, original);
+            int middle = realized.centerline().points().size() / 2;
+            SkyIslandLocalPosition point = realized.centerline().points().get(middle);
+            assertEquals(
+                    solution.candidate().sampleTerrainMetres(point) / descriptor.reliefBudget(),
+                    plan.terrainField().sample(point),
+                    EPSILON);
+        }
+        assertTrue(plan.postRealizationQualifications().stream()
+                .allMatch(SkyIslandGeomorphicReachQualification::accepted));
+    }
+
+    @Test
     void primary287ContributesExactlyZeroCandidateTerrain() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 287L);
         SkyIslandComponentFluvialTerrainCandidatePlan plan =

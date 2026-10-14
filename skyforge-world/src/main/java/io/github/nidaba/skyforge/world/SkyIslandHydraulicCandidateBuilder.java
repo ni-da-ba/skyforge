@@ -242,7 +242,7 @@ public final class SkyIslandHydraulicCandidateBuilder {
                 weight = 1.0 - smoothstep(t);
                 target = bed + configuration.bankfullDepthMetres();
             }
-            double candidate = raw + weight * (target - raw);
+            double candidate = Math.min(raw, raw + weight * (target - raw));
             requireWithinEditEnvelope(raw, candidate, configuration.maximumTerrainEditMetres());
             return candidate;
         }

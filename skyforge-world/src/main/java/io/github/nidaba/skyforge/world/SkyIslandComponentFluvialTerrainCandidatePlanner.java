@@ -64,6 +64,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 new ArrayList<>();
         Map<Long, SkyIslandHydraulicReachGeometry> realizedByIdentity =
                 new LinkedHashMap<>();
+        Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledByIdentity =
+                new LinkedHashMap<>();
 
         for (SkyIslandHydraulicTerminalComponent component :
                 assemblyPlan.terminalComponents()) {
@@ -84,15 +86,21 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                         reachAssembly.ordinarySpans().getFirst();
                 SkyIslandHydraulicReachSkeleton skeleton =
                         requireSkeleton(skeletons, reachAssembly.semanticReach());
-                SkyIslandHydraulicReachGeometry geometry =
-                        reconstructFullReach(skeleton, span);
                 long identity = reachAssembly.identity();
+                SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled =
+                        SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                                descriptor, skeleton, original);
+                SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
+                        descriptor, skeleton, span, original, coupled);
                 if (realizedByIdentity.put(identity, geometry) != null) {
                     throw new IllegalStateException(
                             "F4A component selection repeated reach "
                                     + reachAssembly.semanticReach().startCellIndex()
                                     + "->"
                                     + reachAssembly.semanticReach().endCellIndex());
+                }
+                if (coupledByIdentity.put(identity, coupled) != null) {
+                    throw new IllegalStateException("F4A repeated coupled hydraulic candidate");
                 }
             }
             realizedComponents.add(component);
@@ -107,7 +115,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                         reach.geomorphicRoute().semanticReach().endCellIndex()));
 
         SkyIslandQualifiedFluvialTerrainField terrainField =
-                new SkyIslandQualifiedFluvialTerrainField(original, realizedReaches);
+                new SkyIslandQualifiedFluvialTerrainField(
+                        original, realizedReaches, coupledByIdentity, descriptor.reliefBudget());
 
         List<SkyIslandGeomorphicReachQualification> postRealizationQualifications =
                 new ArrayList<>(realizedReaches.size());
@@ -155,6 +164,12 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                             .TERMINAL_TERRAIN_REQUIRED);
         }
 
+        if (component.reaches().size() != 1) {
+            reasons.add(
+                    SkyIslandComponentFluvialTerrainDeferralReason
+                            .MULTI_REACH_HYDRAULICS_REQUIRED);
+        }
+
         for (SkyIslandHydraulicReachAssembly reach : component.reaches()) {
             SkyIslandSemanticChannelReach semantic = reach.semanticReach();
             if (!reach.cascades().isEmpty()) {
@@ -167,6 +182,12 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     network.requireNode(semantic.startCellIndex());
             SkyIslandGeomorphicNetworkNode end =
                     network.requireNode(semantic.endCellIndex());
+            if (start.kind() != SkyIslandGeomorphicNetworkNodeKind.SOURCE
+                    || end.kind() != SkyIslandGeomorphicNetworkNodeKind.TERMINAL) {
+                reasons.add(
+                        SkyIslandComponentFluvialTerrainDeferralReason
+                                .SOURCE_BOUNDARY_REQUIRED);
+            }
             if (start.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
                     || end.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE) {
                 reasons.add(
@@ -193,63 +214,82 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
         return List.copyOf(reasons);
     }
 
-    private static SkyIslandHydraulicReachGeometry reconstructFullReach(
+    private static SkyIslandHydraulicReachGeometry reconstructCoupledReach(
+            SkyIslandDescriptor descriptor,
             SkyIslandHydraulicReachSkeleton skeleton,
-            SkyIslandOrdinarySpanOutcome spanOutcome) {
-        SkyIslandOrdinaryHydraulicSpan span = spanOutcome.span();
+            SkyIslandOrdinarySpanOutcome spanOutcome,
+            SkyIslandSemanticField originalTerrain,
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution solution) {
         if (spanOutcome.status() != SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
-                || Math.abs(span.parentStartStationFraction()) > EPSILON
-                || Math.abs(span.parentEndStationFraction() - 1.0) > EPSILON) {
+                || Math.abs(spanOutcome.span().parentStartStationFraction()) > EPSILON
+                || Math.abs(spanOutcome.span().parentEndStationFraction() - 1.0) > EPSILON) {
             throw new IllegalArgumentException(
                     "F4A reconstructs only full SOLVED_QUALIFIED ordinary spans");
         }
-
-        List<SkyIslandHydraulicGeometrySample> samples =
-                spanOutcome.solvedSamples();
-        if (samples.size() != skeleton.samples().size()) {
+        List<SkyIslandHydraulicGeometrySample> previousSamples = spanOutcome.solvedSamples();
+        List<SkyIslandHydraulicGeometrySkeletonSample> skeletonSamples = skeleton.samples();
+        double[] beds = solution.profile().bedElevationsMetres();
+        double[] depths = solution.profile().depthsMetres();
+        double[] stages = solution.profile().waterSurfaceElevationsMetres();
+        if (previousSamples.size() != skeletonSamples.size()
+                || beds.length != skeletonSamples.size()
+                || depths.length != skeletonSamples.size()
+                || stages.length != skeletonSamples.size()) {
             throw new IllegalStateException(
-                    "F3D full-span samples must match accepted C2 skeleton sample count");
+                    "coupled hydraulic profile must preserve complete accepted C2 station geometry");
         }
 
+        double verticalScale = descriptor.reliefBudget();
+        double maximumHalfWidth = skeleton.maximumBankfullHalfWidth();
+        List<SkyIslandHydraulicGeometrySample> samples =
+                new ArrayList<>(skeletonSamples.size());
         double maximumLowering = 0.0;
         double totalLowering = 0.0;
         double maximumSlope = 0.0;
-        for (int i = 0; i < samples.size(); i++) {
-            SkyIslandHydraulicGeometrySample sample = samples.get(i);
-            SkyIslandHydraulicGeometrySkeletonSample source =
-                    skeleton.samples().get(i);
-            if (!sample.position().equals(source.position())
-                    || Math.abs(sample.stationFraction() - source.stationFraction())
-                            > EPSILON
-                    || Math.abs(sample.relativeDischarge() - source.relativeDischarge())
-                            > EPSILON
-                    || Math.abs(sample.bankfullHalfWidth() - source.bankfullHalfWidth())
-                            > EPSILON
-                    || Math.abs(sample.waterDepthPotential() - source.waterDepthPotential())
-                            > EPSILON) {
+        double maximumDepthPotential = 0.0;
+        for (int i = 0; i < skeletonSamples.size(); i++) {
+            SkyIslandHydraulicGeometrySkeletonSample source = skeletonSamples.get(i);
+            SkyIslandHydraulicGeometrySample prior = previousSamples.get(i);
+            if (!prior.position().equals(source.position())
+                    || Math.abs(prior.stationFraction() - source.stationFraction()) > EPSILON
+                    || Math.abs(prior.relativeDischarge() - source.relativeDischarge()) > EPSILON
+                    || Math.abs(prior.bankfullHalfWidth() - source.bankfullHalfWidth()) > EPSILON
+                    || Math.abs(prior.waterDepthPotential() - source.waterDepthPotential()) > EPSILON) {
                 throw new IllegalStateException(
-                        "F3D full-span hydraulic solution must preserve accepted C2 sample geometry");
+                        "F3E-qualified span must preserve accepted C2 sample geometry");
             }
-            maximumLowering =
-                    Math.max(maximumLowering, sample.requiredCenterlineLowering());
-            totalLowering += sample.requiredCenterlineLowering();
 
+            double terrain = originalTerrain.sample(source.position());
+            double bed = beds[i] / verticalScale;
+            double depth = depths[i] / verticalScale;
+            double stage = stages[i] / verticalScale;
+            requireNormalized(bed, "candidate bed");
+            requireNormalized(depth, "solved water depth");
+            requireNormalized(stage, "candidate water surface");
+            if (!(stage > bed) || !(depth > 0.0)) {
+                throw new IllegalStateException("coupled profile must keep positive water depth above its bed");
+            }
+            double lowering = Math.max(0.0, terrain - bed);
+            SkyIslandHydraulicGeometrySample sample = new SkyIslandHydraulicGeometrySample(
+                    source.position(),
+                    source.stationFraction(),
+                    source.relativeDischarge(),
+                    maximumHalfWidth,
+                    depth,
+                    terrain,
+                    stage,
+                    bed,
+                    lowering);
+            samples.add(sample);
+            maximumLowering = Math.max(maximumLowering, lowering);
+            totalLowering += lowering;
+            maximumDepthPotential = Math.max(maximumDepthPotential, depth);
             if (i > 0) {
-                double ds =
-                        skeleton.samples().get(i).arcLength()
-                                - skeleton.samples().get(i - 1).arcLength();
+                double ds = source.arcLength() - skeletonSamples.get(i - 1).arcLength();
                 if (!(ds > 0.0)) {
-                    throw new IllegalStateException(
-                            "accepted C2 skeleton arc length must increase strictly");
+                    throw new IllegalStateException("accepted C2 skeleton arc length must increase strictly");
                 }
-                maximumSlope =
-                        Math.max(
-                                maximumSlope,
-                                Math.abs(
-                                                sample.waterSurfacePotential()
-                                                        - samples.get(i - 1)
-                                                                .waterSurfacePotential())
-                                        / ds);
+                maximumSlope = Math.max(maximumSlope, Math.abs(stage - samples.get(i - 1).waterSurfacePotential()) / ds);
             }
         }
 
@@ -261,8 +301,14 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 maximumLowering,
                 totalLowering / samples.size(),
                 maximumSlope,
-                skeleton.maximumBankfullHalfWidth(),
-                skeleton.maximumWaterDepthPotential());
+                maximumHalfWidth,
+                maximumDepthPotential);
+    }
+
+    private static void requireNormalized(double value, String name) {
+        if (!Double.isFinite(value) || value < 0.0 || value > 1.0) {
+            throw new IllegalStateException(name + " exceeds the authored relief normalization");
+        }
     }
 
     private static Map<Long, SkyIslandHydraulicReachSkeleton> indexSkeletons(

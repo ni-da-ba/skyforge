@@ -20,11 +20,27 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
 
     private final SkyIslandSemanticField originalTerrain;
     private final List<SkyIslandHydraulicReachGeometry> acceptedReaches;
+    private final java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution>
+            coupledCandidates;
+    private final double verticalScale;
 
     public SkyIslandQualifiedFluvialTerrainField(
             SkyIslandSemanticField originalTerrain,
             List<SkyIslandHydraulicReachGeometry> acceptedReaches) {
+        this(originalTerrain, acceptedReaches, java.util.Map.of(), 1.0);
+    }
+
+    public SkyIslandQualifiedFluvialTerrainField(
+            SkyIslandSemanticField originalTerrain,
+            List<SkyIslandHydraulicReachGeometry> acceptedReaches,
+            java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
+            double verticalScale) {
         this.originalTerrain = Objects.requireNonNull(originalTerrain, "originalTerrain");
+        if (!(verticalScale > 0.0) || !Double.isFinite(verticalScale)) {
+            throw new IllegalArgumentException("verticalScale must be finite and positive");
+        }
+        this.verticalScale = verticalScale;
+        this.coupledCandidates = java.util.Map.copyOf(coupledCandidates);
         this.acceptedReaches = acceptedReaches.stream()
                 .map(reach -> Objects.requireNonNull(reach, "accepted reach"))
                 .sorted(Comparator
@@ -46,7 +62,10 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
 
         Candidate selected = null;
         for (SkyIslandHydraulicReachGeometry reach : acceptedReaches) {
-            Candidate candidate = candidate(reach, position, original);
+            long identity = identity(reach.geomorphicRoute().semanticReach().startCellIndex(),
+                    reach.geomorphicRoute().semanticReach().endCellIndex());
+            Candidate candidate = candidate(
+                    reach, position, original, coupledCandidates.get(identity));
             if (candidate == null) {
                 continue;
             }
@@ -71,10 +90,11 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
         return acceptedReaches;
     }
 
-    private static Candidate candidate(
+    private Candidate candidate(
             SkyIslandHydraulicReachGeometry reach,
             SkyIslandLocalPosition position,
-            double originalTerrain) {
+            double originalTerrain,
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled) {
         Projection projection = nearestProjection(reach, position);
         if (projection == null) {
             return null;
@@ -119,6 +139,18 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
                     waterSurface + (originalTerrain - waterSurface) * blend;
             target = Math.min(originalTerrain, recoveryTarget);
             zone = SkyIslandQualifiedFluvialZone.VALLEY_RECOVERY;
+        }
+
+        if (coupled != null) {
+            double coupledTarget = coupled.candidate().sampleTerrainMetres(position) / verticalScale;
+            if (!Double.isFinite(coupledTarget) || coupledTarget < -EPSILON || coupledTarget > 1.0 + EPSILON) {
+                throw new IllegalStateException("coupled candidate terrain exceeds normalized relief bounds");
+            }
+            if (coupledTarget > originalTerrain + EPSILON) {
+                throw new IllegalStateException("coupled candidate terrain may not raise authored terrain");
+            }
+            target = Math.max(0.0, Math.min(originalTerrain, coupledTarget));
+            wet = target < waterSurface - EPSILON;
         }
 
         target = clamp01(target);
@@ -224,6 +256,10 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
 
     private static double lerp(double a, double b, double fraction) {
         return a + (b - a) * fraction;
+    }
+
+    private static long identity(int start, int end) {
+        return ((long) start << 32) ^ Integer.toUnsignedLong(end);
     }
 
     private static double clamp01(double value) {
