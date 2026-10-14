@@ -54,8 +54,14 @@ public final class SkyIslandGameScaleHydraulicModel {
                 .mapToDouble(SkyIslandHydraulicGeometrySkeletonSample::waterDepthPotential)
                 .max()
                 .orElseThrow();
-        double bottomWidthMetres = 2.0 * maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
+        double bankfullWidthMetres = 2.0 * maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
         double bankfullDepthMetres = maximumDepthPotential * verticalScale;
+        double bottomWidthMetres = bankfullWidthMetres
+                - 2.0 * SIDE_SLOPE_HORIZONTAL_TO_VERTICAL * bankfullDepthMetres;
+        if (!(bottomWidthMetres > 0.0) || !Double.isFinite(bottomWidthMetres)) {
+            throw new IllegalArgumentException(
+                    "authored bankfull width and depth cannot contain the calibrated trapezoidal section");
+        }
         double routeLengthMetres = reach.centerline().pathLength() * HORIZONTAL_METRES_PER_LOCAL_UNIT;
         double startElevationMetres = terrain.sample(reach.centerline().points().getFirst()) * verticalScale;
         double endElevationMetres = terrain.sample(reach.centerline().points().getLast()) * verticalScale;
