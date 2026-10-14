@@ -8,12 +8,13 @@ import java.util.Objects;
 import java.util.PriorityQueue;
 
 /**
- * Deterministic bounded least-cost search for a fine hydrologic route over pre-fluvial terrain.
+ * Generates deterministic fine routing candidates over pre-fluvial terrain within a bounded
+ * corridor around coarse semantic guidance.
  *
- * <p>The route remains inside a corridor around coarse semantic guidance, but ordinary coarse
- * planning positions are not mandatory waypoints. Cost strongly penalizes raw-terrain ascent and
- * local ridge occupancy, mildly prefers lower terrain, and penalizes deviation from the semantic
- * corridor center. This class does not carve terrain, solve a hydraulic grade, or rasterize blocks.
+ * <p>The existing least-cost method penalizes raw-terrain ascent and ridge occupancy. The
+ * Priority-Flood method conditions depressions to semantic outlet anchors and follows the resulting
+ * D8 receiver tree, with deterministic tie handling on flats. Neither method changes graph authority,
+ * constructs a hydraulic bed, solves a water-surface profile, or rasterizes blocks.
  */
 public final class SkyIslandTerrainAwareRouteSolver {
     public static final int FINE_DIVISIONS_PER_PLANNING_CELL = 4;
@@ -60,6 +61,36 @@ public final class SkyIslandTerrainAwareRouteSolver {
             SkyIslandGeomorphicRouteAnchor startAnchor,
             SkyIslandGeomorphicRouteAnchor endAnchor,
             int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, false);
+    }
+
+    /** Uses Priority-Flood depression conditioning and its D8 receiver tree to extract a candidate. */
+    public static SkyIslandGeomorphicCandidateRoute solvePriorityFloodAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell) {
+        return solveAtResolution(
+                terrain, interiority, guidance, planningSpacing, corridorHalfWidth,
+                startAnchor, endAnchor, divisionsPerPlanningCell, true);
+    }
+
+    private static SkyIslandGeomorphicCandidateRoute solveAtResolution(
+            SkyIslandSemanticField terrain,
+            SkyIslandSemanticField interiority,
+            List<SkyIslandLocalPosition> guidance,
+            double planningSpacing,
+            double corridorHalfWidth,
+            SkyIslandGeomorphicRouteAnchor startAnchor,
+            SkyIslandGeomorphicRouteAnchor endAnchor,
+            int divisionsPerPlanningCell,
+            boolean priorityFlood) {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(interiority, "interiority");
         guidance = List.copyOf(guidance);
@@ -163,88 +194,136 @@ public final class SkyIslandTerrainAwareRouteSolver {
                 .thenComparingDouble(OpenNode::cost)
                 .thenComparingInt(OpenNode::index));
 
-        for (int i = 0; i < count; i++) {
-            if (!start[i]) {
-                continue;
-            }
-            best[i] = 0.0;
-            open.add(new OpenNode(
-                    i,
-                    0.0,
-                    heuristic(positions[i], endAnchor, planningSpacing)));
-        }
-
         int selectedGoal = -1;
-        while (!open.isEmpty()) {
-            OpenNode current = open.remove();
-            if (current.cost() > best[current.index()] + EPSILON) {
-                continue;
-            }
-            if (goal[current.index()]) {
-                selectedGoal = current.index();
-                break;
+        if (!priorityFlood) {
+            for (int i = 0; i < count; i++) {
+                if (!start[i]) {
+                    continue;
+                }
+                best[i] = 0.0;
+                open.add(new OpenNode(
+                        i,
+                        0.0,
+                        heuristic(positions[i], endAnchor, planningSpacing)));
             }
 
-            int cx = current.index() % width;
-            int cz = current.index() / width;
-            for (int dz = -1; dz <= 1; dz++) {
-                for (int dx = -1; dx <= 1; dx++) {
-                    if (dx == 0 && dz == 0) {
-                        continue;
-                    }
-                    int nx = cx + dx;
-                    int nz = cz + dz;
-                    if (nx < 0 || nz < 0 || nx >= width || nz >= height) {
-                        continue;
-                    }
-                    int next = index(nx, nz, width);
-                    if (!valid[next]) {
-                        continue;
-                    }
+            while (!open.isEmpty()) {
+                OpenNode current = open.remove();
+                if (current.cost() > best[current.index()] + EPSILON) {
+                    continue;
+                }
+                if (goal[current.index()]) {
+                    selectedGoal = current.index();
+                    break;
+                }
 
-                    double stepLength = Math.hypot(dx * step, dz * step);
-                    double normalizedLength = stepLength / planningSpacing;
-                    double ascent = Math.max(0.0, elevations[next] - elevations[current.index()]);
-                    double transitionCost =
-                            BASE_LENGTH_WEIGHT * normalizedLength
-                                    + 0.5
-                                            * (localCost[current.index()] + localCost[next])
-                                            * normalizedLength
-                                    + ASCENT_WEIGHT * ascent;
-                    double candidate = current.cost() + transitionCost;
-                    if (candidate < best[next] - EPSILON
-                            || (Math.abs(candidate - best[next]) <= EPSILON
-                                    && (previous[next] < 0 || current.index() < previous[next]))) {
-                        best[next] = candidate;
-                        previous[next] = current.index();
-                        open.add(new OpenNode(
-                                next,
-                                candidate,
-                                candidate + heuristic(
-                                        positions[next], endAnchor, planningSpacing)));
+                int cx = current.index() % width;
+                int cz = current.index() / width;
+                for (int dz = -1; dz <= 1; dz++) {
+                    for (int dx = -1; dx <= 1; dx++) {
+                        if (dx == 0 && dz == 0) {
+                            continue;
+                        }
+                        int nx = cx + dx;
+                        int nz = cz + dz;
+                        if (nx < 0 || nz < 0 || nx >= width || nz >= height) {
+                            continue;
+                        }
+                        int next = index(nx, nz, width);
+                        if (!valid[next]) {
+                            continue;
+                        }
+
+                        double stepLength = Math.hypot(dx * step, dz * step);
+                        double normalizedLength = stepLength / planningSpacing;
+                        double ascent = Math.max(
+                                0.0, elevations[next] - elevations[current.index()]);
+                        double transitionCost =
+                                BASE_LENGTH_WEIGHT * normalizedLength
+                                        + 0.5
+                                                * (localCost[current.index()] + localCost[next])
+                                                * normalizedLength
+                                        + ASCENT_WEIGHT * ascent;
+                        double candidate = current.cost() + transitionCost;
+                        if (candidate < best[next] - EPSILON
+                                || (Math.abs(candidate - best[next]) <= EPSILON
+                                        && (previous[next] < 0
+                                                || current.index() < previous[next]))) {
+                            best[next] = candidate;
+                            previous[next] = current.index();
+                            open.add(new OpenNode(
+                                    next,
+                                    candidate,
+                                    candidate + heuristic(
+                                            positions[next], endAnchor, planningSpacing)));
+                        }
                     }
                 }
             }
         }
 
-        if (selectedGoal < 0) {
-            throw new IllegalStateException("terrain-aware search found no route inside the semantic corridor");
+        if (!priorityFlood && selectedGoal < 0) {
+            throw new IllegalStateException(
+                    "terrain-aware search found no route inside the semantic corridor");
         }
 
-        List<Integer> reversed = new ArrayList<>();
-        int cursor = selectedGoal;
-        while (cursor >= 0) {
-            reversed.add(cursor);
-            if (start[cursor]) {
-                break;
+        List<Integer> pathIndices;
+        double candidateCost;
+        if (priorityFlood) {
+            double[] incrementalFlow = new double[count];
+            for (int i = 0; i < count; i++) {
+                if (valid[i]) {
+                    incrementalFlow[i] = 1.0;
+                }
             }
-            cursor = previous[cursor];
-        }
-        if (reversed.isEmpty() || !start[reversed.getLast()]) {
-            throw new IllegalStateException("terrain-aware route is missing a start predecessor chain");
+            SkyIslandPriorityFloodConditioner.Result conditioned =
+                    SkyIslandPriorityFloodConditioner.condition(
+                            elevations, incrementalFlow, width, height, valid, goal);
+            double[] spillSurface = conditioned.conditionedElevations();
+            int selectedStart = -1;
+            double bestSpill = Double.POSITIVE_INFINITY;
+            double bestLocalCost = Double.POSITIVE_INFINITY;
+            for (int i = 0; i < count; i++) {
+                if (!start[i]) {
+                    continue;
+                }
+                if (spillSurface[i] < bestSpill - EPSILON
+                        || (Math.abs(spillSurface[i] - bestSpill) <= EPSILON
+                                && localCost[i] < bestLocalCost - EPSILON)) {
+                    selectedStart = i;
+                    bestSpill = spillSurface[i];
+                    bestLocalCost = localCost[i];
+                }
+            }
+            if (selectedStart < 0) {
+                throw new IllegalStateException("Priority-Flood route has no valid source anchor");
+            }
+            pathIndices = conditioned.traceToOutlet(selectedStart);
+            if (!goal[pathIndices.getLast()]) {
+                throw new IllegalStateException("Priority-Flood candidate did not reach a semantic outlet anchor");
+            }
+            candidateCost = pathCost(pathIndices, positions, elevations, localCost, planningSpacing);
+        } else {
+            List<Integer> reversed = new ArrayList<>();
+            int cursor = selectedGoal;
+            while (cursor >= 0) {
+                reversed.add(cursor);
+                if (start[cursor]) {
+                    break;
+                }
+                cursor = previous[cursor];
+            }
+            if (reversed.isEmpty() || !start[reversed.getLast()]) {
+                throw new IllegalStateException("terrain-aware route is missing a start predecessor chain");
+            }
+            pathIndices = new ArrayList<>(reversed.size());
+            for (int i = reversed.size() - 1; i >= 0; i--) {
+                pathIndices.add(reversed.get(i));
+            }
+            candidateCost = best[selectedGoal];
         }
 
-        List<SkyIslandLocalPosition> points = new ArrayList<>(reversed.size());
+        List<SkyIslandLocalPosition> points = new ArrayList<>(pathIndices.size());
         double pathLength = 0.0;
         double maxDeviation = 0.0;
         int uphillSteps = 0;
@@ -254,8 +333,7 @@ public final class SkyIslandTerrainAwareRouteSolver {
         SkyIslandLocalPosition prior = null;
         double priorElevation = 0.0;
 
-        for (int i = reversed.size() - 1; i >= 0; i--) {
-            int node = reversed.get(i);
+        for (int node : pathIndices) {
             SkyIslandLocalPosition point = positions[node];
             points.add(point);
             maxDeviation = Math.max(maxDeviation, guidanceDeviation[node]);
@@ -278,13 +356,35 @@ public final class SkyIslandTerrainAwareRouteSolver {
         int stepCount = Math.max(1, points.size() - 1);
         return new SkyIslandGeomorphicCandidateRoute(
                 points,
-                best[selectedGoal],
+                candidateCost,
                 pathLength,
                 maxDeviation,
                 (double) uphillSteps / stepCount,
                 (double) ridgeSamples / points.size(),
                 valleySum / points.size(),
                 maxUphillStep);
+    }
+
+    private static double pathCost(
+            List<Integer> path,
+            SkyIslandLocalPosition[] positions,
+            double[] elevations,
+            double[] localCost,
+            double planningSpacing) {
+        double total = 0.0;
+        for (int i = 1; i < path.size(); i++) {
+            int prior = path.get(i - 1);
+            int next = path.get(i);
+            double stepLength = Math.hypot(
+                    positions[next].x() - positions[prior].x(),
+                    positions[next].z() - positions[prior].z());
+            double normalizedLength = stepLength / planningSpacing;
+            double ascent = Math.max(0.0, elevations[next] - elevations[prior]);
+            total += BASE_LENGTH_WEIGHT * normalizedLength
+                    + 0.5 * (localCost[prior] + localCost[next]) * normalizedLength
+                    + ASCENT_WEIGHT * ascent;
+        }
+        return total;
     }
 
     private static boolean anchorContains(

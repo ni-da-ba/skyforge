@@ -197,6 +197,102 @@ class SkyIslandTerrainAwareRouteSolverTest {
     }
 
     @Test
+    void priorityFloodCandidatesUseTheDepressionConditionedRidgeGap() {
+        SkyIslandSemanticField terrain =
+                position -> syntheticRidgeTerrain(position.x(), position.z());
+        SkyIslandSemanticField interiority = ignored -> 1.0;
+        List<SkyIslandLocalPosition> guidance = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(20.0, 0.0));
+        SkyIslandGeomorphicRouteAnchor start =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(0.0, 0.0), 0.0);
+        SkyIslandGeomorphicRouteAnchor end =
+                new SkyIslandGeomorphicRouteAnchor(
+                        new SkyIslandLocalPosition(20.0, 0.0), 0.0);
+
+        for (int divisions : new int[] {4, 8, 16}) {
+            SkyIslandGeomorphicCandidateRoute route =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain, interiority, guidance, 4.0, 6.0,
+                            start, end, divisions);
+            SkyIslandGeomorphicCandidateRoute repeat =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain, interiority, guidance, 4.0, 6.0,
+                            start, end, divisions);
+
+            assertEquals(route, repeat);
+            assertEquals(start.center(), route.points().getFirst());
+            assertEquals(end.center(), route.points().getLast());
+            assertTrue(route.maxGuidanceDeviation() <= 6.0 + EPSILON);
+            SkyIslandLocalPosition nearRidge = route.points().stream()
+                    .min(Comparator.comparingDouble(
+                            point -> Math.abs(point.x() - 10.0)))
+                    .orElseThrow();
+            assertTrue(
+                    nearRidge.z() > 2.0,
+                    "Priority-Flood should route through the positive-z outlet spill gap");
+        }
+    }
+
+    @Test
+    void priorityFloodCandidateRunsOnAcceptedAndRejectedHydrologyControls() {
+        long seed = 0x534B59464F524745L;
+        for (long islandKey : new long[] {77L, 287L}) {
+            var descriptor = SkyIslandDescriptorGenerator.derive(
+                    io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity.of(
+                            seed, 8L, 81L, islandKey));
+            SkyIslandGeomorphicChannelNetworkPlan network =
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+            SkyIslandGeomorphicReachRoute reach = network.routes().getFirst();
+            SkyIslandSemanticChannelReach semantic = reach.semanticReach();
+            SkyIslandGeomorphicNetworkNode startNode =
+                    network.requireNode(semantic.startCellIndex());
+            SkyIslandGeomorphicNetworkNode endNode =
+                    network.requireNode(semantic.endCellIndex());
+            SkyIslandSemanticField terrain =
+                    SkyIslandPreHydrologicTerrainField.create(descriptor);
+            SkyIslandSemanticField interiority =
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
+            double corridorHalfWidth =
+                    network.planningSpacing()
+                            * SkyIslandGeomorphicChannelNetworkPlanner
+                                    .ROUTE_CORRIDOR_SPACING_FRACTION;
+
+            SkyIslandGeomorphicCandidateRoute candidate =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    startNode.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    endNode.physicalPosition(), 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL);
+            SkyIslandGeomorphicCandidateRoute repeat =
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                            terrain,
+                            interiority,
+                            semantic.guidancePoints(),
+                            network.planningSpacing(),
+                            corridorHalfWidth,
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    startNode.physicalPosition(), 0.0),
+                            new SkyIslandGeomorphicRouteAnchor(
+                                    endNode.physicalPosition(), 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL);
+
+            assertEquals(candidate, repeat, "key " + islandKey + " candidate must be deterministic");
+            assertEquals(startNode.physicalPosition(), candidate.points().getFirst());
+            assertEquals(endNode.physicalPosition(), candidate.points().getLast());
+            assertTrue(candidate.pathLength() > 0.0);
+            assertTrue(candidate.maxGuidanceDeviation() <= corridorHalfWidth + EPSILON);
+        }
+    }
+
+    @Test
     void zeroRadiusGlobalLatticeAnchorsArePreservedExactly() {
         double planningSpacing = 4.0;
         double step = planningSpacing / SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL;
