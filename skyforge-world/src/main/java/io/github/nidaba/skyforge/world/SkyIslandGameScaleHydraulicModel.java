@@ -13,8 +13,8 @@ import java.util.Objects;
  * assumptions. The slope may steepen from its 2H:1V maximum to preserve a positive bottom width
  * within the authored bankfull top width. Relative discharge is scaled so the reach's maximum
  * authored flow equals its bankfull Manning capacity at the measured source-to-outlet grade.
- * Source reaches use Manning
- * normal depth as their upstream boundary. This is a calibrated game model, not a claim that the
+ * Source reaches use Manning normal depth as their upstream boundary, with flow regime
+ * classified from the normal-depth Froude number. This is a calibrated game model, not a claim that the
  * descriptor supplies physical rainfall or material measurements.
  */
 public final class SkyIslandGameScaleHydraulicModel {
@@ -22,6 +22,7 @@ public final class SkyIslandGameScaleHydraulicModel {
     public static final double HORIZONTAL_METRES_PER_LOCAL_UNIT = 1.0;
     public static final double MAXIMUM_SIDE_SLOPE_HORIZONTAL_TO_VERTICAL = 2.0;
     private static final double MINIMUM_BANKFULL_BOTTOM_WIDTH_FRACTION = 0.10;
+    private static final double GRAVITY_METRES_PER_SECOND_SQUARED = 9.81;
     private static final double MINIMUM_BED_SLOPE = 1.0e-5;
     private static final double MINIMUM_RELATIVE_DISCHARGE = 0.015;
     private static final double VALLEY_BLEND_WIDTH_FACTOR = 2.0;
@@ -147,11 +148,22 @@ public final class SkyIslandGameScaleHydraulicModel {
                         return section.wettedPerimeter(depthMetres);
                     }
                 });
+        double sourceArea = section.area(sourceDepth);
+        double sourceFroudeSquared = discharges[0] * discharges[0] * section.topWidth(sourceDepth)
+                / (GRAVITY_METRES_PER_SECOND_SQUARED * sourceArea * sourceArea * sourceArea);
+        if (!(sourceFroudeSquared > 0.0) || !Double.isFinite(sourceFroudeSquared)
+                || Math.abs(sourceFroudeSquared - 1.0) <= 1.0e-10) {
+            throw new IllegalArgumentException(
+                    "source normal depth is critical or numerically indistinguishable from critical flow");
+        }
+        SkyIslandStandardStepSolver.FlowRegime sourceRegime = sourceFroudeSquared < 1.0
+                ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
+                : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL;
         SkyIslandHydraulicCandidateBuilder.Profile profile = candidate.solve(
                 discharges,
                 MANNING_ROUGHNESS,
                 sourceDepth,
-                SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL,
+                sourceRegime,
                 SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
         return new SourceReachSolution(
                 candidate,
@@ -161,7 +173,9 @@ public final class SkyIslandGameScaleHydraulicModel {
                 sideSlope,
                 minimumGrade,
                 sourceEnergySlope,
-                sourceDepth);
+                sourceDepth,
+                Math.sqrt(sourceFroudeSquared),
+                sourceRegime);
     }
 
     private static double manningDischarge(
@@ -209,6 +223,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         public SourceReachSolution {
             candidate = Objects.requireNonNull(candidate, "candidate");
             profile = Objects.requireNonNull(profile, "profile");
+            flowRegime = Objects.requireNonNull(flowRegime, "flowRegime");
             dischargesCubicMetresPerSecond = dischargesCubicMetresPerSecond.clone();
         }
 
