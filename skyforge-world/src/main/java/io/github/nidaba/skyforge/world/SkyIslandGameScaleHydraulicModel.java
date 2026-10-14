@@ -184,7 +184,7 @@ public final class SkyIslandGameScaleHydraulicModel {
 
     /**
      * Finds the largest positive scale of the authored relative discharge profile whose standard-step
-     * solution remains at or below the candidate's bankfull depth. Manning normal depth supplies the
+     * solution remains below the lower candidate bank at every station. Manning normal depth supplies the
      * source boundary at each trial; the source Froude number selects the physically consistent
      * gradually-varied-flow branch. This is a monotone bracket-and-bisect calibration, not a
      * correction to the hydraulic equations.
@@ -210,7 +210,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         }
         if (best == null) {
             throw new IllegalArgumentException(
-                    "no positive source-normal-depth profile fits within candidate bankfull depth");
+                    "no positive source-normal-depth profile fits within candidate bank elevations");
         }
 
         double infeasibleScale = 1.0;
@@ -218,7 +218,7 @@ public final class SkyIslandGameScaleHydraulicModel {
             double trialScale = (lowerScale + infeasibleScale) * 0.5;
             HydraulicProfile trial = tryProfile(
                     candidate, capacityScaledDischarges, section, trialScale);
-            if (trial != null && maximumDepth(trial.profile()) <= bankfullDepthMetres) {
+            if (trial != null && fitsWithinBankLimits(trial.profile(), containedDepthLimits)) {
                 lowerScale = trialScale;
                 best = trial;
             } else {
