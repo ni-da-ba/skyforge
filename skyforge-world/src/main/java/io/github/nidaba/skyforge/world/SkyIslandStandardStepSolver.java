@@ -86,6 +86,34 @@ public final class SkyIslandStandardStepSolver {
     }
 
     /**
+     * Solves constant-discharge flow with an explicit boundary location.
+     *
+     * @param boundaryLocation location of the supplied depth boundary
+     */
+    public static double[] solve(
+            double[] stationsMetres,
+            double[] bedElevationsMetres,
+            CrossSection[] sections,
+            double dischargeCubicMetresPerSecond,
+            double manningRoughness,
+            double boundaryDepthMetres,
+            FlowRegime regime,
+            BoundaryLocation boundaryLocation) {
+        Objects.requireNonNull(stationsMetres, "stationsMetres");
+        double[] dischargeAtStations = new double[stationsMetres.length];
+        java.util.Arrays.fill(dischargeAtStations, dischargeCubicMetresPerSecond);
+        return solve(
+                stationsMetres,
+                bedElevationsMetres,
+                sections,
+                dischargeAtStations,
+                manningRoughness,
+                boundaryDepthMetres,
+                regime,
+                boundaryLocation);
+    }
+
+    /**
      * Solves depths at all supplied stations using the steady standard-step energy equation.
      * Discharge may change between stations; energy head includes the local discharge at each end,
      * and reach friction uses HEC-RAS average conveyance.
