@@ -4,8 +4,8 @@ This gate compares three mutually exclusive substrate arms (vanilla control, Jad
 
 ## One-time setup
 
-1. Clone or update the S8 branch in a separate review checkout and download the GitHub Actions artifact `wby-s8-control-client-profile` from the exact-head S8 run.
-2. Extract the artifact into the checkout's `skyforge-neoforge-1211` directory. Confirm `skyforge-neoforge-1211/run-wby-s8-control/mods` exists.
+1. Clone or update the S8 branch in a separate review checkout and download the `wby-s8-control-client-profile` artifact from successful [S8 Actions run 38493898354](https://github.com/ni-da-ba/skyforge/actions/runs/38493898354). The branch has a later documentation-only commit; the tested runtime code is unchanged.
+2. Extract the artifact contents directly into `skyforge-neoforge-1211/run-wby-s8-control/` (the archive paths are rooted at that profile). Confirm `skyforge-neoforge-1211/run-wby-s8-control/mods` exists.
 3. Put the mandatory [Sky Whale Retexture](https://modrinth.com/resourcepack/sky-whale-retexture) ZIP in `.skyforge-diagnostics/s8-nether-downloads/Sky-Whale-Retexture.zip`. The launcher copies it into every S8 run directory. The pack is an owner-selected required local review dependency because the cumulative S0-S7 profile includes Sky Whales; do not redistribute it.
 4. Put the official candidate downloads in `.skyforge-diagnostics/s8-nether-downloads`:
    - JNE arm: [JNE 2.4.1](https://www.curseforge.com/minecraft/mc-mods/jadens-nether-expansion/files/8707156), [Elysium API 2.0.1](https://www.curseforge.com/minecraft/mc-mods/elysium-api/files/8707151), and [Lodestone 1.8.2](https://www.curseforge.com/minecraft/mc-mods/lodestone/files/7264731), saved as their original downloaded JAR names. For the matched `control-mnd` and `jne-mnd` pair, also download [My Nether's Delight 1.10.4.1](https://www.curseforge.com/minecraft/mc-mods/my-nethers-delight/files/8854319). Farmer's Delight is already in the cumulative profile.
