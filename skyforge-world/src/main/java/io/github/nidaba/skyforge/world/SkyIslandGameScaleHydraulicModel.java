@@ -14,8 +14,8 @@ import java.util.Objects;
  * within the authored bankfull top width. Relative discharge is scaled so the reach's maximum
  * authored flow equals its bankfull Manning capacity at the measured source-to-outlet grade.
  * Source reaches use Manning normal depth as their upstream boundary, with flow regime
- * classified from the normal-depth Froude number. This is a calibrated game model, not a claim that the
- * descriptor supplies physical rainfall or material measurements.
+ * classified from the normal-depth Froude number. This is a calibrated game model, not a claim that
+ * the descriptor supplies physical rainfall or material measurements.
  */
 public final class SkyIslandGameScaleHydraulicModel {
     public static final double MANNING_ROUGHNESS = 0.035;
@@ -158,34 +158,143 @@ public final class SkyIslandGameScaleHydraulicModel {
                         return section.wettedPerimeter(depthMetres);
                     }
                 });
-        double sourceArea = section.area(sourceDepth);
-        double sourceFroudeSquared = discharges[0] * discharges[0] * section.topWidth(sourceDepth)
-                / (GRAVITY_METRES_PER_SECOND_SQUARED * sourceArea * sourceArea * sourceArea);
-        if (!(sourceFroudeSquared > 0.0) || !Double.isFinite(sourceFroudeSquared)
-                || Math.abs(sourceFroudeSquared - 1.0) <= 1.0e-10) {
-            throw new IllegalArgumentException(
-                    "source normal depth is critical or numerically indistinguishable from critical flow");
-        }
-        SkyIslandStandardStepSolver.FlowRegime sourceRegime = sourceFroudeSquared < 1.0
-                ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
-                : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL;
-        SkyIslandHydraulicCandidateBuilder.Profile profile = candidate.solve(
+        HydraulicProfile hydraulic = calibrateBankfullContainedProfile(
+                candidate,
                 discharges,
-                MANNING_ROUGHNESS,
-                sourceDepth,
-                sourceRegime,
-                SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
+                section,
+                bankfullDepthMetres);
         return new SourceReachSolution(
                 candidate,
-                profile,
-                discharges,
+                hydraulic.profile(),
+                hydraulic.discharges(),
                 MANNING_ROUGHNESS,
                 sideSlope,
                 minimumGrade,
                 sourceEnergySlope,
-                sourceDepth,
-                Math.sqrt(sourceFroudeSquared),
-                sourceRegime);
+                hydraulic.sourceNormalDepth(),
+                hydraulic.sourceFroudeNumber(),
+                hydraulic.flowRegime());
+    }
+
+    /**
+     * Finds the largest positive scale of the authored relative discharge profile whose standard-step
+     * solution remains at or below the candidate's bankfull depth. Manning normal depth supplies the
+     * source boundary at each trial; the source Froude number selects the physically consistent
+     * gradually-varied-flow branch. This is a monotone bracket-and-bisect calibration, not a
+     * correction to the hydraulic equations.
+     */
+    private static HydraulicProfile calibrateBankfullContainedProfile(
+            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
+            double[] capacityScaledDischarges,
+            SkyIslandStandardStepSolver.CrossSection section,
+            double bankfullDepthMetres) {
+        double lowerScale = 0.0;
+        double upperScale = 1.0;
+        HydraulicProfile best = null;
+        for (int shrink = 0; shrink < 40; shrink++) {
+            double trialScale = upperScale;
+            HydraulicProfile trial = tryProfile(
+                    candidate, capacityScaledDischarges, section, trialScale);
+            if (trial != null && maximumDepth(trial.profile()) <= bankfullDepthMetres) {
+                lowerScale = trialScale;
+                best = trial;
+                break;
+            }
+            upperScale *= 0.5;
+        }
+        if (best == null) {
+            throw new IllegalArgumentException(
+                    "no positive source-normal-depth profile fits within candidate bankfull depth");
+        }
+
+        double infeasibleScale = 1.0;
+        for (int iteration = 0; iteration < 40; iteration++) {
+            double trialScale = (lowerScale + infeasibleScale) * 0.5;
+            HydraulicProfile trial = tryProfile(
+                    candidate, capacityScaledDischarges, section, trialScale);
+            if (trial != null && maximumDepth(trial.profile()) <= bankfullDepthMetres) {
+                lowerScale = trialScale;
+                best = trial;
+            } else {
+                infeasibleScale = trialScale;
+            }
+        }
+        return best;
+    }
+
+    private static HydraulicProfile tryProfile(
+            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
+            double[] capacityScaledDischarges,
+            SkyIslandStandardStepSolver.CrossSection section,
+            double dischargeScale) {
+        double[] discharges = Arrays.stream(capacityScaledDischarges)
+                .map(value -> value * dischargeScale)
+                .toArray();
+        try {
+            double sourceNormalDepth = SkyIslandManningNormalDepthSolver.solve(
+                    discharges[0],
+                    MANNING_ROUGHNESS,
+                    candidateSourceSlope(candidate),
+                    new SkyIslandManningNormalDepthSolver.CrossSection() {
+                        @Override
+                        public double area(double depthMetres) {
+                            return section.area(depthMetres);
+                        }
+
+                        @Override
+                        public double wettedPerimeter(double depthMetres) {
+                            return section.wettedPerimeter(depthMetres);
+                        }
+                    });
+            double area = section.area(sourceNormalDepth);
+            double froudeSquared = discharges[0] * discharges[0] * section.topWidth(sourceNormalDepth)
+                    / (GRAVITY_METRES_PER_SECOND_SQUARED * area * area * area);
+            if (!(froudeSquared > 0.0) || !Double.isFinite(froudeSquared)
+                    || Math.abs(froudeSquared - 1.0) <= 1.0e-10) {
+                return null;
+            }
+            SkyIslandStandardStepSolver.FlowRegime regime = froudeSquared < 1.0
+                    ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
+                    : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL;
+            SkyIslandHydraulicCandidateBuilder.Profile profile = candidate.solve(
+                    discharges,
+                    MANNING_ROUGHNESS,
+                    sourceNormalDepth,
+                    regime,
+                    SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
+            return new HydraulicProfile(
+                    profile, discharges, sourceNormalDepth, Math.sqrt(froudeSquared), regime);
+        } catch (IllegalArgumentException noRegimeConsistentProfile) {
+            return null;
+        }
+    }
+
+    private static double candidateSourceSlope(SkyIslandHydraulicCandidateBuilder.Candidate candidate) {
+        double[] stations = candidate.stationsMetres();
+        double[] beds = candidate.bedElevationsMetres();
+        double slope = (beds[0] - beds[1]) / (stations[1] - stations[0]);
+        if (!(slope > 0.0) || !Double.isFinite(slope)) {
+            throw new IllegalArgumentException(
+                    "source normal depth requires a positive finite candidate-bed energy slope");
+        }
+        return slope;
+    }
+
+    private static double maximumDepth(SkyIslandHydraulicCandidateBuilder.Profile profile) {
+        return Arrays.stream(profile.depthsMetres()).max().orElseThrow();
+    }
+
+    private record HydraulicProfile(
+            SkyIslandHydraulicCandidateBuilder.Profile profile,
+            double[] discharges,
+            double sourceNormalDepth,
+            double sourceFroudeNumber,
+            SkyIslandStandardStepSolver.FlowRegime flowRegime) {
+        private HydraulicProfile {
+            profile = Objects.requireNonNull(profile, "profile");
+            discharges = discharges.clone();
+            flowRegime = Objects.requireNonNull(flowRegime, "flowRegime");
+        }
     }
 
     private static double manningDischarge(
