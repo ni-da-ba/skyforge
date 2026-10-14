@@ -121,6 +121,22 @@ class SkyIslandStandardStepSolverTest {
     }
 
     @Test
+    void supercriticalProfilesRequireAnUpstreamBoundary() {
+        SkyIslandStandardStepSolver.CrossSection section = rectangularSection(5.0);
+        org.junit.jupiter.api.Assertions.assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandStandardStepSolver.solve(
+                        new double[] {0.0, 1.0},
+                        new double[] {1.0, 0.0},
+                        new SkyIslandStandardStepSolver.CrossSection[] {section, section},
+                        20.0,
+                        0.035,
+                        0.1,
+                        SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL,
+                        SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM));
+    }
+
+    @Test
     void upstreamNormalDepthMaintainsUniformSubcriticalFlow() {
         double discharge = 5.0;
         double roughness = 0.035;
