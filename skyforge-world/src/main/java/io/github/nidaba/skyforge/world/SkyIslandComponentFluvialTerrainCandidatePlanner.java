@@ -312,7 +312,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
 
     private static void requireNormalized(double value, String name) {
         if (!Double.isFinite(value) || value < 0.0 || value > 1.0) {
-            throw new IllegalStateException(name + " exceeds the authored relief normalization");
+            throw new IllegalStateException(
+                    name + " value " + value + " is outside authored relief normalization [0, 1]");
         }
     }
 
