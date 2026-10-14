@@ -10,9 +10,10 @@ import java.util.Objects;
  * Discharge is specified at each section and linearly represented between adjacent sections;
  * Manning roughness is constant between stations. The solver assumes hydrostatic pressure,
  * kinetic-energy coefficient alpha=1, no lateral-inflow momentum correction, and no local
- * transition/junction losses. A subcritical profile is marched upstream from its downstream depth
- * boundary; a supercritical profile is marched downstream from its upstream depth boundary. Each
- * step must have a root that remains in the requested regime; otherwise the solve fails closed.
+ * transition/junction losses. Subcritical profiles use a downstream boundary by default,
+ * but may march downstream from an explicitly authored upstream condition; supercritical profiles
+ * require an upstream boundary. Each step must have a root that remains in the requested regime;
+ * otherwise the solve fails closed.
  *
  * <p>Friction loss uses HEC-RAS's average-conveyance method:
  * {@code Sf_bar = ((Q_up + Q_down) / (K_up + K_down))^2}, with
