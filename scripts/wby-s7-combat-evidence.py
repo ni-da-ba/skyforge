@@ -411,6 +411,12 @@ def main() -> int:
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--control-mods", type=Path)
     parser.add_argument("--staged-mods", type=Path)
+    parser.add_argument(
+        "--expected-profile-overlay-mod-id",
+        action="append",
+        default=[],
+        help="Exact non-combat overlay mod ID expected in the staged profile.",
+    )
     parser.add_argument("--runtime-root", type=Path, required=True)
     parser.add_argument("--rcon-host")
     parser.add_argument("--rcon-port", type=int, default=25575)
@@ -519,8 +525,14 @@ def main() -> int:
             raise SystemExit(f"candidate server staging omitted baseline mod IDs: {sorted(control_ids - staged_ids)}")
 
         profile_delta = staged_ids - control_ids
-        expected_additions = set(active_mod_ids)
-        pending = list(active_mod_ids)
+        overlay_ids = set(args.expected_profile_overlay_mod_id)
+        if overlay_ids & control_ids:
+            raise SystemExit(
+                "profile overlay IDs must be absent from the S7 control: "
+                f"{sorted(overlay_ids & control_ids)}"
+            )
+        expected_additions = set(active_mod_ids) | overlay_ids
+        pending = list(expected_additions)
         visited: set[str] = set()
         while pending:
             mod_id = pending.pop()
