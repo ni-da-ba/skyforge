@@ -9,16 +9,19 @@ import java.util.Objects;
  * Explicit game-scale mapping for the steady open-channel candidate model.
  *
  * <p>Minecraft horizontal units map one-to-one to metres; normalized relief maps to the
- * descriptor's authored relief budget. Manning n and trapezoidal side slope are explicit model
- * assumptions. Relative discharge is scaled so the reach's maximum authored flow equals its
- * bankfull Manning capacity at the measured source-to-outlet grade. Source reaches use Manning
+ * descriptor's authored relief budget. Manning n and trapezoidal bank slope are explicit model
+ * assumptions. The slope may steepen from its 2H:1V maximum to preserve a positive bottom width
+ * within the authored bankfull top width. Relative discharge is scaled so the reach's maximum
+ * authored flow equals its bankfull Manning capacity at the measured source-to-outlet grade.
+ * Source reaches use Manning
  * normal depth as their upstream boundary. This is a calibrated game model, not a claim that the
  * descriptor supplies physical rainfall or material measurements.
  */
 public final class SkyIslandGameScaleHydraulicModel {
     public static final double MANNING_ROUGHNESS = 0.035;
     public static final double HORIZONTAL_METRES_PER_LOCAL_UNIT = 1.0;
-    public static final double SIDE_SLOPE_HORIZONTAL_TO_VERTICAL = 2.0;
+    public static final double MAXIMUM_SIDE_SLOPE_HORIZONTAL_TO_VERTICAL = 2.0;
+    private static final double MINIMUM_BANKFULL_BOTTOM_WIDTH_FRACTION = 0.10;
     private static final double MINIMUM_BED_SLOPE = 1.0e-5;
     private static final double MINIMUM_RELATIVE_DISCHARGE = 0.015;
     private static final double VALLEY_BLEND_WIDTH_FACTOR = 2.0;
@@ -56,8 +59,12 @@ public final class SkyIslandGameScaleHydraulicModel {
                 .orElseThrow();
         double bankfullWidthMetres = 2.0 * maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
         double bankfullDepthMetres = maximumDepthPotential * verticalScale;
+        double sideSlope = Math.min(
+                MAXIMUM_SIDE_SLOPE_HORIZONTAL_TO_VERTICAL,
+                (1.0 - MINIMUM_BANKFULL_BOTTOM_WIDTH_FRACTION)
+                        * bankfullWidthMetres / (2.0 * bankfullDepthMetres));
         double bottomWidthMetres = bankfullWidthMetres
-                - 2.0 * SIDE_SLOPE_HORIZONTAL_TO_VERTICAL * bankfullDepthMetres;
+                - 2.0 * sideSlope * bankfullDepthMetres;
         if (!(bottomWidthMetres > 0.0) || !Double.isFinite(bottomWidthMetres)) {
             throw new IllegalArgumentException(
                     "authored bankfull width and depth cannot contain the calibrated trapezoidal section");
@@ -75,8 +82,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         double maximumTerrainEditMetres =
                 limits.maximumCenterlineLoweringPotential() * verticalScale;
 
-        double bankEdge = bottomWidthMetres * 0.5
-                + SIDE_SLOPE_HORIZONTAL_TO_VERTICAL * bankfullDepthMetres;
+        double bankEdge = bottomWidthMetres * 0.5 + sideSlope * bankfullDepthMetres;
         double valleyHalfWidthMetres = bankEdge
                 + Math.max(bottomWidthMetres, bankfullDepthMetres) * VALLEY_BLEND_WIDTH_FACTOR;
         SkyIslandHydraulicCandidateBuilder.Configuration configuration =
@@ -87,7 +93,7 @@ public final class SkyIslandGameScaleHydraulicModel {
                         minimumGrade,
                         0.0,
                         bottomWidthMetres,
-                        SIDE_SLOPE_HORIZONTAL_TO_VERTICAL,
+                        sideSlope,
                         bankfullDepthMetres,
                         valleyHalfWidthMetres,
                         maximumTerrainEditMetres);
@@ -115,7 +121,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         }
         double bankfullDischarge = manningDischarge(
                 bottomWidthMetres,
-                SIDE_SLOPE_HORIZONTAL_TO_VERTICAL,
+                sideSlope,
                 bankfullDepthMetres,
                 sourceEnergySlope,
                 MANNING_ROUGHNESS);
@@ -125,7 +131,7 @@ public final class SkyIslandGameScaleHydraulicModel {
                         / maximumRelativeDischarge)
                 .toArray();
         SkyIslandStandardStepSolver.CrossSection section = trapezoidalSection(
-                bottomWidthMetres, SIDE_SLOPE_HORIZONTAL_TO_VERTICAL);
+                bottomWidthMetres, sideSlope);
         double sourceDepth = SkyIslandManningNormalDepthSolver.solve(
                 discharges[0],
                 MANNING_ROUGHNESS,
@@ -152,6 +158,7 @@ public final class SkyIslandGameScaleHydraulicModel {
                 profile,
                 discharges,
                 MANNING_ROUGHNESS,
+                sideSlope,
                 minimumGrade,
                 sourceEnergySlope,
                 sourceDepth);
@@ -195,6 +202,7 @@ public final class SkyIslandGameScaleHydraulicModel {
             SkyIslandHydraulicCandidateBuilder.Profile profile,
             double[] dischargesCubicMetresPerSecond,
             double manningRoughness,
+            double sideSlopeHorizontalToVertical,
             double minimumBedSlope,
             double sourceEnergySlope,
             double sourceNormalDepthMetres) {

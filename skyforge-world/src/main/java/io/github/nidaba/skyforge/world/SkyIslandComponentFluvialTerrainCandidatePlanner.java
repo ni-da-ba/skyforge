@@ -13,9 +13,9 @@ import java.util.Objects;
 /**
  * Builds the first F3E-component-gated continuous fluvial terrain candidate.
  *
- * <p>F4A deliberately supports only complete ordinary reaches with no confluence or CASCADE terrain
- * ownership. It reconstructs hydraulic geometry from F3D solved samples and accepted C2 skeletons,
- * then re-applies D2 after the cross-section terrain response is composed.
+ * <p>F4A deliberately supports only complete single-source ordinary reaches with no confluence or
+ * CASCADE terrain ownership. It builds channel/valley candidates from accepted C2 geometry, solves
+ * hydraulics against each candidate bed, then reapplies D2 to that same candidate terrain surface.
  *
  * <p>The returned field remains quantitative evidence only and is not Minecraft authority.
  */

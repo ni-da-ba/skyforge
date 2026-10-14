@@ -291,6 +291,20 @@ jobs:
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
             --no-configuration-cache
+      - name: Print focused hydraulic test failure details
+        if: failure()
+        run: |
+          for report in \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandStandardStepSolverTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandUnitWidthStandardStepSolverTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
+          do
+            if [ -f "$report" ]; then
+              echo "===== $report ====="
+              cat "$report"
+            fi
+          done
       - name: Prepare and verify persisted key-77 F4K review specimen
         if: success()
         timeout-minutes: 15
