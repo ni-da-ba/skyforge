@@ -61,7 +61,7 @@ fi
 if [[ "$variant" == "incendium" ]]; then
   pack="$downloads/Incendium-5.4.4.zip"
   if [[ ! -f "$pack" ]]; then
-    echo "Download the official whole Incendium 5.4.4 data pack from https://modrinth.com/datapack/incendium/version/7mVvV9Th and save it as $pack" >&2
+    echo "Download the official whole Incendium 5.4.4 data pack from https://modrinth.com/datapack/incendium/version/pwe1kTJE and save it as $pack" >&2
     exit 2
   fi
   echo "During Create World > Data Packs > Open Pack Folder, copy this ZIP into the opened world datapacks folder:"
