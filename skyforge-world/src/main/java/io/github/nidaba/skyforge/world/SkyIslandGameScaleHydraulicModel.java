@@ -37,12 +37,6 @@ public final class SkyIslandGameScaleHydraulicModel {
         Objects.requireNonNull(descriptor, "descriptor");
         Objects.requireNonNull(reach, "reach");
         Objects.requireNonNull(terrain, "terrain");
-        if (!descriptor.equals(reach.geomorphicRoute().semanticReach().profiles().getFirst()
-                .segment().descriptor())) {
-            // Segment descriptors are not the graph's authority in every legacy construction path;
-            // the profile's descriptor check is intentionally performed only when available.
-        }
-
         double verticalScale = descriptor.reliefBudget();
         double[] relativeDischarges = reach.samples().stream()
                 .mapToDouble(SkyIslandHydraulicGeometrySkeletonSample::relativeDischarge)
