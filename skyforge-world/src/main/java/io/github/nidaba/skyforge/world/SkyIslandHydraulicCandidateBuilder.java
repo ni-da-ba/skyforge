@@ -154,8 +154,8 @@ public final class SkyIslandHydraulicCandidateBuilder {
             requireNonNegative(maximumTerrainEditMetres, "maximum terrain edit");
             double bankEdge = bottomWidthMetres * 0.5
                     + sideSlopeHorizontalToVertical * bankfullDepthMetres;
-            if (!Double.isFinite(valleyHalfWidthMetres) || valleyHalfWidthMetres < bankEdge) {
-                throw new IllegalArgumentException("valley half-width must reach the bankfull section edge");
+            if (!Double.isFinite(valleyHalfWidthMetres) || valleyHalfWidthMetres <= bankEdge) {
+                throw new IllegalArgumentException("valley half-width must exceed the bankfull section edge");
             }
         }
 
