@@ -137,7 +137,12 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 + "->"
                                 + semantic.endCellIndex()
                                 + ": "
-                                + qualification.violations());
+                                + qualification.violations()
+                                + " (bank-containment deficit="
+                                + diagnostics.maximumBankContainmentDeficitWorldUnits()
+                                + " world units, maximum depth/width="
+                                + diagnostics.maximumDepthToBankfullWidthRatio()
+                                + ")");
             }
             postRealizationQualifications.add(qualification);
         }
