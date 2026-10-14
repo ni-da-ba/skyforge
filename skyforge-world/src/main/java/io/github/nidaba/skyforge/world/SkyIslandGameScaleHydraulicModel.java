@@ -120,11 +120,21 @@ public final class SkyIslandGameScaleHydraulicModel {
             throw new IllegalArgumentException(
                     "source normal depth requires a positive finite candidate-bed energy slope");
         }
+        double limitingBankfullSlope = Double.POSITIVE_INFINITY;
+        for (int i = 1; i < candidateBeds.length; i++) {
+            double localSlope = (candidateBeds[i - 1] - candidateBeds[i])
+                    / (candidateStations[i] - candidateStations[i - 1]);
+            limitingBankfullSlope = Math.min(limitingBankfullSlope, localSlope);
+        }
+        if (!(limitingBankfullSlope > 0.0) || !Double.isFinite(limitingBankfullSlope)) {
+            throw new IllegalArgumentException(
+                    "bankfull capacity requires positive finite grades throughout the candidate reach");
+        }
         double bankfullDischarge = manningDischarge(
                 bottomWidthMetres,
                 sideSlope,
                 bankfullDepthMetres,
-                sourceEnergySlope,
+                limitingBankfullSlope,
                 MANNING_ROUGHNESS);
         double[] discharges = Arrays.stream(relativeDischarges)
                 .map(value -> bankfullDischarge
