@@ -26,6 +26,7 @@ public final class SkyIslandStandardStepSolver {
     private static final int MAXIMUM_BRACKET_EXPANSIONS = 128;
     private static final int MAXIMUM_BISECTION_ITERATIONS = 128;
     private static final double DEPTH_TOLERANCE_METRES = 1.0e-10;
+    private static final double ENERGY_TOLERANCE_METRES = 1.0e-9;
 
     private SkyIslandStandardStepSolver() {}
 
@@ -268,6 +269,21 @@ public final class SkyIslandStandardStepSolver {
             double roughness) {
         double upstreamEnergy = upstreamBed
                 + specificEnergy(upstreamDepth, upstreamSection, upstreamDischarge);
+        double boundaryResidual = supercriticalResidual(
+                upstreamDepth,
+                stationLength,
+                downstreamBed,
+                upstreamEnergy,
+                upstreamDepth,
+                upstreamSection,
+                downstreamSection,
+                upstreamDischarge,
+                downstreamDischarge,
+                roughness);
+        if (Math.abs(boundaryResidual) <= ENERGY_TOLERANCE_METRES) {
+            return upstreamDepth;
+        }
+
         double lower = criticalDepth(downstreamDischarge, downstreamSection);
         double lowerResidual = supercriticalResidual(
                 lower, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
