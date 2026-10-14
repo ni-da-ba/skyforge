@@ -338,56 +338,6 @@ public final class SkyIslandGameScaleHydraulicModel {
         return slope;
     }
 
-    private static boolean fitsWithinBankLimits(
-            SkyIslandHydraulicCandidateBuilder.Profile profile,
-            double[] maximumContainedDepthsMetres) {
-        double[] depths = profile.depthsMetres();
-        if (depths.length != maximumContainedDepthsMetres.length) {
-            throw new IllegalArgumentException("bank limits must align with hydraulic profile stations");
-        }
-        for (int i = 0; i < depths.length; i++) {
-            if (depths[i] > maximumContainedDepthsMetres[i] + 1.0e-9) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    private static double[] maximumContainedDepths(
-            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
-            List<SkyIslandLocalPosition> points,
-            double[] beds,
-            double bankProbeDistance,
-            double allowedDeficitMetres) {
-        double[] limits = new double[points.size()];
-        for (int i = 0; i < points.size(); i++) {
-            SkyIslandLocalPosition before = points.get(i == 0 ? 0 : i - 1);
-            SkyIslandLocalPosition after = points.get(i == points.size() - 1 ? i : i + 1);
-            double dx = after.x() - before.x();
-            double dz = after.z() - before.z();
-            double length = Math.hypot(dx, dz);
-            if (!(length > 0.0)) {
-                throw new IllegalArgumentException("channel tangent must be finite and non-zero");
-            }
-            double normalX = -dz / length;
-            double normalZ = dx / length;
-            SkyIslandLocalPosition leftBank = new SkyIslandLocalPosition(
-                    points.get(i).x() + normalX * bankProbeDistance,
-                    points.get(i).z() + normalZ * bankProbeDistance);
-            SkyIslandLocalPosition rightBank = new SkyIslandLocalPosition(
-                    points.get(i).x() - normalX * bankProbeDistance,
-                    points.get(i).z() - normalZ * bankProbeDistance);
-            double lowerBank = Math.min(
-                    candidate.sampleTerrainMetres(leftBank),
-                    candidate.sampleTerrainMetres(rightBank));
-            limits[i] = lowerBank - beds[i] + allowedDeficitMetres;
-            if (!Double.isFinite(limits[i])) {
-                throw new IllegalArgumentException("candidate bank depth limit must be finite");
-            }
-        }
-        return limits;
-    }
-
     private record HydraulicProfile(
             SkyIslandHydraulicCandidateBuilder.Profile profile,
             double[] discharges,
