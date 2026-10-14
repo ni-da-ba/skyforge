@@ -74,17 +74,17 @@ class SkyIslandHydraulicCandidateBuilderTest {
                         1.0, 10.0, 0.0, 0.01, 1.0,
                         0.0, 2.0, 5.0, 20.0, 5.0));
 
-        assertEquals(3.95, candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 0.0)), 1.0e-12);
-        assertEquals(4.95, candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 2.0)), 1.0e-12);
+        assertEquals(4.0, candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 0.0)), 1.0e-12);
+        assertEquals(5.0, candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 2.0)), 1.0e-12);
         assertEquals(5.0, candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 20.0)), 1.0e-12);
         assertArrayEquals(
-                new double[] {4.0, 3.9},
+                new double[] {4.05, 3.95},
                 candidate.bedElevationsMetres(),
                 1.0e-12);
 
         double[] escaped = candidate.bedElevationsMetres();
         escaped[0] = 1000.0;
-        assertEquals(4.0, candidate.bedElevationsMetres()[0], 1.0e-12);
+        assertEquals(4.05, candidate.bedElevationsMetres()[0], 1.0e-12);
     }
 
     @Test
