@@ -7705,7 +7705,8 @@ wbyS1StageClientMods.configure {
         (if (wbyS7IllagerThreats) wbyS7AllMods.map(::wbyS7Token) else emptyList()) +
         (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList()) +
         (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList()) +
-        wbyS7CombatMods.map(::wbyS7CombatToken)
+        wbyS7CombatMods.map(::wbyS7CombatToken) +
+        wbyS8NetherMods.map(::wbyS8Token)
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
