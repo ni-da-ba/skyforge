@@ -218,10 +218,11 @@ public final class SkyIslandGameScaleHydraulicModel {
         double lowerScale = 0.0;
         double upperScale = 1.0;
         HydraulicProfile best = null;
+        StringBuilder lastFailure = new StringBuilder("no trial attempted");
         for (int shrink = 0; shrink < 40; shrink++) {
             double trialScale = upperScale;
             HydraulicProfile trial = tryProfile(
-                    candidate, capacityScaledDischarges, section, trialScale);
+                    candidate, capacityScaledDischarges, section, trialScale, lastFailure);
             if (trial != null && fitsWithinBankLimits(trial.profile(), containedDepthLimits)) {
                 lowerScale = trialScale;
                 best = trial;
@@ -231,14 +232,18 @@ public final class SkyIslandGameScaleHydraulicModel {
         }
         if (best == null) {
             throw new IllegalArgumentException(
-                    "no positive source-normal-depth profile fits within candidate bank elevations");
+                    "no positive source-normal-depth profile fits within candidate bank elevations; "
+                            + "minimum available bank depth="
+                            + Arrays.stream(containedDepthLimits).min().orElseThrow()
+                            + " metres; last trial failure="
+                            + lastFailure);
         }
 
         double infeasibleScale = 1.0;
-        for (int iteration = 0; iteration < 40; iteration++) {
+        for (int iteration = 0; iteration < 24; iteration++) {
             double trialScale = (lowerScale + infeasibleScale) * 0.5;
             HydraulicProfile trial = tryProfile(
-                    candidate, capacityScaledDischarges, section, trialScale);
+                    candidate, capacityScaledDischarges, section, trialScale, lastFailure);
             if (trial != null && fitsWithinBankLimits(trial.profile(), containedDepthLimits)) {
                 lowerScale = trialScale;
                 best = trial;
@@ -253,7 +258,8 @@ public final class SkyIslandGameScaleHydraulicModel {
             SkyIslandHydraulicCandidateBuilder.Candidate candidate,
             double[] capacityScaledDischarges,
             SkyIslandStandardStepSolver.CrossSection section,
-            double dischargeScale) {
+            double dischargeScale,
+            StringBuilder lastFailure) {
         double[] discharges = Arrays.stream(capacityScaledDischarges)
                 .map(value -> value * dischargeScale)
                 .toArray();
@@ -278,6 +284,10 @@ public final class SkyIslandGameScaleHydraulicModel {
                     / (GRAVITY_METRES_PER_SECOND_SQUARED * area * area * area);
             if (!(froudeSquared > 0.0) || !Double.isFinite(froudeSquared)
                     || Math.abs(froudeSquared - 1.0) <= 1.0e-10) {
+                lastFailure.setLength(0);
+                lastFailure.append("source normal depth is critical or non-finite (Fr^2=")
+                        .append(froudeSquared)
+                        .append(')');
                 return null;
             }
             SkyIslandStandardStepSolver.FlowRegime regime = froudeSquared < 1.0
@@ -292,6 +302,8 @@ public final class SkyIslandGameScaleHydraulicModel {
             return new HydraulicProfile(
                     profile, discharges, sourceNormalDepth, Math.sqrt(froudeSquared), regime);
         } catch (IllegalArgumentException noRegimeConsistentProfile) {
+            lastFailure.setLength(0);
+            lastFailure.append(noRegimeConsistentProfile.getMessage());
             return null;
         }
     }
