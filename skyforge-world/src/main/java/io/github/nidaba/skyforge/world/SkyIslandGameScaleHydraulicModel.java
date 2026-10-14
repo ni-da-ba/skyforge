@@ -153,12 +153,14 @@ public final class SkyIslandGameScaleHydraulicModel {
                 limits.maximumBankContainmentDeficitWorldUnits(),
                 configuration.bankfullDepthMetres());
         if (requiredIncision > 1.0e-8) {
+            double maximumNonnegativeIncision = Math.max(0.0, Arrays.stream(candidateBeds).min().orElseThrow());
+            double appliedIncision = Math.min(requiredIncision, maximumNonnegativeIncision);
             configuration = new SkyIslandHydraulicCandidateBuilder.Configuration(
                     configuration.horizontalMetresPerLocalUnit(),
                     configuration.verticalMetresPerNormalizedUnit(),
                     configuration.verticalDatumMetres(),
                     configuration.minimumBedSlope(),
-                    configuration.upstreamIncisionMetres() + requiredIncision,
+                    configuration.upstreamIncisionMetres() + appliedIncision,
                     configuration.bottomWidthMetres(),
                     configuration.sideSlopeHorizontalToVertical(),
                     configuration.bankfullDepthMetres(),
@@ -166,6 +168,31 @@ public final class SkyIslandGameScaleHydraulicModel {
                     configuration.maximumTerrainEditMetres());
             candidate = SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
             candidateBeds = candidate.bedElevationsMetres();
+            if (requiredIncision > appliedIncision + 1.0e-8) {
+                double bankLimitedDepth = Math.min(
+                        bankfullDepthMetres,
+                        minimumAvailableBankDepth(
+                                candidate,
+                                points,
+                                candidateBeds,
+                                bankProbeDistance,
+                                limits.maximumBankContainmentDeficitWorldUnits()));
+                if (!(bankLimitedDepth > 0.0) || !Double.isFinite(bankLimitedDepth)) {
+                    throw new IllegalArgumentException(
+                            "normalized-floor candidate has no positive bank-contained flow depth");
+                }
+                double bankLimitedDischarge = manningDischarge(
+                        bottomWidthMetres,
+                        sideSlope,
+                        bankLimitedDepth,
+                        limitingBankfullSlope,
+                        MANNING_ROUGHNESS);
+                discharges = Arrays.stream(relativeDischarges)
+                        .map(value -> bankLimitedDischarge
+                                * Math.max(MINIMUM_RELATIVE_DISCHARGE, value)
+                                / maximumRelativeDischarge)
+                        .toArray();
+            }
             hydraulic = solveSourceNormalProfile(candidate, discharges, section);
             double remainingBankDeficit = maximumBankDeficit(
                     candidate,
@@ -176,7 +203,7 @@ public final class SkyIslandGameScaleHydraulicModel {
             if (remainingBankDeficit
                     > limits.maximumBankContainmentDeficitWorldUnits() + 1.0e-8) {
                 throw new IllegalArgumentException(
-                        "candidate channel remains overbank after bounded incision; deficit="
+                        "candidate channel remains overbank after normalized-floor capacity calibration; deficit="
                                 + remainingBankDeficit
                                 + " world units");
             }
@@ -269,6 +296,23 @@ public final class SkyIslandGameScaleHydraulicModel {
             required = Math.max(required, deficit);
         }
         return required;
+    }
+
+    private static double minimumAvailableBankDepth(
+            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
+            List<SkyIslandLocalPosition> points,
+            double[] beds,
+            double bankProbeDistance,
+            double allowedDeficit) {
+        double minimumDepth = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition[] banks = bankProbes(points, i, bankProbeDistance);
+            double lowerBank = Math.min(
+                    candidate.sampleTerrainMetres(banks[0]),
+                    candidate.sampleTerrainMetres(banks[1]));
+            minimumDepth = Math.min(minimumDepth, lowerBank - beds[i] + allowedDeficit);
+        }
+        return minimumDepth;
     }
 
     private static double maximumBankDeficit(
