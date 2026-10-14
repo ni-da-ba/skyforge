@@ -111,9 +111,51 @@ public final class SkyIslandGameScaleHydraulicModel {
                 reach.geomorphicRoute().route().maxUphillStep());
         SkyIslandHydraulicCandidateBuilder.Candidate candidate =
                 SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
+        double[] candidateBeds = candidate.bedElevationsMetres();
+        double bankProbeDistance = maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
+        double[] containedDepthLimits = maximumContainedDepths(
+                candidate,
+                points,
+                candidateBeds,
+                bankProbeDistance,
+                limits.maximumBankContainmentDeficitWorldUnits());
+        double minimumAvailableDepth =
+                Arrays.stream(containedDepthLimits).min().orElseThrow();
+        if (minimumAvailableDepth < 0.0) {
+            double requiredIncision = -minimumAvailableDepth + 1.0e-6;
+            if (requiredIncision > maximumTerrainEditMetres) {
+                throw new IllegalArgumentException(
+                        "candidate banks require "
+                                + requiredIncision
+                                + " metres of incision, exceeding the accepted terrain-edit envelope "
+                                + maximumTerrainEditMetres);
+            }
+            configuration = new SkyIslandHydraulicCandidateBuilder.Configuration(
+                    configuration.horizontalMetresPerLocalUnit(),
+                    configuration.verticalMetresPerNormalizedUnit(),
+                    configuration.verticalDatumMetres(),
+                    configuration.minimumBedSlope(),
+                    requiredIncision,
+                    configuration.bottomWidthMetres(),
+                    configuration.sideSlopeHorizontalToVertical(),
+                    configuration.bankfullDepthMetres(),
+                    configuration.valleyHalfWidthMetres(),
+                    configuration.maximumTerrainEditMetres());
+            candidate = SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
+            candidateBeds = candidate.bedElevationsMetres();
+            containedDepthLimits = maximumContainedDepths(
+                    candidate,
+                    points,
+                    candidateBeds,
+                    bankProbeDistance,
+                    limits.maximumBankContainmentDeficitWorldUnits());
+            if (Arrays.stream(containedDepthLimits).min().orElseThrow() < -1.0e-8) {
+                throw new IllegalArgumentException(
+                        "candidate banks remain below the channel bed after bounded incision");
+            }
+        }
 
         double[] candidateStations = candidate.stationsMetres();
-        double[] candidateBeds = candidate.bedElevationsMetres();
         double sourceEnergySlope =
                 (candidateBeds[0] - candidateBeds[1]) / (candidateStations[1] - candidateStations[0]);
         if (!(sourceEnergySlope > 0.0) || !Double.isFinite(sourceEnergySlope)) {
@@ -143,27 +185,6 @@ public final class SkyIslandGameScaleHydraulicModel {
                 .toArray();
         SkyIslandStandardStepSolver.CrossSection section = trapezoidalSection(
                 bottomWidthMetres, sideSlope);
-        double sourceDepth = SkyIslandManningNormalDepthSolver.solve(
-                discharges[0],
-                MANNING_ROUGHNESS,
-                sourceEnergySlope,
-                new SkyIslandManningNormalDepthSolver.CrossSection() {
-                    @Override
-                    public double area(double depthMetres) {
-                        return section.area(depthMetres);
-                    }
-
-                    @Override
-                    public double wettedPerimeter(double depthMetres) {
-                        return section.wettedPerimeter(depthMetres);
-                    }
-                });
-        double[] containedDepthLimits = maximumContainedDepths(
-                candidate,
-                points,
-                candidateBeds,
-                maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT,
-                limits.maximumBankContainmentDeficitWorldUnits());
         HydraulicProfile hydraulic = calibrateBankfullContainedProfile(
                 candidate,
                 discharges,
