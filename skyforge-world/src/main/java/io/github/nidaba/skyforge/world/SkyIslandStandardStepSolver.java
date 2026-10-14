@@ -33,6 +33,12 @@ public final class SkyIslandStandardStepSolver {
         SUPERCRITICAL
     }
 
+    /** Boundary datum location controlling the direction in which the standard-step profile is marched. */
+    public enum BoundaryLocation {
+        UPSTREAM,
+        DOWNSTREAM
+    }
+
     /** Wetted geometry at a cross section, all in SI units. */
     public interface CrossSection {
         /** Wetted area, in square metres. */
@@ -101,11 +107,43 @@ public final class SkyIslandStandardStepSolver {
             double manningRoughness,
             double boundaryDepthMetres,
             FlowRegime regime) {
+        BoundaryLocation defaultBoundary = regime == FlowRegime.SUBCRITICAL
+                ? BoundaryLocation.DOWNSTREAM
+                : BoundaryLocation.UPSTREAM;
+        return solve(
+                stationsMetres,
+                bedElevationsMetres,
+                sections,
+                dischargeAtStationsCubicMetresPerSecond,
+                manningRoughness,
+                boundaryDepthMetres,
+                regime,
+                defaultBoundary);
+    }
+
+    /**
+     * Solves a steady gradually varied profile from the specified physical boundary.
+     *
+     * <p>Subcritical profiles may be marched in either direction when the caller's boundary
+     * assumption is explicit. Source-normal-depth use is an initial-value assumption, not a
+     * substitute for a downstream stage when backwater control is present. Supercritical profiles
+     * remain upstream-controlled.
+     */
+    public static double[] solve(
+            double[] stationsMetres,
+            double[] bedElevationsMetres,
+            CrossSection[] sections,
+            double[] dischargeAtStationsCubicMetresPerSecond,
+            double manningRoughness,
+            double boundaryDepthMetres,
+            FlowRegime regime,
+            BoundaryLocation boundaryLocation) {
         Objects.requireNonNull(stationsMetres, "stationsMetres");
         Objects.requireNonNull(bedElevationsMetres, "bedElevationsMetres");
         Objects.requireNonNull(sections, "sections");
         Objects.requireNonNull(dischargeAtStationsCubicMetresPerSecond, "dischargeAtStationsCubicMetresPerSecond");
         Objects.requireNonNull(regime, "regime");
+        Objects.requireNonNull(boundaryLocation, "boundaryLocation");
         requirePositiveFinite(manningRoughness, "Manning roughness");
         requirePositiveFinite(boundaryDepthMetres, "boundary depth");
         if (stationsMetres.length < 2
@@ -126,7 +164,11 @@ public final class SkyIslandStandardStepSolver {
             }
         }
 
-        int boundaryIndex = regime == FlowRegime.SUBCRITICAL ? sections.length - 1 : 0;
+        if (regime == FlowRegime.SUPERCRITICAL
+                && boundaryLocation != BoundaryLocation.UPSTREAM) {
+            throw new IllegalArgumentException("supercritical profiles require an upstream boundary");
+        }
+        int boundaryIndex = boundaryLocation == BoundaryLocation.UPSTREAM ? 0 : sections.length - 1;
         double boundaryCriticalDepth = criticalDepth(
                 dischargeAtStationsCubicMetresPerSecond[boundaryIndex], sections[boundaryIndex]);
         if (regime == FlowRegime.SUBCRITICAL && !(boundaryDepthMetres > boundaryCriticalDepth)) {
@@ -137,7 +179,8 @@ public final class SkyIslandStandardStepSolver {
         }
 
         double[] depths = new double[stationsMetres.length];
-        if (regime == FlowRegime.SUBCRITICAL) {
+        if (regime == FlowRegime.SUBCRITICAL
+                && boundaryLocation == BoundaryLocation.DOWNSTREAM) {
             int last = depths.length - 1;
             depths[last] = boundaryDepthMetres;
             for (int i = last - 1; i >= 0; i--) {
@@ -146,6 +189,20 @@ public final class SkyIslandStandardStepSolver {
                         bedElevationsMetres[i],
                         bedElevationsMetres[i + 1],
                         depths[i + 1],
+                        sections[i],
+                        sections[i + 1],
+                        dischargeAtStationsCubicMetresPerSecond[i],
+                        dischargeAtStationsCubicMetresPerSecond[i + 1],
+                        manningRoughness);
+            }
+        } else if (regime == FlowRegime.SUBCRITICAL) {
+            depths[0] = boundaryDepthMetres;
+            for (int i = 0; i < depths.length - 1; i++) {
+                depths[i + 1] = solveSubcriticalDownstreamStep(
+                        stationsMetres[i + 1] - stationsMetres[i],
+                        bedElevationsMetres[i],
+                        bedElevationsMetres[i + 1],
+                        depths[i],
                         sections[i],
                         sections[i + 1],
                         dischargeAtStationsCubicMetresPerSecond[i],
@@ -168,6 +225,48 @@ public final class SkyIslandStandardStepSolver {
             }
         }
         return depths;
+    }
+
+    private static double solveSubcriticalDownstreamStep(
+            double stationLength,
+            double upstreamBed,
+            double downstreamBed,
+            double upstreamDepth,
+            CrossSection upstreamSection,
+            CrossSection downstreamSection,
+            double upstreamDischarge,
+            double downstreamDischarge,
+            double roughness) {
+        double upstreamEnergy = upstreamBed
+                + specificEnergy(upstreamDepth, upstreamSection, upstreamDischarge);
+        double lower = criticalDepth(downstreamDischarge, downstreamSection);
+        double lowerResidual = supercriticalResidual(
+                lower, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness);
+        if (!(lowerResidual < 0.0)) {
+            throw new IllegalArgumentException(
+                    "upstream-controlled subcritical standard step has no same-regime energy root");
+        }
+
+        double upper = Math.max(Math.max(lower * 2.0, upstreamDepth), 1.0);
+        double upperResidual = supercriticalResidual(
+                upper, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness);
+        int expansions = 0;
+        while (upperResidual < 0.0 && expansions < MAXIMUM_BRACKET_EXPANSIONS) {
+            upper *= 2.0;
+            upperResidual = supercriticalResidual(
+                    upper, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
+                    upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness);
+            expansions++;
+        }
+        if (upperResidual < 0.0) {
+            throw new IllegalArgumentException(
+                    "upstream-controlled subcritical standard step could not bracket energy root");
+        }
+        return bisect(lower, upper, value -> supercriticalResidual(
+                value, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness));
     }
 
     private static double solveSubcriticalStep(
