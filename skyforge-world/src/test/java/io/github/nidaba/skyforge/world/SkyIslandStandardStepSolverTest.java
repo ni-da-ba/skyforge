@@ -120,6 +120,43 @@ class SkyIslandStandardStepSolverTest {
         assertEquals(4.0, depths[1], 0.0);
     }
 
+    @Test
+    void upstreamNormalDepthMaintainsUniformSubcriticalFlow() {
+        double discharge = 5.0;
+        double roughness = 0.035;
+        double bedSlope = 0.001;
+        double reachLength = 1000.0;
+        SkyIslandStandardStepSolver.CrossSection section = rectangularSection(5.0);
+        double normalDepth = SkyIslandManningNormalDepthSolver.solve(
+                discharge,
+                roughness,
+                bedSlope,
+                new SkyIslandManningNormalDepthSolver.CrossSection() {
+                    @Override
+                    public double area(double depthMetres) {
+                        return section.area(depthMetres);
+                    }
+
+                    @Override
+                    public double wettedPerimeter(double depthMetres) {
+                        return section.wettedPerimeter(depthMetres);
+                    }
+                });
+
+        double[] depths = SkyIslandStandardStepSolver.solve(
+                new double[] {0.0, reachLength},
+                new double[] {bedSlope * reachLength, 0.0},
+                new SkyIslandStandardStepSolver.CrossSection[] {section, section},
+                discharge,
+                roughness,
+                normalDepth,
+                SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL,
+                SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
+
+        assertEquals(normalDepth, depths[0], 0.0);
+        assertEquals(normalDepth, depths[1], 1.0e-8);
+    }
+
     private static SkyIslandStandardStepSolver.CrossSection rectangularSection(double widthMetres) {
         return new SkyIslandStandardStepSolver.CrossSection() {
             @Override
