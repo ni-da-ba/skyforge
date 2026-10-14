@@ -219,7 +219,9 @@ public final class SkyIslandGameScaleHydraulicModel {
             double sideSlopeHorizontalToVertical,
             double minimumBedSlope,
             double sourceEnergySlope,
-            double sourceNormalDepthMetres) {
+            double sourceNormalDepthMetres,
+            double sourceFroudeNumber,
+            SkyIslandStandardStepSolver.FlowRegime flowRegime) {
         public SourceReachSolution {
             candidate = Objects.requireNonNull(candidate, "candidate");
             profile = Objects.requireNonNull(profile, "profile");
