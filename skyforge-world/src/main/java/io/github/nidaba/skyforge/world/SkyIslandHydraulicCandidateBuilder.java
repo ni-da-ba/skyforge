@@ -30,8 +30,6 @@ public final class SkyIslandHydraulicCandidateBuilder {
         double[] stations = new double[points.size()];
         double[] rawElevations = new double[points.size()];
         double[] bedElevations = new double[points.size()];
-        double sourceElevation = normalizedElevation(terrain, points.getFirst(), configuration);
-
         for (int i = 0; i < points.size(); i++) {
             rawElevations[i] = normalizedElevation(terrain, points.get(i), configuration);
             if (i > 0) {
@@ -41,14 +39,71 @@ public final class SkyIslandHydraulicCandidateBuilder {
                     throw new IllegalArgumentException("route stations must be distinct and finite");
                 }
                 stations[i] = stations[i - 1] + distance;
+                if (!Double.isFinite(stations[i])) {
+                    throw new IllegalArgumentException("route length must be finite");
+                }
             }
-            bedElevations[i] = sourceElevation
-                    - configuration.upstreamIncisionMetres()
-                    - configuration.minimumBedSlope() * stations[i];
+        }
+
+        double[] projected = minimumGradeProjection(
+                rawElevations, stations, configuration.minimumBedSlope());
+        for (int i = 0; i < points.size(); i++) {
+            bedElevations[i] = projected[i]
+                    - configuration.minimumBedSlope() * stations[i]
+                    - configuration.upstreamIncisionMetres();
             requireWithinEditEnvelope(
                     rawElevations[i], bedElevations[i], configuration.maximumTerrainEditMetres());
         }
         return new Candidate(points, stations, rawElevations, bedElevations, terrain, configuration);
+    }
+
+    /**
+     * Weighted least-squares projection onto the minimum-grade constraint. After removing the
+     * required grade, the adjusted profile is non-increasing downstream; pool-adjacent-violators
+     * computes that projection in linear time while weighting each station by its represented reach
+     * length.
+     */
+    private static double[] minimumGradeProjection(
+            double[] elevations,
+            double[] stations,
+            double minimumSlope) {
+        int count = elevations.length;
+        int[] starts = new int[count];
+        int[] ends = new int[count];
+        double[] means = new double[count];
+        double[] weights = new double[count];
+        int blocks = 0;
+
+        for (int i = 0; i < count; i++) {
+            double representedLength;
+            if (i == 0) {
+                representedLength = (stations[1] - stations[0]) * 0.5;
+            } else if (i == count - 1) {
+                representedLength = (stations[i] - stations[i - 1]) * 0.5;
+            } else {
+                representedLength = (stations[i + 1] - stations[i - 1]) * 0.5;
+            }
+            starts[blocks] = i;
+            ends[blocks] = i;
+            means[blocks] = elevations[i] + minimumSlope * stations[i];
+            weights[blocks] = representedLength;
+            blocks++;
+
+            while (blocks >= 2 && means[blocks - 2] < means[blocks - 1]) {
+                double combinedWeight = weights[blocks - 2] + weights[blocks - 1];
+                means[blocks - 2] = (means[blocks - 2] * weights[blocks - 2]
+                        + means[blocks - 1] * weights[blocks - 1]) / combinedWeight;
+                weights[blocks - 2] = combinedWeight;
+                ends[blocks - 2] = ends[blocks - 1];
+                blocks--;
+            }
+        }
+
+        double[] projected = new double[count];
+        for (int block = 0; block < blocks; block++) {
+            Arrays.fill(projected, starts[block], ends[block] + 1, means[block]);
+        }
+        return projected;
     }
 
     private static double normalizedElevation(
