@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
 import java.util.List;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandGameScaleHydraulicModelTest {
@@ -26,7 +27,7 @@ class SkyIslandGameScaleHydraulicModelTest {
         SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
 
         assertEquals(
-                List.of("709->559", "1742->1842"),
+                Set.of("709->559", "1742->1842"),
                 assembly.terminalComponents().stream()
                         .filter(component ->
                                 component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
@@ -34,8 +35,7 @@ class SkyIslandGameScaleHydraulicModelTest {
                         .map(reach -> reach.semanticReach().startCellIndex()
                                 + "->"
                                 + reach.semanticReach().endCellIndex())
-                        .sorted()
-                        .toList());
+                        .collect(java.util.stream.Collectors.toSet()));
 
         for (String expected : List.of("709->559", "1742->1842")) {
             String[] endpoints = expected.split("->");
@@ -58,6 +58,12 @@ class SkyIslandGameScaleHydraulicModelTest {
             assertEquals(skeleton.samples().size(), stations.length);
             assertEquals(stations.length, discharges.length);
             assertTrue(solution.sourceNormalDepthMetres() > 0.0);
+            assertTrue(solution.sourceFroudeNumber() > 0.0);
+            assertEquals(
+                    solution.sourceFroudeNumber() < 1.0
+                            ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
+                            : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL,
+                    solution.flowRegime());
             assertEquals(solution.sourceNormalDepthMetres(), depths[0], EPSILON);
 
             for (int i = 0; i < stations.length; i++) {
