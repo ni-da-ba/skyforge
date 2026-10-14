@@ -282,6 +282,23 @@ client_latest_log="$client_dir/logs/latest.log"
 test -f "$client_latest_log"
 if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
   combat_profile_args=()
+  s8_profile_overlay_args=()
+  case "${WBY_S8_NETHER_VARIANT:-none}" in
+    control-mnd)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      ;;
+    jne)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id netherexp)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id elysium_api)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id lodestone)
+      ;;
+    jne-mnd)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id netherexp)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id elysium_api)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id lodestone)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      ;;
+  esac
   if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then
     : "${WBY_S7_COMBAT_CONTROL_MODS:?Set the staged S7 control mods directory}"
     : "${WBY_S7_COMBAT_STAGED_MODS:?Set the staged candidate server mods directory}"
@@ -295,7 +312,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --runtime-root "$server_dir" \
     --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
-    "${combat_profile_args[@]}"
+    "${combat_profile_args[@]}" "${s8_profile_overlay_args[@]}"
 fi
 test -f "$client_latest_log"
 for mod_id in friendsandfoes takesapillage illagerstructures resourcefullib mowziesmobs geckolib; do
