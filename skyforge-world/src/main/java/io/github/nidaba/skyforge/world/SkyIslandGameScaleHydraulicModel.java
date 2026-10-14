@@ -99,11 +99,19 @@ public final class SkyIslandGameScaleHydraulicModel {
         SkyIslandHydraulicCandidateBuilder.Candidate candidate =
                 SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
 
+        double[] candidateStations = candidate.stationsMetres();
+        double[] candidateBeds = candidate.bedElevationsMetres();
+        double sourceEnergySlope =
+                (candidateBeds[0] - candidateBeds[1]) / (candidateStations[1] - candidateStations[0]);
+        if (!(sourceEnergySlope > 0.0) || !Double.isFinite(sourceEnergySlope)) {
+            throw new IllegalArgumentException(
+                    "source normal depth requires a positive finite candidate-bed energy slope");
+        }
         double bankfullDischarge = manningDischarge(
                 bottomWidthMetres,
                 SIDE_SLOPE_HORIZONTAL_TO_VERTICAL,
                 bankfullDepthMetres,
-                minimumGrade,
+                sourceEnergySlope,
                 MANNING_ROUGHNESS);
         double[] discharges = Arrays.stream(relativeDischarges)
                 .map(value -> bankfullDischarge
@@ -115,7 +123,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         double sourceDepth = SkyIslandManningNormalDepthSolver.solve(
                 discharges[0],
                 MANNING_ROUGHNESS,
-                minimumGrade,
+                sourceEnergySlope,
                 new SkyIslandManningNormalDepthSolver.CrossSection() {
                     @Override
                     public double area(double depthMetres) {
@@ -139,6 +147,7 @@ public final class SkyIslandGameScaleHydraulicModel {
                 discharges,
                 MANNING_ROUGHNESS,
                 minimumGrade,
+                sourceEnergySlope,
                 sourceDepth);
     }
 
@@ -181,6 +190,7 @@ public final class SkyIslandGameScaleHydraulicModel {
             double[] dischargesCubicMetresPerSecond,
             double manningRoughness,
             double minimumBedSlope,
+            double sourceEnergySlope,
             double sourceNormalDepthMetres) {
         public SourceReachSolution {
             candidate = Objects.requireNonNull(candidate, "candidate");
