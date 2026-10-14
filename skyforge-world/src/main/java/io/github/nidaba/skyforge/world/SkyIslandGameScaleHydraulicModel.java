@@ -113,48 +113,6 @@ public final class SkyIslandGameScaleHydraulicModel {
                 SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
         double[] candidateBeds = candidate.bedElevationsMetres();
         double bankProbeDistance = maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
-        double[] containedDepthLimits = maximumContainedDepths(
-                candidate,
-                points,
-                candidateBeds,
-                bankProbeDistance,
-                limits.maximumBankContainmentDeficitWorldUnits());
-        double minimumAvailableDepth =
-                Arrays.stream(containedDepthLimits).min().orElseThrow();
-        if (minimumAvailableDepth < 0.0) {
-            double requiredIncision = -minimumAvailableDepth + 1.0e-6;
-            if (requiredIncision > maximumTerrainEditMetres) {
-                throw new IllegalArgumentException(
-                        "candidate banks require "
-                                + requiredIncision
-                                + " metres of incision, exceeding the accepted terrain-edit envelope "
-                                + maximumTerrainEditMetres);
-            }
-            configuration = new SkyIslandHydraulicCandidateBuilder.Configuration(
-                    configuration.horizontalMetresPerLocalUnit(),
-                    configuration.verticalMetresPerNormalizedUnit(),
-                    configuration.verticalDatumMetres(),
-                    configuration.minimumBedSlope(),
-                    requiredIncision,
-                    configuration.bottomWidthMetres(),
-                    configuration.sideSlopeHorizontalToVertical(),
-                    configuration.bankfullDepthMetres(),
-                    configuration.valleyHalfWidthMetres(),
-                    configuration.maximumTerrainEditMetres());
-            candidate = SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
-            candidateBeds = candidate.bedElevationsMetres();
-            containedDepthLimits = maximumContainedDepths(
-                    candidate,
-                    points,
-                    candidateBeds,
-                    bankProbeDistance,
-                    limits.maximumBankContainmentDeficitWorldUnits());
-            if (Arrays.stream(containedDepthLimits).min().orElseThrow() < -1.0e-8) {
-                throw new IllegalArgumentException(
-                        "candidate banks remain below the channel bed after bounded incision");
-            }
-        }
-
         double[] candidateStations = candidate.stationsMetres();
         double sourceEnergySlope =
                 (candidateBeds[0] - candidateBeds[1]) / (candidateStations[1] - candidateStations[0]);
@@ -185,11 +143,44 @@ public final class SkyIslandGameScaleHydraulicModel {
                 .toArray();
         SkyIslandStandardStepSolver.CrossSection section = trapezoidalSection(
                 bottomWidthMetres, sideSlope);
-        HydraulicProfile hydraulic = calibrateBankfullContainedProfile(
+        HydraulicProfile hydraulic = solveSourceNormalProfile(candidate, discharges, section);
+        double requiredIncision = requiredBankIncision(
                 candidate,
-                discharges,
-                section,
-                containedDepthLimits);
+                points,
+                candidateBeds,
+                hydraulic.profile(),
+                bankProbeDistance,
+                limits.maximumBankContainmentDeficitWorldUnits(),
+                configuration.bankfullDepthMetres());
+        if (requiredIncision > 1.0e-8) {
+            configuration = new SkyIslandHydraulicCandidateBuilder.Configuration(
+                    configuration.horizontalMetresPerLocalUnit(),
+                    configuration.verticalMetresPerNormalizedUnit(),
+                    configuration.verticalDatumMetres(),
+                    configuration.minimumBedSlope(),
+                    configuration.upstreamIncisionMetres() + requiredIncision,
+                    configuration.bottomWidthMetres(),
+                    configuration.sideSlopeHorizontalToVertical(),
+                    configuration.bankfullDepthMetres(),
+                    configuration.valleyHalfWidthMetres(),
+                    configuration.maximumTerrainEditMetres());
+            candidate = SkyIslandHydraulicCandidateBuilder.build(route, terrain, configuration);
+            candidateBeds = candidate.bedElevationsMetres();
+            hydraulic = solveSourceNormalProfile(candidate, discharges, section);
+            double remainingBankDeficit = maximumBankDeficit(
+                    candidate,
+                    points,
+                    candidateBeds,
+                    hydraulic.profile(),
+                    bankProbeDistance);
+            if (remainingBankDeficit
+                    > limits.maximumBankContainmentDeficitWorldUnits() + 1.0e-8) {
+                throw new IllegalArgumentException(
+                        "candidate channel remains overbank after bounded incision; deficit="
+                                + remainingBankDeficit
+                                + " world units");
+            }
+        }
         return new SourceReachSolution(
                 candidate,
                 hydraulic.profile(),
@@ -203,108 +194,136 @@ public final class SkyIslandGameScaleHydraulicModel {
                 hydraulic.flowRegime());
     }
 
-    /**
-     * Finds the largest positive scale of the authored relative discharge profile whose standard-step
-     * solution remains below the lower candidate bank at every station. Manning normal depth supplies the
-     * source boundary at each trial; the source Froude number selects the physically consistent
-     * gradually-varied-flow branch. This is a monotone bracket-and-bisect calibration, not a
-     * correction to the hydraulic equations.
-     */
-    private static HydraulicProfile calibrateBankfullContainedProfile(
+    /** Solves the source-normal-depth boundary and classifies its regime by Froude number. */
+    private static HydraulicProfile solveSourceNormalProfile(
             SkyIslandHydraulicCandidateBuilder.Candidate candidate,
-            double[] capacityScaledDischarges,
-            SkyIslandStandardStepSolver.CrossSection section,
-            double[] containedDepthLimits) {
-        double lowerScale = 0.0;
-        double upperScale = 1.0;
-        HydraulicProfile best = null;
-        StringBuilder lastFailure = new StringBuilder("no trial attempted");
-        for (int shrink = 0; shrink < 40; shrink++) {
-            double trialScale = upperScale;
-            HydraulicProfile trial = tryProfile(
-                    candidate, capacityScaledDischarges, section, trialScale, lastFailure);
-            if (trial != null && fitsWithinBankLimits(trial.profile(), containedDepthLimits)) {
-                lowerScale = trialScale;
-                best = trial;
-                break;
-            }
-            upperScale *= 0.5;
-        }
-        if (best == null) {
-            throw new IllegalArgumentException(
-                    "no positive source-normal-depth profile fits within candidate bank elevations; "
-                            + "minimum available bank depth="
-                            + Arrays.stream(containedDepthLimits).min().orElseThrow()
-                            + " metres; last trial failure="
-                            + lastFailure);
-        }
+            double[] discharges,
+            SkyIslandStandardStepSolver.CrossSection section) {
+        double sourceNormalDepth = SkyIslandManningNormalDepthSolver.solve(
+                discharges[0],
+                MANNING_ROUGHNESS,
+                candidateSourceSlope(candidate),
+                new SkyIslandManningNormalDepthSolver.CrossSection() {
+                    @Override
+                    public double area(double depthMetres) {
+                        return section.area(depthMetres);
+                    }
 
-        double infeasibleScale = 1.0;
-        for (int iteration = 0; iteration < 24; iteration++) {
-            double trialScale = (lowerScale + infeasibleScale) * 0.5;
-            HydraulicProfile trial = tryProfile(
-                    candidate, capacityScaledDischarges, section, trialScale, lastFailure);
-            if (trial != null && fitsWithinBankLimits(trial.profile(), containedDepthLimits)) {
-                lowerScale = trialScale;
-                best = trial;
-            } else {
-                infeasibleScale = trialScale;
-            }
+                    @Override
+                    public double wettedPerimeter(double depthMetres) {
+                        return section.wettedPerimeter(depthMetres);
+                    }
+                });
+        double area = section.area(sourceNormalDepth);
+        double froudeSquared = discharges[0] * discharges[0] * section.topWidth(sourceNormalDepth)
+                / (GRAVITY_METRES_PER_SECOND_SQUARED * area * area * area);
+        if (!(froudeSquared > 0.0) || !Double.isFinite(froudeSquared)
+                || Math.abs(froudeSquared - 1.0) <= 1.0e-10) {
+            throw new IllegalArgumentException(
+                    "source normal depth is critical or numerically indistinguishable from critical flow");
         }
-        return best;
+        SkyIslandStandardStepSolver.FlowRegime regime = froudeSquared < 1.0
+                ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
+                : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL;
+        SkyIslandHydraulicCandidateBuilder.Profile profile = candidate.solve(
+                discharges,
+                MANNING_ROUGHNESS,
+                sourceNormalDepth,
+                regime,
+                SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
+        return new HydraulicProfile(
+                profile, discharges, sourceNormalDepth, Math.sqrt(froudeSquared), regime);
     }
 
-    private static HydraulicProfile tryProfile(
+    /**
+     * Computes the bounded incision needed only where the existing ground, rather than the
+     * constructed bankfull section, controls the lower-bank elevation. If the constructed section
+     * itself is too small, lowering it cannot repair containment and the candidate fails closed.
+     */
+    private static double requiredBankIncision(
             SkyIslandHydraulicCandidateBuilder.Candidate candidate,
-            double[] capacityScaledDischarges,
-            SkyIslandStandardStepSolver.CrossSection section,
-            double dischargeScale,
-            StringBuilder lastFailure) {
-        double[] discharges = Arrays.stream(capacityScaledDischarges)
-                .map(value -> value * dischargeScale)
-                .toArray();
-        try {
-            double sourceNormalDepth = SkyIslandManningNormalDepthSolver.solve(
-                    discharges[0],
-                    MANNING_ROUGHNESS,
-                    candidateSourceSlope(candidate),
-                    new SkyIslandManningNormalDepthSolver.CrossSection() {
-                        @Override
-                        public double area(double depthMetres) {
-                            return section.area(depthMetres);
-                        }
-
-                        @Override
-                        public double wettedPerimeter(double depthMetres) {
-                            return section.wettedPerimeter(depthMetres);
-                        }
-                    });
-            double area = section.area(sourceNormalDepth);
-            double froudeSquared = discharges[0] * discharges[0] * section.topWidth(sourceNormalDepth)
-                    / (GRAVITY_METRES_PER_SECOND_SQUARED * area * area * area);
-            if (!(froudeSquared > 0.0) || !Double.isFinite(froudeSquared)
-                    || Math.abs(froudeSquared - 1.0) <= 1.0e-10) {
-                lastFailure.setLength(0);
-                lastFailure.append("source normal depth is critical or non-finite (Fr^2=")
-                        .append(froudeSquared)
-                        .append(')');
-                return null;
+            List<SkyIslandLocalPosition> points,
+            double[] beds,
+            SkyIslandHydraulicCandidateBuilder.Profile profile,
+            double bankProbeDistance,
+            double allowedDeficit,
+            double bankfullDepth) {
+        double[] stages = profile.waterSurfaceElevationsMetres();
+        double required = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition[] banks = bankProbes(points, i, bankProbeDistance);
+            double lowerBank = Math.min(
+                    candidate.sampleTerrainMetres(banks[0]),
+                    candidate.sampleTerrainMetres(banks[1]));
+            double constructedBank = beds[i] + bankfullDepth;
+            double deficit = stages[i] - lowerBank - allowedDeficit;
+            if (deficit <= 0.0) {
+                continue;
             }
-            SkyIslandStandardStepSolver.FlowRegime regime = froudeSquared < 1.0
-                    ? SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
-                    : SkyIslandStandardStepSolver.FlowRegime.SUPERCRITICAL;
-            SkyIslandHydraulicCandidateBuilder.Profile profile = candidate.solve(
-                    discharges,
-                    MANNING_ROUGHNESS,
-                    sourceNormalDepth,
-                    regime,
-                    SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
-            return new HydraulicProfile(
-                    profile, discharges, sourceNormalDepth, Math.sqrt(froudeSquared), regime);
-        } catch (IllegalArgumentException noRegimeConsistentProfile) {
-            lastFailure.setLength(0);
-            lastFailure.append(noRegimeConsistentProfile.getMessage());
-            return null;
+            if (lowerBank >= constructedBank - 1.0e-8) {
+                throw new IllegalArgumentException(
+                        "standard-step water exceeds the constructed bankfull section by "
+                                + deficit
+                                + " metres; changing bed datum cannot restore containment");
+            }
+            required = Math.max(required, deficit);
+        }
+        return required;
+    }
+
+    private static double maximumBankDeficit(
+            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
+            List<SkyIslandLocalPosition> points,
+            double[] beds,
+            SkyIslandHydraulicCandidateBuilder.Profile profile,
+            double bankProbeDistance) {
+        double[] stages = profile.waterSurfaceElevationsMetres();
+        double maximum = 0.0;
+        for (int i = 0; i < points.size(); i++) {
+            SkyIslandLocalPosition[] banks = bankProbes(points, i, bankProbeDistance);
+            double lowerBank = Math.min(
+                    candidate.sampleTerrainMetres(banks[0]),
+                    candidate.sampleTerrainMetres(banks[1]));
+            maximum = Math.max(maximum, stages[i] - lowerBank);
+        }
+        return maximum;
+    }
+
+    private static SkyIslandLocalPosition[] bankProbes(
+            List<SkyIslandLocalPosition> points,
+            int index,
+            double distance) {
+        SkyIslandLocalPosition before = points.get(index == 0 ? 0 : index - 1);
+        SkyIslandLocalPosition after =
+                points.get(index == points.size() - 1 ? index : index + 1);
+        double dx = after.x() - before.x();
+        double dz = after.z() - before.z();
+        double length = Math.hypot(dx, dz);
+        if (!(length > 0.0)) {
+            throw new IllegalArgumentException("channel tangent must be finite and non-zero");
+        }
+        double normalX = -dz / length;
+        double normalZ = dx / length;
+        return new SkyIslandLocalPosition[] {
+            new SkyIslandLocalPosition(
+                    points.get(index).x() + normalX * distance,
+                    points.get(index).z() + normalZ * distance),
+            new SkyIslandLocalPosition(
+                    points.get(index).x() - normalX * distance,
+                    points.get(index).z() - normalZ * distance)
+        };
+    }
+
+    private record HydraulicProfile(
+            SkyIslandHydraulicCandidateBuilder.Profile profile,
+            double[] discharges,
+            double sourceNormalDepth,
+            double sourceFroudeNumber,
+            SkyIslandStandardStepSolver.FlowRegime flowRegime) {
+        private HydraulicProfile {
+            profile = Objects.requireNonNull(profile, "profile");
+            discharges = discharges.clone();
+            flowRegime = Objects.requireNonNull(flowRegime, "flowRegime");
         }
     }
 
