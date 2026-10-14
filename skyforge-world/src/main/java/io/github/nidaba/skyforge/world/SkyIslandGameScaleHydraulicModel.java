@@ -338,18 +338,7 @@ public final class SkyIslandGameScaleHydraulicModel {
         return slope;
     }
 
-    private record HydraulicProfile(
-            SkyIslandHydraulicCandidateBuilder.Profile profile,
-            double[] discharges,
-            double sourceNormalDepth,
-            double sourceFroudeNumber,
-            SkyIslandStandardStepSolver.FlowRegime flowRegime) {
-        private HydraulicProfile {
-            profile = Objects.requireNonNull(profile, "profile");
-            discharges = discharges.clone();
-            flowRegime = Objects.requireNonNull(flowRegime, "flowRegime");
-        }
-    }
+
 
     private static double manningDischarge(
             double bottomWidth,
