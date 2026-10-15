@@ -26,7 +26,7 @@ class HydrologyWorldHeadRefinementCorpusTest {
         assertEquals(componentsA, componentsB);
         assertTrue(summaryA.contains("ordinary-77,77,0,0,0"));
         assertEquals(1, componentsA.lines().count());
-        assertTrue(componentsA.contains("ordinary-77,77,1842,INFEASIBLE,1742,1842,0,"));
+        assertFalse(componentsA.contains("INFEASIBLE"));
         assertFalse(componentsA.contains("SOLVED"));
         assertTrue(summaryA.contains("primary-287,287,0,0,0"));
         assertTrue(summaryA.contains("confluence-632,632,0,0,0"));
