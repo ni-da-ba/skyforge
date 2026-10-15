@@ -42,6 +42,7 @@ class HydrologyRefinedVoxelQuantizationCorpusTest {
         int quantizedUnchanged = Integer.parseInt(row[10]);
         int quantizedDeeper = Integer.parseInt(row[11]);
         int continuousShallower = Integer.parseInt(row[12]);
+        int continuousUnchanged = Integer.parseInt(row[13]);
         int continuousDeeper = Integer.parseInt(row[14]);
         double maxRecoveryWorld = Double.parseDouble(row[15]);
         double meanRecoveryWorld = Double.parseDouble(row[16]);
