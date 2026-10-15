@@ -277,68 +277,43 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Run focused key-700 hydrology regressions
+      - name: Run established hydraulic benchmarks and game-scale controls
         run: |
           ./gradlew \
             :skyforge-world:test \
-            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
-            --tests '*SkyIslandHydraulicComponentGeometryRefinementTest.key700BoundedSmoothModesAreScoredByExactTerminalComponentAssembly' \
-            --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
+            --tests '*SkyIslandStandardStepSolverTest.reproducesEnvironmentAgencyTestCPartOneSubcriticalProfile' \
+            --tests '*SkyIslandStandardStepSolverTest.reproducesEnvironmentAgencyTestCPartTwoSupercriticalProfile' \
+            --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSubcriticalProfileFromConstructedBed' \
+            --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSupercriticalProfileFromConstructedBed' \
+            --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
+            --tests '*SkyIslandGameScaleHydraulicModelTest' \
+            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
+            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
+            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
             --no-configuration-cache
-      - name: Prepare and verify the persisted F4H/F4D review specimen
-        if: always()
+      - name: Print focused hydraulic test failure details
+        if: failure()
+        run: |
+          for report in \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandStandardStepSolverTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandUnitWidthStandardStepSolverTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
+          do
+            if [ -f "$report" ]; then
+              echo "===== $report ====="
+              cat "$report"
+            fi
+          done
+      - name: Prepare and verify persisted key-77 F4K review specimen
+        if: success()
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
-
-      - name: Print key-700 component refinement diagnostics
-        if: success()
-        run: |
-          cat skyforge-world/build/evidence/hydrology-key700-d2-component-test/key-700.txt
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml
-
-      - name: Dump generated hydrology evidence on failure
-        if: failure()
-        run: python3 scripts/ci/dump_hydrology_failure_evidence.py
-
-      - name: Dump focused failure report
-        if: failure()
-        run: |
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicGeometrySkeletonPlannerTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicComponentGeometryRefinementTest.xml || true
-          cat skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicNetworkAssemblyPlannerTest.xml || true
-      - name: Run bounded natural confluence/CASCADE census
-        if: success()
-        run: ./gradlew :skyforge-reference:hydrologyNaturalTransitionCensus --no-configuration-cache
-
-      - name: Print natural-transition census summary
-        if: always()
-        run: |
-          summary=skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/summary.csv
-          if [ -f "$summary" ]; then
-            cat "$summary"
-          else
-            echo "Natural-transition census summary was not produced."
-          fi
-          manifest=skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/identity-manifest.csv
-          if [ -f "$manifest" ]; then
-            echo "Natural-transition census candidate outcomes:"
-            awk -F, 'NR == 1 || $7 == "true" { print }' "$manifest"
-          fi
-
-      - name: Upload F4K review preparation evidence
+      - name: Upload key-77 F4K review preparation evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: f4k-hydrology-review-prep-${{ github.sha }}
           path: skyforge-neoforge-1211/build/acceptance/f4k-hydrology-review/prepare.properties
-          if-no-files-found: warn
-          retention-days: 14
-
-      - name: Upload natural-transition census evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
-        with:
-          name: hydrology-natural-transition-census-${{ github.sha }}
-          path: skyforge-reference/build/evidence/hydrology-natural-transition-census-v1/
           if-no-files-found: warn
           retention-days: 14

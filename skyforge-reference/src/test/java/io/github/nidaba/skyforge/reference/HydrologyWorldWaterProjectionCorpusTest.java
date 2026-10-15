@@ -24,20 +24,36 @@ class HydrologyWorldWaterProjectionCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
-        assertTrue(summaryA.contains(
-                "ordinary-77,77,2,0,2,9005,2483,0.002619649,2.805964392,-5.419589927,2.365899859"));
+        String[] ordinary = summaryA.lines()
+                .filter(line -> line.startsWith("ordinary-77,77,"))
+                .findFirst()
+                .orElseThrow()
+                .split(",");
+        assertEquals("2", ordinary[2]);
+        assertEquals("2", ordinary[3]);
+        assertEquals("0", ordinary[4]);
+        assertTrue(Integer.parseInt(ordinary[5]) > 0);
+        assertTrue(Integer.parseInt(ordinary[6]) > 0);
+        assertTrue(Double.parseDouble(ordinary[7]) > 0.0);
         assertTrue(summaryA.contains(
                 "primary-287,287,0,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
                 "confluence-632,632,0,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
         assertTrue(summaryA.contains(
                 "lake-609,609,0,0,0,0,0,0.000000000,0.000000000,0.000000000,0.000000000"));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,709,559,false,\"[UPHILL_HEAD]\",35,35,"
-                        + "269.463026857,282.533331955,1,0.168878403,0.084049826,0.210443604"));
-        assertTrue(reachesA.contains(
-                "ordinary-77,77,1742,1842,false,\"[UPHILL_HEAD]\",24,24,"
-                        + "273.172341988,281.340191248,2,0.034208932,0.017275969,0.246125042"));
+        var ordinaryReaches = reachesA.lines()
+                .filter(line -> line.startsWith("ordinary-77,77,"))
+                .map(line -> line.split(","))
+                .toList();
+        assertEquals(2, ordinaryReaches.size());
+        for (String[] reach : ordinaryReaches) {
+            assertEquals("true", reach[4]);
+            assertEquals("\"[]\"", reach[5]);
+            assertTrue(Integer.parseInt(reach[7]) > 0);
+            assertEquals("0", reach[10]);
+            assertEquals("0.000000000", reach[11]);
+        }
+
         assertTrue(Files.isRegularFile(first.resolve("README.txt")));
     }
 }

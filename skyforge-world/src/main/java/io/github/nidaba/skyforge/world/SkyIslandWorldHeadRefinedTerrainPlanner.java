@@ -32,6 +32,14 @@ public final class SkyIslandWorldHeadRefinedTerrainPlanner {
 
         Map<Long, SkyIslandWorldWaterHeadRefinementReach> solvedByIdentity =
                 solvedRefinements(refinement);
+        if (solvedByIdentity.isEmpty()) {
+            return new SkyIslandWorldHeadRefinedTerrainPlan(
+                    refinement,
+                    candidate.terrainField().acceptedReaches(),
+                    Set.of(),
+                    candidate.postRealizationQualifications(),
+                    candidate.terrainField());
+        }
         Set<Long> refinedIdentities = new HashSet<>();
         List<SkyIslandHydraulicReachGeometry> reaches = new ArrayList<>();
 

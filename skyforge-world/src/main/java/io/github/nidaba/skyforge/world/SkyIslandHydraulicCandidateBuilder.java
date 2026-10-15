@@ -242,9 +242,27 @@ public final class SkyIslandHydraulicCandidateBuilder {
                 weight = 1.0 - smoothstep(t);
                 target = bed + configuration.bankfullDepthMetres();
             }
-            double candidate = raw + weight * (target - raw);
+            double candidate = Math.min(raw, raw + weight * (target - raw));
             requireWithinEditEnvelope(raw, candidate, configuration.maximumTerrainEditMetres());
             return candidate;
+        }
+
+        /** Solves from the standard boundary associated with the selected regime. */
+        public Profile solve(
+                double[] dischargeAtStationsCubicMetresPerSecond,
+                double manningRoughness,
+                double boundaryDepthMetres,
+                SkyIslandStandardStepSolver.FlowRegime regime) {
+            SkyIslandStandardStepSolver.BoundaryLocation boundaryLocation =
+                    regime == SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL
+                            ? SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM
+                            : SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM;
+            return solve(
+                    dischargeAtStationsCubicMetresPerSecond,
+                    manningRoughness,
+                    boundaryDepthMetres,
+                    regime,
+                    boundaryLocation);
         }
 
         /** Solves the standard-step water profile against this candidate's bed and section geometry. */
@@ -252,9 +270,11 @@ public final class SkyIslandHydraulicCandidateBuilder {
                 double[] dischargeAtStationsCubicMetresPerSecond,
                 double manningRoughness,
                 double boundaryDepthMetres,
-                SkyIslandStandardStepSolver.FlowRegime regime) {
+                SkyIslandStandardStepSolver.FlowRegime regime,
+                SkyIslandStandardStepSolver.BoundaryLocation boundaryLocation) {
             Objects.requireNonNull(dischargeAtStationsCubicMetresPerSecond, "discharges");
             Objects.requireNonNull(regime, "regime");
+            Objects.requireNonNull(boundaryLocation, "boundaryLocation");
             if (dischargeAtStationsCubicMetresPerSecond.length != stationsMetres.length) {
                 throw new IllegalArgumentException("one discharge is required at each candidate station");
             }
@@ -269,7 +289,8 @@ public final class SkyIslandHydraulicCandidateBuilder {
                     dischargeAtStationsCubicMetresPerSecond,
                     manningRoughness,
                     boundaryDepthMetres,
-                    regime);
+                    regime,
+                    boundaryLocation);
             double[] stages = new double[depths.length];
             for (int i = 0; i < depths.length; i++) {
                 stages[i] = bedElevationsMetres[i] + depths[i];

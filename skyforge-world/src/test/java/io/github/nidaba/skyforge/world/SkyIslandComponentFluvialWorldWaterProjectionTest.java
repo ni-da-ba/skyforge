@@ -96,32 +96,28 @@ class SkyIslandComponentFluvialWorldWaterProjectionTest {
     }
 
     @Test
-    void ordinary77DirectWorldProjectionRequiresHeadRefinement() {
+    void ordinary77CoupledProjectionClosesWorldHeadWithoutRefinement() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
         SkyIslandAuthoredRealizationAssociation association =
                 productionAssociation(descriptor, 910_077L);
         SkyIslandFluvialVoxelQuantizationPlan terrain =
-                SkyIslandFluvialVoxelQuantizationPlanner.plan(
-                        association, candidate);
+                SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
         SkyIslandWorldWaterProjectionQualificationPlan qualification =
                 SkyIslandWorldWaterProjectionQualificationPlanner.plan(terrain);
 
-        assertEquals(2, qualification.components().size());
-        assertTrue(qualification.qualifiedComponents().isEmpty());
-        assertEquals(2, qualification.refinementRequiredComponents().size());
+        assertEquals(2, qualification.qualifiedComponents().size());
+        assertTrue(qualification.refinementRequiredComponents().isEmpty());
         for (SkyIslandWorldWaterComponentQualification component :
-                qualification.refinementRequiredComponents()) {
-            assertEquals(
-                    SkyIslandWorldWaterComponentStatus.HEAD_REFINEMENT_REQUIRED,
-                    component.status());
-            assertFalse(component.blockers().isEmpty());
+                qualification.qualifiedComponents()) {
+            assertEquals(SkyIslandWorldWaterComponentStatus.QUALIFIED, component.status());
+            assertTrue(component.blockers().isEmpty());
             assertEquals(1, component.reaches().size());
-            assertTrue(component.reaches().getFirst().violations().contains(
-                    SkyIslandWorldWaterQualificationViolation.UPHILL_HEAD));
-            assertFalse(component.reaches().getFirst().violations().contains(
-                    SkyIslandWorldWaterQualificationViolation.LONGITUDINAL_GRADE));
+            var reach = component.reaches().getFirst();
+            assertTrue(reach.accepted());
+            assertTrue(reach.violations().isEmpty());
+            assertEquals(0, reach.diagnostics().uphillSegments());
         }
     }
 
