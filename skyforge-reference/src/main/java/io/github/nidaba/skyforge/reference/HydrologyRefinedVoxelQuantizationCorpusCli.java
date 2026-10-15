@@ -47,6 +47,47 @@ public final class HydrologyRefinedVoxelQuantizationCorpusCli {
         var direct = SkyIslandWorldWaterProjectionQualificationPlanner.plan(voxel);
         var head = SkyIslandWorldWaterHeadRefinementPlanner.plan(direct);
         var refined = SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
+        if (direct.refinementRequiredComponents().isEmpty()) {
+            long baselineRemoved = voxel.totalRemovedSolidBlocks();
+            int authorizedColumns = voxel.authorizedColumns().size();
+            double minimumResidual = voxel.authorizedColumns().stream()
+                    .mapToDouble(SkyIslandFluvialVoxelColumn::undercutResidualWorld)
+                    .min()
+                    .orElse(0.0);
+            String summary = "specimen,islandKey,refinedReaches,totalReaches,postD2Rejected,"
+                    + "authorizedColumns,requantizedColumns,baselineRemovedBlocks,requantizedRemovedBlocks,"
+                    + "quantizedShallowerColumns,quantizedUnchangedColumns,quantizedDeeperColumns,"
+                    + "continuousShallowerColumns,continuousUnchangedColumns,continuousDeeperColumns,"
+                    + "maxRecoveryWorld,meanRecoveryWorld,minUndercutResidualWorld,maxUndercutResidualWorld\\n"
+                    + String.format(
+                            Locale.ROOT,
+                            "ordinary-77,77,0,%d,0,%d,%d,%d,%d,0,%d,0,0,%d,0,0.000000000,0.000000000,%.9f,%.9f%n",
+                            candidate.terrainField().acceptedReaches().size(),
+                            authorizedColumns,
+                            authorizedColumns,
+                            baselineRemoved,
+                            baselineRemoved,
+                            authorizedColumns,
+                            authorizedColumns,
+                            minimumResidual,
+                            voxel.maximumUndercutResidualWorld());
+            Files.writeString(out.resolve("summary.csv"), summary, StandardCharsets.UTF_8);
+            Files.writeString(
+                    out.resolve("reaches.csv"),
+                    "startCell,endCell,refined,maxCenterlineRaiseWorld,maxLoweringPotential,meanLoweringPotential\\n",
+                    StandardCharsets.UTF_8);
+            Files.writeString(out.resolve("README.txt"), """
+                    Hydrology refined voxel quantization v1
+
+                    No head refinement was required: direct coupled F4E world-head qualification
+                    accepted the components. F4H is therefore an exact no-op over F4C authority;
+                    the existing authorized columns and removed-block count are preserved unchanged.
+                    This is evidence only and grants no Minecraft mutation authority.
+                    """,
+                    StandardCharsets.UTF_8);
+            System.out.println(out.resolve("summary.csv").toAbsolutePath());
+            return;
+        }
         var requantized = SkyIslandRefinedFluvialVoxelQuantizationPlanner.plan(
                 association, candidate, refined.terrainField());
         Map<Long, SkyIslandFluvialVoxelColumn> baselineByColumn = new HashMap<>();
