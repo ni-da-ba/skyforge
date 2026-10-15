@@ -34,6 +34,7 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
         assertEquals(0, refined.refinedReachCount());
         assertEquals(2, refined.reaches().size());
         assertEquals(2, refined.postRefinementQualifications().size());
+        assertTrue(refined.terrainField() == candidate.terrainField());
         assertTrue(refined.postRefinementQualifications().stream()
                 .allMatch(SkyIslandGeomorphicReachQualification::accepted));
 
