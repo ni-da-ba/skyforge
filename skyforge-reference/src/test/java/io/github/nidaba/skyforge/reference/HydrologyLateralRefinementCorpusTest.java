@@ -23,8 +23,17 @@ class HydrologyLateralRefinementCorpusTest {
 
         assertEquals(summaryA, summaryB);
         assertEquals(reachesA, reachesB);
-        assertTrue(summaryA.lines().anyMatch(line ->
-                line.startsWith("ordinary-77,77,0,2,0,")), summaryA);
+        String[] ordinary = summaryA.lines()
+                .filter(line -> line.startsWith("ordinary-77,77,"))
+                .findFirst()
+                .orElseThrow()
+                .split(",");
+        assertEquals("0", ordinary[2]);
+        assertEquals("2", ordinary[3]);
+        assertEquals("0", ordinary[4]);
+        assertEquals(0, Integer.parseInt(ordinary[8]));
+        assertEquals(0.0, Double.parseDouble(ordinary[9]), 0.0);
+        assertEquals(0.0, Double.parseDouble(ordinary[10]), 0.0);
         assertTrue(reachesA.contains("709,559,false,"));
         assertTrue(reachesA.contains("1742,1842,false,"));
         assertTrue(Files.isRegularFile(a.resolve("README.txt")));
