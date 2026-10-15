@@ -18,60 +18,23 @@ class SkyIslandWorldWaterHeadRefinementPlannerTest {
     private static final double EPSILON = 1.0e-9;
 
     @Test
-    void ordinary77RefinementIsComponentAtomicAndDepthPreserving() {
+    void ordinary77CoupledWorldHeadNeedsNoAdditionalRefinement() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
         SkyIslandAuthoredRealizationAssociation association =
                 productionAssociation(descriptor, 910_077L);
         SkyIslandFluvialVoxelQuantizationPlan terrain =
-                SkyIslandFluvialVoxelQuantizationPlanner.plan(
-                        association, candidate);
+                SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
         SkyIslandWorldWaterProjectionQualificationPlan direct =
                 SkyIslandWorldWaterProjectionQualificationPlanner.plan(terrain);
         SkyIslandWorldWaterHeadRefinementPlan refinement =
                 SkyIslandWorldWaterHeadRefinementPlanner.plan(direct);
 
-        assertEquals(2, direct.refinementRequiredComponents().size());
-        assertEquals(2, refinement.components().size());
-        assertEquals(1, refinement.solvedComponents().size());
-        assertEquals(559, refinement.solvedComponents().getFirst().terminalCellIndex());
-        SkyIslandWorldWaterHeadRefinementComponent blocked =
-                refinement.components().stream()
-                        .filter(component -> component.terminalCellIndex() == 1842)
-                        .findFirst()
-                        .orElseThrow();
-        assertEquals(SkyIslandWorldWaterHeadRefinementStatus.INFEASIBLE, blocked.status());
-        assertFalse(blocked.blockers().isEmpty());
-        assertTrue(blocked.blockers().getFirst().contains("BANK_CONTAINMENT"));
-
-        for (SkyIslandWorldWaterHeadRefinementComponent component :
-                refinement.components()) {
-            assertNotEquals(
-                    SkyIslandWorldWaterHeadRefinementStatus.NUMERICAL_FAILURE,
-                    component.status());
-            if (component.status() == SkyIslandWorldWaterHeadRefinementStatus.SOLVED) {
-                assertEquals(1, component.reaches().size());
-                SkyIslandWorldWaterHeadRefinementReach reach =
-                        component.reaches().getFirst();
-                assertEquals(0, reach.uphillSegments(EPSILON));
-                assertTrue(reach.maximumTerrainRaiseWorld() >= 0.0);
-                for (SkyIslandWorldWaterHeadRefinementSample sample : reach.samples()) {
-                    assertTrue(sample.refinedWaterHeadWorld() + EPSILON
-                            >= sample.directWaterHeadWorld());
-                    assertTrue(sample.terrainRaiseWorld() >= -EPSILON);
-                    assertTrue(sample.terrainRaiseWorld()
-                            <= sample.maximumTerrainRaiseWorld() + EPSILON);
-                    assertEquals(
-                            sample.waterDepthWorld(),
-                            sample.refinedWaterHeadWorld()
-                                    - sample.refinedTerrainTargetWorld(),
-                            EPSILON);
-                }
-            } else {
-                assertFalse(component.blockers().isEmpty());
-            }
-        }
+        assertEquals(2, direct.qualifiedComponents().size());
+        assertTrue(direct.refinementRequiredComponents().isEmpty());
+        assertTrue(refinement.components().isEmpty());
+        assertTrue(refinement.solvedComponents().isEmpty());
     }
 
     @Test
