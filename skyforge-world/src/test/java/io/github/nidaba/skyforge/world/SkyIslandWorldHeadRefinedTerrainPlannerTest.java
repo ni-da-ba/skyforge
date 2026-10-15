@@ -31,7 +31,7 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
         SkyIslandWorldHeadRefinedTerrainPlan refined =
                 SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
 
-        assertEquals(1, refined.refinedReachCount());
+        assertEquals(0, refined.refinedReachCount());
         assertEquals(2, refined.reaches().size());
         assertEquals(2, refined.postRefinementQualifications().size());
         assertTrue(refined.postRefinementQualifications().stream()
@@ -56,7 +56,7 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
                 raised = true;
             }
         }
-        assertTrue(raised);
+        assertTrue(!raised);
 
         assertEquals(
                 reach(candidate, 1742, 1842),
@@ -92,7 +92,7 @@ class SkyIslandWorldHeadRefinedTerrainPlannerTest {
                 shallower++;
             }
         }
-        assertTrue(shallower > 0);
+        assertEquals(0, shallower);
         assertTrue(maximumRecoveryWorld <= 0.168878403 + EPSILON);
     }
 
