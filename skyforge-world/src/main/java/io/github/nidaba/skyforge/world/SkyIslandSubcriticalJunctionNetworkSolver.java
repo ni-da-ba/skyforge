@@ -70,7 +70,9 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
                 receivingReach.manningRoughness,
                 downstreamBoundaryDepthMetres,
                 SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL,
-                SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM);
+                SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM,
+                receivingReach.contractionCoefficientsByInterval,
+                receivingReach.expansionCoefficientsByInterval);
 
         double junctionBedElevation = receivingReach.bedElevationsMetres[0];
         SkyIslandStandardStepSolver.CrossSection junctionSection = receivingReach.sections[0];
@@ -101,7 +103,9 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
                     branch.manningRoughness,
                     junctionStep.upstreamDepthMetres(),
                     SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL,
-                    SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM);
+                    SkyIslandStandardStepSolver.BoundaryLocation.DOWNSTREAM,
+                    branch.contractionCoefficientsByInterval,
+                    branch.expansionCoefficientsByInterval);
             solvedTributaries.add(new TributaryProfile(tributary, junctionStep, branchDepths));
         }
         return new NetworkProfile(receivingReach, receivingDepths, solvedTributaries);
@@ -113,9 +117,17 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
             double[] bedElevationsMetres,
             SkyIslandStandardStepSolver.CrossSection[] sections,
             double[] dischargeAtStationsCubicMetresPerSecond,
-            double manningRoughness) {
+            double manningRoughness,
+            double[] contractionCoefficientsByInterval,
+            double[] expansionCoefficientsByInterval) {
         public Reach {
             stationsMetres = Objects.requireNonNull(stationsMetres, "stationsMetres").clone();
+            contractionCoefficientsByInterval =
+                    Objects.requireNonNull(contractionCoefficientsByInterval, "contractionCoefficientsByInterval")
+                            .clone();
+            expansionCoefficientsByInterval =
+                    Objects.requireNonNull(expansionCoefficientsByInterval, "expansionCoefficientsByInterval")
+                            .clone();
             bedElevationsMetres =
                     Objects.requireNonNull(bedElevationsMetres, "bedElevationsMetres").clone();
             sections = Objects.requireNonNull(sections, "sections").clone();
@@ -127,9 +139,20 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
             if (stationsMetres.length < 2
                     || stationsMetres.length != bedElevationsMetres.length
                     || stationsMetres.length != sections.length
-                    || stationsMetres.length != dischargeAtStationsCubicMetresPerSecond.length) {
+                    || stationsMetres.length != dischargeAtStationsCubicMetresPerSecond.length
+                    || contractionCoefficientsByInterval.length != stationsMetres.length - 1
+                    || expansionCoefficientsByInterval.length != stationsMetres.length - 1) {
                 throw new IllegalArgumentException(
                         "reach stations, beds, sections, and discharges must have equal length of at least two");
+            }
+            for (int i = 0; i < contractionCoefficientsByInterval.length; i++) {
+                if (!(contractionCoefficientsByInterval[i] >= 0.0)
+                        || !Double.isFinite(contractionCoefficientsByInterval[i])
+                        || !(expansionCoefficientsByInterval[i] >= 0.0)
+                        || !Double.isFinite(expansionCoefficientsByInterval[i])) {
+                    throw new IllegalArgumentException(
+                            "reach transition coefficients must be finite and nonnegative");
+                }
             }
             if (!(manningRoughness > 0.0) || !Double.isFinite(manningRoughness)) {
                 throw new IllegalArgumentException("Manning roughness must be finite and positive");
@@ -150,6 +173,27 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
             }
         }
 
+        public Reach(
+                double[] stationsMetres,
+                double[] bedElevationsMetres,
+                SkyIslandStandardStepSolver.CrossSection[] sections,
+                double[] dischargeAtStationsCubicMetresPerSecond,
+                double manningRoughness) {
+            this(
+                    stationsMetres,
+                    bedElevationsMetres,
+                    sections,
+                    dischargeAtStationsCubicMetresPerSecond,
+                    manningRoughness,
+                    zeroTransitionCoefficients(stationsMetres),
+                    zeroTransitionCoefficients(stationsMetres));
+        }
+
+        private static double[] zeroTransitionCoefficients(double[] stationsMetres) {
+            Objects.requireNonNull(stationsMetres, "stationsMetres");
+            return new double[Math.max(0, stationsMetres.length - 1)];
+        }
+
         @Override
         public double[] stationsMetres() {
             return stationsMetres.clone();
@@ -168,6 +212,16 @@ public final class SkyIslandSubcriticalJunctionNetworkSolver {
         @Override
         public double[] dischargeAtStationsCubicMetresPerSecond() {
             return dischargeAtStationsCubicMetresPerSecond.clone();
+        }
+
+        @Override
+        public double[] contractionCoefficientsByInterval() {
+            return contractionCoefficientsByInterval.clone();
+        }
+
+        @Override
+        public double[] expansionCoefficientsByInterval() {
+            return expansionCoefficientsByInterval.clone();
         }
     }
 
