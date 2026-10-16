@@ -35,7 +35,7 @@ The candidate carries its exact association. Projection and quantization reject 
 - Removal-only terrain and unchanged edit-envelope, underside and exact compiled support admission.
 - Unchanged hydraulic solver equations, benchmark tolerances and D2 limits.
 - Rejected components grant no terrain/water authority.
-- Integer water remains restricted to authorized carved support; no backend deepening, filling or grade repair.
+- Integer water occupies only the exact connected qualified bed-to-stage envelope; no backend deepening, terrain filling or grade repair.
 - Spatially seeded physical detail means each placement must be solved and admitted independently, not transplanted by translation.
 
 F4K now opts into this path. Preparation reports `worldElevationFrame=associated-physical-v1` and verifies every permitted persisted water voxel, not just each column's lowest water voxel. This does not by itself certify connectivity or visual quality.
@@ -46,7 +46,7 @@ The initial production implementation at 4002f74772d573ddd40489ef2a46a3027179804
 
 [USACE RAS Mapper](https://www.hec.usace.army.mil/confluence/rasdocs/rmum/latest/mapping-results/managing-results-maps) treats terrain and water-surface elevations in a shared spatial representation and derives depth by difference. [USACE cross-section interpolation](https://www.hec.usace.army.mil/confluence/rasdocs/rasum/6.3/entering-and-editing-geometric-data/cross-section-interpolation) provides the connected bank/invert interpolation precedent. This tranche reuses the existing 1D solvers; it does not implement HEC-RAS, triangulated bend repair, or a 2D hydrodynamic model.
 
-## Rejected trials and remaining ownership decision
+## Rejected trials (archival)
 
 The integrated shared-frame proof passed in run 38830308214: 55 level sections, 9,255 admitted columns, two face-connected rivers, no missing centerline samples, and 3,928 persisted water voxels. It still reported 219 *materialized* columns clipped by the old solid-support ceiling; intended wet cells without excavation also receive no water under the retained adapter rule.
 
@@ -54,15 +54,10 @@ Two bounded trials are preserved in Git history, not active implementation:
 - b08c5f229d75ae3ecded7ae7e16e86e9a4f41081: rigid bed/stage lowering preserved source hydraulics but failed the unchanged D2 excavation-burden limit.
 - 18a923ee2b74f0926ea2c271f3635637336766c8: a conservative normal-conveyance flow candidate rejected because its 3.073930563 m headroom requirement exceeded a 2.591885475 m station depth. This does not prove that every smaller-flow candidate is impossible.
 
-Active code retains the verified shared-frame solve and original game calibration. It does not retain either failed correction, widen excavation limits, tune residuals, or claim that the remaining ceiling distortion is repaired.
-
-### Human contract gate
-
-The adapter requires water to replace only pre-existing exact owner solid. This is stricter than merely preserving exact island ownership: it forbids water occupying air above the old ground even when an accepted connected water surface calls for it.
-
-Recommend allowing a precisely bounded, connected water-volume envelope from the associated bed/stage candidate. It may extend above the old solid ceiling, but must remain explicitly assigned to that exact island, exclude foreign volume/water ownership and unrelated/player solids, and preserve removal/thickness limits. Seed connectivity from the accepted river; do not flood disconnected low terrain or grant owner-wide air access. Validate stacked isolation, save/reload and static tick fencing before a new visual review.
-
-**No positive-air water authority is implemented or authorized by this PR.** Owner approval of the shared elevation frame is recorded; approval of this additional water-ownership contract remains pending.
+Active code retains the shared-frame solve and original game calibration. Neither failed correction
+is retained. The owner separately approved bounded connected water above original ground in
+issue #1452 comment 6205986655. That authorization is implemented below; no excavation limit or
+solver tolerance is widened.
 
 ## Static-water lifecycle repair
 
@@ -74,8 +69,7 @@ The viewer fence is scoped to the named prepared review world before level loadi
 
 ## Owner-approved connected water envelope — 2026-10-15
 
-The positive-air decision is now approved in #1452. The earlier pending-decision text above is
-historical: implementation now derives finite water intervals from qualified bed/stage geometry,
+The positive-air decision is now approved in #1452. Implementation now derives finite water intervals from qualified bed/stage geometry,
 not the old solid ceiling. It requires connected accepted centerlines, grants no disconnected pond
 or excavation authority, rejects foreign-volume/water overlap, and refuses unrelated solids in the
 water destination. Legacy unassociated plans retain their original clipped replacement semantics.

@@ -1,29 +1,55 @@
-# F4K hydrology review status
+# F4K bounded connected-water review
 
-## Current boundary — 2026-10-15
+## Scope
 
-The owner accepted the previous key-77 specimen as an **early proof of concept worth improving**, not completed hydrology or DR-70 acceptance. Older feedback that it looked unchanged is historical, not a reason to repeat the same review.
+The previous specimen was accepted only as an early proof of concept. PR #1490 changes the actual
+Minecraft input: bed and stage share an exact-association elevation datum, and the owner-approved
+water envelope can occupy AIR above original ground. Excavation limits remain unchanged.
 
-PR #1490 implements an association-bound shared world-elevation frame. Integrated machine evidence proves 55 level continuous cross sections, two face-connected integer rivers, no missing centerline samples, and 3,928 persisted water voxels.
+The expanded-envelope regression reports 55 level cross sections, two connected rivers,
+5,400 water columns, 3,760 above old ground and 3,541 without terrain excavation.
+These are machine geometry measurements, not aesthetic acceptance. Use the latest PR check results
+and durable evidence comment for full native placement and saved-world preparation status.
+Do not request visual acceptance until those checks pass. This bounded gate is not DR-70 or general
+confluence/cascade/lake acceptance. The separate latent bend station-switch defect is not fixed here.
 
-**No new visual review is requested yet.** The retained adapter permits water only where exact owner solid existed before excavation. It clips 219 materialized columns and suppresses intended water over unexcavated low ground. The pending human decision is whether to authorize a precisely bounded, connected candidate water volume above the old ground, with exact island/foreign-volume isolation and existing excavation safeguards retained. See [world-frame contract](../authorship/HYDROLOGY_ASSOCIATED_WORLD_FRAME.md).
+## Safe checkout and first launch — PowerShell
 
-## Runtime changes
+Do not pull into or resolve an unfinished merge to launch this review. Fetch and create a separate
+detached review worktree inside the repository instead. After PR #1490 is merged and checks pass:
 
-- The opt-in F4K fixture uses the exact associated physical terrain for bed/water generation and qualification.
-- Preparation verifies every permitted water voxel, not just the bottom water voxel of each column.
-- Qualified static-water tick fencing uses exact qualified positions, never a legacy planner fallback.
-- The viewer restores a **read-only** static-water tick mask from the exact fixture authorization. It does not install terrain mutation or a native surface adapter.
-- The dedicated launch task regenerates the disposable review world before opening it; do not substitute a stale prepared world from another revision.
-
-## When the next gate is ready
-
-Use an accepted clean review checkout. The authoritative prepare-and-quick-play task is:
-
-```bash
-./gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:launchF4KHydrologyReview
+```powershell
+Set-Location -LiteralPath 'C:\Users\nicho\Documents\skyforge'
+git fetch origin main
+git worktree add --detach '.reviews/f4k-connected-water-1490' origin/main
+Set-Location -LiteralPath 'C:\Users\nicho\Documents\skyforge\.reviews\f4k-connected-water-1490'
+.\gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:launchF4KHydrologyReview
 ```
 
-Do not run this as an acceptance request until the pending ownership boundary and machine validation are resolved. Do not modify or abort the owner's existing unfinished merge merely to create a review checkout; use a separate detached review worktree.
+If that worktree already exists, do not overwrite it; inspect its revision first. The launch task
+regenerates only its disposable F4K review directory, prepares and verifies the saved water, then
+quick-plays the client directly into the review world. Do not substitute an older prepared world.
 
-The next review must inspect lateral water-level consistency, downstream stepping, shoreline containment and reopen stability. Passing this bounded specimen is not full hydrology or DR-70 acceptance.
+## What to judge
+
+- Across a river, water should have a consistent transverse level, not multiple differently tilted
+  patches introduced by the old terrain-relative frame.
+- Along a river, block-scale downward stepping is expected. Look for dry breaks, abrupt side joins,
+  accidental disconnected pools, or water extending unsupported past intended banks.
+- Inspect the shorelines closely: the new bounded inundation can legitimately cover old low ground.
+  It must not look like arbitrarily floating water or erase foreign terrain.
+- The specimen remains an intentionally bare, isolated fixture. Attractive ecosystem dressing and
+  complete natural-world integration are not what this gate proves.
+
+## Reopen the same saved world
+
+Close the client, then run only this client task from the same checkout:
+
+```powershell
+.\gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runF4kHydrologyReviewClient
+```
+
+This does not run preparation or regenerate the world. The viewer restores the exact fixture's
+read-only Overworld static-water tick mask, with no terrain writer or legacy-planner fallback.
+Compare the same shoreline after reopening and remaining in-world for a while. Report whether
+the river geometry is coherent and stable enough to continue, or attach close-ups of remaining defects.
