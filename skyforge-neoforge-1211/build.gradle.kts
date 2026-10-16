@@ -7616,7 +7616,14 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S7 combat missing $mod on client/server: $expected"
             }
         }
-        (wbyS7CombatCandidateMods - expectedCombatNames).forEach { mod ->
+        // A dependency selected by another enabled content stack is shared, not a leak from this combat arm.
+        val expectedCrossStackSharedMods = if (wbyS8NetherVariant == "incendium-full") {
+            (wbyS8NetherClientMods + wbyS8NetherServerMods).toSet()
+                .intersect(wbyS7CombatCandidateMods.toSet())
+        } else {
+            emptySet()
+        }
+        (wbyS7CombatCandidateMods - expectedCombatNames - expectedCrossStackSharedMods).forEach { mod ->
             val expected = wbyS7CombatToken(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S7 combat arm leaked unselected candidate $mod: $expected"
