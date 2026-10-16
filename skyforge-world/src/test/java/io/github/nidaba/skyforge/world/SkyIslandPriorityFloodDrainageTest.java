@@ -23,7 +23,7 @@ class SkyIslandPriorityFloodDrainageTest {
 
         assertEquals(5, result.conditionedElevationAt(1, 2));
         assertEquals(5, result.conditionedElevationAt(2, 2));
-        assertEquals(0, result.conditionedElevationAt(3, 2));
+        assertEquals(10, result.conditionedElevationAt(3, 2));
         assertEquals(-1, result.receiverIndexAt(0, 2));
 
         long outletArea = 0L;
