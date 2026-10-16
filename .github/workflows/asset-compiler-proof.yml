@@ -16,10 +16,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -48,7 +48,7 @@ jobs:
           --minecraft-structure
 
       - name: Upload v0.12 QA and structure artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: guild-branch-v012-qa
           path: build/asset-compiler-v012
@@ -56,7 +56,7 @@ jobs:
           retention-days: 14
 
       - name: Upload v0.13 first-principles QA and structure artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: guild-branch-v013-first-principles-qa
           path: build/asset-compiler-v013-first-principles
@@ -80,7 +80,7 @@ jobs:
           --out build/asset-compiler-v014-sibling-working-heavy/sibling_roi.json
 
       - name: Upload v0.14 first-principles detail QA and structure artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: guild-branch-v014-first-principles-detail-qa
           path: build/asset-compiler-v014-first-principles-detail
@@ -88,7 +88,7 @@ jobs:
           retention-days: 14
 
       - name: Upload v0.14 working-heavy sibling QA, structure, and ROI artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: guild-branch-v014-sibling-working-heavy-qa
           path: build/asset-compiler-v014-sibling-working-heavy
