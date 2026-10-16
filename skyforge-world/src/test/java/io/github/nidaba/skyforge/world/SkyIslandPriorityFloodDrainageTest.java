@@ -34,6 +34,11 @@ class SkyIslandPriorityFloodDrainageTest {
                 } else {
                     int receiver = result.receiverIndexAt(x, z);
                     assertTrue(receiver >= 0 && receiver < result.width() * result.height());
+                    int receiverX = receiver % result.width();
+                    int receiverZ = receiver / result.width();
+                    assertTrue(Math.abs(receiverX - x) <= 1);
+                    assertTrue(Math.abs(receiverZ - z) <= 1);
+                    assertTrue(receiverX != x || receiverZ != z);
                     assertTrue(result.contributingAreaAt(x, z) >= 1);
                 }
             }
