@@ -290,7 +290,9 @@ public final class SkyIslandStandardStepSolver {
                         sections[i + 1],
                         dischargeAtStationsCubicMetresPerSecond[i],
                         dischargeAtStationsCubicMetresPerSecond[i + 1],
-                        manningRoughness);
+                        manningRoughness,
+                        contractionCoefficientsByInterval[i],
+                        expansionCoefficientsByInterval[i]);
             }
         } else {
             depths[0] = boundaryDepthMetres;
@@ -304,7 +306,9 @@ public final class SkyIslandStandardStepSolver {
                         sections[i + 1],
                         dischargeAtStationsCubicMetresPerSecond[i],
                         dischargeAtStationsCubicMetresPerSecond[i + 1],
-                        manningRoughness);
+                        manningRoughness,
+                        contractionCoefficientsByInterval[i],
+                        expansionCoefficientsByInterval[i]);
             }
         }
         return depths;
@@ -366,7 +370,7 @@ public final class SkyIslandStandardStepSolver {
         }
         return bisect(lower, upper, value -> supercriticalResidual(
                 value, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
-                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness));
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness, contractionCoefficient, expansionCoefficient));
     }
 
     private static double solveSubcriticalStep(
@@ -378,7 +382,9 @@ public final class SkyIslandStandardStepSolver {
             CrossSection downstreamSection,
             double upstreamDischarge,
             double downstreamDischarge,
-            double roughness) {
+            double roughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
         double downstreamEnergy = downstreamBed
                 + specificEnergy(downstreamDepth, downstreamSection, downstreamDischarge);
         double lower = criticalDepth(upstreamDischarge, upstreamSection);
@@ -406,7 +412,7 @@ public final class SkyIslandStandardStepSolver {
         }
         return bisect(lower, upper, value -> subcriticalResidual(
                 value, stationLength, upstreamBed, downstreamEnergy, downstreamDepth,
-                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness));
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness, contractionCoefficient, expansionCoefficient));
     }
 
     private static double subcriticalResidual(
@@ -419,7 +425,9 @@ public final class SkyIslandStandardStepSolver {
             CrossSection downstreamSection,
             double upstreamDischarge,
             double downstreamDischarge,
-            double roughness) {
+            double roughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
         double energyLoss = reachEnergyLoss(
                 stationLength, upstreamDepth, downstreamDepth,
                 upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness, contractionCoefficient, expansionCoefficient);
@@ -436,7 +444,9 @@ public final class SkyIslandStandardStepSolver {
             CrossSection downstreamSection,
             double upstreamDischarge,
             double downstreamDischarge,
-            double roughness) {
+            double roughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
         double upstreamEnergy = upstreamBed
                 + specificEnergy(upstreamDepth, upstreamSection, upstreamDischarge);
         double upper = criticalDepth(downstreamDischarge, downstreamSection);
@@ -464,7 +474,7 @@ public final class SkyIslandStandardStepSolver {
         }
         return bisect(lower, upper, value -> supercriticalResidual(
                 value, stationLength, downstreamBed, upstreamEnergy, upstreamDepth,
-                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness));
+                upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness, contractionCoefficient, expansionCoefficient));
     }
 
     private static double supercriticalResidual(
@@ -477,7 +487,9 @@ public final class SkyIslandStandardStepSolver {
             CrossSection downstreamSection,
             double upstreamDischarge,
             double downstreamDischarge,
-            double roughness) {
+            double roughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
         double energyLoss = reachEnergyLoss(
                 stationLength, upstreamDepth, downstreamDepth,
                 upstreamSection, downstreamSection, upstreamDischarge, downstreamDischarge, roughness, contractionCoefficient, expansionCoefficient);
@@ -493,9 +505,11 @@ public final class SkyIslandStandardStepSolver {
             CrossSection downstreamSection,
             double upstreamDischarge,
             double downstreamDischarge,
-            double roughness) {
+            double roughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
         double conveyanceSum = conveyance(upstreamDepth, upstreamSection, roughness)
-                + conveyance(downstreamDepth, downstreamSection, roughness, contractionCoefficient, expansionCoefficient);
+                + conveyance(downstreamDepth, downstreamSection, roughness);
         double averageFrictionSlope = square((upstreamDischarge + downstreamDischarge) / conveyanceSum);
         double upstreamVelocityHead = velocityHead(upstreamDepth, upstreamSection, upstreamDischarge);
         double downstreamVelocityHead = velocityHead(downstreamDepth, downstreamSection, downstreamDischarge);
