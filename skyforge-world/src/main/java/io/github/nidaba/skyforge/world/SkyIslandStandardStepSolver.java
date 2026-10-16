@@ -51,6 +51,21 @@ public final class SkyIslandStandardStepSolver {
 
         /** Water-surface top width, in metres. */
         double topWidth(double depthMetres);
+
+        /** Compound sections may override this to sum subsection conveyances. */
+        default double conveyance(double depthMetres, double manningRoughness) {
+            double area = positiveFinite(area(depthMetres), "cross-sectional area");
+            double perimeter = positiveFinite(wettedPerimeter(depthMetres), "wetted perimeter");
+            return positiveFinite(area * Math.pow(area / perimeter, 2.0 / 3.0) / manningRoughness,
+                    "Manning conveyance");
+        }
+    }
+
+    /** Auditable losses from one subcritical combining-junction energy step. */
+    public record JunctionLosses(double frictionLossMetres, double transitionLossMetres) {
+        public double totalLossMetres() {
+            return frictionLossMetres + transitionLossMetres;
+        }
     }
 
     /**
@@ -452,12 +467,65 @@ public final class SkyIslandStandardStepSolver {
     }
 
     private static double conveyance(double depth, CrossSection section, double roughness) {
+        return positiveFinite(section.conveyance(depth, roughness), "Manning conveyance");
+    }
+
+    /**
+     * Evaluates HEC-RAS average-conveyance friction and contraction/expansion losses for a
+     * combining junction. Flow is from the upstream branch toward the downstream section.
+     */
+    public static JunctionLosses combiningJunctionLosses(
+            double reachLengthMetres,
+            CrossSection upstreamSection,
+            double upstreamDepthMetres,
+            double upstreamDischargeCubicMetresPerSecond,
+            double upstreamManningRoughness,
+            CrossSection downstreamSection,
+            double downstreamDepthMetres,
+            double downstreamDischargeCubicMetresPerSecond,
+            double downstreamManningRoughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
+        Objects.requireNonNull(upstreamSection, "upstreamSection");
+        Objects.requireNonNull(downstreamSection, "downstreamSection");
+        requireNonnegativeFinite(reachLengthMetres, "junction reach length");
+        requirePositiveFinite(upstreamDepthMetres, "upstream depth");
+        requirePositiveFinite(downstreamDepthMetres, "downstream depth");
+        requirePositiveFinite(upstreamDischargeCubicMetresPerSecond, "upstream discharge");
+        requirePositiveFinite(downstreamDischargeCubicMetresPerSecond, "downstream discharge");
+        requirePositiveFinite(upstreamManningRoughness, "upstream Manning roughness");
+        requirePositiveFinite(downstreamManningRoughness, "downstream Manning roughness");
+        requireNonnegativeFinite(contractionCoefficient, "contraction coefficient");
+        requireNonnegativeFinite(expansionCoefficient, "expansion coefficient");
+        double conveyanceSum = positiveFinite(
+                upstreamSection.conveyance(upstreamDepthMetres, upstreamManningRoughness)
+                        + downstreamSection.conveyance(downstreamDepthMetres, downstreamManningRoughness),
+                "junction conveyance sum");
+        double frictionSlope = square(
+                (upstreamDischargeCubicMetresPerSecond + downstreamDischargeCubicMetresPerSecond)
+                        / conveyanceSum);
+        double upstreamVelocityHead = velocityHead(
+                upstreamDepthMetres, upstreamSection, upstreamDischargeCubicMetresPerSecond);
+        double downstreamVelocityHead = velocityHead(
+                downstreamDepthMetres, downstreamSection, downstreamDischargeCubicMetresPerSecond);
+        double coefficient = downstreamVelocityHead > upstreamVelocityHead
+                ? contractionCoefficient
+                : expansionCoefficient;
+        return new JunctionLosses(
+                reachLengthMetres * frictionSlope,
+                coefficient * Math.abs(downstreamVelocityHead - upstreamVelocityHead));
+    }
+
+    private static double velocityHead(double depth, CrossSection section, double discharge) {
         double area = positiveFinite(section.area(depth), "cross-sectional area");
-        double perimeter = positiveFinite(section.wettedPerimeter(depth), "wetted perimeter");
-        double hydraulicRadius = area / perimeter;
-        return positiveFinite(
-                area * Math.pow(hydraulicRadius, 2.0 / 3.0) / roughness,
-                "Manning conveyance");
+        double velocity = discharge / area;
+        return velocity * velocity / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+    }
+
+    private static void requireNonnegativeFinite(double value, String name) {
+        if (value < 0.0 || !Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite and nonnegative");
+        }
     }
 
     private static double criticalDepth(double discharge, CrossSection section) {
@@ -528,6 +596,12 @@ public final class SkyIslandStandardStepSolver {
 
     private static void requirePositiveFinite(double value, String name) {
         positiveFinite(value, name);
+    }
+
+    private static void requireNonnegativeFinite(double value, String name) {
+        if (value < 0.0 || !Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite and nonnegative");
+        }
     }
 
     @FunctionalInterface
