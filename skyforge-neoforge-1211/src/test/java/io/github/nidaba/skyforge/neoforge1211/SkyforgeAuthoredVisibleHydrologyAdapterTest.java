@@ -69,11 +69,11 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
         assertTrue(protectedChunk.getBlockState(protectedPosition).is(Blocks.GOLD_BLOCK));
         var foreign = new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(
                 new io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId(
-                        WORLD_SEED, "positive-air-foreign", 0, 0, 910_077L),
+                        fixture.catalog().rootSeed(), "positive-air-foreign", 0, 0, 910_077L),
                 fixture.volume().bounds(), fixture.volume().compiledVolume());
         var overlappingTerrain = terrain(
                 new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(
-                        WORLD_SEED, List.of(fixture.volume(), foreign)), fixture.descriptor());
+                        fixture.catalog().rootSeed(), List.of(fixture.volume(), foreign)), fixture.descriptor());
         var foreignChunk = MinecraftTestChunkFactory.protoChunk(
                 new net.minecraft.world.level.ChunkPos(above));
         assertTrue(overlappingTerrain.isInsideOtherVolume(fixture.volume().id(),
