@@ -196,7 +196,7 @@ else
   bomd_evidence_args=()
 fi
 
-if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-full" ]]; then
+if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-full" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-betternether" ]]; then
   : "${WBY_S8_NETHER_DATAPACK_SOURCE:?Set the staged Incendium ZIP path}"
   test -s "$WBY_S8_NETHER_DATAPACK_SOURCE"
   mkdir -p "$server_dir/s7-acceptance/datapacks"
