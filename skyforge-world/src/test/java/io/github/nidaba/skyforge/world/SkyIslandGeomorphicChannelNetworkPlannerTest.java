@@ -14,6 +14,84 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
     private static final double EPSILON = 1.0e-10;
 
     @Test
+    void priorityFloodGuidedRoutesStayBoundToSemanticReachesOnAcceptedAndRejectedControls() {
+        for (long key : new long[] {77L, 287L}) {
+            SkyIslandDescriptor descriptor = descriptor(key);
+            SkyIslandSemanticChannelReachPlan semantics =
+                    SkyIslandSemanticChannelReachPlanner.plan(descriptor);
+            SkyIslandSemanticField terrain =
+                    SkyIslandPreHydrologicTerrainField.create(descriptor);
+            SkyIslandSemanticField interiority =
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
+            SkyIslandGeomorphicChannelNetworkPlan plan =
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+
+            for (SkyIslandGeomorphicReachRoute routed : plan.routes()) {
+                SkyIslandSemanticChannelReach reach = routed.semanticReach();
+                double corridorHalfWidth =
+                        semantics.planningSpacing()
+                                * SkyIslandGeomorphicChannelNetworkPlanner
+                                        .ROUTE_CORRIDOR_SPACING_FRACTION;
+                SkyIslandGeomorphicRouteAnchor startAnchor =
+                        new SkyIslandGeomorphicRouteAnchor(
+                                plan.requireNode(reach.startCellIndex()).physicalPosition(), 0.0);
+                SkyIslandGeomorphicRouteAnchor endAnchor =
+                        new SkyIslandGeomorphicRouteAnchor(
+                                plan.requireNode(reach.endCellIndex()).physicalPosition(), 0.0);
+                SkyIslandGeomorphicCandidateRoute expected =
+                        SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                                terrain,
+                                interiority,
+                                reach.guidancePoints(),
+                                semantics.planningSpacing(),
+                                corridorHalfWidth,
+                                startAnchor,
+                                endAnchor,
+                                SkyIslandTerrainAwareRouteSolver
+                                        .FINE_DIVISIONS_PER_PLANNING_CELL);
+                boolean transitionSensitive =
+                        plan.requireNode(reach.startCellIndex()).kind()
+                                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                                || plan.requireNode(reach.endCellIndex()).kind()
+                                        == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                                || reach.profiles().stream().anyMatch(
+                                        profile -> profile.kind()
+                                                == SkyIslandChannelProfileKind.CASCADE);
+                if (!transitionSensitive) {
+                    SkyIslandGeomorphicCandidateRoute drainageGuide =
+                            SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                                    terrain,
+                                    interiority,
+                                    reach.guidancePoints(),
+                                    semantics.planningSpacing(),
+                                    corridorHalfWidth,
+                                    startAnchor,
+                                    endAnchor,
+                                    SkyIslandTerrainAwareRouteSolver
+                                            .FINE_DIVISIONS_PER_PLANNING_CELL);
+                    SkyIslandGeomorphicCandidateRoute guided =
+                            SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                                    terrain,
+                                    interiority,
+                                    drainageGuide.points(),
+                                    semantics.planningSpacing(),
+                                    corridorHalfWidth,
+                                    startAnchor,
+                                    endAnchor,
+                                    SkyIslandTerrainAwareRouteSolver
+                                            .FINE_DIVISIONS_PER_PLANNING_CELL);
+                    if (SkyIslandGeomorphicChannelNetworkPlanner
+                            .priorityFloodCandidateIsNoWorse(guided, expected)) {
+                        expected = guided;
+                    }
+                }
+                assertEquals(expected, routed.route());
+                assertEquals(reach, routed.semanticReach());
+            }
+        }
+    }
+
+    @Test
     void networkGeometryIsDeterministicAndEveryReachUsesSharedPhysicalAnchors() {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 649L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
