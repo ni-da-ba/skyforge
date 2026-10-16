@@ -270,7 +270,9 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
         if (length <= EPSILON) {
             return point;
         }
-        double halfWidth = samples.get(index).bankfullHalfWidth() * 3.5;
+        // Water is only qualified inside bankfull; valley recovery is deliberately dry.
+        // Keeping the station mesh to this wet envelope avoids folded, overlapping valley ribbons.
+        double halfWidth = samples.get(index).bankfullHalfWidth();
         return new SkyIslandLocalPosition(
                 point.x() - side * tz / length * halfWidth,
                 point.z() + side * tx / length * halfWidth);
