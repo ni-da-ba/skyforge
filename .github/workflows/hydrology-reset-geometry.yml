@@ -322,7 +322,15 @@ jobs:
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.unresolvedTransitionsAreDeferredBeforeTerrainAuthority' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority' \
+            --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.fixedV5LakeCorpusReportsTerminalProfileClassification' \
             --no-configuration-cache
+      - name: Print fixed retained-lake terminal profiles
+        if: always()
+        run: |
+          report=skyforge-world/build/evidence/hydrology-retained-basin-transition-profiles/terminal-transition-profiles.csv
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
       - name: Run join diagnostics with unchanged production evidence reused
         if: steps.scope.outputs.diagnostic_only == 'true'
         run: ./gradlew :skyforge-world:test --tests '*SkyIslandHydrologyJoinDiagnosticsTest' --no-configuration-cache
@@ -336,6 +344,7 @@ jobs:
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGeomorphicChannelNetworkPlannerTest.xml
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydrologyJoinDiagnosticsTest.xml
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandAssociatedHydraulicTerrainTest.xml
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.xml
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicCandidateBuilderTest.xml
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialWorldSurfaceProjectionTest.xml
@@ -372,7 +381,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: hydrology-join-diagnostics-${{ github.sha }}
-          path: skyforge-world/build/evidence/hydrology-join-diagnostics/
+          path: |
+            skyforge-world/build/evidence/hydrology-join-diagnostics/
+            skyforge-world/build/evidence/hydrology-retained-basin-transition-profiles/
           if-no-files-found: warn
           retention-days: 14
       - name: Verify qualified static-water fence and writer-inert reload binding
