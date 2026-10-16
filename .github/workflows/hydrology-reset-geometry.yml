@@ -195,6 +195,7 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialProvenance.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialTerrainField.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydrologyJoinDiagnosticsTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferralReason.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferral.java"
@@ -287,6 +288,7 @@ jobs:
             --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSupercriticalProfileFromConstructedBed' \
             --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
             --tests '*SkyIslandGameScaleHydraulicModelTest' \
+            --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
@@ -305,6 +307,21 @@ jobs:
               cat "$report"
             fi
           done
+      - name: Print river join diagnostic summary
+        if: always()
+        run: |
+          report=skyforge-world/build/evidence/hydrology-join-diagnostics/summary.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
+      - name: Upload river join diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: hydrology-join-diagnostics-${{ github.sha }}
+          path: skyforge-world/build/evidence/hydrology-join-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
       - name: Prepare and verify persisted key-77 F4K review specimen
         if: success()
         timeout-minutes: 15
