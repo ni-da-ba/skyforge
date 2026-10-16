@@ -196,6 +196,7 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialTerrainField.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydrologyJoinDiagnosticsTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandAssociatedHydraulicTerrainTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferralReason.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferral.java"
@@ -308,6 +309,7 @@ jobs:
             --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
             --tests '*SkyIslandGameScaleHydraulicModelTest' \
             --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
+            --tests '*SkyIslandAssociatedHydraulicTerrainTest' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
@@ -323,6 +325,7 @@ jobs:
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandUnitWidthStandardStepSolverTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydrologyJoinDiagnosticsTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandAssociatedHydraulicTerrainTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
           do
             if [ -f "$report" ]; then

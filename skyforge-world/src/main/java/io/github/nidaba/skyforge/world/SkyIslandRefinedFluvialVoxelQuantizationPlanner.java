@@ -19,6 +19,7 @@ public final class SkyIslandRefinedFluvialVoxelQuantizationPlanner {
             SkyIslandQualifiedFluvialTerrainField refinedField) {
         Objects.requireNonNull(association, "association");
         Objects.requireNonNull(candidatePlan, "candidatePlan");
+        candidatePlan.requireAssociation(association);
         Objects.requireNonNull(refinedField, "refinedField");
         if (!association.authoredDescriptor().equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(

@@ -17,7 +17,28 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
         List<SkyIslandHydraulicTerminalComponent> realizedComponents,
         List<SkyIslandComponentFluvialTerrainDeferral> deferredQualifiedComponents,
         List<SkyIslandGeomorphicReachQualification> postRealizationQualifications,
-        SkyIslandQualifiedFluvialTerrainField terrainField) {
+        SkyIslandQualifiedFluvialTerrainField terrainField,
+        java.util.Optional<SkyIslandAuthoredRealizationAssociation> worldAssociation) {
+
+    /** Placement-free semantic candidate retained for authorship and legacy evidence. */
+    public SkyIslandComponentFluvialTerrainCandidatePlan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicNetworkAssemblyPlan assemblyPlan,
+            List<SkyIslandHydraulicTerminalComponent> realizedComponents,
+            List<SkyIslandComponentFluvialTerrainDeferral> deferredQualifiedComponents,
+            List<SkyIslandGeomorphicReachQualification> postRealizationQualifications,
+            SkyIslandQualifiedFluvialTerrainField terrainField) {
+        this(descriptor, assemblyPlan, realizedComponents, deferredQualifiedComponents,
+                postRealizationQualifications, terrainField, java.util.Optional.empty());
+    }
+
+    /** Association-specific candidates may never be transplanted to another physical volume. */
+    public void requireAssociation(SkyIslandAuthoredRealizationAssociation association) {
+        Objects.requireNonNull(association, "association");
+        if (worldAssociation.isPresent() && !worldAssociation.orElseThrow().equals(association)) {
+            throw new IllegalArgumentException("world-frame candidate belongs to another exact association");
+        }
+    }
 
     public SkyIslandComponentFluvialTerrainCandidatePlan {
         descriptor = Objects.requireNonNull(descriptor, "descriptor");
@@ -26,6 +47,11 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
         deferredQualifiedComponents = List.copyOf(deferredQualifiedComponents);
         postRealizationQualifications = List.copyOf(postRealizationQualifications);
         terrainField = Objects.requireNonNull(terrainField, "terrainField");
+        worldAssociation = Objects.requireNonNull(worldAssociation, "worldAssociation");
+        if (worldAssociation.isPresent()
+                && !descriptor.equals(worldAssociation.orElseThrow().authoredDescriptor())) {
+            throw new IllegalArgumentException("world-frame association descriptor must match candidate");
+        }
 
         if (!descriptor.equals(assemblyPlan.descriptor())) {
             throw new IllegalArgumentException(
