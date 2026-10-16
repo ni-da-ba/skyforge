@@ -23,6 +23,10 @@ MODRINTH = {
     "thinair-relived": ("WW4CTUTl", "thinair-relived"),
     "yungs-better-nether-fortresses": ("iopJiJQp", "yungs-better-nether-fortresses"),
     "incendium": ("pwe1kTJE", "incendium"),
+    "betternether": ("TTPM28HH", "betternether-neoforge"),
+    "bclib": ("QkXw8Fsl", "bclib-neoforge"),
+    "wunderlib": ("5db3GZzg", "wunderlib-neoforge"),
+    "worldweaver": ("TrReu8cF", "worldweaver-neoforge"),
 }
 CURSEFORGE = {
     "nether-depths-upgrade": (670011, 8940364, "netherdepthsupgrade-3.3-1.21.1-NeoForge.jar"),
@@ -82,14 +86,24 @@ def curseforge(project_id: int, file_id: int, filename: str) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or sys.argv[1] != "incendium-full":
-        raise SystemExit("Usage: python scripts/wby-s8-download-nether-review-deps.py incendium-full")
+    if len(sys.argv) != 2 or sys.argv[1] not in {"incendium-full", "incendium-betternether"}:
+        raise SystemExit("Usage: python scripts/wby-s8-download-nether-review-deps.py {incendium-full|incendium-betternether}")
+    profile = sys.argv[1]
+    global DOWNLOADS
+    DOWNLOADS = ROOT / ".skyforge-diagnostics" / "s8-nether-downloads" / profile
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
-    for alias, (version_id, project) in MODRINTH.items():
+    aliases = (
+        ("create-nether-industry", "thinair-relived", "yungs-better-nether-fortresses", "incendium")
+        if profile == "incendium-full"
+        else ("betternether", "bclib", "wunderlib", "worldweaver", "incendium")
+    )
+    for alias in aliases:
+        version_id, _project = MODRINTH[alias]
         modrinth(version_id, alias)
-    for alias, (project_id, file_id, filename) in CURSEFORGE.items():
-        curseforge(project_id, file_id, filename)
-    print("S8 Incendium full-profile review dependencies are ready.")\n    print(f"Client and local-review JARs: {DOWNLOADS}")
+    if profile == "incendium-full":
+        for project_id, file_id, filename in CURSEFORGE.values():
+            curseforge(project_id, file_id, filename)
+    print(f"S8 {profile} review dependencies are ready.")\n    print(f"Client and local-review JARs: {DOWNLOADS}")
     return 0
 
 
