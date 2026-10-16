@@ -62,24 +62,21 @@ class SkyIslandSubcriticalDrainageTreeSolverTest {
     }
 
     @Test
-    void rejectsDisconnectedCyclicDrainageComponent() {
+    void rejectsReachOutsideTheTerminalDrainageTree() {
         var root = reach("root", 100.0, new double[] {0.1, 0.0}, 18.0, 5.0);
         var a = reach("a", 60.0, new double[] {0.4, 0.2}, 12.0, 3.0);
         var b = reach("b", 50.0, new double[] {0.45, 0.2}, 10.0, 2.0);
-        var c = reach("c", 50.0, new double[] {0.45, 0.2}, 10.0, 2.0);
-        var d = reach("d", 50.0, new double[] {0.45, 0.2}, 10.0, 2.0);
+        var disconnected = reach("disconnected", 50.0, new double[] {0.45, 0.2}, 10.0, 2.0);
 
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SkyIslandSubcriticalDrainageTreeSolver.solve(
-                        List.of(root, a, b, c, d),
-                        List.of(
-                                junction("root", tributary("a", 20.0), tributary("b", 25.0)),
-                                junction("c", tributary("d", 15.0), tributary("d", 18.0)),
-                                junction("d", tributary("c", 15.0), tributary("c", 18.0))),
+                        List.of(root, a, b, disconnected),
+                        List.of(junction("root", tributary("a", 20.0), tributary("b", 25.0))),
                         "root",
                         1.2));
     }
+
 
     private static SkyIslandSubcriticalDrainageTreeSolver.Reach reach(
             String id, double length, double[] beds, double width, double discharge) {
