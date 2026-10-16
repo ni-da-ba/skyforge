@@ -3,8 +3,8 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-betternether) ;;
-  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-betternether}" >&2; exit 2 ;;
+  control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-full-wither|incendium-betternether) ;;
+  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-full-wither|incendium-betternether}" >&2; exit 2 ;;
 esac
 
 base="skyforge-neoforge-1211/run-wby-s8-control"
@@ -58,11 +58,11 @@ if [[ "$variant" == "control-mnd" || "$variant" == "jne-mnd" ]]; then
   cp -f "${matches[0]}" "$run/mods/"
 fi
 
-if [[ "$variant" == "incendium-full" ]]; then
+if [[ "$variant" == "incendium-full" || "$variant" == "incendium-full-wither" ]]; then
   python_bin="$(command -v python3 || command -v python || true)"
   if [[ -z "$python_bin" ]]; then echo "Python 3 is required to stage the official review dependencies." >&2; exit 2; fi
-  "$python_bin" scripts/wby-s8-download-nether-review-deps.py incendium-full
-  full_downloads="$downloads/incendium-full"
+  "$python_bin" scripts/wby-s8-download-nether-review-deps.py "$variant"
+  full_downloads="$downloads/$variant"
   expected_full_jars=(
     '*netherdepthsupgrade*.jar'
     '*nether*industry*.jar'
@@ -71,6 +71,9 @@ if [[ "$variant" == "incendium-full" ]]; then
     '*better*fortress*.jar'
     '*mynethersdelight*.jar'
   )
+  if [[ "$variant" == "incendium-full-wither" ]]; then
+    expected_full_jars+=('*wither*reincarnated*.jar')
+  fi
   for pattern in "${expected_full_jars[@]}"; do
     mapfile -t matches < <(find "$full_downloads" -maxdepth 1 -type f -iname "$pattern" -print)
     if (( ${#matches[@]} != 1 )); then
@@ -130,6 +133,8 @@ echo "Enter the Nether through a portal and compare biome geography, scale/conne
 echo "Check for fortresses and Blaze access, bastion/candidate structures, duplicate or suppressed structures, and obvious progression bypasses."
 echo "The jne arm excludes My Nether's Delight, so assess its substrate/rendering independently. Compare control-mnd with jne-mnd on the same seed to see whether JNE suppresses Powdery Cannon generation. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness without attributing that report to MND."
 echo "For incendium-betternether, treat this as the isolated biome/feature composition qualification; do not infer compatibility from a successful launch alone."
+echo "For incendium-full-wither, also compare the Wither fight against the ordinary Incendium full profile; summon one only in this disposable creative review world."
+echo "Wither: Reincarnated is All Rights Reserved and is staged only in the local review folder; do not package or upload its jar."
 echo "For incendium-full, review the cumulative Nether stack: terrain/biomes, Nether Depths Upgrade ecology/resources, My Nether's Delight, Create: Nether Industry inputs and processing, ThinAir breathability and Create backtank interaction, and YUNG fortress/Blaze access. Check how these systems interact with the accepted Eternal Nether and S7 threat/BOMD layers."
 echo "Record coordinates, screenshots, concerns, and any progression bypass. The control/JNE/Incendium arms inform substrate choice. The control-mnd and jne-mnd runs form a matched Powdery Cannon interaction check, not additional substrate candidates. Do not tune recipes, drops, spawn rates, loot, or balance."
 echo "Run directory: $run"
