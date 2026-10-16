@@ -501,9 +501,9 @@ public final class SkyIslandStandardStepSolver {
                 upstreamSection.conveyance(upstreamDepthMetres, upstreamManningRoughness)
                         + downstreamSection.conveyance(downstreamDepthMetres, downstreamManningRoughness),
                 "junction conveyance sum");
-        double frictionSlope = square(
+        double frictionSlope = positiveFinite(square(
                 (upstreamDischargeCubicMetresPerSecond + downstreamDischargeCubicMetresPerSecond)
-                        / conveyanceSum);
+                        / conveyanceSum), "average junction friction slope");
         double upstreamVelocityHead = velocityHead(
                 upstreamDepthMetres, upstreamSection, upstreamDischargeCubicMetresPerSecond);
         double downstreamVelocityHead = velocityHead(
@@ -511,15 +511,19 @@ public final class SkyIslandStandardStepSolver {
         double coefficient = downstreamVelocityHead > upstreamVelocityHead
                 ? contractionCoefficient
                 : expansionCoefficient;
-        return new JunctionLosses(
-                reachLengthMetres * frictionSlope,
-                coefficient * Math.abs(downstreamVelocityHead - upstreamVelocityHead));
+        double frictionLoss = reachLengthMetres * frictionSlope;
+        double transitionLoss = coefficient * Math.abs(downstreamVelocityHead - upstreamVelocityHead);
+        requireNonnegativeFinite(frictionLoss, "junction friction loss");
+        requireNonnegativeFinite(transitionLoss, "junction transition loss");
+        return new JunctionLosses(frictionLoss, transitionLoss);
     }
 
     private static double velocityHead(double depth, CrossSection section, double discharge) {
         double area = positiveFinite(section.area(depth), "cross-sectional area");
         double velocity = discharge / area;
-        return velocity * velocity / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED);
+        return positiveFinite(
+                velocity * velocity / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED),
+                "velocity head");
     }
 
     private static void requireNonnegativeFinite(double value, String name) {
