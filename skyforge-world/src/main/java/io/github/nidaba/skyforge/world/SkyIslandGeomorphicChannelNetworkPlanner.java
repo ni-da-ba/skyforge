@@ -135,8 +135,8 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                     new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0);
             SkyIslandGeomorphicRouteAnchor endAnchor =
                     new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0);
-            SkyIslandGeomorphicCandidateRoute drainageGuide = Objects.requireNonNull(
-                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+            SkyIslandGeomorphicCandidateRoute establishedRoute = Objects.requireNonNull(
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
                             terrain,
                             interiority,
                             reach.guidancePoints(),
@@ -145,23 +145,49 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                             startAnchor,
                             endAnchor,
                             SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL),
-                    "Priority-Flood drainage guide returned null for semantic reach "
+                    "terrain-aware route returned null for semantic reach "
                             + reach.startCellIndex() + "->" + reach.endCellIndex());
-            // D8 receiver traces provide drainage direction, but their grid stair-steps are
-            // not themselves the authored channel centerline. Realize a smooth, bounded route
-            // around that drainage guide with the established terrain-aware route search.
-            SkyIslandGeomorphicCandidateRoute route = Objects.requireNonNull(
-                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
-                            terrain,
-                            interiority,
-                            drainageGuide.points(),
-                            semantics.planningSpacing(),
-                            corridorHalfWidth,
-                            startAnchor,
-                            endAnchor,
-                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL),
-                    "terrain-aware realization returned null for semantic reach "
-                            + reach.startCellIndex() + "->" + reach.endCellIndex());
+            boolean transitionSensitive =
+                    start.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                            || end.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE
+                            || reach.profiles().stream().anyMatch(
+                                    profile -> profile.kind() == SkyIslandChannelProfileKind.CASCADE);
+            SkyIslandGeomorphicCandidateRoute route = establishedRoute;
+            if (!transitionSensitive) {
+                SkyIslandGeomorphicCandidateRoute drainageGuide = Objects.requireNonNull(
+                        SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                                terrain,
+                                interiority,
+                                reach.guidancePoints(),
+                                semantics.planningSpacing(),
+                                corridorHalfWidth,
+                                startAnchor,
+                                endAnchor,
+                                SkyIslandTerrainAwareRouteSolver
+                                        .FINE_DIVISIONS_PER_PLANNING_CELL),
+                        "Priority-Flood drainage guide returned null for semantic reach "
+                                + reach.startCellIndex() + "->" + reach.endCellIndex());
+                // D8 receiver traces provide drainage direction, but their grid stair-steps are
+                // not themselves the authored channel centerline. Realize a smooth, bounded route
+                // around that guide with the established terrain-aware route search. Adopt the
+                // candidate only when its terrain-support diagnostics do not regress.
+                SkyIslandGeomorphicCandidateRoute guidedRoute = Objects.requireNonNull(
+                        SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                                terrain,
+                                interiority,
+                                drainageGuide.points(),
+                                semantics.planningSpacing(),
+                                corridorHalfWidth,
+                                startAnchor,
+                                endAnchor,
+                                SkyIslandTerrainAwareRouteSolver
+                                        .FINE_DIVISIONS_PER_PLANNING_CELL),
+                        "Priority-Flood-guided realization returned null for semantic reach "
+                                + reach.startCellIndex() + "->" + reach.endCellIndex());
+                if (priorityFloodCandidateIsNoWorse(guidedRoute, establishedRoute)) {
+                    route = guidedRoute;
+                }
+            }
             if (!route.points().getFirst().equals(start.physicalPosition())
                     || !route.points().getLast().equals(end.physicalPosition())) {
                 throw new IllegalStateException("fine route did not preserve selected shared network anchors");
@@ -176,6 +202,19 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 .thenComparingInt(route -> route.semanticReach().endCellIndex()));
         return new SkyIslandGeomorphicChannelNetworkPlan(
                 descriptor, semantics.planningSpacing(), nodes, routes);
+    }
+
+    private static boolean priorityFloodCandidateIsNoWorse(
+            SkyIslandGeomorphicCandidateRoute candidate,
+            SkyIslandGeomorphicCandidateRoute established) {
+        return candidate.ridgeSampleFraction()
+                        <= established.ridgeSampleFraction() + EPSILON
+                && candidate.meanValleyFloorAdvantage()
+                        >= established.meanValleyFloorAdvantage() - EPSILON
+                && candidate.uphillStepFraction()
+                        <= established.uphillStepFraction() + EPSILON
+                && candidate.maxUphillStep()
+                        <= established.maxUphillStep() + EPSILON;
     }
 
     private static SkyIslandGeomorphicNetworkNode selectNode(
