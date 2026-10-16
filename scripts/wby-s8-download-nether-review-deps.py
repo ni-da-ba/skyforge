@@ -107,7 +107,8 @@ def main() -> int:
     if profile == "incendium-full-wither":
         version_id, _project = MODRINTH["wither-reincarnated"]
         modrinth(version_id, "wither-reincarnated")
-    print(f"S8 {profile} review dependencies are ready.")\n    print(f"Client and local-review JARs: {DOWNLOADS}")
+    print(f"S8 {profile} review dependencies are ready.")
+    print(f"Client and local-review JARs: {DOWNLOADS}")
     return 0
 
 
