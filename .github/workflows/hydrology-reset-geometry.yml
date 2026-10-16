@@ -322,6 +322,7 @@ jobs:
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.unresolvedTransitionsAreDeferredBeforeTerrainAuthority' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority' \
+            --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.fixedV5LakeCorpusReportsTerminalProfileClassification' \
             --no-configuration-cache
       - name: Run join diagnostics with unchanged production evidence reused
         if: steps.scope.outputs.diagnostic_only == 'true'
