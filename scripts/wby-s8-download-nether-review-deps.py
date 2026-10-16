@@ -15,7 +15,7 @@ import zipfile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DOWNLOADS = ROOT / ".skyforge-diagnostics" / "s8-nether-downloads"
+DOWNLOADS = ROOT / ".skyforge-diagnostics" / "s8-nether-downloads" / "incendium-full"
 USER_AGENT = "Skyforge-WBY-S8-Review/1.0 (local diagnostic profile)"
 
 MODRINTH = {
@@ -64,7 +64,7 @@ def modrinth(version_id: str, alias: str) -> None:
         if "1.21.1" not in metadata.get("game_versions", []):
             raise SystemExit(f"{alias} release is not marked for Minecraft 1.21.1")
     else:
-        if not {"1.21", "1.21.1"}.issubset(set(metadata.get("game_versions", []))):
+        if "1.21.1" not in metadata.get("game_versions", []):
             raise SystemExit("Incendium release does not list Minecraft 1.21.1 support")
     files = [item for item in metadata.get("files", []) if item.get("primary") and item.get("filename")]
     if len(files) != 1:
@@ -89,7 +89,7 @@ def main() -> int:
         modrinth(version_id, alias)
     for alias, (project_id, file_id, filename) in CURSEFORGE.items():
         curseforge(project_id, file_id, filename)
-    print("S8 Incendium full-profile review dependencies are ready.")
+    print("S8 Incendium full-profile review dependencies are ready.")\n    print(f"Client and local-review JARs: {DOWNLOADS}")
     return 0
 
 
