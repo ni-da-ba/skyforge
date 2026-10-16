@@ -51,7 +51,28 @@ public final class SkyIslandStandardStepSolver {
 
         /** Water-surface top width, in metres. */
         double topWidth(double depthMetres);
+
+        /** Compound sections may override this to sum subsection conveyances. */
+        default double conveyance(double depthMetres, double manningRoughness) {
+            double area = positiveFinite(area(depthMetres), "cross-sectional area");
+            double perimeter = positiveFinite(wettedPerimeter(depthMetres), "wetted perimeter");
+            return positiveFinite(area * Math.pow(area / perimeter, 2.0 / 3.0) / manningRoughness,
+                    "Manning conveyance");
+        }
     }
+
+    /** Auditable losses from one subcritical combining-junction energy step. */
+    public record JunctionLosses(double frictionLossMetres, double transitionLossMetres) {
+        public double totalLossMetres() {
+            return frictionLossMetres + transitionLossMetres;
+        }
+    }
+
+    /** Solved water depth and energy accounting for one subcritical junction branch. */
+    public record JunctionStepResult(
+            double upstreamDepthMetres,
+            JunctionLosses losses,
+            double upstreamEnergyGradeMetres) {}
 
     /**
      * Solves depths at all supplied stations for constant discharge.
@@ -452,12 +473,163 @@ public final class SkyIslandStandardStepSolver {
     }
 
     private static double conveyance(double depth, CrossSection section, double roughness) {
+        return positiveFinite(section.conveyance(depth, roughness), "Manning conveyance");
+    }
+
+    /**
+     * Solves the upstream depth for one subcritical branch of a combining junction. The
+     * downstream depth is the boundary condition; branch and combined-flow discharges are
+     * supplied independently. A root outside the subcritical regime fails closed.
+     */
+    public static JunctionStepResult solveSubcriticalCombiningJunction(
+            double upstreamBedElevationMetres,
+            double downstreamBedElevationMetres,
+            double downstreamDepthMetres,
+            CrossSection upstreamSection,
+            CrossSection downstreamSection,
+            double upstreamDischargeCubicMetresPerSecond,
+            double downstreamDischargeCubicMetresPerSecond,
+            double upstreamManningRoughness,
+            double downstreamManningRoughness,
+            double reachLengthMetres,
+            double contractionCoefficient,
+            double expansionCoefficient) {
+        requireFinite(upstreamBedElevationMetres, "upstream bed elevation");
+        requireFinite(downstreamBedElevationMetres, "downstream bed elevation");
+        Objects.requireNonNull(upstreamSection, "upstreamSection");
+        Objects.requireNonNull(downstreamSection, "downstreamSection");
+        requirePositiveFinite(downstreamDepthMetres, "downstream depth");
+        double downstreamCritical = criticalDepth(
+                downstreamDischargeCubicMetresPerSecond, downstreamSection);
+        if (!(downstreamDepthMetres > downstreamCritical)) {
+            throw new IllegalArgumentException(
+                    "subcritical junction downstream depth must exceed critical depth");
+        }
+        double downstreamEnergyGrade = downstreamBedElevationMetres
+                + specificEnergy(
+                        downstreamDepthMetres, downstreamSection,
+                        downstreamDischargeCubicMetresPerSecond);
+        double lower = criticalDepth(upstreamDischargeCubicMetresPerSecond, upstreamSection);
+        Residual residual = depth -> upstreamBedElevationMetres
+                + specificEnergy(depth, upstreamSection, upstreamDischargeCubicMetresPerSecond)
+                - downstreamEnergyGrade
+                - combiningJunctionLosses(
+                        reachLengthMetres,
+                        upstreamSection,
+                        depth,
+                        upstreamDischargeCubicMetresPerSecond,
+                        upstreamManningRoughness,
+                        downstreamSection,
+                        downstreamDepthMetres,
+                        downstreamDischargeCubicMetresPerSecond,
+                        downstreamManningRoughness,
+                        contractionCoefficient,
+                        expansionCoefficient).totalLossMetres();
+        double lowerResidual = residual.at(lower);
+        if (!(lowerResidual < 0.0)) {
+            throw new IllegalArgumentException(
+                    "subcritical combining junction has no same-regime energy root");
+        }
+        double upper = Math.max(Math.max(lower * 2.0, downstreamDepthMetres), 1.0);
+        double upperResidual = residual.at(upper);
+        int expansions = 0;
+        while (upperResidual < 0.0 && expansions < MAXIMUM_BRACKET_EXPANSIONS) {
+            upper *= 2.0;
+            upperResidual = residual.at(upper);
+            expansions++;
+        }
+        if (upperResidual < 0.0) {
+            throw new IllegalArgumentException(
+                    "subcritical combining junction could not bracket energy root");
+        }
+        double upstreamDepth = bisect(lower, upper, residual);
+        JunctionLosses losses = combiningJunctionLosses(
+                reachLengthMetres,
+                upstreamSection,
+                upstreamDepth,
+                upstreamDischargeCubicMetresPerSecond,
+                upstreamManningRoughness,
+                downstreamSection,
+                downstreamDepthMetres,
+                downstreamDischargeCubicMetresPerSecond,
+                downstreamManningRoughness,
+                contractionCoefficient,
+                expansionCoefficient);
+        double upstreamEnergyGrade = upstreamBedElevationMetres
+                + specificEnergy(upstreamDepth, upstreamSection, upstreamDischargeCubicMetresPerSecond);
+        return new JunctionStepResult(upstreamDepth, losses, upstreamEnergyGrade);
+    }
+
+    private static void requireFinite(double value, String name) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
+    }
+
+    /**
+     * Evaluates HEC-RAS average-conveyance friction and contraction/expansion losses for a
+     * combining junction. Flow is from the upstream branch toward the downstream section.
+     */
+    public static JunctionLosses combiningJunctionLosses(
+            double reachLengthMetres,
+            CrossSection upstreamSection,
+            double upstreamDepthMetres,
+            double upstreamDischargeCubicMetresPerSecond,
+            double upstreamManningRoughness,
+            CrossSection downstreamSection,
+            double downstreamDepthMetres,
+            double downstreamDischargeCubicMetresPerSecond,
+            double downstreamManningRoughness,
+            double contractionCoefficient,
+            double expansionCoefficient) {
+        Objects.requireNonNull(upstreamSection, "upstreamSection");
+        Objects.requireNonNull(downstreamSection, "downstreamSection");
+        requireNonnegativeFinite(reachLengthMetres, "junction reach length");
+        requirePositiveFinite(upstreamDepthMetres, "upstream depth");
+        requirePositiveFinite(downstreamDepthMetres, "downstream depth");
+        requirePositiveFinite(upstreamDischargeCubicMetresPerSecond, "upstream discharge");
+        requirePositiveFinite(downstreamDischargeCubicMetresPerSecond, "downstream discharge");
+        if (downstreamDischargeCubicMetresPerSecond < upstreamDischargeCubicMetresPerSecond) {
+            throw new IllegalArgumentException(
+                    "combining-junction downstream discharge cannot be below branch discharge");
+        }
+        requirePositiveFinite(upstreamManningRoughness, "upstream Manning roughness");
+        requirePositiveFinite(downstreamManningRoughness, "downstream Manning roughness");
+        requireNonnegativeFinite(contractionCoefficient, "contraction coefficient");
+        requireNonnegativeFinite(expansionCoefficient, "expansion coefficient");
+        double conveyanceSum = positiveFinite(
+                upstreamSection.conveyance(upstreamDepthMetres, upstreamManningRoughness)
+                        + downstreamSection.conveyance(downstreamDepthMetres, downstreamManningRoughness),
+                "junction conveyance sum");
+        double frictionSlope = positiveFinite(square(
+                (upstreamDischargeCubicMetresPerSecond + downstreamDischargeCubicMetresPerSecond)
+                        / conveyanceSum), "average junction friction slope");
+        double upstreamVelocityHead = velocityHead(
+                upstreamDepthMetres, upstreamSection, upstreamDischargeCubicMetresPerSecond);
+        double downstreamVelocityHead = velocityHead(
+                downstreamDepthMetres, downstreamSection, downstreamDischargeCubicMetresPerSecond);
+        double coefficient = downstreamVelocityHead > upstreamVelocityHead
+                ? contractionCoefficient
+                : expansionCoefficient;
+        double frictionLoss = reachLengthMetres * frictionSlope;
+        double transitionLoss = coefficient * Math.abs(downstreamVelocityHead - upstreamVelocityHead);
+        requireNonnegativeFinite(frictionLoss, "junction friction loss");
+        requireNonnegativeFinite(transitionLoss, "junction transition loss");
+        return new JunctionLosses(frictionLoss, transitionLoss);
+    }
+
+    private static double velocityHead(double depth, CrossSection section, double discharge) {
         double area = positiveFinite(section.area(depth), "cross-sectional area");
-        double perimeter = positiveFinite(section.wettedPerimeter(depth), "wetted perimeter");
-        double hydraulicRadius = area / perimeter;
+        double velocity = discharge / area;
         return positiveFinite(
-                area * Math.pow(hydraulicRadius, 2.0 / 3.0) / roughness,
-                "Manning conveyance");
+                velocity * velocity / (2.0 * GRAVITY_METRES_PER_SECOND_SQUARED),
+                "velocity head");
+    }
+
+    private static void requireNonnegativeFinite(double value, String name) {
+        if (value < 0.0 || !Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite and nonnegative");
+        }
     }
 
     private static double criticalDepth(double discharge, CrossSection section) {
