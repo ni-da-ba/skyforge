@@ -120,6 +120,47 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                     new int[] {band.minimumY(), band.maximumY()});
         }
         assertTrue(aboveGroundColumns > 0, "exercise approved positive-air authority");
+
+        // Measure whether the original dry terrain immediately outside each voxelized shoreline
+        // stands above the solved water surface. This is descriptive evidence, not an acceptance
+        // threshold: it distinguishes a water footprint that overtops available terrain from one
+        // with actual bank freeboard without changing the accepted positive-air authority.
+        int shorelineEdges = 0;
+        int supportedShorelineEdges = 0;
+        int overtoppedShorelineEdges = 0;
+        int unmeasuredShorelineEdges = 0;
+        int minimumShorelineFreeboard = Integer.MAX_VALUE;
+        for (var band : envelope) {
+            var source = byCoordinate.get(key(band.worldX(), band.worldZ()));
+            double stage = source.projection().originalUpperSurfaceWorldY()
+                    + (source.projection().semanticSample().waterSurfacePotential()
+                            - source.projection().semanticSample().originalTerrainPotential())
+                            * plan.candidatePlan().descriptor().reliefBudget();
+            int waterTop = (int) Math.ceil(stage) - 1;
+            for (int[] direction : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                long neighborKey = key(band.worldX() + direction[0], band.worldZ() + direction[1]);
+                var neighborBand = bands.get(neighborKey);
+                if (neighborBand != null
+                        && Math.max(band.minimumY(), neighborBand[0])
+                                <= Math.min(band.maximumY(), neighborBand[1])) {
+                    continue;
+                }
+                shorelineEdges++;
+                var dryNeighbor = byCoordinate.get(neighborKey);
+                if (dryNeighbor == null) {
+                    unmeasuredShorelineEdges++;
+                    continue;
+                }
+                int freeboard = dryNeighbor.originalSupport().maximumSolidY() - waterTop;
+                minimumShorelineFreeboard = Math.min(minimumShorelineFreeboard, freeboard);
+                if (freeboard >= 0) {
+                    supportedShorelineEdges++;
+                } else {
+                    overtoppedShorelineEdges++;
+                }
+            }
+        }
+
         var labels = new java.util.HashMap<Long, Integer>();
         int components = 0;
         for (long start : bands.keySet()) {
@@ -151,7 +192,14 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         StringBuilder result = new StringBuilder("CONNECTED WATER ENVELOPE PASS: components=")
                 .append(components).append(" columns=").append(bands.size())
                 .append(" aboveGroundColumns=").append(aboveGroundColumns)
-                .append(" nonMutatingWetColumns=").append(nonMutatingWetColumns).append('\n');
+                .append(" nonMutatingWetColumns=").append(nonMutatingWetColumns)
+                .append(" shorelineEdges=").append(shorelineEdges)
+                .append(" supportedShorelineEdges=").append(supportedShorelineEdges)
+                .append(" overtoppedShorelineEdges=").append(overtoppedShorelineEdges)
+                .append(" unmeasuredShorelineEdges=").append(unmeasuredShorelineEdges)
+                .append(" minimumShorelineFreeboard=")
+                .append(minimumShorelineFreeboard == Integer.MAX_VALUE ? "n/a" : minimumShorelineFreeboard)
+                .append('\\n');
         for (var reach : plan.candidatePlan().terrainField().acceptedReaches()) {
             var routeLabels = new java.util.HashSet<Integer>();
             int missing = 0;
