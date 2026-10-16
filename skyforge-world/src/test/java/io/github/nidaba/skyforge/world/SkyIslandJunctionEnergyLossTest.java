@@ -249,7 +249,12 @@ class SkyIslandJunctionEnergyLossTest {
                 / (2.0 * GRAVITY);
         // HEC-RAS Example 10 Standard Table 2 reports 75.04 ft WSE and 75.88 ft EGL
         // at the Lower Reach's upstream section.
-        assertEquals(feet(75.04), lowerJunctionStage, feet(0.015));
+        assertEquals(
+                feet(75.04),
+                lowerJunctionStage,
+                feet(0.015),
+                "HEC Example 10 Lower Reach WSE: expected 75.04 ft, actual "
+                        + lowerJunctionStage / 0.3048 + " ft");
         assertEquals(
                 feet(75.88),
                 lowerJunctionStage + lowerJunctionVelocityHead,
