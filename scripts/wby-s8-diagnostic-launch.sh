@@ -65,7 +65,7 @@ if [[ "$variant" == "incendium-full" ]]; then
   full_downloads="$downloads/incendium-full"
   expected_full_jars=(
     '*netherdepthsupgrade*.jar'
-    '*createnetherindustry*.jar'
+    '*nether*industry*.jar'
     '*thinair*.jar'
     '*curios*.jar'
     '*betterfortress*.jar'
