@@ -502,6 +502,13 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 && interpreter.classify(worldX, worldY, worldZ).isSolid();
     }
 
+    /** Positive-air hydrology may not enter even the bounding envelope of a foreign volume. */
+    boolean isInsideOtherVolume(
+            SkyIslandWorldVolumeId volumeId, int worldX, int worldY, int worldZ) {
+        return catalog.query(pointBounds(worldX, worldY, worldZ)).stream()
+                .anyMatch(candidate -> !candidate.id().equals(volumeId));
+    }
+
     /** Returns whether any different exact compiled volume owns this solid sample. */
     boolean isSolidOwnedByOtherVolume(
             SkyIslandWorldVolumeId volumeId,

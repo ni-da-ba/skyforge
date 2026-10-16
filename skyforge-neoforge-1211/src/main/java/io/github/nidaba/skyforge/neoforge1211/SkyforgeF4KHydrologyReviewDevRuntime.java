@@ -285,18 +285,9 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
 
     static List<BlockPos> expectedWaterHeadPositions(Fixture fixture) {
         Objects.requireNonNull(fixture, "fixture");
-        return fixture.authorization().quantization().authorizedColumns().stream()
-                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
-                .filter(column -> Math.min(
-                                waterMaximumY(column, fixture),
-                                column.originalSupport().maximumSolidY())
-                        >= column.targetMaximumSolidY() + 1)
-                .flatMap(column -> java.util.stream.IntStream.rangeClosed(
-                                column.targetMaximumSolidY() + 1,
-                                Math.min(waterMaximumY(column, fixture),
-                                        column.originalSupport().maximumSolidY()))
-                        .mapToObj(y -> new BlockPos(column.worldX(), y, column.worldZ())))
-                .toList();
+        return SkyforgeAuthoredVisibleHydrologyAdapter.authorizedWaterPositions(
+                        fixture.authorization()).stream()
+                .map(BlockPos::of).toList();
     }
 
     static Set<Long> requiredWaterHeadChunkKeys(Fixture fixture) {

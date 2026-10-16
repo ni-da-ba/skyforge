@@ -28,6 +28,10 @@ public record SkyIslandHydrologyRuntimeAuthorization(
             throw new IllegalArgumentException(
                     "runtime authorization requires at least one validated hydrology column");
         }
+        if (quantization.candidatePlan().worldAssociation().isPresent()
+                && SkyIslandHydrologyWaterEnvelope.columns(quantization).isEmpty()) {
+            throw new IllegalArgumentException("associated river requires connected integer water");
+        }
     }
 
     /**

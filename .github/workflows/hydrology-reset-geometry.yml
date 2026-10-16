@@ -364,6 +364,7 @@ jobs:
           ./gradlew :skyforge-neoforge-1211:test
           --tests '*SkyforgeNeoForge1211SurfaceStageTest.qualifiedTickFenceUsesExactWaterAndReadOnlyReloadDoesNotInstallWriter'
           --tests '*SkyforgeGeneratedFluidPropagationSourceTest'
+          --tests '*SkyforgeAuthoredVisibleHydrologyAdapterTest.f4kReviewUsesConnectedWaterAboveOldGroundAndRejectsForeignSolid'
           --no-configuration-cache
       - name: Print static-water fence failure details
         if: failure()

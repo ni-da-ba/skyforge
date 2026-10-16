@@ -94,39 +94,32 @@ class SkyIslandAssociatedHydraulicTerrainTest {
     /** Exact face-connectivity measurement of the water bands the runtime is permitted to write. */
     private static String connectivityReport(SkyIslandFluvialVoxelQuantizationPlan plan) {
         var bands = new java.util.HashMap<Long, int[]>();
-        int clipped = 0;
-        int materializedClipped = 0;
-        double maximumCeilingExcess = 0.0;
-        int subVoxel = 0;
+        var envelope = SkyIslandHydrologyWaterEnvelope.columns(plan);
+        int aboveGroundColumns = 0;
+        int nonMutatingWetColumns = 0;
+        var byCoordinate = new java.util.HashMap<Long, SkyIslandFluvialVoxelColumn>();
         for (var column : plan.authorizedColumns()) {
-            var sample = column.projection();
-            var semantic = sample.semanticSample();
-            if (!semantic.wet()) {
-                continue;
-            }
-            double stage = sample.originalUpperSurfaceWorldY()
+            byCoordinate.put(key(column.worldX(), column.worldZ()), column);
+        }
+        for (var band : envelope) {
+            var column = byCoordinate.get(key(band.worldX(), band.worldZ()));
+            var semantic = column.projection().semanticSample();
+            double stage = column.projection().originalUpperSurfaceWorldY()
                     + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
                             * plan.candidatePlan().descriptor().reliefBudget();
-            int top = (int) Math.ceil(stage) - 1;
-            if (top > column.originalSupport().maximumSolidY()) {
-                clipped++;
-                if (column.mutatesTerrain()) {
-                    materializedClipped++;
-                }
-                maximumCeilingExcess = Math.max(maximumCeilingExcess,
-                        stage - (column.originalSupport().maximumSolidY() + 1.0));
+            assertEquals((int) Math.ceil(stage) - 1, band.maximumY(),
+                    "connected water must reach the solved stage without old-ground clipping");
+            assertEquals(column.targetMaximumSolidY() + 1, band.minimumY());
+            if (band.maximumY() > column.originalSupport().maximumSolidY()) {
+                aboveGroundColumns++;
             }
-            top = Math.min(top, column.originalSupport().maximumSolidY());
-            int bottom = column.targetMaximumSolidY() + 1;
-            if (top < bottom) {
-                subVoxel++;
-                continue;
+            if (!column.mutatesTerrain()) {
+                nonMutatingWetColumns++;
             }
-            bands.put(key(column.worldX(), column.worldZ()), new int[] {bottom, top});
+            bands.put(key(band.worldX(), band.worldZ()),
+                    new int[] {band.minimumY(), band.maximumY()});
         }
-        // Legacy-ceiling characterization only, not final water-stage acceptance.
-        assertTrue(materializedClipped > 0,
-                "characterize the retained old-solid ceiling, not final stage acceptance");
+        assertTrue(aboveGroundColumns > 0, "exercise approved positive-air authority");
         var labels = new java.util.HashMap<Long, Integer>();
         int components = 0;
         for (long start : bands.keySet()) {
@@ -155,12 +148,10 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         }
         assertEquals(plan.candidatePlan().terrainField().acceptedReaches().size(), components,
                 "each ordinary river must form one face-connected water body");
-        StringBuilder result = new StringBuilder("INTEGER CONNECTIVITY PASS; LEGACY CEILING DIAGNOSTIC: components=")
+        StringBuilder result = new StringBuilder("CONNECTED WATER ENVELOPE PASS: components=")
                 .append(components).append(" columns=").append(bands.size())
-                .append(" supportClipped=").append(clipped)
-                .append(" materializedClipped=").append(materializedClipped)
-                .append(" maximumCeilingExcess=").append(maximumCeilingExcess)
-                .append(" subVoxel=").append(subVoxel).append('\n');
+                .append(" aboveGroundColumns=").append(aboveGroundColumns)
+                .append(" nonMutatingWetColumns=").append(nonMutatingWetColumns).append('\n');
         for (var reach : plan.candidatePlan().terrainField().acceptedReaches()) {
             var routeLabels = new java.util.HashSet<Integer>();
             int missing = 0;

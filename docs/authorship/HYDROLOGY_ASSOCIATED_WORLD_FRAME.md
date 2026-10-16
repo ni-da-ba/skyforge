@@ -71,3 +71,13 @@ Qualified static-water tick membership now uses the exact qualified water-positi
 A focused NeoForge regression checks every qualified water position, absence of legacy dependence, writer-inert read-only behavior, scope cleanup and rejection of simultaneous read-only/mutation bindings. Actual long-lived/client visual evidence remains a separate human gate.
 
 The viewer fence is scoped to the named prepared review world before level loading, only recognizes Overworld water, and closes when that server stops. Reopening the same prepared world reinstalls the read-only mask; unrelated worlds are neither fenced nor teleported by the viewer.
+
+## Owner-approved connected water envelope — 2026-10-15
+
+The positive-air decision is now approved in #1452. The earlier pending-decision text above is
+historical: implementation now derives finite water intervals from qualified bed/stage geometry,
+not the old solid ceiling. It requires connected accepted centerlines, grants no disconnected pond
+or excavation authority, rejects foreign-volume/water overlap, and refuses unrelated solids in the
+water destination. Legacy unassociated plans retain their original clipped replacement semantics.
+Placement, persistence expectations, and static tick masks consume the same envelope.
+Validation of this change is pending; no new visual acceptance is claimed.

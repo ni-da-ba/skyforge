@@ -673,6 +673,14 @@ When one lane changes a contract another lane relies on, update this file with:
 
 Keep detailed history in lane-specific state/docs rather than expanding this file with logs.
 
-## Pending hydrology water-envelope boundary — 2026-10-15
+## Approved bounded hydrology water-envelope boundary — 2026-10-15
 
-The shared elevation-frame approval does not grant positive-air water authority. The retained old-solid-only water ceiling still clips part of the associated candidate. A bounded connected water envelope above old terrain requires an explicit further owner decision, retaining exact island/foreign-volume isolation and excavation safeguards. Static-water tick recognition may use exact qualified/read-only authorization masks; this grants no terrain writer or expanded water domain.
+Owner approved bounded connected river water above original ground (issue #1452, PR #1490).
+For an exact associated candidate, integer water intervals run from the qualified realized bed to
+the solved stage, including non-excavated wet columns. Only face-connected intervals attached to an
+accepted centerline acquire water authority; a broken centerline fails closed. This is not owner-wide
+AIR authority. Excavation limits and original removal authorization are unchanged. Backend placement
+must exclude foreign solids, foreign compiled-volume envelopes, overlapping authorized water, and
+unrelated existing solids. Static-water tick fencing uses precisely the same qualified envelope,
+including the dedicated review world's read-only reopen binding. Machine validation and subsequent
+human visual judgment remain separate gates.
