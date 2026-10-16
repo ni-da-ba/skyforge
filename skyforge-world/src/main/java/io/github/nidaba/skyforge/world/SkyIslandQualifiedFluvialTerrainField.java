@@ -188,37 +188,127 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             SkyIslandHydraulicReachGeometry reach,
             SkyIslandLocalPosition position) {
         List<SkyIslandLocalPosition> points = reach.centerline().points();
-        if (points.size() < 2) {
+        List<SkyIslandHydraulicGeometrySample> samples = reach.samples();
+        if (points.size() < 2 || points.size() != samples.size()) {
             return null;
         }
-        Projection best = null;
+
+        Projection nearest = null;
         for (int i = 0; i < points.size() - 1; i++) {
             SkyIslandLocalPosition a = points.get(i);
             SkyIslandLocalPosition b = points.get(i + 1);
             double dx = b.x() - a.x();
             double dz = b.z() - a.z();
             double lengthSquared = dx * dx + dz * dz;
-            double fraction;
-            if (lengthSquared <= EPSILON) {
-                fraction = 0.0;
-            } else {
-                fraction =
-                        clamp01(
-                                ((position.x() - a.x()) * dx + (position.z() - a.z()) * dz)
-                                        / lengthSquared);
-            }
+            double fraction = lengthSquared <= EPSILON ? 0.0 : clamp01(
+                    ((position.x() - a.x()) * dx + (position.z() - a.z()) * dz)
+                            / lengthSquared);
             double px = a.x() + fraction * dx;
             double pz = a.z() + fraction * dz;
             double distance = Math.hypot(position.x() - px, position.z() - pz);
-            Projection candidate = new Projection(i, fraction, distance);
-            if (best == null
-                    || candidate.distance() < best.distance() - EPSILON
-                    || (Math.abs(candidate.distance() - best.distance()) <= EPSILON
-                            && candidate.segmentIndex() < best.segmentIndex())) {
-                best = candidate;
+            if (nearest == null || distance < nearest.distance() - EPSILON
+                    || (Math.abs(distance - nearest.distance()) <= EPSILON
+                            && i < nearest.segmentIndex())) {
+                nearest = new Projection(i, fraction, distance);
             }
         }
-        return best;
+
+        // Map points inside the connected valley corridor through the ruled cross-section mesh.
+        // A complete cross-section is assigned the station of its centerline vertex on both
+        // sides, avoiding nearest-segment station switching at bends.
+        double mappedStation = Double.NaN;
+        double mappedDistance = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < points.size() - 1; i++) {
+            SkyIslandLocalPosition leftA = crossSectionEndpoint(points, samples, i, 1.0);
+            SkyIslandLocalPosition rightA = crossSectionEndpoint(points, samples, i, -1.0);
+            SkyIslandLocalPosition leftB = crossSectionEndpoint(points, samples, i + 1, 1.0);
+            SkyIslandLocalPosition rightB = crossSectionEndpoint(points, samples, i + 1, -1.0);
+            double stationA = samples.get(i).stationFraction();
+            double stationB = samples.get(i + 1).stationFraction();
+            double[] first = triangleStation(position, leftA, leftB, rightB,
+                    stationA, stationB, stationB);
+            double[] second = triangleStation(position, leftA, rightB, rightA,
+                    stationA, stationB, stationA);
+            double candidateStation = Double.isFinite(first[0]) ? first[0] : second[0];
+            if (Double.isFinite(candidateStation)) {
+                double segmentDistance = distanceToSegment(position, points.get(i), points.get(i + 1));
+                if (segmentDistance < mappedDistance) {
+                    mappedStation = candidateStation;
+                    mappedDistance = segmentDistance;
+                }
+            }
+        }
+        if (!Double.isFinite(mappedStation)) {
+            return nearest;
+        }
+
+        for (int i = 0; i < samples.size() - 1; i++) {
+            double a = samples.get(i).stationFraction();
+            double b = samples.get(i + 1).stationFraction();
+            if (mappedStation <= b + EPSILON && b > a + EPSILON) {
+                return new Projection(i, clamp01((mappedStation - a) / (b - a)), nearest.distance());
+            }
+        }
+        return mappedStation <= samples.getFirst().stationFraction()
+                ? new Projection(0, 0.0, nearest.distance())
+                : new Projection(samples.size() - 2, 1.0, nearest.distance());
+    }
+
+    private static SkyIslandLocalPosition crossSectionEndpoint(
+            List<SkyIslandLocalPosition> points,
+            List<SkyIslandHydraulicGeometrySample> samples,
+            int index,
+            double side) {
+        SkyIslandLocalPosition point = points.get(index);
+        SkyIslandLocalPosition before = points.get(Math.max(0, index - 1));
+        SkyIslandLocalPosition after = points.get(Math.min(points.size() - 1, index + 1));
+        double tx = after.x() - before.x();
+        double tz = after.z() - before.z();
+        double length = Math.hypot(tx, tz);
+        if (length <= EPSILON) {
+            return point;
+        }
+        double halfWidth = samples.get(index).bankfullHalfWidth() * 3.5;
+        return new SkyIslandLocalPosition(
+                point.x() - side * tz / length * halfWidth,
+                point.z() + side * tx / length * halfWidth);
+    }
+
+    private static double[] triangleStation(
+            SkyIslandLocalPosition p,
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b,
+            SkyIslandLocalPosition c,
+            double stationA,
+            double stationB,
+            double stationC) {
+        double denominator = (b.z() - c.z()) * (a.x() - c.x())
+                + (c.x() - b.x()) * (a.z() - c.z());
+        if (Math.abs(denominator) <= EPSILON) {
+            return new double[] {Double.NaN};
+        }
+        double u = ((b.z() - c.z()) * (p.x() - c.x())
+                + (c.x() - b.x()) * (p.z() - c.z())) / denominator;
+        double v = ((c.z() - a.z()) * (p.x() - c.x())
+                + (a.x() - c.x()) * (p.z() - c.z())) / denominator;
+        double w = 1.0 - u - v;
+        if (u < -EPSILON || v < -EPSILON || w < -EPSILON) {
+            return new double[] {Double.NaN};
+        }
+        return new double[] {u * stationA + v * stationB + w * stationC};
+    }
+
+    private static double distanceToSegment(
+            SkyIslandLocalPosition point,
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b) {
+        double dx = b.x() - a.x();
+        double dz = b.z() - a.z();
+        double lengthSquared = dx * dx + dz * dz;
+        double fraction = lengthSquared <= EPSILON ? 0.0 : clamp01(
+                ((point.x() - a.x()) * dx + (point.z() - a.z()) * dz) / lengthSquared);
+        return Math.hypot(point.x() - a.x() - fraction * dx,
+                point.z() - a.z() - fraction * dz);
     }
 
     private static SkyIslandChannelProfileKind profileKind(
