@@ -68,7 +68,7 @@ if [[ "$variant" == "incendium-full" ]]; then
     '*nether*industry*.jar'
     '*thinair*.jar'
     '*curios*.jar'
-    '*betterfortress*.jar'
+    '*better*fortress*.jar'
     '*mynethersdelight*.jar'
   )
   for pattern in "${expected_full_jars[@]}"; do
