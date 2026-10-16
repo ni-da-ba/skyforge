@@ -92,6 +92,36 @@ class SkyIslandHydraulicCandidateBuilderTest {
     }
 
     @Test
+    void valleyCandidateConsumesTheJointComponentBedProfileWithoutReprojectingIt() {
+        List<SkyIslandLocalPosition> points = List.of(
+                new SkyIslandLocalPosition(0.0, 0.0),
+                new SkyIslandLocalPosition(10.0, 0.0));
+        double[] jointBed = {4.5, 4.0};
+        var candidate = SkyIslandHydraulicCandidateBuilder.build(
+                route(points, 10.0),
+                ignored -> 0.5,
+                new SkyIslandHydraulicCandidateBuilder.Configuration(
+                        1.0, 10.0, 0.0, 0.01, 0.0,
+                        0.0, 2.0, 5.0, 20.0, 5.0),
+                jointBed);
+
+        assertArrayEquals(jointBed, candidate.bedElevationsMetres(), 0.0);
+        assertEquals(
+                4.25,
+                candidate.sampleTerrainMetres(new SkyIslandLocalPosition(5.0, 0.0)),
+                1.0e-12);
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandHydraulicCandidateBuilder.build(
+                        route(points, 10.0),
+                        ignored -> 0.5,
+                        new SkyIslandHydraulicCandidateBuilder.Configuration(
+                                1.0, 10.0, 0.0, 0.01, 0.0,
+                                0.0, 2.0, 5.0, 20.0, 5.0),
+                        new double[] {4.0, 4.0}));
+    }
+
+    @Test
     void valleyRequiresAPositiveBlendIntervalBeyondTheBankfullEdge() {
         assertThrows(
                 IllegalArgumentException.class,
