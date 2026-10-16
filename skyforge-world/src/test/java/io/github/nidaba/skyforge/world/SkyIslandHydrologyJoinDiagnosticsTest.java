@@ -4,6 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import io.github.nidaba.skyforge.model.skyisland.SkyIslandVolumeDescriptor;
+import io.github.nidaba.skyforge.recipes.skyisland.SemanticSkyIslandVolumeRecipe;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
@@ -144,6 +146,97 @@ class SkyIslandHydrologyJoinDiagnosticsTest {
                         + "failClosedProbeCount=%d%n",
                 coarse, fine, measured, maximumTerrainJump, worstTerrain,
                 maximumStageJump, worstStage, failClosed));
+    }
+
+
+    /** Separates semantic interpolation from the spatially varying world-frame offset. */
+    @Test
+    void measuresWorldFrameCrossSectionStageVariation() throws Exception {
+        var descriptor = SkyIslandDescriptorGenerator.derive(
+                SkyIslandIdentity.of(0x534B59464F524745L, 8L, 81L, 77L));
+        var plan = SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        double radius = descriptor.nominalRadius();
+        var physical = SkyIslandVolumeDescriptor.schema2(
+                910_077L, 0.0, 0.0, 256.0, radius, 72.0, 104.0,
+                Math.min(32.0, radius), 0.43, 0.62, 0.57, 0.18,
+                descriptor.morphologyFamily(), 0.22, 38.0, 0.31);
+        var compiled = new SemanticSkyIslandVolumeRecipe().compile(physical);
+        var volume = new SkyIslandWorldVolume(
+                new SkyIslandWorldVolumeId(0x5245414C495A4552L,
+                        "f4k-join-diagnostic", 0, 0, 910_077L),
+                new WorldBounds(-radius, radius, 64.0, 448.0, -radius, radius), compiled);
+        var projection = new SkyIslandComponentFluvialWorldWaterProjection(
+                SkyIslandAuthoredRealizationAssociation.of(descriptor, volume), plan);
+        StringBuilder rows = new StringBuilder(
+                "reach,index,semanticStageSpanMetres,worldStageSpanMetres,datumOffsetSpanMetres\n");
+        double maxSemanticSpan = 0.0;
+        double maxWorldSpan = 0.0;
+        double maxDatumSpan = 0.0;
+        int measured = 0;
+        int incomplete = 0;
+        for (var reach : plan.terrainField().acceptedReaches()) {
+            var points = reach.centerline().points();
+            var semantic = reach.geomorphicRoute().semanticReach();
+            String identity = semantic.startCellIndex() + "->" + semantic.endCellIndex();
+            for (int i = 1; i + 1 < points.size(); i++) {
+                var p = points.get(i);
+                double dx = points.get(i + 1).x() - points.get(i - 1).x();
+                double dz = points.get(i + 1).z() - points.get(i - 1).z();
+                double length = Math.hypot(dx, dz);
+                double offset = reach.samples().get(i).bankfullHalfWidth() * 0.25;
+                double semanticMin = Double.POSITIVE_INFINITY;
+                double semanticMax = Double.NEGATIVE_INFINITY;
+                double worldMin = Double.POSITIVE_INFINITY;
+                double worldMax = Double.NEGATIVE_INFINITY;
+                double datumMin = Double.POSITIVE_INFINITY;
+                double datumMax = Double.NEGATIVE_INFINITY;
+                int wet = 0;
+                for (int side : new int[] {-1, 0, 1}) {
+                    var sample = projection.sampleWorld(
+                            p.x() - side * dz / length * offset,
+                            p.z() + side * dx / length * offset);
+                    if (!sample.wet()) {
+                        continue;
+                    }
+                    double semanticY = sample.terrainProjection().semanticSample()
+                            .waterSurfacePotential() * descriptor.reliefBudget();
+                    double worldY = sample.waterSurfaceWorldY().orElseThrow();
+                    double datum = worldY - semanticY;
+                    semanticMin = Math.min(semanticMin, semanticY);
+                    semanticMax = Math.max(semanticMax, semanticY);
+                    worldMin = Math.min(worldMin, worldY);
+                    worldMax = Math.max(worldMax, worldY);
+                    datumMin = Math.min(datumMin, datum);
+                    datumMax = Math.max(datumMax, datum);
+                    wet++;
+                }
+                if (wet != 3) {
+                    incomplete++;
+                    continue;
+                }
+                measured++;
+                double semanticSpan = semanticMax - semanticMin;
+                double worldSpan = worldMax - worldMin;
+                double datumSpan = datumMax - datumMin;
+                maxSemanticSpan = Math.max(maxSemanticSpan, semanticSpan);
+                maxWorldSpan = Math.max(maxWorldSpan, worldSpan);
+                maxDatumSpan = Math.max(maxDatumSpan, datumSpan);
+                rows.append(String.format(Locale.ROOT, "%s,%d,%.9f,%.9f,%.9f%n",
+                        identity, i, semanticSpan, worldSpan, datumSpan));
+            }
+        }
+        assertTrue(measured > 0, "need complete wet cross sections to measure the world mapping");
+        Path directory = Path.of("build", "evidence", "hydrology-join-diagnostics");
+        Files.createDirectories(directory);
+        Files.writeString(directory.resolve("world-projection.csv"), rows);
+        Files.writeString(directory.resolve("projection-summary.txt"), String.format(Locale.ROOT,
+                "DIAGNOSTIC ONLY: not cross-section-stage acceptance.%n"
+                        + "completeWetCrossSections=%d%n"
+                        + "incompleteWetCrossSections=%d%n"
+                        + "maximumSemanticStageSpanMetres=%.9f%n"
+                        + "maximumWorldStageSpanMetres=%.9f%n"
+                        + "maximumDatumOffsetSpanMetres=%.9f%n",
+                measured, incomplete, maxSemanticSpan, maxWorldSpan, maxDatumSpan));
     }
 
     private static double analyticJump(

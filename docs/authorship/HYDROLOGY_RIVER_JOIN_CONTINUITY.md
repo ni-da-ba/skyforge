@@ -27,3 +27,7 @@ Do not change hydraulic tolerances, topology, drainage fate, confluence/cascade 
 The first focused run passed the exact analytic 0.4 m characterization and all ten retained hydraulic/control tests, but had zero eligible natural bend probes. That does not establish that the key-77 visual defect is caused by a bend seam, and must not be called a continuity pass. The diagnostic now exports the full accepted centerline geometry and station values to distinguish straight routes, skipped bends and influence-envelope issues before selecting a production repair.
 
 Additional primary guidance: [USACE RAS Mapper interpolation surfaces](https://www.hec.usace.army.mil/confluence/rasdocs/rmum/latest/mapping-results/managing-results-maps) describes triangulated regions bounded by centerline, banks, edge lines and cross sections. This is a concrete reference for spatially mapping solved profiles; it does not justify switching to a 2D flow solver.
+
+## World-frame diagnostic
+
+F4E maps stage as original compiled surface plus (semantic stage minus original semantic terrain) times relief. It preserves local depth, but the offset between compiled and semantic original terrain may vary spatially. `measuresWorldFrameCrossSectionStageVariation` separately reports semantic stage, projected stage, and offset variation across three wet points in each interior cross section using the exact F4K geometry parameters. This is a measurement, not a change to the accepted delta/depth-preserving mapping or evidence of voxel connectivity.
