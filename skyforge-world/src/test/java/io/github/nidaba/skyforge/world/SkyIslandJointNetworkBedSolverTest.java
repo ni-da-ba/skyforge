@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -14,7 +15,7 @@ class SkyIslandJointNetworkBedSolverTest {
                 station("upper-source", 0.0, 10.0, 0.0),
                 station("join", 10.0, 9.5, 2.0));
         var tributary = reach(
-                0.18,
+                0.21,
                 station("tributary-source", 0.0, 9.8, 0.0),
                 station("join", 10.0, 9.5, 2.5));
         var receiving = reach(
@@ -41,7 +42,7 @@ class SkyIslandJointNetworkBedSolverTest {
                 0.0);
         assertEquals(1.8, result.maximumTerrainLoweringMetres(), 1.0e-12);
         assertMinimumGrade(result.reaches().get(0), 0.10);
-        assertMinimumGrade(result.reaches().get(1), 0.18);
+        assertMinimumGrade(result.reaches().get(1), 0.21);
         assertMinimumGrade(result.reaches().get(2), 0.10);
     }
 
@@ -107,7 +108,7 @@ class SkyIslandJointNetworkBedSolverTest {
             double minimumGrade) {
         double[] stations = profile.stationMetres();
         double[] beds = profile.bedElevationsMetres();
-        assertEquals(true,
+        assertTrue(
                 beds[0] - beds[1] >= minimumGrade * (stations[1] - stations[0]) - 1.0e-12);
     }
 }
