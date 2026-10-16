@@ -552,10 +552,11 @@ check(wbyS8Pin("neoforge", "version") == "21.1.249")
 check(wbyS8Pin("profile", "base") == "wby-s7-combat")
 val wbyS8JneMods = listOf("jadensNetherExpansion", "elysiumApi", "lodestone")
 val wbyS8MndMods = listOf("myNethersDelight")
-val wbyS8FullMods = listOf(
-    "netherDepthsUpgrade", "createNetherIndustry", "thinAirRelived", "curios",
-    "yungsBetterNetherFortresses"
+val wbyS8FullClientMods = listOf(
+    "netherDepthsUpgrade", "createNetherIndustry", "thinAirRelived", "curios"
 )
+val wbyS8FullServerMods = listOf("yungsBetterNetherFortresses")
+val wbyS8FullMods = wbyS8FullClientMods + wbyS8FullServerMods
 val wbyS8IncendiumDataPack = configurations.create("wbyS8IncendiumDataPack") {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -672,6 +673,10 @@ val wbyS8NetherMods = when (wbyS8NetherVariant) {
     "incendium-full" -> wbyS8MndMods + wbyS8FullMods
     else -> emptyList()
 }
+val wbyS8NetherClientMods = if (wbyS8NetherVariant == "incendium-full")
+    wbyS8MndMods + wbyS8FullClientMods else wbyS8NetherMods
+val wbyS8NetherServerMods = if (wbyS8NetherVariant == "incendium-full")
+    wbyS8MndMods + wbyS8FullServerMods else wbyS8NetherMods
 
 tasks.register<Copy>("wbyS8StageNetherDatapack") {
     group = "verification"
@@ -7611,10 +7616,16 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S7 combat arm leaked unselected candidate $mod: $expected"
             }
         }
-        wbyS8NetherMods.forEach { mod ->
+        wbyS8NetherClientMods.forEach { mod ->
             val expected = wbyS8Token(mod)
-            check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
-                "WBY S8 Nether $wbyS8NetherVariant missing $mod on client/server: $expected"
+            check(client.any { it.contains(expected) }) {
+                "WBY S8 Nether $wbyS8NetherVariant missing client mod $mod: $expected"
+            }
+        }
+        wbyS8NetherServerMods.forEach { mod ->
+            val expected = wbyS8Token(mod)
+            check(server.any { it.contains(expected) }) {
+                "WBY S8 Nether $wbyS8NetherVariant missing server mod $mod: $expected"
             }
         }
         ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods) - wbyS8NetherMods).forEach { mod ->
@@ -7711,7 +7722,7 @@ wbyS1StageClientMods.configure {
         (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList()) +
         (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList()) +
         wbyS7CombatMods.map(::wbyS7CombatToken) +
-        wbyS8NetherMods.map(::wbyS8Token)
+        wbyS8NetherClientMods.map(::wbyS8Token)
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8668,8 +8679,11 @@ dependencies {
         add(wbyS8IncendiumDataPack.name, wbyS8Pin("incendium", "coordinate"))
     }
     if (wbyS8NetherVariant == "incendium-full") {
-        wbyS8FullMods.forEach { mod ->
+        wbyS8FullClientMods.forEach { mod ->
             add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
+        wbyS8FullServerMods.forEach { mod ->
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
         }
         add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin("myNethersDelight", "coordinate"))
@@ -10313,7 +10327,7 @@ tasks.register<Sync>("wbyS1StageServerMods") {
                 "WBY S7 combat server staging missing $mod token '$expected': $staged"
             }
         }
-        wbyS8NetherMods.forEach { mod ->
+        wbyS8NetherServerMods.forEach { mod ->
             val expected = wbyS8Token(mod)
             check(staged.any { it.contains(expected) }) {
                 "WBY S8 Nether server staging missing $mod token '$expected': $staged"
