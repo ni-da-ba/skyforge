@@ -26,6 +26,9 @@ class SkyIslandJointNetworkBedSolverTest {
         var result = SkyIslandJointNetworkBedSolver.solve(
                 List.of(upper, tributary, receiving));
 
+        assertEquals(
+                List.of("join", "outlet", "tributary-source", "upper-source"),
+                List.copyOf(result.bedElevationsByNodeMetres().keySet()));
         double sharedBed = result.bedElevationsByNodeMetres().get("join");
         assertEquals(7.7, sharedBed, 1.0e-12);
         assertEquals(
