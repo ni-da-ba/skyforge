@@ -57,11 +57,11 @@ class SkyIslandContinuousWaterbodyDiagnosticsPlannerTest {
     void fixedV5LakeCorpusReportsTerminalProfileClassification() {
         long[][] identities = {
                 {0x534B59464F524745L, 8L, 81L, 609L},
-                {0x1000000000000000L, 6L, 61L, 35L},
-                {0x1000000000000000L, 6L, 61L, 200L},
-                {0x7000000000000000L, 6L, 61L, 624L},
-                {0x9000000000000000L, 8L, 81L, 500L},
-                {0xD000000000000000L, 6L, 61L, 772L}
+                {0x3000000000000000L, 6L, 61L, 35L},
+                {0x3000000000000000L, 6L, 61L, 200L},
+                {0x9000000000000000L, 6L, 61L, 624L},
+                {0xB000000000000000L, 8L, 81L, 500L},
+                {0xF000000000000000L, 6L, 61L, 772L}
         };
         StringBuilder evidence = new StringBuilder(
                 "seed_hex,province,cluster,key,sink_cell,reach_start,reach_end,"
