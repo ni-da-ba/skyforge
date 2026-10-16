@@ -150,7 +150,8 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
                 throw new IllegalStateException("coupled candidate terrain may not raise authored terrain");
             }
             target = Math.max(0.0, Math.min(originalTerrain, coupledTarget));
-            wet = target < waterSurface - EPSILON;
+            wet = zone != SkyIslandQualifiedFluvialZone.VALLEY_RECOVERY
+                    && target < waterSurface - EPSILON;
         }
 
         target = clamp01(target);
