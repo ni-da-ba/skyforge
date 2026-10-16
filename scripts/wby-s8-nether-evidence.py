@@ -90,8 +90,8 @@ def main() -> int:
     parser.add_argument("--password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
     parser.add_argument("--seed", default="817304")
     args = parser.parse_args()
-    if not args.password:
-        parser.error("set WBY_S7_RCON_PASSWORD or pass --password")
+    if args.live and not args.password:
+        parser.error("set WBY_S7_RCON_PASSWORD or pass --password when --live is used")
 
     rows = ["kind\tname\tsha256\tmod_ids\tworldgen_resource_counts\tnotes"]
     found: set[str] = set()
