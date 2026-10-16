@@ -1,0 +1,29 @@
+name: HEC-RAS Example 10 Fixture
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/hydrology-hec10-fixture.yml"
+      - "scripts/hydrology/extract_hec_example10_fixture.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  extract-reference-inputs:
+    name: Extract bounded official junction inputs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Fetch and extract the official HEC-RAS Example 10 input files
+        run: python3 scripts/hydrology/extract_hec_example10_fixture.py "$RUNNER_TEMP/hec-example10-inputs.json"
+      - name: Preserve compact extracted benchmark inputs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        with:
+          name: hec-ras-example-10-inputs
+          path: ${{ runner.temp }}/hec-example10-inputs.json
+          if-no-files-found: error
+          retention-days: 14
