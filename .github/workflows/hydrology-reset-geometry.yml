@@ -300,6 +300,7 @@ jobs:
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandStandardStepSolverTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandUnitWidthStandardStepSolverTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydrologyJoinDiagnosticsTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
           do
             if [ -f "$report" ]; then
@@ -313,6 +314,7 @@ jobs:
           report=skyforge-world/build/evidence/hydrology-join-diagnostics/summary.txt
           if [ -f "$report" ]; then
             cat "$report"
+            cat skyforge-world/build/evidence/hydrology-join-diagnostics/geometry.csv
           fi
       - name: Upload river join diagnostic evidence
         if: always()

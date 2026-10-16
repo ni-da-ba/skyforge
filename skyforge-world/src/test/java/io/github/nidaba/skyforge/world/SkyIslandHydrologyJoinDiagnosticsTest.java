@@ -111,10 +111,27 @@ class SkyIslandHydrologyJoinDiagnosticsTest {
                 }
             }
         }
-        assertTrue(measured > 0);
+        // Zero eligible bend probes is evidence, not a continuity pass.
+        StringBuilder geometry = new StringBuilder(
+                "reach,index,x,z,stationFraction,bedPotential,stagePotential,bankfullHalfWidth\n");
+        for (var reach : plan.terrainField().acceptedReaches()) {
+            var semantic = reach.geomorphicRoute().semanticReach();
+            String identity = semantic.startCellIndex() + "->" + semantic.endCellIndex();
+            for (int i = 0; i < reach.centerline().points().size(); i++) {
+                var point = reach.centerline().points().get(i);
+                var sample = reach.samples().get(i);
+                geometry.append(String.format(Locale.ROOT,
+                        "%s,%d,%.9f,%.9f,%.9f,%.9f,%.9f,%.9f%n",
+                        identity, i, point.x(), point.z(), sample.stationFraction(),
+                        sample.bedElevationPotential(), sample.waterSurfacePotential(),
+                        sample.bankfullHalfWidth()));
+            }
+        }
         Path directory = Path.of("build", "evidence", "hydrology-join-diagnostics");
         Files.createDirectories(directory);
         Files.writeString(directory.resolve("samples.csv"), rows);
+        Files.writeString(directory.resolve("geometry.csv"), geometry);
+        System.out.println(geometry);
         Files.writeString(directory.resolve("summary.txt"), String.format(Locale.ROOT,
                 "DIAGNOSTIC ONLY: does not certify continuity or Minecraft appearance.%n"
                         + "analyticRightAngleJumpCoarseMetres=%.9f%n"

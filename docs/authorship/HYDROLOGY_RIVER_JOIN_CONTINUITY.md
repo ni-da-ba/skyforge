@@ -21,3 +21,9 @@ SkyIslandHydrologyJoinDiagnosticsTest characterizes this exact limit and measure
 Use the measured seam locations to choose a connected cross-section/corridor representation with consistent interpolation for bed and water. Require exact preservation of supplied centerline station values, continuity across neighboring section boundaries, explicit handling of folded or self-overlapping corridors, and unchanged established hydraulic benchmark results. Verify integer water connectivity separately, then return a materially changed specimen for visual review.
 
 Do not change hydraulic tolerances, topology, drainage fate, confluence/cascade authority, or F4C/F4D ownership to hide a geometric interpolation defect. The legacy profile-dependent influence envelope also needs comparison with the coupled candidate's actual valley footprint; it is a separate source hypothesis until measured.
+
+## Baseline measurement note
+
+The first focused run passed the exact analytic 0.4 m characterization and all ten retained hydraulic/control tests, but had zero eligible natural bend probes. That does not establish that the key-77 visual defect is caused by a bend seam, and must not be called a continuity pass. The diagnostic now exports the full accepted centerline geometry and station values to distinguish straight routes, skipped bends and influence-envelope issues before selecting a production repair.
+
+Additional primary guidance: [USACE RAS Mapper interpolation surfaces](https://www.hec.usace.army.mil/confluence/rasdocs/rmum/latest/mapping-results/managing-results-maps) describes triangulated regions bounded by centerline, banks, edge lines and cross sections. This is a concrete reference for spatially mapping solved profiles; it does not justify switching to a 2D flow solver.
