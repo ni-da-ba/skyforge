@@ -119,6 +119,15 @@ class SkyIslandHydraulicCandidateBuilderTest {
                                 1.0, 10.0, 0.0, 0.01, 0.0,
                                 0.0, 2.0, 5.0, 20.0, 5.0),
                         new double[] {4.0, 4.0}));
+        assertThrows(
+                NullPointerException.class,
+                () -> SkyIslandHydraulicCandidateBuilder.build(
+                        route(points, 10.0),
+                        ignored -> 0.5,
+                        new SkyIslandHydraulicCandidateBuilder.Configuration(
+                                1.0, 10.0, 0.0, 0.01, 0.0,
+                                0.0, 2.0, 5.0, 20.0, 5.0),
+                        null));
     }
 
     @Test
