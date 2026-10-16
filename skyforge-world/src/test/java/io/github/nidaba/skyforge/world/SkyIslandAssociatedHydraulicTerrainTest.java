@@ -130,6 +130,11 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         int overtoppedShorelineEdges = 0;
         int unmeasuredShorelineEdges = 0;
         int minimumShorelineFreeboard = Integer.MAX_VALUE;
+        var physicalVolume = plan.association().realizedVolume().compiledVolume();
+        var exactTerrain = new SkyIslandTerrainInterpreter(
+                physicalVolume, SkyIslandTerrainProfile.reference());
+        var drySupportCache = new java.util.HashMap<Long,
+                java.util.Optional<SkyIslandIntegerColumnSupport>>();
         for (var band : envelope) {
             var source = byCoordinate.get(key(band.worldX(), band.worldZ()));
             double stage = source.projection().originalUpperSurfaceWorldY()
@@ -146,12 +151,17 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                     continue;
                 }
                 shorelineEdges++;
-                var dryNeighbor = byCoordinate.get(neighborKey);
-                if (dryNeighbor == null) {
+                int neighborX = band.worldX() + direction[0];
+                int neighborZ = band.worldZ() + direction[1];
+                var drySupport = drySupportCache.computeIfAbsent(
+                        neighborKey,
+                        ignored -> SkyIslandIntegerColumnSupport.measure(
+                                exactTerrain, neighborX, neighborZ));
+                if (drySupport.isEmpty()) {
                     unmeasuredShorelineEdges++;
                     continue;
                 }
-                int freeboard = dryNeighbor.originalSupport().maximumSolidY() - waterTop;
+                int freeboard = drySupport.orElseThrow().maximumSolidY() - waterTop;
                 minimumShorelineFreeboard = Math.min(minimumShorelineFreeboard, freeboard);
                 if (freeboard >= 0) {
                     supportedShorelineEdges++;
