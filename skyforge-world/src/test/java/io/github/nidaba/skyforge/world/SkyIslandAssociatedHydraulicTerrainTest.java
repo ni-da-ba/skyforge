@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class SkyIslandAssociatedHydraulicTerrainTest {
     @Test
-    void exactReviewAssociationHasOneWorldStageAcrossEachWetCrossSection() {
+    void exactReviewAssociationHasOneWorldStageAcrossEachWetCrossSection() throws Exception {
         var descriptor = SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(0x534B59464F524745L, 8L, 81L, 77L));
         var association = association(descriptor, 0.0);
@@ -49,6 +49,12 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                     assertTrue(terrain.terrainDeltaWorldUnits() <= 1.0e-9);
                     assertTrue(terrain.targetColumnThicknessWorldUnits() > 0.0);
                     assertTrue(sample.waterDepthWorldUnits() > 0.0);
+                    if (side == 0) {
+                        assertEquals(256.0 + reach.samples().get(i).bedElevationPotential()
+                                        * descriptor.reliefBudget(),
+                                terrain.targetUpperSurfaceWorldY(), 1.0e-9,
+                                "hydraulic bed must equal the realized centerline bed");
+                    }
                     minimum = Math.min(minimum, stage);
                     maximum = Math.max(maximum, stage);
                 }
@@ -74,9 +80,94 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         assertThrows(IllegalArgumentException.class,
                 () -> new SkyIslandComponentFluvialWorldSurfaceProjection(
                         association, candidate, legacy.terrainField()));
-        System.out.println("ASSOCIATED WORLD FRAME PASS: sections=" + sections
+        String summary = "ASSOCIATED WORLD FRAME PASS: sections=" + sections
                 + " maxTransverseStageSpan=" + maximumSpan
-                + " authorizedColumns=" + quantized.authorizedColumns().size());
+                + " authorizedColumns=" + quantized.authorizedColumns().size()
+                + "\n" + connectivityReport(quantized);
+        var directory = java.nio.file.Path.of("build", "evidence", "hydrology-join-diagnostics");
+        java.nio.file.Files.createDirectories(directory);
+        java.nio.file.Files.writeString(directory.resolve("associated-summary.txt"), summary);
+        System.out.println(summary);
+    }
+
+
+    /** Exact face-connectivity measurement of the water bands the runtime is permitted to write. */
+    private static String connectivityReport(SkyIslandFluvialVoxelQuantizationPlan plan) {
+        var bands = new java.util.HashMap<Long, int[]>();
+        int clipped = 0;
+        int subVoxel = 0;
+        for (var column : plan.authorizedColumns()) {
+            var sample = column.projection();
+            var semantic = sample.semanticSample();
+            if (!semantic.wet() || !column.mutatesTerrain()) {
+                continue;
+            }
+            double stage = sample.originalUpperSurfaceWorldY()
+                    + (semantic.waterSurfacePotential() - semantic.originalTerrainPotential())
+                            * plan.candidatePlan().descriptor().reliefBudget();
+            int top = (int) Math.ceil(stage) - 1;
+            if (top > column.originalSupport().maximumSolidY()) {
+                clipped++;
+            }
+            top = Math.min(top, column.originalSupport().maximumSolidY());
+            int bottom = column.targetMaximumSolidY() + 1;
+            if (top < bottom) {
+                subVoxel++;
+                continue;
+            }
+            bands.put(key(column.worldX(), column.worldZ()), new int[] {bottom, top});
+        }
+        var labels = new java.util.HashMap<Long, Integer>();
+        int components = 0;
+        for (long start : bands.keySet()) {
+            if (labels.containsKey(start)) {
+                continue;
+            }
+            int label = ++components;
+            var queue = new java.util.ArrayDeque<Long>();
+            labels.put(start, label);
+            queue.add(start);
+            while (!queue.isEmpty()) {
+                long current = queue.removeFirst();
+                int x = (int) (current >> 32);
+                int z = (int) current;
+                int[] a = bands.get(current);
+                for (int[] direction : new int[][] {{1, 0}, {-1, 0}, {0, 1}, {0, -1}}) {
+                    long neighbor = key(x + direction[0], z + direction[1]);
+                    int[] b = bands.get(neighbor);
+                    if (b != null && !labels.containsKey(neighbor)
+                            && Math.max(a[0], b[0]) <= Math.min(a[1], b[1])) {
+                        labels.put(neighbor, label);
+                        queue.add(neighbor);
+                    }
+                }
+            }
+        }
+        StringBuilder result = new StringBuilder("INTEGER WATER DIAGNOSTIC: components=")
+                .append(components).append(" columns=").append(bands.size())
+                .append(" supportClipped=").append(clipped)
+                .append(" subVoxel=").append(subVoxel).append('\n');
+        for (var reach : plan.candidatePlan().terrainField().acceptedReaches()) {
+            var routeLabels = new java.util.HashSet<Integer>();
+            int missing = 0;
+            for (var point : reach.centerline().points()) {
+                Integer label = labels.get(key((int) Math.round(point.x()), (int) Math.round(point.z())));
+                if (label == null) {
+                    missing++;
+                } else {
+                    routeLabels.add(label);
+                }
+            }
+            var semantic = reach.geomorphicRoute().semanticReach();
+            result.append(semantic.startCellIndex()).append("->").append(semantic.endCellIndex())
+                    .append(" centerlineComponents=").append(routeLabels.size())
+                    .append(" missingCenterlineSamples=").append(missing).append('\n');
+        }
+        return result.toString();
+    }
+
+    private static long key(int x, int z) {
+        return ((long) x << 32) ^ Integer.toUnsignedLong(z);
     }
 
     private static SkyIslandAuthoredRealizationAssociation association(

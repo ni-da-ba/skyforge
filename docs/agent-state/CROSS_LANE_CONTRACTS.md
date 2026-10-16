@@ -4,6 +4,10 @@
 **Updated:** 2026-09-08 (America/Chicago)  
 **Repository snapshot after AUTH-0100 acceptance:** `35b9b420d338415105237e56317580535808178a`
 
+## Hydrology world-frame override — owner approved 2026-10-15
+
+Under #1452 / PR #1490, realization may solve a channel/bed/water candidate against the exact associated compiled terrain in one fixed elevation datum. This supersedes F4B/F4E's requirement to carry a placement-free semantic depth through a spatially varying compiled-terrain offset for this explicitly associated path. Legacy placement-free authorship remains available. Exact association/ownership, removal-only edit and thickness limits, unchanged hydraulic/D2 checks and rejected-component zero authority remain binding. No backend water clamp or terrain reconciliation is authorized. See docs/authorship/HYDROLOGY_ASSOCIATED_WORLD_FRAME.md. Runtime/visual evidence remains separate from the owner's architectural approval.
+
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
 

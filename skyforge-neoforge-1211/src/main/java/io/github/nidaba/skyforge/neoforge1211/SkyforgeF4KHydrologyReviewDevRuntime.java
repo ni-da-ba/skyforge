@@ -107,7 +107,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                 System.Logger.Level.INFO,
                 REVIEW_WORLD
                         + " enabled. New disposable Skyforge Development world only. "
-                        + "F4H authorized columns=" + fixture.authorization().quantization().authorizedColumns().size()
+                        + "association-bound world-elevation frame; F4H authorized columns=" + fixture.authorization().quantization().authorizedColumns().size()
                         + ", exact removed blocks=" + fixture.authorization().quantization().totalRemovedSolidBlocks()
                         + ", refined reaches=" + fixture.refined().reaches().size()
                         + ", first wet anchor=" + anchor
@@ -224,7 +224,8 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                         "f4dRemovedSolidBlocks", fixture.authorization().quantization().totalRemovedSolidBlocks(),
                         "f4hRefinedReaches", fixture.refined().reaches().size(),
                         "persistedWaterHeads", persistedWaterHeads,
-                        "surfaceBindingActive", SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()));
+                        "surfaceBindingActive", SkyforgeNeoForge1211SurfaceStage.hasActiveBinding(),
+                        "worldElevationFrame", "associated-physical-v1"));
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "F4K HYDROLOGY PREPARATION PASS: persisted " + persistedWaterHeads
@@ -239,10 +240,11 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
                                 waterMaximumY(column, fixture),
                                 column.originalSupport().maximumSolidY())
                         >= column.targetMaximumSolidY() + 1)
-                .map(column -> new BlockPos(
-                        column.worldX(),
-                        column.targetMaximumSolidY() + 1,
-                        column.worldZ()))
+                .flatMap(column -> java.util.stream.IntStream.rangeClosed(
+                                column.targetMaximumSolidY() + 1,
+                                Math.min(waterMaximumY(column, fixture),
+                                        column.originalSupport().maximumSolidY()))
+                        .mapToObj(y -> new BlockPos(column.worldX(), y, column.worldZ())))
                 .toList();
     }
 
@@ -308,7 +310,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
         SkyIslandAuthoredRealizationAssociation association =
                 SkyIslandAuthoredRealizationAssociation.of(descriptor, volume);
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
-                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+                SkyIslandComponentFluvialTerrainCandidatePlanner.planAssociated(association);
         var voxel = SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
         SkyIslandWorldWaterProjectionQualificationPlan direct =
                 SkyIslandWorldWaterProjectionQualificationPlanner.plan(voxel);

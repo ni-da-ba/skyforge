@@ -46,4 +46,8 @@ The world bridge introduces transverse stage variation before voxelization, desp
 
 Recommended next work is an association-specific continuous candidate/solve in a coherent world-elevation frame, with bed/banks and water evaluated together before quantization. Preserve exact association and ownership, removal-only terrain, underside/thickness admission, dry/rejected controls, and hydraulic benchmark tolerances. Verify transverse stage as well as longitudinal grade, then integer connectivity, then visual review.
 
-**Human contract decision:** may this supersede the F4B requirement that the compiled upper surface remain pointwise absolute-elevation authority and the F4E requirement to preserve the old semantic depth pointwise? Recommend yes, within the existing safety bounds above. These are explicit accepted projection contracts; do not silently change them or apply a Minecraft-only clamp. F4E already permits upstream association-specific refinement, but a revised coherent bed/water realization must state which old invariants it supersedes. No production or review-world change is implemented by this diagnostic PR.
+**Decision resolved on 2026-10-15:** the owner approved superseding F4B's pointwise compiled-surface elevation authority and F4E's preservation of the old placement-free depth, where required by an association-specific coherent bed/water solve. The retained safety bounds above remain mandatory; this is not permission for a Minecraft-only clamp.
+
+## Approved implementation
+
+See [Association-bound world frame](HYDROLOGY_ASSOCIATED_WORLD_FRAME.md) for the implemented physical-terrain candidate, retained limits and pending runtime/visual evidence. No further architectural approval is pending for this bounded change.

@@ -8975,6 +8975,7 @@ fun requireSkyforgeF4kHydrologyReviewPreparationPass() {
     val properties = Properties()
     file.inputStream().use(properties::load)
     check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("worldElevationFrame") == "associated-physical-v1"
             && properties.getProperty("surfaceBindingActive") == "true"
             && properties.getProperty("f4hAuthorizedColumns").toInt() > 0
             && properties.getProperty("f4dRemovedSolidBlocks").toInt() > 0

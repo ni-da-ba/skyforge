@@ -345,6 +345,10 @@ jobs:
           if [ -f "$report" ]; then
             cat "$report"
           fi
+          report=skyforge-world/build/evidence/hydrology-join-diagnostics/associated-summary.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
       - name: Upload river join diagnostic evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
