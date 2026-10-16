@@ -8681,7 +8681,7 @@ dependencies {
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
         }
     }
-    if (wbyS8NetherVariant in setOf("incendium", "incendium-full")) {
+    if (wbyS8NetherVariant in setOf("incendium", "incendium-full", "incendium-betternether")) {
         add(wbyS8IncendiumDataPack.name, wbyS8Pin("incendium", "coordinate"))
     }
     if (wbyS8NetherVariant == "incendium-full") {
