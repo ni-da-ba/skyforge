@@ -46,21 +46,26 @@ The initial production implementation at 4002f74772d573ddd40489ef2a46a3027179804
 
 [USACE RAS Mapper](https://www.hec.usace.army.mil/confluence/rasdocs/rmum/latest/mapping-results/managing-results-maps) treats terrain and water-surface elevations in a shared spatial representation and derives depth by difference. [USACE cross-section interpolation](https://www.hec.usace.army.mil/confluence/rasdocs/rasum/6.3/entering-and-editing-geometric-data/cross-section-interpolation) provides the connected bank/invert interpolation precedent. This tranche reuses the existing 1D solvers; it does not implement HEC-RAS, triangulated bend repair, or a 2D hydrodynamic model.
 
-## Owned-water capacity and rejected placement trial
+## Rejected trials and remaining ownership decision
 
-The first integrated shared-frame proof passed (run 38830308214): 55 level sections, 9,255 admitted columns, two face-connected rivers, no missing centerline samples, and 3,928 persisted water voxels. Its integer diagnostic still found 219 water columns whose requested surface exceeded the exact original solid ceiling. That intermediate proof does not certify un-clipped stage realization.
+The integrated shared-frame proof passed in run 38830308214: 55 level sections, 9,255 admitted columns, two face-connected rivers, no missing centerline samples, and 3,928 persisted water voxels. It still reported 219 *materialized* columns clipped by the old solid-support ceiling; intended wet cells without excavation also receive no water under the retained adapter rule.
 
-A rigid bed/stage lowering trial is archived at b08c5f229d75ae3ecded7ae7e16e86e9a4f41081. It preserved the source hydraulic solution but correctly failed the unchanged D2 excavation-burden limit. Active code does not retain that placement correction or relax the limit.
+Two bounded trials are preserved in Git history, not active implementation:
+- b08c5f229d75ae3ecded7ae7e16e86e9a4f41081: rigid bed/stage lowering preserved source hydraulics but failed the unchanged D2 excavation-burden limit.
+- 18a923ee2b74f0926ea2c271f3635637336766c8: a conservative normal-conveyance flow candidate rejected because its 3.073930563 m headroom requirement exceeded a 2.591885475 m station depth. This does not prove that every smaller-flow candidate is impossible.
 
-Because discharge is explicitly game-calibrated rather than an externally fixed hydrograph, the associated candidate sizes design flow to available owned headroom instead. Survey the bank-contained wet columns against their exact original solid ceiling, C = maximumSolidY + 1. The maximum positive stage excess supplies headroom d. At each existing station depth h, compute the normal-flow conveyance ratio:
+Active code retains the verified shared-frame solve and original game calibration. It does not retain either failed correction, widen excavation limits, tune residuals, or claim that the remaining ceiling distortion is repaired.
 
-```text
-K(h) = A(h) * (A(h) / wettedPerimeter(h))^(2/3)
-flowScale = min over stations of K(h - d) / K(h)
-```
+### Human contract gate
 
-Roughness and energy slope cancel from this ratio. If a positive target depth does not exist, the candidate rejects. Scale all discharges by that common factor, preserve bed geometry, and re-run the existing source-normal-depth and standard-step solve. This is a normal-conveyance design-flow candidate, not a guarantee for a nonuniform reach: survey its actual re-solved stages again and reject any remaining support excess. There is no iterative residual tuning, per-column head clamp, or excavation increase. Final D2 and voxel admission still apply.
+The adapter requires water to replace only pre-existing exact owner solid. This is stricter than merely preserving exact island ownership: it forbids water occupying air above the old ground even when an accepted connected water surface calls for it.
 
-Associated ordinary-channel wetness is confined to its bankfull corridor; this source model does not grant disconnected low floodplain cells inundation authority. Final acceptance requires zero support clipping, one face-connected integer water body per supported ordinary reach and no missing rounded centerline samples. Sub-voxel shoreline depths remain quantified discretization loss, not authority to add terrain or water outside support.
+Recommend allowing a precisely bounded, connected water-volume envelope from the associated bed/stage candidate. It may extend above the old solid ceiling, but must remain explicitly assigned to that exact island, exclude foreign volume/water ownership and unrelated/player solids, and preserve removal/thickness limits. Seed connectivity from the accepted river; do not flood disconnected low terrain or grant owner-wide air access. Validate stacked isolation, save/reload and static tick fencing before a new visual review.
 
-The focused workflow retains the planner's primary-287 zero-authority control while avoiding its duplicate expensive invocation through the game-model test class. Full CI continues to run the complete test suite.
+**No positive-air water authority is implemented or authorized by this PR.** Owner approval of the shared elevation frame is recorded; approval of this additional water-ownership contract remains pending.
+
+## Static-water lifecycle repair
+
+Qualified static-water tick membership now uses the exact qualified water-position set rather than the legacy planner. The prepared-world viewer restores a read-only tick mask from the exact validated fixture authorization; it does not install a terrain writer, removal binding or native surface adapter. The dedicated launch regenerates the disposable review specimen, so this is an exact-version fixture restore, not a general saved-world migration policy.
+
+A focused NeoForge regression checks every qualified water position, absence of legacy dependence, writer-inert read-only behavior, scope cleanup and rejection of simultaneous read-only/mutation bindings. Actual long-lived/client visual evidence remains a separate human gate.

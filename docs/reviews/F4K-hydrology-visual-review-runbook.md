@@ -1,54 +1,29 @@
-# F4K hydrology visual review runbook
+# F4K hydrology review status
 
-**Review scope:** narrow F4H/F4D runtime containment and persistence check for the opt-in ordinary
-fixture (province=8, cluster=81, key=77). This is not the DR-70 product review and cannot accept
-the reset hydrology system or stand in for the required key-287 specimen.
+## Current boundary — 2026-10-15
 
-The F4K owner review has already been performed. The owner reports that the Minecraft result looks
-identical to the preceding hydrology review, so it demonstrates no visible product improvement. Keep
-that feedback as a non-acceptance result; do not ask for another run of this same fixture.
+The owner accepted the previous key-77 specimen as an **early proof of concept worth improving**, not completed hydrology or DR-70 acceptance. Older feedback that it looked unchanged is historical, not a reason to repeat the same review.
 
-The runtime derives the accepted F4H direct/refined field and installs
-SkyIslandHydrologyRuntimeAuthorization; it does not use the retained legacy specimen.
+PR #1490 implements an association-bound shared world-elevation frame. Integrated machine evidence proves 55 level continuous cross sections, two face-connected integer rivers, no missing centerline samples, and 3,928 persisted water voxels.
 
-## Reproduction command
+**No new visual review is requested yet.** The retained adapter permits water only where exact owner solid existed before excavation. It clips 219 materialized columns and suppresses intended water over unexcavated low ground. The pending human decision is whether to authorize a precisely bounded, connected candidate water volume above the old ground, with exact island/foreign-volume isolation and existing excavation safeguards retained. See [world-frame contract](../authorship/HYDROLOGY_ASSOCIATED_WORLD_FRAME.md).
 
-For debugging only, from the repository root on the desired accepted main:
+## Runtime changes
 
-```powershell
-git fetch origin
-git switch main
-git pull --ff-only
-.\gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:runF4kHydrologyReviewClient
+- The opt-in F4K fixture uses the exact associated physical terrain for bed/water generation and qualification.
+- Preparation verifies every permitted water voxel, not just the bottom water voxel of each column.
+- Qualified static-water tick fencing uses exact qualified positions, never a legacy planner fallback.
+- The viewer restores a **read-only** static-water tick mask from the exact fixture authorization. It does not install terrain mutation or a native surface adapter.
+- The dedicated launch task regenerates the disposable review world before opening it; do not substitute a stale prepared world from another revision.
+
+## When the next gate is ready
+
+Use an accepted clean review checkout. The authoritative prepare-and-quick-play task is:
+
+```bash
+./gradlew.bat --no-configuration-cache :skyforge-neoforge-1211:launchF4KHydrologyReview
 ```
 
-This command launches the scoped F4K fixture. It is not the next human review request.
+Do not run this as an acceptance request until the pending ownership boundary and machine validation are resolved. Do not modify or abort the owner's existing unfinished merge merely to create a review checkout; use a separate detached review worktree.
 
-In Minecraft:
-
-1. Create a **new disposable world**.
-2. Select **Skyforge Development (SF-IMP-0043)**.
-3. Select Creative mode and allow cheats.
-4. After joining, run:
-
-```text
-/time set day
-/weather clear
-/tp @s 0 320 0
-```
-
-The run's console log prints the F4H authorized-column count, exact removed-block count, refined-reach
-count, and a first authorized wet anchor. Use that anchor for close inspection only when reproducing
-the already-completed scoped check.
-
-## Recorded result
-
-The owner reported the result was visually indistinguishable from the previous hydrology review.
-Therefore F4K is not visual/product acceptance. Its only retained value is the limited containment,
-ownership, persistence, and lifecycle check; it does not establish a distinct or compelling authored
-hydrology feature.
-
-The deterministic F4C/F4D/F4H evidence and runtime authorization checks do not replace human judgment,
-and passing this scoped check does not satisfy DR-70. A future human review must use a genuinely
-different, fully qualified specimen after the key-287 continuous geometry and transition work passes
-its machine gates.
+The next review must inspect lateral water-level consistency, downstream stepping, shoreline containment and reopen stability. Passing this bounded specimen is not full hydrology or DR-70 acceptance.

@@ -212,11 +212,6 @@ public final class SkyIslandHydraulicCandidateBuilder {
             return bedElevationsMetres.clone();
         }
 
-        /** Trapezoidal bottom width used by the existing Manning capacity model. */
-        public double bottomWidthMetres() {
-            return configuration.bottomWidthMetres();
-        }
-
         public double totalLengthMetres() {
             return stationsMetres[stationsMetres.length - 1];
         }

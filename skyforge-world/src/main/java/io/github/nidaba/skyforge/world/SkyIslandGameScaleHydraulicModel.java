@@ -435,49 +435,6 @@ public final class SkyIslandGameScaleHydraulicModel {
             dischargesCubicMetresPerSecond = dischargesCubicMetresPerSecond.clone();
         }
 
-
-        /**
-         * Constructs a lower design-flow candidate from normal-flow conveyance headroom.
-         * The full standard-step profile is re-solved, not shifted or clamped. Callers must
-         * independently admit its actual stages against the physical capacity constraints.
-         */
-        public SourceReachSolution capacityLimitedForHeadroom(double metres) {
-            if (!Double.isFinite(metres) || metres < 0.0) {
-                throw new IllegalArgumentException("capacity headroom must be finite and non-negative");
-            }
-            if (metres == 0.0) {
-                return this;
-            }
-            var section = trapezoidalSection(candidate.bottomWidthMetres(), sideSlopeHorizontalToVertical);
-            double factor = 1.0;
-            for (double depth : profile.depthsMetres()) {
-                double target = depth - metres;
-                if (!(target > 0.0)) {
-                    throw new IllegalArgumentException(
-                            "normal-conveyance capacity candidate has no positive target depth; headroom="
-                                    + metres + ", depth=" + depth);
-                }
-                double oldArea = section.area(depth);
-                double targetArea = section.area(target);
-                double oldConveyance = oldArea
-                        * Math.pow(oldArea / section.wettedPerimeter(depth), 2.0 / 3.0);
-                double targetConveyance = targetArea
-                        * Math.pow(targetArea / section.wettedPerimeter(target), 2.0 / 3.0);
-                factor = Math.min(factor, targetConveyance / oldConveyance);
-            }
-            if (!(factor > 0.0) || !Double.isFinite(factor)) {
-                throw new IllegalArgumentException("normal-conveyance capacity must remain finite and positive");
-            }
-            double scale = factor;
-            double[] limitedDischarges = Arrays.stream(dischargesCubicMetresPerSecond)
-                    .map(value -> value * scale).toArray();
-            var hydraulic = solveSourceNormalProfile(candidate, limitedDischarges, section);
-            return new SourceReachSolution(candidate, hydraulic.profile(), hydraulic.discharges(),
-                    manningRoughness, sideSlopeHorizontalToVertical, minimumBedSlope,
-                    sourceEnergySlope, hydraulic.sourceNormalDepth(),
-                    hydraulic.sourceFroudeNumber(), hydraulic.flowRegime());
-        }
-
         @Override
         public double[] dischargesCubicMetresPerSecond() {
             return dischargesCubicMetresPerSecond.clone();

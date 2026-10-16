@@ -672,3 +672,7 @@ When one lane changes a contract another lane relies on, update this file with:
 - accepted / in-progress / proposed status.
 
 Keep detailed history in lane-specific state/docs rather than expanding this file with logs.
+
+## Pending hydrology water-envelope boundary — 2026-10-15
+
+The shared elevation-frame approval does not grant positive-air water authority. The retained old-solid-only water ceiling still clips part of the associated candidate. A bounded connected water envelope above old terrain requires an explicit further owner decision, retaining exact island/foreign-volume isolation and excavation safeguards. Static-water tick recognition may use exact qualified/read-only authorization masks; this grants no terrain writer or expanded water domain.

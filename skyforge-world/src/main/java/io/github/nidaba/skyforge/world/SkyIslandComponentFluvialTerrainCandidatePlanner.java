@@ -124,21 +124,6 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 descriptor, skeleton, original);
                 SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
                         descriptor, skeleton, span, original, coupled);
-                if (worldAssociation.isPresent()) {
-                    double lowering = requiredOwnedWaterLowering(
-                            worldAssociation.orElseThrow(), original, geometry, coupled);
-                    if (lowering > EPSILON) {
-                        coupled = coupled.capacityLimitedForHeadroom(lowering);
-                        geometry = reconstructCoupledReach(descriptor, skeleton, span, original, coupled);
-                        double remaining = requiredOwnedWaterLowering(
-                                worldAssociation.orElseThrow(), original, geometry, coupled);
-                        if (remaining > EPSILON) {
-                            throw new IllegalStateException(
-                                    "owned-capacity design flow still exceeds exact support; initialHeadroom="
-                                            + lowering + ", remaining=" + remaining);
-                        }
-                    }
-                }
                 if (realizedByIdentity.put(identity, geometry) != null) {
                     throw new IllegalStateException(
                             "F4A component selection repeated reach "
@@ -163,8 +148,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
 
         SkyIslandQualifiedFluvialTerrainField terrainField =
                 new SkyIslandQualifiedFluvialTerrainField(
-                        original, realizedReaches, coupledByIdentity, descriptor.reliefBudget(),
-                        worldAssociation.isPresent());
+                        original, realizedReaches, coupledByIdentity, descriptor.reliefBudget());
 
         List<SkyIslandGeomorphicReachQualification> postRealizationQualifications =
                 new ArrayList<>(realizedReaches.size());
@@ -190,8 +174,6 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 + diagnostics.maximumBankContainmentDeficitWorldUnits()
                                 + " world units, maximum depth/width="
                                 + diagnostics.maximumDepthToBankfullWidthRatio()
-                                + ", normalized excavation burden="
-                                + diagnostics.normalizedExcavationBurden()
                                 + ")");
             }
             postRealizationQualifications.add(qualification);
@@ -205,58 +187,6 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 postRealizationQualifications,
                 terrainField,
                 worldAssociation);
-    }
-
-
-    /**
-     * Exact owned water-stage headroom survey before candidate publication/quantization.
-     * This supplies a normal-conveyance design-flow candidate; its re-solved stages must
-     * independently pass the same survey. No water head is changed locally.
-     */
-    private static double requiredOwnedWaterLowering(
-            SkyIslandAuthoredRealizationAssociation association,
-            SkyIslandSemanticField original,
-            SkyIslandHydraulicReachGeometry geometry,
-            SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled) {
-        var descriptor = association.authoredDescriptor();
-        var volume = association.realizedVolume().compiledVolume();
-        var physical = volume.descriptor();
-        var interpreter = new SkyIslandTerrainInterpreter(volume, SkyIslandTerrainProfile.reference());
-        var semantic = geometry.geomorphicRoute().semanticReach();
-        long reachIdentity = identity(semantic.startCellIndex(), semantic.endCellIndex());
-        var field = new SkyIslandQualifiedFluvialTerrainField(original, List.of(geometry),
-                Map.of(reachIdentity, coupled), descriptor.reliefBudget(), true);
-        double margin = geometry.maximumBankfullHalfWidth() * 3.5 + 1.0;
-        double minX = geometry.centerline().points().stream().mapToDouble(SkyIslandLocalPosition::x)
-                .min().orElseThrow() - margin + physical.centerX();
-        double maxX = geometry.centerline().points().stream().mapToDouble(SkyIslandLocalPosition::x)
-                .max().orElseThrow() + margin + physical.centerX();
-        double minZ = geometry.centerline().points().stream().mapToDouble(SkyIslandLocalPosition::z)
-                .min().orElseThrow() - margin + physical.centerZ();
-        double maxZ = geometry.centerline().points().stream().mapToDouble(SkyIslandLocalPosition::z)
-                .max().orElseThrow() + margin + physical.centerZ();
-        if (Math.floor(minX) <= Integer.MIN_VALUE || Math.ceil(maxX) >= Integer.MAX_VALUE
-                || Math.floor(minZ) <= Integer.MIN_VALUE || Math.ceil(maxZ) >= Integer.MAX_VALUE) {
-            throw new IllegalArgumentException("associated water support exceeds integer coordinate range");
-        }
-        double lowering = 0.0;
-        for (int x = (int) Math.floor(minX); x <= (int) Math.ceil(maxX); x++) {
-            for (int z = (int) Math.floor(minZ); z <= (int) Math.ceil(maxZ); z++) {
-                var sample = field.sampleDetailed(new SkyIslandLocalPosition(
-                        x - physical.centerX(), z - physical.centerZ()));
-                if (!sample.wet()) {
-                    continue;
-                }
-                var support = SkyIslandIntegerColumnSupport.measure(interpreter, x, z)
-                        .orElseThrow(() -> new IllegalStateException(
-                                "associated wet column has no exact compiled support"));
-                double stage = physical.suspensionElevation()
-                        + sample.waterSurfacePotential() * descriptor.reliefBudget();
-                lowering = Math.max(lowering, stage - (support.maximumSolidY() + 1.0));
-            }
-        }
-        // Keep the mathematical non-strict ceiling inequality robust to floating-point subtraction.
-        return lowering > 0.0 ? Math.nextUp(lowering) + 1.0e-9 : 0.0;
     }
 
     private static List<SkyIslandComponentFluvialTerrainDeferralReason> supportReasons(

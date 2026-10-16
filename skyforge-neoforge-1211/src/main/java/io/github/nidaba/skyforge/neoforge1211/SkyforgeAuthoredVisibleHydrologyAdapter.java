@@ -117,7 +117,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         return new QualifiedHydrologyBinding(bindings, removals, authorizedWaterPositions);
     }
 
-    private static Set<Long> authorizedWaterPositions(
+    static Set<Long> authorizedWaterPositions(
             SkyIslandHydrologyRuntimeAuthorization authorization) {
         Set<Long> positions = new LinkedHashSet<>();
         for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {

@@ -23,7 +23,6 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
     private final java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution>
             coupledCandidates;
     private final double verticalScale;
-    private final boolean bankContainedWater;
 
     public SkyIslandQualifiedFluvialTerrainField(
             SkyIslandSemanticField originalTerrain,
@@ -36,17 +35,6 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             List<SkyIslandHydraulicReachGeometry> acceptedReaches,
             java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
             double verticalScale) {
-        this(originalTerrain, acceptedReaches, coupledCandidates, verticalScale, false);
-    }
-
-    /** Associated ordinary-channel mode does not inundate disconnected low floodplain terrain. */
-    public SkyIslandQualifiedFluvialTerrainField(
-            SkyIslandSemanticField originalTerrain,
-            List<SkyIslandHydraulicReachGeometry> acceptedReaches,
-            java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
-            double verticalScale,
-            boolean bankContainedWater) {
-        this.bankContainedWater = bankContainedWater;
         this.originalTerrain = Objects.requireNonNull(originalTerrain, "originalTerrain");
         if (!(verticalScale > 0.0) || !Double.isFinite(verticalScale)) {
             throw new IllegalArgumentException("verticalScale must be finite and positive");
@@ -162,8 +150,7 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
                 throw new IllegalStateException("coupled candidate terrain may not raise authored terrain");
             }
             target = Math.max(0.0, Math.min(originalTerrain, coupledTarget));
-            wet = target < waterSurface - EPSILON
-                    && (!bankContainedWater || distance <= bankfull + EPSILON);
+            wet = target < waterSurface - EPSILON;
         }
 
         target = clamp01(target);

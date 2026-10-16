@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -51,21 +50,6 @@ class SkyIslandGameScaleHydraulicModelTest {
             SkyIslandGameScaleHydraulicModel.SourceReachSolution solution =
                     SkyIslandGameScaleHydraulicModel.solveSourceReach(
                             descriptor, skeleton, terrain);
-            double headroom = java.util.Arrays.stream(solution.profile().depthsMetres())
-                    .min().orElseThrow() * 0.1;
-            var limited = solution.capacityLimitedForHeadroom(headroom);
-            assertTrue(limited.sourceNormalDepthMetres()
-                    <= solution.sourceNormalDepthMetres() - headroom + EPSILON);
-            assertTrue(limited.dischargesCubicMetresPerSecond()[0]
-                    < solution.dischargesCubicMetresPerSecond()[0]);
-            assertArrayEquals(solution.candidate().bedElevationsMetres(),
-                    limited.candidate().bedElevationsMetres(), EPSILON);
-            var resolved = limited.candidate().solve(
-                    limited.dischargesCubicMetresPerSecond(), limited.manningRoughness(),
-                    limited.sourceNormalDepthMetres(), limited.flowRegime(),
-                    SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
-            assertArrayEquals(resolved.waterSurfaceElevationsMetres(),
-                    limited.profile().waterSurfaceElevationsMetres(), EPSILON);
             double[] stations = solution.profile().stationsMetres();
             double[] beds = solution.profile().bedElevationsMetres();
             double[] depths = solution.profile().depthsMetres();

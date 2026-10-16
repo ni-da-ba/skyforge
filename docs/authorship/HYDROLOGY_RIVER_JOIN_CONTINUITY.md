@@ -51,3 +51,7 @@ Recommended next work is an association-specific continuous candidate/solve in a
 ## Approved implementation
 
 See [Association-bound world frame](HYDROLOGY_ASSOCIATED_WORLD_FRAME.md) for the implemented physical-terrain candidate, retained limits and pending runtime/visual evidence. No further architectural approval is pending for this bounded change.
+
+## Subsequent boundary
+
+The shared-frame solve and connected persisted-water proof pass, but the original solid-only water ceiling still limits realization. Excavation/normal-capacity trials are archived as rejected, not active fixes. The separate pending decision and exact qualified/read-only static-tick repair are documented in [the world-frame contract](HYDROLOGY_ASSOCIATED_WORLD_FRAME.md). No positive-air water domain or final visual acceptance is implied.

@@ -76,7 +76,16 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
 
     /** Installs only for the dedicated local visual-review run. */
     static synchronized void installFromSystemProperty() {
-        if (!Boolean.getBoolean(ENABLE_PROPERTY) || persistentBinding != null) {
+        if (persistentBinding != null) {
+            return;
+        }
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
+            if (Boolean.getBoolean(VIEWER_PROPERTY)) {
+                Fixture fixture = fixture();
+                reviewFixture = fixture;
+                persistentBinding = SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(
+                        fixture.authorization());
+            }
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
@@ -229,7 +238,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "F4K HYDROLOGY PREPARATION PASS: persisted " + persistedWaterHeads
-                        + " exact F4H water heads after F4D authorized terrain removal.");
+                        + " exact F4H water voxels after F4D authorized terrain removal.");
     }
 
     static List<BlockPos> expectedWaterHeadPositions(Fixture fixture) {

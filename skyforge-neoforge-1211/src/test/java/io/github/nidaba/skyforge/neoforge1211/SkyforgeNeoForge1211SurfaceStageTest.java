@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -281,6 +282,52 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
             }
         }
         assertEquals(full.solidBlockCount(), bounded.solidBlockCount());
+    }
+
+
+    @Test
+    void qualifiedTickFenceUsesExactWaterAndReadOnlyReloadDoesNotInstallWriter() throws Exception {
+        ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
+        var sentinel = new BlockPos(0, 64, 0);
+        chunk.setBlockState(sentinel, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
+        var authorization = fixture.authorization();
+        var water = SkyforgeF4KHydrologyReviewDevRuntime.expectedWaterHeadPositions(fixture);
+        assertFalse(water.isEmpty());
+        var adapter = new SkyforgeNeoForge1211ChunkAdapter(
+                fixture.catalog(), io.github.nidaba.skyforge.world.SkyIslandTerrainProfile.reference(),
+                new SkyforgeMinecraftBlockPalette());
+        // No legacy authored descriptor is installed: qualified membership must stand alone.
+        assertFalse(adapter.isAuthoredVisibleHydrologyPosition(water.getFirst()));
+        var outsideWater = new BlockPos(0, 64, 0);
+        var writer = new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
+        try (var fence = SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(authorization)) {
+            assertNotNull(fence);
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.hasReadOnlyHydrologyFence());
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation());
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.realize(chunk).isEmpty());
+            assertEquals(Blocks.GOLD_BLOCK.defaultBlockState(), chunk.getBlockState(sentinel));
+            for (var position : water) {
+                assertTrue(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position));
+            }
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(outsideWater));
+            assertThrows(IllegalStateException.class, () ->
+                    SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(adapter, writer, authorization));
+        }
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasReadOnlyHydrologyFence());
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(water.getFirst()));
+        try (var active = SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(
+                adapter, writer, authorization)) {
+            assertNotNull(active);
+            for (var position : water) {
+                assertTrue(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position));
+            }
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(outsideWater));
+            assertThrows(IllegalStateException.class, () ->
+                    SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(authorization));
+        }
+        assertFalse(SkyforgeNeoForge1211SurfaceStage.hasActiveBinding());
     }
 
     private static MaterializedPosition highestSolid(MinecraftChunkMaterialization materialization) {

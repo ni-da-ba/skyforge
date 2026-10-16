@@ -358,6 +358,19 @@ jobs:
           path: skyforge-world/build/evidence/hydrology-join-diagnostics/
           if-no-files-found: warn
           retention-days: 14
+      - name: Verify qualified static-water fence and writer-inert reload binding
+        if: steps.scope.outputs.diagnostic_only != 'true'
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*SkyforgeNeoForge1211SurfaceStageTest.qualifiedTickFenceUsesExactWaterAndReadOnlyReloadDoesNotInstallWriter'
+          --no-configuration-cache
+      - name: Print static-water fence failure details
+        if: failure()
+        run: |
+          report=skyforge-neoforge-1211/build/test-results/test/TEST-io.github.nidaba.skyforge.neoforge1211.SkyforgeNeoForge1211SurfaceStageTest.xml
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
       - name: Prepare and verify persisted key-77 F4K review specimen
         if: success() && steps.scope.outputs.diagnostic_only != 'true'
         timeout-minutes: 15
