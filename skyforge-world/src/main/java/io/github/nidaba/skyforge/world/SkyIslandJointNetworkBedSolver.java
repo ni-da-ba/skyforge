@@ -91,7 +91,7 @@ public final class SkyIslandJointNetworkBedSolver {
                 ready.add(node);
             }
         });
-        Map<String, Double> maximumFeasibleBed = new HashMap<>();
+        Map<String, Double> maximumFeasibleBed = new TreeMap<>();
         nodes.forEach((node, bounds) -> maximumFeasibleBed.put(node, bounds.terrainElevationMetres()));
 
         int visited = 0;
