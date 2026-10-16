@@ -33,7 +33,7 @@ jobs:
         run: xvfb-run -a ./gradlew :skyforge-neoforge-1211:dr50IntegratedRegionAcceptance --stacktrace --no-configuration-cache
       - name: Publish DR-50 runtime evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dr50-integrated-region-${{ github.sha }}
           if-no-files-found: warn
@@ -60,7 +60,7 @@ jobs:
         run: .\gradlew.bat :skyforge-neoforge-1211:dr50IntegratedRegionDeterminismAcceptance --stacktrace --no-configuration-cache
       - name: Publish Windows DR-50 determinism evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dr50-windows-determinism-${{ github.sha }}
           if-no-files-found: warn
