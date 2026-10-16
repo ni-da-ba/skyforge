@@ -118,7 +118,8 @@ public final class SkyforgeGeneratedFluidPropagationStage {
             throw new IllegalStateException("nested Skyforge generated-fluid tick scopes are not supported");
         }
         if ((state.getType() == Fluids.WATER || state.getType() == Fluids.FLOWING_WATER)
-                && SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position)) {
+                && SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(
+                        serverLevel.dimension(), position)) {
             // AUTH-0104 channel/drop positions are a static, deterministic realization of authored
             // topology. Vanilla propagation beyond those cells is incidental discharge, not a new
             // authored outlet, so freeze the source tick rather than granting it an owner-wide flow

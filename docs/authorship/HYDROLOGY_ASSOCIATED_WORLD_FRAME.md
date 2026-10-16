@@ -69,3 +69,5 @@ Recommend allowing a precisely bounded, connected water-volume envelope from the
 Qualified static-water tick membership now uses the exact qualified water-position set rather than the legacy planner. The prepared-world viewer restores a read-only tick mask from the exact validated fixture authorization; it does not install a terrain writer, removal binding or native surface adapter. The dedicated launch regenerates the disposable review specimen, so this is an exact-version fixture restore, not a general saved-world migration policy.
 
 A focused NeoForge regression checks every qualified water position, absence of legacy dependence, writer-inert read-only behavior, scope cleanup and rejection of simultaneous read-only/mutation bindings. Actual long-lived/client visual evidence remains a separate human gate.
+
+The viewer fence is scoped to the named prepared review world before level loading, only recognizes Overworld water, and closes when that server stops. Reopening the same prepared world reinstalls the read-only mask; unrelated worlds are neither fenced nor teleported by the viewer.

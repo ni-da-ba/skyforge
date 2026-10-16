@@ -290,6 +290,10 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));
         var sentinel = new BlockPos(0, 64, 0);
         chunk.setBlockState(sentinel, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        assertTrue(SkyforgeF4KHydrologyReviewDevRuntime.isReviewWorld(
+                java.nio.file.Path.of("saves", "f4k-hydrology-review")));
+        assertFalse(SkyforgeF4KHydrologyReviewDevRuntime.isReviewWorld(
+                java.nio.file.Path.of("saves", "another-world")));
         var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
         var authorization = fixture.authorization();
         var water = SkyforgeF4KHydrologyReviewDevRuntime.expectedWaterHeadPositions(fixture);
@@ -312,6 +316,10 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
                 assertTrue(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position));
             }
             assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(outsideWater));
+            assertTrue(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(
+                    net.minecraft.world.level.Level.OVERWORLD, water.getFirst()));
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(
+                    net.minecraft.world.level.Level.NETHER, water.getFirst()));
             assertThrows(IllegalStateException.class, () ->
                     SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(adapter, writer, authorization));
         }

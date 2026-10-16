@@ -715,6 +715,19 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         return READ_ONLY_HYDROLOGY.get() != null;
     }
 
+
+    /** Read-only prepared-world water is scoped to the Overworld, not unrelated dimensions. */
+    static boolean isAuthoredVisibleHydrologyPosition(
+            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
+            BlockPos position) {
+        Objects.requireNonNull(dimension, "dimension");
+        if (ACTIVE.get() == null && READ_ONLY_HYDROLOGY.get() != null
+                && !dimension.equals(net.minecraft.world.level.Level.OVERWORLD)) {
+            return false;
+        }
+        return isAuthoredVisibleHydrologyPosition(position);
+    }
+
     static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
         Objects.requireNonNull(position, "position");
         RuntimeBinding binding = ACTIVE.get();

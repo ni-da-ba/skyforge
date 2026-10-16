@@ -69,6 +69,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
             System.getLogger(SkyforgeF4KHydrologyReviewDevRuntime.class.getName());
     private static AutoCloseable persistentBinding;
     private static Fixture reviewFixture;
+    private static net.minecraft.server.MinecraftServer viewerServer;
     private static boolean preparationComplete;
     private static int lastLoggedPersistedWaterHeads = -1;
 
@@ -80,12 +81,7 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
             return;
         }
         if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
-            if (Boolean.getBoolean(VIEWER_PROPERTY)) {
-                Fixture fixture = fixture();
-                reviewFixture = fixture;
-                persistentBinding = SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(
-                        fixture.authorization());
-            }
+            // The viewer fence is installed for the exact saved world before levels load.
             return;
         }
         if (SkyforgeNeoForge1211SurfaceStage.hasActiveBinding()) {
@@ -130,9 +126,55 @@ final class SkyforgeF4KHydrologyReviewDevRuntime {
         return Boolean.getBoolean(ENABLE_PROPERTY) || Boolean.getBoolean(VIEWER_PROPERTY);
     }
 
+
+    static boolean isReviewWorld(java.nio.file.Path worldRoot) {
+        var name = worldRoot.normalize().getFileName();
+        return name != null && name.toString().equals("f4k-hydrology-review");
+    }
+
+    @SubscribeEvent
+    static synchronized void onViewerServerAboutToStart(
+            net.neoforged.neoforge.event.server.ServerAboutToStartEvent event) {
+        if (!Boolean.getBoolean(VIEWER_PROPERTY) || Boolean.getBoolean(ENABLE_PROPERTY)
+                || !isReviewWorld(event.getServer().getWorldPath(
+                        net.minecraft.world.level.storage.LevelResource.ROOT))) {
+            return;
+        }
+        if (persistentBinding != null) {
+            throw new IllegalStateException("F4K viewer fence is already installed");
+        }
+        Fixture fixture = fixture();
+        reviewFixture = fixture;
+        persistentBinding = SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(
+                fixture.authorization());
+        viewerServer = event.getServer();
+        LOGGER.log(System.Logger.Level.INFO,
+                "F4K viewer restored exact read-only static-water fence; no terrain writer installed.");
+    }
+
+    @SubscribeEvent
+    static synchronized void onViewerServerStopped(
+            net.neoforged.neoforge.event.server.ServerStoppedEvent event) {
+        if (viewerServer != event.getServer()) {
+            return;
+        }
+        try {
+            persistentBinding.close();
+        } catch (Exception exception) {
+            throw new IllegalStateException("F4K viewer fence failed to close", exception);
+        } finally {
+            persistentBinding = null;
+            viewerServer = null;
+        }
+    }
+
     @SubscribeEvent
     static void onPlayerLoggedIn(PlayerEvent.PlayerLoggedInEvent event) {
         if (!viewerEnabled() || !(event.getEntity() instanceof ServerPlayer player)) {
+            return;
+        }
+        if (Boolean.getBoolean(VIEWER_PROPERTY) && !Boolean.getBoolean(ENABLE_PROPERTY)
+                && viewerServer != player.serverLevel().getServer()) {
             return;
         }
         player.setGameMode(GameType.SPECTATOR);
