@@ -14,7 +14,7 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
     private static final double EPSILON = 1.0e-10;
 
     @Test
-    void priorityFloodRoutesStayBoundToSemanticReachesOnAcceptedAndRejectedControls() {
+    void priorityFloodGuidedRoutesStayBoundToSemanticReachesOnAcceptedAndRejectedControls() {
         for (long key : new long[] {77L, 287L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
             SkyIslandSemanticChannelReachPlan semantics =
@@ -28,19 +28,36 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
 
             for (SkyIslandGeomorphicReachRoute routed : plan.routes()) {
                 SkyIslandSemanticChannelReach reach = routed.semanticReach();
-                SkyIslandGeomorphicCandidateRoute expected =
+                double corridorHalfWidth =
+                        semantics.planningSpacing()
+                                * SkyIslandGeomorphicChannelNetworkPlanner
+                                        .ROUTE_CORRIDOR_SPACING_FRACTION;
+                SkyIslandGeomorphicRouteAnchor startAnchor =
+                        new SkyIslandGeomorphicRouteAnchor(
+                                plan.requireNode(reach.startCellIndex()).physicalPosition(), 0.0);
+                SkyIslandGeomorphicRouteAnchor endAnchor =
+                        new SkyIslandGeomorphicRouteAnchor(
+                                plan.requireNode(reach.endCellIndex()).physicalPosition(), 0.0);
+                SkyIslandGeomorphicCandidateRoute drainageGuide =
                         SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
                                 terrain,
                                 interiority,
                                 reach.guidancePoints(),
                                 semantics.planningSpacing(),
-                                semantics.planningSpacing()
-                                        * SkyIslandGeomorphicChannelNetworkPlanner
-                                                .ROUTE_CORRIDOR_SPACING_FRACTION,
-                                new SkyIslandGeomorphicRouteAnchor(
-                                        plan.requireNode(reach.startCellIndex()).physicalPosition(), 0.0),
-                                new SkyIslandGeomorphicRouteAnchor(
-                                        plan.requireNode(reach.endCellIndex()).physicalPosition(), 0.0),
+                                corridorHalfWidth,
+                                startAnchor,
+                                endAnchor,
+                                SkyIslandTerrainAwareRouteSolver
+                                        .FINE_DIVISIONS_PER_PLANNING_CELL);
+                SkyIslandGeomorphicCandidateRoute expected =
+                        SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                                terrain,
+                                interiority,
+                                drainageGuide.points(),
+                                semantics.planningSpacing(),
+                                corridorHalfWidth,
+                                startAnchor,
+                                endAnchor,
                                 SkyIslandTerrainAwareRouteSolver
                                         .FINE_DIVISIONS_PER_PLANNING_CELL);
                 assertEquals(expected, routed.route());
