@@ -97,6 +97,60 @@ class SkyIslandJunctionEnergyLossTest {
                         0.1));
     }
 
+    @Test
+    void solvesSubcriticalBranchDepthByClosingEnergyWithJunctionLosses() {
+        var upstream = rectangularSection(4.0, 100.0);
+        var downstream = rectangularSection(8.0, 200.0);
+        double downstreamDepth = 2.0;
+        double downstreamEnergyGrade = downstreamDepth
+                + Math.pow(8.0 / (8.0 * downstreamDepth), 2.0) / (2.0 * GRAVITY);
+
+        SkyIslandStandardStepSolver.JunctionStepResult result =
+                SkyIslandStandardStepSolver.solveSubcriticalCombiningJunction(
+                        0.0,
+                        0.0,
+                        downstreamDepth,
+                        upstream,
+                        downstream,
+                        8.0,
+                        8.0,
+                        0.035,
+                        0.035,
+                        10.0,
+                        0.3,
+                        0.1);
+
+        assertEquals(
+                downstreamEnergyGrade + result.losses().totalLossMetres(),
+                result.upstreamEnergyGradeMetres(),
+                1.0e-8);
+        assertEquals(
+                result.upstreamEnergyGradeMetres(),
+                result.upstreamDepthMetres()
+                        + Math.pow(8.0 / (4.0 * result.upstreamDepthMetres()), 2.0)
+                                / (2.0 * GRAVITY),
+                1.0e-12);
+    }
+
+    @Test
+    void failsClosedWhenTheDownstreamBoundaryIsNotSubcritical() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandStandardStepSolver.solveSubcriticalCombiningJunction(
+                        0.0,
+                        0.0,
+                        0.1,
+                        rectangularSection(4.0, 100.0),
+                        rectangularSection(8.0, 200.0),
+                        4.0,
+                        8.0,
+                        0.035,
+                        0.035,
+                        10.0,
+                        0.3,
+                        0.1));
+    }
+
     private static SkyIslandStandardStepSolver.CrossSection rectangularSection(
             double widthMetres, double conveyance) {
         return new SkyIslandStandardStepSolver.CrossSection() {
