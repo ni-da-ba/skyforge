@@ -265,6 +265,16 @@ class SkyIslandJunctionEnergyLossTest {
         var spruceProfile = result.tributaries().get(1);
         double spruceStage = spruce.bedElevationsMetres()[spruce.bedElevationsMetres().length - 1]
                 + spruceProfile.depthsMetres()[spruceProfile.depthsMetres().length - 1];
+        // HEC-RAS Applications Guide, Example 10, Energy Standard Table 2 reports at
+        // Spruce Creek station 0.013: WSE 75.46 ft and energy grade 75.98 ft.
+        assertEquals(
+                feet(75.46),
+                spruceStage,
+                feet(0.015));
+        assertEquals(
+                feet(75.98),
+                spruceProfile.junctionStep().upstreamEnergyGradeMetres(),
+                feet(0.015));
         assertTrue(Math.abs(upperStage - spruceStage) > feet(0.01),
                 "HEC-RAS branch stages are solved separately, not forced to a common WSE");
         assertEquals(
