@@ -13,7 +13,11 @@ if [[ ! -d "$base/mods" ]]; then
 Missing the S8 control client profile:
   $base/mods
 Download the artifact named wby-s8-control-client-profile from the S8 GitHub Actions run,
-then extract it into skyforge-neoforge-1211/ so that run-wby-s8-control/mods exists.
+then extract it into:
+  $base
+For example:
+  gh run download <run-id> --repo ni-da-ba/skyforge --name wby-s8-control-client-profile --dir "$base"
+The artifact contains the profile folders directly (mods/, config/, kubejs/, datapacks/).
 This launcher copies already-staged files only; it does not run Gradle.
 EOF
   exit 2
