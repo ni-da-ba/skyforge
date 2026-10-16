@@ -132,14 +132,15 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
             SkyIslandGeomorphicNetworkNode start = requireNode(byId, reach.startCellIndex());
             SkyIslandGeomorphicNetworkNode end = requireNode(byId, reach.endCellIndex());
             SkyIslandGeomorphicCandidateRoute route = Objects.requireNonNull(
-                    SkyIslandTerrainAwareRouteSolver.solve(
+                    SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
                             terrain,
                             interiority,
                             reach.guidancePoints(),
                             semantics.planningSpacing(),
                             corridorHalfWidth,
                             new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
-                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0)),
+                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0),
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL),
                     "route solver returned null for semantic reach "
                             + reach.startCellIndex() + "->" + reach.endCellIndex());
             if (!route.points().getFirst().equals(start.physicalPosition())
