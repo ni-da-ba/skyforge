@@ -218,7 +218,9 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
         // sides, avoiding nearest-segment station switching at bends.
         double mappedStation = Double.NaN;
         double mappedDistance = Double.POSITIVE_INFINITY;
-        for (int i = 0; i < points.size() - 1; i++) {
+        int firstLocalSegment = Math.max(0, nearest.segmentIndex() - 1);
+        int lastLocalSegment = Math.min(points.size() - 2, nearest.segmentIndex() + 1);
+        for (int i = firstLocalSegment; i <= lastLocalSegment; i++) {
             SkyIslandLocalPosition leftA = crossSectionEndpoint(points, samples, i, 1.0);
             SkyIslandLocalPosition rightA = crossSectionEndpoint(points, samples, i, -1.0);
             SkyIslandLocalPosition leftB = crossSectionEndpoint(points, samples, i + 1, 1.0);
