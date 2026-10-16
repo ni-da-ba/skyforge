@@ -259,7 +259,16 @@ for _ in $(seq 1 600); do
   if ! kill -0 "$server_pid" 2>/dev/null; then cat "$server_log"; exit 1; fi
   sleep 1
 done
-test "$joined" = true
+if [[ "$joined" != true ]]; then
+  echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within 600 seconds." >&2
+  echo "--- server connection events ---" >&2
+  grep -Ei 'WbyS7Acceptance|User Authenticator|lost connection|failed to handle|disconnected|login' \
+    "$server_log" "$server_latest_log" 2>/dev/null | tail -n 120 >&2 || true
+  echo "--- client connection and loading events ---" >&2
+  grep -Ei 'Connecting|Joining|Failed|disconnect|resource|world|error|exception|quick.?play' \
+    "$client_log" "$client_dir/logs/latest.log" 2>/dev/null | tail -n 160 >&2 || true
+  exit 1
+fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --seed 817304 \
