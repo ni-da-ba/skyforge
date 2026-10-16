@@ -493,6 +493,10 @@ public final class SkyIslandStandardStepSolver {
         requirePositiveFinite(downstreamDepthMetres, "downstream depth");
         requirePositiveFinite(upstreamDischargeCubicMetresPerSecond, "upstream discharge");
         requirePositiveFinite(downstreamDischargeCubicMetresPerSecond, "downstream discharge");
+        if (downstreamDischargeCubicMetresPerSecond < upstreamDischargeCubicMetresPerSecond) {
+            throw new IllegalArgumentException(
+                    "combining-junction downstream discharge cannot be below branch discharge");
+        }
         requirePositiveFinite(upstreamManningRoughness, "upstream Manning roughness");
         requirePositiveFinite(downstreamManningRoughness, "downstream Manning roughness");
         requireNonnegativeFinite(contractionCoefficient, "contraction coefficient");
