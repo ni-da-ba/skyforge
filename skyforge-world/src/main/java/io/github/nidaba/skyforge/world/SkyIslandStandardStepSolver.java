@@ -598,12 +598,6 @@ public final class SkyIslandStandardStepSolver {
         positiveFinite(value, name);
     }
 
-    private static void requireNonnegativeFinite(double value, String name) {
-        if (value < 0.0 || !Double.isFinite(value)) {
-            throw new IllegalArgumentException(name + " must be finite and nonnegative");
-        }
-    }
-
     @FunctionalInterface
     private interface Residual {
         double at(double value);
