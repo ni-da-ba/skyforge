@@ -204,7 +204,7 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
                 descriptor, semantics.planningSpacing(), nodes, routes);
     }
 
-    private static boolean priorityFloodCandidateIsNoWorse(
+    static boolean priorityFloodCandidateIsNoWorse(
             SkyIslandGeomorphicCandidateRoute candidate,
             SkyIslandGeomorphicCandidateRoute established) {
         return candidate.ridgeSampleFraction()
