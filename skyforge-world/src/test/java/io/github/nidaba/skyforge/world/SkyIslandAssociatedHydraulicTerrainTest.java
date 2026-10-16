@@ -59,7 +59,19 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                     maximum = Math.max(maximum, stage);
                 }
                 maximumSpan = Math.max(maximumSpan, maximum - minimum);
-                assertEquals(0.0, maximum - minimum, 1.0e-9);
+                assertEquals(
+                        0.0,
+                        maximum - minimum,
+                        1.0e-9,
+                        "world-stage cross-section span at "
+                                + reach.geomorphicRoute().semanticReach().startCellIndex()
+                                + "->"
+                                + reach.geomorphicRoute().semanticReach().endCellIndex()
+                                + " section "
+                                + sections
+                                + " centered at "
+                                + point);
+
                 sections++;
             }
         }
