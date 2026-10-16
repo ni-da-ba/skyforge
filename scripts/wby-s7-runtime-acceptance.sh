@@ -196,7 +196,7 @@ else
   bomd_evidence_args=()
 fi
 
-if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" ]]; then
+if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-full" ]]; then
   : "${WBY_S8_NETHER_DATAPACK_SOURCE:?Set the staged Incendium ZIP path}"
   test -s "$WBY_S8_NETHER_DATAPACK_SOURCE"
   mkdir -p "$server_dir/s7-acceptance/datapacks"
@@ -296,6 +296,9 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id netherexp)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id elysium_api)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id lodestone)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      ;;
+    incendium-full)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
       ;;
   esac
