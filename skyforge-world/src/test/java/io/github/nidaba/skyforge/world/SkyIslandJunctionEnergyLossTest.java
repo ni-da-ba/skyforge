@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
@@ -210,6 +211,154 @@ class SkyIslandJunctionEnergyLossTest {
         assertEquals(feet(76.03), solved.upstreamEnergyGradeMetres(), feet(0.015));
     }
 
+    @Test
+    void solvesThePublishedHecExample10ThreeReachCombiningNetwork() {
+        String geometry = readFixture("JUNCTION.g01");
+        var receiving = fixtureReach(
+                geometry,
+                List.of("10.091", "10.073", "10.054", "10.035", "10.018", "10.000"),
+                cubicFeetPerSecond(4100.0));
+        var upper = fixtureReach(
+                geometry,
+                List.of("10.212", "10.195", "10.177", "10.158", "10.141", "10.124", "10.106"),
+                cubicFeetPerSecond(3000.0));
+        var spruce = fixtureReach(
+                geometry,
+                List.of("0.094", "0.079", "0.062", "0.047", "0.029", "0.013"),
+                cubicFeetPerSecond(1100.0));
+        FixtureSection outlet = FixtureSection.read(geometry, "10.000");
+        double downstreamDepth = solveNormalDepth(
+                outlet, cubicFeetPerSecond(4100.0), 0.001);
+
+        var result = SkyIslandSubcriticalJunctionNetworkSolver.solve(
+                receiving,
+                downstreamDepth,
+                List.of(
+                        new SkyIslandSubcriticalJunctionNetworkSolver.Tributary(
+                                upper, feet(80.0), 0.1, 0.3),
+                        new SkyIslandSubcriticalJunctionNetworkSolver.Tributary(
+                                spruce, feet(70.0), 0.1, 0.3)));
+
+        double[] receivingDepths = result.receivingDepthsMetres();
+        double lowerJunctionDepth = receivingDepths[0];
+        double lowerJunctionBed = receiving.bedElevationsMetres()[0];
+        double lowerJunctionStage = lowerJunctionBed + lowerJunctionDepth;
+        double lowerJunctionArea = receiving.sections()[0].area(lowerJunctionDepth);
+        double lowerJunctionVelocityHead = square(
+                        receiving.dischargeAtStationsCubicMetresPerSecond()[0] / lowerJunctionArea)
+                / (2.0 * GRAVITY);
+        // HEC-RAS Example 10 Standard Table 2 reports 75.04 ft WSE and 75.88 ft EGL
+        // at the Lower Reach's upstream section.
+        assertEquals(
+                feet(75.04),
+                lowerJunctionStage,
+                feet(0.015),
+                "HEC Example 10 Lower Reach WSE: expected 75.04 ft, actual "
+                        + lowerJunctionStage / 0.3048 + " ft");
+        assertEquals(
+                feet(75.88),
+                lowerJunctionStage + lowerJunctionVelocityHead,
+                feet(0.015));
+
+        var upperProfile = result.tributaries().get(0);
+        // The branch junction result is the upstream EGL at Upper Reach river station 10.106.
+        assertEquals(feet(76.03), upperProfile.junctionStep().upstreamEnergyGradeMetres(), feet(0.015));
+        double upperStage = upper.bedElevationsMetres()[upper.bedElevationsMetres().length - 1]
+                + upperProfile.depthsMetres()[upperProfile.depthsMetres().length - 1];
+        assertEquals(feet(74.99), upperStage, feet(0.015));
+
+        var spruceProfile = result.tributaries().get(1);
+        double spruceStage = spruce.bedElevationsMetres()[spruce.bedElevationsMetres().length - 1]
+                + spruceProfile.depthsMetres()[spruceProfile.depthsMetres().length - 1];
+        // HEC-RAS Applications Guide, Example 10, Energy Standard Table 2 reports at
+        // Spruce Creek station 0.013: WSE 75.46 ft and energy grade 75.98 ft.
+        assertEquals(
+                feet(75.46),
+                spruceStage,
+                feet(0.015));
+        assertEquals(
+                feet(75.98),
+                spruceProfile.junctionStep().upstreamEnergyGradeMetres(),
+                feet(0.015));
+        assertTrue(Math.abs(upperStage - spruceStage) > feet(0.01),
+                "HEC-RAS branch stages are solved separately, not forced to a common WSE");
+        assertEquals(
+                cubicFeetPerSecond(4100.0),
+                cubicFeetPerSecond(3000.0) + cubicFeetPerSecond(1100.0),
+                1.0e-12);
+    }
+
+    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fixtureReach(
+            String geometry, List<String> riverStations, double discharge) {
+        int count = riverStations.size();
+        double[] stations = new double[count];
+        double[] beds = new double[count];
+        double[] discharges = new double[count];
+        double[] contractionCoefficients = new double[count - 1];
+        double[] expansionCoefficients = new double[count - 1];
+        SkyIslandStandardStepSolver.CrossSection[] sections =
+                new SkyIslandStandardStepSolver.CrossSection[count];
+        for (int i = 0; i < count; i++) {
+            FixtureSection section = FixtureSection.read(geometry, riverStations.get(i));
+            beds[i] = section.bedElevationMetres();
+            sections[i] = section;
+            discharges[i] = discharge;
+            if (i < count - 1) {
+                contractionCoefficients[i] = section.contractionCoefficient;
+                expansionCoefficients[i] = section.expansionCoefficient;
+            }
+            if (i > 0) {
+                stations[i] = stations[i - 1]
+                        + channelReachLengthMetres(geometry, riverStations.get(i - 1));
+            }
+        }
+        return new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
+                stations,
+                beds,
+                sections,
+                discharges,
+                0.025,
+                contractionCoefficients,
+                expansionCoefficients);
+    }
+
+    private static double channelReachLengthMetres(String geometry, String riverStation) {
+        Matcher header = Pattern.compile(
+                        "(?m)^Type RM Length L Ch R = 1\\s*,\\s*"
+                                + Pattern.quote(riverStation)
+                                + "\\s*,\\s*([-+]?\\d*\\.?\\d+)\\s*,\\s*"
+                                + "([-+]?\\d*\\.?\\d+)\\s*,\\s*([-+]?\\d*\\.?\\d+)")
+                .matcher(geometry);
+        if (!header.find()) {
+            throw new IllegalArgumentException("HEC reach length not found: " + riverStation);
+        }
+        return feet(Double.parseDouble(header.group(2)));
+    }
+
+    private static double solveNormalDepth(
+            SkyIslandStandardStepSolver.CrossSection section,
+            double discharge,
+            double energySlope) {
+        double lower = 1.0e-6;
+        double upper = 1.0;
+        while (section.conveyance(upper, 0.025) * Math.sqrt(energySlope) < discharge) {
+            upper *= 2.0;
+        }
+        for (int iteration = 0; iteration < 128; iteration++) {
+            double middle = lower + (upper - lower) * 0.5;
+            if (section.conveyance(middle, 0.025) * Math.sqrt(energySlope) < discharge) {
+                lower = middle;
+            } else {
+                upper = middle;
+            }
+        }
+        return lower + (upper - lower) * 0.5;
+    }
+
+    private static double square(double value) {
+        return value * value;
+    }
+
     private static String readFixture(String name) {
         String resource = "/hydrology/hec-ras-example-10/" + name;
         try (InputStream input = SkyIslandJunctionEnergyLossTest.class.getResourceAsStream(resource)) {
@@ -234,16 +383,22 @@ class SkyIslandJunctionEnergyLossTest {
         private final double[] roughnessStations;
         private final double[] roughnessValues;
         private final double bedElevation;
+        private final double contractionCoefficient;
+        private final double expansionCoefficient;
 
         private FixtureSection(
                 double[] stations,
                 double[] elevations,
                 double[] roughnessStations,
-                double[] roughnessValues) {
+                double[] roughnessValues,
+                double contractionCoefficient,
+                double expansionCoefficient) {
             this.stations = stations;
             this.elevations = elevations;
             this.roughnessStations = roughnessStations;
             this.roughnessValues = roughnessValues;
+            this.contractionCoefficient = contractionCoefficient;
+            this.expansionCoefficient = expansionCoefficient;
             double minimum = Double.POSITIVE_INFINITY;
             for (double elevation : elevations) {
                 minimum = Math.min(minimum, elevation);
@@ -269,7 +424,10 @@ class SkyIslandJunctionEnergyLossTest {
             Matcher points = Pattern.compile("#Sta/Elev=\\s*\\d+\\s*([\\s\\S]*?)#Mann=").matcher(sectionText);
             Matcher roughness = Pattern.compile("#Mann=\\s*\\d+[^\\r\\n]*\\r?\\n([^\\r\\n]+)")
                     .matcher(sectionText);
-            if (!points.find() || !roughness.find()) {
+            Matcher transition = Pattern.compile(
+                            "(?m)^Exp/Cntr=([-+]?\\d*\\.?\\d+)\\s*,\\s*([-+]?\\d*\\.?\\d+)")
+                    .matcher(sectionText);
+            if (!points.find() || !roughness.find() || !transition.find()) {
                 throw new IllegalArgumentException("incomplete HEC geometry section: " + riverStation);
             }
             double[] pointValues = numbers(points.group(1));
@@ -289,7 +447,15 @@ class SkyIslandJunctionEnergyLossTest {
                 roughnessStations[i] = feet(roughnessValues[i * 3]);
                 roughnessValuesByZone[i] = roughnessValues[i * 3 + 1];
             }
-            return new FixtureSection(stations, elevations, roughnessStations, roughnessValuesByZone);
+            double expansionCoefficient = Double.parseDouble(transition.group(1));
+            double contractionCoefficient = Double.parseDouble(transition.group(2));
+            return new FixtureSection(
+                    stations,
+                    elevations,
+                    roughnessStations,
+                    roughnessValuesByZone,
+                    contractionCoefficient,
+                    expansionCoefficient);
         }
 
         double bedElevationMetres() {
