@@ -170,6 +170,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          thin_air_args=()
+          if [[ "${{ matrix.variant }}" == "incendium-full" ]]; then
+            thin_air_args+=("-PwbyS1ThinAir=true")
+          fi
           ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
             -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
@@ -178,7 +182,7 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
-            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} --no-configuration-cache | tee "wby-s8-resolution.log"
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} "${thin_air_args[@]}" --no-configuration-cache | tee "wby-s8-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s8-resolution.log"
@@ -199,6 +203,9 @@ jobs:
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
             -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} --no-configuration-cache
           )
+          if [[ "${{ matrix.variant }}" == "incendium-full" ]]; then
+            common+=("-PwbyS1ThinAir=true")
+          fi
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" \
