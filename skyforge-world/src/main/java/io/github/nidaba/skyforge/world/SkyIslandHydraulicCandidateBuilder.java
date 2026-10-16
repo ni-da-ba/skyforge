@@ -212,6 +212,11 @@ public final class SkyIslandHydraulicCandidateBuilder {
             return bedElevationsMetres.clone();
         }
 
+        /** Trapezoidal bottom width used by the existing Manning capacity model. */
+        public double bottomWidthMetres() {
+            return configuration.bottomWidthMetres();
+        }
+
         public double totalLengthMetres() {
             return stationsMetres[stationsMetres.length - 1];
         }
@@ -245,39 +250,6 @@ public final class SkyIslandHydraulicCandidateBuilder {
             double candidate = Math.min(raw, raw + weight * (target - raw));
             requireWithinEditEnvelope(raw, candidate, configuration.maximumTerrainEditMetres());
             return candidate;
-        }
-
-
-        /**
-         * Lowers a source-controlled candidate rigidly without changing its grade or cross section.
-         * All edited elevations remain subject to the original excavation envelope.
-         */
-        public Candidate loweredBy(double metres) {
-            if (!Double.isFinite(metres) || metres < 0.0) {
-                throw new IllegalArgumentException("candidate lowering must be finite and non-negative");
-            }
-            if (metres == 0.0) {
-                return this;
-            }
-            double[] loweredBeds = bedElevationsMetres.clone();
-            for (int i = 0; i < loweredBeds.length; i++) {
-                loweredBeds[i] -= metres;
-                requireWithinEditEnvelope(rawBedElevationsMetres[i], loweredBeds[i],
-                        configuration.maximumTerrainEditMetres());
-            }
-            Configuration loweredConfiguration = new Configuration(
-                    configuration.horizontalMetresPerLocalUnit(),
-                    configuration.verticalMetresPerNormalizedUnit(),
-                    configuration.verticalDatumMetres(),
-                    configuration.minimumBedSlope(),
-                    configuration.upstreamIncisionMetres() + metres,
-                    configuration.bottomWidthMetres(),
-                    configuration.sideSlopeHorizontalToVertical(),
-                    configuration.bankfullDepthMetres(),
-                    configuration.valleyHalfWidthMetres(),
-                    configuration.maximumTerrainEditMetres());
-            return new Candidate(points, stationsMetres, rawBedElevationsMetres, loweredBeds,
-                    terrain, loweredConfiguration);
         }
 
         /** Solves from the standard boundary associated with the selected regime. */

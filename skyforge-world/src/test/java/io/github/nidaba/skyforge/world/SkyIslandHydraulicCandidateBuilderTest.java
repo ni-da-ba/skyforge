@@ -92,29 +92,6 @@ class SkyIslandHydraulicCandidateBuilderTest {
     }
 
     @Test
-    void rigidBedLoweringPreservesEnvironmentAgencyProfileAndEditLimits() {
-        var points = line(0.0, 300.0, 10);
-        var candidate = SkyIslandHydraulicCandidateBuilder.build(
-                route(points, 3000.0), position -> 0.5 - position.x() / 6000.0,
-                configuration(0.001, 5.0, 40.0, 20.0));
-        var original = candidate.solve(constantDischarge(points.size(), 20.0), ROUGHNESS,
-                3.0, SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL);
-        var lowered = candidate.loweredBy(0.5);
-        var resolved = lowered.solve(constantDischarge(points.size(), 20.0), ROUGHNESS,
-                3.0, SkyIslandStandardStepSolver.FlowRegime.SUBCRITICAL);
-        assertArrayEquals(original.depthsMetres(), resolved.depthsMetres(), 1.0e-9);
-        for (int i = 0; i < points.size(); i++) {
-            assertEquals(original.waterSurfaceElevationsMetres()[i] - 0.5,
-                    resolved.waterSurfaceElevationsMetres()[i], 1.0e-9);
-            assertEquals(candidate.sampleTerrainMetres(points.get(i)) - 0.5,
-                    lowered.sampleTerrainMetres(points.get(i)), 1.0e-9);
-        }
-        assertThrows(IllegalArgumentException.class, () -> candidate.loweredBy(-0.1));
-        assertThrows(IllegalArgumentException.class, () -> candidate.loweredBy(Double.NaN));
-        assertThrows(IllegalArgumentException.class, () -> candidate.loweredBy(21.0));
-    }
-
-    @Test
     void valleyRequiresAPositiveBlendIntervalBeyondTheBankfullEdge() {
         assertThrows(
                 IllegalArgumentException.class,

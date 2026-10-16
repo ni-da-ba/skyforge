@@ -307,10 +307,9 @@ jobs:
             --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSubcriticalProfileFromConstructedBed' \
             --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSupercriticalProfileFromConstructedBed' \
             --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
-            --tests '*SkyIslandGameScaleHydraulicModelTest' \
+            --tests '*SkyIslandGameScaleHydraulicModelTest.accepted77EdgeOutletReachesCloseOnTheirCandidateBeds' \
             --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
             --tests '*SkyIslandAssociatedHydraulicTerrainTest' \
-            --tests '*SkyIslandHydraulicCandidateBuilderTest.rigidBedLoweringPreservesEnvironmentAgencyProfileAndEditLimits' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \

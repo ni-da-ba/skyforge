@@ -51,15 +51,21 @@ class SkyIslandGameScaleHydraulicModelTest {
             SkyIslandGameScaleHydraulicModel.SourceReachSolution solution =
                     SkyIslandGameScaleHydraulicModel.solveSourceReach(
                             descriptor, skeleton, terrain);
-            var lowered = solution.loweredBy(0.25);
-            var resolved = lowered.candidate().solve(
-                    lowered.dischargesCubicMetresPerSecond(), lowered.manningRoughness(),
-                    lowered.sourceNormalDepthMetres(), lowered.flowRegime(),
+            double headroom = java.util.Arrays.stream(solution.profile().depthsMetres())
+                    .min().orElseThrow() * 0.1;
+            var limited = solution.capacityLimitedForHeadroom(headroom);
+            assertTrue(limited.sourceNormalDepthMetres()
+                    <= solution.sourceNormalDepthMetres() - headroom + EPSILON);
+            assertTrue(limited.dischargesCubicMetresPerSecond()[0]
+                    < solution.dischargesCubicMetresPerSecond()[0]);
+            assertArrayEquals(solution.candidate().bedElevationsMetres(),
+                    limited.candidate().bedElevationsMetres(), EPSILON);
+            var resolved = limited.candidate().solve(
+                    limited.dischargesCubicMetresPerSecond(), limited.manningRoughness(),
+                    limited.sourceNormalDepthMetres(), limited.flowRegime(),
                     SkyIslandStandardStepSolver.BoundaryLocation.UPSTREAM);
-            assertArrayEquals(solution.profile().depthsMetres(), lowered.profile().depthsMetres(), EPSILON);
-            assertArrayEquals(resolved.depthsMetres(), lowered.profile().depthsMetres(), EPSILON);
             assertArrayEquals(resolved.waterSurfaceElevationsMetres(),
-                    lowered.profile().waterSurfaceElevationsMetres(), EPSILON);
+                    limited.profile().waterSurfaceElevationsMetres(), EPSILON);
             double[] stations = solution.profile().stationsMetres();
             double[] beds = solution.profile().bedElevationsMetres();
             double[] depths = solution.profile().depthsMetres();

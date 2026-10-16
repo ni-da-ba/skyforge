@@ -128,8 +128,15 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     double lowering = requiredOwnedWaterLowering(
                             worldAssociation.orElseThrow(), original, geometry, coupled);
                     if (lowering > EPSILON) {
-                        coupled = coupled.loweredBy(lowering);
+                        coupled = coupled.capacityLimitedForHeadroom(lowering);
                         geometry = reconstructCoupledReach(descriptor, skeleton, span, original, coupled);
+                        double remaining = requiredOwnedWaterLowering(
+                                worldAssociation.orElseThrow(), original, geometry, coupled);
+                        if (remaining > EPSILON) {
+                            throw new IllegalStateException(
+                                    "owned-capacity design flow still exceeds exact support; initialHeadroom="
+                                            + lowering + ", remaining=" + remaining);
+                        }
                     }
                 }
                 if (realizedByIdentity.put(identity, geometry) != null) {
@@ -183,6 +190,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 + diagnostics.maximumBankContainmentDeficitWorldUnits()
                                 + " world units, maximum depth/width="
                                 + diagnostics.maximumDepthToBankfullWidthRatio()
+                                + ", normalized excavation burden="
+                                + diagnostics.normalizedExcavationBurden()
                                 + ")");
             }
             postRealizationQualifications.add(qualification);
@@ -200,9 +209,9 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
 
 
     /**
-     * One-dimensional vertical-placement feasibility, evaluated before publishing/quantization.
-     * For every initially wet integer column, stage - lowering <= exact solid ceiling.
-     * A rigid lowering preserves the source-normal hydraulic solution; its wet set cannot grow.
+     * Exact owned water-stage headroom survey before candidate publication/quantization.
+     * This supplies a normal-conveyance design-flow candidate; its re-solved stages must
+     * independently pass the same survey. No water head is changed locally.
      */
     private static double requiredOwnedWaterLowering(
             SkyIslandAuthoredRealizationAssociation association,

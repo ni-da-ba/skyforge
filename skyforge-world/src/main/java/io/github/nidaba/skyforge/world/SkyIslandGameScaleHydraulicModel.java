@@ -437,24 +437,45 @@ public final class SkyIslandGameScaleHydraulicModel {
 
 
         /**
-         * Exact elevation-translation symmetry for this source-normal-depth solution.
-         * Depth, discharge, grade, roughness and the source normal-depth boundary do not change.
-         * This is not applicable to an externally fixed absolute tailwater boundary.
+         * Constructs a lower design-flow candidate from normal-flow conveyance headroom.
+         * The full standard-step profile is re-solved, not shifted or clamped. Callers must
+         * independently admit its actual stages against the physical capacity constraints.
          */
-        public SourceReachSolution loweredBy(double metres) {
-            var loweredCandidate = candidate.loweredBy(metres);
-            double[] beds = profile.bedElevationsMetres();
-            double[] stages = profile.waterSurfaceElevationsMetres();
-            for (int i = 0; i < beds.length; i++) {
-                beds[i] -= metres;
-                stages[i] -= metres;
+        public SourceReachSolution capacityLimitedForHeadroom(double metres) {
+            if (!Double.isFinite(metres) || metres < 0.0) {
+                throw new IllegalArgumentException("capacity headroom must be finite and non-negative");
             }
-            var loweredProfile = new SkyIslandHydraulicCandidateBuilder.Profile(
-                    profile.stationsMetres(), beds, profile.depthsMetres(), stages);
-            return new SourceReachSolution(loweredCandidate, loweredProfile,
-                    dischargesCubicMetresPerSecond, manningRoughness,
-                    sideSlopeHorizontalToVertical, minimumBedSlope, sourceEnergySlope,
-                    sourceNormalDepthMetres, sourceFroudeNumber, flowRegime);
+            if (metres == 0.0) {
+                return this;
+            }
+            var section = trapezoidalSection(candidate.bottomWidthMetres(), sideSlopeHorizontalToVertical);
+            double factor = 1.0;
+            for (double depth : profile.depthsMetres()) {
+                double target = depth - metres;
+                if (!(target > 0.0)) {
+                    throw new IllegalArgumentException(
+                            "normal-conveyance capacity candidate has no positive target depth; headroom="
+                                    + metres + ", depth=" + depth);
+                }
+                double oldArea = section.area(depth);
+                double targetArea = section.area(target);
+                double oldConveyance = oldArea
+                        * Math.pow(oldArea / section.wettedPerimeter(depth), 2.0 / 3.0);
+                double targetConveyance = targetArea
+                        * Math.pow(targetArea / section.wettedPerimeter(target), 2.0 / 3.0);
+                factor = Math.min(factor, targetConveyance / oldConveyance);
+            }
+            if (!(factor > 0.0) || !Double.isFinite(factor)) {
+                throw new IllegalArgumentException("normal-conveyance capacity must remain finite and positive");
+            }
+            double scale = factor;
+            double[] limitedDischarges = Arrays.stream(dischargesCubicMetresPerSecond)
+                    .map(value -> value * scale).toArray();
+            var hydraulic = solveSourceNormalProfile(candidate, limitedDischarges, section);
+            return new SourceReachSolution(candidate, hydraulic.profile(), hydraulic.discharges(),
+                    manningRoughness, sideSlopeHorizontalToVertical, minimumBedSlope,
+                    sourceEnergySlope, hydraulic.sourceNormalDepth(),
+                    hydraulic.sourceFroudeNumber(), hydraulic.flowRegime());
         }
 
         @Override
