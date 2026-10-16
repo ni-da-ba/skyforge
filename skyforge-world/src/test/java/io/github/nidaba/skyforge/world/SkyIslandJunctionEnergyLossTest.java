@@ -79,6 +79,24 @@ class SkyIslandJunctionEnergyLossTest {
                         0.1));
     }
 
+    @Test
+    void rejectsCombiningJunctionWithDownstreamFlowBelowItsBranchFlow() {
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyIslandStandardStepSolver.combiningJunctionLosses(
+                        10.0,
+                        rectangularSection(4.0, 100.0),
+                        1.0,
+                        9.0,
+                        0.035,
+                        rectangularSection(8.0, 200.0),
+                        1.0,
+                        8.0,
+                        0.035,
+                        0.3,
+                        0.1));
+    }
+
     private static SkyIslandStandardStepSolver.CrossSection rectangularSection(
             double widthMetres, double conveyance) {
         return new SkyIslandStandardStepSolver.CrossSection() {
