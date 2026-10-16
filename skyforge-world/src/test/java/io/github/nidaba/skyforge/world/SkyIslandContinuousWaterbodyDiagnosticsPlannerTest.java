@@ -54,7 +54,7 @@ class SkyIslandContinuousWaterbodyDiagnosticsPlannerTest {
      * CASCADE semantics; it is diagnostic evidence only and never grants basin authority.
      */
     @Test
-    void fixedV5LakeCorpusReportsTerminalProfileClassification() {
+    void fixedV5LakeCorpusReportsTerminalProfileClassification() throws java.io.IOException {
         long[][] identities = {
                 {0x534B59464F524745L, 8L, 81L, 609L},
                 {0x3000000000000000L, 6L, 61L, 35L},
