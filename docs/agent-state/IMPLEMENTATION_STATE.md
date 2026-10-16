@@ -8,7 +8,13 @@
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
 
-## Current hydrology override — 2026-09-25
+## Current hydrology boundary — 2026-10-15
+
+Main@9a87e7ecd63ac1ab94106a191aa273d3c91a706b / PR #1489 couples candidate hydraulics into F4A. The owner accepts its F4K specimen only as early proof of concept. Draft PR #1490, under #1452, identifies up to 1.410379951 world units of transverse water-stage distortion introduced by F4E's terrain-relative projection across 55 complete wet cross sections; semantic stage is level. Focused diagnostic run 38828422251 passes. No production mapping is repaired yet.
+
+Recommended next step requires explicit approval to supersede the F4B/F4E pointwise delta/depth projection contract with a coherent association-specific world-elevation bed/water candidate. Keep exact ownership, removal-only/thickness safety, existing hydraulic benchmark tolerances and dry controls. No backend clamp or solver-special-case patch. See docs/authorship/HYDROLOGY_RIVER_JOIN_CONTINUITY.md. Ignore controller dependencies per owner direction.
+
+## Historical hydrology override — 2026-09-25
 
 DR-70 / #754 is blocked on the hydrology architecture reset in #1084. Do **not** reopen or extend the
 retired H6 PR stack.

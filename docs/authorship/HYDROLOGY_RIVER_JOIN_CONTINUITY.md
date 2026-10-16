@@ -31,3 +31,19 @@ Additional primary guidance: [USACE RAS Mapper interpolation surfaces](https://w
 ## World-frame diagnostic
 
 F4E maps stage as original compiled surface plus (semantic stage minus original semantic terrain) times relief. It preserves local depth, but the offset between compiled and semantic original terrain may vary spatially. `measuresWorldFrameCrossSectionStageVariation` separately reports semantic stage, projected stage, and offset variation across three wet points in each interior cross section using the exact F4K geometry parameters. This is a measurement, not a change to the accepted delta/depth-preserving mapping or evidence of voxel connectivity.
+
+## Measured conclusion and proposed contract boundary — 2026-10-15
+
+Focused run [38828422251](https://github.com/ni-da-ba/skyforge/actions/runs/38828422251), job 116741695936, passes both diagnostics on production-identical head 12251e7914f3f2d91da2ab5004d4c1fbbde43d73:
+
+- Both key-77 centerlines are straight (35 and 24 samples), so the latent right-angle seam is not the cause of this specimen's observed joins.
+- All 55 interior cross sections have three wet sampled points; none is incomplete.
+- Maximum semantic cross-section stage span: 0.000000000 m.
+- Maximum projected world-stage span: 1.410379951 m.
+- Maximum world-frame offset span: 1.410379951 m.
+
+The world bridge introduces transverse stage variation before voxelization, despite preserving pointwise hydraulic depth. This is a measured model-to-realization inconsistency; it is not proof that every visible seam has this cause. USACE explicitly assumes a horizontal stage across a 1D cross section: [hydraulic reference](https://www.hec.usace.army.mil/confluence/rasdocs/ras1dtechref/6.0/theoretical-basis-for-one-dimensional-and-two-dimensional-hydrodynamic-calculations/1d-unsteady-flow-hydrodynamics/implicit-finite-difference-scheme/momentum-equation0).
+
+Recommended next work is an association-specific continuous candidate/solve in a coherent world-elevation frame, with bed/banks and water evaluated together before quantization. Preserve exact association and ownership, removal-only terrain, underside/thickness admission, dry/rejected controls, and hydraulic benchmark tolerances. Verify transverse stage as well as longitudinal grade, then integer connectivity, then visual review.
+
+**Human contract decision:** may this supersede the F4B requirement that the compiled upper surface remain pointwise absolute-elevation authority and the F4E requirement to preserve the old semantic depth pointwise? Recommend yes, within the existing safety bounds above. These are explicit accepted projection contracts; do not silently change them or apply a Minecraft-only clamp. F4E already permits upstream association-specific refinement, but a revised coherent bed/water realization must state which old invariants it supersedes. No production or review-world change is implemented by this diagnostic PR.
