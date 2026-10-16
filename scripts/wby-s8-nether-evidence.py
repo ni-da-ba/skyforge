@@ -88,7 +88,6 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=25575)
     parser.add_argument("--password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
-    parser.add_argument("--password-required", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--seed", default="817304")
     args = parser.parse_args()
     if not args.password:
