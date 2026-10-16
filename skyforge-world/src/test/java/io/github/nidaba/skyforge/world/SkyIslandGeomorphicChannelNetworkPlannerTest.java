@@ -14,6 +14,42 @@ class SkyIslandGeomorphicChannelNetworkPlannerTest {
     private static final double EPSILON = 1.0e-10;
 
     @Test
+    void priorityFloodRoutesStayBoundToSemanticReachesOnAcceptedAndRejectedControls() {
+        for (long key : new long[] {77L, 287L}) {
+            SkyIslandDescriptor descriptor = descriptor(key);
+            SkyIslandSemanticChannelReachPlan semantics =
+                    SkyIslandSemanticChannelReachPlanner.plan(descriptor);
+            SkyIslandSemanticField terrain =
+                    SkyIslandPreHydrologicTerrainField.create(descriptor);
+            SkyIslandSemanticField interiority =
+                    SkyIslandSemanticFieldSet.create(descriptor).interiority();
+            SkyIslandGeomorphicChannelNetworkPlan plan =
+                    SkyIslandGeomorphicChannelNetworkPlanner.plan(descriptor);
+
+            for (SkyIslandGeomorphicReachRoute routed : plan.routes()) {
+                SkyIslandSemanticChannelReach reach = routed.semanticReach();
+                SkyIslandGeomorphicCandidateRoute expected =
+                        SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
+                                terrain,
+                                interiority,
+                                reach.guidancePoints(),
+                                semantics.planningSpacing(),
+                                semantics.planningSpacing()
+                                        * SkyIslandGeomorphicChannelNetworkPlanner
+                                                .ROUTE_CORRIDOR_SPACING_FRACTION,
+                                new SkyIslandGeomorphicRouteAnchor(
+                                        plan.requireNode(reach.startCellIndex()).physicalPosition(), 0.0),
+                                new SkyIslandGeomorphicRouteAnchor(
+                                        plan.requireNode(reach.endCellIndex()).physicalPosition(), 0.0),
+                                SkyIslandTerrainAwareRouteSolver
+                                        .FINE_DIVISIONS_PER_PLANNING_CELL);
+                assertEquals(expected, routed.route());
+                assertEquals(reach, routed.semanticReach());
+            }
+        }
+    }
+
+    @Test
     void networkGeometryIsDeterministicAndEveryReachUsesSharedPhysicalAnchors() {
         for (long key : new long[] {77L, 118L, 241L, 287L, 512L, 632L, 649L, 811L}) {
             SkyIslandDescriptor descriptor = descriptor(key);
