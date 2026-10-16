@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import socket
 import struct
@@ -420,7 +421,7 @@ def main() -> int:
     parser.add_argument("--runtime-root", type=Path, required=True)
     parser.add_argument("--rcon-host")
     parser.add_argument("--rcon-port", type=int, default=25575)
-    parser.add_argument("--rcon-password")
+    parser.add_argument("--rcon-password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
     parser.add_argument("--pins", type=Path, default=Path("skyforge-neoforge-1211/wby-s7-combat.properties"))
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
     parser.add_argument("--server-log", type=Path, required=True)
