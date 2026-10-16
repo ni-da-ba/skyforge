@@ -294,6 +294,8 @@ class SkyIslandJunctionEnergyLossTest {
         double[] stations = new double[count];
         double[] beds = new double[count];
         double[] discharges = new double[count];
+        double[] contractionCoefficients = new double[count - 1];
+        double[] expansionCoefficients = new double[count - 1];
         SkyIslandStandardStepSolver.CrossSection[] sections =
                 new SkyIslandStandardStepSolver.CrossSection[count];
         for (int i = 0; i < count; i++) {
@@ -301,13 +303,23 @@ class SkyIslandJunctionEnergyLossTest {
             beds[i] = section.bedElevationMetres();
             sections[i] = section;
             discharges[i] = discharge;
+            if (i < count - 1) {
+                contractionCoefficients[i] = section.contractionCoefficient;
+                expansionCoefficients[i] = section.expansionCoefficient;
+            }
             if (i > 0) {
                 stations[i] = stations[i - 1]
                         + channelReachLengthMetres(geometry, riverStations.get(i - 1));
             }
         }
         return new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
-                stations, beds, sections, discharges, 0.025);
+                stations,
+                beds,
+                sections,
+                discharges,
+                0.025,
+                contractionCoefficients,
+                expansionCoefficients);
     }
 
     private static double channelReachLengthMetres(String geometry, String riverStation) {
@@ -371,16 +383,22 @@ class SkyIslandJunctionEnergyLossTest {
         private final double[] roughnessStations;
         private final double[] roughnessValues;
         private final double bedElevation;
+        private final double contractionCoefficient;
+        private final double expansionCoefficient;
 
         private FixtureSection(
                 double[] stations,
                 double[] elevations,
                 double[] roughnessStations,
-                double[] roughnessValues) {
+                double[] roughnessValues,
+                double contractionCoefficient,
+                double expansionCoefficient) {
             this.stations = stations;
             this.elevations = elevations;
             this.roughnessStations = roughnessStations;
             this.roughnessValues = roughnessValues;
+            this.contractionCoefficient = contractionCoefficient;
+            this.expansionCoefficient = expansionCoefficient;
             double minimum = Double.POSITIVE_INFINITY;
             for (double elevation : elevations) {
                 minimum = Math.min(minimum, elevation);
@@ -406,7 +424,10 @@ class SkyIslandJunctionEnergyLossTest {
             Matcher points = Pattern.compile("#Sta/Elev=\\s*\\d+\\s*([\\s\\S]*?)#Mann=").matcher(sectionText);
             Matcher roughness = Pattern.compile("#Mann=\\s*\\d+[^\\r\\n]*\\r?\\n([^\\r\\n]+)")
                     .matcher(sectionText);
-            if (!points.find() || !roughness.find()) {
+            Matcher transition = Pattern.compile(
+                            "(?m)^Exp/Cntr=([-+]?\\d*\\.?\\d+)\\s*,\\s*([-+]?\\d*\\.?\\d+)")
+                    .matcher(sectionText);
+            if (!points.find() || !roughness.find() || !transition.find()) {
                 throw new IllegalArgumentException("incomplete HEC geometry section: " + riverStation);
             }
             double[] pointValues = numbers(points.group(1));
@@ -426,7 +447,15 @@ class SkyIslandJunctionEnergyLossTest {
                 roughnessStations[i] = feet(roughnessValues[i * 3]);
                 roughnessValuesByZone[i] = roughnessValues[i * 3 + 1];
             }
-            return new FixtureSection(stations, elevations, roughnessStations, roughnessValuesByZone);
+            double expansionCoefficient = Double.parseDouble(transition.group(1));
+            double contractionCoefficient = Double.parseDouble(transition.group(2));
+            return new FixtureSection(
+                    stations,
+                    elevations,
+                    roughnessStations,
+                    roughnessValuesByZone,
+                    contractionCoefficient,
+                    expansionCoefficient);
         }
 
         double bedElevationMetres() {
