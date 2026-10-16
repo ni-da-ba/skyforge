@@ -1,5 +1,7 @@
 # Working Mod and To-Build Ledger
 
+> **Selection status:** Superseded by the [Canonical Mod Ledger](canonical-mod-ledger.md) for current dependency decisions. This file remains the detailed working/audit history and integration backlog. When dependency-selection language conflicts, the canonical ledger wins unless a newer accepted repository authority supersedes it.
+
 **Snapshot:** 2026-09-29  
 **Status:** Working selection ledger; versions/licensing must be reverified at implementation time.
 
@@ -478,3 +480,224 @@ Key policy:
 - visual coherence is a later production gate.
 
 See [Structure Content Stack v0.1](structure-content-stack-v0.1.md).
+
+
+## End Alpha integration slate — atmosphere, biomes, and structures
+
+**Status:** Provisional content/integration inventory for Alpha. Persist candidates now; placement, compatibility, authority interception, and final curation are integration-phase decisions.
+
+### Atmosphere / pressure
+- ThinAir: ReLived — expected Alpha respiration/breathability layer; categorical native breathability is acceptable as the Alpha fallback if Skyforge-field coupling is not cheap.
+- Create: FlyHigher — expected Alpha candidate for atmospheric-pressure-dependent Aeronautics behavior; test cheap coupling/approximation to Skyforge pressure fields.
+- Create: Deep Seas — R&D/playtest candidate for pressure differentials, sealed hulls/cabins, oxygen, instrumentation, and pressure integrity. Test both underwater and generalized non-water atmospheres, especially low-pressure / near-vacuum End operation. Keep only if adaptation is cheap; not an Alpha blocker.
+
+### End biome / ecology content library
+- BetterEnd: New Dawn — primary broad End ecology/material/biome library candidate: biomes, vegetation, wood/stone families, resources, caves, ambience, structures, mobs, and progression content.
+- Biomes O' Plenty — retain modern End biome/ecology content as an additional library source, including End Wilds, End Reef, End Corruption, and version-dependent End variants/features.
+- End's Phantasm — retain as a distinctive supplementary End library, especially Dreaming Den/Pream content, underside/underisland ecology, Oblivion/Oblivine/Oblifruit content, and void/crystal vocabulary.
+- Unusual End — retain as a broad supplementary End content prototype with biome/environmental content, structures, creatures, hazards, resources, and encounter mechanics.
+- Vanilla End content remains selectable vocabulary.
+- Regions Unexplored — no current End-biome contribution assumed; do not count its Overworld/Nether content toward the End library unless deliberately repurposed later.
+- Nullscape — classify primarily as morphology/terrain vocabulary rather than a major ecology/content library. Skyforge must retain primary morphology authority.
+
+### End structure content library
+- MES / Moog's End Structures — primary broad, data-driven End structure-vocabulary candidate under Skyforge structure-suitability and rarity semantics.
+- Unusual End structures — supplementary points-of-interest / encounter structures, subject to semantic placement and density governance.
+- BetterEnd: New Dawn structures — part of the broad BetterEnd library; integration testing determines independent selection/suppression.
+- YUNG's Better End Island — specialized central-End / dragon-island progression set-piece candidate.
+- YUNG's Better Strongholds — specialized Overworld-to-End progression-route structure candidate.
+- Vanilla End structures remain baseline/selectable content.
+
+### Alpha decision
+Biome and structure **diversity is considered sufficient for Alpha**. Do not expand the biome/structure mod pool merely to increase variety. Next work is inventory, integration testing, semantic curation, placement control, and identification of concrete gaps. The content audit now moves to End resources, creatures, threats, and progression.
+
+
+### End resources, ecology, threats, and expedition play
+- Treat the installed End catalogue as a large **vocabulary under Skyforge authority**, not as independent progression/worldgen authorities. Large available variety is desirable; realized local density remains sparse and coherent so multi-day exploration can continue producing both new discoveries and familiar content in new combinations.
+- BetterEnd: New Dawn contributes the broad material/ecology vocabulary, including Ender/Amber ores; Thallasium, Terminite, Aeternium; Aurora/Smaragdant crystal families; sulphur and multiple End stone/geology families; vegetation, caves, ambience, mobs, equipment, and its own progression content. Imported material tiers are assets to normalize into Skyforge's economy, not an automatically accepted tech tree.
+- End's Phantasm contributes distinctive Pream/Dreaming-Den and under-island ecology plus Oblivion/Oblivine/Oblifruit and crystal/void vocabulary. Under-island ecology is explicitly valuable because Skyforge treats islands as volumetric environments and can make undersides expedition destinations.
+- Unusual End contributes regional resources, creatures, status/infection hazards, Draglings, Enderblob-like ecology, trapped/hostile structures, Ancient End Towers, Endstone Golem encounters, and other behavior-rich threats.
+- Resource geography should motivate long-range aircraft expeditions through **regional specialization**, not a simplistic “farther = higher-tier ore” gradient.
+- Preserve multiple threat classes: atmospheric/void/logistical danger; ecological/status hazards; ordinary and exceptional creatures; constructed/trapped locations; bosses/apex encounters. Avoid spawn-table soup and spectacle saturation.
+- Skyforge descriptors/fields remain causal authority for morphology, atmosphere, geology, ecology suitability, resources, structures, rarity, and threat context. Imported biome/resource/progression logic must be intercepted, disabled, redirected, or governed where it conflicts with that authority.
+- Exploration target: enough available vocabulary that players can fly for multiple in-game days and continue finding new things and old things arranged in new ways, while retaining regional identity and quiet/ordinary stretches.
+
+### End progression threshold — stronghold, central island, and dragon
+- YUNG's Better Strongholds remains the expected Alpha candidate for a substantially richer Overworld-to-End approach/portal expedition.
+- YUNG's Better End Island remains an important **arena/presentation candidate**, especially its redesigned central island and deliberate dragon-summoning threshold, but it is not sacred if a superior dragon encounter requires a different arena.
+- Design framing: the first Ender Dragon is a **capstone capability exam for mastery of the Overworld and Nether and a gatekeeper to the outer-End expedition game**, not the ultimate threat of the End.
+- Balance against the actual expected late-Nether/Skyforge loadout and engineering capability, including cooperative play. Difficulty should come primarily from behavior, encounter pressure, positioning, preparation, arena interaction, and counterplay—not merely inflated HP/damage.
+- Engineering/preparation should matter; do not invalidate Minecraft engineering merely to enforce a scripted boss sequence.
+- A substantive dragon-combat overhaul is an **expected Alpha requirement**; the exact implementation is deferred to playtest/integration testing.
+
+### Dragon overhaul playtest / integration slate
+- **Beyond Bosses 2** — test as a genuine multi-stage/behavioral dragon encounter candidate. Its broader stronghold/central-End/other world changes are an architectural risk and must be independently disableable/governable before retention.
+- **True Ending** — test as a behaviorally ambitious dragon overhaul. Explicitly evaluate its known arena/pathing conflict with YUNG's Better End Island; if the fight is superior, prefer changing/replacing the arena over automatically sacrificing encounter quality.
+- **Ender Dragon Fight Remastered** — test as the more conservative behavior/phase overhaul baseline.
+- **Savage Ender Dragon** — retain as a useful 1.21.1 NeoForge scaling/pressure/anti-cheese candidate or supplementary layer, but do **not** treat stat/multiplayer scaling alone as sufficient for Skyforge's dragon requirement.
+- **MCS Ender Dragon / Better Ender Dragon** — retain for component-level/configurable-mechanics evaluation.
+- **Ender Trigon** and **Progressive Bosses** — interesting reference/future candidates, but do not count them as current 1.21.1 Alpha dependencies unless compatible ports become available.
+- Playtest matrix should include realistic solo, 2-player, and 4-player late-Nether loadouts; arena compatibility; crystal interactions; flight/engineering cheese; multiplayer scaling; encounter readability; and whether victory feels like an earned transition into the outer End.
+
+
+## Nether Alpha direction — causal grammar and first integration tests
+
+**Status:** Provisional design target and low-cost integration test plan. Do not treat the temporary Alpha worldgen substrate as permanent Skyforge architecture.
+
+### Long-term Nether grammar
+- The Nether should become a coherent three-dimensional geological system rather than a collection of independently sampled biomes.
+- Target hierarchy: Nether -> Province -> Magmatic/Cavern System -> Major Vault/Basin/Chasm Network -> Local Morphology -> Ecology/Resources/Structures/Threats.
+- Treat lava as a geological transport/drainage system: sources/reservoirs, conduits, falls, channels, basins/lava seas, cooling margins, and associated deposits should eventually have causal relationships.
+- Treat cavern topology as a first-class regional system: major vaults, chasms, corridors, tubes, shafts, collapsed regions, and thick solid volumes should form coherent traversable networks.
+- Structures, resources, ecology, and threats should respond to this physical context rather than independently dictating it.
+- Preserve mixed-mode traversal. Aircraft should solve some vault/lava/chasm routes without making tunnels, rail, roads, bridges, staging sites, ground vehicles, and defended corridors obsolete.
+- Nether threats should be evaluated for capability/vehicle pressure as well as player damage: explosive/ranged/flying/clinging threats, fire/heat, visibility denial, landing-area denial, cargo risk, and exposed-component damage are desirable interaction classes where existing systems support them.
+- Do not implement native magmatic drainage/cavern authorship as an Alpha prerequisite. Use lessons from mature Overworld hydrology/terrain work before deciding which abstractions generalize.
+
+### Provisional Alpha content/worldgen candidates
+- BetterNether: New Dawn — leading broad environmental/ecology/material vocabulary candidate; use configuration/governance to keep Skyforge semantic authority.
+- Jaden's Nether Expansion / Mosaic — promising temporary regional-coherence/worldgen substrate and content source; useful as an Alpha stand-in, not presumed permanent authority.
+- Eternal Nether — strong structure/threat vocabulary candidate for semantically placed major locations and hostile content.
+- Nether Depths Upgrade — promising lava-sea ecology candidate; especially aligned with treating lava basins as real geographic/ecological systems.
+- Luminous: Nether — playtest candidate for unusual ecology, creatures, and rare threats; prefer selective content use over granting world authority.
+- Incendium — A/B physical-Nether prototype for greater verticality/cavern/terrain ambition; do not automatically stack into the retained pack.
+- Vanilla Nether remains the control and selectable vocabulary.
+- Existing cross-dimensional creature/boss libraries remain eligible under Skyforge threat/ecology authority.
+
+### First Nether test sequence
+1. **Worldgen substrate comparison:** generate disposable worlds using the same seed for (A) vanilla/control, (B) Jaden's/Mosaic + BetterNether, and (C) Incendium. Evaluate only physical/regional qualities: region scale and coherence, vertical scale, cavern connectivity, major void/chasm/vault geometry, lava-basin geometry, navigability, and suitability for later Skyforge governance. Do not tune progression or balance.
+2. **Structure/lava-ecology layering:** take the most promising substrate and add Eternal Nether + Nether Depths Upgrade. Evaluate whether structures, threats, and lava ecology remain legible and geographically meaningful rather than becoming content soup.
+3. **Ecology/threat layering:** add Luminous and selected existing mob libraries only after the substrate test. Evaluate ecological overlap, spawn density, niche duplication, threat diversity, and vehicle-relevant interactions.
+4. Defer magmatic-drainage implementation, fine player-feel tuning, progression balancing, and deep semantic interception until Skyforge's internal terrain/hydrology systems and the integrated mod stack are mature enough to support meaningful testing.
+
+**Decision principle:** maximize useful existing vocabulary while minimizing bespoke Alpha work. Skyforge ultimately owns causal semantics and placement; temporary generators are scaffolding.
+
+
+## Cross-dimensional ecosystem audit — retained-system extensions
+
+**Status:** 2026-10-02 research pass. Goal: make Nether and End extensions of Skyforge's existing engineering/domestic systems rather than parallel minigames. Version compatibility below is specifically for the current Minecraft 1.21.1 NeoForge Alpha target and must be reverified at implementation time.
+
+### Strong keeps / integration candidates
+- **My Nether's Delight** — strong Nether-side Farmer's Delight extension. Current 1.21.1 NeoForge release exists. Use it to make Nether fauna/flora into a real expeditionary food economy and support locally sustained Nether bases. Its recipes/content remain subject to Skyforge ecology and progression normalization.
+- **End's Delight** — strong End-side Farmer's Delight extension. Current 1.21.1 NeoForge build exists. Use it to make End-derived ingredients and field cooking part of expedition sustainment without turning the End into a separate survival game.
+- **Farmer's Cutting: BetterEnd** — strong lightweight compatibility layer for BetterEnd + Farmer's Delight on 1.21.1 NeoForge/datapack. Particularly valuable because it maps BetterEnd woods/flora/crystals into an already-retained processing verb instead of adding another progression system.
+- **Create: Nether Industry** — strong R&D/integration candidate. Current 1.21.1 NeoForge Create addon; Nether-themed processing includes soul-related processing and Nylium agriculture. Test whether it makes Nether phenomena useful inputs to the common Create industrial language without introducing an unwanted parallel material ladder.
+- **Create: Enchantment Industry** — cross-dimensional rather than dimension-specific, but a strong candidate for making XP/enchantment resources from dangerous Nether/End expeditions feed back into the common Create factory economy. Current 1.21.1 NeoForge builds exist. Retention depends on progression/economy audit.
+- **Create Slice & Dice** — already reserve/A-B in the general stack; current 1.21.1 NeoForge support strengthens its value as an automation bridge if My Nether's Delight / End's Delight recipes expose meaningful agricultural-processing gaps not covered by Central Kitchen.
+
+### Existing retained systems that already create cross-dimensional continuity
+- **Create Big Cannons** already supplies Nethersteel as part of the retained heavy-industry material ladder. Keep Nethersteel geographically/economically meaningful rather than allowing dimensionless recipe bypasses.
+- **Create Aeronautics / Sable** is itself a major dimension-integration system: the same engineered vehicles enter radically different pressure, morphology, visibility, and threat environments. Dimension-specific behavior should come from environmental inputs rather than separate vehicle systems.
+- **Create Propulsion: Simulated / advanced propulsion** remains the candidate for propulsion regimes where ordinary atmospheric propellers become poor choices, especially the End. Do not force an End-specific engine tier unless actual pressure/flight testing justifies it.
+- **Farmer's Delight + Central Kitchen** remain the common food/automation substrate. Dimension-specific Delight addons should extend that substrate, not replace it.
+- **Supplementaries** remains a common ordinary-life/infrastructure vocabulary across dimensions; no separate Nether/End Supplementaries layer is required merely for thematic coverage.
+
+### Reject / avoid by default
+- **Create: Netherless** — reject for Skyforge's main progression. Its explicit purpose is producing/automating Nether resources without Nether access, which directly undermines authored geography, cross-dimensional logistics, and the economic reason to build Nether infrastructure. Individual mechanics may be reconsidered only if they can be isolated without enabling geographic bypass.
+- Do not add dimension-themed Create/Delight addons solely because they exist. A candidate must connect a retained system to a dimension-specific input, constraint, or opportunity and must not create a redundant progression tree.
+
+### Integration doctrine
+1. **One game across three environments.** Create machinery, Farmer's Delight processing, CBC industry, electrical systems, logistics, aircraft, and ordinary building vocabulary remain recognizable everywhere.
+2. **Dimensions contribute inputs and constraints, not replacement tech trees.** Nether heat/souls/fauna/materials and End biology/crystals/low pressure should feed the shared economy.
+3. **Local sustainment is desirable but should be earned.** Nether and End expeditions can develop into persistent bases capable of food/repair/processing, while strategic imports and exports preserve interdimensional logistics.
+4. **Do not erase geographic value through automation.** Automation may improve extraction and processing after access is established; it should not make the dimension unnecessary.
+5. **Prefer compatibility recipes/datapacks over new machinery.** Existing verbs—cutting, cooking, mixing, pressing, milling, casting, distillation, logistics—should absorb new dimension resources wherever sensible.
+6. **Normalize materials and recipes.** Imported addon tiers are not automatically Skyforge tiers. Map duplicate materials to canonical tags/identities and remove circular or geography-bypassing recipes.
+7. **Test the feedback loop:** dimension exploration -> unique input/resource -> shared industrial/domestic processing -> new capability or sustained operation -> reason to establish routes/infrastructure -> further exploration.
+
+### Integration-test bundle
+- A/B My Nether's Delight with the selected Nether ecology stack; verify food sourcing, mob drops, crop placement, recipe overlap, and whether a Nether base can become locally sustainable without trivializing imports.
+- A/B End's Delight + Farmer's Cutting: BetterEnd against the retained BetterEnd/Phantasm/Unusual End ecology stack; verify recipe coverage, duplicate ingredients, dragon/shulker progression assumptions, and expedition sustainment.
+- Test Create: Nether Industry separately before combining it with the full Nether worldgen stack; inspect recipe graph, soul-processing semantics, Nylium farming, material duplication, and geography-bypass risks.
+- Test Enchantment Industry as an economy bridge rather than a dimension mod: determine whether Nether/End XP and enchantment rewards become useful industrial inputs without collapsing exploration rewards into a generic XP farm.
+- Re-run recipe/capability closure after each retained addon. Cross-dimensional integration must strengthen the unified Skyforge economy rather than create hidden parallel ladders.
+
+**Audit conclusion:** the strongest immediate additions are My Nether's Delight, End's Delight, Farmer's Cutting: BetterEnd, and Create: Nether Industry. Enchantment Industry and Slice & Dice are broader integration A/B candidates. Create: Netherless conflicts with the current geography/logistics doctrine and should remain excluded.
+
+
+## Nether ecology, resources, structures, and threats — initial content contract
+
+**Status:** 2026-10-02 provisional design framing. Detailed inventory/curation follows integration testing; this section establishes what the retained content must accomplish.
+
+### Progression anchor: Blaze Rods
+- Blaze Rod acquisition remains a required Nether expedition objective; do not provide a dimensionless recipe or Overworld bypass.
+- The problem with vanilla is not that Blaze Rods require combat; it is that a player who locates a fortress can often convert one exposed spawner into a trivial, repeatable extraction point.
+- Skyforge should preserve recognizable Blaze/Fortress semantics while making successful extraction depend on reaching, operating in, and escaping from a genuinely dangerous location.
+- Fortresses/Blaze sites should eventually respond to Nether geography: difficult vaults, lava drainage/basins, hostile corridors, poor landing approaches, exposed crossings, or other meaningful terrain context rather than arbitrary distance inflation.
+- Do not solve this merely with higher Blaze HP, inflated spawn counts, or grindier drop rates. Prefer route difficulty, combined-arms threats, structure layout, environmental pressure, access/egress, and operational preparation.
+- Automation/farming after mastery may remain possible; the first progression-critical acquisition and establishment of a safe production route should be earned.
+
+### Ecology
+- BetterNether: New Dawn is the leading broad flora/biome/material ecology library; current New Dawn includes configurable biome/structure generation and extensive vegetation/building vocabulary.
+- Nether Depths Upgrade is a strong lava-sea ecology layer: nine lava fish plus lava plants/vents and lava-exploration equipment give lava basins ecological identity instead of treating them as empty damage floors.
+- Luminous: Nether is a high-variety hostile/ecology candidate: current 1.21.1 NeoForge releases advertise two biomes, sixteen mobs, three legendary beasts, three rare beasts, blocks, structures, and additional mechanics. Use selectively to avoid spectacle saturation.
+- My Nether's Delight connects edible Nether fauna/flora to the common Farmer's Delight domestic economy.
+- Ecology should follow causal niches: lava-basin organisms, soul-region organisms, fungal forest communities, scavengers/predators around Piglin habitation, cavern/vault fauna, and rare apex/legendary threats. Avoid uniform dimension-wide spawn soup.
+
+### Resources
+- Preserve vanilla strategic anchors where useful: Blaze Rods, Nether Wart, Quartz, Glowstone, ancient debris/Netherite, gold, soul materials, and dimension-specific mob drops.
+- BetterNether/New Dawn and selected ecology mods provide a larger raw material vocabulary, but imported materials do not automatically become independent progression tiers.
+- Create: Nether Industry is the leading test for turning Nether-specific phenomena—especially soul/nylium-related inputs—into processes in the shared Create economy.
+- CBC Nethersteel remains a major cross-dimensional industrial payoff and should retain a meaningful Nether connection.
+- Resource placement should be tied to physical systems and risk classes: lava margins/basins, magmatic conduits, soul deposits, fungal ecologies, deep solid volumes, ruins/fortifications, and exceptional geological regions.
+- Prefer geographically specialized deposits and process inputs over “deeper/farther = numerically better ore.”
+
+### Structures / civilization
+- Vanilla Nether Fortresses remain progression-critical vocabulary, but their placement/context/realization is eligible for substantial Skyforge governance.
+- Bastions remain major Piglin civilization/loot sites and should participate in coherent Piglin geography rather than appearing as arbitrary isolated dungeons.
+- Eternal Nether contributes promising major-site vocabulary: Piglin Manor in Crimson Forest context, Citadel in Warped Forest context, and Catacombs with Wither-Skeleton-focused encounters, plus associated mobs/loot.
+- BetterNether structures and the selected broad Nether substrate remain content libraries; their native density/placement must not override Skyforge's eventual regional structure semantics.
+- Structures should occupy understandable strategic sites: defensible vaults, crossings, resource zones, lava routes, corridor junctions, high ledges, basin margins, and old route infrastructure.
+
+### Threats
+- Threats must pressure both **people and machines**. Ghasts become substantially more meaningful when explosive projectiles can threaten aircraft/contraptions, landing sites, exposed components, bridges, rail infrastructure, and cargo rather than merely knocking a player around.
+- Preserve combined threat classes: ranged/explosive aerial denial; Piglin organized resistance; Blaze fire/ranged pressure; Wither Skeleton close-quarters pressure; lava/environmental risk; visibility/heat/pressure where supported; predators/rare beasts; structure traps/elite encounters.
+- Eternal Nether's Piglin Hunter/corrupted/Wither-Skeleton variants and Luminous's large creature catalogue are candidate threat vocabulary, not permission for globally elevated spawn density.
+- Aircraft should be useful but not sovereign. Tight caverns, bad approaches, roof/floor hazards, ranged threats, restricted landing zones, and infrastructure vulnerability should naturally preserve value for tunnels, rail, bridges, armored ground movement, and staged bases.
+
+### Design acceptance
+A successful Nether should support a progression story like: **locate a promising route -> prepare equipment/vehicle/logistics -> penetrate a coherent hostile region -> reach a strategically situated fortress/resource site -> conduct the objective under environmental and creature pressure -> extract safely -> improve the route/infrastructure for repeat operations.**
+
+This applies especially to Blaze Rods. The desired challenge is an **expedition and engineering problem**, not a stat check or mandatory grind.
+
+
+## Nether morphology abstraction — provisional architecture note
+
+**Status:** Persisted for later implementation after the current Skyforge terrain/hydrology architecture is mature enough to generalize safely.
+
+- Treat major Nether cavern-system grammars as the **Nether analogue of Sky-Island morphological families**, not as a separate biome hierarchy.
+- Reuse the existing descriptor/recipe/morphology architecture where it genuinely generalizes; avoid creating a parallel Nether-only worldgen stack prematurely.
+- The principal inversion is geometric: Overworld morphology primarily describes **meaningful solid volumes in open atmosphere**, while Nether morphology primarily describes **meaningful void volumes inside a solid geological mass**.
+- Candidate first-order Nether morphological families include vault-dominant, chasm-dominant, tube/conduit-dominant, basin-dominant, and fracture/labyrinth-dominant systems. These are compositional grammars, not exclusive biome labels.
+- Major systems should be characterized chiefly by topology and geometry—connectivity, void fraction, characteristic span, vertical bias, branch factor, corridor width, chamber frequency, fracture/collapse intensity, and relationship to magma flow—not by block palette or ecology.
+- Mixed systems are expected. Example: a vault-dominant cavern system may contain a chasm spine, tube network, and terminal lava basin.
+- Host geology, cavern morphology/connectivity, and magmatic drainage are the leading physical authorities. Atmosphere/gas fields, ecology, resources, structures, civilization, and threats are downstream consumers.
+- Magmatic drainage should remain an overlapping graph/system rather than being forced beneath a single morphology hierarchy; lava reservoirs, conduits, falls, channels, and basins may traverse multiple cavern elements.
+- The Nether is therefore a useful architecture test: it should demonstrate that Skyforge morphology describes semantic geometry generally rather than being accidentally synonymous with “floating island generation.”
+- Do not finalize APIs or implementation names yet. Validate the abstraction with at least one convincing vault system, one chasm system, and one mixed system with coherent magma routing before generalizing accepted Sky-Island APIs.
+
+
+## Nether mod-acquisition closure slate
+
+**Status:** 2026-10-02 provisional closure pass. Goal is to close specific vanilla capability gaps and then freeze broad Nether mod acquisition; remaining work should shift to Skyforge integration, curation, spawn control, recipe normalization, and geographic placement.
+
+### Structure/progression closures
+- **YUNG's Better Nether Fortresses** — strong expected keep for Alpha. Current 1.21.1 NeoForge support. Replaces the weak vanilla fortress realization with a substantially larger fortress grammar while preserving the recognizable Nether Fortress/Blaze progression role. Treat as the leading Alpha realization for progression-critical fortress sites under eventual Skyforge geographic authority.
+- **Better Bastions** — immediate A/B candidate rather than automatic lock. Promising replacement/expansion of vanilla Bastion Remnants with multiple procedural forms and configurable layout/garrison behavior. Because the project is comparatively new, stability, interoperability, worldgen control, and compatibility with the selected Nether substrate must be demonstrated before retention.
+- Conservative fallback if Better Bastions fails integration: retain/clean up vanilla Bastion semantics rather than adding another broad Nether overhaul.
+
+### Boss closure
+- **Wither: Reincarnated** — focused 1.21.1 NeoForge A/B candidate for repairing the vanilla Wither encounter without importing another broad content pack. Evaluate behavioral quality, multiplayer scaling, engineering counterplay, arena/environment interactions, and compatibility with the Nether progression stack. Do not solve difficulty primarily through inflated health/damage.
+
+### Piglin depth
+- **Piglin Proliferation** — conditional candidate only. Its value is specifically deeper Piglin role/behavior vocabulary, not generic mob count. Test the retained Eternal Nether + Bastion/Piglin stack first; add Piglin Proliferation only if Piglin civilization remains behaviorally thin. Avoid redundant Piglin variants and spawn-table soup.
+
+### Environmental survival
+- **ThinAir: ReLived** remains the leading Alpha breathability/respiration frontend candidate.
+- **Cold Sweat is NOT currently a required dependency.** It is retained only as an optional R&D candidate if later playtesting demonstrates that continuous thermal physiology is necessary and cannot be represented more cheaply.
+- Current preference is to avoid a dedicated body-temperature simulation unless it earns its complexity. Skyforge may still expose canonical environmental temperature/heat fields for climate, machines, ecology, fluids, aerodynamics, rendering, and localized hazards without imposing continuous player thermoregulation.
+- For Alpha, dangerous heat should preferentially be expressed through geographically legible/local mechanics already available in Minecraft or retained mods: lava/radiant proximity, fire, hot machinery/materials, hazardous regions, equipment requirements, route constraints, and other targeted consequences. Add a continuous temperature-survival frontend only if these prove insufficient.
+- Likewise, do not conflate natural Nether atmospheric chemistry with industrial pollution merely to justify another survival mod. Airborne/pollution systems remain optional future R&D, not core closure dependencies.
+
+### Acquisition freeze
+After evaluating **YUNG's Better Nether Fortresses**, **Better Bastions**, and **Wither: Reincarnated**, plus the conditional Piglin-depth question, stop searching for broad Nether biome/resource/structure/bestiary packs unless integration testing exposes a concrete missing capability. Existing retained candidates already provide ample terrain, ecology, resources, structures, creatures, food, and industrial vocabulary. The dominant risk is now incoherent realization rather than insufficient content.
