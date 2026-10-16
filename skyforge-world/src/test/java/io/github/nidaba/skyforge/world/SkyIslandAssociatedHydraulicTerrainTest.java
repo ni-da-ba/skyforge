@@ -199,7 +199,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                 .append(" unmeasuredShorelineEdges=").append(unmeasuredShorelineEdges)
                 .append(" minimumShorelineFreeboard=")
                 .append(minimumShorelineFreeboard == Integer.MAX_VALUE ? "n/a" : minimumShorelineFreeboard)
-                .append('\\n');
+                .append('\n');
         for (var reach : plan.candidatePlan().terrainField().acceptedReaches()) {
             var routeLabels = new java.util.HashSet<Integer>();
             int missing = 0;
