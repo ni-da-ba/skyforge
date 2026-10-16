@@ -97,6 +97,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         var envelope = SkyIslandHydrologyWaterEnvelope.columns(plan);
         int aboveGroundColumns = 0;
         int nonMutatingWetColumns = 0;
+        int valleyRecoveryWaterColumns = 0;
         var byCoordinate = new java.util.HashMap<Long, SkyIslandFluvialVoxelColumn>();
         for (var column : plan.authorizedColumns()) {
             byCoordinate.put(key(column.worldX(), column.worldZ()), column);
@@ -116,10 +117,15 @@ class SkyIslandAssociatedHydraulicTerrainTest {
             if (!column.mutatesTerrain()) {
                 nonMutatingWetColumns++;
             }
+            if (semantic.zone() == SkyIslandQualifiedFluvialZone.VALLEY_RECOVERY) {
+                valleyRecoveryWaterColumns++;
+            }
             bands.put(key(band.worldX(), band.worldZ()),
                     new int[] {band.minimumY(), band.maximumY()});
         }
         assertTrue(aboveGroundColumns > 0, "exercise approved positive-air authority");
+        assertEquals(0, valleyRecoveryWaterColumns,
+                "valley-recovery terrain remains dry without authored overbank-flood intent");
 
         // Measure whether the original dry terrain immediately outside each voxelized shoreline
         // stands above the solved water surface. This is descriptive evidence, not an acceptance
@@ -203,6 +209,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                 .append(components).append(" columns=").append(bands.size())
                 .append(" aboveGroundColumns=").append(aboveGroundColumns)
                 .append(" nonMutatingWetColumns=").append(nonMutatingWetColumns)
+                .append(" valleyRecoveryWaterColumns=").append(valleyRecoveryWaterColumns)
                 .append(" shorelineEdges=").append(shorelineEdges)
                 .append(" supportedShorelineEdges=").append(supportedShorelineEdges)
                 .append(" overtoppedShorelineEdges=").append(overtoppedShorelineEdges)
