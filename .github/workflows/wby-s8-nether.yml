@@ -25,6 +25,7 @@ on:
       - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s8-nether-evidence.py"
       - "scripts/wby-s8-diagnostic-launch.sh"
+      - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   pull_request:
@@ -44,6 +45,7 @@ on:
       - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s8-nether-evidence.py"
       - "scripts/wby-s8-diagnostic-launch.sh"
+      - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
   workflow_dispatch:
@@ -123,7 +125,7 @@ jobs:
           bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s8-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py scripts/wby-s8-download-nether-review-deps.py
 
       - name: Download the exact A4MC build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
