@@ -45,3 +45,20 @@ F4K now opts into this path. Preparation reports `worldElevationFrame=associated
 The initial production implementation at 4002f74772d573ddd40489ef2a46a30271798049 passes the focused hydraulic/control suite and the new 55-section level-stage, D2, exact association and voxel-admission regression. Further bed-identity and integer-connectivity measurements accompany runtime integration; final runtime evidence is recorded in the PR.
 
 [USACE RAS Mapper](https://www.hec.usace.army.mil/confluence/rasdocs/rmum/latest/mapping-results/managing-results-maps) treats terrain and water-surface elevations in a shared spatial representation and derives depth by difference. [USACE cross-section interpolation](https://www.hec.usace.army.mil/confluence/rasdocs/rasum/6.3/entering-and-editing-geometric-data/cross-section-interpolation) provides the connected bank/invert interpolation precedent. This tranche reuses the existing 1D solvers; it does not implement HEC-RAS, triangulated bend repair, or a 2D hydrodynamic model.
+
+## Owned-water vertical placement
+
+The first integrated shared-frame proof passed (run 38830308214): 55 level sections, 9,255 admitted columns, two face-connected rivers, no missing centerline samples, and 3,928 persisted water voxels. Its integer diagnostic still found 219 water columns whose requested surface exceeded the exact original solid ceiling. That intermediate proof does not certify un-clipped stage realization.
+
+The associated candidate therefore applies one bounded, rigid vertical placement before final D2/voxel admission. For the initial bank-contained wet set W and exact solid ceiling C at each integer column:
+
+```text
+requiredLowering = max(0, max over W of (solvedWorldStage - C))
+C = originalMaximumSolidY + 1
+```
+
+Both bed and stage are lowered by this single reach-wide amount, never independently per column. The source normal-depth condition, depths, discharges, slopes and energy differences are invariant under a common vertical translation; tests independently re-solve the translated profile and retain the Environment Agency Test C benchmark. Excavation-envelope and final D2/support checks still reject excessive lowering. No externally fixed absolute tailwater boundary is translated by this source-only operation.
+
+Associated ordinary-channel wetness is confined to its bankfull corridor; this source model does not grant disconnected low floodplain cells inundation authority. Within that corridor the constructed cross section has unit terrain weight: a common lowering cannot create new wet positions, so the initial wet-set ceiling maximum suffices in one pass. Floating-point ceiling protection is not a hydraulic tolerance change.
+
+The exact support survey is input to continuous candidate placement, not a backend reconciliation budget. Final acceptance requires zero support clipping, one face-connected integer water body per supported ordinary reach and no missing rounded centerline samples. Sub-voxel shoreline depths remain ordinary quantified discretization loss, not authority to add terrain or water outside support.

@@ -435,6 +435,28 @@ public final class SkyIslandGameScaleHydraulicModel {
             dischargesCubicMetresPerSecond = dischargesCubicMetresPerSecond.clone();
         }
 
+
+        /**
+         * Exact elevation-translation symmetry for this source-normal-depth solution.
+         * Depth, discharge, grade, roughness and the source normal-depth boundary do not change.
+         * This is not applicable to an externally fixed absolute tailwater boundary.
+         */
+        public SourceReachSolution loweredBy(double metres) {
+            var loweredCandidate = candidate.loweredBy(metres);
+            double[] beds = profile.bedElevationsMetres();
+            double[] stages = profile.waterSurfaceElevationsMetres();
+            for (int i = 0; i < beds.length; i++) {
+                beds[i] -= metres;
+                stages[i] -= metres;
+            }
+            var loweredProfile = new SkyIslandHydraulicCandidateBuilder.Profile(
+                    profile.stationsMetres(), beds, profile.depthsMetres(), stages);
+            return new SourceReachSolution(loweredCandidate, loweredProfile,
+                    dischargesCubicMetresPerSecond, manningRoughness,
+                    sideSlopeHorizontalToVertical, minimumBedSlope, sourceEnergySlope,
+                    sourceNormalDepthMetres, sourceFroudeNumber, flowRegime);
+        }
+
         @Override
         public double[] dischargesCubicMetresPerSecond() {
             return dischargesCubicMetresPerSecond.clone();

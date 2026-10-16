@@ -310,6 +310,7 @@ jobs:
             --tests '*SkyIslandGameScaleHydraulicModelTest' \
             --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
             --tests '*SkyIslandAssociatedHydraulicTerrainTest' \
+            --tests '*SkyIslandHydraulicCandidateBuilderTest.rigidBedLoweringPreservesEnvironmentAgencyProfileAndEditLimits' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
@@ -326,6 +327,7 @@ jobs:
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydrologyJoinDiagnosticsTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandAssociatedHydraulicTerrainTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicCandidateBuilderTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
           do
             if [ -f "$report" ]; then

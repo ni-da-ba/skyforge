@@ -99,7 +99,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         for (var column : plan.authorizedColumns()) {
             var sample = column.projection();
             var semantic = sample.semanticSample();
-            if (!semantic.wet() || !column.mutatesTerrain()) {
+            if (!semantic.wet()) {
                 continue;
             }
             double stage = sample.originalUpperSurfaceWorldY()
@@ -117,6 +117,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
             }
             bands.put(key(column.worldX(), column.worldZ()), new int[] {bottom, top});
         }
+        assertEquals(0, clipped, "solved stage must fit exact owned support without backend clipping");
         var labels = new java.util.HashMap<Long, Integer>();
         int components = 0;
         for (long start : bands.keySet()) {
@@ -143,7 +144,9 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                 }
             }
         }
-        StringBuilder result = new StringBuilder("INTEGER WATER DIAGNOSTIC: components=")
+        assertEquals(plan.candidatePlan().terrainField().acceptedReaches().size(), components,
+                "each ordinary river must form one face-connected water body");
+        StringBuilder result = new StringBuilder("INTEGER WATER ACCEPTANCE: components=")
                 .append(components).append(" columns=").append(bands.size())
                 .append(" supportClipped=").append(clipped)
                 .append(" subVoxel=").append(subVoxel).append('\n');
@@ -158,6 +161,8 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                     routeLabels.add(label);
                 }
             }
+            assertEquals(0, missing, "all rounded centerline samples require water");
+            assertEquals(1, routeLabels.size(), "centerline must remain in one water component");
             var semantic = reach.geomorphicRoute().semanticReach();
             result.append(semantic.startCellIndex()).append("->").append(semantic.endCellIndex())
                     .append(" centerlineComponents=").append(routeLabels.size())
