@@ -107,6 +107,11 @@ class SkyIslandContinuousWaterbodyDiagnosticsPlannerTest {
             }
         }
         assertEquals(6, lakeCount, "all six exact v5 lakes must have one matched terminal reach");
+        java.nio.file.Path report = java.nio.file.Path.of(
+                "build", "evidence", "hydrology-retained-basin-transition-profiles",
+                "terminal-transition-profiles.csv");
+        java.nio.file.Files.createDirectories(report.getParent());
+        java.nio.file.Files.writeString(report, evidence.toString());
         System.out.println("RETAINED LAKE TERMINAL TRANSITION PROFILE EVIDENCE (diagnostic only)\n"
                 + evidence);
     }
