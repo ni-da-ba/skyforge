@@ -22,6 +22,28 @@ public final class SkyIslandHydraulicCandidateBuilder {
             SkyIslandGeomorphicCandidateRoute route,
             SkyIslandSemanticField terrain,
             Configuration configuration) {
+        return buildJoint(route, terrain, configuration, null);
+    }
+
+    /**
+     * Builds a channel/valley candidate using an already-solved component-wide bed profile.
+     * The supplied bed must match every route station, remain below the original terrain, satisfy
+     * the configured minimum grade, and remain within the configured terrain-edit envelope.
+     */
+    public static Candidate build(
+            SkyIslandGeomorphicCandidateRoute route,
+            SkyIslandSemanticField terrain,
+            Configuration configuration,
+            double[] jointBedElevationsMetres) {
+        Objects.requireNonNull(jointBedElevationsMetres, "jointBedElevationsMetres");
+        return buildJoint(route, terrain, configuration, jointBedElevationsMetres);
+    }
+
+    private static Candidate buildJoint(
+            SkyIslandGeomorphicCandidateRoute route,
+            SkyIslandSemanticField terrain,
+            Configuration configuration,
+            double[] jointBedElevationsMetres) {
         Objects.requireNonNull(route, "route");
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(configuration, "configuration");
@@ -45,14 +67,45 @@ public final class SkyIslandHydraulicCandidateBuilder {
             }
         }
 
-        double[] projected = minimumGradeProjection(
-                rawElevations, stations, configuration.minimumBedSlope());
-        for (int i = 0; i < points.size(); i++) {
-            bedElevations[i] = projected[i]
-                    - configuration.minimumBedSlope() * stations[i]
-                    - configuration.upstreamIncisionMetres();
-            requireWithinEditEnvelope(
-                    rawElevations[i], bedElevations[i], configuration.maximumTerrainEditMetres());
+        if (jointBedElevationsMetres == null) {
+            double[] projected = minimumGradeProjection(
+                    rawElevations, stations, configuration.minimumBedSlope());
+            for (int i = 0; i < points.size(); i++) {
+                bedElevations[i] = projected[i]
+                        - configuration.minimumBedSlope() * stations[i]
+                        - configuration.upstreamIncisionMetres();
+                requireWithinEditEnvelope(
+                        rawElevations[i],
+                        bedElevations[i],
+                        configuration.maximumTerrainEditMetres());
+            }
+        } else {
+            if (jointBedElevationsMetres.length != points.size()) {
+                throw new IllegalArgumentException(
+                        "joint bed profile must provide exactly one elevation per route station");
+            }
+            bedElevations = jointBedElevationsMetres.clone();
+            for (int i = 0; i < points.size(); i++) {
+                if (!Double.isFinite(bedElevations[i])) {
+                    throw new IllegalArgumentException("joint bed elevations must be finite");
+                }
+                if (bedElevations[i] > rawElevations[i] + EPSILON) {
+                    throw new IllegalArgumentException(
+                            "joint channel candidate cannot raise terrain above its original bed surface");
+                }
+                requireWithinEditEnvelope(
+                        rawElevations[i],
+                        bedElevations[i],
+                        configuration.maximumTerrainEditMetres());
+                if (i > 0) {
+                    double requiredDrop = configuration.minimumBedSlope()
+                            * (stations[i] - stations[i - 1]);
+                    if (bedElevations[i - 1] - bedElevations[i] < requiredDrop - EPSILON) {
+                        throw new IllegalArgumentException(
+                                "joint bed profile violates the configured minimum downstream grade");
+                    }
+                }
+            }
         }
         return new Candidate(points, stations, rawElevations, bedElevations, terrain, configuration);
     }
