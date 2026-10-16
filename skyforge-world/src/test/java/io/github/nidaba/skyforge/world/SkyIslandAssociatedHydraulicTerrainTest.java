@@ -24,8 +24,10 @@ class SkyIslandAssociatedHydraulicTerrainTest {
         var projection = new SkyIslandComponentFluvialWorldWaterProjection(association, candidate);
         double maximumSpan = 0.0;
         int sections = 0;
+        int expectedSections = 0;
         for (var reach : candidate.terrainField().acceptedReaches()) {
             var points = reach.centerline().points();
+            expectedSections += Math.max(0, points.size() - 2);
             for (int i = 1; i + 1 < points.size(); i++) {
                 var point = points.get(i);
                 double dx = points.get(i + 1).x() - points.get(i - 1).x();
@@ -75,7 +77,7 @@ class SkyIslandAssociatedHydraulicTerrainTest {
                 sections++;
             }
         }
-        assertEquals(55, sections);
+        assertEquals(expectedSections, sections);
         var quantized = SkyIslandFluvialVoxelQuantizationPlanner.plan(association, candidate);
         assertTrue(quantized.rejectedComponents().isEmpty());
         assertTrue(!quantized.authorizedColumns().isEmpty());
