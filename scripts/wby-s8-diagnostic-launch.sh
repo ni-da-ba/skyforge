@@ -3,8 +3,8 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  control|control-mnd|jne|jne-mnd|incendium|incendium-full) ;;
-  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium|incendium-full}" >&2; exit 2 ;;
+  control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-betternether) ;;
+  *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-betternether}" >&2; exit 2 ;;
 esac
 
 base="skyforge-neoforge-1211/run-wby-s8-control"
@@ -86,6 +86,27 @@ if [[ "$variant" == "incendium-full" ]]; then
   echo "Select Incendium in the Data Packs screen before creating the world."
 fi
 
+if [[ "$variant" == "incendium-betternether" ]]; then
+  python_bin="$(command -v python3 || command -v python || true)"
+  if [[ -z "$python_bin" ]]; then echo "Python 3 is required to stage the official review dependencies." >&2; exit 2; fi
+  "$python_bin" scripts/wby-s8-download-nether-review-deps.py incendium-betternether
+  composition_downloads="$downloads/incendium-betternether"
+  for pattern in '*betternether*.jar' '*bclib*.jar' '*wunderlib*.jar' '*worldweaver*.jar'; do
+    mapfile -t matches < <(find "$composition_downloads" -maxdepth 1 -type f -iname "$pattern" -print)
+    if (( ${#matches[@]} != 1 )); then
+      echo "Expected exactly one composition JAR matching $pattern in $composition_downloads; found ${#matches[@]}" >&2
+      exit 2
+    fi
+    cp -f "${matches[0]}" "$run/mods/"
+  done
+  pack="$composition_downloads/Incendium-5.4.4.zip"
+  if [[ ! -s "$pack" ]]; then echo "Official Incendium ZIP missing after staging: $pack" >&2; exit 2; fi
+  echo "Composition-only arm: Incendium plus BetterNether: New Dawn and its three required New Dawn libraries."
+  echo "Create a new normal/default world, enable this pack, and inspect worldgen ownership, biome/feature overlap, structures, stability, and startup behavior."
+  echo "Copy this Incendium ZIP through Create World > Data Packs > Open Pack Folder, then enable it before world creation:"
+  echo "  $pack"
+fi
+
 if [[ "$variant" == "incendium" ]]; then
   pack="$downloads/Incendium-5.4.4.zip"
   if [[ ! -f "$pack" ]]; then
@@ -108,6 +129,7 @@ echo "Use the same game mode/difficulty and settings. Do not reuse or copy gener
 echo "Enter the Nether through a portal and compare biome geography, scale/connectivity, lava, routes, flight and DH/Simple Clouds rendering."
 echo "Check for fortresses and Blaze access, bastion/candidate structures, duplicate or suppressed structures, and obvious progression bypasses."
 echo "The jne arm excludes My Nether's Delight, so assess its substrate/rendering independently. Compare control-mnd with jne-mnd on the same seed to see whether JNE suppresses Powdery Cannon generation. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness without attributing that report to MND."
+echo "For incendium-betternether, treat this as the isolated biome/feature composition qualification; do not infer compatibility from a successful launch alone."
 echo "For incendium-full, review the cumulative Nether stack: terrain/biomes, Nether Depths Upgrade ecology/resources, My Nether's Delight, Create: Nether Industry inputs and processing, ThinAir breathability and Create backtank interaction, and YUNG fortress/Blaze access. Check how these systems interact with the accepted Eternal Nether and S7 threat/BOMD layers."
 echo "Record coordinates, screenshots, concerns, and any progression bypass. The control/JNE/Incendium arms inform substrate choice. The control-mnd and jne-mnd runs form a matched Powdery Cannon interaction check, not additional substrate candidates. Do not tune recipes, drops, spawn rates, loot, or balance."
 echo "Run directory: $run"
