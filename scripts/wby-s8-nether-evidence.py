@@ -20,6 +20,13 @@ EXPECTED = {
     "lodestone": "lodestone",
     "myNethersDelight": "mynethersdelight",
 }
+FULL_STACK_EXPECTED = {
+    "netherDepthsUpgrade": "netherdepthsupgrade",
+    "createNetherIndustry": "createnetherindustry",
+    "thinAirRelived": "thinair",
+    "curios": "curios",
+    "yungsBetterNetherFortresses": "betterfortresses",
+}
 
 
 def sha256(path: Path) -> str:
@@ -68,7 +75,7 @@ def rcon(command: str, host: str, port: int, password: str) -> str:
         return body.strip()
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--variant", choices=("control", "control-mnd", "jne", "jne-mnd", "incendium"), required=True)
+    parser.add_argument("--variant", choices=("control", "control-mnd", "jne", "jne-mnd", "incendium", "incendium-full"), required=True)
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--datapacks", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
@@ -87,6 +94,7 @@ def main() -> int:
         "jne": {"netherexp"},
         "jne-mnd": {"netherexp", "mynethersdelight"},
         "incendium": {"incendium"},
+        "incendium-full": {"incendium", "netherdepthsupgrade", "createnetherindustry", "betterfortresses"},
     }[args.variant]
     candidate_resources: dict[str, set[str]] = {
         kind: set() for kind in ("biome", "structure", "structure_set", "configured_feature", "placed_feature")
@@ -114,8 +122,10 @@ def main() -> int:
         rows.append(f"mod\t{jar.name}\t{sha256(jar)}\t{','.join(sorted(ids))}\t{count_text}\t")
 
     expected = set(EXPECTED[mod] for mod in ("jadensNetherExpansion", "elysiumApi", "lodestone")) if args.variant in {"jne", "jne-mnd"} else set()
-    if args.variant in {"control-mnd", "jne-mnd"}:
+    if args.variant in {"control-mnd", "jne-mnd", "incendium-full"}:
         expected.add(EXPECTED["myNethersDelight"])
+    if args.variant == "incendium-full":
+        expected.update(FULL_STACK_EXPECTED.values())
     for mod_id in expected:
         if mod_id not in found:
             raise SystemExit(f"S8 {args.variant} profile is missing expected mod id {mod_id}; found {sorted(found)}")
@@ -124,7 +134,7 @@ def main() -> int:
         raise SystemExit(f"S8 {args.variant} profile leaked unselected JNE content: {sorted(leaked & found)}")
 
     packs = sorted(args.datapacks.glob("*.zip"))
-    if args.variant == "incendium":
+    if args.variant in {"incendium", "incendium-full"}:
         packs = [p for p in packs if p.name.lower().startswith("incendium")]
         if len(packs) != 1:
             raise SystemExit(f"Expected exactly one official Incendium ZIP; found {[p.name for p in packs]}")
@@ -150,7 +160,7 @@ def main() -> int:
                     if len(parts) >= 5 and parts[0] == "data" and parts[1] in candidate_namespaces and parts[2] == "worldgen":
                         resource = PurePosixPath(*parts[4:]).with_suffix("")
                         candidate_resources[kind].add(f"{parts[1]}:{resource.as_posix()}")
-    if args.variant != "incendium" and args.datapacks.exists():
+    if args.variant not in {"incendium", "incendium-full"} and args.datapacks.exists():
         candidate_names = [p.name for p in args.datapacks.glob("*") if p.name.lower().startswith("incendium")]
         if candidate_names:
             raise SystemExit(f"S8 {args.variant} profile leaked Incendium: {candidate_names}")
@@ -171,9 +181,9 @@ def main() -> int:
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
             if label == "enabled_datapacks":
                 has_incendium = "incendium" in response.lower()
-                if args.variant == "incendium" and not has_incendium:
+                if args.variant in {"incendium", "incendium-full"} and not has_incendium:
                     raise SystemExit(f"Incendium ZIP is staged but is not enabled in the test world: {response}")
-                if args.variant != "incendium" and has_incendium:
+                if args.variant not in {"incendium", "incendium-full"} and has_incendium:
                     raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
             rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; probe_ms={probe_ms}; command={command}; response={response}")
         for kind in ("biome", "structure"):
