@@ -131,17 +131,36 @@ public final class SkyIslandGeomorphicChannelNetworkPlanner {
         for (SkyIslandSemanticChannelReach reach : semantics.reaches()) {
             SkyIslandGeomorphicNetworkNode start = requireNode(byId, reach.startCellIndex());
             SkyIslandGeomorphicNetworkNode end = requireNode(byId, reach.endCellIndex());
-            SkyIslandGeomorphicCandidateRoute route = Objects.requireNonNull(
+            SkyIslandGeomorphicRouteAnchor startAnchor =
+                    new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0);
+            SkyIslandGeomorphicRouteAnchor endAnchor =
+                    new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0);
+            SkyIslandGeomorphicCandidateRoute drainageGuide = Objects.requireNonNull(
                     SkyIslandTerrainAwareRouteSolver.solvePriorityFloodAtResolution(
                             terrain,
                             interiority,
                             reach.guidancePoints(),
                             semantics.planningSpacing(),
                             corridorHalfWidth,
-                            new SkyIslandGeomorphicRouteAnchor(start.physicalPosition(), 0.0),
-                            new SkyIslandGeomorphicRouteAnchor(end.physicalPosition(), 0.0),
+                            startAnchor,
+                            endAnchor,
                             SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL),
-                    "route solver returned null for semantic reach "
+                    "Priority-Flood drainage guide returned null for semantic reach "
+                            + reach.startCellIndex() + "->" + reach.endCellIndex());
+            // D8 receiver traces provide drainage direction, but their grid stair-steps are
+            // not themselves the authored channel centerline. Realize a smooth, bounded route
+            // around that drainage guide with the established terrain-aware route search.
+            SkyIslandGeomorphicCandidateRoute route = Objects.requireNonNull(
+                    SkyIslandTerrainAwareRouteSolver.solveAtResolution(
+                            terrain,
+                            interiority,
+                            drainageGuide.points(),
+                            semantics.planningSpacing(),
+                            corridorHalfWidth,
+                            startAnchor,
+                            endAnchor,
+                            SkyIslandTerrainAwareRouteSolver.FINE_DIVISIONS_PER_PLANNING_CELL),
+                    "terrain-aware realization returned null for semantic reach "
                             + reach.startCellIndex() + "->" + reach.endCellIndex());
             if (!route.points().getFirst().equals(start.physicalPosition())
                     || !route.points().getLast().equals(end.physicalPosition())) {
