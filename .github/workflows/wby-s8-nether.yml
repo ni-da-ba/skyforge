@@ -109,7 +109,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [control, control-mnd, jne, jne-mnd, incendium, incendium-full]
+        variant: [control, control-mnd, jne, jne-mnd, incendium, incendium-full, incendium-betternether]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     steps:
@@ -279,7 +279,7 @@ jobs:
           export WBY_S7_BOMD=true
           export WBY_S7_COMBAT_VARIANT=tacz
           export WBY_S8_NETHER_VARIANT=${{ matrix.variant }}
-          if [[ "${{ matrix.variant }}" == "incendium" || "${{ matrix.variant }}" == "incendium-full" ]]; then
+          if [[ "${{ matrix.variant }}" == "incendium" || "${{ matrix.variant }}" == "incendium-full" || "${{ matrix.variant }}" == "incendium-betternether" ]]; then
             export WBY_S8_NETHER_DATAPACK_SOURCE="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/datapacks/incendium-5.4.4.zip"
           fi
           export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
