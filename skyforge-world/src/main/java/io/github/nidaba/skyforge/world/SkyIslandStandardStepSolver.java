@@ -68,6 +68,12 @@ public final class SkyIslandStandardStepSolver {
         }
     }
 
+    /** Solved water depth and energy accounting for one subcritical junction branch. */
+    public record JunctionStepResult(
+            double upstreamDepthMetres,
+            JunctionLosses losses,
+            double upstreamEnergyGradeMetres) {}
+
     /**
      * Solves depths at all supplied stations for constant discharge.
      *
@@ -468,6 +474,96 @@ public final class SkyIslandStandardStepSolver {
 
     private static double conveyance(double depth, CrossSection section, double roughness) {
         return positiveFinite(section.conveyance(depth, roughness), "Manning conveyance");
+    }
+
+    /**
+     * Solves the upstream depth for one subcritical branch of a combining junction. The
+     * downstream depth is the boundary condition; branch and combined-flow discharges are
+     * supplied independently. A root outside the subcritical regime fails closed.
+     */
+    public static JunctionStepResult solveSubcriticalCombiningJunction(
+            double upstreamBedElevationMetres,
+            double downstreamBedElevationMetres,
+            double downstreamDepthMetres,
+            CrossSection upstreamSection,
+            CrossSection downstreamSection,
+            double upstreamDischargeCubicMetresPerSecond,
+            double downstreamDischargeCubicMetresPerSecond,
+            double upstreamManningRoughness,
+            double downstreamManningRoughness,
+            double reachLengthMetres,
+            double contractionCoefficient,
+            double expansionCoefficient) {
+        requireFinite(upstreamBedElevationMetres, "upstream bed elevation");
+        requireFinite(downstreamBedElevationMetres, "downstream bed elevation");
+        Objects.requireNonNull(upstreamSection, "upstreamSection");
+        Objects.requireNonNull(downstreamSection, "downstreamSection");
+        requirePositiveFinite(downstreamDepthMetres, "downstream depth");
+        double downstreamCritical = criticalDepth(
+                downstreamDischargeCubicMetresPerSecond, downstreamSection);
+        if (!(downstreamDepthMetres > downstreamCritical)) {
+            throw new IllegalArgumentException(
+                    "subcritical junction downstream depth must exceed critical depth");
+        }
+        double downstreamEnergyGrade = downstreamBedElevationMetres
+                + specificEnergy(
+                        downstreamDepthMetres, downstreamSection,
+                        downstreamDischargeCubicMetresPerSecond);
+        double lower = criticalDepth(upstreamDischargeCubicMetresPerSecond, upstreamSection);
+        Residual residual = depth -> upstreamBedElevationMetres
+                + specificEnergy(depth, upstreamSection, upstreamDischargeCubicMetresPerSecond)
+                - downstreamEnergyGrade
+                - combiningJunctionLosses(
+                        reachLengthMetres,
+                        upstreamSection,
+                        depth,
+                        upstreamDischargeCubicMetresPerSecond,
+                        upstreamManningRoughness,
+                        downstreamSection,
+                        downstreamDepthMetres,
+                        downstreamDischargeCubicMetresPerSecond,
+                        downstreamManningRoughness,
+                        contractionCoefficient,
+                        expansionCoefficient).totalLossMetres();
+        double lowerResidual = residual.at(lower);
+        if (!(lowerResidual < 0.0)) {
+            throw new IllegalArgumentException(
+                    "subcritical combining junction has no same-regime energy root");
+        }
+        double upper = Math.max(Math.max(lower * 2.0, downstreamDepthMetres), 1.0);
+        double upperResidual = residual.at(upper);
+        int expansions = 0;
+        while (upperResidual < 0.0 && expansions < MAXIMUM_BRACKET_EXPANSIONS) {
+            upper *= 2.0;
+            upperResidual = residual.at(upper);
+            expansions++;
+        }
+        if (upperResidual < 0.0) {
+            throw new IllegalArgumentException(
+                    "subcritical combining junction could not bracket energy root");
+        }
+        double upstreamDepth = bisect(lower, upper, residual);
+        JunctionLosses losses = combiningJunctionLosses(
+                reachLengthMetres,
+                upstreamSection,
+                upstreamDepth,
+                upstreamDischargeCubicMetresPerSecond,
+                upstreamManningRoughness,
+                downstreamSection,
+                downstreamDepthMetres,
+                downstreamDischargeCubicMetresPerSecond,
+                downstreamManningRoughness,
+                contractionCoefficient,
+                expansionCoefficient);
+        double upstreamEnergyGrade = upstreamBedElevationMetres
+                + specificEnergy(upstreamDepth, upstreamSection, upstreamDischargeCubicMetresPerSecond);
+        return new JunctionStepResult(upstreamDepth, losses, upstreamEnergyGrade);
+    }
+
+    private static void requireFinite(double value, String name) {
+        if (!Double.isFinite(value)) {
+            throw new IllegalArgumentException(name + " must be finite");
+        }
     }
 
     /**
