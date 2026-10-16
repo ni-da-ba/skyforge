@@ -21,6 +21,9 @@ ARCHIVE_URL = (
     "download/1.0.33/Example_Projects_6_6.zip"
 )
 EXPECTED_ARCHIVE_BYTES = 432_389_121
+EXPECTED_ARCHIVE_SHA256 = (
+    "ea239b506155a2dfeda2af80b3c2af948eef42c40218bcd65de472cfed386887"
+)
 TEXT_INPUT_SUFFIX = re.compile(r"\.(?:prj|p\d{2}|g\d{2}|f\d{2})$", re.IGNORECASE)
 MAX_MEMBER_BYTES = 160_000
 MAX_TOTAL_BYTES = 500_000
@@ -69,6 +72,13 @@ def main() -> int:
                 f"Downloaded {received} bytes; expected {EXPECTED_ARCHIVE_BYTES}"
             )
 
+        archive_sha256 = digest.hexdigest()
+        if archive_sha256 != EXPECTED_ARCHIVE_SHA256:
+            raise RuntimeError(
+                f"Unexpected HEC archive SHA-256: {archive_sha256}; "
+                f"expected {EXPECTED_ARCHIVE_SHA256}"
+            )
+
         with zipfile.ZipFile(archive) as bundle:
             names = bundle.namelist()
             members = selected_members(names)
@@ -109,7 +119,7 @@ def main() -> int:
     result = {
         "source_url": ARCHIVE_URL,
         "archive_size_bytes": received,
-        "archive_sha256": digest.hexdigest(),
+        "archive_sha256": archive_sha256,
         "project": "Applications Guide / Example 10 - Stream Junction",
         "fixture_scope": "HEC-RAS project, geometry, and steady-flow text inputs only",
         "hydraulic_results_included": False,
