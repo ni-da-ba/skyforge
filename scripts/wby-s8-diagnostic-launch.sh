@@ -3,7 +3,7 @@ set -euo pipefail
 
 variant="${1:-}"
 case "$variant" in
-  control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-full-wither|incendium-betternether) ;;
+  control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-full-wither|incendium-full-betterbastions|incendium-betternether) ;;
   *) echo "Usage: bash scripts/wby-s8-diagnostic-launch.sh {control|control-mnd|jne|jne-mnd|incendium|incendium-full|incendium-full-wither|incendium-betternether}" >&2; exit 2 ;;
 esac
 
@@ -58,11 +58,13 @@ if [[ "$variant" == "control-mnd" || "$variant" == "jne-mnd" ]]; then
   cp -f "${matches[0]}" "$run/mods/"
 fi
 
-if [[ "$variant" == "incendium-full" || "$variant" == "incendium-full-wither" ]]; then
+if [[ "$variant" == "incendium-full" || "$variant" == "incendium-full-wither" || "$variant" == "incendium-full-betterbastions" ]]; then
+  dependency_variant="$variant"
+  if [[ "$variant" == "incendium-full-betterbastions" ]]; then dependency_variant="incendium-full"; fi
   python_bin="$(command -v python3 || command -v python || true)"
   if [[ -z "$python_bin" ]]; then echo "Python 3 is required to stage the official review dependencies." >&2; exit 2; fi
-  "$python_bin" scripts/wby-s8-download-nether-review-deps.py "$variant"
-  full_downloads="$downloads/$variant"
+  "$python_bin" scripts/wby-s8-download-nether-review-deps.py "$dependency_variant"
+  full_downloads="$downloads/$dependency_variant"
   expected_full_jars=(
     '*netherdepthsupgrade*.jar'
     '*nether*industry*.jar'
@@ -82,6 +84,40 @@ if [[ "$variant" == "incendium-full" || "$variant" == "incendium-full-wither" ]]
     fi
     cp -f "${matches[0]}" "$run/mods/"
   done
+  if [[ "$variant" == "incendium-full-betterbastions" ]]; then
+    candidate_downloads="$downloads/$variant"
+    candidate="$candidate_downloads/betterbastions-1.0.0+neoforge-1.21.1.jar"
+    mkdir -p "$candidate_downloads"
+    if [[ ! -s "$candidate" ]]; then
+      cat >&2 <<EOF
+Download the official Better Bastions 1.0.0 NeoForge 1.21.1 file from:
+  https://www.curseforge.com/minecraft/mc-mods/better-bastions/files
+Save it as:
+  $candidate
+Select the exact file named betterbastions-1.0.0+neoforge-1.21.1.jar.
+This A/B binary stays local: CurseForge metadata says All Rights Reserved while the author page states MIT modpack permission.
+EOF
+      exit 2
+    fi
+    cp -f "$candidate" "$run/mods/"
+    "$python_bin" - "$candidate" "$bundle/better-bastions-artifact.txt" <<'PY'
+import hashlib
+import sys
+from pathlib import Path
+from zipfile import ZipFile
+jar = Path(sys.argv[1])
+with ZipFile(jar) as archive:
+    metadata = [name for name in ("META-INF/neoforge.mods.toml", "META-INF/mods.toml") if name in archive.namelist()]
+    if not metadata:
+        raise SystemExit("Better Bastions file has no NeoForge/Forge mod metadata")
+    text = "\n".join(archive.read(name).decode("utf-8", "replace") for name in metadata)
+    if "betterbastions" not in text.lower():
+        raise SystemExit("Downloaded jar does not identify itself as Better Bastions")
+digest = hashlib.sha256(jar.read_bytes()).hexdigest()
+Path(sys.argv[2]).write_text(f"filename={jar.name}\nsha256={digest}\n", encoding="utf-8")
+print(f"Verified local Better Bastions artifact sha256={digest}")
+PY
+  fi
   pack="$full_downloads/Incendium-5.4.4.zip"
   if [[ ! -s "$pack" ]]; then echo "Official Incendium ZIP missing after staging: $pack" >&2; exit 2; fi
   echo "During Create World > Data Packs > Open Pack Folder, copy this ZIP into the opened world datapacks folder:"
@@ -134,6 +170,8 @@ echo "Check for fortresses and Blaze access, bastion/candidate structures, dupli
 echo "The jne arm excludes My Nether's Delight, so assess its substrate/rendering independently. Compare control-mnd with jne-mnd on the same seed to see whether JNE suppresses Powdery Cannon generation. The historical JNE darkness report involved No Man's Land, which is not part of this S0-S7 stack; note unexpected darkness without attributing that report to MND."
 echo "For incendium-betternether, treat this as the isolated biome/feature composition qualification; do not infer compatibility from a successful launch alone."
 echo "For incendium-full-wither, also compare the Wither fight against the ordinary Incendium full profile; summon one only in this disposable creative review world."
+echo "For incendium-full-betterbastions, compare governed vanilla bastions in incendium-full against the local Better Bastions overlay. Use fresh worlds with seed 817304 so existing bastion chunks cannot bias the comparison."
+echo "Better Bastions is local-only pending reconciliation of CurseForge's ARR metadata with the author's MIT modpack permission statement."
 echo "Wither: Reincarnated is All Rights Reserved and is staged only in the local review folder; do not package or upload its jar."
 echo "For incendium-full, review the cumulative Nether stack: terrain/biomes, Nether Depths Upgrade ecology/resources, My Nether's Delight, Create: Nether Industry inputs and processing, ThinAir breathability and Create backtank interaction, and YUNG fortress/Blaze access. Check how these systems interact with the accepted Eternal Nether and S7 threat/BOMD layers."
 echo "Record coordinates, screenshots, concerns, and any progression bypass. The control/JNE/Incendium arms inform substrate choice. The control-mnd and jne-mnd runs form a matched Powdery Cannon interaction check, not additional substrate candidates. Do not tune recipes, drops, spawn rates, loot, or balance."

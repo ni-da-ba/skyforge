@@ -178,6 +178,16 @@ def main() -> int:
         for resource in sorted(resources):
             rows.append(f"candidate_resource\t{resource}\t\t\t{kind}\t")
     if args.live:
+        def performance_sample(stage: str) -> None:
+            command = "tick query"
+            started = time.perf_counter()
+            response = rcon(command, args.host, args.port, args.password)
+            probe_ms = round((time.perf_counter() - started) * 1000, 1)
+            if re.search(r"unknown command|unknown or incomplete command", response, re.IGNORECASE):
+                raise SystemExit(f"S8 server tick query is unavailable: {response}")
+            rows.append(f"performance_sample\tserver_tick_query\t\t\t\tseed={args.seed}; stage={stage}; command={command}; probe_ms={probe_ms}; response={response}")
+
+        performance_sample("before-nether-locate-probes")
         commands = (
             ("nether_fortress", "execute in minecraft:the_nether run locate structure minecraft:fortress"),
             ("nether_wastes", "execute in minecraft:the_nether run locate biome minecraft:nether_wastes"),
@@ -205,6 +215,7 @@ def main() -> int:
                 if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                     raise SystemExit(f"Candidate resource is not registered in the live world: {resource}: {response}")
                 rows.append(f"candidate_locate\t{resource}\t\t\t{kind}\tseed={args.seed}; probe_ms={probe_ms}; response={response}")
+        performance_sample("after-nether-locate-probes")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
