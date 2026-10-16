@@ -721,8 +721,7 @@ public final class SkyforgeNeoForge1211SurfaceStage {
             net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
             BlockPos position) {
         Objects.requireNonNull(dimension, "dimension");
-        if (ACTIVE.get() == null && READ_ONLY_HYDROLOGY.get() != null
-                && !dimension.equals(net.minecraft.world.level.Level.OVERWORLD)) {
+        if (!dimension.equals(net.minecraft.world.level.Level.OVERWORLD)) {
             return false;
         }
         return isAuthoredVisibleHydrologyPosition(position);

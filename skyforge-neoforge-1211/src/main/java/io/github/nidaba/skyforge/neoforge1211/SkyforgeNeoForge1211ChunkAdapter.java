@@ -502,6 +502,12 @@ public final class SkyforgeNeoForge1211ChunkAdapter {
                 && interpreter.classify(worldX, worldY, worldZ).isSolid();
     }
 
+    /** Expected original terrain identity; positive-air authority must not erase player solids. */
+    ResourceLocation originalTerrainBlockKey(
+            SkyIslandWorldVolumeId volumeId, int worldX, int worldY, int worldZ) {
+        return palette.blockKey(requireInterpreter(volumeId).classify(worldX, worldY, worldZ));
+    }
+
     /** Positive-air hydrology may not enter even the bounding envelope of a foreign volume. */
     boolean isInsideOtherVolume(
             SkyIslandWorldVolumeId volumeId, int worldX, int worldY, int worldZ) {

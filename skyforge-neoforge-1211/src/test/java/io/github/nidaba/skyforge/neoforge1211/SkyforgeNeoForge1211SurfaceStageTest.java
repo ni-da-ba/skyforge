@@ -332,6 +332,8 @@ final class SkyforgeNeoForge1211SurfaceStageTest {
                 assertTrue(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position));
             }
             assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(outsideWater));
+            assertFalse(SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(
+                    net.minecraft.world.level.Level.NETHER, water.getFirst()));
             assertThrows(IllegalStateException.class, () ->
                     SkyforgeNeoForge1211SurfaceStage.installReadOnlyHydrologyFence(authorization));
         }

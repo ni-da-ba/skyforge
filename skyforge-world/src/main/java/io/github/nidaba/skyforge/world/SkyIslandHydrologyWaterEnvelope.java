@@ -22,6 +22,7 @@ public final class SkyIslandHydrologyWaterEnvelope {
     }
 
     public static List<Column> columns(SkyIslandFluvialVoxelQuantizationPlan plan) {
+        plan.candidatePlan().requireAssociation(plan.association());
         boolean associated = plan.candidatePlan().worldAssociation().isPresent();
         Map<Long, Column> bands = new LinkedHashMap<>();
         for (var column : plan.authorizedColumns()) {

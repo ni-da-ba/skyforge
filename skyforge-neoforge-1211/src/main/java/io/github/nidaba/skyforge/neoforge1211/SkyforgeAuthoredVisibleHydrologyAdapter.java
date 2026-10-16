@@ -128,8 +128,7 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
     static Set<Long> authorizedWaterPositions(
             SkyIslandHydrologyRuntimeAuthorization authorization) {
         Set<Long> positions = new LinkedHashSet<>();
-        for (var column : io.github.nidaba.skyforge.world.SkyIslandHydrologyWaterEnvelope.columns(
-                authorization.quantization())) {
+        for (var column : authorization.waterEnvelope()) {
             for (int y = column.minimumY(); y <= column.maximumY(); y++) {
                 positions.add(new BlockPos(column.worldX(), y, column.worldZ()).asLong());
             }
@@ -234,13 +233,42 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
                             position.getX(), position.getY(), position.getZ()))) {
                 throw new IllegalStateException("water envelope intersects a foreign volume");
             }
+            if (position.getY() < chunk.getMinBuildHeight()
+                    || position.getY() >= chunk.getMaxBuildHeight()) {
+                throw new IllegalStateException("water envelope exceeds build height");
+            }
             var previous = chunk.getBlockState(position);
             boolean removable = authorization.allowsRemoval(
                     position.getX(), position.getY(), position.getZ())
                     && terrain.isSolidOwnedBy(authorization.association().realizedVolumeId(),
                             position.getX(), position.getY(), position.getZ());
-            if (!previous.isAir() && !previous.is(Blocks.WATER) && !removable) {
+            boolean originalTerrain = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .getKey(previous.getBlock()).equals(terrain.originalTerrainBlockKey(
+                            authorization.association().realizedVolumeId(),
+                            position.getX(), position.getY(), position.getZ()));
+            if (!previous.isAir() && !previous.is(Blocks.WATER)
+                    && (!removable || (associated && !originalTerrain))) {
                 throw new IllegalStateException("water envelope would overwrite an unrelated solid");
+            }
+        }
+        if (authorization.quantization().candidatePlan().worldAssociation().isPresent()) {
+            for (var component : removals) {
+                for (BlockPos position : component.positions()) {
+                    if (!chunk.getPos().equals(new ChunkPos(position))) {
+                        continue;
+                    }
+                    requireAuthorizedOwner(terrain, authorization, position);
+                    var state = chunk.getBlockState(position);
+                    boolean expectedTerrain = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                            .getKey(state.getBlock()).equals(terrain.originalTerrainBlockKey(
+                                    authorization.association().realizedVolumeId(),
+                                    position.getX(), position.getY(), position.getZ()));
+                    if (!state.isAir() && !expectedTerrain
+                            && !(state.is(Blocks.WATER)
+                                    && authorizedWaterPositions.contains(position.asLong()))) {
+                        throw new IllegalStateException("excavation would overwrite an unrelated block");
+                    }
+                }
             }
         }
         int changed = 0;

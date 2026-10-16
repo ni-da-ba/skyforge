@@ -70,6 +70,17 @@ public record SkyIslandHydrologyRuntimeAuthorization(
                         && y <= column.originalSupport().maximumSolidY());
     }
 
+    /** Explicit finite water authority, separate from original-solid excavation support. */
+    public java.util.List<SkyIslandHydrologyWaterEnvelope.Column> waterEnvelope() {
+        return SkyIslandHydrologyWaterEnvelope.columns(quantization);
+    }
+
+    public boolean allowsWater(int worldX, int y, int worldZ) {
+        return waterEnvelope().stream().anyMatch(column ->
+                column.worldX() == worldX && column.worldZ() == worldZ
+                        && y >= column.minimumY() && y <= column.maximumY());
+    }
+
     public boolean allowsRemoval(int worldX, int y, int worldZ) {
         return quantization.authorizedColumns().stream()
                 .anyMatch(column -> column.worldX() == worldX
