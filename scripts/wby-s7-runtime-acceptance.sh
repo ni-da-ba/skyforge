@@ -6,7 +6,8 @@ server_java="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 client_dir="skyforge-neoforge-1211/run-wby-s7-join-client"
 mkdir -p "$server_dir" "$client_dir"
 printf 'eula=true\n' > "$server_dir/eula.txt"
-cat > "$server_dir/server.properties" <<'EOF'
+export WBY_S7_RCON_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+cat > "$server_dir/server.properties" <<EOF
 level-name=s7-acceptance
 level-seed=817304
 level-type=minecraft:normal
@@ -22,7 +23,7 @@ max-players=1
 server-port=25565
 enable-rcon=true
 rcon.port=25575
-rcon.password=skyforge-s7-local-probe
+rcon.password=$WBY_S7_RCON_PASSWORD
 broadcast-rcon-to-ops=false
 EOF
 printf 'onboardAccessibility:false\n' > "$client_dir/options.txt"
@@ -210,12 +211,12 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
     --variant "$WBY_S8_NETHER_VARIANT" \
     --mods "$server_dir/mods" \
     --datapacks "$server_dir/s7-acceptance/datapacks" \
-    --live --host 127.0.0.1 --port 25575 --password skyforge-s7-local-probe \
+    --live --host 127.0.0.1 --port 25575 \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --skip-entity-probes
@@ -261,7 +262,7 @@ done
 test "$joined" = true
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --entities-only
@@ -313,7 +314,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --server-log "$server_latest_log" \
     --client-log "$client_latest_log" \
     --runtime-root "$server_dir" \
-    --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
+    --rcon-host 127.0.0.1 --rcon-port 25575 \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
     "${combat_profile_args[@]}" "${s8_profile_overlay_args[@]}"
 fi
