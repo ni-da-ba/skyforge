@@ -23,7 +23,7 @@ EXPECTED = {
     "betterNetherNewDawn": "betternether",
     "bclibNewDawn": "bclib",
     "wunderLibNewDawn": "wunderlib",
-    "worldWeaverNewDawn": "worldweaver",
+    "worldWeaverNewDawn": "wover",
 }
 FULL_STACK_EXPECTED = {
     "netherDepthsUpgrade": "netherdepthsupgrade",
