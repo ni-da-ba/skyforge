@@ -22,7 +22,7 @@ public final class SkyIslandHydraulicCandidateBuilder {
             SkyIslandGeomorphicCandidateRoute route,
             SkyIslandSemanticField terrain,
             Configuration configuration) {
-        return build(route, terrain, configuration, null);
+        return buildJoint(route, terrain, configuration, null);
     }
 
     /**
@@ -31,6 +31,15 @@ public final class SkyIslandHydraulicCandidateBuilder {
      * the configured minimum grade, and remain within the configured terrain-edit envelope.
      */
     public static Candidate build(
+            SkyIslandGeomorphicCandidateRoute route,
+            SkyIslandSemanticField terrain,
+            Configuration configuration,
+            double[] jointBedElevationsMetres) {
+        Objects.requireNonNull(jointBedElevationsMetres, "jointBedElevationsMetres");
+        return buildJoint(route, terrain, configuration, jointBedElevationsMetres);
+    }
+
+    private static Candidate buildJoint(
             SkyIslandGeomorphicCandidateRoute route,
             SkyIslandSemanticField terrain,
             Configuration configuration,
