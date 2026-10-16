@@ -27,6 +27,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Runtime binding between compiled Skyforge terrain and the Minecraft 1.21.1 adapter. */
 public final class SkyforgeNeoForge1211SurfaceStage {
     private static final AtomicReference<RuntimeBinding> ACTIVE = new AtomicReference<>();
+    private static final AtomicReference<java.util.Set<Long>> READ_ONLY_HYDROLOGY =
+            new AtomicReference<>();
     private static final int MAX_DEFERRED_MATERIALIZATION_COLUMNS_PER_QUANTUM = 32;
 
     private SkyforgeNeoForge1211SurfaceStage() {}
@@ -663,12 +665,15 @@ public final class SkyforgeNeoForge1211SurfaceStage {
                 HydrologyMode.LEGACY_COMPATIBILITY);
     }
 
-    private static AutoCloseable install(
+    private static synchronized AutoCloseable install(
             SkyforgeNeoForge1211ChunkAdapter adapter,
             SkyforgeNeoForge1211ChunkWriter writer,
             Optional<MinecraftNativeSurfaceTopAdapter> nativeSurfaceTopAdapter,
             Map<SkyIslandWorldVolumeId, SkyIslandHydrologyRuntimeAuthorization> hydrologyAuthorizations,
             HydrologyMode hydrologyMode) {
+        if (READ_ONLY_HYDROLOGY.get() != null) {
+            throw new IllegalStateException("a read-only hydrology fence is already installed");
+        }
         RuntimeBinding binding = new RuntimeBinding(
                 adapter, writer, nativeSurfaceTopAdapter, hydrologyAuthorizations, hydrologyMode, null);
         if (!ACTIVE.compareAndSet(null, binding)) {
@@ -681,10 +686,59 @@ public final class SkyforgeNeoForge1211SurfaceStage {
         };
     }
 
+
+    /**
+     * Restores only the exact static-water tick mask from an already validated authorization.
+     * Does not install terrain generation, a writer, removal authority, or native adaptation.
+     */
+    static synchronized AutoCloseable installReadOnlyHydrologyFence(
+            SkyIslandHydrologyRuntimeAuthorization authorization) {
+        Objects.requireNonNull(authorization, "authorization");
+        if (ACTIVE.get() != null) {
+            throw new IllegalStateException("cannot install a read-only fence over a terrain binding");
+        }
+        var positions = SkyforgeAuthoredVisibleHydrologyAdapter.authorizedWaterPositions(authorization);
+        if (positions.isEmpty()) {
+            throw new IllegalArgumentException("read-only hydrology fence requires qualified water positions");
+        }
+        if (!READ_ONLY_HYDROLOGY.compareAndSet(null, positions)) {
+            throw new IllegalStateException("a read-only hydrology fence is already installed");
+        }
+        return () -> {
+            if (!READ_ONLY_HYDROLOGY.compareAndSet(positions, null)) {
+                throw new IllegalStateException("read-only hydrology fence changed before close");
+            }
+        };
+    }
+
+    static boolean hasReadOnlyHydrologyFence() {
+        return READ_ONLY_HYDROLOGY.get() != null;
+    }
+
+
+    /** Read-only prepared-world water is scoped to the Overworld, not unrelated dimensions. */
+    static boolean isAuthoredVisibleHydrologyPosition(
+            net.minecraft.resources.ResourceKey<net.minecraft.world.level.Level> dimension,
+            BlockPos position) {
+        Objects.requireNonNull(dimension, "dimension");
+        if (!dimension.equals(net.minecraft.world.level.Level.OVERWORLD)) {
+            return false;
+        }
+        return isAuthoredVisibleHydrologyPosition(position);
+    }
+
     static boolean isAuthoredVisibleHydrologyPosition(BlockPos position) {
         Objects.requireNonNull(position, "position");
         RuntimeBinding binding = ACTIVE.get();
-        return binding != null && binding.adapter().isAuthoredVisibleHydrologyPosition(position);
+        if (binding == null) {
+            var positions = READ_ONLY_HYDROLOGY.get();
+            return positions != null && positions.contains(position.asLong());
+        }
+        if (binding.hydrologyMode() == HydrologyMode.QUALIFIED_ONLY) {
+            return binding.qualifiedHydrologyBinding().authorizedWaterPositions().values().stream()
+                    .anyMatch(positions -> positions.contains(position.asLong()));
+        }
+        return binding.adapter().isAuthoredVisibleHydrologyPosition(position);
     }
 
     static boolean hasActiveBinding() {

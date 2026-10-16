@@ -28,6 +28,10 @@ public record SkyIslandHydrologyRuntimeAuthorization(
             throw new IllegalArgumentException(
                     "runtime authorization requires at least one validated hydrology column");
         }
+        if (quantization.candidatePlan().worldAssociation().isPresent()
+                && SkyIslandHydrologyWaterEnvelope.columns(quantization).isEmpty()) {
+            throw new IllegalArgumentException("associated river requires connected integer water");
+        }
     }
 
     /**
@@ -64,6 +68,17 @@ public record SkyIslandHydrologyRuntimeAuthorization(
                         && column.worldZ() == worldZ
                         && y >= column.originalSupport().minimumSolidY()
                         && y <= column.originalSupport().maximumSolidY());
+    }
+
+    /** Explicit finite water authority, separate from original-solid excavation support. */
+    public java.util.List<SkyIslandHydrologyWaterEnvelope.Column> waterEnvelope() {
+        return SkyIslandHydrologyWaterEnvelope.columns(quantization);
+    }
+
+    public boolean allowsWater(int worldX, int y, int worldZ) {
+        return waterEnvelope().stream().anyMatch(column ->
+                column.worldX() == worldX && column.worldZ() == worldZ
+                        && y >= column.minimumY() && y <= column.maximumY());
     }
 
     public boolean allowsRemoval(int worldX, int y, int worldZ) {

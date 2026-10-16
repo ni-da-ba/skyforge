@@ -114,20 +114,22 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             removals.put(entry.getKey(), authorizedRemovalProjection(authorization));
             authorizedWaterPositions.put(entry.getKey(), authorizedWaterPositions(authorization));
         }
+        Set<Long> occupied = new LinkedHashSet<>();
+        for (var positions : authorizedWaterPositions.values()) {
+            for (long position : positions) {
+                if (!occupied.add(position)) {
+                    throw new IllegalArgumentException("qualified water envelopes overlap");
+                }
+            }
+        }
         return new QualifiedHydrologyBinding(bindings, removals, authorizedWaterPositions);
     }
 
-    private static Set<Long> authorizedWaterPositions(
+    static Set<Long> authorizedWaterPositions(
             SkyIslandHydrologyRuntimeAuthorization authorization) {
         Set<Long> positions = new LinkedHashSet<>();
-        for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {
-            if (!column.projection().semanticSample().wet() || !column.mutatesTerrain()) {
-                continue;
-            }
-            int waterMaximumY = Math.min(
-                    waterMaximumY(column, authorization),
-                    column.originalSupport().maximumSolidY());
-            for (int y = column.targetMaximumSolidY() + 1; y <= waterMaximumY; y++) {
+        for (var column : authorization.waterEnvelope()) {
+            for (int y = column.minimumY(); y <= column.maximumY(); y++) {
                 positions.add(new BlockPos(column.worldX(), y, column.worldZ()).asLong());
             }
         }
@@ -217,6 +219,58 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
         Objects.requireNonNull(terrain, "terrain");
         Objects.requireNonNull(authorization, "authorization");
 
+        // Validate every destination before any excavation or water write in this chunk.
+        for (long packed : authorizedWaterPositions) {
+            BlockPos position = BlockPos.of(packed);
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
+                continue;
+            }
+            boolean associated = authorization.quantization().candidatePlan().worldAssociation().isPresent();
+            if (terrain.isSolidOwnedByOtherVolume(authorization.association().realizedVolumeId(),
+                            position.getX(), position.getY(), position.getZ())
+                    || (associated && terrain.isInsideOtherVolume(
+                            authorization.association().realizedVolumeId(),
+                            position.getX(), position.getY(), position.getZ()))) {
+                throw new IllegalStateException("water envelope intersects a foreign volume");
+            }
+            if (position.getY() < chunk.getMinBuildHeight()
+                    || position.getY() >= chunk.getMaxBuildHeight()) {
+                throw new IllegalStateException("water envelope exceeds build height");
+            }
+            var previous = chunk.getBlockState(position);
+            boolean removable = authorization.allowsRemoval(
+                    position.getX(), position.getY(), position.getZ())
+                    && terrain.isSolidOwnedBy(authorization.association().realizedVolumeId(),
+                            position.getX(), position.getY(), position.getZ());
+            boolean originalTerrain = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                    .getKey(previous.getBlock()).equals(terrain.originalTerrainBlockKey(
+                            authorization.association().realizedVolumeId(),
+                            position.getX(), position.getY(), position.getZ()));
+            if (!previous.isAir() && !previous.is(Blocks.WATER)
+                    && (!removable || (associated && !originalTerrain))) {
+                throw new IllegalStateException("water envelope would overwrite an unrelated solid");
+            }
+        }
+        if (authorization.quantization().candidatePlan().worldAssociation().isPresent()) {
+            for (var component : removals) {
+                for (BlockPos position : component.positions()) {
+                    if (!chunk.getPos().equals(new ChunkPos(position))) {
+                        continue;
+                    }
+                    requireAuthorizedOwner(terrain, authorization, position);
+                    var state = chunk.getBlockState(position);
+                    boolean expectedTerrain = net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                            .getKey(state.getBlock()).equals(terrain.originalTerrainBlockKey(
+                                    authorization.association().realizedVolumeId(),
+                                    position.getX(), position.getY(), position.getZ()));
+                    if (!state.isAir() && !expectedTerrain
+                            && !(state.is(Blocks.WATER)
+                                    && authorizedWaterPositions.contains(position.asLong()))) {
+                        throw new IllegalStateException("excavation would overwrite an unrelated block");
+                    }
+                }
+            }
+        }
         int changed = 0;
         for (var component : removals) {
             for (BlockPos position : component.positions()) {
@@ -236,31 +290,17 @@ final class SkyforgeAuthoredVisibleHydrologyAdapter {
             }
         }
 
-        for (SkyIslandFluvialVoxelColumn column : authorization.quantization().authorizedColumns()) {
-            if (!column.projection().semanticSample().wet()
-                    || !column.mutatesTerrain()) {
+        for (long packed : authorizedWaterPositions) {
+            BlockPos position = BlockPos.of(packed);
+            if (!chunk.getPos().equals(new ChunkPos(position))) {
                 continue;
             }
-            int waterMaximumY = Math.min(
-                    waterMaximumY(column, authorization),
-                    column.originalSupport().maximumSolidY());
-            int firstWaterY = column.targetMaximumSolidY() + 1;
-            if (waterMaximumY < firstWaterY) {
-                continue;
-            }
-            for (int y = firstWaterY; y <= waterMaximumY; y++) {
-                BlockPos position = new BlockPos(column.worldX(), y, column.worldZ());
-                if (!chunk.getPos().equals(new ChunkPos(position))) {
-                    continue;
-                }
-                requireAuthorizedOwner(terrain, authorization, position);
-                if (!chunk.getBlockState(position).is(Blocks.WATER)) {
-                    var previous = chunk.getBlockState(position);
-                    chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
-                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(
-                            chunk, position, previous, chunk.getBlockState(position));
-                    changed++;
-                }
+            var previous = chunk.getBlockState(position);
+            if (!previous.is(Blocks.WATER)) {
+                chunk.setBlockState(position, Blocks.WATER.defaultBlockState(), false);
+                SkyforgeDeferredChunkMutationLifecycle.afterWrite(
+                        chunk, position, previous, chunk.getBlockState(position));
+                changed++;
             }
         }
         return changed;

@@ -195,6 +195,8 @@ on:
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialProvenance.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialSample.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialTerrainField.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydrologyJoinDiagnosticsTest.java"
+      - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandAssociatedHydraulicTerrainTest.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialRealizationPlan.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferralReason.java"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandQualifiedFluvialDeferral.java"
@@ -273,11 +275,30 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          fetch-depth: 2
+
+      - name: Classify diagnostic-only change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: |
+          diagnostic_only=false
+          if [ "$EVENT_NAME" = pull_request ]; then
+            diagnostic_only=true
+            while IFS= read -r path; do
+              case "$path" in
+                .github/workflows/hydrology-reset-geometry.yml|docs/authorship/HYDROLOGY_RIVER_JOIN_CONTINUITY.md|skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandHydrologyJoinDiagnosticsTest.java) ;;
+                *) diagnostic_only=false ;;
+              esac
+            done < <(git diff --name-only HEAD^ HEAD)
+          fi
+          echo "diagnostic_only=$diagnostic_only" >> "$GITHUB_OUTPUT"
 
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
       - name: Run established hydraulic benchmarks and game-scale controls
+        if: steps.scope.outputs.diagnostic_only != 'true'
         run: |
           ./gradlew \
             :skyforge-world:test \
@@ -286,11 +307,16 @@ jobs:
             --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSubcriticalProfileFromConstructedBed' \
             --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSupercriticalProfileFromConstructedBed' \
             --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
-            --tests '*SkyIslandGameScaleHydraulicModelTest' \
+            --tests '*SkyIslandGameScaleHydraulicModelTest.accepted77EdgeOutletReachesCloseOnTheirCandidateBeds' \
+            --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
+            --tests '*SkyIslandAssociatedHydraulicTerrainTest' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
             --no-configuration-cache
+      - name: Run join diagnostics with unchanged production evidence reused
+        if: steps.scope.outputs.diagnostic_only == 'true'
+        run: ./gradlew :skyforge-world:test --tests '*SkyIslandHydrologyJoinDiagnosticsTest' --no-configuration-cache
       - name: Print focused hydraulic test failure details
         if: failure()
         run: |
@@ -298,6 +324,9 @@ jobs:
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandStandardStepSolverTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandUnitWidthStandardStepSolverTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandGameScaleHydraulicModelTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydrologyJoinDiagnosticsTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandAssociatedHydraulicTerrainTest.xml \
+            skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandHydraulicCandidateBuilderTest.xml \
             skyforge-world/build/test-results/test/TEST-io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidatePlannerTest.xml
           do
             if [ -f "$report" ]; then
@@ -305,12 +334,51 @@ jobs:
               cat "$report"
             fi
           done
+      - name: Print river join diagnostic summary
+        if: always()
+        run: |
+          report=skyforge-world/build/evidence/hydrology-join-diagnostics/summary.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+            cat skyforge-world/build/evidence/hydrology-join-diagnostics/geometry.csv
+          fi
+          report=skyforge-world/build/evidence/hydrology-join-diagnostics/projection-summary.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
+          report=skyforge-world/build/evidence/hydrology-join-diagnostics/associated-summary.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
+      - name: Upload river join diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: hydrology-join-diagnostics-${{ github.sha }}
+          path: skyforge-world/build/evidence/hydrology-join-diagnostics/
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Verify qualified static-water fence and writer-inert reload binding
+        if: steps.scope.outputs.diagnostic_only != 'true'
+        run: >-
+          ./gradlew :skyforge-neoforge-1211:test
+          --tests '*SkyforgeNeoForge1211SurfaceStageTest.qualifiedTickFenceUsesExactWaterAndReadOnlyReloadDoesNotInstallWriter'
+          --tests '*SkyforgeGeneratedFluidPropagationSourceTest'
+          --tests '*SkyforgeAuthoredVisibleHydrologyAdapterTest.f4kReviewUsesConnectedWaterAboveOldGroundAndRejectsForeignSolid'
+          --no-configuration-cache
+      - name: Print static-water fence failure details
+        if: failure()
+        run: |
+          report=skyforge-neoforge-1211/build/test-results/test/TEST-io.github.nidaba.skyforge.neoforge1211.SkyforgeNeoForge1211SurfaceStageTest.xml
+          if [ -f "$report" ]; then
+            cat "$report"
+          fi
       - name: Prepare and verify persisted key-77 F4K review specimen
-        if: success()
+        if: success() && steps.scope.outputs.diagnostic_only != 'true'
         timeout-minutes: 15
         run: ./gradlew :skyforge-neoforge-1211:f4kHydrologyReviewPrepareVerify --no-configuration-cache
       - name: Upload key-77 F4K review preparation evidence
-        if: always()
+        if: always() && steps.scope.outputs.diagnostic_only != 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
         with:
           name: f4k-hydrology-review-prep-${{ github.sha }}

@@ -2,6 +2,12 @@
 
 This file is a compact operator/agent bootstrap cache. It does **not** override current `main`, source/tests, merged history, active issue/PR authority, or live orchestrator state.
 
+## Latest hydrology boundary — 2026-10-15
+
+Verified development baseline: main@9a87e7ecd63ac1ab94106a191aa273d3c91a706b (PR #1489). Owner accepted key-77 F4K only as an early proof of concept worth improving, not finished hydrology or DR-70 approval (issue #1452). Draft PR #1490 diagnoses the remaining joins. Focused run 38828422251 passes: 55 wet cross sections have level semantic stage but up to 1.410379951 world units of transverse projected-stage variation, entirely from the pointwise world-frame offset. Both reviewed centerlines are straight, excluding the separately demonstrated bend seam as this specimen's cause.
+
+The owner approved that contract change on 2026-10-15. PR #1490 now implements an exact-association physical-terrain candidate in one fixed world-elevation datum, reusing the existing hydraulic solvers and D2 limits. Initial focused validation passes level stage across all 55 checked sections, D2, association binding and voxel admission. Integrated run 38830308214 proves both integer rivers connected with no missing centerline samples and 3,928 persisted water voxels, but the retained old-solid ceiling clips 219 materialized columns. Deeper placement violates excavation burden; a conservative flow-capacity trial rejects (not proof of general impossibility). These trials are archived, not active code. Owner has now approved the bounded connected water envelope above old ground, retaining exact island/foreign-volume isolation and unchanged excavation limits (issue #1452 comment 6205986655). PR #1490 implements bed-to-stage intervals with centerline connectivity, rejects disconnected peripheral pockets and foreign destinations, and shares the same mask for placement and static ticking. The preceding static-water lifecycle checkpoint passed run 38834808845. Expanded-envelope validation is in progress; next human gate is visual review after it passes. No new visual review is requested yet. This is not final hydrology/DR-70 acceptance. See docs/authorship/HYDROLOGY_RIVER_JOIN_CONTINUITY.md and PR #1490 for evidence and exact decision. Controller/orchestrator work is excluded by owner direction; older platform snapshots below are historical, not a dependency for this work.
+
 ## Operator snapshot
 
 | Item | Current state |

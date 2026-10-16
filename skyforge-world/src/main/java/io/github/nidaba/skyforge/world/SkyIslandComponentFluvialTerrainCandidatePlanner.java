@@ -33,11 +33,45 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
     }
 
+    /**
+     * Rebuilds and qualifies channel and water together against the exact physical surface.
+     * One fixed datum (the volume suspension elevation) is used everywhere, never a local offset.
+     * Existing route/component admission and hydraulic solvers are unchanged.
+     */
+    public static SkyIslandComponentFluvialTerrainCandidatePlan planAssociated(
+            SkyIslandAuthoredRealizationAssociation association) {
+        Objects.requireNonNull(association, "association");
+        var descriptor = association.authoredDescriptor();
+        var volume = association.realizedVolume().compiledVolume();
+        var physical = volume.descriptor();
+        var interpreter = new SkyIslandTerrainInterpreter(volume, SkyIslandTerrainProfile.reference());
+        double datum = physical.suspensionElevation();
+        double scale = descriptor.reliefBudget();
+        SkyIslandSemanticField physicalTerrain = position ->
+                (interpreter.upperSurfaceHeight(
+                        physical.centerX() + position.x(), physical.centerZ() + position.z())
+                        - datum) / scale;
+        return plan(descriptor, SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor),
+                SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked(),
+                physicalTerrain, java.util.Optional.of(association));
+    }
+
     static SkyIslandComponentFluvialTerrainCandidatePlan plan(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicNetworkAssemblyPlan assemblyPlan,
             SkyIslandGeomorphicQualificationPolicy policy) {
+        return plan(descriptor, assemblyPlan, policy,
+                SkyIslandPreHydrologicTerrainField.create(descriptor), java.util.Optional.empty());
+    }
+
+    private static SkyIslandComponentFluvialTerrainCandidatePlan plan(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicNetworkAssemblyPlan assemblyPlan,
+            SkyIslandGeomorphicQualificationPolicy policy,
+            SkyIslandSemanticField original,
+            java.util.Optional<SkyIslandAuthoredRealizationAssociation> worldAssociation) {
         Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(original, "original");
         Objects.requireNonNull(assemblyPlan, "assemblyPlan");
         Objects.requireNonNull(policy, "policy");
         if (!descriptor.equals(assemblyPlan.descriptor())) {
@@ -45,8 +79,6 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     "F3E assembly descriptor must match F4A descriptor");
         }
 
-        SkyIslandPreHydrologicTerrainField original =
-                SkyIslandPreHydrologicTerrainField.create(descriptor);
         SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
                 assemblyPlan.ordinarySpanPlan()
                         .cascadePlan()
@@ -153,7 +185,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 realizedComponents,
                 deferredQualifiedComponents,
                 postRealizationQualifications,
-                terrainField);
+                terrainField,
+                worldAssociation);
     }
 
     private static List<SkyIslandComponentFluvialTerrainDeferralReason> supportReasons(

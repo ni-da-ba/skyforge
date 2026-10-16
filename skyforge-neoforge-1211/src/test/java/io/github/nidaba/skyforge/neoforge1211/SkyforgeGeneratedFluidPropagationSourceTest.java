@@ -31,7 +31,8 @@ final class SkyforgeGeneratedFluidPropagationSourceTest {
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeGeneratedFluidPropagationStage.java"));
         String mixin = Files.readString(PROJECT_DIRECTORY.resolve(
                 "src/main/java/io/github/nidaba/skyforge/neoforge1211/mixin/SkyforgeFlowingFluidDomainMixin.java"));
-        assertTrue(stage.contains("SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition(position)"));
+        assertTrue(stage.contains("SkyforgeNeoForge1211SurfaceStage.isAuthoredVisibleHydrologyPosition("));
+        assertTrue(stage.contains("serverLevel.dimension(), position)"));
         assertTrue(stage.contains("state.getType() == Fluids.WATER"));
         assertTrue(stage.contains("return false;"));
         assertTrue(mixin.contains("if (!SkyforgeGeneratedFluidPropagationStage.beginFluidTick"));

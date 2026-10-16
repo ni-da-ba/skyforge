@@ -8,7 +8,13 @@
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
 
-## Current hydrology override — 2026-09-25
+## Current hydrology boundary — 2026-10-15
+
+Main@9a87e7ecd63ac1ab94106a191aa273d3c91a706b / PR #1489 couples candidate hydraulics into F4A. The owner accepts its F4K specimen only as early proof of concept. Draft PR #1490, under #1452, identifies up to 1.410379951 world units of transverse water-stage distortion introduced by F4E's terrain-relative projection across 55 complete wet cross sections; semantic stage is level. Focused diagnostic run 38828422251 passes. The owner approved a shared world frame on 2026-10-15; the exact-association candidate is now implemented in PR #1490, with initial focused validation passing.
+
+The shared-frame architectural approval is resolved. Integrated run 38830308214 passes bed identity, both integer river connections, no missing centerline samples and 3,928 persisted water voxels. The owner has now approved the distinct ownership-contract change: permit a bounded connected water envelope above old ground, rather than requiring every water cell to replace old solid. The old ceiling clips 219 materialized columns; excavation/normal-capacity correction trials were rejected and archived. PR #1490 now implements exact connected bed-to-stage water intervals above old ground, including non-excavated wet columns, without expanding removal authority. Disconnected peripheral pockets are excluded; foreign compiled-volume envelopes and unrelated solids fail closed. Placement and qualified/read-only tick fencing consume the same water mask. The preceding static-water lifecycle checkpoint passed run 38834808845; expanded-envelope validation is in progress. No new visual handoff yet. Keep exact ownership, removal-only/thickness safety, existing hydraulic benchmark tolerances and dry controls. No backend clamp or solver-special-case patch. See docs/authorship/HYDROLOGY_RIVER_JOIN_CONTINUITY.md. Ignore controller dependencies per owner direction.
+
+## Historical hydrology override — 2026-09-25
 
 DR-70 / #754 is blocked on the hydrology architecture reset in #1084. Do **not** reopen or extend the
 retired H6 PR stack.

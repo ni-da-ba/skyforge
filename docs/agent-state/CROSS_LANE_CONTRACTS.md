@@ -4,6 +4,10 @@
 **Updated:** 2026-09-08 (America/Chicago)  
 **Repository snapshot after AUTH-0100 acceptance:** `35b9b420d338415105237e56317580535808178a`
 
+## Hydrology world-frame override — owner approved 2026-10-15
+
+Under #1452 / PR #1490, realization may solve a channel/bed/water candidate against the exact associated compiled terrain in one fixed elevation datum. This supersedes F4B/F4E's requirement to carry a placement-free semantic depth through a spatially varying compiled-terrain offset for this explicitly associated path. Legacy placement-free authorship remains available. Exact association/ownership, removal-only edit and thickness limits, unchanged hydraulic/D2 checks and rejected-component zero authority remain binding. No backend water clamp or terrain reconciliation is authorized. See docs/authorship/HYDROLOGY_ASSOCIATED_WORLD_FRAME.md. Runtime/visual evidence remains separate from the owner's architectural approval.
+
 Detailed milestone evidence belongs in lane ledgers, milestone docs, tests, workflows, and merged PRs.
 This file records only coordination boundaries another lane must preserve.
 
@@ -668,3 +672,15 @@ When one lane changes a contract another lane relies on, update this file with:
 - accepted / in-progress / proposed status.
 
 Keep detailed history in lane-specific state/docs rather than expanding this file with logs.
+
+## Approved bounded hydrology water-envelope boundary — 2026-10-15
+
+Owner approved bounded connected river water above original ground (issue #1452, PR #1490).
+For an exact associated candidate, integer water intervals run from the qualified realized bed to
+the solved stage, including non-excavated wet columns. Only face-connected intervals attached to an
+accepted centerline acquire water authority; a broken centerline fails closed. This is not owner-wide
+AIR authority. Excavation limits and original removal authorization are unchanged. Backend placement
+must exclude foreign solids, foreign compiled-volume envelopes, overlapping authorized water, and
+unrelated existing solids. Static-water tick fencing uses precisely the same qualified envelope,
+including the dedicated review world's read-only reopen binding. Machine validation and subsequent
+human visual judgment remain separate gates.

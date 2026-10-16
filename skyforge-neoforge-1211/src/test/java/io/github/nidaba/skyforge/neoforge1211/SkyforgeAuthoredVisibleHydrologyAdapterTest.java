@@ -23,43 +23,68 @@ final class SkyforgeAuthoredVisibleHydrologyAdapterTest {
 
 
     @Test
-    void f4kReviewFixtureClipsWaterHeadsToTheF4dAuthorizedReplacementBand() throws Exception {
+    void f4kReviewUsesConnectedWaterAboveOldGroundAndRejectsForeignSolid() throws Exception {
         var fixture = SkyforgeF4KHydrologyReviewDevRuntime.fixture();
-        var reviewColumn = fixture.authorization().quantization().authorizedColumns().stream()
-                .filter(column -> column.projection().semanticSample().wet() && column.mutatesTerrain())
-                .filter(column -> Math.min(
-                                (int) Math.ceil(column.projection().originalUpperSurfaceWorldY()
-                                        + (column.projection().semanticSample().waterSurfacePotential()
-                                                - column.projection().semanticSample().originalTerrainPotential())
-                                                * fixture.descriptor().reliefBudget()) - 1,
-                                column.originalSupport().maximumSolidY())
-                        >= column.targetMaximumSolidY() + 1)
-                .findFirst()
-                .orElseThrow();
         var terrain = terrain(fixture.catalog(), fixture.descriptor());
-        var chunk = MinecraftTestChunkFactory.protoChunk(
-                new net.minecraft.world.level.ChunkPos(reviewColumn.worldX() >> 4, reviewColumn.worldZ() >> 4));
-
-        try (AutoCloseable installedSurfaceStage = SkyforgeNeoForge1211SurfaceStage.installAuthorizedHydrology(
-                terrain,
-                new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()),
-                fixture.authorization())) {
-            assertNotNull(installedSurfaceStage);
-            SkyforgeNeoForge1211SurfaceStage.realize(chunk);
+        var positions = SkyforgeAuthoredVisibleHydrologyAdapter.authorizedWaterPositions(
+                fixture.authorization());
+        var above = positions.stream().map(BlockPos::of)
+                .filter(position -> !terrain.isSolidOwnedBy(fixture.volume().id(),
+                        position.getX(), position.getY(), position.getZ()))
+                .findFirst().orElseThrow();
+        var chunk = MinecraftTestChunkFactory.protoChunk(new net.minecraft.world.level.ChunkPos(above));
+        // A player/unrelated solid in the newly authorized AIR must not be destroyed.
+        chunk.setBlockState(above, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                        chunk, terrain, fixture.authorization()));
+        assertTrue(chunk.getBlockState(above).is(Blocks.GOLD_BLOCK));
+        chunk.setBlockState(above, Blocks.AIR.defaultBlockState(), false);
+        assertTrue(SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                chunk, terrain, fixture.authorization()) > 0);
+        for (long packed : positions) {
+            var position = BlockPos.of(packed);
+            if (chunk.getPos().equals(new net.minecraft.world.level.ChunkPos(position))) {
+                assertTrue(chunk.getBlockState(position).is(Blocks.WATER));
+            }
         }
-
-        int firstWaterY = reviewColumn.targetMaximumSolidY() + 1;
-        int clippedWaterMaximumY = Math.min(
-                (int) Math.ceil(reviewColumn.projection().originalUpperSurfaceWorldY()
-                        + (reviewColumn.projection().semanticSample().waterSurfacePotential()
-                                - reviewColumn.projection().semanticSample().originalTerrainPotential())
-                                * fixture.descriptor().reliefBudget()) - 1,
-                reviewColumn.originalSupport().maximumSolidY());
-        assertTrue(clippedWaterMaximumY >= firstWaterY);
-        assertTrue(chunk.getBlockState(new BlockPos(
-                        reviewColumn.worldX(), firstWaterY, reviewColumn.worldZ()))
-                .is(Blocks.WATER));
-        assertTrue(clippedWaterMaximumY <= reviewColumn.originalSupport().maximumSolidY());
+        assertEquals(0, SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                chunk, terrain, fixture.authorization()));
+        assertTrue(fixture.authorization().allowsWater(
+                above.getX(), above.getY(), above.getZ()));
+        assertFalse(fixture.authorization().allowsWater(
+                above.getX(), above.getY() + 100, above.getZ()));
+        assertFalse(fixture.authorization().allowsRemoval(
+                above.getX(), above.getY(), above.getZ()),
+                "positive-air water authority must not expand excavation");
+        var removalColumn = fixture.authorization().quantization().mutatedColumns().getFirst();
+        var protectedPosition = new BlockPos(removalColumn.worldX(),
+                removalColumn.originalSupport().maximumSolidY(), removalColumn.worldZ());
+        var protectedChunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(protectedPosition));
+        protectedChunk.setBlockState(protectedPosition, Blocks.GOLD_BLOCK.defaultBlockState(), false);
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                        protectedChunk, terrain, fixture.authorization()));
+        assertTrue(protectedChunk.getBlockState(protectedPosition).is(Blocks.GOLD_BLOCK));
+        var foreign = new io.github.nidaba.skyforge.world.SkyIslandWorldVolume(
+                new io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId(
+                        fixture.catalog().rootSeed(), "positive-air-foreign", 0, 0, 910_077L),
+                fixture.volume().bounds(), fixture.volume().compiledVolume());
+        var overlappingTerrain = terrain(
+                new io.github.nidaba.skyforge.world.SkyIslandWorldCatalog(
+                        fixture.catalog().rootSeed(), List.of(fixture.volume(), foreign)), fixture.descriptor());
+        var foreignChunk = MinecraftTestChunkFactory.protoChunk(
+                new net.minecraft.world.level.ChunkPos(above));
+        assertTrue(overlappingTerrain.isInsideOtherVolume(fixture.volume().id(),
+                above.getX(), above.getY(), above.getZ()));
+        assertFalse(overlappingTerrain.isSolidOwnedByOtherVolume(fixture.volume().id(),
+                above.getX(), above.getY(), above.getZ()),
+                "foreign-volume AIR must also be excluded");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                SkyforgeAuthoredVisibleHydrologyAdapter.applyAvailable(
+                        foreignChunk, overlappingTerrain, fixture.authorization()));
+        assertTrue(foreignChunk.getBlockState(above).isAir());
     }
 
     @Test

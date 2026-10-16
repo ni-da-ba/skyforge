@@ -38,6 +38,7 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
                 Objects.requireNonNull(association, "association").authoredDescriptor(),
                 candidatePlan,
                 association.realizedVolume().compiledVolume());
+        candidatePlan.requireAssociation(association);
     }
 
     /** F4H projection boundary using an accepted continuous refined field. */
@@ -50,6 +51,7 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
                 candidatePlan,
                 association.realizedVolume().compiledVolume(),
                 refinedField);
+        candidatePlan.requireAssociation(association);
     }
 
     /**
@@ -72,6 +74,14 @@ public final class SkyIslandComponentFluvialWorldSurfaceProjection {
         this.candidatePlan = Objects.requireNonNull(candidatePlan, "candidatePlan");
         this.compiledVolume = Objects.requireNonNull(compiledVolume, "compiledVolume");
         this.terrainField = Objects.requireNonNull(terrainField, "terrainField");
+        if (candidatePlan.worldAssociation().isPresent() && terrainField != candidatePlan.terrainField()) {
+            throw new IllegalArgumentException("world-frame refinement requires an association-qualified field");
+        }
+        if (candidatePlan.worldAssociation().isPresent()
+                && candidatePlan.worldAssociation().orElseThrow().realizedVolume().compiledVolume()
+                        != compiledVolume) {
+            throw new IllegalArgumentException("world-frame candidate requires its exact compiled volume");
+        }
         if (!descriptor.equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(
                     "F4A candidate descriptor must match F4B projection descriptor");

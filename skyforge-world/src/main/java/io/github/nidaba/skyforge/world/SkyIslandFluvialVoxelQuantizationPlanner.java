@@ -18,6 +18,7 @@ public final class SkyIslandFluvialVoxelQuantizationPlanner {
             SkyIslandComponentFluvialTerrainCandidatePlan candidatePlan) {
         Objects.requireNonNull(association, "association");
         Objects.requireNonNull(candidatePlan, "candidatePlan");
+        candidatePlan.requireAssociation(association);
         if (!association.authoredDescriptor().equals(candidatePlan.descriptor())) {
             throw new IllegalArgumentException(
                     "F4C association and candidate descriptor must match");
