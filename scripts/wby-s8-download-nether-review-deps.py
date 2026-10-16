@@ -27,6 +27,7 @@ MODRINTH = {
     "bclib": ("QkXw8Fsl", "bclib-neoforge"),
     "wunderlib": ("5db3GZzg", "wunderlib-neoforge"),
     "worldweaver": ("TrReu8cF", "worldweaver-neoforge"),
+    "wither-reincarnated": ("6d4I4VPO", "wither-reincarnated"),
 }
 CURSEFORGE = {
     "nether-depths-upgrade": (670011, 8940364, "netherdepthsupgrade-3.3-1.21.1-NeoForge.jar"),
@@ -86,23 +87,26 @@ def curseforge(project_id: int, file_id: int, filename: str) -> None:
 
 
 def main() -> int:
-    if len(sys.argv) != 2 or sys.argv[1] not in {"incendium-full", "incendium-betternether"}:
-        raise SystemExit("Usage: python scripts/wby-s8-download-nether-review-deps.py {incendium-full|incendium-betternether}")
+    if len(sys.argv) != 2 or sys.argv[1] not in {"incendium-full", "incendium-full-wither", "incendium-betternether"}:
+        raise SystemExit("Usage: python scripts/wby-s8-download-nether-review-deps.py {incendium-full|incendium-full-wither|incendium-betternether}")
     profile = sys.argv[1]
     global DOWNLOADS
     DOWNLOADS = ROOT / ".skyforge-diagnostics" / "s8-nether-downloads" / profile
     DOWNLOADS.mkdir(parents=True, exist_ok=True)
     aliases = (
         ("create-nether-industry", "thinair-relived", "yungs-better-nether-fortresses", "incendium")
-        if profile == "incendium-full"
+        if profile in {"incendium-full", "incendium-full-wither"}
         else ("betternether", "bclib", "wunderlib", "worldweaver", "incendium")
     )
     for alias in aliases:
         version_id, _project = MODRINTH[alias]
         modrinth(version_id, alias)
-    if profile == "incendium-full":
+    if profile in {"incendium-full", "incendium-full-wither"}:
         for project_id, file_id, filename in CURSEFORGE.values():
             curseforge(project_id, file_id, filename)
+    if profile == "incendium-full-wither":
+        version_id, _project = MODRINTH["wither-reincarnated"]
+        modrinth(version_id, "wither-reincarnated")
     print(f"S8 {profile} review dependencies are ready.")\n    print(f"Client and local-review JARs: {DOWNLOADS}")
     return 0
 
