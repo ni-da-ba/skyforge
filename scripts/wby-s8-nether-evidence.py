@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import socket
 import struct
@@ -86,9 +87,12 @@ def main() -> int:
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=25575)
-    parser.add_argument("--password", default="skyforge-s7-local-probe")
+    parser.add_argument("--password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
+    parser.add_argument("--password-required", action="store_true", help=argparse.SUPPRESS)
     parser.add_argument("--seed", default="817304")
     args = parser.parse_args()
+    if not args.password:
+        parser.error("set WBY_S7_RCON_PASSWORD or pass --password")
 
     rows = ["kind\tname\tsha256\tmod_ids\tworldgen_resource_counts\tnotes"]
     found: set[str] = set()
@@ -188,9 +192,9 @@ def main() -> int:
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
             if label == "enabled_datapacks":
                 has_incendium = "incendium" in response.lower()
-                if args.variant in {"incendium", "incendium-full"} and not has_incendium:
+                if args.variant in {"incendium", "incendium-full", "incendium-betternether"} and not has_incendium:
                     raise SystemExit(f"Incendium ZIP is staged but is not enabled in the test world: {response}")
-                if args.variant not in {"incendium", "incendium-full"} and has_incendium:
+                if args.variant not in {"incendium", "incendium-full", "incendium-betternether"} and has_incendium:
                     raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
             rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; probe_ms={probe_ms}; command={command}; response={response}")
         for kind in ("biome", "structure"):
