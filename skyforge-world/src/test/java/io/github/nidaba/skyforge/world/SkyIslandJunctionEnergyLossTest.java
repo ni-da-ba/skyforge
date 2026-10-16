@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.io.IOException;
@@ -264,7 +265,7 @@ class SkyIslandJunctionEnergyLossTest {
         var spruceProfile = result.tributaries().get(1);
         double spruceStage = spruce.bedElevationsMetres()[spruce.bedElevationsMetres().length - 1]
                 + spruceProfile.depthsMetres()[spruceProfile.depthsMetres().length - 1];
-        assertNotEquals(upperStage, spruceStage, feet(0.01),
+        assertTrue(Math.abs(upperStage - spruceStage) > feet(0.01),
                 "HEC-RAS branch stages are solved separately, not forced to a common WSE");
         assertEquals(
                 cubicFeetPerSecond(4100.0),
