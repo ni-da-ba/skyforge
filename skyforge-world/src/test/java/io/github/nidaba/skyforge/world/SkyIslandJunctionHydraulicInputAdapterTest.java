@@ -57,8 +57,10 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
         assertArrayEquals(new double[] {0, 2}, sliced.stationsMetres(), EPSILON);
         assertArrayEquals(new double[] {8, 7}, sliced.bedElevationsMetres(), EPSILON);
         assertArrayEquals(new double[] {3, 3}, sliced.dischargeAtStationsCubicMetresPerSecond(), EPSILON);
-        assertArrayEquals(new double[] {0.1}, sliced.contractionCoefficientsByInterval(), EPSILON);
-        assertArrayEquals(new double[] {0.3}, sliced.expansionCoefficientsByInterval(), EPSILON);
+        // The slice selects original interval 2 (indices 2..3), whose asymmetric
+        // contraction/expansion coefficients are 0.3 and 0.1 respectively.
+        assertArrayEquals(new double[] {0.3}, sliced.contractionCoefficientsByInterval(), EPSILON);
+        assertArrayEquals(new double[] {0.1}, sliced.expansionCoefficientsByInterval(), EPSILON);
 
         var branchSlice = branchB.toHydraulicReach();
         assertEquals(Math.sqrt(8), branchSlice.stationsMetres()[1], EPSILON);
