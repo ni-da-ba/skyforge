@@ -133,13 +133,33 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     throw new IllegalStateException("F4A repeated single-reach component identity");
                 }
             } else {
-                realizeNetworkComponent(
-                        descriptor,
-                        component,
-                        skeletons,
-                        original,
-                        realizedByIdentity,
-                        coupledTerrainByIdentity);
+                Map<Long, SkyIslandHydraulicReachGeometry> componentReaches = new LinkedHashMap<>();
+                Map<Long, SkyIslandSemanticField> componentSurfaces = new LinkedHashMap<>();
+                try {
+                    realizeNetworkComponent(
+                            descriptor,
+                            component,
+                            skeletons,
+                            original,
+                            componentReaches,
+                            componentSurfaces);
+                } catch (IllegalArgumentException | IllegalStateException unsupported) {
+                    deferredQualifiedComponents.add(new SkyIslandComponentFluvialTerrainDeferral(
+                            component,
+                            List.of(SkyIslandComponentFluvialTerrainDeferralReason
+                                    .UNSUPPORTED_NETWORK_PROFILE)));
+                    continue;
+                }
+                for (Map.Entry<Long, SkyIslandHydraulicReachGeometry> entry : componentReaches.entrySet()) {
+                    if (realizedByIdentity.put(entry.getKey(), entry.getValue()) != null) {
+                        throw new IllegalStateException("F4A network duplicated a realized reach");
+                    }
+                }
+                for (Map.Entry<Long, SkyIslandSemanticField> entry : componentSurfaces.entrySet()) {
+                    if (coupledTerrainByIdentity.put(entry.getKey(), entry.getValue()) != null) {
+                        throw new IllegalStateException("F4A network duplicated a terrain surface");
+                    }
+                }
             }
             realizedComponents.add(component);
         }
