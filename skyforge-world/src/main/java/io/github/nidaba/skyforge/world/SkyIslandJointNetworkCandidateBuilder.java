@@ -22,6 +22,7 @@ import java.util.TreeMap;
  * hydraulics and D2 must qualify against this exact composite terrain before publication.
  */
 public final class SkyIslandJointNetworkCandidateBuilder {
+    private static final double POSITION_TOLERANCE = 1.0e-8;
     private static final double ELEVATION_TOLERANCE_METRES = 1.0e-8;
 
     private SkyIslandJointNetworkCandidateBuilder() {}
@@ -41,6 +42,7 @@ public final class SkyIslandJointNetworkCandidateBuilder {
             throw new IllegalArgumentException("network candidate requires at least one reach");
         }
         validateTopology(inputs, terminalNodeId);
+        validateCorridorTopology(inputs);
 
         Map<String, SkyIslandLocalPosition> positionsByNode = new HashMap<>();
         List<SkyIslandJointNetworkBedSolver.Reach> bedInputs = new ArrayList<>(inputs.size());
@@ -122,6 +124,192 @@ public final class SkyIslandJointNetworkCandidateBuilder {
         return new NetworkCandidate(
                 terminalNodeId, jointBed, candidates, originalTerrain, verticalDatum, verticalScale);
     }
+
+    /**
+     * Rejects geometric valley overlaps that would invent a hydraulic connection not present in
+     * the semantic drainage graph. Overlap is permitted only within the corridor envelope of an
+     * explicitly shared endpoint node.
+     */
+    private static void validateCorridorTopology(List<ReachInput> inputs) {
+        for (int firstReachIndex = 0; firstReachIndex < inputs.size(); firstReachIndex++) {
+            ReachInput firstReach = inputs.get(firstReachIndex);
+            double firstRadius = firstReach.configuration().valleyHalfWidthMetres()
+                    / firstReach.configuration().horizontalMetresPerLocalUnit();
+            for (int secondReachIndex = firstReachIndex + 1;
+                    secondReachIndex < inputs.size();
+                    secondReachIndex++) {
+                ReachInput secondReach = inputs.get(secondReachIndex);
+                double secondRadius = secondReach.configuration().valleyHalfWidthMetres()
+                        / secondReach.configuration().horizontalMetresPerLocalUnit();
+                List<String> sharedNodes = new ArrayList<>(2);
+                if (firstReach.upstreamNodeId().equals(secondReach.upstreamNodeId())
+                        || firstReach.upstreamNodeId().equals(secondReach.downstreamNodeId())) {
+                    sharedNodes.add(firstReach.upstreamNodeId());
+                }
+                if ((firstReach.downstreamNodeId().equals(secondReach.upstreamNodeId())
+                                || firstReach.downstreamNodeId().equals(secondReach.downstreamNodeId()))
+                        && !sharedNodes.contains(firstReach.downstreamNodeId())) {
+                    sharedNodes.add(firstReach.downstreamNodeId());
+                }
+
+                List<SkyIslandLocalPosition> firstPoints = firstReach.route().points();
+                List<SkyIslandLocalPosition> secondPoints = secondReach.route().points();
+                for (int firstSegment = 1; firstSegment < firstPoints.size(); firstSegment++) {
+                    SkyIslandLocalPosition firstStart = firstPoints.get(firstSegment - 1);
+                    SkyIslandLocalPosition firstEnd = firstPoints.get(firstSegment);
+                    for (int secondSegment = 1; secondSegment < secondPoints.size(); secondSegment++) {
+                        SegmentClosestPoints closest = closestPoints(
+                                firstStart,
+                                firstEnd,
+                                secondPoints.get(secondSegment - 1),
+                                secondPoints.get(secondSegment));
+                        if (closest.distance() >= firstRadius + secondRadius - POSITION_TOLERANCE) {
+                            continue;
+                        }
+                        boolean authorizedAtSharedNode = sharedNodes.stream().anyMatch(nodeId -> {
+                            SkyIslandLocalPosition nodePosition =
+                                    endpointPosition(firstReach, nodeId);
+                            if (nodePosition == null) {
+                                nodePosition = endpointPosition(secondReach, nodeId);
+                            }
+                            return nodePosition != null
+                                    && distance(closest.first(), nodePosition)
+                                            <= firstRadius + POSITION_TOLERANCE
+                                    && distance(closest.second(), nodePosition)
+                                            <= secondRadius + POSITION_TOLERANCE;
+                        });
+                        if (!authorizedAtSharedNode) {
+                            throw new IllegalArgumentException(
+                                    "candidate valley corridors overlap outside a shared semantic node: "
+                                            + firstReach.id() + " / " + secondReach.id());
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private static SkyIslandLocalPosition endpointPosition(ReachInput reach, String nodeId) {
+        List<SkyIslandLocalPosition> points = reach.route().points();
+        if (reach.upstreamNodeId().equals(nodeId)) {
+            return points.getFirst();
+        }
+        if (reach.downstreamNodeId().equals(nodeId)) {
+            return points.getLast();
+        }
+        return null;
+    }
+
+    private static SegmentClosestPoints closestPoints(
+            SkyIslandLocalPosition firstStart,
+            SkyIslandLocalPosition firstEnd,
+            SkyIslandLocalPosition secondStart,
+            SkyIslandLocalPosition secondEnd) {
+        if (segmentsIntersect(firstStart, firstEnd, secondStart, secondEnd)) {
+            SkyIslandLocalPosition intersection = intersectionPoint(
+                    firstStart, firstEnd, secondStart, secondEnd);
+            if (intersection != null) {
+                return new SegmentClosestPoints(intersection, intersection, 0.0);
+            }
+        }
+
+        SegmentClosestPoints best = projectClosest(firstStart, secondStart, secondEnd, true);
+        best = closer(best, projectClosest(firstEnd, secondStart, secondEnd, true));
+        best = closer(best, projectClosest(secondStart, firstStart, firstEnd, false));
+        best = closer(best, projectClosest(secondEnd, firstStart, firstEnd, false));
+        return best;
+    }
+
+    private static SegmentClosestPoints projectClosest(
+            SkyIslandLocalPosition point,
+            SkyIslandLocalPosition segmentStart,
+            SkyIslandLocalPosition segmentEnd,
+            boolean pointIsFirst) {
+        double dx = segmentEnd.x() - segmentStart.x();
+        double dz = segmentEnd.z() - segmentStart.z();
+        double lengthSquared = dx * dx + dz * dz;
+        double fraction = ((point.x() - segmentStart.x()) * dx
+                + (point.z() - segmentStart.z()) * dz) / lengthSquared;
+        fraction = Math.max(0.0, Math.min(1.0, fraction));
+        SkyIslandLocalPosition projected = new SkyIslandLocalPosition(
+                segmentStart.x() + fraction * dx,
+                segmentStart.z() + fraction * dz);
+        return pointIsFirst
+                ? new SegmentClosestPoints(point, projected, distance(point, projected))
+                : new SegmentClosestPoints(projected, point, distance(point, projected));
+    }
+
+    private static SegmentClosestPoints closer(
+            SegmentClosestPoints first,
+            SegmentClosestPoints second) {
+        return second.distance() < first.distance() ? second : first;
+    }
+
+    private static boolean segmentsIntersect(
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b,
+            SkyIslandLocalPosition c,
+            SkyIslandLocalPosition d) {
+        double abC = orientation(a, b, c);
+        double abD = orientation(a, b, d);
+        double cdA = orientation(c, d, a);
+        double cdB = orientation(c, d, b);
+        double tolerance = 1.0e-12;
+        if (((abC > tolerance && abD < -tolerance) || (abC < -tolerance && abD > tolerance))
+                && ((cdA > tolerance && cdB < -tolerance)
+                        || (cdA < -tolerance && cdB > tolerance))) {
+            return true;
+        }
+        return Math.abs(abC) <= tolerance && onSegment(a, b, c)
+                || Math.abs(abD) <= tolerance && onSegment(a, b, d)
+                || Math.abs(cdA) <= tolerance && onSegment(c, d, a)
+                || Math.abs(cdB) <= tolerance && onSegment(c, d, b);
+    }
+
+    private static double orientation(
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b,
+            SkyIslandLocalPosition c) {
+        return (b.x() - a.x()) * (c.z() - a.z())
+                - (b.z() - a.z()) * (c.x() - a.x());
+    }
+
+    private static boolean onSegment(
+            SkyIslandLocalPosition start,
+            SkyIslandLocalPosition end,
+            SkyIslandLocalPosition point) {
+        return point.x() >= Math.min(start.x(), end.x()) - POSITION_TOLERANCE
+                && point.x() <= Math.max(start.x(), end.x()) + POSITION_TOLERANCE
+                && point.z() >= Math.min(start.z(), end.z()) - POSITION_TOLERANCE
+                && point.z() <= Math.max(start.z(), end.z()) + POSITION_TOLERANCE;
+    }
+
+    private static SkyIslandLocalPosition intersectionPoint(
+            SkyIslandLocalPosition a,
+            SkyIslandLocalPosition b,
+            SkyIslandLocalPosition c,
+            SkyIslandLocalPosition d) {
+        double abX = b.x() - a.x();
+        double abZ = b.z() - a.z();
+        double cdX = d.x() - c.x();
+        double cdZ = d.z() - c.z();
+        double denominator = abX * cdZ - abZ * cdX;
+        if (Math.abs(denominator) <= 1.0e-12) {
+            return null;
+        }
+        double fraction = ((c.x() - a.x()) * cdZ - (c.z() - a.z()) * cdX)
+                / denominator;
+        return new SkyIslandLocalPosition(a.x() + fraction * abX, a.z() + fraction * abZ);
+    }
+
+    private static double distance(SkyIslandLocalPosition first, SkyIslandLocalPosition second) {
+        return Math.hypot(first.x() - second.x(), first.z() - second.z());
+    }
+
+    private record SegmentClosestPoints(
+            SkyIslandLocalPosition first,
+            SkyIslandLocalPosition second,
+            double distance) {}
 
     private static void validateTopology(List<ReachInput> inputs, String terminalNodeId) {
         Map<String, ReachInput> byId = new HashMap<>();
