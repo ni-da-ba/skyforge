@@ -22,12 +22,13 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
     private final List<SkyIslandHydraulicReachGeometry> acceptedReaches;
     private final java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution>
             coupledCandidates;
+    private final java.util.Map<Long, SkyIslandSemanticField> coupledTerrainSurfaces;
     private final double verticalScale;
 
     public SkyIslandQualifiedFluvialTerrainField(
             SkyIslandSemanticField originalTerrain,
             List<SkyIslandHydraulicReachGeometry> acceptedReaches) {
-        this(originalTerrain, acceptedReaches, java.util.Map.of(), 1.0);
+        this(originalTerrain, acceptedReaches, java.util.Map.of(), java.util.Map.of(), 1.0);
     }
 
     public SkyIslandQualifiedFluvialTerrainField(
@@ -35,12 +36,32 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             List<SkyIslandHydraulicReachGeometry> acceptedReaches,
             java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
             double verticalScale) {
+        this(originalTerrain, acceptedReaches, coupledCandidates, java.util.Map.of(), verticalScale);
+    }
+
+    /** Creates a field whose accepted reach samples use one already-solved shared network terrain. */
+    public static SkyIslandQualifiedFluvialTerrainField withCoupledTerrainSurfaces(
+            SkyIslandSemanticField originalTerrain,
+            List<SkyIslandHydraulicReachGeometry> acceptedReaches,
+            java.util.Map<Long, SkyIslandSemanticField> coupledTerrainSurfaces,
+            double verticalScale) {
+        return new SkyIslandQualifiedFluvialTerrainField(
+                originalTerrain, acceptedReaches, java.util.Map.of(), coupledTerrainSurfaces, verticalScale);
+    }
+
+    private SkyIslandQualifiedFluvialTerrainField(
+            SkyIslandSemanticField originalTerrain,
+            List<SkyIslandHydraulicReachGeometry> acceptedReaches,
+            java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
+            java.util.Map<Long, SkyIslandSemanticField> coupledTerrainSurfaces,
+            double verticalScale) {
         this.originalTerrain = Objects.requireNonNull(originalTerrain, "originalTerrain");
         if (!(verticalScale > 0.0) || !Double.isFinite(verticalScale)) {
             throw new IllegalArgumentException("verticalScale must be finite and positive");
         }
         this.verticalScale = verticalScale;
         this.coupledCandidates = java.util.Map.copyOf(coupledCandidates);
+        this.coupledTerrainSurfaces = java.util.Map.copyOf(coupledTerrainSurfaces);
         this.acceptedReaches = acceptedReaches.stream()
                 .map(reach -> Objects.requireNonNull(reach, "accepted reach"))
                 .sorted(Comparator
@@ -65,7 +86,8 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             long identity = identity(reach.geomorphicRoute().semanticReach().startCellIndex(),
                     reach.geomorphicRoute().semanticReach().endCellIndex());
             Candidate candidate = candidate(
-                    reach, position, original, coupledCandidates.get(identity));
+                    reach, position, original, coupledCandidates.get(identity),
+                    coupledTerrainSurfaces.get(identity));
             if (candidate == null) {
                 continue;
             }
@@ -94,7 +116,8 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             SkyIslandHydraulicReachGeometry reach,
             SkyIslandLocalPosition position,
             double originalTerrain,
-            SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled) {
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled,
+            SkyIslandSemanticField coupledTerrainSurface) {
         Projection projection = nearestProjection(reach, position);
         if (projection == null) {
             return null;
@@ -141,8 +164,10 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             zone = SkyIslandQualifiedFluvialZone.VALLEY_RECOVERY;
         }
 
-        if (coupled != null) {
-            double coupledTarget = coupled.candidate().sampleTerrainMetres(position) / verticalScale;
+        if (coupled != null || coupledTerrainSurface != null) {
+            double coupledTarget = coupledTerrainSurface != null
+                    ? coupledTerrainSurface.sample(position)
+                    : coupled.candidate().sampleTerrainMetres(position) / verticalScale;
             if (!Double.isFinite(coupledTarget) || coupledTarget < -EPSILON || coupledTarget > 1.0 + EPSILON) {
                 throw new IllegalStateException("coupled candidate terrain exceeds normalized relief bounds");
             }
