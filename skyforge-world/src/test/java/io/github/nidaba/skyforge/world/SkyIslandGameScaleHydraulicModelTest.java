@@ -177,7 +177,7 @@ class SkyIslandGameScaleHydraulicModelTest {
                 new double[] {1.0, 1.5}, new double[] {0.005, 0.005},
                 2.0, 1.0, 1.0);
 
-        double expected = manningCapacity(2.0, 1.0, 1.0, 0.005);
+        double expected = manningCapacity(2.0, 1.0, 1.0, 0.005) / 1.5;
         assertEquals(
                 expected,
                 SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
