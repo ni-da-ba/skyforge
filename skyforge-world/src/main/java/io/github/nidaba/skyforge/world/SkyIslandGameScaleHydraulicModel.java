@@ -417,6 +417,79 @@ public final class SkyIslandGameScaleHydraulicModel {
         };
     }
 
+    /**
+     * Selects one component-wide discharge scale that keeps every station at or below its
+     * candidate bankfull Manning capacity. Each profile must already contain mass-balanced
+     * relative station flows from {@link SkyIslandMassBalancedDischargePlanner}; no reach-specific
+     * scaling is permitted.
+     */
+    public static double calibrateComponentDischargeScale(
+            List<BankfullCapacityProfile> reachProfiles) {
+        Objects.requireNonNull(reachProfiles, "reachProfiles");
+        List<BankfullCapacityProfile> profiles = List.copyOf(reachProfiles);
+        if (profiles.isEmpty()) {
+            throw new IllegalArgumentException("component calibration requires at least one reach");
+        }
+        double scale = Double.POSITIVE_INFINITY;
+        for (BankfullCapacityProfile profile : profiles) {
+            Objects.requireNonNull(profile, "reach profile");
+            double[] relativeFlows = profile.relativeDischarge();
+            double[] bedSlopes = profile.bedSlope();
+            for (int i = 0; i < relativeFlows.length; i++) {
+                double capacity = manningDischarge(
+                        profile.bottomWidthMetres(),
+                        profile.sideSlopeHorizontalToVertical(),
+                        profile.bankfullDepthMetres(),
+                        bedSlopes[i],
+                        MANNING_ROUGHNESS);
+                scale = Math.min(scale, capacity / relativeFlows[i]);
+            }
+        }
+        if (!(scale > 0.0) || !Double.isFinite(scale)) {
+            throw new IllegalArgumentException("component bankfull capacity produced an invalid discharge scale");
+        }
+        return scale;
+    }
+
+    /** One reach's mass-balanced relative flow and bed-slope values at its hydraulic sections. */
+    public record BankfullCapacityProfile(
+            double[] relativeDischarge,
+            double[] bedSlope,
+            double bottomWidthMetres,
+            double sideSlopeHorizontalToVertical,
+            double bankfullDepthMetres) {
+        public BankfullCapacityProfile {
+            relativeDischarge = Objects.requireNonNull(relativeDischarge, "relativeDischarge").clone();
+            bedSlope = Objects.requireNonNull(bedSlope, "bedSlope").clone();
+            if (relativeDischarge.length < 2 || relativeDischarge.length != bedSlope.length) {
+                throw new IllegalArgumentException("capacity profile arrays must match and have at least two samples");
+            }
+            for (int i = 0; i < relativeDischarge.length; i++) {
+                if (!(relativeDischarge[i] > 0.0) || !Double.isFinite(relativeDischarge[i])
+                        || !(bedSlope[i] > 0.0) || !Double.isFinite(bedSlope[i])) {
+                    throw new IllegalArgumentException(
+                            "relative flow and local bed slope must be finite and positive");
+                }
+            }
+            if (!(bottomWidthMetres > 0.0) || !Double.isFinite(bottomWidthMetres)
+                    || !(sideSlopeHorizontalToVertical > 0.0)
+                    || !Double.isFinite(sideSlopeHorizontalToVertical)
+                    || !(bankfullDepthMetres > 0.0) || !Double.isFinite(bankfullDepthMetres)) {
+                throw new IllegalArgumentException("bankfull section dimensions must be finite and positive");
+            }
+        }
+
+        @Override
+        public double[] relativeDischarge() {
+            return relativeDischarge.clone();
+        }
+
+        @Override
+        public double[] bedSlope() {
+            return bedSlope.clone();
+        }
+    }
+
     public record SourceReachSolution(
             SkyIslandHydraulicCandidateBuilder.Candidate candidate,
             SkyIslandHydraulicCandidateBuilder.Profile profile,
