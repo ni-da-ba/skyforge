@@ -61,12 +61,13 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
         SkyIslandMassBalancedDischargePlanner.NetworkFlows unitFlows =
                 SkyIslandMassBalancedDischargePlanner.plan(
                         relativeFlows, terminalNodeId, terminalRelativeDischarge, 1.0);
+        final var initialUnitFlows = unitFlows;
         double dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
                 inputs.stream()
                         .map(input -> capacityProfile(
                                 input,
                                 candidate.reachesById().get(input.candidateReach().id()),
-                                unitFlows.reachesById().get(input.candidateReach().id())))
+                                initialUnitFlows.reachesById().get(input.candidateReach().id())))
                         .toList());
         SkyIslandMassBalancedDischargePlanner.NetworkFlows flows =
                 SkyIslandMassBalancedDischargePlanner.plan(
@@ -136,12 +137,13 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
         relativeFlows = deferJunctionGapRunoff(relativeFlows, unitFlows, plans.values());
         unitFlows = SkyIslandMassBalancedDischargePlanner.plan(
                 relativeFlows, terminalNodeId, terminalRelativeDischarge, 1.0);
+        final var adjustedUnitFlows = unitFlows;
         dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
                 inputs.stream()
                         .map(input -> capacityProfile(
                                 input,
                                 candidate.reachesById().get(input.candidateReach().id()),
-                                unitFlows.reachesById().get(input.candidateReach().id())))
+                                adjustedUnitFlows.reachesById().get(input.candidateReach().id())))
                         .toList());
         flows = SkyIslandMassBalancedDischargePlanner.plan(
                 relativeFlows,
