@@ -33,6 +33,19 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
                 incoming,
                 flows.get("main").dischargeAtStationsCubicMetresPerSecond()[0],
                 EPSILON);
+        var junctionPlan = solution.junctionSectionsByNodeId().get("join");
+        int receivingSection = junctionPlan.receivingStationIndex();
+        double receivingSectionFlow =
+                flows.get("main").dischargeAtStationsCubicMetresPerSecond()[receivingSection];
+        double tributarySectionFlow = junctionPlan.tributaries().stream()
+                .mapToDouble(tributary -> flows.get(tributary.reachId())
+                        .dischargeAtStationsCubicMetresPerSecond()[tributary.stationIndex()])
+                .sum();
+        assertEquals(tributarySectionFlow, receivingSectionFlow, EPSILON);
+        assertTrue(flows.get("main")
+                .lateralInflowByIntervalCubicMetresPerSecond()[receivingSection] > 0.0);
+        assertEquals(0.0, flows.get("main")
+                .lateralInflowByIntervalCubicMetresPerSecond()[receivingSection - 1], EPSILON);
         assertTrue(flows.values().stream()
                 .flatMapToDouble(flow -> java.util.Arrays.stream(
                         flow.lateralInflowByIntervalCubicMetresPerSecond()))
