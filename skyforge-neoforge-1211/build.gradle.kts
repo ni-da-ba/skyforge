@@ -7641,7 +7641,11 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S8 Nether $wbyS8NetherVariant missing server mod $mod: $expected"
             }
         }
-        ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) - wbyS8NetherMods).forEach { mod ->
+        // Curios can be present because the separate S7 Scorched arm selects it.
+        val expectedOtherStackNetherSharedMods =
+            if (wbyS7CombatVariant == "scorched") setOf("curios") else emptySet()
+        ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) -
+            wbyS8NetherMods - expectedOtherStackNetherSharedMods).forEach { mod ->
             val expected = wbyS8Token(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S8 Nether arm leaked unselected JNE dependency $mod: $expected"
