@@ -261,6 +261,22 @@ for _ in $(seq 1 600); do
 done
 if [[ "$joined" != true ]]; then
   echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within 600 seconds." >&2
+  thread_dump="$GITHUB_WORKSPACE/wby-s7-client-thread-dump.txt"
+  {
+    echo "--- Java/Xvfb process state ---"
+    ps -eo pid,ppid,stat,pcpu,pmem,etime,args | grep -E '[j]ava|[x]vfb-run' || true
+    echo "--- Minecraft client JVM thread dumps ---"
+    if [[ -n "$(command -v jcmd || true)" ]]; then
+      while read -r client_java_pid; do
+        [[ -n "$client_java_pid" ]] || continue
+        echo "### jcmd $client_java_pid Thread.print"
+        jcmd "$client_java_pid" Thread.print || true
+      done < <(pgrep -f 'net.minecraft.client.main.Main' || true)
+    else
+      echo "jcmd unavailable"
+    fi
+  } > "$thread_dump" 2>&1
+  cat "$thread_dump" >&2
   echo "--- server connection events ---" >&2
   grep -Ei 'WbyS7Acceptance|User Authenticator|lost connection|failed to handle|disconnected|login' \
     "$server_log" "$server_latest_log" 2>/dev/null | tail -n 120 >&2 || true
