@@ -154,9 +154,17 @@ class SkyIslandMassBalancedDischargePlannerTest {
                 new double[] {0.40, 0.55});
         var tributaryB = reach("b", "source-b", "join", new double[] {0.0, 10.0},
                 new double[] {0.35, 0.50});
-        var receiving = reach("main", "join", "outlet", new double[] {0.0, 10.0},
-                new double[] {0.80, 0.70});
 
+        // A decreasing authored station profile is rejected at the input boundary itself.
+        assertThrows(IllegalArgumentException.class,
+                () -> reach("main", "join", "outlet", new double[] {0.0, 10.0},
+                        new double[] {0.80, 0.70}));
+
+        // A valid monotone profile can still understate tributary inflow at the confluence;
+        // the network planner must reject that mass-balance deficit rather than invent negative
+        // lateral flow or independently rescale reaches.
+        var receiving = reach("main", "join", "outlet", new double[] {0.0, 10.0},
+                new double[] {0.80, 0.90});
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandMassBalancedDischargePlanner.plan(
                         List.of(tributaryA, tributaryB, receiving), "outlet", 0.90, 100.0));
