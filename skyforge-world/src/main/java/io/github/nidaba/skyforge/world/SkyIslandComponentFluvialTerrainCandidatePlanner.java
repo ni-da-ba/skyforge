@@ -203,8 +203,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             if (!qualification.accepted()) {
                 SkyIslandSemanticChannelReach semantic =
                         reach.geomorphicRoute().semanticReach();
-                throw new IllegalStateException(
-                        "F4A terrain candidate violates D2 after realization for reach "
+                String diagnostic =
+                        "shared F4A candidate rejected by unchanged D2 at reach "
                                 + semantic.startCellIndex()
                                 + "->"
                                 + semantic.endCellIndex()
@@ -214,7 +214,24 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 + diagnostics.maximumBankContainmentDeficitWorldUnits()
                                 + " world units, maximum depth/width="
                                 + diagnostics.maximumDepthToBankfullWidthRatio()
-                                + ")");
+                                + ")";
+                for (SkyIslandHydraulicTerminalComponent candidateComponent :
+                        List.copyOf(realizedComponents)) {
+                    deferredQualifiedComponents.add(
+                            new SkyIslandComponentFluvialTerrainDeferral(
+                                    candidateComponent,
+                                    List.of(SkyIslandComponentFluvialTerrainDeferralReason
+                                            .POST_REALIZATION_D2_REJECTED),
+                                    diagnostic));
+                }
+                realizedComponents.clear();
+                realizedByIdentity.clear();
+                coupledByIdentity.clear();
+                coupledTerrainByIdentity.clear();
+                postRealizationQualifications.clear();
+                terrainField = new SkyIslandQualifiedFluvialTerrainField(
+                        original, List.of(), Map.of(), descriptor.reliefBudget());
+                break;
             }
             postRealizationQualifications.add(qualification);
         }
