@@ -22,7 +22,6 @@ import java.util.TreeMap;
  * hydraulics and D2 must qualify against this exact composite terrain before publication.
  */
 public final class SkyIslandJointNetworkCandidateBuilder {
-    private static final double POSITION_TOLERANCE = 1.0e-8;
     private static final double ELEVATION_TOLERANCE_METRES = 1.0e-8;
 
     private SkyIslandJointNetworkCandidateBuilder() {}
@@ -43,14 +42,10 @@ public final class SkyIslandJointNetworkCandidateBuilder {
         }
         validateTopology(inputs, terminalNodeId);
 
-        Map<String, ReachInput> inputsById = new TreeMap<>();
         Map<String, SkyIslandLocalPosition> positionsByNode = new HashMap<>();
         List<SkyIslandJointNetworkBedSolver.Reach> bedInputs = new ArrayList<>(inputs.size());
         for (ReachInput input : inputs) {
             Objects.requireNonNull(input, "reach input");
-            if (inputsById.put(input.id(), input) != null) {
-                throw new IllegalArgumentException("duplicate network reach identity: " + input.id());
-            }
             List<SkyIslandLocalPosition> points = input.route().points();
             List<SkyIslandJointNetworkBedSolver.Station> stations = new ArrayList<>(points.size());
             double station = 0.0;
@@ -68,7 +63,7 @@ public final class SkyIslandJointNetworkCandidateBuilder {
                                 : input.id() + "#station-" + i;
                 if (i == 0 || i == points.size() - 1) {
                     SkyIslandLocalPosition prior = positionsByNode.putIfAbsent(nodeId, point);
-                    if (prior != null && distance(prior, point) > POSITION_TOLERANCE) {
+                    if (prior != null && !prior.equals(point)) {
                         throw new IllegalArgumentException(
                                 "shared network node must use one exact physical position: " + nodeId);
                     }
@@ -129,10 +124,14 @@ public final class SkyIslandJointNetworkCandidateBuilder {
     }
 
     private static void validateTopology(List<ReachInput> inputs, String terminalNodeId) {
+        Map<String, ReachInput> byId = new HashMap<>();
         Map<String, ReachInput> outgoing = new HashMap<>();
         Map<String, List<String>> incomingReachIds = new HashMap<>();
         for (ReachInput input : inputs) {
             Objects.requireNonNull(input, "reach input");
+            if (byId.put(input.id(), input) != null) {
+                throw new IllegalArgumentException("duplicate network reach identity: " + input.id());
+            }
             if (outgoing.put(input.upstreamNodeId(), input) != null) {
                 throw new IllegalArgumentException(
                         "network candidate does not support flow splits at node " + input.upstreamNodeId());
@@ -143,11 +142,6 @@ public final class SkyIslandJointNetworkCandidateBuilder {
         if (outgoing.containsKey(terminalNodeId)
                 || !incomingReachIds.containsKey(terminalNodeId)) {
             throw new IllegalArgumentException("declared terminal must be the unique downstream sink");
-        }
-        for (String nodeId : outgoing.keySet()) {
-            if (!incomingReachIds.containsKey(nodeId) && !nodeId.equals(terminalNodeId)) {
-                continue; // A headwater/source node.
-            }
         }
         for (String nodeId : incomingReachIds.keySet()) {
             if (!outgoing.containsKey(nodeId) && !nodeId.equals(terminalNodeId)) {
@@ -169,10 +163,10 @@ public final class SkyIslandJointNetworkCandidateBuilder {
         while (!ready.isEmpty()) {
             String reachId = ready.removeFirst();
             visited++;
-            ReachInput reach = inputs.stream()
-                    .filter(value -> value.id().equals(reachId))
-                    .findFirst()
-                    .orElseThrow();
+            ReachInput reach = byId.get(reachId);
+            if (reach == null) {
+                throw new IllegalStateException("ready network reach is missing its input: " + reachId);
+            }
             ReachInput receiver = outgoing.get(reach.downstreamNodeId());
             if (receiver != null) {
                 int remaining = pending.merge(receiver.id(), -1, Integer::sum);
