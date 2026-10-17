@@ -96,7 +96,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 new ArrayList<>();
         Map<Long, SkyIslandHydraulicReachGeometry> realizedByIdentity =
                 new LinkedHashMap<>();
-        Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledByIdentity =
+        Map<Long, SkyIslandHydraulicCandidateBuilder.Candidate> coupledByIdentity =
                 new LinkedHashMap<>();
 
         for (SkyIslandHydraulicTerminalComponent component :
@@ -113,17 +113,28 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 continue;
             }
 
+            SkyIslandComponentNetworkHydraulicPlanner.NetworkSolution networkSolution =
+                    SkyIslandComponentNetworkHydraulicPlanner.solve(
+                            descriptor, component, skeletons, original);
             for (SkyIslandHydraulicReachAssembly reachAssembly : component.reaches()) {
-                SkyIslandOrdinarySpanOutcome span =
-                        reachAssembly.ordinarySpans().getFirst();
+                SkyIslandOrdinarySpanOutcome span = reachAssembly.ordinarySpans().getFirst();
                 SkyIslandHydraulicReachSkeleton skeleton =
                         requireSkeleton(skeletons, reachAssembly.semanticReach());
                 long identity = reachAssembly.identity();
-                SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled =
-                        SkyIslandGameScaleHydraulicModel.solveSourceReach(
-                                descriptor, skeleton, original);
+                String reachId = reachAssembly.semanticReach().startCellIndex()
+                        + "->" + reachAssembly.semanticReach().endCellIndex();
+                SkyIslandComponentNetworkHydraulicPlanner.ReachSolution coupled =
+                        networkSolution.reachesById().get(reachId);
+                if (coupled == null) {
+                    throw new IllegalStateException("network hydraulic solve omitted reach " + reachId);
+                }
                 SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
-                        descriptor, skeleton, span, original, coupled);
+                        descriptor,
+                        skeleton,
+                        span,
+                        original,
+                        coupled.candidate(),
+                        coupled.profile());
                 if (realizedByIdentity.put(identity, geometry) != null) {
                     throw new IllegalStateException(
                             "F4A component selection repeated reach "
@@ -131,7 +142,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                     + "->"
                                     + reachAssembly.semanticReach().endCellIndex());
                 }
-                if (coupledByIdentity.put(identity, coupled) != null) {
+                if (coupledByIdentity.put(identity, coupled.candidate()) != null) {
                     throw new IllegalStateException("F4A repeated coupled hydraulic candidate");
                 }
             }
@@ -257,7 +268,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             SkyIslandHydraulicReachSkeleton skeleton,
             SkyIslandOrdinarySpanOutcome spanOutcome,
             SkyIslandSemanticField originalTerrain,
-            SkyIslandGameScaleHydraulicModel.SourceReachSolution solution) {
+            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
+            SkyIslandHydraulicCandidateBuilder.Profile profile) {
         if (spanOutcome.status() != SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
                 || Math.abs(spanOutcome.span().parentStartStationFraction()) > EPSILON
                 || Math.abs(spanOutcome.span().parentEndStationFraction() - 1.0) > EPSILON) {
@@ -266,9 +278,9 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
         }
         List<SkyIslandHydraulicGeometrySample> previousSamples = spanOutcome.solvedSamples();
         List<SkyIslandHydraulicGeometrySkeletonSample> skeletonSamples = skeleton.samples();
-        double[] beds = solution.profile().bedElevationsMetres();
-        double[] depths = solution.profile().depthsMetres();
-        double[] stages = solution.profile().waterSurfaceElevationsMetres();
+        double[] beds = profile.bedElevationsMetres();
+        double[] depths = profile.depthsMetres();
+        double[] stages = profile.waterSurfaceElevationsMetres();
         if (previousSamples.size() != skeletonSamples.size()
                 || beds.length != skeletonSamples.size()
                 || depths.length != skeletonSamples.size()
