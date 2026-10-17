@@ -14,11 +14,11 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
     void buildsOneTerrainAndFlowComponentBeforeSolvingItsSubcriticalJunctionTree() {
         var inputs = List.of(
                 reach("branch-a", "source-a", "join", line(0, 0, 10, 0),
-                        new double[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                        new double[] {1, 1, 1}),
                 reach("branch-b", "source-b", "join", line(20, 10, 10, 0),
                         new double[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
                 reach("main", "join", "outlet", line(10, 0, 20, 0),
-                        new double[] {2, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3}));
+                        new double[] {2, 2.5, 3}));
         SkyIslandSemanticField terrain = point -> 0.9 - 0.00001 * point.x() - 0.00001 * point.z();
 
         var solution = SkyIslandGameScaleDrainageNetworkModel.solve(
@@ -26,7 +26,7 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
 
         var flows = solution.massBalancedFlows().reachesById();
         double incoming = flows.get("branch-a")
-                        .dischargeAtStationsCubicMetresPerSecond()[10]
+                        .dischargeAtStationsCubicMetresPerSecond()[2]
                 + flows.get("branch-b")
                         .dischargeAtStationsCubicMetresPerSecond()[10];
         assertEquals(
@@ -67,7 +67,7 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
                 points, length, length, 0.0, 0.0, 0.0, 0.0, 0.0);
         var configuration = new SkyIslandHydraulicCandidateBuilder.Configuration(
                 1.0, 100.0, 0.0, 0.001, 0.0,
-                1.0, 1.0, 1.0, 4.0, 20.0);
+                1.0, 1.0, 1.0, 1.6, 20.0);
         var candidate = new SkyIslandJointNetworkCandidateBuilder.ReachInput(
                 id, upstream, downstream, route, configuration);
         return new SkyIslandGameScaleDrainageNetworkModel.ReachInput(
