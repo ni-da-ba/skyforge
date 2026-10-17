@@ -114,7 +114,8 @@ final class SkyforgeF4DNetworkHydrologyReviewDevRuntime {
                         + " enabled. New disposable Skyforge Development world only. "
                         + "association-bound world-elevation frame; F4H authorized columns=" + fixture.authorization().quantization().authorizedColumns().size()
                         + ", exact removed blocks=" + fixture.authorization().quantization().totalRemovedSolidBlocks()
-                        + ", realized network components=" + fixture.realizedNetworkComponents()\n                        + ", refined reaches=" + fixture.refined().reaches().size()
+                        + ", realized network components=" + fixture.realizedNetworkComponents()
+                        + ", refined reaches=" + fixture.refined().reaches().size()
                         + ", first wet anchor=" + anchor
                         + ". Inspect overview near x=" + INSPECTION_X
                         + ", y=" + INSPECTION_Y
