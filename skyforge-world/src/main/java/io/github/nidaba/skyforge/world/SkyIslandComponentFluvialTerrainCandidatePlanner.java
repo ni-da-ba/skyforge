@@ -242,10 +242,16 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     network.requireNode(semantic.startCellIndex());
             SkyIslandGeomorphicNetworkNode end =
                     network.requireNode(semantic.endCellIndex());
-            if ((start.kind() != SkyIslandGeomorphicNetworkNodeKind.SOURCE
-                            && start.kind() != SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE)
-                    || (end.kind() != SkyIslandGeomorphicNetworkNodeKind.TERMINAL
-                            && end.kind() != SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE)) {
+            boolean completeSourceReach = component.reaches().size() == 1
+                    && start.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE
+                    && end.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL;
+            boolean supportedTreeNodeKinds =
+                    (start.kind() == SkyIslandGeomorphicNetworkNodeKind.SOURCE
+                            || start.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE)
+                    && (end.kind() == SkyIslandGeomorphicNetworkNodeKind.TERMINAL
+                            || end.kind() == SkyIslandGeomorphicNetworkNodeKind.CONFLUENCE);
+            if ((component.reaches().size() == 1 && !completeSourceReach)
+                    || (component.reaches().size() > 1 && !supportedTreeNodeKinds)) {
                 reasons.add(
                         SkyIslandComponentFluvialTerrainDeferralReason
                                 .SOURCE_BOUNDARY_REQUIRED);
