@@ -11,6 +11,7 @@ import io.github.nidaba.skyforge.world.SkyIslandComponentFluvialTerrainCandidate
 import io.github.nidaba.skyforge.world.SkyIslandDescriptorGenerator;
 import io.github.nidaba.skyforge.world.SkyIslandFluvialVoxelColumn;
 import io.github.nidaba.skyforge.world.SkyIslandHydrologyRuntimeAuthorization;
+import io.github.nidaba.skyforge.world.SkyIslandQualifiedFluvialSample;
 import io.github.nidaba.skyforge.world.SkyIslandTerrainProfile;
 import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldHeadRefinedTerrainPlan;
