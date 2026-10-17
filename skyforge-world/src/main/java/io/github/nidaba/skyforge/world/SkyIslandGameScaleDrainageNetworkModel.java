@@ -61,21 +61,6 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
         SkyIslandMassBalancedDischargePlanner.NetworkFlows unitFlows =
                 SkyIslandMassBalancedDischargePlanner.plan(
                         relativeFlows, terminalNodeId, terminalRelativeDischarge, 1.0);
-        final var initialUnitFlows = unitFlows;
-        double dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
-                inputs.stream()
-                        .map(input -> capacityProfile(
-                                input,
-                                candidate.reachesById().get(input.candidateReach().id()),
-                                initialUnitFlows.reachesById().get(input.candidateReach().id())))
-                        .toList());
-        SkyIslandMassBalancedDischargePlanner.NetworkFlows flows =
-                SkyIslandMassBalancedDischargePlanner.plan(
-                        relativeFlows,
-                        terminalNodeId,
-                        terminalRelativeDischarge,
-                        dischargeScale);
-
         Map<String, SkyIslandSubcriticalJunctionNetworkSolver.Reach> hydraulicReaches =
                 new TreeMap<>();
 
@@ -118,14 +103,15 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
         unitFlows = SkyIslandMassBalancedDischargePlanner.plan(
                 relativeFlows, terminalNodeId, terminalRelativeDischarge, 1.0);
         final var adjustedUnitFlows = unitFlows;
-        dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
+        double dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
                 inputs.stream()
                         .map(input -> capacityProfile(
                                 input,
                                 candidate.reachesById().get(input.candidateReach().id()),
                                 adjustedUnitFlows.reachesById().get(input.candidateReach().id())))
                         .toList());
-        flows = SkyIslandMassBalancedDischargePlanner.plan(
+        SkyIslandMassBalancedDischargePlanner.NetworkFlows flows =
+                SkyIslandMassBalancedDischargePlanner.plan(
                 relativeFlows,
                 terminalNodeId,
                 terminalRelativeDischarge,
