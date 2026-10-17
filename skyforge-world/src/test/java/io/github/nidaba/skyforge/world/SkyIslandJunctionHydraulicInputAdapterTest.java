@@ -62,15 +62,13 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
         assertArrayEquals(new double[] {2, 2},
                 branchSlice.dischargeAtStationsCubicMetresPerSecond(), EPSILON);
 
-        var profile = SkyIslandSubcriticalDrainageTreeSolver.solve(
-                List.of(
-                        new SkyIslandSubcriticalDrainageTreeSolver.Reach(
-                                "main", receiver.toHydraulicReach()),
-                        new SkyIslandSubcriticalDrainageTreeSolver.Reach(
-                                "branch-a", branchA.toHydraulicReach()),
-                        new SkyIslandSubcriticalDrainageTreeSolver.Reach(
-                                "branch-b", branchB.toHydraulicReach())),
-                List.of(junction),
+        var profile = SkyIslandJunctionHydraulicInputAdapter.solveNetwork(
+                List.of(receiver, branchA, branchB),
+                List.of(new SkyIslandJunctionHydraulicInputAdapter.JunctionInput(
+                        plan,
+                        Map.of(
+                                "branch-a", new SkyIslandJunctionHydraulicInputAdapter.LossCoefficients(0.1, 0.3),
+                                "branch-b", new SkyIslandJunctionHydraulicInputAdapter.LossCoefficients(0.1, 0.3)))),
                 "main",
                 1.0);
         assertEquals(3, profile.reachesById().size());
