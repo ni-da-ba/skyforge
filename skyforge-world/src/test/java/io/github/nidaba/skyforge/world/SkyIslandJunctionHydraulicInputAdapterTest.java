@@ -120,6 +120,7 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
 
     private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fullReach(
             double[] flows, double[] stations) {
+        // Keep the synthetic bed mild enough for a physically admissible subcritical profile.
         var section = new SkyIslandStandardStepSolver.CrossSection() {
             @Override
             public double area(double depth) { return 2.0 * depth; }
