@@ -349,15 +349,9 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             double[] stations = receiverGeometry.stationsMetres();
             double[] beds = receiverGeometry.bedElevationsMetres();
             double[] depths = receiverProfile.depthsMetres();
-            if (depths.length < 2 || receiverSlice.firstStationIndex() + 1 > receiverSlice.lastStationIndex()) {
-                throw new IllegalArgumentException(
-                        "receiver section must contain two solved stations to bridge the junction gap");
-            }
             int first = receiverSlice.firstStationIndex();
-            double firstStage = beds[first] + depths[0];
-            double nextStage = beds[first + 1] + depths[1];
-            double grade = (nextStage - firstStage) / (stations[first + 1] - stations[first]);
-            double nodeStage = firstStage - grade * stations[first];
+            double nodeStage = SkyIslandJunctionWaterSurfaceBridge.receiverStageAtSemanticNode(
+                    stations, beds, depths, first);
             if (!Double.isFinite(nodeStage) || nodeStage <= beds[0]) {
                 throw new IllegalArgumentException(
                         "receiver-profile continuation does not leave positive water depth at the shared junction bed");
@@ -402,34 +396,16 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
         double[] stations = candidate.stationsMetres();
         double[] beds = candidate.bedElevationsMetres();
         double[] depths = profile.depthsMetres();
-        double[] stage = new double[beds.length];
         int first = slice.firstStationIndex();
         int last = slice.lastStationIndex();
-        for (int index = first; index <= last; index++) {
-            stage[index] = beds[index] + depths[index - first];
-        }
-        int startNode = assembly.semanticReach().startCellIndex();
-        if (first > 0) {
-            Double nodeStage = stageAtJunctionNode.get(startNode);
-            if (nodeStage == null) {
-                throw new IllegalArgumentException("receiver reach begins at an unmodeled junction");
-            }
-            for (int index = 0; index < first; index++) {
-                double fraction = stations[index] / stations[first];
-                stage[index] = nodeStage + fraction * (stage[first] - nodeStage);
-            }
-        }
-        int endNode = assembly.semanticReach().endCellIndex();
-        if (last < beds.length - 1) {
-            Double nodeStage = stageAtJunctionNode.get(endNode);
-            if (nodeStage == null) {
-                throw new IllegalArgumentException("tributary reach ends at an unmodeled junction");
-            }
-            for (int index = last + 1; index < beds.length; index++) {
-                double fraction = (stations[index] - stations[last]) / (stations[beds.length - 1] - stations[last]);
-                stage[index] = stage[last] + fraction * (nodeStage - stage[last]);
-            }
-        }
+        Double upstreamNodeStage = first > 0
+                ? stageAtJunctionNode.get(assembly.semanticReach().startCellIndex())
+                : null;
+        Double downstreamNodeStage = last < beds.length - 1
+                ? stageAtJunctionNode.get(assembly.semanticReach().endCellIndex())
+                : null;
+        double[] stage = SkyIslandJunctionWaterSurfaceBridge.expandAcrossJunctionGaps(
+                stations, beds, depths, first, last, upstreamNodeStage, downstreamNodeStage);
         double verticalScale = descriptor.reliefBudget();
         List<SkyIslandHydraulicGeometrySample> samples = new ArrayList<>(beds.length);
         double maximumLowering = 0.0;
