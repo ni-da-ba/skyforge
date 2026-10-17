@@ -185,55 +185,68 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
-    void confluence632LegacyHeadDeferralsReachTheNetworkCandidateGateAtomically() {
+    void confluence632CascadeBoundaryRemainsFailClosed() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 632L);
         SkyIslandHydraulicNetworkAssemblyPlan assembly =
                 SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
-        List<SkyIslandHydraulicTerminalComponent> eligible = assembly.terminalComponents().stream()
-                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
-                .toList();
 
-        assertFalse(eligible.isEmpty(), () -> assembly.terminalComponents().stream()
-                .map(component -> component.terminalFate().channelTerminalCellIndex()
-                        + ":" + component.terminalFate().kind()
-                        + "/" + component.status()
-                        + " blockers=" + component.blockers()
-                        + " head=" + component.sharedHeadSolve().status()
-                        + " excluded=" + component.sharedHeadSolve().excludedSpans()
-                        + " transition=" + component.sharedHeadSolve().transitionBlockers()
-                        + " diagnostic=" + component.sharedHeadSolve().diagnostic()
-                        + " reachStatus=" + component.reaches().stream()
-                                .map(reach -> reach.status() + ":" + reach.blockers()
-                                        + "/spans=" + reach.ordinarySpans().stream()
-                                                .map(span -> span.status() + ":"
-                                                        + span.diagnostic().orElse(""))
-                                                .toList())
-                                .toList())
-                .collect(java.util.stream.Collectors.joining("; ")));
-        assertTrue(eligible.stream().allMatch(component ->
-                component.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED
-                        && component.sharedHeadSolve().complete() == false));
+        assertTrue(assembly.terminalComponents().stream()
+                .flatMap(component -> component.reaches().stream())
+                .anyMatch(reach -> !reach.cascades().isEmpty()),
+                "key 632 must remain a CASCADE boundary control");
+        assertTrue(assembly.terminalComponents().stream()
+                .noneMatch(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible));
 
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
-        assertTrue(candidate.realizedComponents().stream()
-                .anyMatch(component -> component.reaches().size() > 1
-                        && component.networkSolution().isPresent()),
-                "key 632 must realize a qualified multi-reach network, not only defer candidates");
-        assertEquals(
-                eligible.size(),
-                candidate.realizedComponents().size()
-                        + candidate.deferredQualifiedComponents().size());
-        assertTrue(candidate.realizedComponents().stream()
-                .allMatch(component -> component.networkSolution().isPresent()));
-        assertTrue(candidate.deferredQualifiedComponents().stream()
-                .allMatch(deferral -> !deferral.diagnostic().isBlank()));
-        assertTrue(assembly.terminalComponents().stream()
-                .filter(component -> eligible.stream().anyMatch(value ->
-                        value.terminalFate().channelTerminalCellIndex()
-                                == component.terminalFate().channelTerminalCellIndex()))
-                .allMatch(component ->
-                        component.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED));
+        assertTrue(candidate.realizedComponents().isEmpty());
+        assertTrue(candidate.terrainField().acceptedReaches().isEmpty());
+        assertTrue(candidate.deferredQualifiedComponents().isEmpty());
+    }
+
+    @Test
+    void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() {
+        List<String> eligibleButUnrealized = new java.util.ArrayList<>();
+        long foundKey = -1L;
+        int foundTerminal = -1;
+
+        for (long key = 0; key < 256 && foundKey < 0; key++) {
+            SkyIslandDescriptor descriptor = descriptor(8L, 81L, key);
+            SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                    SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+            boolean hasEligibleNetwork = assembly.terminalComponents().stream()
+                    .anyMatch(component ->
+                            component.reaches().size() > 1
+                                    && SkyIslandComponentFluvialTerrainCandidatePlan
+                                            .isCandidateEligible(component));
+            if (!hasEligibleNetwork) {
+                continue;
+            }
+
+            SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                    SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+            var realized = candidate.realizedComponents().stream()
+                    .filter(component -> component.reaches().size() > 1
+                            && component.networkSolution().isPresent())
+                    .findFirst();
+            if (realized.isPresent()) {
+                foundKey = key;
+                foundTerminal = realized.get().terminalFate().channelTerminalCellIndex();
+            } else {
+                eligibleButUnrealized.add(key + ": " + candidate.deferredQualifiedComponents().stream()
+                        .map(deferral -> deferral.diagnostic())
+                        .toList());
+            }
+        }
+
+        assertTrue(foundKey >= 0,
+                () -> "No cascade-free realized multireach specimen in keys 0..255; "
+                        + "eligible-but-unrealized=" + eligibleButUnrealized);
+        System.out.printf(
+                "F4_CASCADE_FREE_NETWORK_SPECIMEN key=%d terminal=%d seed=0x%016X%n",
+                foundKey,
+                foundTerminal,
+                SEED);
     }
 
     @Test
