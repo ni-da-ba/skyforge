@@ -6,7 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
@@ -92,6 +94,57 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
         }
         assertTrue(plan.postRealizationQualifications().stream()
                 .allMatch(SkyIslandGeomorphicReachQualification::accepted));
+    }
+
+    @Test
+    void qualifiedFieldUsesTheSharedNetworkTerrainSamplerWithoutChangingItsSurface() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan plan =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
+                plan.assemblyPlan()
+                        .ordinarySpanPlan()
+                        .cascadePlan()
+                        .transitionGeometry()
+                        .topology()
+                        .skeletonPlan();
+        SkyIslandSemanticField original = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        Map<Long, SkyIslandSemanticField> surfaces = new LinkedHashMap<>();
+        for (SkyIslandHydraulicReachGeometry reach : plan.terrainField().acceptedReaches()) {
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                    .filter(value -> value.geomorphicRoute().semanticReach().equals(semantic))
+                    .findFirst()
+                    .orElseThrow();
+            var solution = SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                    descriptor, skeleton, original);
+            long identity = ((long) semantic.startCellIndex() << 32)
+                    ^ Integer.toUnsignedLong(semantic.endCellIndex());
+            surfaces.put(identity, position ->
+                    solution.candidate().sampleTerrainMetres(position) / descriptor.reliefBudget());
+        }
+        SkyIslandQualifiedFluvialTerrainField field =
+                SkyIslandQualifiedFluvialTerrainField.withCoupledTerrainSurfaces(
+                        original,
+                        plan.terrainField().acceptedReaches(),
+                        surfaces,
+                        descriptor.reliefBudget());
+
+        for (SkyIslandHydraulicReachGeometry reach : plan.terrainField().acceptedReaches()) {
+            int middle = reach.centerline().points().size() / 2;
+            SkyIslandLocalPosition point = reach.centerline().points().get(middle);
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                    .filter(value -> value.geomorphicRoute().semanticReach().equals(semantic))
+                    .findFirst()
+                    .orElseThrow();
+            var solution = SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                    descriptor, skeleton, original);
+            assertEquals(
+                    solution.candidate().sampleTerrainMetres(point) / descriptor.reliefBudget(),
+                    field.sample(point),
+                    EPSILON);
+        }
     }
 
     @Test
