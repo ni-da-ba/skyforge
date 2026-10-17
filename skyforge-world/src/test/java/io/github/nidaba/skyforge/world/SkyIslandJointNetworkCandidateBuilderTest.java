@@ -61,6 +61,25 @@ class SkyIslandJointNetworkCandidateBuilderTest {
     }
 
     @Test
+    void rejectsValleyOverlapThatWouldCreateAnUnmodeledConfluence() {
+        var main = input(
+                "main", "join", "outlet",
+                List.of(
+                        new SkyIslandLocalPosition(0.0, 0.0),
+                        new SkyIslandLocalPosition(10.0, 0.0),
+                        new SkyIslandLocalPosition(20.0, 0.0)));
+        var crossingTributary = input(
+                "crossing-branch", "source", "join",
+                List.of(
+                        new SkyIslandLocalPosition(20.0, 10.0),
+                        new SkyIslandLocalPosition(0.0, -10.0),
+                        new SkyIslandLocalPosition(0.0, 0.0)));
+        assertThrows(IllegalArgumentException.class, () ->
+                SkyIslandJointNetworkCandidateBuilder.build(
+                        List.of(main, crossingTributary), "outlet", ignored -> 0.8));
+    }
+
+    @Test
     void rejectsFlowSplitsCyclesAndNonterminalSinks() {
         var branch = input(
                 "branch", "source", "join",
