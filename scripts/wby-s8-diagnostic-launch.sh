@@ -161,10 +161,14 @@ if [[ "$variant" == "incendium" ]]; then
   echo "Select Incendium in the Data Packs screen before creating the world."
 fi
 
-if [[ -f "$downloads/Sky-Whale-Retexture.zip" ]]; then
-  mkdir -p "$run/resourcepacks"
-  cp -f "$downloads/Sky-Whale-Retexture.zip" "$run/resourcepacks/Sky-Whale-Retexture.zip"
+whale_pack="$downloads/Sky-Whale-Retexture.zip"
+if [[ ! -s "$whale_pack" ]]; then
+  echo "Missing required Sky Whale Retexture: $whale_pack" >&2
+  echo "Download the owner-selected pack from https://modrinth.com/resourcepack/sky-whale-retexture and save it at that path." >&2
+  exit 2
 fi
+mkdir -p "$run/resourcepacks"
+cp -f "$whale_pack" "$run/resourcepacks/Sky-Whale-Retexture.zip"
 
 echo "S8 arm: $variant. Cumulative S0-S7, including selected TaCZ, with exactly one Nether substrate arm."
 echo "Create a NEW normal/default world, not the Skyforge preset, with seed 817304 in each arm."
