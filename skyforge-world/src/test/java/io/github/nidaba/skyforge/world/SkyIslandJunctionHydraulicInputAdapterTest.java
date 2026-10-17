@@ -34,7 +34,10 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
         var branchA = new SkyIslandJunctionHydraulicInputAdapter.ReachSlice(
                 "branch-a", fullReach(new double[] {1, 1, 1, 1}), 0, 1);
         var branchB = new SkyIslandJunctionHydraulicInputAdapter.ReachSlice(
-                "branch-b", fullReach(new double[] {2, 2, 2, 2}, new double[] {0, Math.sqrt(8), 2 * Math.sqrt(8), 3 * Math.sqrt(8)}), 0, 1);
+                "branch-b", fullReach(
+                        new double[] {2, 2, 2, 2},
+                        new double[] {0, Math.sqrt(8), 2 * Math.sqrt(8), 3 * Math.sqrt(8)}),
+                0, 1);
         var junction = SkyIslandJunctionHydraulicInputAdapter.junction(
                 plan,
                 receiver,
@@ -124,7 +127,7 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
             public double topWidth(double depth) { return 2.0; }
         };
         return new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
-                new double[] {0, 2, 4, 6},
+                stations,
                 new double[] {10, 9, 8, 7},
                 new SkyIslandStandardStepSolver.CrossSection[] {section, section, section, section},
                 flows, 0.035,
