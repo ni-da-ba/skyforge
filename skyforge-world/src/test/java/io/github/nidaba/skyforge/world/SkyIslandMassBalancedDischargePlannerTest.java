@@ -38,6 +38,68 @@ class SkyIslandMassBalancedDischargePlannerTest {
     }
 
     @Test
+    void mappedFlowsSatisfyTheSubcriticalNetworkSolverMassContract() {
+        var tributaryA = reach("a", "source-a", "join", new double[] {0.0, 10.0},
+                new double[] {0.20, 0.35});
+        var tributaryB = reach("b", "source-b", "join", new double[] {0.0, 8.0},
+                new double[] {0.15, 0.30});
+        var receiving = reach("main", "join", "outlet", new double[] {0.0, 6.0, 12.0},
+                new double[] {0.70, 0.85, 0.95});
+        var mapped = SkyIslandMassBalancedDischargePlanner.plan(
+                List.of(tributaryA, tributaryB, receiving), "outlet", 1.10, 100.0);
+
+        var sectionA = rectangularSection(25.0);
+        var sectionB = rectangularSection(22.0);
+        var sectionMain = rectangularSection(50.0);
+        var hydraulicA = hydraulicReach(
+                new double[] {0.0, 10.0}, new double[] {2.10, 2.00}, sectionA,
+                mapped.reachesById().get("a").dischargeAtStationsCubicMetresPerSecond());
+        var hydraulicB = hydraulicReach(
+                new double[] {0.0, 8.0}, new double[] {2.08, 2.00}, sectionB,
+                mapped.reachesById().get("b").dischargeAtStationsCubicMetresPerSecond());
+        var hydraulicMain = hydraulicReach(
+                new double[] {0.0, 6.0, 12.0}, new double[] {1.95, 1.90, 1.85}, sectionMain,
+                mapped.reachesById().get("main").dischargeAtStationsCubicMetresPerSecond());
+        double downstreamDepth = SkyIslandManningNormalDepthSolver.solve(
+                110.0, 0.035, 0.005,
+                new SkyIslandManningNormalDepthSolver.CrossSection() {
+                    @Override
+                    public double area(double depthMetres) {
+                        return sectionMain.area(depthMetres);
+                    }
+
+                    @Override
+                    public double wettedPerimeter(double depthMetres) {
+                        return sectionMain.wettedPerimeter(depthMetres);
+                    }
+                });
+
+        var profile = SkyIslandSubcriticalDrainageTreeSolver.solve(
+                List.of(
+                        new SkyIslandSubcriticalDrainageTreeSolver.Reach("a", hydraulicA),
+                        new SkyIslandSubcriticalDrainageTreeSolver.Reach("b", hydraulicB),
+                        new SkyIslandSubcriticalDrainageTreeSolver.Reach("main", hydraulicMain)),
+                List.of(new SkyIslandSubcriticalDrainageTreeSolver.Junction(
+                        "main",
+                        List.of(
+                                new SkyIslandSubcriticalDrainageTreeSolver.Tributary(
+                                        "a", 0.5, 0.1, 0.3),
+                                new SkyIslandSubcriticalDrainageTreeSolver.Tributary(
+                                        "b", 0.5, 0.1, 0.3)))),
+                "main",
+                downstreamDepth);
+
+        assertEquals(3, profile.reachesById().size());
+        assertEquals(110.0, mapped.terminalDischargeCubicMetresPerSecond(), 1.0e-12);
+        for (var reachProfile : profile.reachesById().values()) {
+            for (double depth : reachProfile.depthsMetres()) {
+                org.junit.jupiter.api.Assertions.assertTrue(
+                        Double.isFinite(depth) && depth > 0.0);
+            }
+        }
+    }
+
+    @Test
     void preservesContinuityAcrossNestedConfluences() {
         var a = reach("a", "source-a", "join-1", new double[] {0.0, 5.0},
                 new double[] {0.10, 0.20});
@@ -117,6 +179,37 @@ class SkyIslandMassBalancedDischargePlannerTest {
         assertThrows(IllegalArgumentException.class,
                 () -> SkyIslandMassBalancedDischargePlanner.plan(
                         List.of(branchA, branchB), "outlet", 0.8, 10.0));
+    }
+
+    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach hydraulicReach(
+            double[] stations,
+            double[] beds,
+            SkyIslandStandardStepSolver.CrossSection section,
+            double[] discharges) {
+        SkyIslandStandardStepSolver.CrossSection[] sections =
+                new SkyIslandStandardStepSolver.CrossSection[stations.length];
+        java.util.Arrays.fill(sections, section);
+        return new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
+                stations, beds, sections, discharges, 0.035);
+    }
+
+    private static SkyIslandStandardStepSolver.CrossSection rectangularSection(double width) {
+        return new SkyIslandStandardStepSolver.CrossSection() {
+            @Override
+            public double area(double depthMetres) {
+                return width * depthMetres;
+            }
+
+            @Override
+            public double wettedPerimeter(double depthMetres) {
+                return width + 2.0 * depthMetres;
+            }
+
+            @Override
+            public double topWidth(double depthMetres) {
+                return width;
+            }
+        };
     }
 
     private static SkyIslandMassBalancedDischargePlanner.ReachInput reach(
