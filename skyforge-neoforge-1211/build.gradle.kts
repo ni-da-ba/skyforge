@@ -552,6 +552,12 @@ check(wbyS8Pin("neoforge", "version") == "21.1.249")
 check(wbyS8Pin("profile", "base") == "wby-s7-combat")
 val wbyS8JneMods = listOf("jadensNetherExpansion", "elysiumApi", "lodestone")
 val wbyS8MndMods = listOf("myNethersDelight")
+val wbyS8FullClientMods = listOf(
+    "netherDepthsUpgrade", "createNetherIndustry", "thinAirRelived", "curios"
+)
+val wbyS8FullServerMods = listOf("yungsBetterNetherFortresses")
+val wbyS8FullMods = wbyS8FullClientMods + wbyS8FullServerMods
+val wbyS8BetterNetherMods = listOf("betterNetherNewDawn", "bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn")
 val wbyS8IncendiumDataPack = configurations.create("wbyS8IncendiumDataPack") {
     isCanBeConsumed = false
     isCanBeResolved = true
@@ -665,13 +671,23 @@ val wbyS8NetherMods = when (wbyS8NetherVariant) {
     "control-mnd" -> wbyS8MndMods
     "jne" -> wbyS8JneMods
     "jne-mnd" -> wbyS8JneMods + wbyS8MndMods
+    "incendium-full" -> wbyS8MndMods + wbyS8FullMods
+    "incendium-betternether" -> wbyS8BetterNetherMods
     else -> emptyList()
+}
+val wbyS8NetherClientMods = when (wbyS8NetherVariant) {
+    "incendium-full" -> wbyS8MndMods + wbyS8FullClientMods
+    else -> wbyS8NetherMods
+}
+val wbyS8NetherServerMods = when (wbyS8NetherVariant) {
+    "incendium-full" -> wbyS8MndMods + wbyS8FullServerMods
+    else -> wbyS8NetherMods
 }
 
 tasks.register<Copy>("wbyS8StageNetherDatapack") {
     group = "verification"
     description = "Stage the exact official Incendium data pack into the isolated S8 review profile."
-    onlyIf { wbyS8NetherVariant == "incendium" }
+    onlyIf { wbyS8NetherVariant in setOf("incendium", "incendium-full", "incendium-betternether") }
     from(wbyS8IncendiumDataPack)
     into(layout.projectDirectory.dir("$wbyS1RunDirectory/datapacks"))
     rename { "incendium-5.4.4.zip" }
@@ -739,8 +755,8 @@ check(wbyS7CombatVariant in setOf("none", "engineering", "tacz", "scorched", "fi
 check(wbyS7CombatVariant == "none" || wbyS7Bomd) {
     "WBY S7 combat overlays require the cumulative S7 BOMD baseline"
 }
-check(wbyS8NetherVariant in setOf("none", "control", "control-mnd", "jne", "jne-mnd", "incendium")) {
-    "WBY S8 Nether variant must be none, control, control-mnd, jne, jne-mnd, or incendium"
+check(wbyS8NetherVariant in setOf("none", "control", "control-mnd", "jne", "jne-mnd", "incendium", "incendium-full", "incendium-betternether")) {
+    "WBY S8 Nether variant must be none, control, control-mnd, jne, jne-mnd, incendium, incendium-full, or incendium-betternether"
 }
 check(wbyS8NetherVariant == "none" || (wbyS7CombatVariant == "tacz" && wbyS7Bomd)) {
     "WBY S8 requires the cumulative S0-S7 BOMD plus selected TaCZ profile"
@@ -7600,25 +7616,42 @@ tasks.register("wbyS1ResolvePinnedMods") {
                 "WBY S7 combat missing $mod on client/server: $expected"
             }
         }
-        (wbyS7CombatCandidateMods - expectedCombatNames).forEach { mod ->
+        // A dependency selected by another enabled content stack is shared, not a leak from this combat arm.
+        val expectedCrossStackSharedMods = if (wbyS8NetherVariant == "incendium-full") {
+            (wbyS8NetherClientMods + wbyS8NetherServerMods).toSet()
+                .intersect(wbyS7CombatCandidateMods.toSet())
+        } else {
+            emptySet()
+        }
+        (wbyS7CombatCandidateMods - expectedCombatNames - expectedCrossStackSharedMods).forEach { mod ->
             val expected = wbyS7CombatToken(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S7 combat arm leaked unselected candidate $mod: $expected"
             }
         }
-        wbyS8NetherMods.forEach { mod ->
+        wbyS8NetherClientMods.forEach { mod ->
             val expected = wbyS8Token(mod)
-            check(client.any { it.contains(expected) } && server.any { it.contains(expected) }) {
-                "WBY S8 Nether $wbyS8NetherVariant missing $mod on client/server: $expected"
+            check(client.any { it.contains(expected) }) {
+                "WBY S8 Nether $wbyS8NetherVariant missing client mod $mod: $expected"
             }
         }
-        ((wbyS8JneMods + wbyS8MndMods) - wbyS8NetherMods).forEach { mod ->
+        wbyS8NetherServerMods.forEach { mod ->
+            val expected = wbyS8Token(mod)
+            check(server.any { it.contains(expected) }) {
+                "WBY S8 Nether $wbyS8NetherVariant missing server mod $mod: $expected"
+            }
+        }
+        // Curios can be present because the separate S7 Scorched arm selects it.
+        val expectedOtherStackNetherSharedMods =
+            if (wbyS7CombatVariant == "scorched") setOf("curios") else emptySet()
+        ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) -
+            wbyS8NetherMods - expectedOtherStackNetherSharedMods).forEach { mod ->
             val expected = wbyS8Token(mod)
             check(client.none { it.contains(expected) } && server.none { it.contains(expected) }) {
                 "WBY S8 Nether arm leaked unselected JNE dependency $mod: $expected"
             }
         }
-        if (wbyS8NetherVariant == "incendium") {
+        if (wbyS8NetherVariant in setOf("incendium", "incendium-full", "incendium-betternether")) {
             val pack = wbyS8IncendiumDataPack.singleFile
             check(pack.isFile && pack.extension.equals("zip", ignoreCase = true)) {
                 "WBY S8 Incendium must resolve to the official whole .zip data pack: $pack"
@@ -7706,7 +7739,7 @@ wbyS1StageClientMods.configure {
         (if (wbyS7IceAndFire) wbyS7IceAndFireMods.map(::wbyS7Token) else emptyList()) +
         (if (wbyS7Bomd) wbyS7BomdMods.map(::wbyS7Token) else emptyList()) +
         wbyS7CombatMods.map(::wbyS7CombatToken) +
-        wbyS8NetherMods.map(::wbyS8Token)
+        wbyS8NetherClientMods.map(::wbyS8Token)
     ).toSet()
 
     from(wbyS1ClientRuntime.runtimeClasspath) {
@@ -8659,8 +8692,25 @@ dependencies {
             add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
         }
     }
-    if (wbyS8NetherVariant == "incendium") {
+    if (wbyS8NetherVariant in setOf("incendium", "incendium-full", "incendium-betternether")) {
         add(wbyS8IncendiumDataPack.name, wbyS8Pin("incendium", "coordinate"))
+    }
+    if (wbyS8NetherVariant == "incendium-full") {
+        wbyS8FullClientMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
+        wbyS8FullServerMods.forEach { mod ->
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
+        add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin("myNethersDelight", "coordinate"))
+        add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin("myNethersDelight", "coordinate"))
+    }
+    if (wbyS8NetherVariant == "incendium-betternether") {
+        wbyS8BetterNetherMods.forEach { mod ->
+            add(wbyS1ClientRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+            add(wbyS1ServerRuntime.runtimeOnlyConfigurationName, wbyS8Pin(mod, "coordinate"))
+        }
     }
 
     // PT-02A layers only the already accepted glider capability and atmosphere authority onto W1.
@@ -10300,7 +10350,7 @@ tasks.register<Sync>("wbyS1StageServerMods") {
                 "WBY S7 combat server staging missing $mod token '$expected': $staged"
             }
         }
-        wbyS8NetherMods.forEach { mod ->
+        wbyS8NetherServerMods.forEach { mod ->
             val expected = wbyS8Token(mod)
             check(staged.any { it.contains(expected) }) {
                 "WBY S8 Nether server staging missing $mod token '$expected': $staged"

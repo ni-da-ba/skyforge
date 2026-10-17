@@ -6,7 +6,8 @@ server_java="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 client_dir="skyforge-neoforge-1211/run-wby-s7-join-client"
 mkdir -p "$server_dir" "$client_dir"
 printf 'eula=true\n' > "$server_dir/eula.txt"
-cat > "$server_dir/server.properties" <<'EOF'
+export WBY_S7_RCON_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+cat > "$server_dir/server.properties" <<EOF
 level-name=s7-acceptance
 level-seed=817304
 level-type=minecraft:normal
@@ -22,7 +23,7 @@ max-players=1
 server-port=25565
 enable-rcon=true
 rcon.port=25575
-rcon.password=skyforge-s7-local-probe
+rcon.password=$WBY_S7_RCON_PASSWORD
 broadcast-rcon-to-ops=false
 EOF
 printf 'onboardAccessibility:false\n' > "$client_dir/options.txt"
@@ -196,7 +197,7 @@ else
   bomd_evidence_args=()
 fi
 
-if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" ]]; then
+if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-full" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-betternether" ]]; then
   : "${WBY_S8_NETHER_DATAPACK_SOURCE:?Set the staged Incendium ZIP path}"
   test -s "$WBY_S8_NETHER_DATAPACK_SOURCE"
   mkdir -p "$server_dir/s7-acceptance/datapacks"
@@ -210,12 +211,12 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
     --variant "$WBY_S8_NETHER_VARIANT" \
     --mods "$server_dir/mods" \
     --datapacks "$server_dir/s7-acceptance/datapacks" \
-    --live --host 127.0.0.1 --port 25575 --password skyforge-s7-local-probe \
+    --live --host 127.0.0.1 --port 25575 \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --skip-entity-probes
@@ -258,10 +259,35 @@ for _ in $(seq 1 600); do
   if ! kill -0 "$server_pid" 2>/dev/null; then cat "$server_log"; exit 1; fi
   sleep 1
 done
-test "$joined" = true
+if [[ "$joined" != true ]]; then
+  echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within 600 seconds." >&2
+  thread_dump="$GITHUB_WORKSPACE/wby-s7-client-thread-dump.txt"
+  {
+    echo "--- Java/Xvfb process state ---"
+    ps -eo pid,ppid,stat,pcpu,pmem,etime,args | grep -E '[j]ava|[x]vfb-run' || true
+    echo "--- Minecraft client JVM thread dumps ---"
+    if [[ -n "$(command -v jcmd || true)" ]]; then
+      while read -r client_java_pid; do
+        [[ -n "$client_java_pid" ]] || continue
+        echo "### jcmd $client_java_pid Thread.print"
+        jcmd "$client_java_pid" Thread.print || true
+      done < <(pgrep -f 'net.minecraft.client.main.Main' || true)
+    else
+      echo "jcmd unavailable"
+    fi
+  } > "$thread_dump" 2>&1
+  cat "$thread_dump" >&2
+  echo "--- server connection events ---" >&2
+  grep -Ei 'WbyS7Acceptance|User Authenticator|lost connection|failed to handle|disconnected|login' \
+    "$server_log" "$server_latest_log" 2>/dev/null | tail -n 120 >&2 || true
+  echo "--- client connection and loading events ---" >&2
+  grep -Ei 'Connecting|Joining|Failed|disconnect|resource|world|error|exception|quick.?play' \
+    "$client_log" "$client_dir/logs/latest.log" 2>/dev/null | tail -n 160 >&2 || true
+  exit 1
+fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --entities-only
@@ -298,6 +324,9 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id lodestone)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
       ;;
+    incendium-full)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      ;;
   esac
   if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then
     : "${WBY_S7_COMBAT_CONTROL_MODS:?Set the staged S7 control mods directory}"
@@ -310,7 +339,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --server-log "$server_latest_log" \
     --client-log "$client_latest_log" \
     --runtime-root "$server_dir" \
-    --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
+    --rcon-host 127.0.0.1 --rcon-port 25575 \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
     "${combat_profile_args[@]}" "${s8_profile_overlay_args[@]}"
 fi

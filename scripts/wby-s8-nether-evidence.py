@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import socket
 import struct
@@ -19,6 +20,17 @@ EXPECTED = {
     "elysiumApi": "elysium_api",
     "lodestone": "lodestone",
     "myNethersDelight": "mynethersdelight",
+    "betterNetherNewDawn": "betternether",
+    "bclibNewDawn": "bclib",
+    "wunderLibNewDawn": "wunderlib",
+    "worldWeaverNewDawn": "wover",
+}
+FULL_STACK_EXPECTED = {
+    "netherDepthsUpgrade": "netherdepthsupgrade",
+    "createNetherIndustry": "createnetherindustry",
+    "thinAirRelived": "thinair",
+    "curios": "curios",
+    "yungsBetterNetherFortresses": "betterfortresses",
 }
 
 
@@ -68,16 +80,18 @@ def rcon(command: str, host: str, port: int, password: str) -> str:
         return body.strip()
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--variant", choices=("control", "control-mnd", "jne", "jne-mnd", "incendium"), required=True)
+    parser.add_argument("--variant", choices=("control", "control-mnd", "jne", "jne-mnd", "incendium", "incendium-full", "incendium-betternether"), required=True)
     parser.add_argument("--mods", type=Path, required=True)
     parser.add_argument("--datapacks", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--live", action="store_true")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=25575)
-    parser.add_argument("--password", default="skyforge-s7-local-probe")
+    parser.add_argument("--password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
     parser.add_argument("--seed", default="817304")
     args = parser.parse_args()
+    if args.live and not args.password:
+        parser.error("set WBY_S7_RCON_PASSWORD or pass --password when --live is used")
 
     rows = ["kind\tname\tsha256\tmod_ids\tworldgen_resource_counts\tnotes"]
     found: set[str] = set()
@@ -87,6 +101,8 @@ def main() -> int:
         "jne": {"netherexp"},
         "jne-mnd": {"netherexp", "mynethersdelight"},
         "incendium": {"incendium"},
+        "incendium-full": {"incendium", "netherdepthsupgrade", "createnetherindustry", "betterfortresses"},
+        "incendium-betternether": {"incendium", "betternether"},
     }[args.variant]
     candidate_resources: dict[str, set[str]] = {
         kind: set() for kind in ("biome", "structure", "structure_set", "configured_feature", "placed_feature")
@@ -114,8 +130,12 @@ def main() -> int:
         rows.append(f"mod\t{jar.name}\t{sha256(jar)}\t{','.join(sorted(ids))}\t{count_text}\t")
 
     expected = set(EXPECTED[mod] for mod in ("jadensNetherExpansion", "elysiumApi", "lodestone")) if args.variant in {"jne", "jne-mnd"} else set()
-    if args.variant in {"control-mnd", "jne-mnd"}:
+    if args.variant in {"control-mnd", "jne-mnd", "incendium-full"}:
         expected.add(EXPECTED["myNethersDelight"])
+    if args.variant == "incendium-full":
+        expected.update(FULL_STACK_EXPECTED.values())
+    if args.variant == "incendium-betternether":
+        expected.update(EXPECTED[mod] for mod in ("betterNetherNewDawn", "bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn"))
     for mod_id in expected:
         if mod_id not in found:
             raise SystemExit(f"S8 {args.variant} profile is missing expected mod id {mod_id}; found {sorted(found)}")
@@ -124,7 +144,7 @@ def main() -> int:
         raise SystemExit(f"S8 {args.variant} profile leaked unselected JNE content: {sorted(leaked & found)}")
 
     packs = sorted(args.datapacks.glob("*.zip"))
-    if args.variant == "incendium":
+    if args.variant in {"incendium", "incendium-full", "incendium-betternether"}:
         packs = [p for p in packs if p.name.lower().startswith("incendium")]
         if len(packs) != 1:
             raise SystemExit(f"Expected exactly one official Incendium ZIP; found {[p.name for p in packs]}")
@@ -150,7 +170,7 @@ def main() -> int:
                     if len(parts) >= 5 and parts[0] == "data" and parts[1] in candidate_namespaces and parts[2] == "worldgen":
                         resource = PurePosixPath(*parts[4:]).with_suffix("")
                         candidate_resources[kind].add(f"{parts[1]}:{resource.as_posix()}")
-    if args.variant != "incendium" and args.datapacks.exists():
+    if args.variant not in {"incendium", "incendium-full", "incendium-betternether"} and args.datapacks.exists():
         candidate_names = [p.name for p in args.datapacks.glob("*") if p.name.lower().startswith("incendium")]
         if candidate_names:
             raise SystemExit(f"S8 {args.variant} profile leaked Incendium: {candidate_names}")
@@ -158,6 +178,16 @@ def main() -> int:
         for resource in sorted(resources):
             rows.append(f"candidate_resource\t{resource}\t\t\t{kind}\t")
     if args.live:
+        def performance_sample(stage: str) -> None:
+            command = "tick query"
+            started = time.perf_counter()
+            response = rcon(command, args.host, args.port, args.password)
+            probe_ms = round((time.perf_counter() - started) * 1000, 1)
+            if re.search(r"unknown command|unknown or incomplete command", response, re.IGNORECASE):
+                raise SystemExit(f"S8 server tick query is unavailable: {response}")
+            rows.append(f"performance_sample\tserver_tick_query\t\t\t\tseed={args.seed}; stage={stage}; command={command}; probe_ms={probe_ms}; response={response}")
+
+        performance_sample("before-nether-locate-probes")
         commands = (
             ("nether_fortress", "execute in minecraft:the_nether run locate structure minecraft:fortress"),
             ("nether_wastes", "execute in minecraft:the_nether run locate biome minecraft:nether_wastes"),
@@ -171,9 +201,9 @@ def main() -> int:
                 raise SystemExit(f"S8 live Nether probe rejected {command!r}: {response}")
             if label == "enabled_datapacks":
                 has_incendium = "incendium" in response.lower()
-                if args.variant == "incendium" and not has_incendium:
+                if args.variant in {"incendium", "incendium-full", "incendium-betternether"} and not has_incendium:
                     raise SystemExit(f"Incendium ZIP is staged but is not enabled in the test world: {response}")
-                if args.variant != "incendium" and has_incendium:
+                if args.variant not in {"incendium", "incendium-full", "incendium-betternether"} and has_incendium:
                     raise SystemExit(f"Incendium leaked into the {args.variant} world: {response}")
             rows.append(f"live_probe\t{label}\t\t\t\tseed={args.seed}; probe_ms={probe_ms}; command={command}; response={response}")
         for kind in ("biome", "structure"):
@@ -185,6 +215,7 @@ def main() -> int:
                 if re.search(r"unknown command|unknown structure|unknown biome|invalid structure", response, re.IGNORECASE):
                     raise SystemExit(f"Candidate resource is not registered in the live world: {resource}: {response}")
                 rows.append(f"candidate_locate\t{resource}\t\t\t{kind}\tseed={args.seed}; probe_ms={probe_ms}; response={response}")
+        performance_sample("after-nether-locate-probes")
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S8 SUBSTRATE ARTIFACT EVIDENCE PASS variant={args.variant} mods={len(list(args.mods.glob('*.jar')))}")
