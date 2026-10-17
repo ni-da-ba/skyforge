@@ -120,27 +120,15 @@ public final class SkyIslandGameScaleHydraulicModel {
             throw new IllegalArgumentException(
                     "source normal depth requires a positive finite candidate-bed energy slope");
         }
-        double limitingBankfullSlope = Double.POSITIVE_INFINITY;
-        for (int i = 1; i < candidateBeds.length; i++) {
-            double localSlope = (candidateBeds[i - 1] - candidateBeds[i])
-                    / (candidateStations[i] - candidateStations[i - 1]);
-            limitingBankfullSlope = Math.min(limitingBankfullSlope, localSlope);
-        }
-        if (!(limitingBankfullSlope > 0.0) || !Double.isFinite(limitingBankfullSlope)) {
-            throw new IllegalArgumentException(
-                    "bankfull capacity requires positive finite grades throughout the candidate reach");
-        }
-        double bankfullDischarge = manningDischarge(
+        double[] discharges = componentDischargesAtBankfullCapacity(
+                reach,
+                candidateStations,
+                candidateBeds,
+                relativeDischarges,
+                maximumRelativeDischarge,
                 bottomWidthMetres,
                 sideSlope,
-                bankfullDepthMetres,
-                limitingBankfullSlope,
-                MANNING_ROUGHNESS);
-        double[] discharges = Arrays.stream(relativeDischarges)
-                .map(value -> bankfullDischarge
-                        * Math.max(MINIMUM_RELATIVE_DISCHARGE, value)
-                        / maximumRelativeDischarge)
-                .toArray();
+                bankfullDepthMetres);
         SkyIslandStandardStepSolver.CrossSection section = trapezoidalSection(
                 bottomWidthMetres, sideSlope);
         HydraulicProfile hydraulic = solveSourceNormalProfile(candidate, discharges, section);
@@ -181,17 +169,15 @@ public final class SkyIslandGameScaleHydraulicModel {
                     throw new IllegalArgumentException(
                             "normalized-floor candidate has no positive bank-contained flow depth");
                 }
-                double bankLimitedDischarge = manningDischarge(
+                discharges = componentDischargesAtBankfullCapacity(
+                        reach,
+                        candidateStations,
+                        candidateBeds,
+                        relativeDischarges,
+                        maximumRelativeDischarge,
                         bottomWidthMetres,
                         sideSlope,
-                        bankLimitedDepth,
-                        limitingBankfullSlope,
-                        MANNING_ROUGHNESS);
-                discharges = Arrays.stream(relativeDischarges)
-                        .map(value -> bankLimitedDischarge
-                                * Math.max(MINIMUM_RELATIVE_DISCHARGE, value)
-                                / maximumRelativeDischarge)
-                        .toArray();
+                        bankLimitedDepth);
             }
             hydraulic = solveSourceNormalProfile(candidate, discharges, section);
             double remainingBankDeficit = maximumBankDeficit(
@@ -383,6 +369,71 @@ public final class SkyIslandGameScaleHydraulicModel {
     }
 
 
+
+    private static double[] componentDischargesAtBankfullCapacity(
+            SkyIslandHydraulicReachSkeleton reach,
+            double[] stations,
+            double[] beds,
+            double[] authoredRelativeDischarges,
+            double maximumAuthoredRelativeDischarge,
+            double bottomWidth,
+            double sideSlope,
+            double bankfullDepth) {
+        if (stations.length != beds.length
+                || stations.length != authoredRelativeDischarges.length
+                || stations.length < 2) {
+            throw new IllegalArgumentException(
+                    "component discharge calibration requires matching candidate stations and flows");
+        }
+        double[] normalizedRelativeDischarges = Arrays.stream(authoredRelativeDischarges)
+                .map(value -> Math.max(MINIMUM_RELATIVE_DISCHARGE, value)
+                        / maximumAuthoredRelativeDischarge)
+                .toArray();
+        SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+        String reachId = semantic.startCellIndex() + "->" + semantic.endCellIndex();
+        String sourceNode = Integer.toString(semantic.startCellIndex());
+        String terminalNode = Integer.toString(semantic.endCellIndex());
+        SkyIslandMassBalancedDischargePlanner.ReachInput input =
+                new SkyIslandMassBalancedDischargePlanner.ReachInput(
+                        reachId, sourceNode, terminalNode, stations, normalizedRelativeDischarges);
+        SkyIslandMassBalancedDischargePlanner.NetworkFlows unitFlows =
+                SkyIslandMassBalancedDischargePlanner.plan(
+                        List.of(input),
+                        terminalNode,
+                        normalizedRelativeDischarges[normalizedRelativeDischarges.length - 1],
+                        1.0);
+        double[] intervalSlopes = new double[stations.length - 1];
+        for (int i = 0; i < intervalSlopes.length; i++) {
+            intervalSlopes[i] = (beds[i] - beds[i + 1]) / (stations[i + 1] - stations[i]);
+            if (!(intervalSlopes[i] > 0.0) || !Double.isFinite(intervalSlopes[i])) {
+                throw new IllegalArgumentException(
+                        "component capacity requires positive candidate bed grade at every interval");
+            }
+        }
+        double[] stationSlopes = new double[stations.length];
+        stationSlopes[0] = intervalSlopes[0];
+        stationSlopes[stationSlopes.length - 1] = intervalSlopes[intervalSlopes.length - 1];
+        for (int i = 1; i < stationSlopes.length - 1; i++) {
+            stationSlopes[i] = Math.min(intervalSlopes[i - 1], intervalSlopes[i]);
+        }
+        double[] sectionFlows = unitFlows.reachesById().get(reachId)
+                .dischargeAtStationsCubicMetresPerSecond();
+        double scale = calibrateComponentDischargeScale(List.of(
+                new BankfullCapacityProfile(
+                        sectionFlows,
+                        stationSlopes,
+                        bottomWidth,
+                        sideSlope,
+                        bankfullDepth)));
+        return SkyIslandMassBalancedDischargePlanner.plan(
+                        List.of(input),
+                        terminalNode,
+                        normalizedRelativeDischarges[normalizedRelativeDischarges.length - 1],
+                        scale)
+                .reachesById()
+                .get(reachId)
+                .dischargeAtStationsCubicMetresPerSecond();
+    }
 
     private static double manningDischarge(
             double bottomWidth,
