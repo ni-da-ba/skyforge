@@ -68,6 +68,10 @@ public final class SkyIslandMassBalancedDischargePlanner {
         if (!incoming.containsKey(terminalNodeId)) {
             throw new IllegalArgumentException("terminal node is disconnected from the network");
         }
+        if (incoming.get(terminalNodeId).size() != 1) {
+            throw new IllegalArgumentException(
+                    "multiple terminal tributaries require an explicit receiving reach");
+        }
         incoming.values().forEach(list -> list.sort(Comparator.comparing(ReachInput::id)));
 
         // Process reaches from headwaters downstream. A confluence receiver becomes ready only
