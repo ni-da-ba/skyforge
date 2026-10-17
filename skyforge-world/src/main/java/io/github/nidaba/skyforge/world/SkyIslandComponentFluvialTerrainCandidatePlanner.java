@@ -104,7 +104,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
 
         for (SkyIslandHydraulicTerminalComponent component :
                 assemblyPlan.terminalComponents()) {
-            if (component.status() != SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+            if (!SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(component)) {
                 continue;
             }
 
@@ -134,8 +134,9 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             } else {
                 Map<Long, SkyIslandHydraulicReachGeometry> componentReaches = new LinkedHashMap<>();
                 Map<Long, SkyIslandSemanticField> componentSurfaces = new LinkedHashMap<>();
+                SkyIslandGameScaleDrainageNetworkModel.NetworkSolution networkSolution;
                 try {
-                    realizeNetworkComponent(
+                    networkSolution = realizeNetworkComponent(
                             descriptor,
                             component,
                             skeletons,
@@ -150,6 +151,13 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                             unsupported.getClass().getSimpleName() + ": " + unsupported.getMessage()));
                     continue;
                 }
+                component = new SkyIslandHydraulicTerminalComponent(
+                        component.terminalFate(),
+                        component.reaches(),
+                        SkyIslandHydraulicAssemblyStatus.QUALIFIED,
+                        List.of(),
+                        component.sharedHeadSolve(),
+                        java.util.Optional.of(networkSolution));
                 for (Map.Entry<Long, SkyIslandHydraulicReachGeometry> entry : componentReaches.entrySet()) {
                     if (realizedByIdentity.put(entry.getKey(), entry.getValue()) != null) {
                         throw new IllegalStateException("F4A network duplicated a realized reach");
@@ -276,7 +284,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
         return List.copyOf(reasons);
     }
 
-    private static void realizeNetworkComponent(
+    private static SkyIslandGameScaleDrainageNetworkModel.NetworkSolution realizeNetworkComponent(
             SkyIslandDescriptor descriptor,
             SkyIslandHydraulicTerminalComponent component,
             Map<Long, SkyIslandHydraulicReachSkeleton> skeletons,
@@ -376,6 +384,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 throw new IllegalStateException("F4A network component repeated a terrain identity");
             }
         }
+        return solution;
     }
 
     private static SkyIslandHydraulicReachGeometry reconstructNetworkReach(
