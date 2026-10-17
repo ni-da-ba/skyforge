@@ -193,7 +193,23 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                 .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
                 .toList();
 
-        assertFalse(eligible.isEmpty());
+        assertFalse(eligible.isEmpty(), () -> assembly.terminalComponents().stream()
+                .map(component -> component.terminalFate().channelTerminalCellIndex()
+                        + ":" + component.terminalFate().kind()
+                        + "/" + component.status()
+                        + " blockers=" + component.blockers()
+                        + " head=" + component.sharedHeadSolve().status()
+                        + " excluded=" + component.sharedHeadSolve().excludedSpans()
+                        + " transition=" + component.sharedHeadSolve().transitionBlockers()
+                        + " diagnostic=" + component.sharedHeadSolve().diagnostic()
+                        + " reachStatus=" + component.reaches().stream()
+                                .map(reach -> reach.status() + ":" + reach.blockers()
+                                        + "/spans=" + reach.ordinarySpans().stream()
+                                                .map(span -> span.status() + ":"
+                                                        + span.diagnostic().orElse(""))
+                                                .toList())
+                                .toList())
+                .collect(java.util.stream.Collectors.joining("; ")));
         assertTrue(eligible.stream().allMatch(component ->
                 component.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED
                         && component.sharedHeadSolve().complete() == false));

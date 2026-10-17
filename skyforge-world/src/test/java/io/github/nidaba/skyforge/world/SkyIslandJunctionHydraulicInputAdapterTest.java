@@ -55,7 +55,7 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
 
         var sliced = receiver.toHydraulicReach();
         assertArrayEquals(new double[] {0, 2}, sliced.stationsMetres(), EPSILON);
-        assertArrayEquals(new double[] {8, 7}, sliced.bedElevationsMetres(), EPSILON);
+        assertArrayEquals(new double[] {9.8, 9.7}, sliced.bedElevationsMetres(), EPSILON);
         assertArrayEquals(new double[] {3, 3}, sliced.dischargeAtStationsCubicMetresPerSecond(), EPSILON);
         // The slice selects original interval 2 (indices 2..3), whose asymmetric
         // contraction/expansion coefficients are 0.3 and 0.1 respectively.
@@ -130,7 +130,7 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
         };
         return new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
                 stations,
-                new double[] {10, 9, 8, 7},
+                new double[] {10, 9.9, 9.8, 9.7},
                 new SkyIslandStandardStepSolver.CrossSection[] {section, section, section, section},
                 flows, 0.035,
                 new double[] {0.1, 0.2, 0.3},
