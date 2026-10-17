@@ -98,7 +98,7 @@ class SkyIslandJunctionCrossSectionPlannerTest {
         var tributaryB = reach(
                 "branch-b", "source-b", "join",
                 List.of(point(4.0, 4.0), point(2.0, 2.0), point(0.01, 0.0)),
-                new double[] {0.0, Math.sqrt(8.0), 2.0 * Math.sqrt(8.0)},
+                new double[] {0.0, Math.sqrt(8.0), Math.sqrt(8.0) + Math.sqrt(7.9601)},
                 0.0);
 
         assertThrows(IllegalArgumentException.class, () ->
