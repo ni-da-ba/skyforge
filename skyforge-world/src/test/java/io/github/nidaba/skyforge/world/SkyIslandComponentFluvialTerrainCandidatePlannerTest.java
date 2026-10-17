@@ -6,7 +6,11 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
@@ -95,6 +99,66 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
+    void qualifiedFieldUsesTheSharedNetworkTerrainSamplerWithoutChangingItsSurface() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
+        SkyIslandComponentFluvialTerrainCandidatePlan plan =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
+                plan.assemblyPlan()
+                        .ordinarySpanPlan()
+                        .cascadePlan()
+                        .transitionGeometry()
+                        .topology()
+                        .skeletonPlan();
+        SkyIslandSemanticField original = SkyIslandPreHydrologicTerrainField.create(descriptor);
+        Map<Long, SkyIslandSemanticField> surfaces = new LinkedHashMap<>();
+        Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> candidates = new LinkedHashMap<>();
+        int candidateIndex = 0;
+        for (SkyIslandHydraulicReachGeometry reach : plan.terrainField().acceptedReaches()) {
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                    .filter(value -> value.geomorphicRoute().semanticReach().equals(semantic))
+                    .findFirst()
+                    .orElseThrow();
+            var solution = SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                    descriptor, skeleton, original);
+            long identity = ((long) semantic.startCellIndex() << 32)
+                    ^ Integer.toUnsignedLong(semantic.endCellIndex());
+            if (candidateIndex++ % 2 == 0) {
+                surfaces.put(identity, position ->
+                        solution.candidate().sampleTerrainMetres(position) / descriptor.reliefBudget());
+            } else {
+                candidates.put(identity, solution);
+            }
+        }
+        assertEquals(1, surfaces.size());
+        assertEquals(1, candidates.size());
+        SkyIslandQualifiedFluvialTerrainField field =
+                SkyIslandQualifiedFluvialTerrainField.withCoupledTerrainSurfaces(
+                        original,
+                        plan.terrainField().acceptedReaches(),
+                        candidates,
+                        surfaces,
+                        descriptor.reliefBudget());
+
+        for (SkyIslandHydraulicReachGeometry reach : plan.terrainField().acceptedReaches()) {
+            int middle = reach.centerline().points().size() / 2;
+            SkyIslandLocalPosition point = reach.centerline().points().get(middle);
+            SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
+            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                    .filter(value -> value.geomorphicRoute().semanticReach().equals(semantic))
+                    .findFirst()
+                    .orElseThrow();
+            var solution = SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                    descriptor, skeleton, original);
+            assertEquals(
+                    solution.candidate().sampleTerrainMetres(point) / descriptor.reliefBudget(),
+                    field.sample(point),
+                    EPSILON);
+        }
+    }
+
+    @Test
     void primary287ContributesExactlyZeroCandidateTerrain() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 287L);
         SkyIslandComponentFluvialTerrainCandidatePlan plan =
@@ -120,6 +184,85 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
         assertEquals(0.0, sample.terrainDeltaPotential(), EPSILON);
         assertEquals(SkyIslandQualifiedFluvialZone.UNAFFECTED, sample.zone());
         assertTrue(sample.provenance().isEmpty());
+    }
+
+    @Test
+    void confluence632CascadeBoundaryRemainsFailClosed() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 632L);
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+
+        assertTrue(assembly.terminalComponents().stream()
+                .flatMap(component -> component.reaches().stream())
+                .anyMatch(reach -> !reach.cascades().isEmpty()),
+                "key 632 must remain a CASCADE boundary control");
+        assertTrue(assembly.terminalComponents().stream()
+                .noneMatch(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible));
+
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        assertTrue(candidate.realizedComponents().isEmpty());
+        assertTrue(candidate.terrainField().acceptedReaches().isEmpty());
+        assertTrue(candidate.deferredQualifiedComponents().isEmpty());
+    }
+
+    @Test
+    void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() throws Exception {
+        List<String> eligibleButUnrealized = new java.util.ArrayList<>();
+        long foundKey = -1L;
+        int foundTerminal = -1;
+
+        for (long key = 0; key < 256 && foundKey < 0; key++) {
+            SkyIslandDescriptor descriptor = descriptor(8L, 81L, key);
+            SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                    SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+            boolean hasEligibleNetwork = assembly.terminalComponents().stream()
+                    .anyMatch(component ->
+                            component.reaches().size() > 1
+                                    && SkyIslandComponentFluvialTerrainCandidatePlan
+                                            .isCandidateEligible(component));
+            if (!hasEligibleNetwork) {
+                continue;
+            }
+
+            SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                    SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+            boolean postD2Rejected = candidate.deferredQualifiedComponents().stream()
+                    .anyMatch(deferral -> deferral.reasons().contains(
+                            SkyIslandComponentFluvialTerrainDeferralReason
+                                    .POST_REALIZATION_D2_REJECTED));
+            if (postD2Rejected) {
+                assertTrue(candidate.realizedComponents().isEmpty());
+                assertTrue(candidate.terrainField().acceptedReaches().isEmpty());
+                assertTrue(candidate.postRealizationQualifications().isEmpty());
+            }
+            var realized = candidate.realizedComponents().stream()
+                    .filter(component -> component.reaches().size() > 1
+                            && component.networkSolution().isPresent())
+                    .findFirst();
+            if (realized.isPresent()) {
+                foundKey = key;
+                foundTerminal = realized.get().terminalFate().channelTerminalCellIndex();
+            } else {
+                eligibleButUnrealized.add(key + ": " + candidate.deferredQualifiedComponents().stream()
+                        .map(deferral -> deferral.diagnostic())
+                        .toList());
+            }
+        }
+
+        String report = foundKey >= 0
+                ? "status=FOUND key=" + foundKey + " terminal=" + foundTerminal
+                        + " seed=0x" + String.format("%016X", SEED) + "\n"
+                : "status=NOT_FOUND keyRange=0..255 seed=0x"
+                        + String.format("%016X", SEED)
+                        + " eligibleButUnrealized=" + eligibleButUnrealized + "\n";
+        Path reportPath = Path.of("build", "evidence", "f4-cascade-free-network-specimen.txt");
+        Files.createDirectories(reportPath.getParent());
+        Files.writeString(reportPath, report);
+
+        assertTrue(foundKey >= 0,
+                "No cascade-free realized multireach specimen in keys 0..255; "
+                        + "eligible-but-unrealized=" + eligibleButUnrealized);
     }
 
     @Test

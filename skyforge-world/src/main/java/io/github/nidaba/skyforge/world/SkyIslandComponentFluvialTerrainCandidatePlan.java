@@ -32,6 +32,34 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
                 postRealizationQualifications, terrainField, java.util.Optional.empty());
     }
 
+    /**
+     * Identifies complete ordinary edge-outlet components eligible for F4 network requalification.
+     * A TRANSITION_DEFERRED F3E component is admitted only when the legacy confluence head gate is
+     * the remaining blocker: all reach-local ordinary spans already solved and no CASCADE exists.
+     */
+    static boolean isCandidateEligible(SkyIslandHydraulicTerminalComponent component) {
+        Objects.requireNonNull(component, "component");
+        if (component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+            return true;
+        }
+        if (component.status() != SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED
+                || component.terminalFate().kind() != SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
+            return false;
+        }
+        return !component.reaches().isEmpty()
+                && component.reaches().stream().allMatch(reach ->
+                        (reach.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                                || reach.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED)
+                                && reach.cascades().isEmpty()
+                                && reach.ordinarySpans().size() == 1
+                                && reach.ordinarySpans().getFirst().status()
+                                        == SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
+                                && Math.abs(reach.ordinarySpans().getFirst()
+                                                .span().parentStartStationFraction()) <= 1.0e-9
+                                && Math.abs(reach.ordinarySpans().getFirst()
+                                                .span().parentEndStationFraction() - 1.0) <= 1.0e-9);
+    }
+
     /** Association-specific candidates may never be transplanted to another physical volume. */
     public void requireAssociation(SkyIslandAuthoredRealizationAssociation association) {
         Objects.requireNonNull(association, "association");
@@ -96,12 +124,9 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
             }
         }
 
-        long expectedQualified =
-                assemblyPlan.terminalComponents().stream()
-                        .filter(component ->
-                                component.status()
-                                        == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
-                        .count();
+        long expectedQualified = assemblyPlan.terminalComponents().stream()
+                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+                .count();
         if (classifiedQualifiedTerminals.size() != expectedQualified) {
             throw new IllegalArgumentException(
                     "every F3E-qualified terminal component must be realized or explicitly deferred");
