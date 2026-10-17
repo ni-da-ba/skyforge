@@ -240,7 +240,7 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
         }
 
         assertTrue(foundKey >= 0,
-                () -> "No cascade-free realized multireach specimen in keys 0..255; "
+                "No cascade-free realized multireach specimen in keys 0..255; "
                         + "eligible-but-unrealized=" + eligibleButUnrealized);
         System.out.printf(
                 "F4_CASCADE_FREE_NETWORK_SPECIMEN key=%d terminal=%d seed=0x%016X%n",
