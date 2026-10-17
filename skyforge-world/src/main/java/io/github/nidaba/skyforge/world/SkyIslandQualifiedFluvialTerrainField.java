@@ -95,11 +95,18 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
                 selected = candidate;
                 continue;
             }
-            throw new IllegalStateException(
-                    "qualified fluvial reach overlap lacks explicit transition ownership: "
-                            + candidate.semanticIdentity()
-                            + " and "
-                            + selected.semanticIdentity());
+            if (!candidate.sharesSemanticNodeWith(selected)) {
+                throw new IllegalStateException(
+                        "qualified fluvial reach overlap lacks explicit transition ownership: "
+                                + candidate.semanticIdentity()
+                                + " and "
+                                + selected.semanticIdentity());
+            }
+            // Connected reaches may overlap only through a shared semantic junction. Ownership
+            // is deterministic: nearest normalized corridor, then greatest discharge, then IDs.
+            if (candidate.precedes(selected)) {
+                selected = candidate;
+            }
         }
 
         if (selected == null) {
