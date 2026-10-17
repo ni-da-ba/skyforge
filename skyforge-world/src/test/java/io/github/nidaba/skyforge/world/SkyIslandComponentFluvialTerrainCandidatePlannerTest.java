@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -205,7 +207,7 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
-    void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() {
+    void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() throws Exception {
         List<String> eligibleButUnrealized = new java.util.ArrayList<>();
         long foundKey = -1L;
         int foundTerminal = -1;
@@ -239,14 +241,19 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
             }
         }
 
+        String report = foundKey >= 0
+                ? "status=FOUND key=" + foundKey + " terminal=" + foundTerminal
+                        + " seed=0x" + String.format("%016X", SEED) + "\\n"
+                : "status=NOT_FOUND keyRange=0..255 seed=0x"
+                        + String.format("%016X", SEED)
+                        + " eligibleButUnrealized=" + eligibleButUnrealized + "\\n";
+        Path reportPath = Path.of("build", "evidence", "f4-cascade-free-network-specimen.txt");
+        Files.createDirectories(reportPath.getParent());
+        Files.writeString(reportPath, report);
+
         assertTrue(foundKey >= 0,
                 "No cascade-free realized multireach specimen in keys 0..255; "
                         + "eligible-but-unrealized=" + eligibleButUnrealized);
-        System.out.printf(
-                "F4_CASCADE_FREE_NETWORK_SPECIMEN key=%d terminal=%d seed=0x%016X%n",
-                foundKey,
-                foundTerminal,
-                SEED);
     }
 
     @Test
