@@ -130,6 +130,46 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
             }
         }
 
+        // Keep runoff outside each excluded mixing gap: branch contributions enter before
+        // the tributary computational section, and receiver-reach additions begin after its
+        // computational section. Thus the HEC energy-junction sections close exactly in flow.
+        relativeFlows = deferJunctionGapRunoff(relativeFlows, unitFlows, plans.values());
+        unitFlows = SkyIslandMassBalancedDischargePlanner.plan(
+                relativeFlows, terminalNodeId, terminalRelativeDischarge, 1.0);
+        dischargeScale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
+                inputs.stream()
+                        .map(input -> capacityProfile(
+                                input,
+                                candidate.reachesById().get(input.candidateReach().id()),
+                                unitFlows.reachesById().get(input.candidateReach().id())))
+                        .toList());
+        flows = SkyIslandMassBalancedDischargePlanner.plan(
+                relativeFlows,
+                terminalNodeId,
+                terminalRelativeDischarge,
+                dischargeScale);
+        hydraulicReaches.clear();
+        for (ReachInput input : inputs) {
+            String id = input.candidateReach().id();
+            var geometry = candidate.reachesById().get(id);
+            var configuration = input.candidateReach().configuration();
+            var discharges = flows.reachesById().get(id).dischargeAtStationsCubicMetresPerSecond();
+            var section = section(configuration);
+            SkyIslandStandardStepSolver.CrossSection[] sections =
+                    new SkyIslandStandardStepSolver.CrossSection[discharges.length];
+            Arrays.fill(sections, section);
+            hydraulicReaches.put(
+                    id,
+                    new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
+                            geometry.stationsMetres(),
+                            geometry.bedElevationsMetres(),
+                            sections,
+                            discharges,
+                            SkyIslandGameScaleHydraulicModel.MANNING_ROUGHNESS,
+                            input.contractionCoefficientsByInterval(),
+                            input.expansionCoefficientsByInterval()));
+        }
+
         Map<String, Integer> firstStationByReach = new TreeMap<>();
         Map<String, Integer> lastStationByReach = new TreeMap<>();
         for (ReachInput input : inputs) {
@@ -198,6 +238,71 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
                 profile,
                 plans,
                 slicesById);
+    }
+
+    private static List<SkyIslandMassBalancedDischargePlanner.ReachInput> deferJunctionGapRunoff(
+            List<SkyIslandMassBalancedDischargePlanner.ReachInput> reachInputs,
+            SkyIslandMassBalancedDischargePlanner.NetworkFlows initialFlows,
+            java.util.Collection<SkyIslandJunctionCrossSectionPlanner.JunctionSections> plans) {
+        Map<String, Integer> receiverIndexByReach = new TreeMap<>();
+        Map<String, Double> receiverFlowByReach = new TreeMap<>();
+        Map<String, Integer> tributaryIndexByReach = new TreeMap<>();
+        Map<String, Double> tributaryFlowByReach = new TreeMap<>();
+        for (var plan : plans) {
+            double incomingFlow = 0.0;
+            for (var tributary : plan.tributaries()) {
+                var branchFlows = initialFlows.reachesById().get(tributary.reachId());
+                if (branchFlows == null) {
+                    throw new IllegalArgumentException(
+                            "junction plan references a missing mass-balanced tributary");
+                }
+                double[] branchDischarge = branchFlows.dischargeAtStationsCubicMetresPerSecond();
+                incomingFlow += branchDischarge[branchDischarge.length - 1];
+                if (tributaryIndexByReach.put(tributary.reachId(), tributary.stationIndex()) != null
+                        || tributaryFlowByReach.put(tributary.reachId(), branchDischarge[branchDischarge.length - 1])
+                                != null) {
+                    throw new IllegalArgumentException(
+                            "a reach cannot feed more than one semantic junction");
+                }
+            }
+            if (receiverIndexByReach.put(plan.receivingReachId(), plan.receivingStationIndex()) != null
+                    || receiverFlowByReach.put(plan.receivingReachId(), incomingFlow) != null) {
+                throw new IllegalArgumentException(
+                        "a reach cannot receive more than one semantic junction");
+            }
+        }
+
+        List<SkyIslandMassBalancedDischargePlanner.ReachInput> adjusted =
+                new ArrayList<>(reachInputs.size());
+        for (var reach : reachInputs) {
+            double[] relative = reach.relativeDischargeAtStations();
+            Integer receiverIndex = receiverIndexByReach.get(reach.id());
+            Integer tributaryIndex = tributaryIndexByReach.get(reach.id());
+            if (receiverIndex != null && tributaryIndex != null && receiverIndex >= tributaryIndex) {
+                throw new IllegalArgumentException(
+                        "reach has no modeled interval between its upstream and downstream junction sections: "
+                                + reach.id());
+            }
+            if (receiverIndex != null) {
+                double incomingFlow = receiverFlowByReach.get(reach.id());
+                for (int station = 1; station <= receiverIndex; station++) {
+                    relative[station] = incomingFlow;
+                }
+            }
+            if (tributaryIndex != null) {
+                double outletFlow = tributaryFlowByReach.get(reach.id());
+                for (int station = tributaryIndex; station < relative.length; station++) {
+                    relative[station] = outletFlow;
+                }
+            }
+            adjusted.add(new SkyIslandMassBalancedDischargePlanner.ReachInput(
+                    reach.id(),
+                    reach.upstreamNodeId(),
+                    reach.downstreamNodeId(),
+                    reach.stationsMetres(),
+                    relative));
+        }
+        return List.copyOf(adjusted);
     }
 
     private static SkyIslandJunctionCrossSectionPlanner.ReachInput toSectionInput(
