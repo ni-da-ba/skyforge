@@ -16,7 +16,7 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
                 reach("branch-a", "source-a", "join", line(0, 0, 10, 0),
                         new double[] {1, 1, 1}),
                 reach("branch-b", "source-b", "join", line(20, 10, 10, 0),
-                        new double[] {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1}),
+                        new double[] {1, 1, 1}),
                 reach("main", "join", "outlet", line(10, 0, 20, 0),
                         new double[] {2, 2.5, 3}));
         SkyIslandSemanticField terrain = point -> 0.9 - 0.00001 * point.x() - 0.00001 * point.z();
@@ -28,7 +28,7 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
         double incoming = flows.get("branch-a")
                         .dischargeAtStationsCubicMetresPerSecond()[2]
                 + flows.get("branch-b")
-                        .dischargeAtStationsCubicMetresPerSecond()[10];
+                        .dischargeAtStationsCubicMetresPerSecond()[2];
         assertEquals(
                 incoming,
                 flows.get("main").dischargeAtStationsCubicMetresPerSecond()[0],
@@ -43,7 +43,7 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
         assertEquals(3, solution.hydraulicProfile().reachesById().size());
 
         double branchBed = solution.terrainCandidate().reachesById()
-                .get("branch-a").bedElevationsMetres()[10];
+                .get("branch-a").bedElevationsMetres()[2];
         double receiverBed = solution.terrainCandidate().reachesById()
                 .get("main").bedElevationsMetres()[0];
         assertEquals(branchBed, receiverBed, EPSILON);
@@ -81,8 +81,8 @@ class SkyIslandGameScaleDrainageNetworkModelTest {
 
     private static List<SkyIslandLocalPosition> line(double startX, double startZ, double endX, double endZ) {
         List<SkyIslandLocalPosition> points = new ArrayList<>();
-        for (int i = 0; i <= 10; i++) {
-            double fraction = i / 10.0;
+        for (int i = 0; i <= 2; i++) {
+            double fraction = i / 2.0;
             points.add(new SkyIslandLocalPosition(
                     startX + (endX - startX) * fraction,
                     startZ + (endZ - startZ) * fraction));
