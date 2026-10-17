@@ -656,6 +656,37 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // F4D is a distinct key-632 multi-reach network specimen; F4K/key-77 stays persisted.
+        create("f4dNetworkHydrologyReviewPrepare") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-f4d-network-hydrology-review").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("f4d-network-hydrology-review")
+            systemProperty("skyforge.dev.f4dNetworkHydrologyReview", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-hyd-f4d-network-prepare")
+            systemProperty("skyforge.dev.acceptanceRadius", "7")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/f4d-network-hydrology-review/prepare.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("f4dNetworkHydrologyReviewClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-f4d-network-hydrology-review").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("f4d-network-hydrology-review")
+            systemProperty("skyforge.dev.f4dNetworkHydrologyReviewViewer", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0046 uses its own game directory and a self-checking bowl specimen so manual
         // foundation evidence cannot be confused with the earlier naturally supported Massif.
         create("accommodationClient") {
@@ -8944,6 +8975,48 @@ tasks.register("dr30NativeStructureAcceptance") {
 }
 
 
+val skyforgeF4dNetworkHydrologyReviewResultDirectory =
+    layout.buildDirectory.dir("acceptance/f4d-network-hydrology-review")
+val skyforgeF4dNetworkHydrologyReviewServerProperties = """
+    level-name=f4d-network-hydrology-review
+    level-seed=910632
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=spectator
+    difficulty=peaceful
+    allow-flight=true
+    view-distance=8
+    simulation-distance=4
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\n"
+
+fun prepareSkyforgeF4dNetworkHydrologyReviewDirectory() {
+    val directory = layout.projectDirectory.dir("run-f4d-network-hydrology-review").asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\n")
+    directory.resolve("server.properties").writeText(skyforgeF4dNetworkHydrologyReviewServerProperties)
+}
+
+fun requireSkyforgeF4dNetworkHydrologyReviewPreparationPass() {
+    val file = skyforgeF4dNetworkHydrologyReviewResultDirectory.get().file("prepare.properties").asFile
+    check(file.isFile) { "F4D network hydrology preparation result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS"
+            && properties.getProperty("surfaceBindingActive") == "true"
+            && properties.getProperty("f4hAuthorizedColumns").toInt() > 0
+            && properties.getProperty("f4dRemovedSolidBlocks").toInt() > 0
+            && properties.getProperty("f4hRefinedReaches").toInt() > 0
+            && properties.getProperty("realizedNetworkComponents").toInt() > 0
+            && properties.getProperty("persistedWaterHeads").toInt() > 0) {
+        val detail = properties.getProperty("failure") ?: properties.toString()
+        "F4D key-632 network preparation did not persist a reviewable F4H specimen: $detail"
+    }
+}
+
 val skyforgeF4kHydrologyReviewResultDirectory =
     layout.buildDirectory.dir("acceptance/f4k-hydrology-review")
 val skyforgeF4kHydrologyReviewServerProperties = """
@@ -9030,3 +9103,50 @@ tasks.register("launchF4KHydrologyReview") {
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
 }
+
+tasks.named("runF4dNetworkHydrologyReviewPrepare").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask and F4D prepared-world orchestration are intentionally runtime-bound.",
+    )
+    doFirst {
+        delete(skyforgeF4dNetworkHydrologyReviewResultDirectory)
+        prepareSkyforgeF4dNetworkHydrologyReviewDirectory()
+    }
+    doLast {
+        requireSkyforgeF4dNetworkHydrologyReviewPreparationPass()
+    }
+}
+
+tasks.named("runF4dNetworkHydrologyReviewClient").configure {
+    notCompatibleWithConfigurationCache(
+        "NeoForge ModDev RunGameTask is an interactive quick-play F4D hydrology review.",
+    )
+    mustRunAfter("runF4dNetworkHydrologyReviewPrepare")
+    doFirst {
+        val directory = layout.projectDirectory.dir("run-f4d-network-hydrology-review").asFile
+        check(directory.resolve("saves/f4d-network-hydrology-review/level.dat").isFile) {
+            "F4D hydrology review world is missing; run runF4dNetworkHydrologyReviewPrepare first or use launchF4DHydrologyReview."
+        }
+        directory.resolve("options.txt").writeText(
+            "onboardAccessibility:false\n"
+                + "narrator:0\n",
+        )
+    }
+}
+
+tasks.register("f4dNetworkHydrologyReviewPrepareVerify") {
+    group = "verification"
+    description = "Prepare and verify the persisted F4H/F4D hydrology review specimen."
+    dependsOn("runF4dNetworkHydrologyReviewPrepare")
+    doLast {
+        requireSkyforgeF4dNetworkHydrologyReviewPreparationPass()
+        println("F4D HYDROLOGY PREPARATION PASS: persisted exact F4H water heads are ready for human review.")
+    }
+}
+
+tasks.register("launchF4DHydrologyReview") {
+    group = "application"
+    description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
+    dependsOn("runF4dNetworkHydrologyReviewPrepare", "runF4dNetworkHydrologyReviewClient")
+}
+
