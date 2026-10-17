@@ -30,6 +30,65 @@ public final class SkyIslandGameScaleHydraulicModel {
     private SkyIslandGameScaleHydraulicModel() {}
 
     /**
+     * Derives a network reach's trapezoidal bankfull section and terrain-edit envelope from the
+     * same accepted geometry inputs as the source-reach model. The network bed solver, rather than
+     * this reach-local helper, owns the final shared bed elevations.
+     */
+    public static SkyIslandHydraulicCandidateBuilder.Configuration networkCandidateConfiguration(
+            SkyIslandDescriptor descriptor,
+            SkyIslandHydraulicReachSkeleton reach,
+            SkyIslandSemanticField terrain) {
+        Objects.requireNonNull(descriptor, "descriptor");
+        Objects.requireNonNull(reach, "reach");
+        Objects.requireNonNull(terrain, "terrain");
+        double verticalScale = descriptor.reliefBudget();
+        double maximumHalfWidth = reach.samples().stream()
+                .mapToDouble(SkyIslandHydraulicGeometrySkeletonSample::bankfullHalfWidth)
+                .max()
+                .orElseThrow();
+        double maximumDepthPotential = reach.samples().stream()
+                .mapToDouble(SkyIslandHydraulicGeometrySkeletonSample::waterDepthPotential)
+                .max()
+                .orElseThrow();
+        double bankfullWidthMetres = 2.0 * maximumHalfWidth * HORIZONTAL_METRES_PER_LOCAL_UNIT;
+        double bankfullDepthMetres = maximumDepthPotential * verticalScale;
+        double sideSlope = Math.min(
+                MAXIMUM_SIDE_SLOPE_HORIZONTAL_TO_VERTICAL,
+                (1.0 - MINIMUM_BANKFULL_BOTTOM_WIDTH_FRACTION)
+                        * bankfullWidthMetres / (2.0 * bankfullDepthMetres));
+        double bottomWidthMetres = bankfullWidthMetres
+                - 2.0 * sideSlope * bankfullDepthMetres;
+        if (!(bottomWidthMetres > 0.0) || !Double.isFinite(bottomWidthMetres)) {
+            throw new IllegalArgumentException(
+                    "authored bankfull width and depth cannot contain the calibrated trapezoidal section");
+        }
+        double routeLengthMetres = reach.centerline().pathLength() * HORIZONTAL_METRES_PER_LOCAL_UNIT;
+        double startElevationMetres = terrain.sample(reach.centerline().points().getFirst()) * verticalScale;
+        double endElevationMetres = terrain.sample(reach.centerline().points().getLast()) * verticalScale;
+        double measuredGrade = (startElevationMetres - endElevationMetres) / routeLengthMetres;
+        double minimumGrade = Math.max(MINIMUM_BED_SLOPE, measuredGrade);
+        SkyIslandGeomorphicProfileLimits limits = SkyIslandGeomorphicQualificationPolicy
+                .firstEvidenceBacked()
+                .limits(reach.geomorphicRoute().semanticReach());
+        double maximumTerrainEditMetres =
+                limits.maximumCenterlineLoweringPotential() * verticalScale;
+        double bankEdge = bottomWidthMetres * 0.5 + sideSlope * bankfullDepthMetres;
+        double valleyHalfWidthMetres = bankEdge
+                + Math.max(bottomWidthMetres, bankfullDepthMetres) * VALLEY_BLEND_WIDTH_FACTOR;
+        return new SkyIslandHydraulicCandidateBuilder.Configuration(
+                HORIZONTAL_METRES_PER_LOCAL_UNIT,
+                verticalScale,
+                0.0,
+                minimumGrade,
+                0.0,
+                bottomWidthMetres,
+                sideSlope,
+                bankfullDepthMetres,
+                valleyHalfWidthMetres,
+                maximumTerrainEditMetres);
+    }
+
+    /**
      * Solves one source-controlled reach using the head-independent C2 geometry and the source
      * normal-depth condition. The returned route, bed, and profile are all tied to the same
      * candidate geometry.
