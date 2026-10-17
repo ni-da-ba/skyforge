@@ -20,7 +20,7 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
 
     private final SkyIslandSemanticField originalTerrain;
     private final List<SkyIslandHydraulicReachGeometry> acceptedReaches;
-    private final java.util.Map<Long, SkyIslandHydraulicCandidateBuilder.Candidate>
+    private final java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution>
             coupledCandidates;
     private final double verticalScale;
 
@@ -33,7 +33,7 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
     public SkyIslandQualifiedFluvialTerrainField(
             SkyIslandSemanticField originalTerrain,
             List<SkyIslandHydraulicReachGeometry> acceptedReaches,
-            java.util.Map<Long, SkyIslandHydraulicCandidateBuilder.Candidate> coupledCandidates,
+            java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
             double verticalScale) {
         this.originalTerrain = Objects.requireNonNull(originalTerrain, "originalTerrain");
         if (!(verticalScale > 0.0) || !Double.isFinite(verticalScale)) {
@@ -94,7 +94,7 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             SkyIslandHydraulicReachGeometry reach,
             SkyIslandLocalPosition position,
             double originalTerrain,
-            SkyIslandHydraulicCandidateBuilder.Candidate coupled) {
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled) {
         Projection projection = nearestProjection(reach, position);
         if (projection == null) {
             return null;
@@ -142,7 +142,7 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
         }
 
         if (coupled != null) {
-            double coupledTarget = coupled.sampleTerrainMetres(position) / verticalScale;
+            double coupledTarget = coupled.candidate().sampleTerrainMetres(position) / verticalScale;
             if (!Double.isFinite(coupledTarget) || coupledTarget < -EPSILON || coupledTarget > 1.0 + EPSILON) {
                 throw new IllegalStateException("coupled candidate terrain exceeds normalized relief bounds");
             }
