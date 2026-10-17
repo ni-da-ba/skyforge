@@ -13,11 +13,12 @@ import java.util.Objects;
 import java.util.TreeMap;
 
 /**
- * Builds the first F3E-component-gated continuous fluvial terrain candidate.
+ * Builds an F3E-component-gated continuous fluvial terrain candidate.
  *
- * <p>F4A deliberately supports only complete single-source ordinary reaches with no confluence or
- * CASCADE terrain ownership. It builds channel/valley candidates from accepted C2 geometry, solves
- * hydraulics against each candidate bed, then reapplies D2 to that same candidate terrain surface.
+ * <p>Complete single reaches retain the accepted source-normal-depth path. Qualified combining
+ * trees use one shared terrain candidate, mass-balanced discharge scale, HEC-style energy junctions,
+ * and the same unchanged post-solve D2 qualification. CASCADE and unsupported terminal/regime cases
+ * remain fail-closed.
  *
  * <p>The returned field remains quantitative evidence only and is not Minecraft authority.
  */
@@ -307,6 +308,10 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                         "qualified edge outlet component has no reach ending at its terminal node"));
         var solution = SkyIslandGameScaleDrainageNetworkModel.solve(
                 inputs, terminalNodeId, terminalRelativeDischarge, originalTerrain);
+        // HEC-RAS solves energy between the computational sections bounding a junction; the
+        // mixing region itself is not a 1D section. For terrain realization only, continue the
+        // receiving water-surface grade to the shared node, then bridge each tributary boundary to
+        // that common stage. The bridge adds no hydraulic energy solve and is requalified by D2.
         Map<Integer, Double> stageAtJunctionNode = new TreeMap<>();
         for (var plan : solution.junctionSectionsByNodeId().values()) {
             var receiverGeometry = solution.terrainCandidate().reachesById().get(plan.receivingReachId());
