@@ -184,7 +184,11 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 ? new SkyIslandQualifiedFluvialTerrainField(
                         original, realizedReaches, coupledByIdentity, descriptor.reliefBudget())
                 : SkyIslandQualifiedFluvialTerrainField.withCoupledTerrainSurfaces(
-                        original, realizedReaches, coupledTerrainByIdentity, descriptor.reliefBudget());
+                        original,
+                        realizedReaches,
+                        coupledByIdentity,
+                        coupledTerrainByIdentity,
+                        descriptor.reliefBudget());
 
         List<SkyIslandGeomorphicReachQualification> postRealizationQualifications =
                 new ArrayList<>(realizedReaches.size());
