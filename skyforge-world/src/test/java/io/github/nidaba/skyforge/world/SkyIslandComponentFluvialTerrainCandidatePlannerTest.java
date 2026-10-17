@@ -243,10 +243,10 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
         String report = foundKey >= 0
                 ? "status=FOUND key=" + foundKey + " terminal=" + foundTerminal
-                        + " seed=0x" + String.format("%016X", SEED) + "\\n"
+                        + " seed=0x" + String.format("%016X", SEED) + "\n"
                 : "status=NOT_FOUND keyRange=0..255 seed=0x"
                         + String.format("%016X", SEED)
-                        + " eligibleButUnrealized=" + eligibleButUnrealized + "\\n";
+                        + " eligibleButUnrealized=" + eligibleButUnrealized + "\n";
         Path reportPath = Path.of("build", "evidence", "f4-cascade-free-network-specimen.txt");
         Files.createDirectories(reportPath.getParent());
         Files.writeString(reportPath, report);
