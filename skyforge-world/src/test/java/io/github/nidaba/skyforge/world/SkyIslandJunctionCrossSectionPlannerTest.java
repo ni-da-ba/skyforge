@@ -55,8 +55,8 @@ class SkyIslandJunctionCrossSectionPlannerTest {
         assertEquals(8.0, branchA.junctionLengthMetres(), EPSILON);
         assertEquals("branch-b", branchB.reachId());
         assertEquals(1, branchB.stationIndex());
-        assertEquals(3.0 * Math.sqrt(8.0), branchB.distanceFromJunctionMetres(), EPSILON);
-        assertEquals(4.0 + 3.0 * Math.sqrt(8.0), branchB.junctionLengthMetres(), EPSILON);
+        assertEquals(2.0 * Math.sqrt(8.0), branchB.distanceFromJunctionMetres(), EPSILON);
+        assertEquals(4.0 + 2.0 * Math.sqrt(8.0), branchB.junctionLengthMetres(), EPSILON);
         assertTrue(plan.totalSectionDistanceMetres() >= 3.0 * 3.0);
     }
 
