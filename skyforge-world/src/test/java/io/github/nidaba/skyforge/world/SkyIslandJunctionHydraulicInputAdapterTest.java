@@ -109,7 +109,12 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
                 id, upstream, downstream, points, stations, 1.0, 0.5, 3.0);
     }
 
-    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fullReach(double[] flows) {\n        return fullReach(flows, new double[] {0, 2, 4, 6});\n    }\n\n    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fullReach(\n            double[] flows, double[] stations) {
+    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fullReach(double[] flows) {
+        return fullReach(flows, new double[] {0, 2, 4, 6});
+    }
+
+    private static SkyIslandSubcriticalJunctionNetworkSolver.Reach fullReach(
+            double[] flows, double[] stations) {
         var section = new SkyIslandStandardStepSolver.CrossSection() {
             @Override
             public double area(double depth) { return 2.0 * depth; }
