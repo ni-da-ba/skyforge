@@ -147,7 +147,8 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                     deferredQualifiedComponents.add(new SkyIslandComponentFluvialTerrainDeferral(
                             component,
                             List.of(SkyIslandComponentFluvialTerrainDeferralReason
-                                    .UNSUPPORTED_NETWORK_PROFILE)));
+                                    .UNSUPPORTED_NETWORK_PROFILE),
+                            unsupported.getClass().getSimpleName() + ": " + unsupported.getMessage()));
                     continue;
                 }
                 for (Map.Entry<Long, SkyIslandHydraulicReachGeometry> entry : componentReaches.entrySet()) {
