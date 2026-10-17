@@ -78,26 +78,6 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
 
         Map<String, SkyIslandSubcriticalJunctionNetworkSolver.Reach> hydraulicReaches =
                 new TreeMap<>();
-        for (ReachInput input : inputs) {
-            String id = input.candidateReach().id();
-            var geometry = candidate.reachesById().get(id);
-            var configuration = input.candidateReach().configuration();
-            var discharges = flows.reachesById().get(id).dischargeAtStationsCubicMetresPerSecond();
-            var section = section(configuration);
-            SkyIslandStandardStepSolver.CrossSection[] sections =
-                    new SkyIslandStandardStepSolver.CrossSection[discharges.length];
-            Arrays.fill(sections, section);
-            hydraulicReaches.put(
-                    id,
-                    new SkyIslandSubcriticalJunctionNetworkSolver.Reach(
-                            geometry.stationsMetres(),
-                            geometry.bedElevationsMetres(),
-                            sections,
-                            discharges,
-                            SkyIslandGameScaleHydraulicModel.MANNING_ROUGHNESS,
-                            input.contractionCoefficientsByInterval(),
-                            input.expansionCoefficientsByInterval()));
-        }
 
         Map<String, List<ReachInput>> incomingByNode = new TreeMap<>();
         Map<String, ReachInput> outgoingByNode = new TreeMap<>();
@@ -150,7 +130,6 @@ public final class SkyIslandGameScaleDrainageNetworkModel {
                 terminalNodeId,
                 terminalRelativeDischarge,
                 dischargeScale);
-        hydraulicReaches.clear();
         for (ReachInput input : inputs) {
             String id = input.candidateReach().id();
             var geometry = candidate.reachesById().get(id);
