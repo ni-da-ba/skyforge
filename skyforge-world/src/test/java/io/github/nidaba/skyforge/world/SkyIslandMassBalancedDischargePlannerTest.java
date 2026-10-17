@@ -38,6 +38,41 @@ class SkyIslandMassBalancedDischargePlannerTest {
     }
 
     @Test
+    void preservesContinuityAcrossNestedConfluences() {
+        var a = reach("a", "source-a", "join-1", new double[] {0.0, 5.0},
+                new double[] {0.10, 0.20});
+        var b = reach("b", "source-b", "join-1", new double[] {0.0, 5.0},
+                new double[] {0.10, 0.15});
+        var middle = reach("middle", "join-1", "join-2", new double[] {0.0, 8.0},
+                new double[] {0.40, 0.50});
+        var c = reach("c", "source-c", "join-2", new double[] {0.0, 6.0},
+                new double[] {0.15, 0.20});
+        var outlet = reach("outlet-reach", "join-2", "terminal", new double[] {0.0, 10.0},
+                new double[] {0.75, 0.80});
+
+        var result = SkyIslandMassBalancedDischargePlanner.plan(
+                List.of(outlet, c, middle, b, a), "terminal", 0.90, 10.0);
+
+        assertEquals(3.5,
+                result.reachesById().get("middle")
+                        .dischargeAtStationsCubicMetresPerSecond()[0],
+                1.0e-12);
+        assertEquals(7.0,
+                result.reachesById().get("outlet-reach")
+                        .dischargeAtStationsCubicMetresPerSecond()[0],
+                1.0e-12);
+        assertEquals(9.0, result.terminalDischargeCubicMetresPerSecond(), 1.0e-12);
+        assertEquals(
+                result.reachesById().get("middle")
+                                .dischargeAtStationsCubicMetresPerSecond()[1]
+                        + result.reachesById().get("c")
+                                .dischargeAtStationsCubicMetresPerSecond()[1],
+                result.reachesById().get("outlet-reach")
+                                .dischargeAtStationsCubicMetresPerSecond()[0],
+                0.0);
+    }
+
+    @Test
     void rejectsAuthoredConfluenceAccumulationBelowTributaryFlow() {
         var tributaryA = reach("a", "source-a", "join", new double[] {0.0, 10.0},
                 new double[] {0.40, 0.55});
