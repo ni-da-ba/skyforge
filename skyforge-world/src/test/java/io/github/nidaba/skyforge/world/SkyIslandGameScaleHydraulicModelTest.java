@@ -79,6 +79,41 @@ class SkyIslandGameScaleHydraulicModelTest {
     }
 
     @Test
+    void networkConfigurationPreservesAcceptedBankfullAndEditEnvelopes() {
+        SkyIslandDescriptor descriptor = descriptor(77L);
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
+                SkyIslandHydraulicGeometrySkeletonPlanner.plan(descriptor);
+        SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
+                .filter(value -> value.geomorphicRoute().semanticReach().startCellIndex() == 709
+                        && value.geomorphicRoute().semanticReach().endCellIndex() == 559)
+                .findFirst()
+                .orElseThrow();
+        SkyIslandSemanticField terrain = SkyIslandPreHydrologicTerrainField.create(descriptor);
+
+        var configuration = SkyIslandGameScaleHydraulicModel.networkCandidateConfiguration(
+                descriptor, skeleton, terrain);
+        double expectedWidth = 2.0 * skeleton.maximumBankfullHalfWidth()
+                * SkyIslandGameScaleHydraulicModel.HORIZONTAL_METRES_PER_LOCAL_UNIT;
+        double expectedDepth = skeleton.samples().stream()
+                .mapToDouble(SkyIslandHydraulicGeometrySkeletonSample::waterDepthPotential)
+                .max()
+                .orElseThrow() * descriptor.reliefBudget();
+        double expectedEdit = SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked()
+                .limits(skeleton.geomorphicRoute().semanticReach())
+                .maximumCenterlineLoweringPotential() * descriptor.reliefBudget();
+
+        assertEquals(expectedWidth,
+                configuration.bottomWidthMetres()
+                        + 2.0 * configuration.sideSlopeHorizontalToVertical()
+                                * configuration.bankfullDepthMetres(),
+                EPSILON);
+        assertEquals(expectedDepth, configuration.bankfullDepthMetres(), EPSILON);
+        assertEquals(expectedEdit, configuration.maximumTerrainEditMetres(), EPSILON);
+        assertEquals(0.0, configuration.upstreamIncisionMetres(), EPSILON);
+        assertTrue(configuration.minimumBedSlope() > 0.0);
+    }
+
+    @Test
     void massBalancedNetworkUsesOneScaleThatRespectsEveryReachCapacity() {
         var tributaryA = new SkyIslandMassBalancedDischargePlanner.ReachInput(
                 "a", "source-a", "join", new double[] {0.0, 10.0},
