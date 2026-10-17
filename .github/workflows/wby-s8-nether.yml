@@ -316,6 +316,7 @@ jobs:
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
             wby-s7-combat-evidence.tsv
+            wby-s7-client-thread-dump.txt
             wby-s8-candidate-pins.tsv
             wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar
