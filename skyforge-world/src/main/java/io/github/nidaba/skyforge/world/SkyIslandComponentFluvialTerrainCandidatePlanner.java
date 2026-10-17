@@ -113,21 +113,15 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 continue;
             }
 
-            SkyIslandComponentNetworkHydraulicPlanner.NetworkSolution networkSolution =
-                    SkyIslandComponentNetworkHydraulicPlanner.solve(
-                            descriptor, component, skeletons, original);
             for (SkyIslandHydraulicReachAssembly reachAssembly : component.reaches()) {
-                SkyIslandOrdinarySpanOutcome span = reachAssembly.ordinarySpans().getFirst();
+                SkyIslandOrdinarySpanOutcome span =
+                        reachAssembly.ordinarySpans().getFirst();
                 SkyIslandHydraulicReachSkeleton skeleton =
                         requireSkeleton(skeletons, reachAssembly.semanticReach());
                 long identity = reachAssembly.identity();
-                String reachId = reachAssembly.semanticReach().startCellIndex()
-                        + "->" + reachAssembly.semanticReach().endCellIndex();
-                SkyIslandComponentNetworkHydraulicPlanner.ReachSolution coupled =
-                        networkSolution.reachesById().get(reachId);
-                if (coupled == null) {
-                    throw new IllegalStateException("network hydraulic solve omitted reach " + reachId);
-                }
+                SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled =
+                        SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                                descriptor, skeleton, original);
                 SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
                         descriptor,
                         skeleton,
