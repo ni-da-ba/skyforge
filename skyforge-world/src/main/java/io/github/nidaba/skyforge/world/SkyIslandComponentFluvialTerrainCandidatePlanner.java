@@ -96,7 +96,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 new ArrayList<>();
         Map<Long, SkyIslandHydraulicReachGeometry> realizedByIdentity =
                 new LinkedHashMap<>();
-        Map<Long, SkyIslandHydraulicCandidateBuilder.Candidate> coupledByIdentity =
+        Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledByIdentity =
                 new LinkedHashMap<>();
 
         for (SkyIslandHydraulicTerminalComponent component :
@@ -123,12 +123,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                         SkyIslandGameScaleHydraulicModel.solveSourceReach(
                                 descriptor, skeleton, original);
                 SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
-                        descriptor,
-                        skeleton,
-                        span,
-                        original,
-                        coupled.candidate(),
-                        coupled.profile());
+                        descriptor, skeleton, span, original, coupled);
                 if (realizedByIdentity.put(identity, geometry) != null) {
                     throw new IllegalStateException(
                             "F4A component selection repeated reach "
@@ -136,7 +131,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                     + "->"
                                     + reachAssembly.semanticReach().endCellIndex());
                 }
-                if (coupledByIdentity.put(identity, coupled.candidate()) != null) {
+                if (coupledByIdentity.put(identity, coupled) != null) {
                     throw new IllegalStateException("F4A repeated coupled hydraulic candidate");
                 }
             }
@@ -262,8 +257,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             SkyIslandHydraulicReachSkeleton skeleton,
             SkyIslandOrdinarySpanOutcome spanOutcome,
             SkyIslandSemanticField originalTerrain,
-            SkyIslandHydraulicCandidateBuilder.Candidate candidate,
-            SkyIslandHydraulicCandidateBuilder.Profile profile) {
+            SkyIslandGameScaleHydraulicModel.SourceReachSolution solution) {
         if (spanOutcome.status() != SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
                 || Math.abs(spanOutcome.span().parentStartStationFraction()) > EPSILON
                 || Math.abs(spanOutcome.span().parentEndStationFraction() - 1.0) > EPSILON) {
@@ -272,9 +266,9 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
         }
         List<SkyIslandHydraulicGeometrySample> previousSamples = spanOutcome.solvedSamples();
         List<SkyIslandHydraulicGeometrySkeletonSample> skeletonSamples = skeleton.samples();
-        double[] beds = profile.bedElevationsMetres();
-        double[] depths = profile.depthsMetres();
-        double[] stages = profile.waterSurfaceElevationsMetres();
+        double[] beds = solution.profile().bedElevationsMetres();
+        double[] depths = solution.profile().depthsMetres();
+        double[] stages = solution.profile().waterSurfaceElevationsMetres();
         if (previousSamples.size() != skeletonSamples.size()
                 || beds.length != skeletonSamples.size()
                 || depths.length != skeletonSamples.size()
