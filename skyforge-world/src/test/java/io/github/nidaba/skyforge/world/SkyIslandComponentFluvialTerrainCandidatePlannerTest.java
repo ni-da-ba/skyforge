@@ -200,6 +200,10 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        assertTrue(candidate.realizedComponents().stream()
+                .anyMatch(component -> component.reaches().size() > 1
+                        && component.networkSolution().isPresent()),
+                "key 632 must realize a qualified multi-reach network, not only defer candidates");
         assertEquals(
                 eligible.size(),
                 candidate.realizedComponents().size()
