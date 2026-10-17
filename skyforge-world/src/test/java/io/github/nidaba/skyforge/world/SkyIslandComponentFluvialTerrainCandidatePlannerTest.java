@@ -110,6 +110,8 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                         .skeletonPlan();
         SkyIslandSemanticField original = SkyIslandPreHydrologicTerrainField.create(descriptor);
         Map<Long, SkyIslandSemanticField> surfaces = new LinkedHashMap<>();
+        Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> candidates = new LinkedHashMap<>();
+        int candidateIndex = 0;
         for (SkyIslandHydraulicReachGeometry reach : plan.terrainField().acceptedReaches()) {
             SkyIslandSemanticChannelReach semantic = reach.geomorphicRoute().semanticReach();
             SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
@@ -120,13 +122,20 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                     descriptor, skeleton, original);
             long identity = ((long) semantic.startCellIndex() << 32)
                     ^ Integer.toUnsignedLong(semantic.endCellIndex());
-            surfaces.put(identity, position ->
-                    solution.candidate().sampleTerrainMetres(position) / descriptor.reliefBudget());
+            if (candidateIndex++ % 2 == 0) {
+                surfaces.put(identity, position ->
+                        solution.candidate().sampleTerrainMetres(position) / descriptor.reliefBudget());
+            } else {
+                candidates.put(identity, solution);
+            }
         }
+        assertEquals(1, surfaces.size());
+        assertEquals(1, candidates.size());
         SkyIslandQualifiedFluvialTerrainField field =
                 SkyIslandQualifiedFluvialTerrainField.withCoupledTerrainSurfaces(
                         original,
                         plan.terrainField().acceptedReaches(),
+                        candidates,
                         surfaces,
                         descriptor.reliefBudget());
 
