@@ -227,6 +227,15 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
             SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                     SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+            boolean postD2Rejected = candidate.deferredQualifiedComponents().stream()
+                    .anyMatch(deferral -> deferral.reasons().contains(
+                            SkyIslandComponentFluvialTerrainDeferralReason
+                                    .POST_REALIZATION_D2_REJECTED));
+            if (postD2Rejected) {
+                assertTrue(candidate.realizedComponents().isEmpty());
+                assertTrue(candidate.terrainField().acceptedReaches().isEmpty());
+                assertTrue(candidate.postRealizationQualifications().isEmpty());
+            }
             var realized = candidate.realizedComponents().stream()
                     .filter(component -> component.reaches().size() > 1
                             && component.networkSolution().isPresent())
