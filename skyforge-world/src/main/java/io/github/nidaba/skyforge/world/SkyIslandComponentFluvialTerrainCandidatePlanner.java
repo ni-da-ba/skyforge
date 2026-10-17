@@ -2,7 +2,6 @@ package io.github.nidaba.skyforge.world;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.HashMap;
