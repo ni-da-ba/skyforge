@@ -14,8 +14,8 @@ class SkyIslandMassBalancedDischargePlannerTest {
                 new double[] {0.20, 0.35});
         var tributaryB = reach("b", "source-b", "join", new double[] {0.0, 8.0},
                 new double[] {0.15, 0.30});
-        var receiving = reach("main", "join", "outlet", new double[] {0.0, 12.0},
-                new double[] {0.70, 0.95});
+        var receiving = reach("main", "join", "outlet", new double[] {0.0, 6.0, 12.0},
+                new double[] {0.70, 0.85, 0.95});
 
         var result = SkyIslandMassBalancedDischargePlanner.plan(
                 List.of(receiving, tributaryB, tributaryA), "outlet", 1.10, 100.0);
@@ -26,11 +26,9 @@ class SkyIslandMassBalancedDischargePlannerTest {
                 result.reachesById().get("a").dischargeAtStationsCubicMetresPerSecond(), 1.0e-12);
         assertArrayEquals(new double[] {15.0, 30.0},
                 result.reachesById().get("b").dischargeAtStationsCubicMetresPerSecond(), 1.0e-12);
-        assertArrayEquals(new double[] {65.0, 95.0},
+        assertArrayEquals(new double[] {65.0, 85.0, 110.0},
                 result.reachesById().get("main").dischargeAtStationsCubicMetresPerSecond(), 1.0e-12);
-        assertArrayEquals(new double[] {30.0},
-                result.reachesById().get("main").lateralInflowByIntervalCubicMetresPerSecond(), 1.0e-12);
-        assertArrayEquals(new double[] {15.0},
+        assertArrayEquals(new double[] {20.0, 25.0},
                 result.reachesById().get("main").lateralInflowByIntervalCubicMetresPerSecond(), 1.0e-12);
         assertEquals(
                 result.reachesById().get("a").dischargeAtStationsCubicMetresPerSecond()[1]
