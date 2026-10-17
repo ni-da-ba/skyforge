@@ -79,6 +79,61 @@ class SkyIslandGameScaleHydraulicModelTest {
     }
 
     @Test
+    void massBalancedNetworkUsesOneScaleThatRespectsEveryReachCapacity() {
+        var tributaryA = new SkyIslandMassBalancedDischargePlanner.ReachInput(
+                "a", "source-a", "join", new double[] {0.0, 10.0},
+                new double[] {0.20, 0.35});
+        var tributaryB = new SkyIslandMassBalancedDischargePlanner.ReachInput(
+                "b", "source-b", "join", new double[] {0.0, 8.0},
+                new double[] {0.15, 0.30});
+        var receiving = new SkyIslandMassBalancedDischargePlanner.ReachInput(
+                "main", "join", "outlet", new double[] {0.0, 6.0, 12.0},
+                new double[] {0.70, 0.85, 0.95});
+        var mapped = SkyIslandMassBalancedDischargePlanner.plan(
+                List.of(tributaryA, tributaryB, receiving), "outlet", 1.10, 1.0);
+
+        var profiles = List.of(
+                capacityProfile(mapped, "a", new double[] {0.012, 0.009}, 8.0, 2.0, 1.4),
+                capacityProfile(mapped, "b", new double[] {0.010, 0.007}, 7.0, 2.0, 1.3),
+                capacityProfile(mapped, "main", new double[] {0.008, 0.006, 0.004},
+                        12.0, 2.0, 1.8));
+        double scale = SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(profiles);
+
+        for (var profile : profiles) {
+            double[] relativeFlow = profile.relativeDischarge();
+            double[] slopes = profile.bedSlope();
+            for (int i = 0; i < relativeFlow.length; i++) {
+                assertTrue(scale * relativeFlow[i]
+                        <= manningCapacity(
+                                profile.bottomWidthMetres(),
+                                profile.sideSlopeHorizontalToVertical(),
+                                profile.bankfullDepthMetres(),
+                                slopes[i]) + EPSILON);
+            }
+        }
+        assertTrue(scale > 0.0);
+        assertEquals(0.35, mapped.reachesById().get("a")
+                .dischargeAtStationsCubicMetresPerSecond()[1], EPSILON);
+        assertEquals(0.65, mapped.reachesById().get("main")
+                .dischargeAtStationsCubicMetresPerSecond()[0], EPSILON);
+    }
+
+    private static SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile capacityProfile(
+            SkyIslandMassBalancedDischargePlanner.NetworkFlows mapped,
+            String reachId,
+            double[] slopes,
+            double width,
+            double sideSlope,
+            double depth) {
+        return new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
+                mapped.reachesById().get(reachId).dischargeAtStationsCubicMetresPerSecond(),
+                slopes,
+                width,
+                sideSlope,
+                depth);
+    }
+
+    @Test
     void componentCalibrationUsesTheTightestBankfullCapacityAcrossAllReaches() {
         var highCapacity = new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
                 new double[] {1.0, 1.2}, new double[] {0.01, 0.01},
