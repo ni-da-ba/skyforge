@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.world;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
@@ -78,6 +79,33 @@ class SkyIslandGameScaleHydraulicModelTest {
     }
 
     @Test
+    void componentCalibrationUsesTheTightestBankfullCapacityAcrossAllReaches() {
+        var highCapacity = new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
+                new double[] {1.0, 2.0}, new double[] {0.01, 0.01},
+                2.0, 1.0, 1.0);
+        var limitingCapacity = new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
+                new double[] {1.0, 1.5}, new double[] {0.005, 0.005},
+                2.0, 1.0, 1.0);
+
+        double expected = manningCapacity(2.0, 1.0, 1.0, 0.005);
+        assertEquals(
+                expected,
+                SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(
+                        List.of(highCapacity, limitingCapacity)),
+                1.0e-12);
+    }
+
+    @Test
+    void componentCalibrationRejectsNonpositiveSlopeAndEmptyNetworks() {
+        assertThrows(IllegalArgumentException.class,
+                () -> new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
+                        new double[] {1.0, 1.0}, new double[] {0.01, 0.0},
+                        2.0, 1.0, 1.0));
+        assertThrows(IllegalArgumentException.class,
+                () -> SkyIslandGameScaleHydraulicModel.calibrateComponentDischargeScale(List.of()));
+    }
+
+    @Test
     void rejected287RemainsOutsideCandidateHydraulics() {
         SkyIslandComponentFluvialTerrainCandidatePlan plan =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor(287L));
@@ -85,6 +113,14 @@ class SkyIslandGameScaleHydraulicModelTest {
         assertTrue(plan.realizedComponents().isEmpty());
         assertTrue(plan.terrainField().acceptedReaches().isEmpty());
         assertTrue(plan.postRealizationQualifications().isEmpty());
+    }
+
+    private static double manningCapacity(
+            double bottomWidth, double sideSlope, double depth, double slope) {
+        double area = bottomWidth * depth + sideSlope * depth * depth;
+        double perimeter = bottomWidth + 2.0 * depth * Math.hypot(1.0, sideSlope);
+        return area * Math.pow(area / perimeter, 2.0 / 3.0) * Math.sqrt(slope)
+                / SkyIslandGameScaleHydraulicModel.MANNING_ROUGHNESS;
     }
 
     private static SkyIslandDescriptor descriptor(long key) {
