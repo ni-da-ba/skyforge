@@ -364,7 +364,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 throw new IllegalArgumentException(
                         "receiver-profile continuation does not leave positive water depth at the shared junction bed");
             }
-            if (stageAtJunctionNode.put(Integer.parseInt(plan.nodeId()), nodeStage) != null) {
+            if (stageAtJunctionNode.put(Integer.parseInt(plan.junctionNodeId()), nodeStage) != null) {
                 throw new IllegalArgumentException("duplicate solved stage for semantic junction node");
             }
         }
