@@ -6,7 +6,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
+import java.util.Set;\nimport java.util.TreeMap;
 
 /**
  * Adapts measured junction-section placements to the existing subcritical drainage-tree solver.
@@ -72,6 +72,80 @@ public final class SkyIslandJunctionHydraulicInputAdapter {
         }
         return new SkyIslandSubcriticalDrainageTreeSolver.Junction(
                 receiver.reachId(), solverTributaries);
+    }
+
+    /**
+     * Slices a complete set of reaches at their planned junction sections and solves the resulting
+     * acyclic subcritical tree from its explicit downstream depth boundary.
+     */
+    public static SkyIslandSubcriticalDrainageTreeSolver.NetworkProfile solveNetwork(
+            List<ReachSlice> reachSlices,
+            List<JunctionInput> junctionInputs,
+            String terminalReachId,
+            double terminalDepthMetres) {
+        Objects.requireNonNull(reachSlices, "reachSlices");
+        Objects.requireNonNull(junctionInputs, "junctionInputs");
+        Map<String, ReachSlice> slicesById = new TreeMap<>();
+        for (ReachSlice slice : List.copyOf(reachSlices)) {
+            Objects.requireNonNull(slice, "reach slice");
+            if (slicesById.put(slice.reachId(), slice) != null) {
+                throw new IllegalArgumentException("duplicate bounded hydraulic reach: " + slice.reachId());
+            }
+        }
+        if (slicesById.isEmpty()) {
+            throw new IllegalArgumentException("network requires at least one bounded hydraulic reach");
+        }
+
+        List<SkyIslandSubcriticalDrainageTreeSolver.Reach> hydraulicReaches =
+                slicesById.values().stream()
+                        .map(slice -> new SkyIslandSubcriticalDrainageTreeSolver.Reach(
+                                slice.reachId(), slice.toHydraulicReach()))
+                        .toList();
+        List<SkyIslandSubcriticalDrainageTreeSolver.Junction> junctions = new ArrayList<>();
+        Set<String> receivingReachIds = new HashSet<>();
+        for (JunctionInput input : List.copyOf(junctionInputs)) {
+            Objects.requireNonNull(input, "junction input");
+            var plan = input.plan();
+            if (!receivingReachIds.add(plan.receivingReachId())) {
+                throw new IllegalArgumentException(
+                        "each receiving reach may have only one upstream junction");
+            }
+            ReachSlice receiver = slicesById.get(plan.receivingReachId());
+            if (receiver == null) {
+                throw new IllegalArgumentException(
+                        "bounded reach is missing for junction receiver: " + plan.receivingReachId());
+            }
+            List<ReachSlice> tributaries = plan.tributaries().stream()
+                    .map(branch -> {
+                        ReachSlice slice = slicesById.get(branch.reachId());
+                        if (slice == null) {
+                            throw new IllegalArgumentException(
+                                    "bounded reach is missing for junction tributary: " + branch.reachId());
+                        }
+                        return slice;
+                    })
+                    .toList();
+            junctions.add(junction(plan, receiver, tributaries, input.lossesByReachId()));
+        }
+        return SkyIslandSubcriticalDrainageTreeSolver.solve(
+                hydraulicReaches, junctions, terminalReachId, terminalDepthMetres);
+    }
+
+    /** One geometric junction plan and its explicit transition-loss inputs. */
+    public record JunctionInput(
+            SkyIslandJunctionCrossSectionPlanner.JunctionSections plan,
+            Map<String, LossCoefficients> lossesByReachId) {
+        public JunctionInput {
+            plan = Objects.requireNonNull(plan, "plan");
+            lossesByReachId = Map.copyOf(Objects.requireNonNull(lossesByReachId, "lossesByReachId"));
+            Set<String> expected = new HashSet<>();
+            plan.tributaries().forEach(branch -> expected.add(branch.reachId()));
+            if (expected.size() != plan.tributaries().size()
+                    || !lossesByReachId.keySet().equals(expected)) {
+                throw new IllegalArgumentException(
+                        "junction losses must exactly match the planned tributary identities");
+            }
+        }
     }
 
     /** One reach's computationally bounded interval in the original upstream-to-downstream arrays. */
