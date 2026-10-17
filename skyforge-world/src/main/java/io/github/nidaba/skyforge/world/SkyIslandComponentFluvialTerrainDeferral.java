@@ -20,9 +20,9 @@ public record SkyIslandComponentFluvialTerrainDeferral(
         reasons = List.copyOf(reasons);
         diagnostic = Objects.requireNonNull(diagnostic, "diagnostic");
         reasons.forEach(value -> Objects.requireNonNull(value, "deferral reason"));
-        if (component.status() != SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
+        if (!SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(component)) {
             throw new IllegalArgumentException(
-                    "F4A deferral is only meaningful for an F3E-qualified component");
+                    "F4A deferral is only meaningful for an eligible complete drainage component");
         }
         if (reasons.isEmpty()) {
             throw new IllegalArgumentException(
