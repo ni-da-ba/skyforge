@@ -28,6 +28,7 @@ on:
       - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "docs/reviews/WBY-S8-incendium-full-stack-human-gate.md"
   pull_request:
     paths:
       - ".github/workflows/wby-s8-nether.yml"
@@ -48,6 +49,7 @@ on:
       - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "docs/reviews/WBY-S8-incendium-full-stack-human-gate.md"
   workflow_dispatch:
 
 permissions:
