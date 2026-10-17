@@ -186,10 +186,6 @@ public final class SkyIslandJointNetworkCandidateBuilder {
         }
     }
 
-    private static double distance(SkyIslandLocalPosition first, SkyIslandLocalPosition second) {
-        return Math.hypot(first.x() - second.x(), first.z() - second.z());
-    }
-
     /** One directed reach with a route that starts/ends at its shared network node positions. */
     public record ReachInput(
             String id,
