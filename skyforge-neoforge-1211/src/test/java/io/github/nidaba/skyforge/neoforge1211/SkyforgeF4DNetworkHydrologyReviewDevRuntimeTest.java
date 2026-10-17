@@ -14,9 +14,13 @@ class SkyforgeF4DNetworkHydrologyReviewDevRuntimeTest {
         assertTrue(
                 fixture.realizedNetworkComponents() > 0,
                 "F4D must start from a qualified multi-reach F4A network");
+        java.util.Set<String> refinedReachIds = fixture.refined().reaches().stream()
+                .map(reach -> reach.geomorphicRoute().semanticReach().startCellIndex()
+                        + "->" + reach.geomorphicRoute().semanticReach().endCellIndex())
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
         assertTrue(
-                fixture.refined().reaches().size() >= 2,
-                "the network specimen must carry multiple reaches through F4G");
+                refinedReachIds.containsAll(fixture.networkReachIds()),
+                "every realized network reach must survive through F4G");
         assertFalse(
                 fixture.authorization().quantization().authorizedColumns().isEmpty(),
                 "the exact F4H authorization must retain its qualified network columns");
@@ -27,7 +31,11 @@ class SkyforgeF4DNetworkHydrologyReviewDevRuntimeTest {
                 "the exact Minecraft adapter must receive persisted water-head positions");
         assertTrue(
                 fixture.authorization().quantization().authorizedColumns().stream()
-                        .anyMatch(column -> column.projection().semanticSample().wet()),
-                "the authorized key-632 specimen must contain actual semantic water");
+                        .map(column -> column.projection().semanticSample())
+                        .filter(sample -> sample.wet())
+                        .map(sample -> sample.provenance().orElseThrow())
+                        .anyMatch(provenance -> fixture.networkReachIds().contains(
+                                provenance.startCellIndex() + "->" + provenance.endCellIndex())),
+                "the authorized water must belong to the realized key-632 network, not another reach");
     }
 }
