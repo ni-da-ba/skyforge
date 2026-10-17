@@ -61,34 +61,48 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
-    void accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies() {
+    void accepted77TerrainFieldSamplesTheSameNetworkCandidateThatD2Qualifies() {
         SkyIslandDescriptor descriptor = descriptor(8L, 81L, 77L);
         SkyIslandComponentFluvialTerrainCandidatePlan plan =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
-        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan =
-                plan.assemblyPlan()
-                        .ordinarySpanPlan()
-                        .cascadePlan()
-                        .transitionGeometry()
-                        .topology()
-                        .skeletonPlan();
-        SkyIslandPreHydrologicTerrainField original =
-                SkyIslandPreHydrologicTerrainField.create(descriptor);
+        SkyIslandHydraulicGeometrySkeletonPlan skeletonPlan = plan.assemblyPlan()
+                .ordinarySpanPlan()
+                .cascadePlan()
+                .transitionGeometry()
+                .topology()
+                .skeletonPlan();
+        var skeletons = skeletonPlan.reaches().stream().collect(
+                java.util.stream.Collectors.toUnmodifiableMap(
+                        skeleton -> {
+                            var semantic = skeleton.geomorphicRoute().semanticReach();
+                            return ((long) semantic.startCellIndex() << 32)
+                                    ^ Integer.toUnsignedLong(semantic.endCellIndex());
+                        },
+                        skeleton -> skeleton));
 
-        for (SkyIslandHydraulicReachGeometry realized : plan.terrainField().acceptedReaches()) {
-            SkyIslandSemanticChannelReach semantic = realized.geomorphicRoute().semanticReach();
-            SkyIslandHydraulicReachSkeleton skeleton = skeletonPlan.reaches().stream()
-                    .filter(candidate -> candidate.geomorphicRoute().semanticReach().equals(semantic))
-                    .findFirst()
-                    .orElseThrow();
-            SkyIslandGameScaleHydraulicModel.SourceReachSolution solution =
-                    SkyIslandGameScaleHydraulicModel.solveSourceReach(descriptor, skeleton, original);
-            int middle = realized.centerline().points().size() / 2;
-            SkyIslandLocalPosition point = realized.centerline().points().get(middle);
-            assertEquals(
-                    solution.candidate().sampleTerrainMetres(point) / descriptor.reliefBudget(),
-                    plan.terrainField().sample(point),
-                    EPSILON);
+        for (SkyIslandHydraulicTerminalComponent component : plan.realizedComponents()) {
+            var network = SkyIslandComponentNetworkHydraulicPlanner.solve(
+                    descriptor,
+                    component,
+                    skeletons,
+                    SkyIslandPreHydrologicTerrainField.create(descriptor));
+            for (SkyIslandHydraulicReachGeometry realized : plan.terrainField().acceptedReaches()) {
+                SkyIslandSemanticChannelReach semantic = realized.geomorphicRoute().semanticReach();
+                boolean belongsToComponent = component.reaches().stream()
+                        .anyMatch(reach -> reach.semanticReach().equals(semantic));
+                if (!belongsToComponent) {
+                    continue;
+                }
+                String id = semantic.startCellIndex() + "->" + semantic.endCellIndex();
+                var coupled = network.reachesById().get(id);
+                assertTrue(coupled != null);
+                int middle = realized.centerline().points().size() / 2;
+                SkyIslandLocalPosition point = realized.centerline().points().get(middle);
+                assertEquals(
+                        coupled.candidate().sampleTerrainMetres(point) / descriptor.reliefBudget(),
+                        plan.terrainField().sample(point),
+                        EPSILON);
+            }
         }
         assertTrue(plan.postRealizationQualifications().stream()
                 .allMatch(SkyIslandGeomorphicReachQualification::accepted));
