@@ -149,17 +149,10 @@ class SkyIslandMassBalancedDischargePlannerTest {
     }
 
     @Test
-    void rejectsNegativeRunoffNeededToPreserveAuthoredStationFlow() {
-        var tributaryA = reach("a", "source-a", "join", new double[] {0.0, 10.0},
-                new double[] {0.40, 0.55});
-        var tributaryB = reach("b", "source-b", "join", new double[] {0.0, 10.0},
-                new double[] {0.35, 0.50});
-        var receiving = reach("main", "join", "outlet", new double[] {0.0, 10.0},
-                new double[] {0.80, 0.70});
-
+    void rejectsDecreasingAuthoredFlowBeforeNetworkMapping() {
         assertThrows(IllegalArgumentException.class,
-                () -> SkyIslandMassBalancedDischargePlanner.plan(
-                        List.of(tributaryA, tributaryB, receiving), "outlet", 0.90, 100.0));
+                () -> reach("main", "join", "outlet", new double[] {0.0, 10.0},
+                        new double[] {0.80, 0.70}));
     }
 
     @Test
