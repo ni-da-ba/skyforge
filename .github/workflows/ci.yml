@@ -169,6 +169,15 @@ jobs:
         uses: ./.github/actions/setup-java-gradle
       - name: Run world test suite
         run: ./gradlew :skyforge-world:test --no-configuration-cache
+      - name: Report F4 cascade-free network specimen census
+        if: always()
+        run: |
+          report=skyforge-world/build/evidence/f4-cascade-free-network-specimen.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          else
+            echo "F4 cascade-free network specimen census report was not produced"
+          fi
 
   neoforge-tests:
     needs: validate
