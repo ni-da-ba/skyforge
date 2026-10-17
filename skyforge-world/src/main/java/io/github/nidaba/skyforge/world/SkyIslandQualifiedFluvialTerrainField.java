@@ -45,8 +45,19 @@ public final class SkyIslandQualifiedFluvialTerrainField implements SkyIslandSem
             List<SkyIslandHydraulicReachGeometry> acceptedReaches,
             java.util.Map<Long, SkyIslandSemanticField> coupledTerrainSurfaces,
             double verticalScale) {
-        return new SkyIslandQualifiedFluvialTerrainField(
+        return withCoupledTerrainSurfaces(
                 originalTerrain, acceptedReaches, java.util.Map.of(), coupledTerrainSurfaces, verticalScale);
+    }
+
+    /** Creates a field combining isolated reach candidates with shared network terrain surfaces. */
+    public static SkyIslandQualifiedFluvialTerrainField withCoupledTerrainSurfaces(
+            SkyIslandSemanticField originalTerrain,
+            List<SkyIslandHydraulicReachGeometry> acceptedReaches,
+            java.util.Map<Long, SkyIslandGameScaleHydraulicModel.SourceReachSolution> coupledCandidates,
+            java.util.Map<Long, SkyIslandSemanticField> coupledTerrainSurfaces,
+            double verticalScale) {
+        return new SkyIslandQualifiedFluvialTerrainField(
+                originalTerrain, acceptedReaches, coupledCandidates, coupledTerrainSurfaces, verticalScale);
     }
 
     private SkyIslandQualifiedFluvialTerrainField(
