@@ -176,6 +176,38 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
+    void confluence632LegacyHeadDeferralsReachTheNetworkCandidateGateAtomically() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 632L);
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+        List<SkyIslandHydraulicTerminalComponent> eligible = assembly.terminalComponents().stream()
+                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+                .toList();
+
+        assertFalse(eligible.isEmpty());
+        assertTrue(eligible.stream().allMatch(component ->
+                component.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED
+                        && component.sharedHeadSolve().complete() == false));
+
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+        assertEquals(
+                eligible.size(),
+                candidate.realizedComponents().size()
+                        + candidate.deferredQualifiedComponents().size());
+        assertTrue(candidate.realizedComponents().stream()
+                .allMatch(component -> component.networkSolution().isPresent()));
+        assertTrue(candidate.deferredQualifiedComponents().stream()
+                .allMatch(deferral -> !deferral.diagnostic().isBlank()));
+        assertTrue(assembly.terminalComponents().stream()
+                .filter(component -> eligible.stream().anyMatch(value ->
+                        value.terminalFate().channelTerminalCellIndex()
+                                == component.terminalFate().channelTerminalCellIndex()))
+                .allMatch(component ->
+                        component.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED));
+    }
+
+    @Test
     void lake609ReceivesNoCandidateTerrainAuthority() {
         SkyIslandComponentFluvialTerrainCandidatePlan plan =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(
