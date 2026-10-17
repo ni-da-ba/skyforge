@@ -81,7 +81,7 @@ class SkyIslandGameScaleHydraulicModelTest {
     @Test
     void componentCalibrationUsesTheTightestBankfullCapacityAcrossAllReaches() {
         var highCapacity = new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
-                new double[] {1.0, 2.0}, new double[] {0.01, 0.01},
+                new double[] {1.0, 1.2}, new double[] {0.01, 0.01},
                 2.0, 1.0, 1.0);
         var limitingCapacity = new SkyIslandGameScaleHydraulicModel.BankfullCapacityProfile(
                 new double[] {1.0, 1.5}, new double[] {0.005, 0.005},
