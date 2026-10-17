@@ -69,20 +69,20 @@ class SkyIslandJunctionHydraulicInputAdapterTest {
                 "join",
                 List.of(
                         sectionInput("main", "join", "outlet",
-                                List.of(point(0, 0), point(2, 0), point(4, 0)),
-                                new double[] {0, 2, 4}),
+                                List.of(point(0, 0), point(2, 0), point(4, 0), point(6, 0)),
+                                new double[] {0, 2, 4, 6}),
                         sectionInput("branch-a", "source-a", "join",
-                                List.of(point(0, 4), point(0, 2), point(0, 0)),
-                                new double[] {0, 2, 4}),
+                                List.of(point(0, 6), point(0, 4), point(0, 2), point(0, 0)),
+                                new double[] {0, 2, 4, 6}),
                         sectionInput("branch-b", "source-b", "join",
-                                List.of(point(4, 4), point(2, 2), point(0, 0)),
-                                new double[] {0, Math.sqrt(8), 2 * Math.sqrt(8)})));
+                                List.of(point(6, 6), point(4, 4), point(2, 2), point(0, 0)),
+                                new double[] {0, Math.sqrt(8), 2 * Math.sqrt(8), 3 * Math.sqrt(8)})));
         var receiver = new SkyIslandJunctionHydraulicInputAdapter.ReachSlice(
-                "main", fullReach(new double[] {2, 2, 2}), 1, 2);
+                "main", fullReach(new double[] {2, 2, 2, 2}), 2, 3);
         var wrongBranch = new SkyIslandJunctionHydraulicInputAdapter.ReachSlice(
-                "branch-a", fullReach(new double[] {1, 1, 1}), 0, 1);
+                "branch-a", fullReach(new double[] {1, 1, 1, 1}), 0, 2);
         var otherBranch = new SkyIslandJunctionHydraulicInputAdapter.ReachSlice(
-                "branch-b", fullReach(new double[] {1, 1, 1}), 0, 1);
+                "branch-b", fullReach(new double[] {1, 1, 1, 1}), 0, 1);
         assertThrows(IllegalArgumentException.class, () ->
                 SkyIslandJunctionHydraulicInputAdapter.junction(
                         plan, receiver, List.of(wrongBranch, otherBranch),
