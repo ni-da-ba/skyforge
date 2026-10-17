@@ -359,7 +359,14 @@ final class SkyforgeF4DNetworkHydrologyReviewDevRuntime {
                 .filter(component -> component.reaches().size() > 1
                         && component.networkSolution().isPresent())
                 .count();
-        if (realizedNetworkComponents == 0) {
+        Set<String> networkReachIds = candidate.realizedComponents().stream()
+                .filter(component -> component.reaches().size() > 1
+                        && component.networkSolution().isPresent())
+                .flatMap(component -> component.reaches().stream())
+                .map(reach -> reachId(reach.semanticReach().startCellIndex(),
+                        reach.semanticReach().endCellIndex()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (realizedNetworkComponents == 0 || networkReachIds.size() < 2) {
             throw new IllegalStateException(
                     "F4D key 632 must realize at least one qualified multi-reach network");
         }
@@ -370,15 +377,35 @@ final class SkyforgeF4DNetworkHydrologyReviewDevRuntime {
                 SkyIslandWorldWaterHeadRefinementPlanner.plan(direct);
         SkyIslandWorldHeadRefinedTerrainPlan refined =
                 SkyIslandWorldHeadRefinedTerrainPlanner.plan(head);
+        Set<String> refinedReachIds = refined.reaches().stream()
+                .map(reach -> reachId(
+                        reach.geomorphicRoute().semanticReach().startCellIndex(),
+                        reach.geomorphicRoute().semanticReach().endCellIndex()))
+                .collect(java.util.stream.Collectors.toUnmodifiableSet());
+        if (!refinedReachIds.containsAll(networkReachIds)) {
+            throw new IllegalStateException(
+                    "F4D key 632 network reaches did not survive the F4G terrain stage");
+        }
         SkyIslandHydrologyRuntimeAuthorization authorization =
                 SkyIslandHydrologyRuntimeAuthorization.fromF4H(
                         association,
                         candidate,
                         refined.terrainField());
+        boolean networkHasAuthorizedWater = authorization.quantization().authorizedColumns().stream()
+                .map(column -> column.projection().semanticSample())
+                .filter(SkyIslandQualifiedFluvialSample::wet)
+                .map(sample -> sample.provenance().orElseThrow())
+                .anyMatch(provenance -> networkReachIds.contains(
+                        reachId(provenance.startCellIndex(), provenance.endCellIndex())));
+        if (!networkHasAuthorizedWater) {
+            throw new IllegalStateException(
+                    "F4D key 632 network has no authorized wet Minecraft columns after F4H");
+        }
         return new Fixture(
                 descriptor,
                 volume,
                 realizedNetworkComponents,
+                networkReachIds,
                 new SkyIslandWorldCatalog(REALIZATION_ROOT, List.of(volume)),
                 direct,
                 head,
@@ -386,17 +413,23 @@ final class SkyforgeF4DNetworkHydrologyReviewDevRuntime {
                 authorization);
     }
 
+    private static String reachId(int startCellIndex, int endCellIndex) {
+        return startCellIndex + "->" + endCellIndex;
+    }
+
     static record Fixture(
             SkyIslandDescriptor descriptor,
             SkyIslandWorldVolume volume,
             int realizedNetworkComponents,
+            Set<String> networkReachIds,
             SkyIslandWorldCatalog catalog,
             SkyIslandWorldWaterProjectionQualificationPlan direct,
             SkyIslandWorldWaterHeadRefinementPlan head,
             SkyIslandWorldHeadRefinedTerrainPlan refined,
             SkyIslandHydrologyRuntimeAuthorization authorization) {
         Fixture {
-            if (realizedNetworkComponents <= 0) {
+            networkReachIds = Set.copyOf(networkReachIds);
+            if (realizedNetworkComponents <= 0 || networkReachIds.size() < 2) {
                 throw new IllegalArgumentException("F4D review requires a realized multi-reach network");
             }
             if (direct.terrainVoxelPlan().association() != authorization.association()
