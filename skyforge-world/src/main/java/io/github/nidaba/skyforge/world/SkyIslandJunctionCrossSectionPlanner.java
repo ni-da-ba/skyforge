@@ -6,7 +6,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
  * Places one-dimensional computational sections around a combining junction.
@@ -339,6 +338,20 @@ public final class SkyIslandJunctionCrossSectionPlanner {
                             "reach stations must start at zero and increase strictly downstream");
                 }
                 Objects.requireNonNull(points.get(i), "route point");
+                if (i > 0) {
+                    double routeDistance = Math.hypot(
+                                    points.get(i).x() - points.get(i - 1).x(),
+                                    points.get(i).z() - points.get(i - 1).z())
+                            * horizontalMetresPerLocalUnit;
+                    double stationDistance = stationsMetres[i] - stationsMetres[i - 1];
+                    if (!(routeDistance > 0.0)
+                            || Math.abs(routeDistance - stationDistance)
+                                    > Math.max(GEOMETRY_TOLERANCE,
+                                            1.0e-9 * Math.max(routeDistance, stationDistance))) {
+                        throw new IllegalArgumentException(
+                                "station increments must match route geometry in SI units");
+                    }
+                }
             }
         }
 
