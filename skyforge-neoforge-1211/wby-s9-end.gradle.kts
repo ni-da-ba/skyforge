@@ -221,6 +221,44 @@ tasks.register("wbyS9ResolveEndProfile") {
     }
 }
 
+tasks.register<Copy>("wbyS9StageEndClientMods") {
+    group = "verification"
+    description = "Stage the resolved cumulative S0-S9 client mod closure into the S9 runtime client."
+    dependsOn("wbyS1StageClientMods", "wbyS9ResolveEndProfile")
+
+    val modMetadataPaths = listOf("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
+    fun isNeoForgeModJar(file: java.io.File): Boolean =
+        file.isFile && file.extension.equals("jar", ignoreCase = true) &&
+            runCatching {
+                ZipFile(file).use { archive -> modMetadataPaths.any { archive.getEntry(it) != null } }
+            }.getOrDefault(false)
+
+    // S1 staging intentionally knows only the accepted S0-S8 closure. S9 candidates have their
+    // own side-aware resolution; copy the complete resolved client mod closure so selected S9
+    // client/server mods are present on the joining runtime client as well as the test server.
+    from(wbyS9Client.runtimeClasspath) {
+        include { details -> isNeoForgeModJar(details.file) }
+    }
+    into(layout.projectDirectory.dir("$wbyS9RunDirectory/mods"))
+
+    doLast {
+        val expected = wbyS9Client.runtimeClasspath.files
+            .filter(::isNeoForgeModJar)
+            .map { it.name }
+            .toSet()
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension.equals("jar", ignoreCase = true) }
+            ?.map { it.name }
+            ?.toSet()
+            ?: emptySet()
+        val missing = expected - staged
+        check(missing.isEmpty()) {
+            "WBY S9 client mod staging is incomplete for $wbyS9EndVariant: $missing"
+        }
+        println("WBY S9 CLIENT MOD STAGING PASS variant=$wbyS9EndVariant modJars=${expected.size}")
+    }
+}
+
 tasks.register<Copy>("wbyS9StageEndDatapacks") {
     group = "verification"
     description = "Stage selected official S9 End datapacks into the isolated fresh-world review profile."
