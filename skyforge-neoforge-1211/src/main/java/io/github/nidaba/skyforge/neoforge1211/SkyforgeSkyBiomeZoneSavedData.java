@@ -142,7 +142,7 @@ final class SkyforgeSkyBiomeZoneSavedData extends SavedData {
         if (!serializedAssignments.isEmpty() && serializedAssignments.getElementType() != Tag.TAG_COMPOUND) {
             throw new IllegalArgumentException("SkyBiome assignment list must contain compounds");
         }
-        if (serializedAssignments.size() > MAXIMUM_ASSIGNMENTS)
+        if (serializedAssignments.size() > MAXIMUM_ASSIGNMENTS) {
             throw new IllegalArgumentException("SkyBiome assignment limit exceeded: " + MAXIMUM_ASSIGNMENTS);
         }
         for (int index = 0; index < serializedAssignments.size(); index++) {
