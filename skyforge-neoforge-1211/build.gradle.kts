@@ -704,6 +704,17 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // SF-IMP-0054 modded-biome experiment. Stage the selected server-side biome mod stack in
+        // this isolated game directory, then run the same exact-volume proof against its final
+        // registered biome and vegetation features. The proof defaults to vanilla taiga elsewhere.
+        create("moddedBiomePopulationClient") {
+            client()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome").asFile
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0055 reuses the accepted stacked forest/taiga specimen through the reusable native
         // surface-population stage. The fixture immediately replays each volume/chunk/phase request
         // and fails unless the coordinator performs zero duplicate native feature executions.
