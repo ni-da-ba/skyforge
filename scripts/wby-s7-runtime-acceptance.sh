@@ -176,7 +176,7 @@ stop_server() {
       echo "Server shutdown: process $server_pid exited."
       break
     fi
-    state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
+    state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]' || true)"
     # A terminated child can remain as a zombie until wait reaps it; it is no longer running.
     if [[ "$state" == Z* ]]; then
       echo "Server shutdown: process $server_pid is a zombie awaiting reap."
@@ -184,7 +184,7 @@ stop_server() {
     fi
     sleep 1
   done
-  state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
+  state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]' || true)"
   if kill -0 "$server_pid" 2>/dev/null && [[ "$state" != Z* ]]; then
     cat "$log_path"
     echo "Server process $server_pid did not stop within 90 seconds (state=$state)." >&2
