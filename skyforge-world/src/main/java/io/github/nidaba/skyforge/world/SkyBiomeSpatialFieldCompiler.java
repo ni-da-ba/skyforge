@@ -64,7 +64,7 @@ public final class SkyBiomeSpatialFieldCompiler {
         }
 
         List<SkyIslandWorldVolume> orderedIslands = islands.volumes().stream()
-                .sorted(Comparator.comparing(volume -> volume.id().path()))
+                .sorted(Comparator.comparing(volume -> islandIdKey(volume.id())))
                 .toList();
         for (SkyIslandWorldVolume island : orderedIslands) {
             WorldBounds shelter = clip(expandHorizontally(island.bounds(), leeRadius), provinceBounds);
