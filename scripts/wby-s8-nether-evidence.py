@@ -139,9 +139,38 @@ def main() -> int:
     for mod_id in expected:
         if mod_id not in found:
             raise SystemExit(f"S8 {args.variant} profile is missing expected mod id {mod_id}; found {sorted(found)}")
-    leaked = set(EXPECTED.values()) - expected
+    # BetterEnd: New Dawn shares BCLib, WunderLib, and WorldWeaver with JNE.
+    # Those libraries are expected only when a BetterEnd S9 profile selected them;
+    # they must still fail the S8 leak check for all other S9 variants.
+    s9_end_variant = os.environ.get("WBY_S9_END_VARIANT", "none").strip().lower()
+    valid_s9_variants = {
+        "none", "control", "nullscape", "nullscape-betterend", "nullscape-unusual",
+        "nullscape-moogs", "nullscape-yungs-strongholds", "nullscape-yungs-island",
+        "nullscape-structures", "nullscape-edr", "nullscape-flyhigher", "betterend",
+        "betterend-food", "betterend-unusual", "betterend-edr", "betterend-flyhigher",
+        "betterend-moogs", "betterend-yungs-strongholds", "betterend-yungs-island",
+        "betterend-structures",
+    }
+    if s9_end_variant not in valid_s9_variants:
+        raise SystemExit(f"Unknown WBY_S9_END_VARIANT for S8 leak qualification: {s9_end_variant}")
+    betterend_s9_variants = {
+        "nullscape-betterend", "betterend", "betterend-food", "betterend-unusual",
+        "betterend-edr", "betterend-flyhigher", "betterend-moogs",
+        "betterend-yungs-strongholds", "betterend-yungs-island", "betterend-structures",
+    }
+    allowed_shared_dependencies = (
+        {"bclib", "wunderlib", "wover"}
+        if s9_end_variant in betterend_s9_variants else set()
+    )
+    leaked = set(EXPECTED.values()) - expected - allowed_shared_dependencies
     if leaked & found:
         raise SystemExit(f"S8 {args.variant} profile leaked unselected JNE content: {sorted(leaked & found)}")
+    if allowed_shared_dependencies & found:
+        rows.append(
+            f"shared_dependency_allowance\\tbetterend-new-dawn\\t\\t"
+            f"{','.join(sorted(allowed_shared_dependencies & found))}\\t\\t"
+            f"selected_s9_variant={s9_end_variant}"
+        )
 
     packs = sorted(args.datapacks.glob("*.zip"))
     if args.variant in {"incendium", "incendium-full", "incendium-betternether"}:
