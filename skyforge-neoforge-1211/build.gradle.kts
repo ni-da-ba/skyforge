@@ -221,6 +221,15 @@ val moddedBiomePopulationClientRuntime = sourceSets.create("moddedBiomePopulatio
         development.output
 }
 
+// Dedicated-server counterpart for machine acceptance of the same selected modded biome.
+val moddedBiomePopulationServerRuntime = sourceSets.create("moddedBiomePopulationServerRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // S0.5A layers pack-integration authority onto the accepted S0 parent.
 val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
@@ -722,6 +731,29 @@ neoForge {
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
             systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("moddedBiomePopulationServer") {
+            server()
+            sourceSet.set(moddedBiomePopulationServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome")
+            systemProperty("skyforge.dev.acceptanceRadius", "4")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/server.properties").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -7394,6 +7426,12 @@ dependencies {
     add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
         "maven.modrinth:kkmrDlKT:6e8GCrLb")
     add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:s3dmwKy5:S2TfWrZR")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        "curse.maven:biomes-o-plenty-220318:8288121")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:kkmrDlKT:6e8GCrLb")
+    add(moddedBiomePopulationServerRuntime.runtimeOnlyConfigurationName,
         "maven.modrinth:s3dmwKy5:S2TfWrZR")
 
     // ModDevGradle creates a per-run <runName>AdditionalRuntimeClasspath configuration. On
