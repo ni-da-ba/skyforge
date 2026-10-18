@@ -115,7 +115,13 @@ def main() -> int:
         generation_started = time.perf_counter()
         for x, z in ((0, 0), (128, 0), (-128, 0), (0, 128), (0, -128)):
             response = rcon(f"execute in minecraft:the_end run forceload add {x} {z}", a.host, a.port, a.password)
-            if "added" not in response.lower() and "already" not in response.lower():
+            normalized_response = response.lower()
+            successful_force_load = (
+                "added" in normalized_response
+                or "already" in normalized_response
+                or ("marked chunk" in normalized_response and "force loaded" in normalized_response)
+            )
+            if not successful_force_load:
                 raise SystemExit(f"Could not force-load End chunk {x},{z}: {response}")
         time.sleep(8)
         rcon("execute in minecraft:the_end run forceload remove all", a.host, a.port, a.password)
