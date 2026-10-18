@@ -757,6 +757,23 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        create("moddedBiomePopulationJoinClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-join-client").asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25565")
+            systemProperty("skyforge.dev.biomePopulationJoinClient", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "client")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome-join")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/client.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0055 reuses the accepted stacked forest/taiga specimen through the reusable native
         // surface-population stage. The fixture immediately replays each volume/chunk/phase request
         // and fails unless the coordinator performs zero duplicate native feature executions.
