@@ -11,6 +11,9 @@ on:
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "scripts/wby-s9-package-review-profile.py"
+      - "scripts/wby-s9-launch-production-review.py"
+      - "scripts/wby-s9-diagnostic-launch.sh"
   push:
     branches:
       - "codex/s9-end-full-stack"
@@ -23,6 +26,9 @@ on:
       - "scripts/wby-s7-runtime-acceptance.sh"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "scripts/wby-s9-package-review-profile.py"
+      - "scripts/wby-s9-launch-production-review.py"
+      - "scripts/wby-s9-diagnostic-launch.sh"
   workflow_dispatch:
 
 permissions:
@@ -96,7 +102,8 @@ jobs:
         shell: bash
         run: |
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s9-end-evidence.py
+          python3 -m py_compile scripts/wby-s9-end-evidence.py scripts/wby-s9-package-review-profile.py scripts/wby-s9-launch-production-review.py
+          bash -n scripts/wby-s9-diagnostic-launch.sh
       - name: Resolve the exact cumulative S0-S9 candidate
         shell: bash
         run: |
@@ -169,6 +176,24 @@ jobs:
           [[ "${{ matrix.variant }}" == nullscape* ]] || unset WBY_S9_NULLSCAPE_DATAPACK_SOURCE
           cp wby-s9-resolution.log wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
+      - name: Package the exact owner-review client/server profile
+        if: success()
+        shell: bash
+        run: |
+          python3 scripts/wby-s9-package-review-profile.py \
+            --variant "${{ matrix.variant }}" \
+            --client-mods skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --server-mods skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods \
+            --config skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/config \
+            --kubejs-data skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/kubejs/data \
+            --datapacks skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks \
+            --output wby-s9-review-profile
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success()
+        with:
+          name: wby-s9-${{ matrix.variant }}-review-profile
+          path: wby-s9-review-profile/**
+          if-no-files-found: error
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
