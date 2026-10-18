@@ -39,13 +39,16 @@ VARIANTS = {
     "control": [],
     "nullscape": [],
     "nullscape-betterend": BETTER_END,
-    "nullscape-phantasm": ["phantasm"],
     "nullscape-unusual": ["unusual-end"],
     "nullscape-moogs": ["moogs-end-structures"],
     "nullscape-yungs-strongholds": ["yungs-better-strongholds"],
     "nullscape-yungs-island": ["yungs-better-end-island"],
     "nullscape-structures": STRUCTURES,
     "nullscape-edr": ["ender-dragon-fight-remastered"],
+    "nullscape-phantasm": ["curse:phantasm"],
+    "nullscape-beyond-bosses": ["curse:beyond-bosses2"],
+    "nullscape-beyond-bosses-nostronghold": ["curse:beyond-bosses2-nostronghold"],
+    "nullscape-savage-dragon": ["curse:savage-ender-dragon"],
     "nullscape-flyhigher": ["flyhigher"],
     "betterend": BETTER_END,
     "betterend-food": BETTER_END + ["ends-delight"],
@@ -55,8 +58,14 @@ VARIANTS = {
     "betterend-structures": BETTER_END + STRUCTURES,
 }
 CURSEFORGE = {
-    "phantasm": ("Phantasm-1.0.3.jar",
-                 "https://www.curseforge.com/minecraft/mc-mods/phantasm/files/6367800"),
+    "phantasm": (565254, 6367800, "Phantasm-1.0.3.jar",
+                 "https://www.curseforge.com/minecraft/mc-mods/phantasm/files/6367800", "phantasm"),
+    "beyond-bosses2": (1534152, 8066370, "bbv-2.03-neoforge-1.21.1.jar",
+                       "https://www.curseforge.com/minecraft/mc-mods/beyond-bosses-2/files/8066370", None),
+    "beyond-bosses2-nostronghold": (1534152, 8066366, "bbv-2.03-neoforge-1.21.1-nostronghold.jar",
+                                    "https://www.curseforge.com/minecraft/mc-mods/beyond-bosses-2/files/8066366", None),
+    "savage-ender-dragon": (523327, 8966137, "dragonfight-1.21-4.9.jar",
+                            "https://www.curseforge.com/minecraft/mc-mods/savage-ender-dragon/files/8966137", "dragonfight"),
 }
 
 
@@ -88,7 +97,8 @@ def download_modrinth(slug: str, target: Path) -> Path:
     return output
 
 
-def add_overlay(source: Path, destination: Path) -> None:
+def add_overlay(source: Path, destination: Path, exclude_mod_filename_tokens=()) -> None:
+    excluded = tuple(token.lower() for token in exclude_mod_filename_tokens)
     for name in ("mods", "config", "serverconfig", "defaultconfigs", "kubejs",
                  "resourcepacks", "shaderpacks", "options.txt"):
         item = source / name
@@ -96,25 +106,50 @@ def add_overlay(source: Path, destination: Path) -> None:
             continue
         target = destination / name
         if item.is_dir():
-            shutil.copytree(item, target, dirs_exist_ok=True)
+            target.mkdir(parents=True, exist_ok=True)
+            for child in item.iterdir():
+                if name == "mods" and child.is_file() and any(token in child.name.lower() for token in excluded):
+                    print(f"Isolating selected candidate; omitted baseline mod: {child.name}")
+                    continue
+                if child.is_dir():
+                    shutil.copytree(child, target / child.name, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(child, target / child.name)
         else:
             shutil.copy2(item, target)
     (destination / "mods").mkdir(parents=True, exist_ok=True)
 
 
-def validate_phantasm(path: Path, source_url: str) -> Path:
+def validate_curseforge(path: Path, provider: tuple, downloads: Path) -> Path:
+    project_id, file_id, filename, source_url, expected_id = provider
     if not path.is_file():
-        raise SystemExit(
-            f"Phantasm is a local-only CurseForge review dependency. Download the official file at\n"
-            f"  {source_url}\nand save it as\n  {path}"
-        )
+        api_url = f"https://www.curseforge.com/api/v1/mods/{project_id}/files/{file_id}/download"
+        try:
+            body = fetch(api_url)
+            if body.lstrip().startswith(b"{"):
+                response = json.loads(body)
+                direct_url = response.get("data")
+                if direct_url:
+                    body = fetch(direct_url)
+            with zipfile.ZipFile(__import__("io").BytesIO(body)):
+                pass
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+            print(f"Downloaded exact CurseForge file {file_id} to {path}")
+        except Exception as exc:
+            raise SystemExit(
+                f"Could not fetch the local-only CurseForge file automatically ({exc}).\n"
+                f"Download the official file at\n  {source_url}\nand save it as\n  {path}"
+            )
     with zipfile.ZipFile(path) as archive:
         candidates = [name for name in ("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
                       if name in archive.namelist()]
-        if not candidates or "phantasm" not in "\n".join(
+        if not candidates:
+            raise SystemExit(f"CurseForge file is not a NeoForge mod JAR: {path}")
+        if expected_id and expected_id not in "\n".join(
             archive.read(name).decode("utf-8", "replace").lower() for name in candidates
         ):
-            raise SystemExit(f"The local CurseForge JAR is not identifiable as Phantasm: {path}")
+            raise SystemExit(f"The CurseForge JAR is not identifiable as {expected_id}: {path}")
     return path
 
 
@@ -139,7 +174,9 @@ def main() -> int:
     world_packs = diagnostics / "world-datapacks"
     run.mkdir(parents=True, exist_ok=False)
     diagnostics.mkdir(parents=True, exist_ok=False)
-    add_overlay(base, run)
+    excluded = ("yungsbetterstrongholds", "yungsbetterendisland") if args.variant == "nullscape-beyond-bosses" else ()
+    excluded_baseline_mods = ["yungs-better-strongholds", "yungs-better-end-island"] if excluded else []
+    add_overlay(base, run, exclude_mod_filename_tokens=excluded)
 
     # Keep the already reviewed Nether datapack from the accepted S8 profile.
     s8_packs = sorted((base / "datapacks").glob("*.zip")) if (base / "datapacks").is_dir() else []
@@ -160,9 +197,10 @@ def main() -> int:
 
     overlay_jars = []
     for mod in variant_mods:
-        if mod == "phantasm":
-            filename, source = CURSEFORGE[mod]
-            jar = validate_phantasm(downloads / filename, source)
+        if mod.startswith("curse:"):
+            name = mod.split(":", 1)[1]
+            provider = CURSEFORGE[name]
+            jar = validate_curseforge(downloads / provider[2], provider, downloads)
         else:
             jar = download_modrinth(mod, downloads)
         overlay_jars.append(jar)
@@ -179,6 +217,7 @@ def main() -> int:
         f"seed=817309",
         "world_type=minecraft:normal",
         "s9_candidate_binaries_uploaded_by_skyforge=false",
+        f"omitted_baseline_mods={','.join(excluded_baseline_mods)}",
         "",
         "[S9 overlay mods: filename sha256]",
     ]
@@ -197,7 +236,12 @@ def main() -> int:
         print("Enable the listed datapacks before creating the world.")
     print("Review the End generator and BOP biome ownership, End access, structure density, survival pressure, and save/reopen.")
     print("Keep shaders off for this worldgen/content gate; retain accepted Simple Clouds and Distant Horizons settings.")
-    print("Phantasm is locally sourced from CurseForge for comparison and is not included in public CI artifacts.")
+    if args.variant in {"nullscape-phantasm", "nullscape-beyond-bosses", "nullscape-beyond-bosses-nostronghold", "nullscape-savage-dragon"}:
+        print("This candidate is local-only under its provider license; no binary is uploaded to GitHub Actions.")
+    if args.variant == "nullscape-beyond-bosses":
+        print("YUNG Better Strongholds/Better End Island are intentionally omitted from this arm to isolate the candidate's stronghold/central-planet ownership.")
+    if args.variant == "nullscape-beyond-bosses-nostronghold":
+        print("This no-stronghold arm retains the accepted S8 YUNG Better Strongholds baseline.");
     launcher = repo / "scripts" / "wby-s4-launch-production-client.py"
     client_root = repo / ".skyforge-diagnostics" / "wby-s9-production-client"
     completed = subprocess.run([

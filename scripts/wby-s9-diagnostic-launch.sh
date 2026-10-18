@@ -6,11 +6,11 @@ variant="${1:-}"
 profile="${2:-}"
 if [[ -z "$variant" || -z "$profile" ]]; then
   echo "Usage: bash scripts/wby-s9-diagnostic-launch.sh <variant> /c/path/to/accepted-S8-profile"
-  echo "Variants: control nullscape nullscape-betterend nullscape-phantasm nullscape-unusual nullscape-moogs nullscape-yungs-strongholds nullscape-yungs-island nullscape-structures nullscape-edr nullscape-flyhigher betterend betterend-food betterend-moogs betterend-yungs-strongholds betterend-yungs-island betterend-structures"
+  echo "Variants: control nullscape nullscape-betterend nullscape-unusual nullscape-moogs nullscape-yungs-strongholds nullscape-yungs-island nullscape-structures nullscape-phantasm nullscape-beyond-bosses nullscape-beyond-bosses-nostronghold nullscape-savage-dragon nullscape-edr nullscape-flyhigher betterend betterend-food betterend-moogs betterend-yungs-strongholds betterend-yungs-island betterend-structures"
   exit 2
 fi
 case "$variant" in
-  control|nullscape|nullscape-betterend|nullscape-phantasm|nullscape-unusual|nullscape-moogs|nullscape-yungs-strongholds|nullscape-yungs-island|nullscape-structures|nullscape-edr|nullscape-flyhigher|betterend|betterend-food|betterend-moogs|betterend-yungs-strongholds|betterend-yungs-island|betterend-structures) ;;
+  control|nullscape|nullscape-betterend|nullscape-unusual|nullscape-moogs|nullscape-yungs-strongholds|nullscape-yungs-island|nullscape-structures|nullscape-phantasm|nullscape-beyond-bosses|nullscape-beyond-bosses-nostronghold|nullscape-savage-dragon|nullscape-edr|nullscape-flyhigher|betterend|betterend-food|betterend-moogs|betterend-yungs-strongholds|betterend-yungs-island|betterend-structures) ;;
   *) echo "Unknown S9 variant: $variant" >&2; exit 2 ;;
 esac
 if ! profile="$(cd "$profile" 2>/dev/null && pwd)"; then
