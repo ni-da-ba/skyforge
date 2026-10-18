@@ -2,6 +2,8 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Map;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -43,12 +45,27 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
             return;
         }
 
+        BlockPos feet = minecraft.player.blockPosition();
+        BlockPos supportPosition = feet.below();
+        BlockState feetState = minecraft.level.getBlockState(feet);
+        BlockState supportState = minecraft.level.getBlockState(supportPosition);
+        if (!feetState.isAir()
+                || supportState.isAir()
+                || supportState.getCollisionShape(minecraft.level, supportPosition).isEmpty()) {
+            return;
+        }
+
         proofComplete = true;
         SkyforgeAutomatedAcceptanceHarness.completeClientCase(
                 Map.of(
                         "remoteServerJoin", true,
                         "player", minecraft.player.getName().getString(),
                         "dimension", minecraft.level.dimension().location(),
+                        "spawnX", minecraft.player.getBlockX(),
+                        "spawnY", minecraft.player.getBlockY(),
+                        "spawnZ", minecraft.player.getBlockZ(),
+                        "spawnSupportBlock", supportState.getBlock().toString(),
+                        "spawnSupported", true,
                         "singleplayerServer", false));
         minecraft.stop();
     }
