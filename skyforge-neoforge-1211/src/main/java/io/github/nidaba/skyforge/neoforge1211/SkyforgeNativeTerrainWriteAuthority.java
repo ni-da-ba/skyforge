@@ -39,8 +39,19 @@ final class SkyforgeNativeTerrainWriteAuthority {
         };
     }
 
+    static Map<Long, SkyIslandWorldVolumeId> currentClaims() {
+        return ACTIVE.get();
+    }
+
     static Optional<SkyIslandWorldVolumeId> ownerAt(int worldX, int worldY, int worldZ) {
-        Map<Long, SkyIslandWorldVolumeId> claims = ACTIVE.get();
+        return ownerAt(ACTIVE.get(), worldX, worldY, worldZ);
+    }
+
+    static Optional<SkyIslandWorldVolumeId> ownerAt(
+            Map<Long, SkyIslandWorldVolumeId> claims,
+            int worldX,
+            int worldY,
+            int worldZ) {
         return claims == null
                 ? Optional.empty()
                 : Optional.ofNullable(claims.get(BlockPos.asLong(worldX, worldY, worldZ)));
