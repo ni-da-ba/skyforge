@@ -6,7 +6,7 @@ Immediate target: one playable private-server province in a purely floating Over
 
 The earlier DR-70 / #754 hydrology completion gate applies to the broader hydrology product, not to beginning this alpha. Keep accepted hydrology and meso-scale work; defer unfinished multi-reach/F4 work from the alpha critical path pending provider evidence and classify it KEEP / ADAPT / DEFER / SUPERSEDE in #1514. Do not delete active implementations or close their PRs. See `docs/agent-state/PROGRAM_ROADMAP.md` and #1514.
 
-This file is a compact operator/agent bootstrap cache. It does **not** override current `main`, source/tests, merged history, active issue/PR authority, or live orchestrator state.
+This file is a compact operator/agent bootstrap cache. It does **not** override current `main`, source/tests, merged history, active issue/PR authority, or accepted runtime evidence.
 
 ## Latest hydrology boundary — 2026-10-15
 
@@ -71,4 +71,4 @@ DR-70 remains **CHANGES REQUIRED** for the broader hydrology product. The owner-
 
 ## Bootstrap rule
 
-Fresh agents should verify current GitHub `main`, live checkout/service ownership, current issue/PR authority, and accepted evidence before acting. Ordinary activation-equivalent repository work may move the live repository snapshot beyond the runtime baseline above; if this cache is stale, newer authoritative state wins.
+Fresh producers should verify current GitHub `main`, current issue/PR authority, and accepted evidence before acting. Ordinary activation-equivalent repository work may move the live repository snapshot beyond the runtime baseline above; if this cache is stale, newer authoritative state wins.
