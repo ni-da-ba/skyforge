@@ -901,6 +901,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
 
             SkyIslandLocalPosition selected = point;
+            AdmissionCheck selectedAdmission = admissibilityCheck(
+                    selected, searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth);
+            boolean selectedIsAdmissible = selectedAdmission.allowed()
+                    && (headEnvelopeGap == null
+                            || curvatureAdmissible(result, i, selected, minimumBendRadius));
             int selectedOption = -1;
             for (int optionIndex = 0; optionIndex < options.size(); optionIndex++) {
                 SkyIslandLocalPosition option = options.get(optionIndex);
@@ -926,12 +932,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     }
                 }
                 if (!admission.allowed() || !curvatureAllowed) continue;
-                if ((headEnvelopeGap == null && longitudinalHeadFeasibility == null)
+                if (!selectedIsAdmissible
+                        || (headEnvelopeGap == null && longitudinalHeadFeasibility == null)
                         || compareLocalCandidates(
                                         result, i, option, selected,
                                         bankfullHalfWidthAtStation, headEnvelopeGap,
                                         searchRoute, longitudinalHeadFeasibility) < 0) {
                     selected = option;
+                    selectedIsAdmissible = true;
                     selectedOption = optionIndex;
                 }
             }
