@@ -125,6 +125,18 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     }
 
     @Override
+    public int getSpawnHeight(LevelHeightAccessor level) {
+        if (!voidBase) {
+            return super.getSpawnHeight(level);
+        }
+        return SkyforgeNeoForge1211SurfaceStage.querySpawnHeight(
+                        level.getMinBuildHeight(),
+                        level.getHeight())
+                .orElseThrow(() -> new IllegalStateException(
+                        "void-base Skyforge Overworld requires an admitted island surface at the origin spawn column"));
+    }
+
+    @Override
     public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor height, RandomState random) {
         if (!voidBase || SkyforgeGenerationDomainStage.activeIslandVolumeId().isPresent()) {
             return super.getBaseColumn(x, z, height, random);
