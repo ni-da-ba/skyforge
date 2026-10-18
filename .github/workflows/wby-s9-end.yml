@@ -120,6 +120,14 @@ jobs:
             --mods skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods \
             --datapacks skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks \
             --output wby-s9-end-evidence.tsv
+      - name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
       - name: Install NeoForge server and stage selected profile
         shell: bash
         run: |
@@ -135,7 +143,6 @@ jobs:
           cp skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks/*.zip "$server/s7-acceptance/datapacks/" || true
           printf 'eula=true\n' > "$server/eula.txt"
           mkdir -p skyforge-neoforge-1211/run-wby-s7-join-client/mods
-          cp skyforge-neoforge-1211/run-wby-s7-join-client/mods/*.jar skyforge-neoforge-1211/run-wby-s7-join-client/mods/
       - name: Prepare production-client launcher
         shell: bash
         run: |
