@@ -1,238 +1,215 @@
 #!/usr/bin/env python3
-"""Launch the selected Actions-built S9 profile for interactive owner review.
+"""Prepare an S9 local review overlay from official sources and a staged S8 profile.
 
-This is a manual review launcher. It installs/runs NeoForge distributions from staged artifacts;
-it does not invoke Gradle or perform automated acceptance on the workstation.
+This script only prepares a local manual client profile; it never uploads third-party binaries.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
-import time
 import urllib.request
-import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-import minecraft_launcher_lib
+import zipfile
+
+MODRINTH = {
+    "incendium": ("pwe1kTJE", ".zip"),
+    "nullscape": ("3fv8O3xX", ".zip"),
+    "betterend": ("BgNy6PHx", ".jar"),
+    "bclib": ("QkXw8Fsl", ".jar"),
+    "wunderlib": ("5db3GZzg", ".jar"),
+    "worldweaver": ("TrReu8cF", ".jar"),
+    "unusual-end": ("s1PcPdqg", ".jar"),
+    "moogs-end-structures": ("s0Quk5Z8", ".jar"),
+    "yungs-better-strongholds": ("Vq5mh4Ot", ".jar"),
+    "yungs-better-end-island": ("I52NZ1qK", ".jar"),
+    "ender-dragon-fight-remastered": ("5OYoqItD", ".jar"),
+    "ends-delight": ("La8SvoPm", ".jar"),
+    "flyhigher": ("OzpXNl6w", ".jar"),
+    "farmers-cutting-betterend": ("3rJRBvNa", ".zip"),
+}
+BETTER_END = ["betterend", "bclib", "wunderlib", "worldweaver"]
+STRUCTURES = ["moogs-end-structures", "yungs-better-strongholds", "yungs-better-end-island"]
+VARIANTS = {
+    "control": [],
+    "nullscape": [],
+    "nullscape-betterend": BETTER_END,
+    "nullscape-phantasm": ["phantasm"],
+    "nullscape-unusual": ["unusual-end"],
+    "nullscape-structures": STRUCTURES,
+    "nullscape-edr": ["ender-dragon-fight-remastered"],
+    "nullscape-flyhigher": ["flyhigher"],
+    "betterend": BETTER_END,
+    "betterend-food": BETTER_END + ["ends-delight"],
+    "betterend-structures": BETTER_END + STRUCTURES,
+}
+CURSEFORGE = {
+    "phantasm": ("Phantasm-1.0.3.jar",
+                 "https://www.curseforge.com/minecraft/mc-mods/phantasm/files/6367800"),
+}
 
 
-MC = "1.21.1"
-NEOFORGE = "21.1.249"
-USERNAME = "WbyS9Review"
-INSTALLER_URL = f"https://maven.neoforged.net/releases/net/neoforged/neoforge/{NEOFORGE}/neoforge-{NEOFORGE}-installer.jar"
+def fetch(url: str) -> bytes:
+    request = urllib.request.Request(url, headers={"User-Agent": "Skyforge-S9-Review/1.0"})
+    with urllib.request.urlopen(request, timeout=60) as response:
+        return response.read()
 
 
-def packet(pid: int, kind: int, body: str) -> bytes:
-    payload = (pid.to_bytes(4, "little", signed=True) + kind.to_bytes(4, "little", signed=True)
-               + body.encode("utf-8") + b"\0\0")
-    return len(payload).to_bytes(4, "little", signed=True) + payload
+def download_modrinth(slug: str, target: Path) -> Path:
+    version_id, expected_ext = MODRINTH[slug]
+    version = json.loads(fetch(f"https://api.modrinth.com/v2/version/{version_id}"))
+    files = version.get("files", [])
+    primary = [item for item in files if item.get("primary")]
+    selected = primary if len(primary) == 1 else files
+    if len(selected) != 1:
+        raise SystemExit(f"Expected one file for {slug} {version_id}; found {[f.get('filename') for f in files]}")
+    entry = selected[0]
+    if not entry.get("filename", "").lower().endswith(expected_ext):
+        raise SystemExit(f"Unexpected official file for {slug}: {entry.get('filename')}")
+    body = fetch(entry["url"])
+    expected = entry.get("hashes", {}).get("sha512")
+    actual = hashlib.sha512(body).hexdigest()
+    if not expected or actual.lower() != expected.lower():
+        raise SystemExit(f"Official SHA-512 verification failed for {slug} {version_id}")
+    target.mkdir(parents=True, exist_ok=True)
+    output = target / entry["filename"]
+    output.write_bytes(body)
+    return output
 
 
-def recv_exact(sock, size: int) -> bytes:
-    data = bytearray()
-    while len(data) < size:
-        part = sock.recv(size - len(data))
-        if not part:
-            raise ConnectionError("RCON closed before replying")
-        data.extend(part)
-    return bytes(data)
-
-
-def rcon(password: str, command: str, port: int = 25575) -> str:
-    import socket
-    with socket.create_connection(("127.0.0.1", port), timeout=5) as sock:
-        sock.settimeout(10)
-        sock.sendall(packet(11, 3, password))
-        size = int.from_bytes(recv_exact(sock, 4), "little", signed=True)
-        auth = recv_exact(sock, size)
-        if int.from_bytes(auth[:4], "little", signed=True) != 11:
-            raise PermissionError("Local RCON authentication failed")
-        sock.sendall(packet(12, 2, command))
-        size = int.from_bytes(recv_exact(sock, 4), "little", signed=True)
-        response = recv_exact(sock, size)
-        return response[8:-2].decode("utf-8", "replace").strip()
-
-
-def offline_uuid(name: str) -> str:
-    raw = hashlib.md5(("OfflinePlayer:" + name).encode("utf-8")).digest()
-    return str(uuid.UUID(bytes=raw, version=3))
-
-
-def copy_tree(source: Path, destination: Path) -> None:
-    if not source.exists():
-        return
-    destination.mkdir(parents=True, exist_ok=True)
-    for item in source.iterdir():
-        target = destination / item.name
+def add_overlay(source: Path, destination: Path) -> None:
+    for name in ("mods", "config", "serverconfig", "defaultconfigs", "kubejs",
+                 "resourcepacks", "shaderpacks", "options.txt"):
+        item = source / name
+        if not item.exists():
+            continue
+        target = destination / name
         if item.is_dir():
             shutil.copytree(item, target, dirs_exist_ok=True)
         else:
             shutil.copy2(item, target)
+    (destination / "mods").mkdir(parents=True, exist_ok=True)
 
 
-def prepare_runtime(profile: Path, runtime_root: Path, java: str) -> tuple[Path, Path, str, str]:
-    runtime_root.mkdir(parents=True, exist_ok=True)
-    server_dir = runtime_root / "server"
-    client_dir = runtime_root / "client"
-    server_dir.mkdir(parents=True, exist_ok=True)
-    client_dir.mkdir(parents=True, exist_ok=True)
-
-    source_packs = profile / "world" / "datapacks"
-    if not list(source_packs.glob("*.zip")):
-        raise SystemExit(f"Profile has no world data packs: {source_packs}")
-    for source, dest in ((profile / "server" / "mods", server_dir / "mods"),
-                         (profile / "server" / "config", server_dir / "config"),
-                         (profile / "server" / "kubejs", server_dir / "kubejs"),
-                         (profile / "client" / "mods", client_dir / "mods"),
-                         (profile / "client" / "config", client_dir / "config")):
-        copy_tree(source, dest)
-
-    world_name = "s9-" + datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    world_dir = server_dir / world_name
-    packs_target = world_dir / "datapacks"
-    packs_target.mkdir(parents=True, exist_ok=True)
-    for source in source_packs.glob("*.zip"):
-        shutil.copy2(source, packs_target / source.name)
-
-    password = uuid.uuid4().hex
-    properties = {
-        "motd": "Skyforge S9 owner review",
-        "server-ip": "127.0.0.1",
-        "server-port": "25565",
-        "online-mode": "false",
-        "enforce-secure-profile": "false",
-        "enable-rcon": "true",
-        "rcon.port": "25575",
-        "rcon.password": password,
-        "level-name": world_name,
-        "level-seed": "817309",
-        "level-type": "minecraft:normal",
-        "gamemode": "creative",
-        "difficulty": "normal",
-        "allow-flight": "true",
-        "spawn-protection": "0",
-        "view-distance": "8",
-        "simulation-distance": "4",
-        "max-players": "2",
-        "white-list": "false",
-    }
-    (server_dir / "server.properties").write_text(
-        "\n".join(f"{key}={value}" for key, value in properties.items()) + "\n",
-        encoding="utf-8",
-    )
-    (server_dir / "ops.json").write_text(json.dumps([{
-        "uuid": offline_uuid(USERNAME), "name": USERNAME, "level": 4,
-        "bypassesPlayerLimit": False,
-    }], indent=2) + "\n", encoding="utf-8")
-
-    java_path = shutil.which(java) if os.path.basename(java) == java else java
-    if not java_path or (os.path.basename(java) == java and not java_path):
-        raise SystemExit("Java 21 was not found. Install a Java 21 runtime and reopen Git Bash.")
-    installer = runtime_root / "neoforge-installer.jar"
-    if not installer.exists():
-        print("Downloading the pinned NeoForge installer for the manual client/server review.")
-        urllib.request.urlretrieve(INSTALLER_URL, installer)
-    if not (server_dir / "run.bat").is_file() and not (server_dir / "run.sh").is_file():
-        print("Installing the pinned NeoForge dedicated-server runtime (no Gradle build).")
-        result = subprocess.run([java_path, "-jar", str(installer), "--installServer"], cwd=server_dir)
-        if result.returncode:
-            raise SystemExit(f"NeoForge server installation failed with exit code {result.returncode}")
-
-    mc_dir = runtime_root / "minecraft"
-    loader = minecraft_launcher_lib.mod_loader.get_mod_loader("neoforge")
-    installed = loader.get_installed_version(MC, NEOFORGE)
-    version_json = mc_dir / "versions" / installed / f"{installed}.json"
-    if not version_json.is_file():
-        print("Installing the pinned production client runtime.")
-        loader.install(MC, str(mc_dir), loader_version=NEOFORGE, java=java_path)
-    minecraft_launcher_lib.install.install_minecraft_version(installed, str(mc_dir))
-    return server_dir, client_dir, password, java_path, installed
+def validate_phantasm(path: Path, source_url: str) -> Path:
+    if not path.is_file():
+        raise SystemExit(
+            f"Phantasm is a local-only CurseForge review dependency. Download the official file at\n"
+            f"  {source_url}\nand save it as\n  {path}"
+        )
+    with zipfile.ZipFile(path) as archive:
+        candidates = [name for name in ("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
+                      if name in archive.namelist()]
+        if not candidates or "phantasm" not in "\n".join(
+            archive.read(name).decode("utf-8", "replace").lower() for name in candidates
+        ):
+            raise SystemExit(f"The local CurseForge JAR is not identifiable as Phantasm: {path}")
+    return path
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--profile", required=True, type=Path)
-    parser.add_argument("--runtime-root", type=Path)
+    parser.add_argument("variant", choices=sorted(VARIANTS))
+    parser.add_argument("s8_profile", type=Path,
+                        help="Previously staged accepted S8 local profile containing mods/")
+    parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--java", default="java")
     args = parser.parse_args()
 
-    profile = args.profile.expanduser().resolve()
-    if not (profile / "manifest.txt").is_file():
-        raise SystemExit(f"Missing manifest.txt in extracted profile: {profile}")
-    variant = next((line.split("=", 1)[1] for line in
-                    (profile / "manifest.txt").read_text(encoding="utf-8").splitlines()
-                    if line.startswith("variant=")), "unknown")
-    base = args.runtime_root.expanduser().resolve() if args.runtime_root else profile.parent / f"wby-s9-runtime-{variant}"
-    server_dir, client_dir, password, java_path, installed = prepare_runtime(profile, base, args.java)
+    repo = args.repo_root.expanduser().resolve()
+    base = args.s8_profile.expanduser().resolve()
+    if not (base / "mods").is_dir() or not list((base / "mods").glob("*.jar")):
+        raise SystemExit(f"Accepted S8 profile is missing staged mods: {base / 'mods'}")
 
-    eula_file = server_dir / "eula.txt"
-    if not eula_file.is_file() or eula_file.read_text(encoding="utf-8").strip().lower() != "eula=true":
-        answer = input("Review and accept the Minecraft EULA to run the local server? Type YES to continue: ")
-        if answer.strip() != "YES":
-            raise SystemExit("Stopped; the Minecraft EULA was not accepted.")
-        eula_file.write_text("eula=true\n", encoding="utf-8")
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    run = repo / "skyforge-neoforge-1211" / f"run-wby-s9-{args.variant}-manual-{stamp}"
+    diagnostics = repo / ".skyforge-diagnostics" / f"wby-s9-{args.variant}-{stamp}"
+    downloads = repo / ".skyforge-diagnostics" / "s9-local-candidates" / args.variant
+    world_packs = diagnostics / "world-datapacks"
+    run.mkdir(parents=True, exist_ok=False)
+    diagnostics.mkdir(parents=True, exist_ok=False)
+    add_overlay(base, run)
 
-    if os.name == "nt":
-        command = ["cmd.exe", "/c", "run.bat", "nogui"]
-    else:
-        command = ["bash", "run.sh", "nogui"]
-    log_path = base / "server-console.log"
-    log_stream = log_path.open("w", encoding="utf-8", errors="replace")
-    server = subprocess.Popen(command, cwd=server_dir, stdout=log_stream, stderr=subprocess.STDOUT)
+    # Keep the already reviewed Nether datapack from the accepted S8 profile.
+    s8_packs = sorted((base / "datapacks").glob("*.zip")) if (base / "datapacks").is_dir() else []
+    if not s8_packs:
+        s8_download = download_modrinth("incendium", downloads)
+        s8_packs = [s8_download]
+    world_packs.mkdir(parents=True, exist_ok=True)
+    packs = []
+    for pack in s8_packs:
+        if "incendium" in pack.name.lower():
+            packs.append(pack)
 
-    try:
-        deadline = time.monotonic() + 600
-        while time.monotonic() < deadline:
-            if server.poll() is not None:
-                raise SystemExit(f"Review server exited early; inspect {log_path}")
-            try:
-                enabled = rcon(password, "datapack list enabled")
-                break
-            except (OSError, TimeoutError, ConnectionError, PermissionError):
-                time.sleep(2)
+    variant_mods = list(VARIANTS[args.variant])
+    if args.variant.startswith("nullscape"):
+        packs.append(download_modrinth("nullscape", downloads))
+    if args.variant == "betterend-food":
+        packs.append(download_modrinth("farmers-cutting-betterend", downloads))
+
+    overlay_jars = []
+    for mod in variant_mods:
+        if mod == "phantasm":
+            filename, source = CURSEFORGE[mod]
+            jar = validate_phantasm(downloads / filename, source)
         else:
-            raise SystemExit(f"Review server did not become ready; inspect {log_path}")
-        print(f"Fresh normal world: {server_dir / (server_dir / 'server.properties').read_text().split('level-name=',1)[1].splitlines()[0]}")
-        print(f"Enabled data packs: {enabled}")
-        if variant.startswith("nullscape") and "nullscape" not in enabled.lower():
-            raise SystemExit("Nullscape is not enabled in the fresh review world; inspect its datapack.")
-        rcon(password, f"op {USERNAME}")
-        options = minecraft_launcher_lib.utils.generate_test_options()
-        options["username"] = USERNAME
-        options["gameDirectory"] = str(client_dir)
-        options["launcherName"] = "Skyforge S9 Review"
-        options["launcherVersion"] = "1"
-        options["defaultExecutablePath"] = java_path
-        options["executablePath"] = java_path
-        options["quickPlayMultiplayer"] = "127.0.0.1:25565"
-        command = minecraft_launcher_lib.command.get_minecraft_command(installed, str(base / "minecraft"), options)
-        print("Opening the client. Allow it to join the local fresh-world server.")
-        print("In chat, use /locate structure minecraft:stronghold to inspect access and /execute in minecraft:the_end run tp @s 0 100 0 to inspect the End.")
-        completed = subprocess.run(command, cwd=client_dir, check=False)
-        try:
-            rcon(password, "save-all flush")
-            rcon(password, "stop")
-        except (OSError, TimeoutError, ConnectionError):
-            pass
-        server.wait(timeout=90)
-        return completed.returncode
-    finally:
-        if server.poll() is None:
-            try:
-                rcon(password, "save-all flush")
-                rcon(password, "stop")
-                server.wait(timeout=90)
-            except Exception:
-                server.terminate()
-                server.wait(timeout=20)
-        log_stream.close()
-        print(f"S9 server log: {log_path}")
+            jar = download_modrinth(mod, downloads)
+        overlay_jars.append(jar)
+        shutil.copy2(jar, run / "mods" / jar.name)
+
+    for pack in packs:
+        shutil.copy2(pack, world_packs / pack.name)
+
+    manifest = [
+        "WBY S9 local manual review",
+        f"variant={args.variant}",
+        f"source_s8_profile={base}",
+        f"run_directory={run}",
+        f"seed=817309",
+        "world_type=minecraft:normal",
+        "s9_candidate_binaries_uploaded_by_skyforge=false",
+        "",
+        "[S9 overlay mods: filename sha256]",
+    ]
+    manifest += [f"{jar.name}\t{hashlib.sha256(jar.read_bytes()).hexdigest()}" for jar in overlay_jars]
+    manifest += ["", "[world datapacks: filename sha256]"]
+    manifest += [f"{pack.name}\t{hashlib.sha256(pack.read_bytes()).hexdigest()}" for pack in packs]
+    (diagnostics / "manifest.txt").write_text("\n".join(manifest) + "\n", encoding="utf-8")
+
+    print(f"S9 profile: {args.variant}")
+    print(f"Copied accepted S8 baseline: {base}")
+    print("Create a NEW normal Overworld with seed 817309. Do not reuse an existing world.")
+    if packs:
+        print("Before creating it, use Create World > Data Packs > Open Pack Folder and copy:")
+        for pack in packs:
+            print(f"  {world_packs / pack.name}")
+        print("Enable the listed datapacks before creating the world.")
+    print("Review the End generator and BOP biome ownership, End access, structure density, survival pressure, and save/reopen.")
+    print("Keep shaders off for this worldgen/content gate; retain accepted Simple Clouds and Distant Horizons settings.")
+    print("Phantasm is locally sourced from CurseForge for comparison and is not included in public CI artifacts.")
+    launcher = repo / "scripts" / "wby-s4-launch-production-client.py"
+    client_root = repo / ".skyforge-diagnostics" / "wby-s9-production-client"
+    completed = subprocess.run([
+        sys.executable, str(launcher), "--minecraft-directory", str(client_root),
+        "--game-directory", str(run), "--username", "WbyS9Review", "--java", args.java,
+    ], cwd=repo, check=False)
+    log = run / "logs" / "latest.log"
+    if log.is_file():
+        shutil.copy2(log, diagnostics / "latest.log")
+    crashes = run / "crash-reports"
+    if crashes.is_dir():
+        shutil.copytree(crashes, diagnostics / "crash-reports", dirs_exist_ok=True)
+    (diagnostics / "staged-mods.txt").write_text(
+        "\n".join(sorted(path.name for path in (run / "mods").glob("*.jar"))) + "\n",
+        encoding="utf-8",
+    )
+    print(f"S9 diagnostics: {diagnostics}")
+    return completed.returncode
 
 
 if __name__ == "__main__":

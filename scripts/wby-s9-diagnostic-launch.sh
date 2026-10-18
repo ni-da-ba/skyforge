@@ -2,15 +2,23 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-profile="${1:-}"
-if [[ -z "$profile" ]]; then
-  echo "Usage: bash scripts/wby-s9-diagnostic-launch.sh /c/path/to/extracted/wby-s9-<variant>-review-profile"
+variant="${1:-}"
+profile="${2:-}"
+if [[ -z "$variant" || -z "$profile" ]]; then
+  echo "Usage: bash scripts/wby-s9-diagnostic-launch.sh <variant> /c/path/to/accepted-S8-profile"
+  echo "Variants: control nullscape nullscape-betterend nullscape-phantasm nullscape-unusual nullscape-structures nullscape-edr nullscape-flyhigher betterend betterend-food betterend-structures"
   exit 2
 fi
-profile="$(cd "$profile" && pwd)"
-if [[ ! -s "$profile/manifest.txt" || ! -d "$profile/client/mods" || ! -d "$profile/server/mods" ]]; then
-  echo "That folder is not an extracted S9 review profile: $profile" >&2
-  echo "It must contain manifest.txt, client/mods, server/mods, and world/datapacks." >&2
+case "$variant" in
+  control|nullscape|nullscape-betterend|nullscape-phantasm|nullscape-unusual|nullscape-structures|nullscape-edr|nullscape-flyhigher|betterend|betterend-food|betterend-structures) ;;
+  *) echo "Unknown S9 variant: $variant" >&2; exit 2 ;;
+esac
+if ! profile="$(cd "$profile" 2>/dev/null && pwd)"; then
+  echo "Accepted S8 profile folder not found: ${2}" >&2
+  exit 2
+fi
+if [[ ! -d "$profile/mods" || -z "$(find "$profile/mods" -maxdepth 1 -type f -name '*.jar' -print -quit)" ]]; then
+  echo "Accepted S8 profile is missing staged JARs under: $profile/mods" >&2
   exit 2
 fi
 
@@ -37,10 +45,9 @@ if ! "$launcher_python" -c 'import minecraft_launcher_lib' >/dev/null 2>&1; then
   "$launcher_python" -m pip install --disable-pip-version-check -r "$repo_root/scripts/wby-s4-launcher-requirements.txt"
 fi
 
-echo "S9 review profile: $(sed -n 's/^variant=//p' "$profile/manifest.txt")"
-echo "Review a fresh normal world: End scale/negative space, biome and resource variety, stronghold/portal route, structure density, and survival pressure."
-echo "For End access after joining as operator, use: /execute in minecraft:the_end run tp @s 0 100 0"
-echo "For the return-route check, use the End gateway or dragon portal in-world; do not use a command to return."
-echo "For the optional FlyHigher profile, compare pressure/altitude behavior to the accepted ThinAir + Aeronautics baseline and record the FlyHigher config before changing any values."
-echo "The launcher starts a local dedicated server and opens a client connected to it. Save and quit normally when done."
-"$launcher_python" "$repo_root/scripts/wby-s9-launch-production-review.py" --profile "$profile"
+echo "Preparing S9 variant: $variant"
+echo "Accepted S8 profile: $profile"
+echo "This launcher downloads only selected candidates from their official provider APIs into ignored local folders."
+echo "BOP End biome interaction is still an explicit review item."
+"$launcher_python" "$repo_root/scripts/wby-s9-launch-production-review.py" \
+  "$variant" "$profile" --repo-root "$repo_root"

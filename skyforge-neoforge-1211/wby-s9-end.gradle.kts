@@ -22,7 +22,8 @@ val wbyS9EndVariant = providers.gradleProperty("wbyS9EndVariant").orNull?.trim()
 val wbyS9BetterEndMods = listOf(
     "betterEndNewDawn", "bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn",
 )
-val wbyS9BetterEndFoodMods = listOf("endsDelight", "farmersCuttingBetterEnd")
+val wbyS9BetterEndFoodMods = listOf("endsDelight")
+val wbyS9BetterEndDataPacks = listOf("farmersCuttingBetterEnd")
 val wbyS9DragonMods = listOf("enderDragonFightRemastered")
 val wbyS9PressureMods = listOf("flyHigher")
 val wbyS9StructureMods = listOf(
@@ -50,6 +51,12 @@ val wbyS9AllMods = (
     wbyS9BetterEndMods + wbyS9BetterEndFoodMods + wbyS9StructureMods +
         wbyS9DragonMods + wbyS9PressureMods + listOf("phantasm", "unusualEnd")
 ).distinct()
+val wbyS9UsesCuttingDataPack = wbyS9EndVariant == "betterend-food"
+val wbyS9EndDataPacks = buildList {
+    if (wbyS9UsesNullscape) add("nullscape")
+    if (wbyS9UsesCuttingDataPack) addAll(wbyS9BetterEndDataPacks)
+}
+val wbyS9AllDataPacks = listOf("nullscape") + wbyS9BetterEndDataPacks
 val wbyS9ClientMods = wbyS9EndMods.filter { mod ->
     wbyS9Pin(mod, "environment").split(",").any { it.trim() in setOf("client", "client-server") }
 }
@@ -70,6 +77,11 @@ val wbyS9NullscapeDataPack = configurations.create("wbyS9NullscapeDataPack") {
     isCanBeResolved = true
     isTransitive = false
 }
+val wbyS9BetterEndFoodDataPack = configurations.create("wbyS9BetterEndFoodDataPack") {
+    isCanBeConsumed = false
+    isCanBeResolved = true
+    isTransitive = false
+}
 
 val wbyS9SourceSets = extensions.getByType(org.gradle.api.tasks.SourceSetContainer::class.java)
 val wbyS9Client = wbyS9SourceSets.getByName("wbyS1ClientRuntime")
@@ -83,6 +95,11 @@ wbyS9EndMods.forEach { mod ->
 if (wbyS9UsesNullscape) {
     dependencies.add(wbyS9NullscapeDataPack.name, wbyS9Coordinate("nullscape"))
 }
+if (wbyS9UsesCuttingDataPack) {
+    dependencies.add(wbyS9BetterEndFoodDataPack.name, wbyS9Coordinate("farmersCuttingBetterEnd"))
+}
+val wbyS9RunDirectory = providers.gradleProperty("wbyS1RunDirectory")
+    .orElse("run-wby-s9-$wbyS9EndVariant").get()
 
 tasks.register("wbyS9ResolveEndProfile") {
     group = "verification"
@@ -93,13 +110,15 @@ tasks.register("wbyS9ResolveEndProfile") {
     doLast {
         val clientFiles = wbyS9Client.runtimeClasspath.files
         val serverFiles = wbyS9Server.runtimeClasspath.files
-        val clientModules = wbyS9Client.runtimeClasspath.incoming.resolutionResult.allComponents
-            .mapNotNull { it.moduleVersion }
-            .map { "${it.group}:${it.name}:${it.version}" }
+        val clientRuntimeConfiguration = configurations.getByName(wbyS9Client.runtimeClasspathConfigurationName)
+        val serverRuntimeConfiguration = configurations.getByName(wbyS9Server.runtimeClasspathConfigurationName)
+        val clientModules = clientRuntimeConfiguration.incoming.resolutionResult.allComponents
+            .mapNotNull { component -> component.moduleVersion }
+            .map { module -> "${module.group}:${module.name}:${module.version}" }
             .toSet()
-        val serverModules = wbyS9Server.runtimeClasspath.incoming.resolutionResult.allComponents
-            .mapNotNull { it.moduleVersion }
-            .map { "${it.group}:${it.name}:${it.version}" }
+        val serverModules = serverRuntimeConfiguration.incoming.resolutionResult.allComponents
+            .mapNotNull { component -> component.moduleVersion }
+            .map { module -> "${module.group}:${module.name}:${module.version}" }
             .toSet()
         fun expectedCoordinate(mod: String): String = wbyS9CoordinateParts(mod).joinToString(":")
         fun requireModule(modules: Set<String>, mod: String, side: String) {
@@ -122,14 +141,19 @@ tasks.register("wbyS9ResolveEndProfile") {
             forbidModule(clientModules, mod, "client")
             forbidModule(serverModules, mod, "server")
         }
-        if (wbyS9UsesNullscape) {
-            val pack = wbyS9NullscapeDataPack.singleFile
+        wbyS9EndDataPacks.forEach { packId ->
+            val configuration = when (packId) {
+                "nullscape" -> wbyS9NullscapeDataPack
+                "farmersCuttingBetterEnd" -> wbyS9BetterEndFoodDataPack
+                else -> error("Unknown WBY S9 End datapack: $packId")
+            }
+            val pack = configuration.singleFile
             check(pack.isFile && pack.extension.equals("zip", ignoreCase = true)) {
-                "WBY S9 Nullscape must resolve to its whole official .zip data pack: $pack"
+                "WBY S9 $packId must resolve to its whole official .zip data pack: $pack"
             }
             val digest = MessageDigest.getInstance("SHA-256").digest(pack.readBytes())
                 .joinToString("") { "%02x".format(it) }
-            println("WBY S9 NULLSCAPE DATAPACK PASS sha256=$digest file=${pack.name}")
+            println("WBY S9 DATAPACK PASS id=$packId sha256=$digest file=${pack.name}")
         }
         check(clientFiles.map { it.name }.distinct().size == clientFiles.size) {
             "WBY S9 client dependency filenames are not unique"
@@ -147,17 +171,28 @@ tasks.register("wbyS9ResolveEndProfile") {
 
 tasks.register<Copy>("wbyS9StageEndDatapacks") {
     group = "verification"
-    description = "Stage the selected official End datapack into the isolated fresh-world review profile."
-    onlyIf { wbyS9UsesNullscape }
+    description = "Stage selected official S9 End datapacks into the isolated fresh-world review profile."
+    onlyIf { wbyS9EndDataPacks.isNotEmpty() }
     dependsOn("wbyS8StageNetherDatapack")
-    from(wbyS9NullscapeDataPack)
-    into(layout.projectDirectory.dir("$wbyS1RunDirectory/datapacks"))
-    rename { "nullscape-review.zip" }
+    if (wbyS9UsesNullscape) {
+        from(wbyS9NullscapeDataPack) { rename { "nullscape-review.zip" } }
+    }
+    if (wbyS9UsesCuttingDataPack) {
+        from(wbyS9BetterEndFoodDataPack) { rename { "farmers-cutting-betterend.zip" } }
+    }
+    into(layout.projectDirectory.dir("$wbyS9RunDirectory/datapacks"))
     doLast {
-        val staged = destinationDir.resolve("nullscape-review.zip")
-        check(staged.isFile) { "WBY S9 Nullscape datapack was not staged: $staged" }
-        val digest = MessageDigest.getInstance("SHA-256").digest(staged.readBytes())
-            .joinToString("") { "%02x".format(it) }
-        println("WBY S9 NULLSCAPE STAGING PASS sha256=$digest path=${staged.absolutePath}")
+        wbyS9EndDataPacks.forEach { packId ->
+            val fileName = when (packId) {
+                "nullscape" -> "nullscape-review.zip"
+                "farmersCuttingBetterEnd" -> "farmers-cutting-betterend.zip"
+                else -> error("Unknown WBY S9 staged datapack: $packId")
+            }
+            val staged = destinationDir.resolve(fileName)
+            check(staged.isFile) { "WBY S9 $packId datapack was not staged: $staged" }
+            val digest = MessageDigest.getInstance("SHA-256").digest(staged.readBytes())
+                .joinToString("") { "%02x".format(it) }
+            println("WBY S9 DATAPACK STAGING PASS id=$packId sha256=$digest path=${staged.absolutePath}")
+        }
     }
 }
