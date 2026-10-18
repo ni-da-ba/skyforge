@@ -18,6 +18,8 @@ shift
 
 s9_profile=""
 s9_diagnostics=""
+restore_backup=""
+
 if [[ $# -ge 1 && "$1" != "--restore-backup" ]]; then
   if [[ $# -lt 2 || "$2" == "--restore-backup" ]]; then
     echo "Pass both the S9 profile directory and its matching diagnostics directory, or pass neither." >&2
@@ -59,30 +61,38 @@ else
   echo "Matching S9 diagnostics: $s9_diagnostics"
 fi
 
-if ! s9_profile="$(cd "$s9_profile" 2>/dev/null && pwd)"; then
-  echo "Accepted S9 profile folder not found: $s9_profile" >&2
+if [[ $# -gt 0 ]]; then
+  if [[ $# -ne 2 || "$1" != "--restore-backup" ]]; then
+    echo "Optional restore syntax: --restore-backup /c/path/to/simplebackups-archive.zip" >&2
+    exit 2
+  fi
+  restore_backup="$2"
+  shift 2
+fi
+
+if [[ $# -ne 0 ]]; then
+  echo "Unexpected extra arguments." >&2
+  exit 2
+fi
+
+s9_profile_input="$s9_profile"
+if ! s9_profile="$(cd "$s9_profile_input" 2>/dev/null && pwd)"; then
+  echo "Accepted S9 profile folder not found: $s9_profile_input" >&2
   exit 2
 fi
 if [[ ! -d "$s9_profile/mods" || -z "$(find "$s9_profile/mods" -maxdepth 1 -type f -name '*.jar' -print -quit)" ]]; then
   echo "Accepted S9 profile is missing staged JARs under $s9_profile/mods" >&2
   exit 2
 fi
-if ! s9_diagnostics="$(cd "$s9_diagnostics" 2>/dev/null && pwd)"; then
-  echo "Accepted S9 diagnostics folder not found: $s9_diagnostics" >&2
+
+s9_diagnostics_input="$s9_diagnostics"
+if ! s9_diagnostics="$(cd "$s9_diagnostics_input" 2>/dev/null && pwd)"; then
+  echo "Accepted S9 diagnostics folder not found: $s9_diagnostics_input" >&2
   exit 2
 fi
 if [[ ! -d "$s9_diagnostics/world-datapacks" ]]; then
   echo "Accepted S9 diagnostics are missing world-datapacks: $s9_diagnostics/world-datapacks" >&2
   exit 2
-fi
-
-extra_args=()
-if [[ $# -gt 0 ]]; then
-  if [[ $# -ne 2 || "$1" != "--restore-backup" ]]; then
-    echo "Optional restore syntax: --restore-backup /c/path/to/simplebackups-archive.zip" >&2
-    exit 2
-  fi
-  extra_args=(--restore-backup "$(cygpath -w "$2")")
 fi
 
 python_bin="$(command -v python3 || command -v python || true)"
@@ -93,6 +103,15 @@ fi
 if ! command -v cygpath >/dev/null 2>&1; then
   echo "Run this script from Git Bash so cygpath can convert Windows paths." >&2
   exit 2
+fi
+
+extra_args=()
+if [[ -n "$restore_backup" ]]; then
+  if [[ ! -f "$restore_backup" ]]; then
+    echo "Backup archive not found: $restore_backup" >&2
+    exit 2
+  fi
+  extra_args=(--restore-backup "$(cygpath -w "$restore_backup")")
 fi
 
 venv="$repo_root/.skyforge-diagnostics/wby-s10-launcher-venv"
@@ -117,14 +136,6 @@ echo "Preparing S10 profile: $profile"
 echo "Accepted S9 profile: $s9_profile"
 echo "Accepted S9 datapacks: $s9_diagnostics/world-datapacks"
 echo "Only the selected exact-version candidate overlay is downloaded into ignored local folders."
-extra_args=()
-if [[ $# -gt 3 ]]; then
-  if [[ $# -ne 5 || "$4" != "--restore-backup" ]]; then
-    echo "Optional restore syntax: --restore-backup /c/path/to/simplebackups-archive.zip" >&2
-    exit 2
-  fi
-  extra_args=(--restore-backup "$(cygpath -w "$5")")
-fi
 
 "$launcher_python" "$repo_root/scripts/wby-s10-launch-production-review.py" \
   "$profile" \
