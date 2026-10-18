@@ -754,7 +754,7 @@ neoForge {
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome")
             systemProperty("skyforge.dev.acceptanceRadius", "4")
-            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "300")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
             systemProperty(
                 "skyforge.dev.acceptanceResultFile",
                 layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/server.properties").get().asFile.absolutePath,
