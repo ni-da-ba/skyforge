@@ -1,5 +1,6 @@
 package io.github.nidaba.skyforge.model.skyisland;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -13,7 +14,7 @@ public final class SkyBiomeCatalog {
     public static final SkyBiomeId CLOUD_SHELF_ID = SkyBiomeId.parse("skyforge:cloud_shelf");
     public static final SkyBiomeId ISLAND_LEE_ID = SkyBiomeId.parse("skyforge:island_lee");
 
-    private static final Map<SkyBiomeId, SkyBiomeDefinition> DEFINITIONS = definitions();
+    private static final Map<SkyBiomeId, SkyBiomeDefinition> DEFINITIONS = buildDefinitions();
 
     private SkyBiomeCatalog() {}
 
@@ -27,12 +28,12 @@ public final class SkyBiomeCatalog {
         return Optional.ofNullable(DEFINITIONS.get(Objects.requireNonNull(id, "id")));
     }
 
-    private static Map<SkyBiomeId, SkyBiomeDefinition> definitions() {
+    private static Map<SkyBiomeId, SkyBiomeDefinition> buildDefinitions() {
         TreeMap<SkyBiomeId, SkyBiomeDefinition> definitions = new TreeMap<>();
         add(definitions, OPEN_SKY_ID, SkyBiomeTrait.OPEN_AIR);
         add(definitions, CLOUD_SHELF_ID, SkyBiomeTrait.CLOUD_ASSOCIATED);
         add(definitions, ISLAND_LEE_ID, SkyBiomeTrait.TERRAIN_SHELTERED);
-        return Map.copyOf(definitions);
+        return Collections.unmodifiableMap(definitions);
     }
 
     private static void add(
