@@ -226,8 +226,13 @@ jobs:
         if: success() && contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile)
         with:
           name: wby-s10-${{ matrix.profile }}-review-manifest
-          path: |
-            wby-s10-${{ matrix.profile }}-review-manifest.tsv
-            wby-s10-${{ matrix.profile }}-backup-restore-probe.tsv
+          path: wby-s10-${{ matrix.profile }}-review-manifest.tsv
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success() && contains(fromJSON('["operations-stable","operations-beta","full"]'), matrix.profile)
+        with:
+          name: wby-s10-${{ matrix.profile }}-backup-restore-probe
+          path: wby-s10-${{ matrix.profile }}-backup-restore-probe.tsv
           if-no-files-found: error
           retention-days: 14
