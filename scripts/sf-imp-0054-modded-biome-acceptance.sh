@@ -85,6 +85,7 @@ verify_server_result() {
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
 }
 
+rm -f "$server_dir/logs/latest.log"
 launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
 wait_server_ready "$server_task_log"
 
@@ -121,6 +122,7 @@ test -f "$server_dir/saves/acceptance/level.dat"
 cp "$server_result" "$acceptance_dir/server-initial.properties"
 cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
 
+rm -f "$server_dir/logs/latest.log"
 launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
 wait_server_ready "$reopen_task_log"
 wait "$server_pid"
