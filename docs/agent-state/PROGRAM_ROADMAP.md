@@ -157,6 +157,40 @@ Do not turn a phase into an exhaustive Cartesian acceptance matrix unless eviden
 | 9 | Alpha/release convergence | **PLANNED** | Whole-game integration, tuning, packaging, performance, multiplayer sanity |
 | X | Lower Sea / Deep / second backend / other large expansions | **OPTIONAL_EXPANSION** | Explicitly off the first-complete-Minecraft critical path |
 
+## Owner-approved private-server alpha override — 2026-10-18
+
+The project owner has selected a **playable private-server alpha** as the immediate product target. This bounded alpha path takes priority over the former phase ordering wherever that ordering would make finishing the full bespoke hydrology or meso-scale pipeline a prerequisite.
+
+### Alpha world contract
+
+Skyforge controls a purely floating Overworld: island form and underside, island placement, clusters, the first province, world-scale coherence, sky-biome identity, and exact admission boundaries. Vanilla and selected modded world-generation systems should contribute terrain, local biomes, hydrology, and useful features inside those admitted island domains wherever their APIs can be fenced safely. Skyforge adds only the content or adapters needed to make the alpha playable.
+
+The Nether and End remain on the selected mod-stack paths for this alpha. They are not custom-generation prerequisites.
+
+### Smallest playable slice
+
+The first acceptance target is one coherent, generated province in a genuinely void Overworld, with:
+
+- repeatable island and cluster placement under Skyforge ownership;
+- at least one Skyforge sky-biome identity, distinct from the local Minecraft biome used for terrain ecology;
+- a vanilla terrain provider shaping island tops while Skyforge retains the outer footprint, suspension, and underside;
+- a selected modded generation contribution admitted inside the same exact island boundary;
+- the minimum existing content needed for a player to spawn, explore, and complete one useful survival/progression loop on a dedicated private server;
+- deterministic generation, chunk-boundary isolation, save/reopen, and dedicated-server join evidence, plus owner visual/play review.
+
+Do not expand to all morphology families, all provinces, a complete hydrology catalog, or endgame progression before this slice is playable.
+
+### Existing hydrology and meso-scale work
+
+The owner direction changes alpha sequencing, not the acceptance status of existing work:
+
+- DR-70 / #754 and the continuous hydrology reset remain valid broader product work, but completion is no longer a prerequisite to start or play the provider-backed alpha.
+- Keep existing accepted solver, topology, containment, and semantic evidence available for reuse.
+- Treat unfinished multi-reach / F4 work (#1500 and its active PR stack) as **deferred from the alpha critical path** until the provider seam is proven. The provider pilot will classify individual pieces as **KEEP / ADAPT / DEFER / SUPERSEDE** from source and runtime evidence.
+- Do not delete implementations, close active PRs, weaken D2/ownership safeguards, or label unfinished work superseded based only on sequencing.
+
+The active bounded provider issue is #1514. Update this override when the first provider-backed province reaches machine and human acceptance, so the next alpha milestone is selected from actual evidence.
+
 ## 6. Phase 0 — Core world-synthesis foundation
 
 **State:** COMPLETE / maintenance only.
