@@ -45,13 +45,25 @@ val wbyS10SourceSets = extensions.getByType(org.gradle.api.tasks.SourceSetContai
 val wbyS10Client = wbyS10SourceSets.getByName("wbyS1ClientRuntime")
 val wbyS10Server = wbyS10SourceSets.getByName("wbyS1ServerRuntime")
 
+// FTB Quests, Library, and Teams declare Architectury 13.0.8 from dev.architectury.
+ // The accepted S5 profile already supplies Architectury 13.0.11 from Modrinth. Keep one
+ // runtime mod instance and use the accepted inherited API for the optional FTB overlay.
+fun addWbyS10Dependency(configurationName: String, mod: String) {
+    val dependency = dependencies.create(wbyS10Coordinate(mod))
+    if (mod in wbyS10Ftb) {
+        (dependency as org.gradle.api.artifacts.ModuleDependency).exclude(
+            mapOf("group" to "dev.architectury", "module" to "architectury-neoforge"),
+        )
+    }
+    dependencies.add(configurationName, dependency)
+}
+
 wbyS10Mods.forEach { mod ->
-    val coordinate = wbyS10Coordinate(mod)
     if (mod !in wbyS10ServerOnly) {
-        dependencies.add(wbyS10Client.runtimeOnlyConfigurationName, coordinate)
+        addWbyS10Dependency(wbyS10Client.runtimeOnlyConfigurationName, mod)
     }
     if (mod !in wbyS10ClientOnly) {
-        dependencies.add(wbyS10Server.runtimeOnlyConfigurationName, coordinate)
+        addWbyS10Dependency(wbyS10Server.runtimeOnlyConfigurationName, mod)
     }
 }
 check(wbyS10Profile == "none" || (
