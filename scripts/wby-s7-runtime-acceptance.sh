@@ -6,7 +6,8 @@ server_java="${JAVA_HOME:+$JAVA_HOME/bin/java}"
 client_dir="skyforge-neoforge-1211/run-wby-s7-join-client"
 mkdir -p "$server_dir" "$client_dir"
 printf 'eula=true\n' > "$server_dir/eula.txt"
-cat > "$server_dir/server.properties" <<'EOF'
+export WBY_S7_RCON_PASSWORD="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+cat > "$server_dir/server.properties" <<EOF
 level-name=s7-acceptance
 level-seed=817304
 level-type=minecraft:normal
@@ -22,7 +23,7 @@ max-players=1
 server-port=25565
 enable-rcon=true
 rcon.port=25575
-rcon.password=skyforge-s7-local-probe
+rcon.password=$WBY_S7_RCON_PASSWORD
 broadcast-rcon-to-ops=false
 EOF
 printf 'onboardAccessibility:false\n' > "$client_dir/options.txt"
@@ -59,7 +60,7 @@ trap cleanup EXIT
 
 assert_supplementaries_policy() {
   local config="$server_dir/config/supplementaries-common.toml"
-  test -f "$config"
+  if [[ ! -f "$config" ]]; then echo "Missing runtime config: $config" >&2; return 1; fi
   awk '
     function trim(value) {
       sub(/^[[:space:]]+/, "", value)
@@ -89,7 +90,7 @@ assert_supplementaries_policy() {
       key = trim(substr(line, 1, split_at - 1))
       value = trim(substr(line, split_at + 1))
       gsub(/[[:space:]]/, "", key)
-      gsub(/[[:space:]\"]/, "", value)
+      gsub(/[[:space:]"]/, "", value)
       full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
       if (full_key in expected && value == expected[full_key]) found[full_key] = 1
     }
@@ -107,7 +108,7 @@ assert_supplementaries_policy() {
 
 assert_hearthandharvest_policy() {
   local config="$1"
-  test -f "$config"
+  if [[ ! -f "$config" ]]; then echo "Missing runtime config: $config" >&2; return 1; fi
   awk '
     function trim(value) {
       sub(/^[[:space:]]+/, "", value)
@@ -163,14 +164,35 @@ start_server() {
 
 stop_server() {
   local log_path="$1"
+  local state
+  if [[ -z "$server_pid" ]]; then
+    echo "Server shutdown check has no recorded child PID." >&2
+    return 1
+  fi
+  echo "Server shutdown: sending TERM to process group $server_pid"
   kill -TERM -- "-$server_pid" 2>/dev/null || true
   for _ in $(seq 1 90); do
-    if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      echo "Server shutdown: process $server_pid exited."
+      break
+    fi
+    state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]' || true)"
+    # A terminated child can remain as a zombie until wait reaps it; it is no longer running.
+    if [[ "$state" == Z* ]]; then
+      echo "Server shutdown: process $server_pid is a zombie awaiting reap."
+      break
+    fi
     sleep 1
   done
-  if kill -0 "$server_pid" 2>/dev/null; then cat "$log_path"; return 1; fi
+  state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]' || true)"
+  if kill -0 "$server_pid" 2>/dev/null && [[ "$state" != Z* ]]; then
+    cat "$log_path"
+    echo "Server process $server_pid did not stop within 90 seconds (state=$state)." >&2
+    return 1
+  fi
   wait "$server_pid" 2>/dev/null || true
   server_pid=""
+  echo "Server shutdown: child was reaped."
 }
 
 assert_hearthandharvest_worldgen_policy() {
@@ -179,10 +201,14 @@ assert_hearthandharvest_worldgen_policy() {
   local salt="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
   local lilliput="$data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
   local maze="$data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
-  test -s "$nests" && grep -Fq '"features": "hearthandharvest:nest"' "$nests"
-  test -s "$salt" && grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt"
-  test -s "$lilliput" && grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput"
-  test -s "$maze" && grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze"
+  test -s "$nests" || { echo "Missing or empty worldgen policy: $nests" >&2; return 1; }
+  grep -Fq '"features": "hearthandharvest:nest"' "$nests" || { echo "Unexpected nest policy content: $nests" >&2; return 1; }
+  test -s "$salt" || { echo "Missing or empty worldgen policy: $salt" >&2; return 1; }
+  grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt" || { echo "Unexpected salt cave policy content: $salt" >&2; return 1; }
+  test -s "$lilliput" || { echo "Missing or empty worldgen policy: $lilliput" >&2; return 1; }
+  grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput" || { echo "Unexpected Lilliput Lane structure policy: $lilliput" >&2; return 1; }
+  test -s "$maze" || { echo "Missing or empty worldgen policy: $maze" >&2; return 1; }
+  grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze" || { echo "Unexpected corn maze structure policy: $maze" >&2; return 1; }
 }
 
 if [[ "${WBY_S7_ICE_AND_FIRE:-false}" == "true" ]]; then
@@ -196,7 +222,7 @@ else
   bomd_evidence_args=()
 fi
 
-if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" ]]; then
+if [[ "${WBY_S8_NETHER_VARIANT:-}" == "incendium" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-full" || "${WBY_S8_NETHER_VARIANT:-}" == "incendium-betternether" ]]; then
   : "${WBY_S8_NETHER_DATAPACK_SOURCE:?Set the staged Incendium ZIP path}"
   test -s "$WBY_S8_NETHER_DATAPACK_SOURCE"
   mkdir -p "$server_dir/s7-acceptance/datapacks"
@@ -210,12 +236,13 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
     --variant "$WBY_S8_NETHER_VARIANT" \
     --mods "$server_dir/mods" \
     --datapacks "$server_dir/s7-acceptance/datapacks" \
-    --live --host 127.0.0.1 --port 25575 --password skyforge-s7-local-probe \
+    --live --host 127.0.0.1 --port 25575 \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
+echo "WBY S7/S8 runtime: client joined; collecting live entity evidence"
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --skip-entity-probes
@@ -251,17 +278,52 @@ grep -Fq -- 'WbyS7Acceptance' wby-s7-client-program-args.txt
 
 server_latest_log="$server_dir/logs/latest.log"
 joined=false
-for _ in $(seq 1 600); do
+join_timeout_seconds="${WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS:-600}"
+if [[ ! "$join_timeout_seconds" =~ ^[0-9]+$ ]] || [[ "$join_timeout_seconds" -lt 1 ]]; then
+  echo "WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS must be a positive integer." >&2
+  exit 1
+fi
+for _ in $(seq 1 "$join_timeout_seconds"); do
   if grep -Fq 'WbyS7Acceptance joined the game' "$server_log" || \
     grep -Fq 'WbyS7Acceptance joined the game' "$server_latest_log" 2>/dev/null; then joined=true; break; fi
   if ! kill -0 "$client_pid" 2>/dev/null; then cat "$client_log"; exit 1; fi
   if ! kill -0 "$server_pid" 2>/dev/null; then cat "$server_log"; exit 1; fi
   sleep 1
 done
-test "$joined" = true
+if [[ "$joined" != true ]]; then
+  echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within ${join_timeout_seconds} seconds." >&2
+  thread_dump="$GITHUB_WORKSPACE/wby-s7-client-thread-dump.txt"
+  {
+    echo "--- Java/Xvfb process state ---"
+    ps -eo pid,ppid,stat,pcpu,pmem,etime,args | grep -E '[j]ava|[x]vfb-run' || true
+    echo "--- Minecraft client JVM thread dumps ---"
+    if [[ -n "$(command -v jcmd || true)" ]]; then
+      client_java_pids="$(pgrep -f '[c]pw[.]mods[.]bootstraplauncher[.]BootstrapLauncher' || true)"
+      if [[ -z "$client_java_pids" ]]; then
+        echo "No Minecraft client JVM matched the BootstrapLauncher process signature."
+      else
+        while read -r client_java_pid; do
+          [[ -n "$client_java_pid" ]] || continue
+          echo "### jcmd $client_java_pid Thread.print"
+          jcmd "$client_java_pid" Thread.print || true
+        done <<< "$client_java_pids"
+      fi
+    else
+      echo "jcmd unavailable"
+    fi
+  } > "$thread_dump" 2>&1
+  cat "$thread_dump" >&2
+  echo "--- server connection events ---" >&2
+  grep -Ei 'WbyS7Acceptance|User Authenticator|lost connection|failed to handle|disconnected|login' \
+    "$server_log" "$server_latest_log" 2>/dev/null | tail -n 120 >&2 || true
+  echo "--- client connection and loading events ---" >&2
+  grep -Ei 'Connecting|Joining|Failed|disconnect|resource|world|error|exception|quick.?play' \
+    "$client_log" "$client_dir/logs/latest.log" 2>/dev/null | tail -n 160 >&2 || true
+  exit 1
+fi
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
-  --password skyforge-s7-local-probe --seed 817304 \
+  --seed 817304 \
   --output "$GITHUB_WORKSPACE/wby-s7-illager-evidence.tsv" \
   --mowzie-output "$GITHUB_WORKSPACE/wby-s7-mowzie-evidence.tsv" \
   "${ice_fire_evidence_args[@]}" "${bomd_evidence_args[@]}" --entities-only
@@ -298,6 +360,14 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id lodestone)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
       ;;
+    incendium-full)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id curios)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id betterfortresses)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id createnetherindustry)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id netherdepthsupgrade)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id thinair)
+      ;;
   esac
   if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then
     : "${WBY_S7_COMBAT_CONTROL_MODS:?Set the staged S7 control mods directory}"
@@ -310,7 +380,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     --server-log "$server_latest_log" \
     --client-log "$client_latest_log" \
     --runtime-root "$server_dir" \
-    --rcon-host 127.0.0.1 --rcon-port 25575 --rcon-password skyforge-s7-local-probe \
+    --rcon-host 127.0.0.1 --rcon-port 25575 \
     --output "$GITHUB_WORKSPACE/wby-s7-combat-evidence.tsv" \
     "${combat_profile_args[@]}" "${s8_profile_overlay_args[@]}"
 fi
@@ -328,7 +398,12 @@ test -f "$server_dir/s7-acceptance/level.dat"
 cp "$server_latest_log" wby-s7-joined-server-latest.log
 cp "$client_latest_log" wby-s7-joined-client-latest.log
 
-stop_server "$server_log"
+echo "WBY S7/S8 runtime: stopping server after client evidence"
+if ! stop_server "$server_log"; then
+  echo "WBY S7/S8 runtime: server shutdown failed before same-world reopen." >&2
+  exit 1
+fi
+echo "WBY S7/S8 runtime: joined server stopped"
 kill -INT -- "-$client_pid" 2>/dev/null || true
 sleep 3
 kill -TERM -- "-$client_pid" 2>/dev/null || true
@@ -337,11 +412,19 @@ client_pid=""
 test -f "$server_dir/s7-acceptance/level.dat"
 
 server_log="wby-s7-server-reopen.log"
+echo "WBY S7/S8 runtime: reopening the saved world on the dedicated server"
 start_server "$server_log"
 test -f "$server_dir/s7-acceptance/level.dat"
+echo "WBY S7/S8 runtime: reopened server is ready; checking persisted policies"
+echo "Checking reopened Supplementaries policy"
 assert_supplementaries_policy
+echo "Reopened Supplementaries policy PASS"
+echo "Checking reopened Hearth and Harvest config policy"
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
+echo "Reopened Hearth and Harvest config policy PASS"
+echo "Checking reopened Hearth and Harvest worldgen policy"
 assert_hearthandharvest_worldgen_policy
+echo "Reopened Hearth and Harvest worldgen policy PASS"
 stop_server "$server_log"
 test -s "$server_dir/s7-acceptance/level.dat"
 trap - EXIT

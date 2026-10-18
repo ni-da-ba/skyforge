@@ -6,6 +6,7 @@ import argparse
 import hashlib
 import io
 import json
+import os
 import re
 import socket
 import struct
@@ -420,7 +421,7 @@ def main() -> int:
     parser.add_argument("--runtime-root", type=Path, required=True)
     parser.add_argument("--rcon-host")
     parser.add_argument("--rcon-port", type=int, default=25575)
-    parser.add_argument("--rcon-password")
+    parser.add_argument("--rcon-password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
     parser.add_argument("--pins", type=Path, default=Path("skyforge-neoforge-1211/wby-s7-combat.properties"))
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
     parser.add_argument("--server-log", type=Path, required=True)
@@ -431,7 +432,11 @@ def main() -> int:
         raise SystemExit("--control-mods and --staged-mods must be supplied together")
 
     pins = read_properties(args.pins)
-    selected = set(ARMS[args.variant])
+    # Some S8 overlays (for example My Nether's Delight) depend on a mod that is also
+    # catalogued as a combat candidate. An explicitly declared overlay ID may select
+    # that exact pinned dependency without weakening the unselected-candidate guard.
+    overlay_candidate_ids = set(args.expected_profile_overlay_mod_id) & set(ALL_CANDIDATES)
+    selected = set(ARMS[args.variant]) | overlay_candidate_ids
     jars = sorted(args.mods.glob("*.jar"))
     report: list[list[object]] = [
         ["record", "variant", "coordinate", "jar", "sha256", "mod_id", "declared_version", "metadata_license", "required_dependencies", "worldgen_resources"],

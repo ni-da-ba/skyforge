@@ -25,8 +25,10 @@ on:
       - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s8-nether-evidence.py"
       - "scripts/wby-s8-diagnostic-launch.sh"
+      - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "docs/reviews/WBY-S8-incendium-full-stack-human-gate.md"
   pull_request:
     paths:
       - ".github/workflows/wby-s8-nether.yml"
@@ -44,8 +46,10 @@ on:
       - "scripts/wby-s7-patch-a4mc-build.py"
       - "scripts/wby-s8-nether-evidence.py"
       - "scripts/wby-s8-diagnostic-launch.sh"
+      - "scripts/wby-s8-download-nether-review-deps.py"
       - "scripts/wby-s4-launch-production-client.py"
       - "scripts/wby-s4-launcher-requirements.txt"
+      - "docs/reviews/WBY-S8-incendium-full-stack-human-gate.md"
   workflow_dispatch:
 
 permissions:
@@ -107,9 +111,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: [control, control-mnd, jne, jne-mnd, incendium]
+        variant: [control, control-mnd, jne, jne-mnd, incendium, incendium-full, incendium-betternether]
     runs-on: ubuntu-24.04
     timeout-minutes: 90
+    # BetterNether is an isolated, unselected composition candidate. Keep its
+    # runtime evidence, but do not block acceptance of the Incendium gameplay profile.
+    continue-on-error: ${{ matrix.variant == 'incendium-betternether' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -123,7 +130,7 @@ jobs:
           bash -n scripts/wby-s7-combat-diagnostic-launch.sh
           bash -n scripts/wby-s8-diagnostic-launch.sh
           bash -n scripts/wby-s7-runtime-acceptance.sh
-          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py
+          python3 -m py_compile scripts/wby-s7-illager-evidence.py scripts/wby-s7-combat-evidence.py scripts/wby-s7-combat-stage-preflight.py scripts/wby-s8-nether-evidence.py scripts/wby-s8-download-nether-review-deps.py
 
       - name: Download the exact A4MC build output
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
@@ -168,6 +175,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          thin_air_args=()
+          if [[ "${{ matrix.variant }}" == "incendium-full" ]]; then
+            thin_air_args+=("-PwbyS1ThinAir=true")
+          fi
           ./gradlew :skyforge-neoforge-1211:wbyS1ResolvePinnedMods \
             -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2" \
             -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds \
@@ -176,7 +187,7 @@ jobs:
             -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false \
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true \
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true \
-            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} --no-configuration-cache | tee "wby-s8-resolution.log"
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} "${thin_air_args[@]}" --no-configuration-cache | tee "wby-s8-resolution.log"
           grep -Fq "WBY S7 ILLAGER THREATS RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 ICE & FIRE RESOLUTION PASS" "wby-s8-resolution.log"
           grep -Fq "WBY S7 BOMD RESOLUTION PASS" "wby-s8-resolution.log"
@@ -197,6 +208,9 @@ jobs:
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
             -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=${{ matrix.variant }} --no-configuration-cache
           )
+          if [[ "${{ matrix.variant }}" == "incendium-full" ]]; then
+            common+=("-PwbyS1ThinAir=true")
+          fi
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" \
             -PwbyS1RunDirectory=run-wby-s8-${{ matrix.variant }}
           ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" \
@@ -218,13 +232,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          overlay_args=()
+          if [[ "${{ matrix.variant }}" == "incendium-full" ]]; then
+            overlay_args+=(--overlay-candidate curios)
+          fi
           python3 scripts/wby-s7-combat-stage-preflight.py \
             --control-server skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods \
             --control-client skyforge-neoforge-1211/run-wby-s7-combat-control/mods \
             --candidate-server skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods \
             --candidate-client skyforge-neoforge-1211/run-wby-s7-join-client/mods \
             --pins skyforge-neoforge-1211/wby-s7-combat.properties \
-            --variant tacz \
+            --variant tacz "${overlay_args[@]}" \
             --output wby-s8-candidate-pins.tsv
 
       - name: Preserve Gradle JVM before installing the Java 21 production runtime
@@ -277,8 +295,11 @@ jobs:
           export WBY_S7_BOMD=true
           export WBY_S7_COMBAT_VARIANT=tacz
           export WBY_S8_NETHER_VARIANT=${{ matrix.variant }}
-          if [[ "${{ matrix.variant }}" == "incendium" ]]; then
-            export WBY_S8_NETHER_DATAPACK_SOURCE="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-incendium/datapacks/incendium-5.4.4.zip"
+          if [[ "${{ matrix.variant }}" == "incendium" || "${{ matrix.variant }}" == "incendium-full" || "${{ matrix.variant }}" == "incendium-betternether" ]]; then
+            export WBY_S8_NETHER_DATAPACK_SOURCE="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/datapacks/incendium-5.4.4.zip"
+          fi
+          if [[ "${{ matrix.variant }}" == "incendium-betternether" ]]; then
+            export WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS=900
           fi
           export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
           export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods"
@@ -303,6 +324,7 @@ jobs:
             wby-s7-ice-and-fire-evidence.tsv
             wby-s7-bomd-evidence.tsv
             wby-s7-combat-evidence.tsv
+            wby-s7-client-thread-dump.txt
             wby-s8-candidate-pins.tsv
             wby-s7-control-staged-mods.txt
             a4mc-0.2.2/*.jar

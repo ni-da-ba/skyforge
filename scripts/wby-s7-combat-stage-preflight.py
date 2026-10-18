@@ -102,6 +102,7 @@ def candidate_identity(
     server_dir: Path,
     client_dir: Path,
     output: Path,
+    overlay_candidates: set[str],
 ) -> None:
     server_jars = sorted(server_dir.glob("*.jar"))
     client_jars = sorted(client_dir.glob("*.jar"))
@@ -118,7 +119,7 @@ def candidate_identity(
         token = coordinate_token(coordinate)
         server_matches = [jar for jar in server_jars if token.lower() in jar.name.lower()]
         client_matches = [jar for jar in client_jars if token.lower() in jar.name.lower()]
-        selected = key in ARMS[variant]
+        selected = key in ARMS[variant] or key in overlay_candidates
         if not selected:
             if server_matches or client_matches:
                 raise SystemExit(f"Unselected candidate {key} leaked into {variant}")
@@ -173,6 +174,7 @@ def main() -> int:
     parser.add_argument("--candidate-client", type=Path, required=True)
     parser.add_argument("--pins", type=Path, required=True)
     parser.add_argument("--variant", choices=tuple(ARMS), required=True)
+    parser.add_argument("--overlay-candidate", action="append", choices=ALL_CANDIDATES, default=[])
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
@@ -195,7 +197,7 @@ def main() -> int:
         print(f"S7 baseline preservation PASS side={label} jars={len(control_hashes)} mod_ids={len(control_ids)}")
 
     pins = read_properties(args.pins)
-    candidate_identity(args.variant, pins, args.candidate_server, args.candidate_client, args.output)
+    candidate_identity(args.variant, pins, args.candidate_server, args.candidate_client, args.output, set(args.overlay_candidate))
     return 0
 
 

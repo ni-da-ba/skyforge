@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import socket
 import struct
@@ -121,7 +122,7 @@ def main() -> int:
     parser.add_argument("--mods", required=True, type=Path)
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=25575)
-    parser.add_argument("--password", required=True)
+    parser.add_argument("--password", default=os.environ.get("WBY_S7_RCON_PASSWORD"))
     parser.add_argument("--seed", required=True)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--mowzie-output", required=True, type=Path)
@@ -132,6 +133,8 @@ def main() -> int:
     parser.add_argument("--skip-entity-probes", action="store_true")
     parser.add_argument("--entities-only", action="store_true")
     args = parser.parse_args()
+    if not args.password:
+        parser.error("set WBY_S7_RCON_PASSWORD or pass --password")
     if args.skip_entity_probes and args.entities_only:
         parser.error("--skip-entity-probes and --entities-only cannot be combined")
     if args.ice_and_fire and args.ice_and_fire_output is None:
