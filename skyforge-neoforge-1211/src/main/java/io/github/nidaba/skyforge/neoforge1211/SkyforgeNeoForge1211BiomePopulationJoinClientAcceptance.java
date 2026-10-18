@@ -2,6 +2,11 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Map;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.TitleScreen;
+import net.minecraft.client.multiplayer.ServerData;
+import net.minecraft.client.multiplayer.TransferState;
+import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
@@ -20,6 +25,7 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
     private static final long CLIENT_TIMEOUT_NANOS = 360_000_000_000L;
 
     private static long firstClientTickNanos = Long.MIN_VALUE;
+    private static boolean connectionStarted;
     private static boolean proofComplete;
 
     private SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance() {}
@@ -41,6 +47,21 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
+        if (!connectionStarted && minecraft.level == null && minecraft.screen instanceof TitleScreen) {
+            connectionStarted = true;
+            ServerData server = new ServerData(
+                    "Skyforge Acceptance",
+                    "127.0.0.1:25565",
+                    ServerData.Type.OTHER);
+            ConnectScreen.startConnecting(
+                    minecraft.screen,
+                    minecraft,
+                    ServerAddress.parseString(server.ip),
+                    server,
+                    false,
+                    new TransferState(Map.of()));
+        }
+
         if (minecraft.level == null
                 || minecraft.player == null
                 || minecraft.getSingleplayerServer() != null
