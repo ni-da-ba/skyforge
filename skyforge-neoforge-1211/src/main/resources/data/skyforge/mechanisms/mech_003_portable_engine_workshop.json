@@ -1,0 +1,948 @@
+{
+  "assetId": "guild.utility.portable_engine_workshop.mech_003",
+  "clearanceCells": [
+    [
+      2,
+      2,
+      2
+    ],
+    [
+      2,
+      3,
+      2
+    ],
+    [
+      6,
+      2,
+      2
+    ],
+    [
+      1,
+      1,
+      3
+    ],
+    [
+      2,
+      1,
+      3
+    ],
+    [
+      3,
+      1,
+      3
+    ],
+    [
+      4,
+      1,
+      3
+    ],
+    [
+      5,
+      1,
+      3
+    ],
+    [
+      1,
+      1,
+      4
+    ],
+    [
+      2,
+      1,
+      4
+    ],
+    [
+      3,
+      1,
+      4
+    ],
+    [
+      4,
+      1,
+      4
+    ],
+    [
+      5,
+      1,
+      4
+    ],
+    [
+      6,
+      1,
+      4
+    ]
+  ],
+  "compilerVersion": "mech-0.3-fixed-world",
+  "connectivity": {
+    "edges": [
+      [
+        "cut_power_source",
+        "cut_power_relay"
+      ],
+      [
+        "cut_power_relay",
+        "cut_station"
+      ],
+      [
+        "press_power_source",
+        "press_power_relay"
+      ],
+      [
+        "press_power_relay",
+        "press_station"
+      ]
+    ],
+    "nodes": [
+      "cut_power_source",
+      "cut_power_relay",
+      "cut_station",
+      "press_power_source",
+      "press_power_relay",
+      "press_station"
+    ],
+    "severNode": "cut_power_relay"
+  },
+  "digestSha256": "8509f14ab82c4711ed381ad5f4b6dd57350f95886c6b6c44ef4e07717a89a4c7",
+  "envelope": {
+    "max": [
+      6,
+      3,
+      4
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ],
+    "size": [
+      7,
+      4,
+      5
+    ]
+  },
+  "mountingRegion": {
+    "max": [
+      6,
+      0,
+      4
+    ],
+    "min": [
+      0,
+      0,
+      0
+    ]
+  },
+  "placements": [
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_0_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        0,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_1_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        1,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_2_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        2,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_3_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        3,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_4_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        4,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_4_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        4,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_4_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        4,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_4_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        4,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_4_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        4,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_5_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        5,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_5_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        5,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_5_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        5,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_5_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        5,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_5_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        5,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_6_0",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        6,
+        0,
+        0
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_6_1",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        6,
+        0,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_6_2",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        6,
+        0,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_6_3",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        6,
+        0,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "pad_6_4",
+      "mechanicalRole": "mounting_support",
+      "pos": [
+        6,
+        0,
+        4
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:creative_motor",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "cut_power_source",
+      "mechanicalRole": "qualification_power_source",
+      "pos": [
+        0,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:shaft",
+        "properties": {
+          "axis": "x"
+        }
+      },
+      "id": "cut_power_relay",
+      "mechanicalRole": "qualification_power_relay",
+      "pos": [
+        1,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:mechanical_saw",
+        "properties": {
+          "axis_along_first": "true",
+          "facing": "up",
+          "flipped": "false"
+        }
+      },
+      "id": "cut_station",
+      "mechanicalRole": "cut_station",
+      "pos": [
+        2,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_power_pier_lower",
+      "mechanicalRole": "station_support",
+      "pos": [
+        4,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_power_pier_upper",
+      "mechanicalRole": "station_support",
+      "pos": [
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_relay_pier_lower",
+      "mechanicalRole": "station_support",
+      "pos": [
+        5,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_relay_pier_upper",
+      "mechanicalRole": "station_support",
+      "pos": [
+        5,
+        2,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_world_surface",
+      "mechanicalRole": "world_item_surface",
+      "pos": [
+        6,
+        1,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_frame_left_lower",
+      "mechanicalRole": "station_support",
+      "pos": [
+        6,
+        1,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_frame_left_upper",
+      "mechanicalRole": "station_support",
+      "pos": [
+        6,
+        2,
+        1
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_frame_right_lower",
+      "mechanicalRole": "station_support",
+      "pos": [
+        6,
+        1,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "minecraft:stone_bricks"
+      },
+      "id": "press_frame_right_upper",
+      "mechanicalRole": "station_support",
+      "pos": [
+        6,
+        2,
+        3
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:creative_motor",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "press_power_source",
+      "mechanicalRole": "qualification_power_source",
+      "pos": [
+        4,
+        3,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:shaft",
+        "properties": {
+          "axis": "x"
+        }
+      },
+      "id": "press_power_relay",
+      "mechanicalRole": "qualification_power_relay",
+      "pos": [
+        5,
+        3,
+        2
+      ]
+    },
+    {
+      "blockState": {
+        "name": "create:mechanical_press",
+        "properties": {
+          "facing": "east"
+        }
+      },
+      "id": "press_station",
+      "mechanicalRole": "press_station",
+      "pos": [
+        6,
+        3,
+        2
+      ]
+    }
+  ],
+  "platformEvidence": {
+    "agentCAuthorized": true,
+    "commit": "215c1e34caf202689052c3eda8d73977420c7590",
+    "result": "PASS",
+    "status": "accepted",
+    "verificationLevel": "L2",
+    "workflowRun": 35153305780
+  },
+  "processingEnvelope": {
+    "forbiddenTransportBlocks": [
+      "create:belt",
+      "create:depot",
+      "create:andesite_funnel",
+      "create:brass_funnel",
+      "create:chute",
+      "create:smart_chute",
+      "create:mechanical_arm"
+    ],
+    "manualHandoff": {
+      "clearanceCells": [
+        [
+          1,
+          1,
+          3
+        ],
+        [
+          2,
+          1,
+          3
+        ],
+        [
+          3,
+          1,
+          3
+        ],
+        [
+          4,
+          1,
+          3
+        ],
+        [
+          5,
+          1,
+          3
+        ],
+        [
+          1,
+          1,
+          4
+        ],
+        [
+          2,
+          1,
+          4
+        ],
+        [
+          3,
+          1,
+          4
+        ],
+        [
+          4,
+          1,
+          4
+        ],
+        [
+          5,
+          1,
+          4
+        ],
+        [
+          6,
+          1,
+          4
+        ]
+      ],
+      "fromPlacementId": "cut_station",
+      "mode": "world_item_restage",
+      "retractionStagingCell": [
+        3,
+        1,
+        3
+      ],
+      "toPlacementId": "press_station"
+    },
+    "pressWorldSurfacePlacementId": "press_world_surface",
+    "stations": [
+      {
+        "acquisitionMode": "fall_on_top",
+        "placementId": "cut_station",
+        "role": "cut"
+      },
+      {
+        "acquisitionMode": "grounded_world_item",
+        "placementId": "press_station",
+        "role": "press"
+      }
+    ]
+  },
+  "productProcessingContract": {
+    "expectedStepRoles": [
+      "cut",
+      "press"
+    ],
+    "loopCountAuthority": "live_recipe",
+    "recipeAuthority": "live_exact_stack_recipe_manager",
+    "singleAttemptSuccessRequired": false,
+    "terminalResultPolicy": "live_weighted_result_pool"
+  },
+  "requiredPlatformCapability": "CREATE_WORLD_ITEM_CUT_PRESS_LIFECYCLE",
+  "runtimeExpectations": {
+    "handoff": {
+      "automatedTransport": false,
+      "worldItem": true
+    },
+    "stationsPowered": {
+      "cutSpeed": "nonzero",
+      "hasSource": true,
+      "pressSpeed": "nonzero"
+    },
+    "terminal": {
+      "resultMustBelongToLivePool": true,
+      "sequencedComponentCleared": true
+    }
+  },
+  "schema": "skyforge.functional-mechanism-plan.v1",
+  "seed": 734003,
+  "semanticInput": {
+    "mountingRole": "masonry_pad",
+    "operatorClearance": 2,
+    "orientation": "east",
+    "powerRole": "qualified_stationary_kinetic",
+    "stagingRole": "world_item_manual_handoff",
+    "workflowRole": "manual_sequenced_processing"
+  },
+  "sourcePolicy": "qualification_power_not_gameplay_canon",
+  "supportRequirements": [
+    {
+      "placementId": "cut_power_source",
+      "supportBelow": [
+        0,
+        0,
+        2
+      ]
+    },
+    {
+      "placementId": "cut_power_relay",
+      "supportBelow": [
+        1,
+        0,
+        2
+      ]
+    },
+    {
+      "placementId": "cut_station",
+      "supportBelow": [
+        2,
+        0,
+        2
+      ]
+    },
+    {
+      "placementId": "press_power_source",
+      "supportBelow": [
+        4,
+        2,
+        2
+      ]
+    },
+    {
+      "placementId": "press_power_relay",
+      "supportBelow": [
+        5,
+        2,
+        2
+      ]
+    },
+    {
+      "placementId": "press_world_surface",
+      "supportBelow": [
+        6,
+        0,
+        2
+      ]
+    }
+  ],
+  "targetStackAuthority": "C11_FLIGHT_EXACT_2026-09-05",
+  "validation": {
+    "issues": [],
+    "passed": true
+  }
+}
