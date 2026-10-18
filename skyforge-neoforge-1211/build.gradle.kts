@@ -10380,3 +10380,6 @@ tasks.register<Sync>("wbyS1StageServerMods") {
 
 // S9 End candidates stay isolated from the accepted S0-S8 production pins until qualified.
 apply(from = "wby-s9-end.gradle.kts")
+
+// S10 onboarding/operations/economy candidates remain an isolated opt-in profile.
+apply(from = "wby-s10-onboarding-operations.gradle.kts")
