@@ -26,7 +26,6 @@ This file is a map, not the full manual. Read deeper documents only when the cur
   - Content: `docs/agent-state/CONTENT_STATE.md`
   - Music/Audio: `docs/agent-state/MUSIC_STATE.md`
   - Presentation: `docs/agent-state/PRESENTATION_STATE.md`
-- Optional controller operations, only when maintaining that subsystem: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
 - Manual producer ownership: `docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md`
 
 `CURRENT_PROJECT_STATE.md` is a compact context cache, not an authority override. Read it early, then verify its snapshot boundary against current `main`, active issue/PR ownership, tests, and merged history before relying on it. Update it in the same bounded tranche when a human/product boundary or primary next-work boundary materially changes.
