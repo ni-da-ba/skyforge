@@ -7653,7 +7653,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         val expectedOtherStackNetherSharedMods =
             (if (wbyS7CombatVariant == "scorched") setOf("curios") else emptySet()) +
                 (if (wbyS1ThinAir) setOf("thinAirRelived") else emptySet()) +
-                (if (s9EndVariantForSharedDeps in s9BetterEndVariants) setOf("bclibNewDawn") else emptySet())
+                (if (s9EndVariantForSharedDeps in s9BetterEndVariants) setOf("bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn") else emptySet())
         ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) -
             wbyS8NetherMods - expectedOtherStackNetherSharedMods).forEach { mod ->
             val expected = wbyS8Token(mod)
