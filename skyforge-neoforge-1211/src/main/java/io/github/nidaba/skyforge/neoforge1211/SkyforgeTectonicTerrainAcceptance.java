@@ -91,6 +91,11 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "terrain provider returned no solid surface columns in the origin profile");
                 return;
             }
+            ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
+            if (realizedSurface.samples() == 0) {
+                fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
+                return;
+            }
 
             int interiorSolidSamples = 0;
             int undersideSolidSamples = 0;
@@ -123,6 +128,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileSamples", profile.samples());
+            evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
+            evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
             evidence.put("islandInteriorSolidSamples", interiorSolidSamples);
             evidence.put("islandUndersideSolidSamples", undersideSolidSamples);
             evidence.put("exteriorChunk", new ChunkPos(EXTERIOR_CHUNK_X, 0).toString());
@@ -161,6 +168,34 @@ final class SkyforgeTectonicTerrainAcceptance {
                     var key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
                     if (key != null) {
                         digest.update((worldX + "," + worldY + "," + worldZ + ":" + key + "\n")
+                                .getBytes(StandardCharsets.UTF_8));
+                        samples++;
+                    }
+                    break;
+                }
+            }
+        }
+        return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+    }
+
+    private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {
+        MessageDigest digest = newSha256();
+        int samples = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(new BlockPos(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    var key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                    if (key != null) {
+                        digest.update((worldX + "," + worldY + "," + worldZ + ":" + key + "\\n")
                                 .getBytes(StandardCharsets.UTF_8));
                         samples++;
                     }
