@@ -1,5 +1,6 @@
 import java.security.MessageDigest
 import java.util.Properties
+import java.util.zip.ZipFile
 import org.gradle.api.artifacts.Configuration
 
 // S9 keeps every End worldgen/arena candidate opt-in and side-aware. The inherited S0-S8
@@ -159,8 +160,14 @@ tasks.register("wbyS9ResolveEndProfile") {
                 else -> error("Unknown WBY S9 End datapack: $packId")
             }
             val pack = configuration.singleFile
-            check(pack.isFile && pack.extension.equals("zip", ignoreCase = true)) {
-                "WBY S9 $packId must resolve to its whole official .zip data pack: $pack"
+            val expectedExtensions = if (packId == "nullscape") setOf("jar") else setOf("zip")
+            check(pack.isFile && pack.extension.lowercase() in expectedExtensions) {
+                "WBY S9 $packId must resolve to its exact official archive ($expectedExtensions): $pack"
+            }
+            ZipFile(pack).use { archive ->
+                check(archive.getEntry("pack.mcmeta") != null) {
+                    "WBY S9 $packId archive is missing pack.mcmeta: $pack"
+                }
             }
             val digest = MessageDigest.getInstance("SHA-256").digest(pack.readBytes())
                 .joinToString("") { "%02x".format(it) }

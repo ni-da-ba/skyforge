@@ -19,7 +19,7 @@ import zipfile
 
 MODRINTH = {
     "incendium": ("pwe1kTJE", ".zip"),
-    "nullscape": ("3fv8O3xX", ".zip"),
+    "nullscape": ("3fv8O3xX", ".jar"),
     "betterend": ("BgNy6PHx", ".jar"),
     "bclib": ("QkXw8Fsl", ".jar"),
     "wunderlib": ("5db3GZzg", ".jar"),
@@ -209,8 +209,11 @@ def main() -> int:
         overlay_jars.append(jar)
         shutil.copy2(jar, run / "mods" / jar.name)
 
+    staged_pack_names = {}
     for pack in packs:
-        shutil.copy2(pack, world_packs / pack.name)
+        staged_name = "nullscape-review.zip" if "nullscape" in pack.name.lower() else pack.name
+        shutil.copy2(pack, world_packs / staged_name)
+        staged_pack_names[pack] = staged_name
 
     manifest = [
         "WBY S9 local manual review",
@@ -226,7 +229,7 @@ def main() -> int:
     ]
     manifest += [f"{jar.name}\t{hashlib.sha256(jar.read_bytes()).hexdigest()}" for jar in overlay_jars]
     manifest += ["", "[world datapacks: filename sha256]"]
-    manifest += [f"{pack.name}\t{hashlib.sha256(pack.read_bytes()).hexdigest()}" for pack in packs]
+    manifest += [f"{staged_pack_names[pack]}\t{hashlib.sha256(pack.read_bytes()).hexdigest()}" for pack in packs]
     (diagnostics / "manifest.txt").write_text("\n".join(manifest) + "\n", encoding="utf-8")
 
     print(f"S9 profile: {args.variant}")
@@ -235,7 +238,7 @@ def main() -> int:
     if packs:
         print("Before creating it, use Create World > Data Packs > Open Pack Folder and copy:")
         for pack in packs:
-            print(f"  {world_packs / pack.name}")
+            print(f"  {world_packs / staged_pack_names[pack]}")
         print("Enable the listed datapacks before creating the world.")
     print("Review the End generator and BOP biome ownership, End access, structure density, survival pressure, and save/reopen.")
     print("Keep shaders off for this worldgen/content gate; retain accepted Simple Clouds and Distant Horizons settings.")
