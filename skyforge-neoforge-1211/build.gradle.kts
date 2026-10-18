@@ -616,6 +616,45 @@ neoForge {
     }
 
     runs {
+        // SF-IMP-1524 writes a versioned SkyBiome assignment, then reopens the same Overworld save.
+        create("skyBiomeZonePersistenceWrite") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1524-skybiome").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.skyBiomeZonePersistence", "true")
+            systemProperty("skyforge.dev.skyBiomeZonePersistence.mode", "write")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-1524-skybiome-write")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/sf-imp-1524-skybiome/write.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("skyBiomeZonePersistenceReload") {
+            server()
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-1524-skybiome").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.skyBiomeZonePersistence", "true")
+            systemProperty("skyforge.dev.skyBiomeZonePersistence.mode", "reload")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-1524-skybiome-reload")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "180")
+            systemProperty("skyforge.dev.acceptanceResultFile", layout.buildDirectory.file("acceptance/sf-imp-1524-skybiome/reload.properties").get().asFile.absolutePath)
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // Historical elevated-Massif structure-start visibility specimen.
         create("client") {
             client()
@@ -9029,4 +9068,65 @@ tasks.register("launchF4KHydrologyReview") {
     group = "application"
     description = "Prepare the exact F4H/F4D hydrology specimen, then quick-play it for human review."
     dependsOn("runF4kHydrologyReviewPrepare", "runF4kHydrologyReviewClient")
+}
+
+
+val sfImp1524SkyBiomePersistenceResults =
+    layout.buildDirectory.dir("acceptance/sf-imp-1524-skybiome")
+
+fun requireSfImp1524SkyBiomePersistencePass(name: String): java.util.Properties {
+    val resultFile = sfImp1524SkyBiomePersistenceResults.get().file("$name.properties").asFile
+    check(resultFile.isFile) { "missing SF-IMP-1524 SkyBiome persistence result: $resultFile" }
+    val properties = java.util.Properties().also { result -> resultFile.inputStream().use(result::load) }
+    check(properties.getProperty("status") == "PASS") {
+        "SF-IMP-1524 SkyBiome persistence case $name did not PASS: $properties"
+    }
+    return properties
+}
+
+tasks.named("runSkyBiomeZonePersistenceWrite").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-1524 writes a disposable dedicated-server world.")
+    doFirst { delete(sfImp1524SkyBiomePersistenceResults) }
+    doLast { requireSfImp1524SkyBiomePersistencePass("write") }
+}
+
+tasks.named("runSkyBiomeZonePersistenceReload").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-1524 reopens a prior dedicated-server world.")
+    mustRunAfter("runSkyBiomeZonePersistenceWrite")
+    doFirst {
+        val worldFile = layout.projectDirectory
+            .file("run-sf-imp-1524-skybiome/saves/acceptance/level.dat")
+            .asFile
+        check(worldFile.isFile) { "SF-IMP-1524 write world is missing before reload" }
+    }
+    doLast { requireSfImp1524SkyBiomePersistencePass("reload") }
+}
+
+tasks.register("sfImp1524SkyBiomeZonePersistenceAcceptance") {
+    notCompatibleWithConfigurationCache("SF-IMP-1524 verifies persistence across two dedicated-server boots.")
+    group = "verification"
+    description = "Prove authored SkyBiome zone identity survives same-world save and reopen."
+    dependsOn("runSkyBiomeZonePersistenceWrite", "runSkyBiomeZonePersistenceReload")
+    doLast {
+        val write = requireSfImp1524SkyBiomePersistencePass("write")
+        val reload = requireSfImp1524SkyBiomePersistencePass("reload")
+        check(write.getProperty("worldSeed") == reload.getProperty("worldSeed")) {
+            "SF-IMP-1524 world seed changed across reload"
+        }
+        check(write.getProperty("zoneKey") == reload.getProperty("zoneKey")
+                && write.getProperty("skyBiomeId") == reload.getProperty("skyBiomeId")) {
+            "SF-IMP-1524 zone identity or SkyBiome ID changed across reload"
+        }
+        check(write.getProperty("assignmentCreated") == "true"
+                && reload.getProperty("assignmentRestored") == "true"
+                && write.getProperty("assignmentCount") == "1"
+                && reload.getProperty("assignmentCount") == "1") {
+            "SF-IMP-1524 saved assignment evidence is incomplete: write=$write, reload=$reload"
+        }
+        println("SF-IMP-1524 SKYBIOME SAVE/REOPEN PASS: zone="
+                + reload.getProperty("zoneKey")
+                + ", skyBiome=" + reload.getProperty("skyBiomeId")
+                + ", worldSeed=" + reload.getProperty("worldSeed")
+                + ", serverBoots=2")
+    }
 }
