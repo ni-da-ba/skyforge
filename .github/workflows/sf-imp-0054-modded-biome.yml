@@ -41,13 +41,14 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Accept the disposable development server EULA
+      - name: Configure the disposable Skyforge development server
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server
-          printf 'eula=true\n' > skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/eula.txt
-          cat > skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/server.properties <<'EOF'
+          server_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server"
+          mkdir -p "$server_dir"
+          printf 'eula=true\n' > "$server_dir/eula.txt"
+          cat > "$server_dir/server.properties" <<'EOF'
           level-name=sf-imp-0054-modded-biome
           level-seed=592850352
           level-type=skyforge:development
@@ -71,32 +72,8 @@ jobs:
           test -f "$result"
           grep -Eq '^status=PASS$' "$result"
           grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
-          grep -Eq '^upperPersistentTreeEvidence=true
-
-      - name: Preserve server and acceptance evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sf-imp-0054-modded-biome-server
-          path: |
-            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
-            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
-          if-no-files-found: warn
-          retention-days: 14
- "$result"
-          grep -Eq '^exteriorNonAirBlocks=0
-
-      - name: Preserve server and acceptance evidence
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: sf-imp-0054-modded-biome-server
-          path: |
-            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
-            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
-          if-no-files-found: warn
-          retention-days: 14
- "$result"
+          grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+          grep -Eq '^exteriorNonAirBlocks=0$' "$result"
 
       - name: Preserve server and acceptance evidence
         if: always()
