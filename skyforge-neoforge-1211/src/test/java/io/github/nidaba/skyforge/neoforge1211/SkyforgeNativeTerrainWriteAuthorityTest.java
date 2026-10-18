@@ -60,6 +60,11 @@ final class SkyforgeNativeTerrainWriteAuthorityTest {
                         fixture.providerPosition().getZ()));
                 assertFalse(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
                         fixture.providerPosition().getX(),
+                        fixture.providerPosition().getY() - 1,
+                        fixture.providerPosition().getZ()),
+                        "provider writes must not enter the Skyforge-owned island body");
+                assertFalse(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                        fixture.providerPosition().getX(),
                         (int) Math.floor(fixture.bounds().maximumY()) + 1,
                         fixture.providerPosition().getZ()));
             }
