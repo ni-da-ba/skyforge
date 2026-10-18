@@ -762,6 +762,30 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Reopen the same dedicated-server save after the remote client accepted the first boot.
+        create("moddedBiomePopulationServerReopen") {
+            server()
+            sourceSet.set(moddedBiomePopulationServerRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.biomePopulation", "true")
+            systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome-reopen")
+            systemProperty("skyforge.dev.acceptanceRadius", "4")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "600")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/reopen.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("moddedBiomePopulationJoinClient") {
             client()
             sourceSet.set(moddedBiomePopulationClientRuntime)
