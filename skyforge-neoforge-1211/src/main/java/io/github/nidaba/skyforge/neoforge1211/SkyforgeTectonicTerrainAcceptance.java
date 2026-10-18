@@ -79,7 +79,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
-            ChunkAccess islandChunk = level.getChunk(new ChunkPos(0, 0));
+            ChunkAccess islandChunk = level.getChunk(new ChunkPos(0, 0).getMiddleBlockPosition(0));
             RandomState randomState =
                     generator.terrainProviderRandomState(level.getSeed(), level.registryAccess());
             ProfileEvidence profile = sampleProfile(
@@ -114,7 +114,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
-            ChunkAccess exteriorChunk = level.getChunk(new ChunkPos(EXTERIOR_CHUNK_X, 0));
+            ChunkAccess exteriorChunk = level.getChunk(new ChunkPos(EXTERIOR_CHUNK_X, 0).getMiddleBlockPosition(0));
             int exteriorNonAirBlocks = countNonAir(exteriorChunk);
             if (exteriorNonAirBlocks != 0) {
                 fail(server, "void exterior chunk contains " + exteriorNonAirBlocks + " non-air blocks");
