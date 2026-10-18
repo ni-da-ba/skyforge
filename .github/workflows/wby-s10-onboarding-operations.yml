@@ -27,6 +27,10 @@ on:
       - "skyforge-neoforge-1211/wby-s9-end.properties"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.gradle.kts"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.properties"
+      - "skyforge-neoforge-1211/wby-s10-servercore-config.yml"
+      - "skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml"
+      - "skyforge-neoforge-1211/wby-s10-simplebackups-common.toml"
+      - "scripts/wby-s10-backup-evidence.py"
       - "scripts/wby-s10-launch-production-review.py"
       - "scripts/wby-s10-diagnostic-launch.sh"
   workflow_dispatch:
