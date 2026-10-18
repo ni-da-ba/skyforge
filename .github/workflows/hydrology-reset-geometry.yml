@@ -300,16 +300,10 @@ jobs:
 
       - name: Run established hydraulic benchmarks and game-scale controls
         if: steps.scope.outputs.diagnostic_only != 'true'
+        # Full CI runs the exhaustive standard-benchmark/control suite; keep this job's fast F4-specific regression set.
         run: |
           ./gradlew \
             :skyforge-world:test \
-            --tests '*SkyIslandStandardStepSolverTest.reproducesEnvironmentAgencyTestCPartOneSubcriticalProfile' \
-            --tests '*SkyIslandStandardStepSolverTest.reproducesEnvironmentAgencyTestCPartTwoSupercriticalProfile' \
-            --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSubcriticalProfileFromConstructedBed' \
-            --tests '*SkyIslandUnitWidthStandardStepSolverTest.recoversSwashesMacdonaldSmoothSupercriticalProfileFromConstructedBed' \
-            --tests '*SkyIslandStandardStepSolverTest.upstreamNormalDepthMaintainsUniformSubcriticalFlow' \
-            --tests '*SkyIslandGameScaleHydraulicModelTest.accepted77EdgeOutletReachesCloseOnTheirCandidateBeds' \
-            --tests '*SkyIslandGeomorphicChannelNetworkPlannerTest.priorityFloodRoutesStayBoundToSemanticReachesOnAcceptedAndRejectedControls' \
             --tests '*SkyIslandHydrologyJoinDiagnosticsTest' \
             --tests '*SkyIslandAssociatedHydraulicTerrainTest' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
@@ -318,14 +312,10 @@ jobs:
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.key198CascadeFreeMultiReachUsesTheSameAssemblyForEligibilityAndRealization' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.postRealizationD2DiagnosticReportsMeasuredAndAllowedLongitudinalGrade' \
             --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest.ordinary77ProjectsOnlyTheQualifiedDeltaIntoCompiledWorldSpace' \
-            --tests '*SkyIslandGeomorphicQualificationEvaluatorTest.firstEvidenceBackedEnvelopeSeparatesLowSurgeryControlsFromPrimaryFailure' \
-            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
-            --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.key287D2SearchReportsAdmissibilityAndObjectiveProgress' \
             --tests '*SkyIslandComponentFluvialWorldWaterProjectionTest.ordinary77PreservesAcceptedHydraulicDepthAtEveryCenterlineSample' \
             --tests '*SkyIslandHydraulicNetworkAssemblyPlannerTest.confluence632EdgeOutletComponentsRemainTransitionDeferredUntilBoundaryDropsSolve' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.unresolvedTransitionsAreDeferredBeforeTerrainAuthority' \
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority' \
-            --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.fixedV5LakeCorpusReportsTerminalProfileClassification' \
             --no-configuration-cache
       - name: Print fixed retained-lake terminal profiles
         if: always()
