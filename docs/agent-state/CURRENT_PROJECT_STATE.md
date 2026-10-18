@@ -1,5 +1,11 @@
 # Skyforge current project state
 
+## Owner-approved private-server alpha direction — 2026-10-18
+
+Immediate target: one playable private-server province in a purely floating Overworld. Skyforge owns island form/underside, island and cluster placement, province/world coherence, sky-biome identity, and exact generation boundaries. Vanilla and selected modded generation should shape local island terrain, biomes, hydrology, and useful features inside those boundaries. Nether and End remain on the selected mod-stack paths.
+
+The earlier DR-70 / #754 hydrology completion gate applies to the broader hydrology product, not to beginning this alpha. Keep accepted hydrology and meso-scale work; defer unfinished multi-reach/F4 work from the alpha critical path pending provider evidence and classify it KEEP / ADAPT / DEFER / SUPERSEDE in #1514. Do not delete active implementations or close their PRs. See `docs/agent-state/PROGRAM_ROADMAP.md` and #1514.
+
 This file is a compact operator/agent bootstrap cache. It does **not** override current `main`, source/tests, merged history, active issue/PR authority, or live orchestrator state.
 
 ## Latest hydrology boundary — 2026-10-15
@@ -52,7 +58,7 @@ The reliability campaign is complete; do not extend it with additional adversari
 
 ## Product boundary
 
-DR-70 remains **CHANGES REQUIRED**. The reset has progressed beyond the initial contract into qualified continuous Authorship terrain, but it has **not** yet earned a Minecraft/backend restart. #1084 must complete the coupled longitudinal/transition solution, basin calibration, and regenerated qualification evidence first. Platform acceptance does not complete DR-70 or weaken this human/product gate.
+DR-70 remains **CHANGES REQUIRED** for the broader hydrology product. The owner-approved private-server alpha may proceed without completing #1084 first by using a bounded native/modded provider path. This sequencing change does not complete DR-70, alter its technical or human acceptance gates, or weaken its ownership safeguards. Platform acceptance does not satisfy DR-70.
 
 ## Operator references
 
