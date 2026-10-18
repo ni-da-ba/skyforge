@@ -154,7 +154,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 "Skyforge SF-IMP-0054 exact-volume biome specimen enabled. Create a NEW disposable "
                         + "Skyforge Development world and inspect the two vertically aligned tableland islands near "
                         + "x=" + PROOF_X + ", z=" + PROOF_Z
-                        + ". Lower resolves minecraft:forest; upper resolves minecraft:taiga. A deterministic "
+                        + ". Lower resolves minecraft:forest; upper resolves " + UPPER_BIOME.location() + ". A deterministic "
                         + (PROOF_RADIUS_CHUNKS * 2 + 1) + "x" + (PROOF_RADIUS_CHUNKS * 2 + 1)
                         + " candidate patch is scanned. A chunk is eligible only when at least "
                         + MINIMUM_SHARED_COLUMNS_PER_CHUNK
