@@ -9165,6 +9165,7 @@ tasks.named("runTectonicTerrainTreatmentServer").configure {
 }
 
 tasks.register("sfImp0054TectonicTerrainAcceptance") {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B consumes disposable server-world evidence.")
     group = "verification"
     description = "Compare vanilla and Tectonic surface profiles inside one deterministic Skyforge void-island fixture."
     dependsOn("runTectonicTerrainVanillaServer", "runTectonicTerrainTreatmentServer")
