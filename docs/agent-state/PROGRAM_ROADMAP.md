@@ -182,14 +182,19 @@ Do not expand to all morphology families, all provinces, a complete hydrology ca
 
 ### Existing hydrology and meso-scale work
 
-The owner direction changes alpha sequencing, not the acceptance status of existing work:
+The owner direction changes alpha sequencing, not the acceptance status of existing work. Apply this initial source-based classification before extending the bespoke F4 pipeline:
 
-- DR-70 / #754 and the continuous hydrology reset remain valid broader product work, but completion is no longer a prerequisite to start or play the provider-backed alpha.
-- Keep existing accepted solver, topology, containment, and semantic evidence available for reuse.
-- Treat unfinished multi-reach / F4 work (#1500 and its active PR stack) as **deferred from the alpha critical path** until the provider seam is proven. The provider pilot will classify individual pieces as **KEEP / ADAPT / DEFER / SUPERSEDE** from source and runtime evidence.
-- Do not delete implementations, close active PRs, weaken D2/ownership safeguards, or label unfinished work superseded based only on sequencing.
+| Classification | Existing work | Alpha treatment |
+| --- | --- | --- |
+| KEEP | Hierarchical island/cluster/province identity, deterministic authorship and provenance, island morphology and underside, exact-volume ownership/admission, cave safety, persistence/lifecycle, and native biome/feature containment | These are core Skyforge authority and runtime safeguards. External providers remain candidates inside them. |
+| KEEP | Accepted hydrologic semantics, topology, solver evidence, D2 qualification limits, and failure diagnostics | Retain them as authored meaning, safety gates for Skyforge-authored water candidates, and comparison evidence. Their acceptance does not make a new river plan mandatory for the alpha. |
+| ADAPT | Vanilla and selected modded terrain, biome features, and hydrology outputs | Treat each provider result as a local candidate. Skyforge still decides island/zone placement and exact-volume admission; preserve the Skyforge footprint, body, underside, identity, and exterior void. |
+| DEFER | The unfinished multi-reach/F4 production realization tracked by #1500 and active draft #1506; broad hydrology completion under #1084 / DR-70; full morphology-family atlas and broad meso-scale expansion | Keep the work available on its own product path. It is not on the first playable-province critical path. Reconsider only when provider evidence identifies a concrete alpha gap. |
+| SUPERSEDE | The former sequencing rule that the full bespoke hydrology reset or F4 realization must finish before provider-backed alpha work starts | This sequencing assumption is superseded by the owner-approved #1514 direction. No existing hydrology algorithm or accepted contract is declared obsolete by this change alone. |
 
-The active bounded provider issue is #1514. Update this override when the first provider-backed province reaches machine and human acceptance, so the next alpha milestone is selected from actual evidence.
+The current provider PRs (#1518 vanilla surface profile, #1519 modded biome features, and #1522 Tectonic surface-profile A/B) are still machine-validation candidates. Their results may narrow or change this classification; no provider capability is accepted merely because an experiment exists.
+
+Do not delete implementations, close active PRs, weaken D2/ownership safeguards, or label unfinished algorithms superseded without direct source/runtime evidence. The active bounded provider issue is #1514. Update this classification when the first provider-backed province reaches machine and human acceptance, so the next alpha milestone follows demonstrated gaps.
 
 ## 6. Phase 0 — Core world-synthesis foundation
 
