@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -euo pipefail -x
 
 server_dir="skyforge-neoforge-1211/run-sf-imp-1524-skybiome"
 result_dir="skyforge-neoforge-1211/build/acceptance/sf-imp-1524-skybiome"
@@ -71,7 +71,11 @@ verify_result() {
 launch_server "$write_task"
 wait_server
 verify_result write
-test -f "$server_dir/saves/acceptance/level.dat"
+if [[ ! -f "$server_dir/saves/acceptance/level.dat" ]]; then
+  echo "Missing expected saved level.dat. Files under server directory:"
+  find "$server_dir" -maxdepth 5 -type f -print | sort
+  exit 1
+fi
 cp "$server_dir/logs/latest.log" "$result_dir/write-server.log"
 
 rm -f "$server_dir/logs/latest.log"
