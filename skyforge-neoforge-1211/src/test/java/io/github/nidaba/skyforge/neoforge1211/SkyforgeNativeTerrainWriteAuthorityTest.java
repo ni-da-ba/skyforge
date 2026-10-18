@@ -52,14 +52,17 @@ final class SkyforgeNativeTerrainWriteAuthorityTest {
                     SkyforgePhysicalVolumeAdmissionState.ADMITTED,
                     SkyforgePhysicalVolumeAdmissionStage.snapshot(fixture.volumeId()).state());
 
-            assertTrue(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
-                    fixture.providerPosition().getX(),
-                    fixture.providerPosition().getY(),
-                    fixture.providerPosition().getZ()));
-            assertFalse(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
-                    fixture.providerPosition().getX(),
-                    (int) Math.floor(fixture.bounds().maximumY()) + 1,
-                    fixture.providerPosition().getZ()));
+            try (AutoCloseable authority = SkyforgeNativeTerrainWriteAuthority.open(claims)) {
+                assertNotNull(authority);
+                assertTrue(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                        fixture.providerPosition().getX(),
+                        fixture.providerPosition().getY(),
+                        fixture.providerPosition().getZ()));
+                assertFalse(SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                        fixture.providerPosition().getX(),
+                        (int) Math.floor(fixture.bounds().maximumY()) + 1,
+                        fixture.providerPosition().getZ()));
+            }
 
             var result = writer.writeProviderTerrainOverlay(fixture.chunk(), materialization, claims);
 
