@@ -122,6 +122,12 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
 
             Map<String, Object> evidence = new LinkedHashMap<>();
+            evidence.put(
+                    "runtimeModSet",
+                    ModList.get().getMods().stream()
+                            .map(mod -> mod.getModId() + "@" + mod.getVersion())
+                            .sorted()
+                            .collect(java.util.stream.Collectors.joining(",")));
             evidence.put("profile", treatment ? "tectonic" : "vanilla");
             evidence.put("tectonicModLoaded", tectonicLoaded);
             evidence.put("tectonicPackSelected", tectonicPackSelected);
