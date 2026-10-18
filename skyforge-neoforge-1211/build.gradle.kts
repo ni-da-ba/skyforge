@@ -9126,13 +9126,13 @@ val sfImp0054TectonicServerProperties = """
     simulation-distance=3
     max-tick-time=0
     server-port=0
-""".trimIndent() + "\\n"
+""".trimIndent() + "\n"
 
 fun prepareSfImp0054TectonicServerDirectory(relativePath: String) {
     val directory = layout.projectDirectory.dir(relativePath).asFile
     delete(directory)
     directory.mkdirs()
-    directory.resolve("eula.txt").writeText("eula=true\\n")
+    directory.resolve("eula.txt").writeText("eula=true\n")
     directory.resolve("server.properties").writeText(sfImp0054TectonicServerProperties)
 }
 
