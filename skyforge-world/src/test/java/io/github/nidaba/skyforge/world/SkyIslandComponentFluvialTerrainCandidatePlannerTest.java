@@ -6,6 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandIdentity;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashMap;
@@ -303,7 +305,7 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                         + ":network=" + component.networkSolution().isPresent())
                 .toList()
                 .toString();
-        assertTrue(realized,
+        assertTrue(realized, () ->
                 "key 198 should realize terminal "
                         + eligibleNetwork.terminalFate().channelTerminalCellIndex()
                         + "; eligible=" + eligibleSummary
@@ -311,7 +313,17 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                         + "; deferrals="
                         + candidate.deferredQualifiedComponents().stream()
                                 .map(deferral -> deferral.diagnostic())
-                                .toList());
+                                .toList()
+                        + "; plannerClass=" + classLocation(
+                                SkyIslandComponentFluvialTerrainCandidatePlanner.class)
+                        + "; plannerGuardBytecode=" + bytecodeMarker(
+                                SkyIslandComponentFluvialTerrainCandidatePlanner.class,
+                                "F4A eligible-terminal classification mismatch")
+                        + "; candidatePlanClass=" + classLocation(
+                                SkyIslandComponentFluvialTerrainCandidatePlan.class)
+                        + "; candidatePlanInvariantBytecode=" + bytecodeMarker(
+                                SkyIslandComponentFluvialTerrainCandidatePlan.class,
+                                "every F3E-qualified terminal component must be realized or explicitly deferred"));
     }
 
     @Test
@@ -363,5 +375,21 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     private static SkyIslandDescriptor descriptor(long province, long cluster, long key) {
         return SkyIslandDescriptorGenerator.derive(
                 SkyIslandIdentity.of(SEED, province, cluster, key));
+    }
+    private static String classLocation(Class<?> type) {
+        var source = type.getProtectionDomain().getCodeSource();
+        return source == null ? "<unknown>" : source.getLocation().toString();
+    }
+
+    private static String bytecodeMarker(Class<?> type, String marker) {
+        try (var stream = type.getResourceAsStream(type.getSimpleName() + ".class")) {
+            if (stream == null) {
+                return "class-resource-missing";
+            }
+            String bytes = new String(stream.readAllBytes(), StandardCharsets.ISO_8859_1);
+            return bytes.contains(marker) ? "present" : "absent";
+        } catch (IOException failure) {
+            return "unreadable:" + failure.getClass().getSimpleName();
+        }
     }
 }
