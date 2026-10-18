@@ -56,8 +56,9 @@ val wbyS9ClientMods = wbyS9EndMods.filter { mod ->
 
 check(wbyS9EndVariant in setOf(
     "none", "control", "nullscape", "nullscape-betterend", "nullscape-phantasm",
-    "nullscape-unusual", "nullscape-structures", "nullscape-edr", "betterend", "betterend-food", "betterend-structures",
-)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-phantasm, nullscape-unusual, nullscape-structures, nullscape-edr, betterend, betterend-food, or betterend-structures" }
+    "nullscape-unusual", "nullscape-structures", "nullscape-edr", "nullscape-flyhigher",
+    "betterend", "betterend-food", "betterend-structures",
+)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-phantasm, nullscape-unusual, nullscape-structures, nullscape-edr, nullscape-flyhigher, betterend, betterend-food, or betterend-structures" }
 check(wbyS9EndVariant == "none" || (
     providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() == "incendium-full" &&
         providers.gradleProperty("wbyS7CombatVariant").orNull?.trim()?.lowercase() == "tacz" &&
