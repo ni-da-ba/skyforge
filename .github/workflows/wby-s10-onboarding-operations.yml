@@ -162,7 +162,7 @@ jobs:
             -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=incendium-full
             -PwbyS9EndVariant=nullscape -PwbyS10Profile=full --no-configuration-cache
           )
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
+          ./gradlew :skyforge-neoforge-1211:wbyS10StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
           server="$GITHUB_WORKSPACE/s10-production-server"
           profile="skyforge-neoforge-1211/run-wby-s10-full"
           mkdir -p "$server" "$server/mods" "$server/config" "$server/kubejs/data" "$server/datapacks" "$server/s7-acceptance/datapacks"

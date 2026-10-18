@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.util.zip.ZipFile
 // S10 candidates remain opt-in and side-aware while S0-S9 stays the accepted profile authority.
 val wbyS10PinFile = layout.projectDirectory.file("wby-s10-onboarding-operations.properties")
 val wbyS10Pins = Properties().apply { wbyS10PinFile.asFile.inputStream().use(::load) }
@@ -105,12 +106,54 @@ tasks.register("wbyS10ResolveProfile") {
     }
 }
 
+val wbyS10RunDirectory = providers.gradleProperty("wbyS1RunDirectory")
+    .orElse("run-wby-s10-$wbyS10Profile")
+    .get()
+
+tasks.register<Copy>("wbyS10StageClientMods") {
+    group = "verification"
+    description = "Stage the resolved cumulative S0-S10 client mod closure for profile review."
+    dependsOn("wbyS1StageClientMods", "wbyS10ResolveProfile")
+
+    val modMetadataPaths = listOf("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
+    fun isNeoForgeModJar(file: java.io.File): Boolean =
+        file.isFile && file.extension.equals("jar", ignoreCase = true) &&
+            runCatching {
+                ZipFile(file).use { archive -> modMetadataPaths.any { archive.getEntry(it) != null } }
+            }.getOrDefault(false)
+
+    // S1 staging intentionally contains only the accepted S0-S8 closure. Copy mod JARs from the
+    // fully resolved client runtime so selected S9 and S10 client/server candidates reach the
+    // runtime client as well as the server.
+    from(wbyS10Client.runtimeClasspath) {
+        include { details -> isNeoForgeModJar(details.file) }
+    }
+    into(layout.projectDirectory.dir("$wbyS10RunDirectory/mods"))
+
+    doLast {
+        val expected = wbyS10Client.runtimeClasspath.files
+            .filter(::isNeoForgeModJar)
+            .map { it.name }
+            .toSet()
+        val staged = destinationDir.listFiles()
+            ?.filter { it.isFile && it.extension.equals("jar", ignoreCase = true) }
+            ?.map { it.name }
+            ?.toSet()
+            ?: emptySet()
+        val missing = expected - staged
+        check(missing.isEmpty()) {
+            "WBY S10 client mod staging is incomplete for $wbyS10Profile: $missing"
+        }
+        println("WBY S10 CLIENT MOD STAGING PASS profile=$wbyS10Profile modJars=${expected.size}")
+    }
+}
+
 tasks.register("wbyS10StageProfile") {
     group = "verification"
     description = "Stage the complete cumulative S0-S10 profile for diagnostic launch."
     dependsOn(
         "wbyS10ResolveProfile",
-        "wbyS1StageClientMods",
+        "wbyS10StageClientMods",
         "wbyS1StageServerMods",
         "wbyS1StagePolicy",
         "wbyS8StageNetherDatapack",
