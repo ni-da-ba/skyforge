@@ -21,8 +21,9 @@ check(wbyS9Pin("profile", "base") == "wby-s8-incendium-full")
 val wbyS9EndVariant = providers.gradleProperty("wbyS9EndVariant").orNull?.trim()?.lowercase() ?: "none"
 val wbyS9BetterEndMods = listOf(
     "betterEndNewDawn", "bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn",
-    "endsDelight", "farmersCuttingBetterEnd",
 )
+val wbyS9BetterEndFoodMods = listOf("endsDelight", "farmersCuttingBetterEnd")
+val wbyS9DragonMods = listOf("enderDragonFightRemastered")
 val wbyS9StructureMods = listOf(
     "moogsEndStructures", "yungsBetterStrongholds", "yungsBetterEndIsland",
 )
@@ -30,23 +31,31 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
     "nullscape" -> emptyList()
     "nullscape-betterend" -> wbyS9BetterEndMods
     "nullscape-phantasm" -> listOf("phantasm")
+    "nullscape-edr" -> wbyS9DragonMods
     "nullscape-unusual" -> listOf("unusualEnd")
     "nullscape-structures" -> wbyS9StructureMods
     "betterend" -> wbyS9BetterEndMods
+    "betterend-food" -> wbyS9BetterEndMods + wbyS9BetterEndFoodMods
     "betterend-structures" -> wbyS9BetterEndMods + wbyS9StructureMods
     "control" -> emptyList()
     else -> emptyList()
 }
 val wbyS9UsesNullscape = wbyS9EndVariant in setOf(
-    "nullscape", "nullscape-betterend", "nullscape-phantasm", "nullscape-unusual", "nullscape-structures",
+    "nullscape", "nullscape-betterend", "nullscape-phantasm", "nullscape-unusual", "nullscape-structures", "nullscape-edr",
 )
-val wbyS9UsesBetterEnd = wbyS9EndVariant in setOf("nullscape-betterend", "betterend", "betterend-structures")
-val wbyS9AllMods = (wbyS9BetterEndMods + wbyS9StructureMods + listOf("phantasm", "unusualEnd")).distinct()
+val wbyS9UsesBetterEnd = wbyS9EndVariant in setOf("nullscape-betterend", "betterend", "betterend-food", "betterend-structures")
+val wbyS9AllMods = (
+    wbyS9BetterEndMods + wbyS9BetterEndFoodMods + wbyS9StructureMods +
+        wbyS9DragonMods + listOf("phantasm", "unusualEnd")
+).distinct()
+val wbyS9ClientMods = wbyS9EndMods.filter { mod ->
+    wbyS9Pin(mod, "environment").split(",").any { it.trim() in setOf("client", "client-server") }
+}
 
 check(wbyS9EndVariant in setOf(
     "none", "control", "nullscape", "nullscape-betterend", "nullscape-phantasm",
-    "nullscape-unusual", "nullscape-structures", "betterend", "betterend-structures",
-)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-phantasm, nullscape-unusual, nullscape-structures, betterend, or betterend-structures" }
+    "nullscape-unusual", "nullscape-structures", "nullscape-edr", "betterend", "betterend-food", "betterend-structures",
+)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-phantasm, nullscape-unusual, nullscape-structures, nullscape-edr, betterend, betterend-food, or betterend-structures" }
 check(wbyS9EndVariant == "none" || (
     providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() == "incendium-full" &&
         providers.gradleProperty("wbyS7CombatVariant").orNull?.trim()?.lowercase() == "tacz" &&
@@ -63,7 +72,9 @@ val wbyS9SourceSets = extensions.getByType(org.gradle.api.tasks.SourceSetContain
 val wbyS9Client = wbyS9SourceSets.getByName("wbyS1ClientRuntime")
 val wbyS9Server = wbyS9SourceSets.getByName("wbyS1ServerRuntime")
 wbyS9EndMods.forEach { mod ->
-    dependencies.add(wbyS9Client.runtimeOnlyConfigurationName, wbyS9Coordinate(mod))
+    if (mod in wbyS9ClientMods) {
+        dependencies.add(wbyS9Client.runtimeOnlyConfigurationName, wbyS9Coordinate(mod))
+    }
     dependencies.add(wbyS9Server.runtimeOnlyConfigurationName, wbyS9Coordinate(mod))
 }
 if (wbyS9UsesNullscape) {
@@ -97,8 +108,12 @@ tasks.register("wbyS9ResolveEndProfile") {
             check(expected !in modules) { "WBY S9 $side resolution leaked unselected $mod at $expected" }
         }
         wbyS9EndMods.forEach { mod ->
-            requireModule(clientModules, mod, "client")
             requireModule(serverModules, mod, "server")
+            if (mod in wbyS9ClientMods) {
+                requireModule(clientModules, mod, "client")
+            } else {
+                forbidModule(clientModules, mod, "client")
+            }
         }
         (wbyS9AllMods - wbyS9EndMods).forEach { mod ->
             forbidModule(clientModules, mod, "client")

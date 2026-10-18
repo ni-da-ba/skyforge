@@ -110,15 +110,17 @@ def main() -> int:
         enabled = rcon("datapack list enabled", a.host, a.port, a.password)
         if a.variant.startswith("nullscape") and "nullscape" not in enabled.lower():
             raise SystemExit(f"Nullscape is not enabled in this new world: {enabled}")
-        # Materialize several representative End chunks; this exercises first-time generation,
-        # not merely mod discovery. Chunk data is saved by the acceptance runner on shutdown.
+        # Materialize representative End chunks and record the bounded generation window.
+        # Chunk data is saved by the acceptance runner on shutdown.
+        generation_started = time.perf_counter()
         for x, z in ((0, 0), (128, 0), (-128, 0), (0, 128), (0, -128)):
             response = rcon(f"execute in minecraft:the_end run forceload add {x} {z}", a.host, a.port, a.password)
             if "added" not in response.lower() and "already" not in response.lower():
                 raise SystemExit(f"Could not force-load End chunk {x},{z}: {response}")
         time.sleep(8)
         rcon("execute in minecraft:the_end run forceload remove all", a.host, a.port, a.password)
-        rows.append(f"live\tthe_end\t\t\t\tfirst_chunks=5; datapacks_enabled={enabled}")
+        generation_seconds = time.perf_counter() - generation_started
+        rows.append(f"live\tthe_end\t\t\t\tfirst_chunks=5; generation_window_seconds={generation_seconds:.3f}; datapacks_enabled={enabled}")
     a.output.parent.mkdir(parents=True, exist_ok=True)
     a.output.write_text("\n".join(rows) + "\n", encoding="utf-8")
     print(f"WBY S9 END EVIDENCE PASS variant={a.variant} jars={len(list(a.mods.glob('*.jar')))} packs={len(packs)} live={a.live}")
