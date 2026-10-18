@@ -88,6 +88,9 @@ jobs:
           - nullscape-flyhigher
           - betterend
           - betterend-food
+          - betterend-unusual
+          - betterend-edr
+          - betterend-flyhigher
           - betterend-moogs
           - betterend-yungs-strongholds
           - betterend-yungs-island
@@ -135,17 +138,17 @@ jobs:
             --mods skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods \
             --datapacks skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks \
             --output wby-s9-end-evidence.tsv
-      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-structures"]'), matrix.variant) }}
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
         name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
         run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
-      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-structures"]'), matrix.variant) }}
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
         with:
           distribution: temurin
           java-version: 21
           java-package: jdk
-      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-structures"]'), matrix.variant) }}
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
         name: Install NeoForge server and stage selected profile
         shell: bash
         run: |
@@ -161,14 +164,14 @@ jobs:
           cp skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks/*.zip "$server/s7-acceptance/datapacks/" || true
           printf 'eula=true\n' > "$server/eula.txt"
           mkdir -p skyforge-neoforge-1211/run-wby-s7-join-client/mods
-      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-structures"]'), matrix.variant) }}
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
         name: Prepare production-client launcher
         shell: bash
         run: |
           python3 -m venv "$RUNNER_TEMP/wby-s9-launcher"
           "$RUNNER_TEMP/wby-s9-launcher/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
           echo "WBY_S4_LAUNCHER_PYTHON=$RUNNER_TEMP/wby-s9-launcher/bin/python" >> "$GITHUB_ENV"
-      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-structures"]'), matrix.variant) }}
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
         name: Boot server, generate End chunks, join client, and save/reopen
         shell: bash
         env:

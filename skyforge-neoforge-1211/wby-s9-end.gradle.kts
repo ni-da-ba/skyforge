@@ -41,6 +41,9 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
     "nullscape-structures" -> wbyS9StructureMods
     "betterend" -> wbyS9BetterEndMods
     "betterend-food" -> wbyS9BetterEndMods + wbyS9BetterEndFoodMods
+    "betterend-unusual" -> wbyS9BetterEndMods + listOf("unusualEnd")
+    "betterend-edr" -> wbyS9BetterEndMods + wbyS9DragonMods
+    "betterend-flyhigher" -> wbyS9BetterEndMods + wbyS9PressureMods
     "betterend-moogs" -> wbyS9BetterEndMods + listOf("moogsEndStructures")
     "betterend-yungs-strongholds" -> wbyS9BetterEndMods + listOf("yungsBetterStrongholds")
     "betterend-yungs-island" -> wbyS9BetterEndMods + listOf("yungsBetterEndIsland")
@@ -50,7 +53,7 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
 }
 val wbyS9UsesNullscape = wbyS9EndVariant.startsWith("nullscape")
 val wbyS9UsesBetterEnd = wbyS9EndVariant in setOf(
-    "nullscape-betterend", "betterend", "betterend-food", "betterend-moogs",
+    "nullscape-betterend", "betterend", "betterend-food", "betterend-unusual", "betterend-edr", "betterend-flyhigher", "betterend-moogs",
     "betterend-yungs-strongholds", "betterend-yungs-island", "betterend-structures",
 )
 val wbyS9AllMods = (
@@ -71,9 +74,9 @@ check(wbyS9EndVariant in setOf(
     "none", "control", "nullscape", "nullscape-betterend",
     "nullscape-unusual", "nullscape-moogs", "nullscape-yungs-strongholds",
     "nullscape-yungs-island", "nullscape-structures", "nullscape-edr", "nullscape-flyhigher",
-    "betterend", "betterend-food", "betterend-moogs", "betterend-yungs-strongholds",
+    "betterend", "betterend-food", "betterend-unusual", "betterend-edr", "betterend-flyhigher", "betterend-moogs", "betterend-yungs-strongholds",
     "betterend-yungs-island", "betterend-structures",
-)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-unusual, nullscape-moogs, nullscape-yungs-strongholds, nullscape-yungs-island, nullscape-structures, nullscape-edr, nullscape-flyhigher, betterend, betterend-food, betterend-moogs, betterend-yungs-strongholds, betterend-yungs-island, or betterend-structures" }
+)) { "WBY S9 End variant must be none, control, nullscape, nullscape-betterend, nullscape-unusual, nullscape-moogs, nullscape-yungs-strongholds, nullscape-yungs-island, nullscape-structures, nullscape-edr, nullscape-flyhigher, betterend, betterend-food, betterend-unusual, betterend-edr, betterend-flyhigher, betterend-moogs, betterend-yungs-strongholds, betterend-yungs-island, or betterend-structures" }
 check(wbyS9EndVariant == "none" || (
     providers.gradleProperty("wbyS8NetherVariant").orNull?.trim()?.lowercase() == "incendium-full" &&
         providers.gradleProperty("wbyS7CombatVariant").orNull?.trim()?.lowercase() == "tacz" &&
