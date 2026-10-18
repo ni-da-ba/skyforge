@@ -28,9 +28,9 @@ final class SkyBiomeZoneAssignmentJsonTest {
 
     @Test
     void acceptsOpaqueKeysAndRejectsUnsupportedSchemas() {
-        assertEquals(
-                SkyBiomeZoneIdentity.of(-1L, Long.MIN_VALUE),
-                SkyBiomeZoneIdentity.of(-1L, Long.MIN_VALUE));
+        SkyBiomeZoneIdentity opaqueIdentity = SkyBiomeZoneIdentity.of(-1L, Long.MIN_VALUE);
+        assertEquals(-1L, opaqueIdentity.worldSeed());
+        assertEquals(Long.MIN_VALUE, opaqueIdentity.zoneKey());
         assertThrows(
                 IllegalArgumentException.class,
                 () -> new SkyBiomeZoneIdentity(2, 1L, 2L));
