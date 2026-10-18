@@ -7,8 +7,12 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
+import net.minecraft.world.level.levelgen.RandomState;
 
 /**
  * Immutable native terrain-top representation captured after surface construction and before biome
@@ -39,6 +43,52 @@ final class MinecraftNativeSurfaceSnapshot {
         }
         this.worldYs = Arrays.copyOf(worldYs, worldYs.length);
         this.blockKeys = Arrays.copyOf(blockKeys, blockKeys.length);
+    }
+
+    static MinecraftNativeSurfaceSnapshot capture(
+            ChunkAccess chunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(randomState, "randomState");
+        int baselineY = generator.getSeaLevel();
+        int[] worldYs = new int[SAMPLE_COUNT];
+        Arrays.fill(worldYs, Integer.MIN_VALUE);
+        ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
+        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
+            int worldZ = chunk.getPos().getMinBlockZ() + localZ;
+            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
+                int worldX = chunk.getPos().getMinBlockX() + localX;
+                int firstFreeY = generator.getBaseHeight(
+                        worldX,
+                        worldZ,
+                        Heightmap.Types.OCEAN_FLOOR_WG,
+                        chunk,
+                        randomState);
+                if (firstFreeY <= chunk.getMinBuildHeight()) {
+                    continue;
+                }
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, chunk, randomState);
+                for (int worldY = Math.min(firstFreeY - 1, chunk.getMaxBuildHeight() - 1);
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = column.getBlock(worldY);
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    ResourceLocation key = BuiltInRegistries.BLOCK.getKey(state.getBlock());
+                    if (key == null || SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
+                        continue;
+                    }
+                    int index = index(localX, localZ);
+                    worldYs[index] = worldY;
+                    blockKeys[index] = key;
+                    break;
+                }
+            }
+        }
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
