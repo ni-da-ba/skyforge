@@ -14,7 +14,10 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 @EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
 final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulationJoinClient";
-    private static final long CLIENT_TIMEOUT_NANOS = 180_000_000_000L;
+    // Loading the full modded client and its resource registries on a hosted runner can exceed
+    // the usual three-minute startup budget. Keep the join proof bounded while allowing six
+    // minutes, consistent with the workflow's longer client task timeout.
+    private static final long CLIENT_TIMEOUT_NANOS = 360_000_000_000L;
 
     private static long firstClientTickNanos = Long.MIN_VALUE;
     private static boolean proofComplete;
@@ -34,7 +37,7 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
         if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
             SkyforgeAutomatedAcceptanceHarness.failClientCase(
-                    "modded-biome client did not join the dedicated server within 180 seconds");
+                    "modded-biome client did not join the dedicated server within 360 seconds");
         }
 
         Minecraft minecraft = Minecraft.getInstance();
