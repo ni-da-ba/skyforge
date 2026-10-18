@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
@@ -32,6 +33,9 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Development-only proof that stacked exact volumes can consume different native biome settings. */
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
+    static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
+    private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
+            System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final int PROOF_RADIUS_CHUNKS = 4;
     private static final int CANDIDATE_PROOF_CHUNKS =
@@ -147,7 +151,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             throw new IllegalStateException("stacked exact volumes resolved the same biome identity");
         }
         if (lower.featureKeys().equals(upper.featureKeys())) {
-            throw new IllegalStateException("forest and taiga proof domains exposed identical vegetation feature lists");
+            throw new IllegalStateException("forest and configured-biome proof domains exposed identical vegetation feature lists");
         }
 
         VegetationEvidence lowerVegetation = scanVegetation(level, chunkPos, shared.lowerSurfaceY());
@@ -333,6 +337,19 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", attachments=" + aggregate.attachmentWrites
                     + ", successfulFeatures=" + aggregate.successfulFeatures
                     + ", features=" + aggregate.featureKeys);
+        }
+    }
+
+    static ResourceKey<Biome> configuredBiomeKey(String identifier) {
+        Objects.requireNonNull(identifier, "identifier");
+        String value = identifier.trim();
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("configured biome key must not be blank");
+        }
+        try {
+            return ResourceKey.create(Registries.BIOME, ResourceLocation.parse(value));
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("invalid configured biome key: " + identifier, exception);
         }
     }
 
