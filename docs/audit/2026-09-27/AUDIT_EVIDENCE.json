@@ -1,0 +1,94 @@
+{
+  "audit_id": "skyforge-director-audit-20260927",
+  "baseline_commit": "a50dc8f22eb4b03b588962739db45d5b9966f904",
+  "observed_at_utc": "2026-09-27 18:22:07 UTC",
+  "inventory": {
+    "tracked_files": 2751,
+    "documents": 558,
+    "workflow_files": 73,
+    "open_issues": 46,
+    "open_pull_requests": 17
+  },
+  "method": "Full repository-tree and open-work inventory; focused static source/contract review across all major lanes and build/control-plane boundaries; relevant GitHub issues, comments, PRs, recent commits and workflow results inspected. Not line-by-line exhaustive verification.",
+  "machine_execution": "No project builds, tests, generators or benchmarks were run on the workstation or Droplet. Existing GitHub evidence was inspected; static findings requiring behavioral reproduction remain explicitly unverified.",
+  "coverage": [
+    {
+      "facet": "Kernel/model/recipes",
+      "review": "Module/build boundary, graph validation sample, descriptor/provenance contracts; no rewrite indicated.",
+      "depth": "inventory + representative static review"
+    },
+    {
+      "facet": "Authorship/hydrology",
+      "review": "Reset contracts C3/D2/F3/F4, calibration and field/authorization/projection boundaries, corpus tests and current producer authority.",
+      "depth": "focused static review"
+    },
+    {
+      "facet": "Minecraft runtime",
+      "review": "Surface-stage call sites, catch-up population ordering, removal projection, ownership/lifecycle contracts.",
+      "depth": "focused static review"
+    },
+    {
+      "facet": "Atmosphere",
+      "review": "Authority manifest, public-terrain patch/CI, #1142 acceptance and upstream #18, #1180 diagnostics and local handoff.",
+      "depth": "contract/source + live work review"
+    },
+    {
+      "facet": "Content/progression",
+      "review": "Bootstrap plan, resource policy, civilization/freight state, existing issues and alpha scope decision.",
+      "depth": "contract + maturity review"
+    },
+    {
+      "facet": "Aircraft/structures",
+      "review": "Production compiler ledgers, runtime #723-725, workshop #734/#742 and preserved prototype policy.",
+      "depth": "contract + maturity review"
+    },
+    {
+      "facet": "World hierarchy",
+      "review": "#1063 scale proofs and current phase reconciliation; bounded gap identified rather than assumed implemented.",
+      "depth": "roadmap + acceptance review"
+    },
+    {
+      "facet": "Music",
+      "review": "Source/manifests, MUS-0005 state and archive caveats; no listening or external binary verification.",
+      "depth": "provenance policy review"
+    },
+    {
+      "facet": "Presentation",
+      "review": "README/runtime architecture and lane/claim status; no new media published.",
+      "depth": "claim consistency review"
+    },
+    {
+      "facet": "CI/build/dependencies",
+      "review": "73-workflow inventory, canonical CI, heavy DR50 triggers, pinned seam, evidence policies and baseline telemetry.",
+      "depth": "inventory + focused configuration review"
+    },
+    {
+      "facet": "Platform/orchestration",
+      "review": "Progression projection, source hashing, claims/read API, ingress signature, recent status visibility and accepted reliability boundary.",
+      "depth": "contract/source review; no live host mutation"
+    },
+    {
+      "facet": "Security/release",
+      "review": "Policy, actions credentials/permissions sample, HMAC ingress/MCP separation, rulesets and inaccessible branch protection.",
+      "depth": "limited review; no penetration or vulnerability scan"
+    },
+    {
+      "facet": "Ideas/human strategy",
+      "review": "Accepted scope revisions, trigger-based decisions, post-alpha and optional development paths.",
+      "depth": "decision and sequencing review"
+    }
+  ],
+  "limitations": [
+    "No full line-by-line proof or exhaustive bug inventory is claimed.",
+    "Classic branch-protection endpoint returned 403; rulesets [] does not establish absence of protection.",
+    "Authenticated current Platform-v2 runtime/claims not available in this audit; stale GitHub/Markdown status cannot prove live ownership.",
+    "No human terrain, play, flight, listening or visual verdict was manufactured.",
+    "Local atmosphere work was inspected via task report and inventory; exact published CI completion was not established.",
+    "Pinned main remained a50dc8f22eb4b03b588962739db45d5b9966f904 at final source recheck; later producer changes require delta review."
+  ],
+  "inventory_reference": {
+    "tree_sha": "99441776aebd342ad22aefa7fbddba75051aa1e0",
+    "recursive_tree_url": "https://api.github.com/repos/ni-da-ba/skyforge/git/trees/99441776aebd342ad22aefa7fbddba75051aa1e0?recursive=1",
+    "note": "Reconstruct the full source inventory from this immutable tree; live issue and PR state is time-sensitive. Findings contain pinned evidence URLs."
+  }
+}

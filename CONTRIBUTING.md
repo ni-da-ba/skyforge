@@ -9,24 +9,41 @@ Skyforge welcomes focused bug reports, architectural review, test improvements, 
 3. Keep changes within one coherent problem boundary.
 4. Do not combine feature work with unrelated formatting or refactoring.
 
-## Local verification
+## Execution and verification
 
-Use a 64-bit JDK 25 and the checked-in Gradle wrapper:
+Read [Execution Boundaries](docs/agent-state/EXECUTION_BOUNDARIES.md) and
+[Validation Policy](docs/agent-state/VALIDATION_POLICY.md) before choosing where work runs.
+Active manual producers also follow the issue-ownership protocol in
+[Manual Producer Protocol](docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md).
+
+GitHub Actions owns automated builds, tests, benchmarks, generators and canonical evidence.
+Bounded hosted workers edit; the owner's workstation supplies manual interactive, visual,
+play and listening evidence. Neither is a fallback CI runner.
+
+The [CI workflow](.github/workflows/ci.yml) selects lightweight or full validation from the
+changed dependency surface. Full CI uses the checked-in Gradle wrapper and shared JDK
+setup to run `check`, `:skyforge-reference:fixedSeedCorpus` and
+`:skyforge-reference:suspendedVolumeEvidence`. Use the relevant milestone workflows
+for additional evidence; record the source commit, run URL and outcome in the PR.
+A pending or unavailable Actions run remains pending; do not replace it with local execution.
+
+The build treats compiler warnings as errors and checks that backend-neutral modules do not
+import Minecraft or NeoForge APIs. For canonical terrain changes, explain intentional
+identity changes alongside their numerical and visual evidence. Never update golden hashes
+merely to make a failing test pass.
+
+### Windows source inspection
+
+Use a real Git checkout and enable long paths for that checkout; some tracked evidence
+filenames exceed the default Windows Git path limit. For a new inspection clone:
 
 ```shell
-./gradlew check
+git -c core.longpaths=true clone https://github.com/ni-da-ba/skyforge.git
 ```
 
-The build treats compiler warnings as errors and checks that backend-neutral modules do not import Minecraft or NeoForge APIs.
-
-If a change affects canonical terrain behavior, also regenerate the relevant evidence task and explain any intentional identity changes. The primary cross-project evidence gates are:
-
-```shell
-./gradlew :skyforge-reference:fixedSeedCorpus
-./gradlew :skyforge-reference:suspendedVolumeEvidence
-```
-
-Never update golden hashes merely to make a failing test pass. A changed identity must be explained by the change's semantic contract and reviewed alongside its numerical and visual evidence.
+For an existing checkout, `git config core.longpaths true` sets the repository-local policy.
+Preserve uncommitted work before repairing an incomplete checkout. A copied source folder
+with an unborn branch is not a verified branch/commit handoff.
 
 ## Architecture expectations
 
@@ -49,7 +66,7 @@ A useful pull request explains:
 - any intentional canonical-output changes;
 - deferred work and known limitations.
 
-CI runs the repository-wide build and canonical evidence generation. Pull requests from forks receive a read-only token and no repository secrets.
+CI selects validation by change impact; full validation runs the repository-wide build and canonical evidence generation. Pull requests from forks receive a read-only token and no repository secrets.
 
 ## Interactive Minecraft validation
 
