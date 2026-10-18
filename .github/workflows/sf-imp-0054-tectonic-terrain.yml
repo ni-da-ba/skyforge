@@ -1,0 +1,63 @@
+name: SF-IMP-0054 Tectonic Terrain A/B Acceptance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/sf-imp-0054-tectonic-terrain.yml"
+      - "scripts/sf-imp-0054-tectonic-terrain-acceptance.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/sf-imp-0054-tectonic-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeTectonicTerrainAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNoiseBasedChunkGenerator.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/development/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sf-imp-0054-tectonic-terrain.yml"
+      - "scripts/sf-imp-0054-tectonic-terrain-acceptance.sh"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/sf-imp-0054-tectonic-mods.properties"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeTectonicTerrainAcceptance.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNoiseBasedChunkGenerator.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211Mod.java"
+      - "skyforge-neoforge-1211/src/development/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0054-tectonic-terrain-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  dedicated-server-terrain-ab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Run vanilla and Tectonic dedicated-server A/B
+        shell: bash
+        run: bash scripts/sf-imp-0054-tectonic-terrain-acceptance.sh
+
+      - name: Preserve terrain and boundary evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0054-tectonic-terrain-ab
+          path: |
+            sf-imp-0054-tectonic-terrain-task.log
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-tectonic/
+            skyforge-neoforge-1211/run-sf-imp-0054-tectonic-vanilla/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-tectonic-treatment/logs/
+          if-no-files-found: warn
+          retention-days: 14
