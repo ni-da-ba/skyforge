@@ -282,10 +282,6 @@ if [[ "$joined" != true ]]; then
     ps -eo pid,ppid,stat,pcpu,pmem,etime,args | grep -E '[j]ava|[x]vfb-run' || true
     echo "--- Minecraft client JVM thread dumps ---"
     if [[ -n "$(command -v jcmd || true)" ]]; then
-      while read -r client_java_pid; do
-        [[ -n "$client_java_pid" ]] || continue
-        echo "### jcmd $client_java_pid Thread.print"
-        jcmd "$client_java_pid" Thread.print || true
       client_java_pids="$(pgrep -f '[c]pw[.]mods[.]bootstraplauncher[.]BootstrapLauncher' || true)"
       if [[ -z "$client_java_pids" ]]; then
         echo "No Minecraft client JVM matched the BootstrapLauncher process signature."
