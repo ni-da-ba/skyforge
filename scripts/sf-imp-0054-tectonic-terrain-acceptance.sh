@@ -12,17 +12,17 @@ mkdir -p "$result_dir"
 cache_root="${GRADLE_USER_HOME:-${HOME}/.gradle}/caches/modules-2/files-2.1"
 hash_report="${result_dir}/runtime-artifact-sha256.txt"
 : > "$hash_report"
-for artifact in "maven.modrinth/lWDHr9jE/n4iyW7aB" "maven.modrinth/XaDC71GB/dGZOQXkv"; do
+for artifact in "maven.modrinth/lWDHr9jE/n4iyW7aB" "maven.modrinth/XaDC71GB/a9fuYUVh"; do
   artifact_dir="${cache_root}/${artifact}"
   if [[ ! -d "$artifact_dir" ]]; then
-    printf 'Pinned runtime artifact cache is missing: %s\n' "$artifact_dir" >&2
+    printf 'Pinned runtime artifact cache is missing: %s\\n' "$artifact_dir" >&2
     exit 1
   fi
   mapfile -t artifact_jars < <(find "$artifact_dir" -type f -name '*.jar' | sort)
   if [[ "${#artifact_jars[@]}" -ne 1 ]]; then
-    printf 'Expected one pinned runtime JAR under %s, found %s\n' "$artifact_dir" "${#artifact_jars[@]}" >&2
+    printf 'Expected one pinned runtime JAR under %s, found %s\\n' "$artifact_dir" "${#artifact_jars[@]}" >&2
     exit 1
   fi
-  printf '%s\n' "$artifact" >> "$hash_report"
+  printf '%s\\n' "$artifact" >> "$hash_report"
   sha256sum -- "${artifact_jars[0]}" >> "$hash_report"
 done
