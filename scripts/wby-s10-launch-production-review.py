@@ -116,7 +116,7 @@ def download_modrinth(project_id: str, version_id: str, cache: Path) -> tuple[Pa
         body = fetch(entry["url"])
         if hashlib.sha512(body).hexdigest().lower() != expected.lower():
             raise SystemExit(f"Modrinth SHA-512 mismatch for {project_id}:{version_id}")
-        target.write_bytes(body)
+    target.write_bytes(body)
     check_jar(body, filename)
     return target, sha256(body)
 
