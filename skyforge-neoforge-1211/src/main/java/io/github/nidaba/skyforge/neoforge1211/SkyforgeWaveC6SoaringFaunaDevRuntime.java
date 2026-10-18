@@ -383,6 +383,29 @@ final class SkyforgeWaveC6SoaringFaunaDevRuntime {
         }
     }
 
+    static DiagnosticSnapshot diagnosticSnapshot() {
+        synchronized (HAWKS) {
+            int adapted = 0;
+            int soaring = 0;
+            int transitions = 0;
+            int steeringCommands = 0;
+            for (HawkState state : HAWKS.values()) {
+                if (state.disabled) {
+                    continue;
+                }
+                adapted++;
+                if (state.decision.soaring()) {
+                    soaring++;
+                }
+                transitions += state.transitionCount;
+                steeringCommands += state.steeringCommands;
+            }
+            return new DiagnosticSnapshot(adapted, soaring, transitions, steeringCommands);
+        }
+    }
+
+    record DiagnosticSnapshot(int adapted, int soaring, int transitions, int steeringCommands) {}
+
     private static final class HawkState {
         final SkyforgeFowlPlayHawkBridge.HawkHandle handle;
         SkyforgeThermalSoaringDecision.State decision = SkyforgeThermalSoaringDecision.State.inactive();
