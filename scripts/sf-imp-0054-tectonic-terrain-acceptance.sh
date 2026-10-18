@@ -7,7 +7,7 @@ rm -f "$task_log"
 rm -rf "$result_dir"
 mkdir -p "$result_dir"
 
-./gradlew --no-daemon --stacktrace :skyforge-neoforge-1211:sfImp0054TectonicTerrainAcceptance 2>&1 | tee "$task_log"
+./gradlew --no-daemon --no-configuration-cache --stacktrace :skyforge-neoforge-1211:sfImp0054TectonicTerrainAcceptance 2>&1 | tee "$task_log"
 
 cache_root="${GRADLE_USER_HOME:-${HOME}/.gradle}/caches/modules-2/files-2.1"
 hash_report="${result_dir}/runtime-artifact-sha256.txt"
