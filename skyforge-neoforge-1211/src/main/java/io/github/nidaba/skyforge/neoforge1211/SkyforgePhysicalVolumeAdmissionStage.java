@@ -176,6 +176,28 @@ final class SkyforgePhysicalVolumeAdmissionStage {
      */
     static boolean allowsWriteAt(int worldX, int worldY, int worldZ) {
         Binding binding = ACTIVE.get();
+        var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ);
+        if (providerOwner.isPresent()) {
+            if (binding == null) {
+                return false;
+            }
+            SkyIslandWorldVolumeId ownerId = providerOwner.orElseThrow();
+            var owner = binding.catalog().volumes().stream()
+                    .filter(volume -> volume.id().equals(ownerId))
+                    .findFirst()
+                    .orElse(null);
+            if (owner == null
+                    || !binding.ledger().admitted(ownerId)
+                    || !owner.bounds().contains(worldX, worldY, worldZ)
+                    || SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ).isEmpty()
+                    || SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
+                                    ownerId, worldX, worldY, worldZ)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "Skyforge terrain binding disappeared during provider write admission"))) {
+                return false;
+            }
+            return true;
+        }
         if (binding == null) {
             return true;
         }
