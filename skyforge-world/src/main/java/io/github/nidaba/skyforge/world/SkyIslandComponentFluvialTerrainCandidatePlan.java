@@ -39,6 +39,10 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
      */
     static boolean isCandidateEligible(SkyIslandHydraulicTerminalComponent component) {
         Objects.requireNonNull(component, "component");
+        if (component.reaches().isEmpty()
+                || component.reaches().stream().anyMatch(reach -> !reach.cascades().isEmpty())) {
+            return false;
+        }
         if (component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED) {
             return true;
         }
@@ -46,18 +50,16 @@ public record SkyIslandComponentFluvialTerrainCandidatePlan(
                 || component.terminalFate().kind() != SkyIslandChannelTerminalFateKind.EDGE_OUTLET) {
             return false;
         }
-        return !component.reaches().isEmpty()
-                && component.reaches().stream().allMatch(reach ->
-                        (reach.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED
-                                || reach.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED)
-                                && reach.cascades().isEmpty()
-                                && reach.ordinarySpans().size() == 1
-                                && reach.ordinarySpans().getFirst().status()
-                                        == SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
-                                && Math.abs(reach.ordinarySpans().getFirst()
-                                                .span().parentStartStationFraction()) <= 1.0e-9
-                                && Math.abs(reach.ordinarySpans().getFirst()
-                                                .span().parentEndStationFraction() - 1.0) <= 1.0e-9);
+        return component.reaches().stream().allMatch(reach ->
+                (reach.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                        || reach.status() == SkyIslandHydraulicAssemblyStatus.TRANSITION_DEFERRED)
+                        && reach.ordinarySpans().size() == 1
+                        && reach.ordinarySpans().getFirst().status()
+                                == SkyIslandOrdinarySpanStatus.SOLVED_QUALIFIED
+                        && Math.abs(reach.ordinarySpans().getFirst()
+                                        .span().parentStartStationFraction()) <= 1.0e-9
+                        && Math.abs(reach.ordinarySpans().getFirst()
+                                        .span().parentEndStationFraction() - 1.0) <= 1.0e-9);
     }
 
     /** Association-specific candidates may never be transplanted to another physical volume. */
