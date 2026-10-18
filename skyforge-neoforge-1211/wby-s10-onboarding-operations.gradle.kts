@@ -1,6 +1,4 @@
 import java.util.Properties
-import org.gradle.api.artifacts.Configuration
-
 // S10 candidates remain opt-in and side-aware while S0-S9 stays the accepted profile authority.
 val wbyS10PinFile = layout.projectDirectory.file("wby-s10-onboarding-operations.properties")
 val wbyS10Pins = Properties().apply { wbyS10PinFile.asFile.inputStream().use(::load) }
@@ -62,8 +60,9 @@ check(wbyS10Profile == "none" || (
         providers.gradleProperty("wbyS7Bomd").orNull?.toBooleanStrictOrNull() == true
 )) { "WBY S10 requires the cumulative S0-S9 profile: Incendium full, Nullscape, TaCZ, and BOMD" }
 
-val wbyS10ClientConfiguration = configurations.getByName(wbyS10Client.runtimeOnlyConfigurationName)
-val wbyS10ServerConfiguration = configurations.getByName(wbyS10Server.runtimeOnlyConfigurationName)
+// Resolve runtime classpaths: *RuntimeOnly configurations are declarable, not resolvable.
+val wbyS10ClientConfiguration = configurations.getByName(wbyS10Client.runtimeClasspathConfigurationName)
+val wbyS10ServerConfiguration = configurations.getByName(wbyS10Server.runtimeClasspathConfigurationName)
 tasks.register("wbyS10ResolveProfile") {
     group = "verification"
     description = "Resolve exact WBY S10 candidate profile dependencies on supported runtime sides."
