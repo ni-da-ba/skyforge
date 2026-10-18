@@ -3,15 +3,19 @@ set -euo pipefail
 
 server_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server"
 client_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client"
-server_result="skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/server.properties"
-client_result="skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/client.properties"
+acceptance_dir="skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome"
+server_result="$acceptance_dir/server.properties"
+client_result="$acceptance_dir/client.properties"
+reopen_result="$acceptance_dir/reopen.properties"
+reopen_summary="$acceptance_dir/reopen-summary.properties"
 server_task_log="sf-imp-0054-modded-biome-server-task.log"
+reopen_task_log="sf-imp-0054-modded-biome-reopen-task.log"
 client_task_log="sf-imp-0054-modded-biome-client-task.log"
 server_pid=""
 client_pid=""
 
-mkdir -p "$server_dir" "$client_dir"
-rm -f "$server_result" "$client_result"
+mkdir -p "$server_dir" "$client_dir" "$acceptance_dir"
+rm -f "$server_result" "$client_result" "$reopen_result" "$reopen_summary"
 printf 'eula=true\n' > "$server_dir/eula.txt"
 cat > "$server_dir/server.properties" <<'EOF'
 level-name=sf-imp-0054-modded-biome
@@ -40,7 +44,7 @@ cleanup() {
     if [[ -n "$pid" ]]; then kill -KILL -- "-$pid" 2>/dev/null || true; wait "$pid" 2>/dev/null || true; fi
   done
   if [[ "$status" -ne 0 ]]; then
-    for log in "$server_task_log" "$client_task_log" "$server_dir/logs/latest.log" "$client_dir/logs/latest.log"; do
+    for log in "$server_task_log" "$reopen_task_log" "$client_task_log" "$server_dir/logs/latest.log" "$client_dir/logs/latest.log"; do
       if [[ -f "$log" ]]; then echo "--- $log ---"; tail -n 180 "$log"; fi
     done
   fi
@@ -48,27 +52,41 @@ cleanup() {
 }
 trap cleanup EXIT
 
-bash -n scripts/sf-imp-0054-modded-biome-acceptance.sh
-setsid bash -c 'exec timeout 55m ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationServer --no-daemon --stacktrace' \
-  >"$server_task_log" 2>&1 &
-server_pid=$!
+launch_server() {
+  local task="$1"
+  local task_log="$2"
+  setsid bash -c 'exec timeout 28m ./gradlew "$1" --no-daemon --stacktrace' _ "$task" \
+    >"$task_log" 2>&1 &
+  server_pid=$!
+}
 
-server_ready=false
-for _ in $(seq 1 900); do
-  if grep -Fq 'Done (' "$server_dir/logs/latest.log" 2>/dev/null; then
-    server_ready=true
-    break
-  fi
-  if ! kill -0 "$server_pid" 2>/dev/null; then
-    cat "$server_task_log"
-    exit 1
-  fi
-  sleep 2
-done
-if [[ "$server_ready" != true ]]; then
-  echo "Dedicated server did not finish startup within 30 minutes." >&2
-  exit 1
-fi
+wait_server_ready() {
+  local task_log="$1"
+  for _ in $(seq 1 840); do
+    if grep -Fq 'Done (' "$server_dir/logs/latest.log" 2>/dev/null; then
+      return 0
+    fi
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      cat "$task_log"
+      return 1
+    fi
+    sleep 2
+  done
+  echo "Dedicated server did not finish startup within 28 minutes." >&2
+  return 1
+}
+
+verify_server_result() {
+  local result="$1"
+  test -f "$result"
+  grep -Eq '^status=PASS$' "$result"
+  grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
+  grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+  grep -Eq '^exteriorNonAirBlocks=0$' "$result"
+}
+
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServer" "$server_task_log"
+wait_server_ready "$server_task_log"
 
 setsid bash -c 'exec timeout 12m xvfb-run -a ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationJoinClient --no-daemon --stacktrace' \
   >"$client_task_log" 2>&1 &
@@ -92,18 +110,23 @@ if [[ "$client_result_ready" != true ]]; then
 fi
 wait "$client_pid"
 client_pid=""
-
 grep -Eq '^status=PASS$' "$client_result"
 grep -Eq '^remoteServerJoin=true$' "$client_result"
 grep -Eq '^singleplayerServer=false$' "$client_result"
 
 wait "$server_pid"
 server_pid=""
+verify_server_result "$server_result"
+test -f "$server_dir/saves/acceptance/level.dat"
+cp "$server_result" "$acceptance_dir/server-initial.properties"
+cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
 
-test -f "$server_result"
-grep -Eq '^status=PASS$' "$server_result"
-grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$server_result"
-grep -Eq '^upperPersistentTreeEvidence=true$' "$server_result"
-grep -Eq '^exteriorNonAirBlocks=0$' "$server_result"
+launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
+wait_server_ready "$reopen_task_log"
+wait "$server_pid"
+server_pid=""
+verify_server_result "$reopen_result"
+test -f "$server_dir/saves/acceptance/level.dat"
 
-echo "SF-IMP-0054 modded-biome dedicated-server and remote-client acceptance PASS."
+printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
+echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
