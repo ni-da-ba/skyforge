@@ -7,7 +7,7 @@ s9_profile="\${2:-}"
 s9_diagnostics="\${3:-}"
 
 if [[ -z "$profile" || -z "$s9_profile" || -z "$s9_diagnostics" ]]; then
-  echo "Usage: bash scripts/wby-s10-diagnostic-launch.sh <profile> <accepted-S9-profile> <accepted-S9-diagnostics>"
+  echo "Usage: bash scripts/wby-s10-diagnostic-launch.sh <profile> <accepted-S9-profile> <accepted-S9-diagnostics> [--restore-backup /c/path/to/archive.zip]"
   echo "Profiles: none quests quests-book enchantment-industry communications operations-stable operations-beta adaptive-music surface-audio full"
   echo "Example paths should point to the accepted S9 run directory and its matching .skyforge-diagnostics directory."
   exit 2
@@ -67,7 +67,17 @@ echo "Preparing S10 profile: $profile"
 echo "Accepted S9 profile: $s9_profile"
 echo "Accepted S9 datapacks: $s9_diagnostics/world-datapacks"
 echo "Only the selected exact-version candidate overlay is downloaded into ignored local folders."
+extra_args=()
+if [[ $# -gt 3 ]]; then
+  if [[ $# -ne 5 || "$4" != "--restore-backup" ]]; then
+    echo "Optional restore syntax: --restore-backup /c/path/to/simplebackups-archive.zip" >&2
+    exit 2
+  fi
+  extra_args=(--restore-backup "$(cygpath -w "$5")")
+fi
+
 "$launcher_python" "$repo_root/scripts/wby-s10-launch-production-review.py" \
   "$profile" \
   "$(cygpath -w "$s9_profile")" \
-  "$(cygpath -w "$s9_diagnostics")"
+  "$(cygpath -w "$s9_diagnostics")" \
+  "${extra_args[@]}"
