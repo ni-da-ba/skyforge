@@ -207,6 +207,39 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
+    void qualifiedCascadeNetworkIsNotEligibleForF4CandidateRealization() {
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor(8L, 81L, 198L));
+        SkyIslandHydraulicTerminalComponent cascadeComponent = assembly.terminalComponents().stream()
+                .filter(component -> component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED
+                        && component.reaches().size() > 1
+                        && component.reaches().stream().anyMatch(reach -> !reach.cascades().isEmpty()))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "key 198 must retain its qualified cascade-bearing network control"));
+
+        assertFalse(
+                SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(cascadeComponent),
+                "qualified assembly status must not bypass F4's cascade-free boundary");
+    }
+
+    @Test
+    void postRealizationD2DiagnosticReportsMeasuredAndAllowedLongitudinalGrade() {
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor(8L, 81L, 28L));
+        String diagnostic = candidate.deferredQualifiedComponents().stream()
+                .filter(deferral -> deferral.reasons().contains(
+                        SkyIslandComponentFluvialTerrainDeferralReason.POST_REALIZATION_D2_REJECTED))
+                .map(SkyIslandComponentFluvialTerrainDeferral::diagnostic)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError(
+                        "key 28 must retain its post-realization D2 rejection control"));
+
+        assertTrue(diagnostic.contains("maximum longitudinal grade="));
+        assertTrue(diagnostic.contains("maximum longitudinal grade limit="));
+    }
+
+    @Test
     void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() throws Exception {
         List<String> eligibleButUnrealized = new java.util.ArrayList<>();
         long foundKey = -1L;
@@ -225,6 +258,8 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
             boolean hasEligibleNetwork = assembly.terminalComponents().stream()
                     .anyMatch(component ->
                             component.reaches().size() > 1
+                                    && component.reaches().stream()
+                                            .allMatch(reach -> reach.cascades().isEmpty())
                                     && SkyIslandComponentFluvialTerrainCandidatePlan
                                             .isCandidateEligible(component));
             if (!hasEligibleNetwork) {
@@ -250,6 +285,8 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
             }
             var realized = candidate.realizedComponents().stream()
                     .filter(component -> component.reaches().size() > 1
+                            && component.reaches().stream()
+                                    .allMatch(reach -> reach.cascades().isEmpty())
                             && component.networkSolution().isPresent())
                     .findFirst();
             if (realized.isPresent()) {
