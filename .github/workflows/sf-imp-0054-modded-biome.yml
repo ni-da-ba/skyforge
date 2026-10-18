@@ -1,0 +1,71 @@
+name: SF-IMP-0054 Modded Biome Server Acceptance
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
+      - "skyforge-neoforge-1211/src/main/resources/**"
+      - "skyforge-neoforge-1211/src/development/**"
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
+      - "skyforge-neoforge-1211/src/main/resources/**"
+      - "skyforge-neoforge-1211/src/development/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sf-imp-0054-modded-biome-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  dedicated-server-modded-biome:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Java and Gradle
+        uses: ./.github/actions/setup-java-gradle
+
+      - name: Accept the disposable development server EULA
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server
+          printf 'eula=true\n' > skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/eula.txt
+
+      - name: Generate the exact-volume BOP biome specimen on a dedicated server
+        shell: bash
+        run: |
+          set -euo pipefail
+          timeout 35m ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationServer --no-daemon --stacktrace
+          result="skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/server.properties"
+          test -f "$result"
+          grep -Eq '^status=PASS$' "$result"
+          grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
+          grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+
+      - name: Preserve server and acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0054-modded-biome-server
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
+          if-no-files-found: warn
+          retention-days: 14
