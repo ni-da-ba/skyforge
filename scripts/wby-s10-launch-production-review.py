@@ -288,7 +288,7 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     base = normalize_path(args.accepted_s9_profile)
     s9_diagnostics = normalize_path(args.accepted_s9_diagnostics)
-    baseline_stamp = re.fullmatch(r"run-wby-s9-nullscape-manual-(\\d{8}T\\d{6}Z)", base.name)
+    baseline_stamp = re.fullmatch(r"run-wby-s9-nullscape-manual-(\d{8}T\d{6}Z)", base.name)
     if not baseline_stamp:
         raise SystemExit(
             "S10 requires the S9 nullscape manual profile, not an experimental S9 overlay: "
@@ -344,7 +344,7 @@ def main() -> int:
 
     declared_packs = {}
     for row in sections.get("world datapacks: filename sha256", []):
-        fields = row.split("\\t")
+        fields = row.split("\t")
         if len(fields) != 2:
             raise SystemExit(f"Invalid S9 datapack manifest row: {row}")
         declared_packs[fields[0]] = fields[1]
