@@ -170,6 +170,9 @@ jobs:
           cp skyforge-neoforge-1211/wby-s10-servercore-config.yml "$server/config/servercore/config.yml"
           cp skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml "$server/config/servercore/optimizations.yml"
           cp skyforge-neoforge-1211/wby-s10-simplebackups-common.toml "$server/config/simplebackups-common.toml"
+          # CI shortens the local-review cadence only to capture one backup inside this bounded run.
+          sed -i 's/^timer = 120$/timer = 1/' "$server/config/simplebackups-common.toml"
+          grep -Fxq 'timer = 1' "$server/config/simplebackups-common.toml"
           cp -R "$profile/kubejs/data/." "$server/kubejs/data/"
           cp "$profile/datapacks/"*.zip "$server/s7-acceptance/datapacks/" || true
           printf 'eula=true\n' > "$server/eula.txt"
