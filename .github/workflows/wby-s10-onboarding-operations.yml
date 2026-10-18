@@ -1,0 +1,124 @@
+name: WBY S10 Onboarding Operations Qualification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s10-onboarding-operations.yml"
+      - "settings.gradle.kts"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.properties"
+      - "skyforge-neoforge-1211/wby-s10-onboarding-operations.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s10-onboarding-operations.properties"
+  push:
+    branches:
+      - "wby/s10-onboarding-operations"
+    paths:
+      - ".github/workflows/wby-s10-onboarding-operations.yml"
+      - "settings.gradle.kts"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.properties"
+      - "skyforge-neoforge-1211/wby-s10-onboarding-operations.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s10-onboarding-operations.properties"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s10-onboarding-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-pinned-a4mc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+      - name: Checkout pinned Aerodynamics4MC source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+      - name: Apply bounded migration for retired A4MC build APIs
+        shell: bash
+        run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
+      - name: Build pinned A4MC artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd upstream-a4mc && MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon)
+          mkdir -p a4mc-0.2.2
+          cp upstream-a4mc/build/libs/0.2.2/*.jar a4mc-0.2.2/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s10-a4mc
+          path: a4mc-0.2.2/*.jar
+          if-no-files-found: error
+          retention-days: 1
+
+  resolve-s10-profiles:
+    needs: build-pinned-a4mc
+    strategy:
+      fail-fast: false
+      matrix:
+        profile:
+          - none
+          - quests
+          - quests-book
+          - enchantment-industry
+          - communications
+          - operations-stable
+          - operations-beta
+          - adaptive-music
+          - surface-audio
+          - full
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wby-s10-a4mc
+          path: a4mc-0.2.2
+      - name: Check WBY S10 helper syntax
+        shell: bash
+        run: |
+          python3 -m py_compile scripts/wby-s7-patch-a4mc-build.py
+          bash -n scripts/wby-s7-runtime-acceptance.sh
+      - name: Resolve and stage the exact cumulative profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS1ThinAir=true
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=incendium-full
+            -PwbyS9EndVariant=nullscape -PwbyS10Profile=${{ matrix.profile }}
+            -PwbyS1RunDirectory=run-wby-s10-${{ matrix.profile }} --no-configuration-cache
+          )
+          ./gradlew :skyforge-neoforge-1211:wbyS10StageProfile "${common[@]}" | tee "wby-s10-${{ matrix.profile }}-resolution.log"
+          mkdir -p "wby-s10-evidence/${{ matrix.profile }}"
+          cp "wby-s10-${{ matrix.profile }}-resolution.log" "wby-s10-evidence/${{ matrix.profile }}/"
+          cp skyforge-neoforge-1211/wby-s10-onboarding-operations.properties "wby-s10-evidence/${{ matrix.profile }}/"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s10-metadata-${{ matrix.profile }}
+          path: wby-s10-evidence/${{ matrix.profile }}/
+          if-no-files-found: error
+          retention-days: 14
