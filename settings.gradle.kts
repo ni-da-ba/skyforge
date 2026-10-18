@@ -39,6 +39,28 @@ dependencyResolutionManagement {
                 includeGroup("curse.maven")
             }
         }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "FTB"
+                    url = uri("https://maven.ftb.dev/releases")
+                }
+            }
+            filter {
+                includeGroup("dev.ftb.mods")
+            }
+        }
+        exclusiveContent {
+            forRepository {
+                maven {
+                    name = "Architectury"
+                    url = uri("https://maven.architectury.dev/")
+                }
+            }
+            filter {
+                includeGroup("dev.architectury")
+            }
+        }
     }
 }
 
