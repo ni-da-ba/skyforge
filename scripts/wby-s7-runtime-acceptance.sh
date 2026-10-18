@@ -60,7 +60,7 @@ trap cleanup EXIT
 
 assert_supplementaries_policy() {
   local config="$server_dir/config/supplementaries-common.toml"
-  test -f "$config"
+  if [[ ! -f "$config" ]]; then echo "Missing runtime config: $config" >&2; return 1; fi
   awk '
     function trim(value) {
       sub(/^[[:space:]]+/, "", value)
@@ -90,7 +90,7 @@ assert_supplementaries_policy() {
       key = trim(substr(line, 1, split_at - 1))
       value = trim(substr(line, split_at + 1))
       gsub(/[[:space:]]/, "", key)
-      gsub(/[[:space:]\"]/, "", value)
+      gsub(/[[:space:]"]/, "", value)
       full_key = (index(key, ".") ? key : (section == "" ? key : section "." key))
       if (full_key in expected && value == expected[full_key]) found[full_key] = 1
     }
@@ -108,7 +108,7 @@ assert_supplementaries_policy() {
 
 assert_hearthandharvest_policy() {
   local config="$1"
-  test -f "$config"
+  if [[ ! -f "$config" ]]; then echo "Missing runtime config: $config" >&2; return 1; fi
   awk '
     function trim(value) {
       sub(/^[[:space:]]+/, "", value)
@@ -201,10 +201,14 @@ assert_hearthandharvest_worldgen_policy() {
   local salt="$data/skyforge/neoforge/biome_modifier/disable_hearthandharvest_salt_caves.json"
   local lilliput="$data/hearthandharvest/tags/worldgen/biome/has_structure/lilliput_lane.json"
   local maze="$data/hearthandharvest/tags/worldgen/biome/has_structure/corn_maze.json"
-  test -s "$nests" && grep -Fq '"features": "hearthandharvest:nest"' "$nests"
-  test -s "$salt" && grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt"
-  test -s "$lilliput" && grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput"
-  test -s "$maze" && grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze"
+  test -s "$nests" || { echo "Missing or empty worldgen policy: $nests" >&2; return 1; }
+  grep -Fq '"features": "hearthandharvest:nest"' "$nests" || { echo "Unexpected nest policy content: $nests" >&2; return 1; }
+  test -s "$salt" || { echo "Missing or empty worldgen policy: $salt" >&2; return 1; }
+  grep -Fq '"features": "hearthandharvest:salt_cave"' "$salt" || { echo "Unexpected salt cave policy content: $salt" >&2; return 1; }
+  test -s "$lilliput" || { echo "Missing or empty worldgen policy: $lilliput" >&2; return 1; }
+  grep -Fq '"replace": true' "$lilliput" && grep -Fq '"values": []' "$lilliput" || { echo "Unexpected Lilliput Lane structure policy: $lilliput" >&2; return 1; }
+  test -s "$maze" || { echo "Missing or empty worldgen policy: $maze" >&2; return 1; }
+  grep -Fq '"replace": true' "$maze" && grep -Fq '"values": []' "$maze" || { echo "Unexpected corn maze structure policy: $maze" >&2; return 1; }
 }
 
 if [[ "${WBY_S7_ICE_AND_FIRE:-false}" == "true" ]]; then
@@ -412,9 +416,15 @@ echo "WBY S7/S8 runtime: reopening the saved world on the dedicated server"
 start_server "$server_log"
 test -f "$server_dir/s7-acceptance/level.dat"
 echo "WBY S7/S8 runtime: reopened server is ready; checking persisted policies"
+echo "Checking reopened Supplementaries policy"
 assert_supplementaries_policy
+echo "Reopened Supplementaries policy PASS"
+echo "Checking reopened Hearth and Harvest config policy"
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
+echo "Reopened Hearth and Harvest config policy PASS"
+echo "Checking reopened Hearth and Harvest worldgen policy"
 assert_hearthandharvest_worldgen_policy
+echo "Reopened Hearth and Harvest worldgen policy PASS"
 stop_server "$server_log"
 test -s "$server_dir/s7-acceptance/level.dat"
 trap - EXIT
