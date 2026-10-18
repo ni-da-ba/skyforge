@@ -3,12 +3,14 @@ package io.github.nidaba.skyforge.world;
 import io.github.nidaba.skyforge.model.skyisland.SkyIslandDescriptor;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
 
 /**
@@ -180,6 +182,31 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 }
             }
             realizedComponents.add(component);
+        }
+
+        Set<Integer> eligibleTerminals = assemblyPlan.terminalComponents().stream()
+                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+                .map(component -> component.terminalFate().channelTerminalCellIndex())
+                .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
+        Set<Integer> classifiedTerminals = new HashSet<>();
+        realizedComponents.forEach(component ->
+                classifiedTerminals.add(component.terminalFate().channelTerminalCellIndex()));
+        deferredQualifiedComponents.forEach(deferral ->
+                classifiedTerminals.add(deferral.component().terminalFate().channelTerminalCellIndex()));
+        if (!classifiedTerminals.equals(eligibleTerminals)) {
+            throw new IllegalStateException(
+                    "F4A eligible-terminal classification mismatch: eligible="
+                            + eligibleTerminals
+                            + ", classified=" + classifiedTerminals
+                            + ", realized="
+                            + realizedComponents.stream()
+                                    .map(component -> component.terminalFate().channelTerminalCellIndex())
+                                    .toList()
+                            + ", deferred="
+                            + deferredQualifiedComponents.stream()
+                                    .map(deferral -> deferral.component().terminalFate()
+                                            .channelTerminalCellIndex())
+                                    .toList());
         }
 
         List<SkyIslandHydraulicReachGeometry> realizedReaches =
