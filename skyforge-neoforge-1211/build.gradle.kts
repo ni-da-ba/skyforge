@@ -10368,3 +10368,7 @@ tasks.register<Sync>("wbyS1StageServerMods") {
         staged.forEach { println("  serverMod=$it") }
     }
 }
+
+
+// S9 End candidates stay isolated from the accepted S0-S8 production pins until qualified.
+apply(from = "wby-s9-end.gradle.kts")
