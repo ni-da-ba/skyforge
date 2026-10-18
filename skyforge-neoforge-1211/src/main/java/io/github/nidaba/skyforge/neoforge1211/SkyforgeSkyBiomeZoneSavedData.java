@@ -91,7 +91,7 @@ final class SkyforgeSkyBiomeZoneSavedData extends SavedData {
         return true;
     }
 
-    private void bindWorldSeed(long seed) {
+    void bindWorldSeed(long seed) {
         if (worldSeed == null) {
             worldSeed = seed;
             setDirty();
