@@ -113,46 +113,8 @@ wait "$client_pid"
 client_pid=""
 grep -Eq '^status=PASS$' "$client_result"
 grep -Eq '^remoteServerJoin=true$' "$client_result"
-grep -Eq '^singleplayerServer=false
-
-wait "$server_pid"
-server_pid=""
-verify_server_result "$server_result"
-test -f "$server_dir/saves/acceptance/level.dat"
-cp "$server_result" "$acceptance_dir/server-initial.properties"
-cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
-
-rm -f "$server_dir/logs/latest.log"
-launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
-wait_server_ready "$reopen_task_log"
-wait "$server_pid"
-server_pid=""
-verify_server_result "$reopen_result"
-test -f "$server_dir/saves/acceptance/level.dat"
-
-printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
-echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
- "$client_result"
-grep -Eq '^spawnSupported=true
-
-wait "$server_pid"
-server_pid=""
-verify_server_result "$server_result"
-test -f "$server_dir/saves/acceptance/level.dat"
-cp "$server_result" "$acceptance_dir/server-initial.properties"
-cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
-
-rm -f "$server_dir/logs/latest.log"
-launch_server ":skyforge-neoforge-1211:runModdedBiomePopulationServerReopen" "$reopen_task_log"
-wait_server_ready "$reopen_task_log"
-wait "$server_pid"
-server_pid=""
-verify_server_result "$reopen_result"
-test -f "$server_dir/saves/acceptance/level.dat"
-
-printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
-echo "SF-IMP-0054 modded-biome dedicated-server, remote-client join, and same-world reopen acceptance PASS."
- "$client_result"
+grep -Eq '^singleplayerServer=false$' "$client_result"
+grep -Eq '^spawnSupported=true$' "$client_result"
 
 wait "$server_pid"
 server_pid=""
