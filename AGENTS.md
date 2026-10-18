@@ -40,20 +40,21 @@ If summaries disagree with `main`, source/tests, or merged history, the reposito
 Read `docs/agent-state/EXECUTION_BOUNDARIES.md` before choosing where any command or validation runs. The short form is:
 
 ```text
-DigitalOcean Droplet = control-plane maintenance only
-GitHub / Actions      = project development + automated machine validation
-Nicholas local PC     = manual/interactive/human verification ONLY
-```
+DigitalOcean Droplet = bounded edit-only workers + control-plane maintenance; never project validation
+GitHub / Actions      = durable project state + automated machine validation
+Nicholas local PC     = manual/interactive/human verification
+
+These execution locations do not require manual producers to consult or wait for an orchestrator.
 
 There is **no fallback between these planes**. In particular:
 
-- never perform project implementation, producer edits, Gradle/Java/NeoForge builds, tests, benchmarks, or automated milestone verification on the DigitalOcean Droplet;
-- never treat the Droplet as a remote Codex development workspace or run project validation there;
+- bounded workers may inspect and edit only within the canonical execution contract and current GitHub issue/branch/PR ownership;
+- never run Gradle/Java/NeoForge builds, tests, benchmarks, generators, or automated milestone verification on the DigitalOcean Droplet;
 - if GitHub Actions is unavailable, wait/block rather than shifting automated work to the Droplet or local workstation;
 - if a human/manual gate is unavailable, leave the gate pending rather than substituting hosted automation;
-- Droplet maintenance may recover/export pre-existing legacy worker bytes, but recovery must not continue development or project validation there.
+- recovery of legacy worker bytes does not authorize project validation or unclaimed development on the Droplet.
 
-Older prompts/docs/manifests that describe a hosted worker or hosted JDK for project verification are superseded by `EXECUTION_BOUNDARIES.md` and must be repaired rather than followed.
+Older prompts/docs/manifests that describe hosted project verification or a hosted project JDK are superseded by `EXECUTION_BOUNDARIES.md` and must be repaired rather than followed.
 
 ## Lane ownership
 
