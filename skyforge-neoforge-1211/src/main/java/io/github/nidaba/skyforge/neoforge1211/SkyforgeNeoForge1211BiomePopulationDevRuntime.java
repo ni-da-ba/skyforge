@@ -14,6 +14,7 @@ import io.github.nidaba.skyforge.world.WorldBounds;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
@@ -29,8 +30,12 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Development-only proof that stacked exact volumes can consume different native biome settings. */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
     static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
@@ -55,6 +60,29 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final Aggregate upperAggregate = new Aggregate();
     private static AutoCloseable persistentBinding;
     private static boolean proofComplete;
+    private static boolean acceptanceCompletionRequested;
+
+    @SubscribeEvent
+    static synchronized void completeServerAcceptance(ServerTickEvent.Post event) {
+        if (!enabled()
+                || !SkyforgeAutomatedAcceptanceHarness.serverMode()
+                || !proofComplete
+                || acceptanceCompletionRequested) {
+            return;
+        }
+        acceptanceCompletionRequested = true;
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                event.getServer(),
+                Map.of(
+                        "selectedUpperBiome", UPPER_BIOME.location(),
+                        "scannedChunks", scannedProofChunks.size(),
+                        "eligibleChunks", eligibleProofChunks.size(),
+                        "lowerBiome", lowerAggregate.biomeKey().location(),
+                        "lowerSuccessfulFeatures", lowerAggregate.successfulFeatures,
+                        "lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence(),
+                        "upperSuccessfulFeatures", upperAggregate.successfulFeatures,
+                        "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence()));
+    }
 
     private SkyforgeNeoForge1211BiomePopulationDevRuntime() {}
 
