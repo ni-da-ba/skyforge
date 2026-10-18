@@ -47,6 +47,20 @@ jobs:
           set -euo pipefail
           mkdir -p skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server
           printf 'eula=true\n' > skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/eula.txt
+          cat > skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/server.properties <<'EOF'
+          level-name=sf-imp-0054-modded-biome
+          level-seed=592850352
+          level-type=skyforge:development
+          online-mode=false
+          enforce-secure-profile=false
+          spawn-protection=0
+          gamemode=creative
+          difficulty=peaceful
+          view-distance=5
+          simulation-distance=3
+          max-tick-time=0
+          max-players=1
+          EOF
 
       - name: Generate the exact-volume BOP biome specimen on a dedicated server
         shell: bash
@@ -57,7 +71,32 @@ jobs:
           test -f "$result"
           grep -Eq '^status=PASS$' "$result"
           grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
-          grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
+          grep -Eq '^upperPersistentTreeEvidence=true
+
+      - name: Preserve server and acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0054-modded-biome-server
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
+          if-no-files-found: warn
+          retention-days: 14
+ "$result"
+          grep -Eq '^exteriorNonAirBlocks=0
+
+      - name: Preserve server and acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sf-imp-0054-modded-biome-server
+          path: |
+            skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
+          if-no-files-found: warn
+          retention-days: 14
+ "$result"
 
       - name: Preserve server and acceptance evidence
         if: always()
