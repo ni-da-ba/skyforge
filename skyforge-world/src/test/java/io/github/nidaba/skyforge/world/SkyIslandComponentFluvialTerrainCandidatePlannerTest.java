@@ -231,8 +231,14 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                 continue;
             }
 
-            SkyIslandComponentFluvialTerrainCandidatePlan candidate =
-                    SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+            SkyIslandComponentFluvialTerrainCandidatePlan candidate;
+            try {
+                candidate = SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+            } catch (IllegalArgumentException | IllegalStateException failure) {
+                throw new AssertionError(
+                        "F4 candidate planning failed before specimen census for key=" + key,
+                        failure);
+            }
             boolean postD2Rejected = candidate.deferredQualifiedComponents().stream()
                     .anyMatch(deferral -> deferral.reasons().contains(
                             SkyIslandComponentFluvialTerrainDeferralReason

@@ -122,11 +122,21 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 SkyIslandHydraulicReachSkeleton skeleton =
                         requireSkeleton(skeletons, reachAssembly.semanticReach());
                 long identity = reachAssembly.identity();
-                SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled =
-                        SkyIslandGameScaleHydraulicModel.solveSourceReach(
-                                descriptor, skeleton, original);
-                SkyIslandHydraulicReachGeometry geometry = reconstructCoupledReach(
-                        descriptor, skeleton, span, original, coupled);
+                SkyIslandGameScaleHydraulicModel.SourceReachSolution coupled;
+                SkyIslandHydraulicReachGeometry geometry;
+                try {
+                    coupled = SkyIslandGameScaleHydraulicModel.solveSourceReach(
+                            descriptor, skeleton, original);
+                    geometry = reconstructCoupledReach(
+                            descriptor, skeleton, span, original, coupled);
+                } catch (IllegalArgumentException | IllegalStateException unsupported) {
+                    deferredQualifiedComponents.add(new SkyIslandComponentFluvialTerrainDeferral(
+                            component,
+                            List.of(SkyIslandComponentFluvialTerrainDeferralReason
+                                    .UNSUPPORTED_SOURCE_PROFILE),
+                            unsupported.getClass().getSimpleName() + ": " + unsupported.getMessage()));
+                    continue;
+                }
                 if (realizedByIdentity.put(identity, geometry) != null
                         || coupledByIdentity.put(identity, coupled) != null) {
                     throw new IllegalStateException("F4A repeated single-reach component identity");
