@@ -38,8 +38,6 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null
                 || minecraft.player == null
-                || minecraft.getConnection() == null
-                || !minecraft.getConnection().getConnection().isConnected()
                 || minecraft.getSingleplayerServer() != null
                 || !minecraft.level.dimension().equals(Level.OVERWORLD)) {
             return;
