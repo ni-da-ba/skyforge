@@ -2,6 +2,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Optional;
@@ -52,6 +53,7 @@ final class SkyforgeNoiseBasedChunkGeneratorTest {
                         null));
         assertTrue(generator.getBaseColumn(0, 0, chunk, null).getBlock(0).isAir());
         assertTrue(chunk.getBlockState(new net.minecraft.core.BlockPos(0, 64, 0)).isAir());
+        assertThrows(IllegalStateException.class, () -> generator.getSpawnHeight(chunk));
     }
 
     @Test
