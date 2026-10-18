@@ -9074,10 +9074,10 @@ tasks.register("launchF4KHydrologyReview") {
 val sfImp1524SkyBiomePersistenceResults =
     layout.buildDirectory.dir("acceptance/sf-imp-1524-skybiome")
 
-fun requireSfImp1524SkyBiomePersistencePass(name: String): java.util.Properties {
+fun requireSfImp1524SkyBiomePersistencePass(name: String): Properties {
     val resultFile = sfImp1524SkyBiomePersistenceResults.get().file("$name.properties").asFile
     check(resultFile.isFile) { "missing SF-IMP-1524 SkyBiome persistence result: $resultFile" }
-    val properties = java.util.Properties().also { result -> resultFile.inputStream().use(result::load) }
+    val properties = Properties().also { result -> resultFile.inputStream().use(result::load) }
     check(properties.getProperty("status") == "PASS") {
         "SF-IMP-1524 SkyBiome persistence case $name did not PASS: $properties"
     }
