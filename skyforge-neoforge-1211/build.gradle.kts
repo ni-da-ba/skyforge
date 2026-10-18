@@ -9194,6 +9194,12 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
             "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
         }
+        check(vanilla.getProperty("realizedIslandSurfaceColumns").toInt() > 0
+                && treatment.getProperty("realizedIslandSurfaceColumns").toInt() > 0
+                && vanilla.getProperty("realizedIslandSurfaceDigest")
+                    != treatment.getProperty("realizedIslandSurfaceDigest")) {
+            "SF-IMP-0054 Tectonic profile was not reflected in the realized Skyforge island surface"
+        }
         println("SF-IMP-0054 TECTONIC TERRAIN A/B PASS: vanilla="
                 + vanilla.getProperty("terrainProfileDigest")
                 + ", tectonic=" + treatment.getProperty("terrainProfileDigest")
