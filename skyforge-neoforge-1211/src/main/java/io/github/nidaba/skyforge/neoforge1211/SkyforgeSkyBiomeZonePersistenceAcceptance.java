@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeCatalog;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneAssignment;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneIdentity;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.server.MinecraftServer;
@@ -59,7 +60,7 @@ final class SkyforgeSkyBiomeZonePersistenceAcceptance {
                         Map.of(
                                 "mode", mode,
                                 "worldSeed", level.getSeed(),
-                                "zoneKey", String.format("%016x", ZONE_KEY),
+                                "zoneKey", String.format(Locale.ROOT, "%016x", ZONE_KEY),
                                 "skyBiomeId", expected.skyBiomeId(),
                                 "assignmentCreated", assigned,
                                 "assignmentCount", data.assignments().size()));
