@@ -135,8 +135,14 @@ final class SkyforgeSkyBiomeZoneSavedData extends SavedData {
         }
         SkyforgeSkyBiomeZoneSavedData data = new SkyforgeSkyBiomeZoneSavedData();
         data.worldSeed = tag.getLong(WORLD_SEED_KEY);
-        ListTag serializedAssignments = tag.getList(ASSIGNMENTS_KEY, Tag.TAG_COMPOUND);
-        if (serializedAssignments.size() > MAXIMUM_ASSIGNMENTS) {
+        Tag rawAssignments = tag.get(ASSIGNMENTS_KEY);
+        if (!(rawAssignments instanceof ListTag serializedAssignments)) {
+            throw new IllegalArgumentException("SkyBiome assignment payload is not a list");
+        }
+        if (!serializedAssignments.isEmpty() && serializedAssignments.getElementType() != Tag.TAG_COMPOUND) {
+            throw new IllegalArgumentException("SkyBiome assignment list must contain compounds");
+        }
+        if (serializedAssignments.size() > MAXIMUM_ASSIGNMENTS)
             throw new IllegalArgumentException("SkyBiome assignment limit exceeded: " + MAXIMUM_ASSIGNMENTS);
         }
         for (int index = 0; index < serializedAssignments.size(); index++) {
