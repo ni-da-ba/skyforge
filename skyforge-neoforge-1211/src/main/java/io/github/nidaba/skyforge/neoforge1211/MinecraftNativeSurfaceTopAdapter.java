@@ -126,13 +126,16 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
         for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
-                snapshot.surface(localX, localZ).ifPresent(surface -> adaptExposedTops(
-                        blockKeys,
-                        materialization.minimumY(),
-                        materialization.height(),
-                        localX,
-                        localZ,
-                        surface));
+                var nativeSurface = snapshot.surface(localX, localZ);
+                if (nativeSurface.isPresent()) {
+                    adaptExposedTops(
+                            blockKeys,
+                            materialization.minimumY(),
+                            materialization.height(),
+                            localX,
+                            localZ,
+                            nativeSurface.orElseThrow());
+                }
             }
         }
 
