@@ -10,8 +10,8 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.core.Holder;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.RegistryAccess;
@@ -20,8 +20,8 @@ import net.minecraft.core.SectionPos;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
-import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.LevelHeightAccessor;
+import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.BiomeSource;
@@ -51,10 +51,10 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 /**
  * Vanilla noise generator with explicit Skyforge terrain-domain isolation.
  *
- * <p>No active island-generation scope means BASE_WORLD. In that state all native height queries,
- * structures and biome decoration run through vanilla unchanged and Skyforge is observationally
- * absent. Only an explicit {@link SkyforgeGenerationDomainStage} island scope may expose one exact
- * compiled Skyforge volume to native generation machinery.
+ * <p>No active island-generation scope means BASE_WORLD. Ordinary worlds retain vanilla behavior.
+ * The opt-in alpha void-base mode suppresses base terrain and routes native content only through
+ * exact-volume population. An explicit {@link SkyforgeGenerationDomainStage} island scope may expose
+ * one exact compiled Skyforge volume to native generation machinery.
  */
 public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGenerator {
     public static final MapCodec<SkyforgeNoiseBasedChunkGenerator> CODEC = RecordCodecBuilder.mapCodec(instance ->
