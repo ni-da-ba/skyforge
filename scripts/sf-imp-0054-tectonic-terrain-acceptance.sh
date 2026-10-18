@@ -12,7 +12,7 @@ mkdir -p "$result_dir"
 cache_root="${GRADLE_USER_HOME:-${HOME}/.gradle}/caches/modules-2/files-2.1"
 hash_report="${result_dir}/runtime-artifact-sha256.txt"
 : > "$hash_report"
-for artifact in "maven.modrinth/lWDHr9jE/n4iyW7aB" "maven.modrinth/XaDC71GB/r3TO8PWe"; do
+for artifact in "maven.modrinth/lWDHr9jE/n4iyW7aB" "maven.modrinth/XaDC71GB/dGZOQXkv"; do
   artifact_dir="${cache_root}/${artifact}"
   if [[ ! -d "$artifact_dir" ]]; then
     printf 'Pinned runtime artifact cache is missing: %s\n' "$artifact_dir" >&2
