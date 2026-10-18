@@ -165,12 +165,23 @@ start_server() {
 stop_server() {
   local log_path="$1"
   local state
+  if [[ -z "$server_pid" ]]; then
+    echo "Server shutdown check has no recorded child PID." >&2
+    return 1
+  fi
+  echo "Server shutdown: sending TERM to process group $server_pid"
   kill -TERM -- "-$server_pid" 2>/dev/null || true
   for _ in $(seq 1 90); do
-    if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+    if ! kill -0 "$server_pid" 2>/dev/null; then
+      echo "Server shutdown: process $server_pid exited."
+      break
+    fi
     state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
     # A terminated child can remain as a zombie until wait reaps it; it is no longer running.
-    if [[ "$state" == Z* ]]; then break; fi
+    if [[ "$state" == Z* ]]; then
+      echo "Server shutdown: process $server_pid is a zombie awaiting reap."
+      break
+    fi
     sleep 1
   done
   state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
@@ -181,6 +192,7 @@ stop_server() {
   fi
   wait "$server_pid" 2>/dev/null || true
   server_pid=""
+  echo "Server shutdown: child was reaped."
 }
 
 assert_hearthandharvest_worldgen_policy() {
@@ -383,7 +395,10 @@ cp "$server_latest_log" wby-s7-joined-server-latest.log
 cp "$client_latest_log" wby-s7-joined-client-latest.log
 
 echo "WBY S7/S8 runtime: stopping server after client evidence"
-stop_server "$server_log"
+if ! stop_server "$server_log"; then
+  echo "WBY S7/S8 runtime: server shutdown failed before same-world reopen." >&2
+  exit 1
+fi
 echo "WBY S7/S8 runtime: joined server stopped"
 kill -INT -- "-$client_pid" 2>/dev/null || true
 sleep 3
