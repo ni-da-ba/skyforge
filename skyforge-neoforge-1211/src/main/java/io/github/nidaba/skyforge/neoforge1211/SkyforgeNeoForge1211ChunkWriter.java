@@ -134,7 +134,8 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             boolean enforcePhysicalAdmission,
             Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
         validateOwnership(chunk, materialization);
-        Objects.requireNonNull(providerWriteClaims, "providerWriteClaims");
+        Map<Long, SkyIslandWorldVolumeId> scopedProviderClaims =
+                Map.copyOf(Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         Objects.requireNonNull(cursor, "cursor");
         if (maximumAssignedSolidWrites <= 0) {
             throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
@@ -176,7 +177,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                 int worldX = Math.addExact(minimumX, localX);
                 int worldZ = Math.addExact(minimumZ, localZ);
                 var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(
-                        providerWriteClaims, worldX, worldY, worldZ);
+                        scopedProviderClaims, worldX, worldY, worldZ);
                 if ((enforcePhysicalAdmission || providerOwner.isPresent())
                         && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
                                 worldX, worldY, worldZ, providerOwner)) {
