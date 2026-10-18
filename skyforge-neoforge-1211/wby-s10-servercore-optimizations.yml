@@ -1,0 +1,7 @@
+# The upstream 1.21.1 documentation marks these as not fully vanilla-parity.
+# Keep all such optimizations disabled until a separate, measured owner decision.
+reduce-sync-loads: false
+cache-ticking-chunks: false
+optimize-command-blocks: false
+fast-biome-lookups: false
+cancel-duplicate-fluid-ticks: false
