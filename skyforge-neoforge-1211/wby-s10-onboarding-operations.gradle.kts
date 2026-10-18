@@ -20,7 +20,7 @@ val wbyS10Profile = providers.gradleProperty("wbyS10Profile").orNull?.trim()?.lo
 val wbyS10Ftb = listOf("ftbLibrary", "ftbTeams", "ftbQuests")
 val wbyS10All = listOf(
     "ftbLibrary", "ftbTeams", "ftbQuests", "patchouli", "createEnchantmentIndustry",
-    "simpleVoiceChat", "walkieTalkiePlus", "simpleBackupsStable", "serverCore",
+    "simpleVoiceChat", "walkieTalkiePlus", "simpleBackupsStable", "simpleBackupsBeta", "serverCore",
     "trueAdaptiveMusic", "presenceFootsteps", "presenceFootstepsSable",
 )
 val wbyS10Profiles = mapOf(
