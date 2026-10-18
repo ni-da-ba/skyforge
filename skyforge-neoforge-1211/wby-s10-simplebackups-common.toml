@@ -1,0 +1,10 @@
+# Isolated CI and local review profile only. Production retention needs final server sizing.
+enabled = true
+backupType = "FULL_BACKUPS"
+saveAll = true
+backupsToKeep = 3
+timer = 1
+maxDiskSize = "1 GB"
+outputPath = "simplebackups"
+createSubDirs = false
+compressionLevel = -1
