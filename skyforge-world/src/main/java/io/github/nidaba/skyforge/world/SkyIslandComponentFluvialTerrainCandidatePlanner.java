@@ -224,6 +224,10 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                                 + diagnostics.maximumBankContainmentDeficitWorldUnits()
                                 + " world units, maximum depth/width="
                                 + diagnostics.maximumDepthToBankfullWidthRatio()
+                                + ", maximum longitudinal grade="
+                                + diagnostics.maximumLongitudinalGrade()
+                                + ", maximum longitudinal grade limit="
+                                + qualification.appliedLimits().maximumLongitudinalGrade()
                                 + ")";
                 for (SkyIslandHydraulicTerminalComponent candidateComponent :
                         List.copyOf(realizedComponents)) {
