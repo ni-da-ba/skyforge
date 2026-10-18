@@ -288,8 +288,27 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                                 && component.reaches().stream()
                                         .allMatch(reach -> reach.cascades().isEmpty())
                                 && component.networkSolution().isPresent());
+        String eligibleSummary = assembly.terminalComponents().stream()
+                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+                .map(component -> component.terminalFate().channelTerminalCellIndex()
+                        + ":reaches=" + component.reaches().stream()
+                                .map(reach -> reach.semanticReach().startCellIndex()
+                                        + "->" + reach.semanticReach().endCellIndex())
+                                .toList())
+                .toList()
+                .toString();
+        String realizedSummary = candidate.realizedComponents().stream()
+                .map(component -> component.terminalFate().channelTerminalCellIndex()
+                        + ":reaches=" + component.reaches().size()
+                        + ":network=" + component.networkSolution().isPresent())
+                .toList()
+                .toString();
         assertTrue(realized,
-                "key 198 should realize its eligible cascade-free network; deferrals="
+                "key 198 should realize terminal "
+                        + eligibleNetwork.terminalFate().channelTerminalCellIndex()
+                        + "; eligible=" + eligibleSummary
+                        + "; realized=" + realizedSummary
+                        + "; deferrals="
                         + candidate.deferredQualifiedComponents().stream()
                                 .map(deferral -> deferral.diagnostic())
                                 .toList());
