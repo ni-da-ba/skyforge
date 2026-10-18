@@ -187,6 +187,19 @@ jobs:
         run: |
           set -euo pipefail
           [[ "${{ matrix.variant }}" == nullscape* ]] || unset WBY_S9_NULLSCAPE_DATAPACK_SOURCE
+          # WorldWeaver: New Dawn otherwise inserts a first-launch welcome screen that blocks CI quick-play.
+          # Seed only this disposable runner profile; leave user/client preferences untouched.
+          mkdir -p "$WBY_S4_MINECRAFT_DIRECTORY/config/wover"
+          cat > "$WBY_S4_MINECRAFT_DIRECTORY/config/wover/client.json" <<'JSON'
+          {
+            "internal": {
+              "did_present_welcome_screen": true
+            },
+            "general": {
+              "check_for_new_versions": false
+            }
+          }
+          JSON
           cp wby-s9-resolution.log wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
       - name: Emit license-safe review manifest without third-party binaries
