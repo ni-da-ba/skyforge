@@ -192,8 +192,8 @@ jobs:
           set -euo pipefail
           cp "wby-s10-full-resolution.log" wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
-          python3 scripts/wby-s10-backup-evidence.py \\
-            --backups s10-production-server/simplebackups \\
+          python3 scripts/wby-s10-backup-evidence.py \
+            --backups s10-production-server/simplebackups \
             --output wby-s10-backup-restore-probe.tsv
       - name: Emit metadata-only S10 runtime manifest
         if: success() && matrix.profile == 'full'
