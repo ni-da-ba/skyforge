@@ -2,7 +2,9 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.management.ManagementFactory;
 import java.lang.management.ThreadMXBean;
+import java.util.Map;
 import java.util.Objects;
+import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.state.BlockState;
@@ -60,6 +62,27 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             MinecraftChunkMaterialization materialization) {
         validateOwnership(chunk, materialization);
         return writeInternal(chunk, materialization, true, true);
+    }
+
+    /**
+     * Writes native-provider terrain under explicit per-position island ownership claims.
+     *
+     * <p>Claims are rechecked by the physical-admission stage at each position. A provider solid
+     * never overwrites live native content; occupied claimed positions are left untouched.
+     */
+    MinecraftChunkWriteResult writeProviderTerrainOverlay(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
+        validateOwnership(chunk, materialization);
+        try (AutoCloseable scope = SkyforgeNativeTerrainWriteAuthority.open(providerWriteClaims)) {
+            Objects.requireNonNull(scope, "provider write-authority scope");
+            return writeInternal(chunk, materialization, true, true);
+        } catch (RuntimeException failure) {
+            throw failure;
+        } catch (Exception failure) {
+            throw new IllegalStateException("native terrain write-authority scope failed", failure);
+        }
     }
 
     /**
@@ -263,6 +286,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     int worldX = Math.addExact(minimumX, localX);
+                    var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ);
                     if (!expectedAir
                             && enforcePhysicalAdmission
                             && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
@@ -277,6 +301,9 @@ public final class SkyforgeNeoForge1211ChunkWriter {
 
                     blockPos.set(worldX, worldY, worldZ);
                     BlockState previousState = chunk.getBlockState(blockPos);
+                    if (providerOwner.isPresent() && !previousState.isAir()) {
+                        continue;
+                    }
                     chunk.setBlockState(blockPos, state, false);
                     BlockState stored = chunk.getBlockState(blockPos);
                     if (!stored.equals(state)) {
