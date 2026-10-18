@@ -174,7 +174,7 @@ tasks.register("wbyS9ResolveEndProfile") {
             println("WBY S9 DATAPACK PASS id=$packId sha256=$digest file=${pack.name}")
         }
         val modMetadataPaths = listOf("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
-        val declaredModIdPattern = Regex("""^modId\\s*=\\s*"([^"]+)"\\s*(?:#.*)?$""")
+        val declaredModIdPattern = Regex("""^modId\s*=\s*"([^"]+)"\s*(?:#.*)?$""")
         fun isNeoForgeModJar(file: java.io.File): Boolean =
             file.isFile && file.extension.equals("jar", ignoreCase = true) &&
                 runCatching {
