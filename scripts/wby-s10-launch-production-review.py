@@ -199,12 +199,82 @@ def copy_overlay(source: Path, destination: Path) -> None:
     (destination / "mods").mkdir(parents=True, exist_ok=True)
 
 
+def stage_restore_copy(archive_path: Path, run: Path, diagnostics: Path) -> tuple[Path, str]:
+    source = normalize_path(archive_path)
+    if not source.is_file():
+        raise SystemExit(f"Backup archive not found: {source}")
+    destination = run / "saves" / "S10 Backup Restore Probe"
+    if destination.exists():
+        raise SystemExit(f"Restore target already exists; refusing to overwrite: {destination}")
+    with zipfile.ZipFile(source) as archive:
+        bad = archive.testzip()
+        if bad:
+            raise SystemExit(f"Backup CRC check failed at {bad}")
+        entries = archive.infolist()
+        for entry in entries:
+            name = entry.filename
+            relative = PurePosixPath(name)
+            if (
+                relative.is_absolute()
+                or "\\" in name
+                or any(part in ("", ".", "..") for part in relative.parts if part != "")
+                or (relative.parts and ":" in relative.parts[0])
+            ):
+                raise SystemExit(f"Unsafe backup member path: {name}")
+        level_files = [
+            PurePosixPath(entry.filename)
+            for entry in entries
+            if not entry.is_dir() and PurePosixPath(entry.filename).name == "level.dat"
+        ]
+        if len(level_files) != 1:
+            raise SystemExit(
+                f"Expected exactly one level.dat in {source.name}; found {len(level_files)}"
+            )
+        world_root = level_files[0].parent
+        written: list[Path] = []
+        for entry in entries:
+            relative = PurePosixPath(entry.filename)
+            if entry.is_dir():
+                continue
+            try:
+                world_relative = relative.relative_to(world_root)
+            except ValueError:
+                continue
+            if not world_relative.parts:
+                continue
+            target = destination.joinpath(*world_relative.parts)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(archive.read(entry))
+            written.append(target)
+        restored_level = destination / "level.dat"
+        if not restored_level.is_file():
+            raise SystemExit("Disposable restore copy is missing level.dat")
+        regions = [path for path in destination.rglob("*.mca") if path.is_file()]
+        if not regions:
+            raise SystemExit("Disposable restore copy contains no region data")
+    digest = sha256(source.read_bytes())
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    (diagnostics / "restore-probe.txt").write_text(
+        f"source_archive={source}\nsha256={digest}\n"
+        f"restore_copy={destination}\nregion_files={len(regions)}\n",
+        encoding="utf-8",
+    )
+    print(f"Prepared disposable restored world: {destination}")
+    print(f"Source backup SHA-256: {digest}; region files: {len(regions)}")
+    return destination, digest
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("profile", choices=sorted(PROFILES))
     parser.add_argument("accepted_s9_profile", type=Path)
     parser.add_argument("accepted_s9_diagnostics", type=Path)
     parser.add_argument("--java", default="java")
+    parser.add_argument(
+        "--restore-backup",
+        type=Path,
+        help="Safely extract a backup into a disposable world under this fresh review profile.",
+    )
     args = parser.parse_args()
 
     repo = Path(__file__).resolve().parents[1]
@@ -270,6 +340,8 @@ def main() -> int:
     lines.extend(f"{pack.name}\t{sha256(pack.read_bytes())}" for pack in pack_files)
     (diagnostics / "manifest.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
     (run / "mods").mkdir(parents=True, exist_ok=True)
+    if args.restore_backup:
+        stage_restore_copy(args.restore_backup, run, diagnostics)
     (diagnostics / "staged-mods.txt").write_text(
         "\n".join(sorted(path.name for path in (run / "mods").glob("*.jar"))) + "\n",
         encoding="utf-8",
