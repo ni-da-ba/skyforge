@@ -238,13 +238,15 @@ def main() -> int:
         shutil.copy2(path, run / "mods" / path.name)
         candidate_files.append((mod, path, digest))
 
+    run_config = run / "config"
+    run_config.mkdir(parents=True, exist_ok=True)
     if "serverCore" in PROFILES[args.profile]:
-        servercore = run / "config" / "servercore"
+        servercore = run_config / "servercore"
         servercore.mkdir(parents=True, exist_ok=True)
         shutil.copy2(repo / "skyforge-neoforge-1211" / "wby-s10-servercore-config.yml", servercore / "config.yml")
         shutil.copy2(repo / "skyforge-neoforge-1211" / "wby-s10-servercore-optimizations.yml", servercore / "optimizations.yml")
     if "simpleBackupsStable" in PROFILES[args.profile] or "simpleBackupsBeta" in PROFILES[args.profile]:
-        shutil.copy2(repo / "skyforge-neoforge-1211" / "wby-s10-simplebackups-common.toml", run / "config" / "simplebackups-common.toml")
+        shutil.copy2(repo / "skyforge-neoforge-1211" / "wby-s10-simplebackups-common.toml", run_config / "simplebackups-common.toml")
 
     staged_packs = diagnostics / "world-datapacks"
     staged_packs.mkdir(parents=True, exist_ok=True)
