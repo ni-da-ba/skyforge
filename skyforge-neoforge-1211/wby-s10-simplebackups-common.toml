@@ -1,9 +1,9 @@
-# Isolated CI and local review profile only. Production retention needs final server sizing.
+# Local review and conservative candidate default. CI temporarily shortens timer to create its archive probe.
 enabled = true
 backupType = "FULL_BACKUPS"
 saveAll = true
 backupsToKeep = 3
-timer = 1
+timer = 120
 maxDiskSize = "1 GB"
 outputPath = "simplebackups"
 createSubDirs = false
