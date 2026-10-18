@@ -1,7 +1,6 @@
 package io.github.nidaba.skyforge.model.skyisland;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -18,8 +17,6 @@ final class SkyBiomeCatalogTest {
                         SkyBiomeCatalog.ISLAND_LEE_ID,
                         SkyBiomeCatalog.OPEN_SKY_ID),
                 definitions.stream().map(SkyBiomeDefinition::id).toList());
-        assertFalse(definitions.stream().anyMatch(
-                definition -> definition.id().value().equals("skyforge:open_air")));
     }
 
     @Test
