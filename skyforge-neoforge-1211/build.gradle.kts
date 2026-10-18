@@ -745,6 +745,11 @@ neoForge {
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
             systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
+            systemProperty(
+                "skyforge.dev.biomePopulation.clientResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-modded-biome/client.properties").get().asFile.absolutePath,
+            )
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "server")
             systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-modded-biome")
