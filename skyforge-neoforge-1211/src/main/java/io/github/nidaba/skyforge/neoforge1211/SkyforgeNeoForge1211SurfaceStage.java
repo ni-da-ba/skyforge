@@ -484,6 +484,21 @@ public final class SkyforgeNeoForge1211SurfaceStage {
     }
 
     /**
+     * Queries the alpha's fixed origin spawn column across admitted Skyforge volumes.
+     *
+     * <p>Only the explicit void-base generator calls this path. Ordinary base-world height queries
+     * remain isolated from Skyforge terrain.
+     */
+    static OptionalInt querySpawnHeight(int minimumY, int height) {
+        return queryBaseHeight(
+                0,
+                0,
+                Heightmap.Types.WORLD_SURFACE_WG,
+                minimumY,
+                height);
+    }
+
+    /**
      * Legacy composite early-height query retained for diagnostics and compatibility tests.
      *
      * <p>Ordinary base-world generation must not call this under SF-IMP-0052. Island-owned
