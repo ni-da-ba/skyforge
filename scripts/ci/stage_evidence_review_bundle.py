@@ -126,6 +126,7 @@ STUDIO_APP_FILES = (
     Path('index.html'),
     Path('app.js'),
     Path('scene.js'),
+    Path('hydrology-run-summary.js'),
     Path('sample-data.js'),
     Path('trace-viewer.js'),
     Path('comparison-report.js'),
