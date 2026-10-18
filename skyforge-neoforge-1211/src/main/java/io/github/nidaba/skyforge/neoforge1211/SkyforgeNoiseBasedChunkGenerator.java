@@ -158,12 +158,27 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     }
 
     private RandomState terrainProviderRandomState(WorldGenRegion level) {
-        long seed = level.getSeed();
+        return terrainProviderRandomState(level.getSeed(), level.registryAccess());
+    }
+
+    net.minecraft.resources.ResourceLocation terrainProviderSettingsKey() {
+        return terrainProviderSettings.unwrapKey()
+                .map(key -> key.location())
+                .orElseThrow(() -> new IllegalStateException(
+                        "terrain provider settings holder is not registry keyed"));
+    }
+
+    NoiseBasedChunkGenerator terrainProviderGenerator() {
+        return terrainProvider;
+    }
+
+    RandomState terrainProviderRandomState(long seed, RegistryAccess registryAccess) {
+        Objects.requireNonNull(registryAccess, "registryAccess");
         return terrainProviderRandomStates.computeIfAbsent(
                 seed,
                 ignored -> RandomState.create(
                         terrainProviderSettings.value(),
-                        level.registryAccess().lookupOrThrow(Registries.NOISE),
+                        registryAccess.lookupOrThrow(Registries.NOISE),
                         seed));
     }
 
