@@ -68,7 +68,22 @@ Early or ordinary access should therefore be geographically meaningful. Candidat
 - Guild- or settlement-controlled crossings;
 - later-game artificial gateways requiring meaningful engineering rather than trivial obsidian construction.
 
-The exact access mechanic remains a later Content / Implementation decision.
+The exact long-term access mechanic remains a later Content / Implementation decision.
+
+### Alpha access boundary
+
+For Alpha, the Nether remains accessible through **Nether portals**. This preserves Minecraft's established dimensional transition and avoids making Nether access depend on a bespoke traversal system before the world-generation and gameplay integration are proven.
+
+What remains deliberately **unsettled** is whether players may freely construct and activate their own portals.
+
+Alpha may ultimately use one of several compatible policies:
+
+- generated, ancient, or fixed portal sites only;
+- player-repairable or player-reactivated portal infrastructure;
+- geographically constrained player-built portals;
+- fully player-built portals, if playtesting shows that unrestricted construction does not trivialize geography, aviation, or route planning.
+
+Do not silently treat vanilla's arbitrary obsidian-frame construction rule as accepted Skyforge canon merely because Alpha uses portal travel. Portal **transport** is accepted for Alpha; portal **construction authority** is still an open design decision.
 
 ## Spatial distortion
 
