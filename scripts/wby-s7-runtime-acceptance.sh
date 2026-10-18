@@ -164,12 +164,21 @@ start_server() {
 
 stop_server() {
   local log_path="$1"
+  local state
   kill -TERM -- "-$server_pid" 2>/dev/null || true
   for _ in $(seq 1 90); do
     if ! kill -0 "$server_pid" 2>/dev/null; then break; fi
+    state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
+    # A terminated child can remain as a zombie until wait reaps it; it is no longer running.
+    if [[ "$state" == Z* ]]; then break; fi
     sleep 1
   done
-  if kill -0 "$server_pid" 2>/dev/null; then cat "$log_path"; return 1; fi
+  state="$(ps -o stat= -p "$server_pid" 2>/dev/null | tr -d '[:space:]')"
+  if kill -0 "$server_pid" 2>/dev/null && [[ "$state" != Z* ]]; then
+    cat "$log_path"
+    echo "Server process $server_pid did not stop within 90 seconds (state=$state)." >&2
+    return 1
+  fi
   wait "$server_pid" 2>/dev/null || true
   server_pid=""
 }
@@ -214,6 +223,7 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
     --live --host 127.0.0.1 --port 25575 \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
+echo "WBY S7/S8 runtime: client joined; collecting live entity evidence"
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
   --seed 817304 \
@@ -276,7 +286,16 @@ if [[ "$joined" != true ]]; then
         [[ -n "$client_java_pid" ]] || continue
         echo "### jcmd $client_java_pid Thread.print"
         jcmd "$client_java_pid" Thread.print || true
-      done < <(ps -eo pid=,args= | awk '/[c]pw\\.mods\\.bootstraplauncher\\.BootstrapLauncher/ {print $1}')
+      client_java_pids="$(pgrep -f '[c]pw[.]mods[.]bootstraplauncher[.]BootstrapLauncher' || true)"
+      if [[ -z "$client_java_pids" ]]; then
+        echo "No Minecraft client JVM matched the BootstrapLauncher process signature."
+      else
+        while read -r client_java_pid; do
+          [[ -n "$client_java_pid" ]] || continue
+          echo "### jcmd $client_java_pid Thread.print"
+          jcmd "$client_java_pid" Thread.print || true
+        done <<< "$client_java_pids"
+      fi
     else
       echo "jcmd unavailable"
     fi
@@ -332,6 +351,10 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
     incendium-full)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id curios)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id betterfortresses)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id createnetherindustry)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id netherdepthsupgrade)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id thinair)
       ;;
   esac
   if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then
@@ -363,7 +386,9 @@ test -f "$server_dir/s7-acceptance/level.dat"
 cp "$server_latest_log" wby-s7-joined-server-latest.log
 cp "$client_latest_log" wby-s7-joined-client-latest.log
 
+echo "WBY S7/S8 runtime: stopping server after client evidence"
 stop_server "$server_log"
+echo "WBY S7/S8 runtime: joined server stopped"
 kill -INT -- "-$client_pid" 2>/dev/null || true
 sleep 3
 kill -TERM -- "-$client_pid" 2>/dev/null || true
@@ -372,8 +397,10 @@ client_pid=""
 test -f "$server_dir/s7-acceptance/level.dat"
 
 server_log="wby-s7-server-reopen.log"
+echo "WBY S7/S8 runtime: reopening the saved world on the dedicated server"
 start_server "$server_log"
 test -f "$server_dir/s7-acceptance/level.dat"
+echo "WBY S7/S8 runtime: reopened server is ready; checking persisted policies"
 assert_supplementaries_policy
 assert_hearthandharvest_policy "$server_dir/config/hearthandharvest-common.toml"
 assert_hearthandharvest_worldgen_policy
