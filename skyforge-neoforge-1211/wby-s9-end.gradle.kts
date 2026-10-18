@@ -48,9 +48,7 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
     "control" -> emptyList()
     else -> emptyList()
 }
-val wbyS9UsesNullscape = wbyS9EndVariant in setOf(
-    "nullscape", "nullscape-betterend", "nullscape-unusual", "nullscape-structures", "nullscape-edr", "nullscape-flyhigher",
-)
+val wbyS9UsesNullscape = wbyS9EndVariant.startsWith("nullscape")
 val wbyS9UsesBetterEnd = wbyS9EndVariant in setOf(
     "nullscape-betterend", "betterend", "betterend-food", "betterend-moogs",
     "betterend-yungs-strongholds", "betterend-yungs-island", "betterend-structures",
