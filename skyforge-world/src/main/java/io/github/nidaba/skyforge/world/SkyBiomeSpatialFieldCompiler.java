@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -69,7 +70,7 @@ public final class SkyBiomeSpatialFieldCompiler {
             WorldBounds shelter = clip(expandHorizontally(island.bounds(), leeRadius), provinceBounds);
             if (shelter != null) {
                 zones.add(zone(worldSeed, shelter, SkyBiomeCatalog.ISLAND_LEE_ID,
-                        "island-lee/" + island.id().path(), keyOwners));
+                        "island-lee/" + islandIdKey(island.id()), keyOwners));
             }
         }
         return new SkyBiomeSpatialField(worldSeed, provinceBounds, zones);
@@ -111,6 +112,14 @@ public final class SkyBiomeSpatialFieldCompiler {
             return null;
         }
         return new WorldBounds(minimumX, maximumX, minimumY, maximumY, minimumZ, maximumZ);
+    }
+
+    private static String islandIdKey(SkyIslandWorldVolumeId id) {
+        String group = Base64.getUrlEncoder().withoutPadding()
+                .encodeToString(id.groupIdentifier().getBytes(StandardCharsets.UTF_8));
+        return Long.toUnsignedString(id.archipelagoRootSeed()) + "/" + group
+                + "/" + id.groupOrdinal() + "/" + id.memberOrdinal()
+                + "/" + Long.toUnsignedString(id.geometrySeed());
     }
 
     private static String boundsKey(WorldBounds bounds) {
