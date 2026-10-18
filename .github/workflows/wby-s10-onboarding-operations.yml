@@ -122,3 +122,82 @@ jobs:
           path: wby-s10-evidence/${{ matrix.profile }}/
           if-no-files-found: error
           retention-days: 14
+      - if: ${{ matrix.profile == 'full' }}
+        name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - if: ${{ matrix.profile == 'full' }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
+      - if: ${{ matrix.profile == 'full' }}
+        name: Stage shared client and server runtime directories
+        shell: bash
+        run: |
+          set -euo pipefail
+          common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS1ThinAir=true
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=incendium-full
+            -PwbyS9EndVariant=nullscape -PwbyS10Profile=full --no-configuration-cache
+          )
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
+          server="$GITHUB_WORKSPACE/s10-production-server"
+          profile="skyforge-neoforge-1211/run-wby-s10-full"
+          mkdir -p "$server" "$server/mods" "$server/config" "$server/kubejs/data" "$server/datapacks" "$server/s7-acceptance/datapacks"
+          curl --fail --location --retry 3 https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar -o "$server/neoforge-installer.jar"
+          (cd "$server" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
+          cp "$profile/server-mods/"*.jar "$server/mods/"
+          cp "$profile/config/"*.toml "$server/config/" || true
+          cp -R "$profile/kubejs/data/." "$server/kubejs/data/"
+          cp "$profile/datapacks/"*.zip "$server/s7-acceptance/datapacks/" || true
+          printf 'eula=true\n' > "$server/eula.txt"
+      - if: ${{ matrix.profile == 'full' }}
+        name: Prepare production-client launcher
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/wby-s10-launcher"
+          "$RUNNER_TEMP/wby-s10-launcher/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+          echo "WBY_S4_LAUNCHER_PYTHON=$RUNNER_TEMP/wby-s10-launcher/bin/python" >> "$GITHUB_ENV"
+      - if: ${{ matrix.profile == 'full' }}
+        name: Boot full profile, join client, and save/reopen
+        shell: bash
+        env:
+          WBY_S7_ICE_AND_FIRE: "true"
+          WBY_S7_BOMD: "true"
+          WBY_S7_COMBAT_VARIANT: tacz
+          WBY_S8_NETHER_VARIANT: incendium-full
+          WBY_S8_NETHER_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-full/datapacks/incendium-5.4.4.zip
+          WBY_S9_END_VARIANT: nullscape
+          WBY_S9_NULLSCAPE_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-full/datapacks/nullscape-review.zip
+          WBY_S7_PRODUCTION_SERVER_DIR: ${{ github.workspace }}/s10-production-server
+          WBY_S4_MINECRAFT_DIRECTORY: ${{ github.workspace }}/s10-minecraft
+        run: |
+          set -euo pipefail
+          cp "wby-s10-full-resolution.log" wby-s7-resolution.log
+          bash scripts/wby-s7-runtime-acceptance.sh
+      - name: Emit metadata-only S10 runtime manifest
+        if: success() && matrix.profile == 'full'
+        shell: bash
+        run: |
+          python3 scripts/wby-s9-package-review-profile.py \
+            --variant "s10-full" \
+            --client-mods skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --server-mods skyforge-neoforge-1211/run-wby-s10-full/server-mods \
+            --datapacks skyforge-neoforge-1211/run-wby-s10-full/datapacks \
+            --output wby-s10-full-review-manifest.tsv
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success() && matrix.profile == 'full'
+        with:
+          name: wby-s10-full-review-manifest
+          path: wby-s10-full-review-manifest.tsv
+          if-no-files-found: error
+          retention-days: 14
