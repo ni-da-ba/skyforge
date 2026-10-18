@@ -12,6 +12,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneIdentity;
 import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import org.junit.jupiter.api.Test;
 
@@ -73,6 +74,20 @@ final class SkyforgeSkyBiomeZoneSavedDataTest {
         assertThrows(
                 IllegalArgumentException.class,
                 () -> SkyforgeSkyBiomeZoneSavedData.load(duplicatedTag, null));
+    }
+
+    @Test
+    void rejectsWrongAssignmentListElementType() {
+        CompoundTag malformed = new CompoundTag();
+        malformed.putInt("schemaVersion", SkyforgeSkyBiomeZoneSavedData.DATA_SCHEMA_VERSION);
+        malformed.putLong("worldSeed", WORLD_SEED);
+        ListTag entries = new ListTag();
+        entries.add(StringTag.valueOf("not an assignment"));
+        malformed.put("assignments", entries);
+
+        assertThrows(
+                IllegalArgumentException.class,
+                () -> SkyforgeSkyBiomeZoneSavedData.load(malformed, null));
     }
 
     @Test
