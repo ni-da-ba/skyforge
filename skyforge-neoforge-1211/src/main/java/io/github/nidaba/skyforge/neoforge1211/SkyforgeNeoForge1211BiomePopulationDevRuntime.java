@@ -11,11 +11,16 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -40,6 +45,8 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
     static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
+    static final String WAIT_FOR_CLIENT_PROPERTY = "skyforge.dev.biomePopulation.waitForRemoteClient";
+    static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
@@ -72,6 +79,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 || acceptanceCompletionRequested) {
             return;
         }
+        if (!remoteClientJoinPassed()) {
+            return;
+        }
         int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
         if (exteriorNonAirBlocks != 0) {
             SkyforgeAutomatedAcceptanceHarness.fail(
@@ -93,6 +103,30 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence(),
                         "exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK,
                         "exteriorNonAirBlocks", exteriorNonAirBlocks));
+    }
+
+    private static boolean remoteClientJoinPassed() {
+        if (!Boolean.getBoolean(WAIT_FOR_CLIENT_PROPERTY)) {
+            return true;
+        }
+        String configured = System.getProperty(CLIENT_RESULT_FILE_PROPERTY);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalStateException(
+                    "remote-client acceptance requires system property " + CLIENT_RESULT_FILE_PROPERTY);
+        }
+        Path result = Path.of(configured).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(result)) {
+            return false;
+        }
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(result)) {
+            properties.load(input);
+        } catch (IOException exception) {
+            throw new IllegalStateException("failed to read remote-client acceptance result " + result, exception);
+        }
+        return "PASS".equals(properties.getProperty("status"))
+                && "true".equals(properties.getProperty("remoteServerJoin"))
+                && "false".equals(properties.getProperty("singleplayerServer"));
     }
 
     private static void installServerAcceptanceWarmupChunks() {
