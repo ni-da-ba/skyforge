@@ -26,10 +26,10 @@ This file is a map, not the full manual. Read deeper documents only when the cur
   - Content: `docs/agent-state/CONTENT_STATE.md`
   - Music/Audio: `docs/agent-state/MUSIC_STATE.md`
   - Presentation: `docs/agent-state/PRESENTATION_STATE.md`
-- Lightweight multi-agent operation: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
-- Manual/hosted producer ownership: `docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md`
+- Optional controller operations, only when maintaining that subsystem: `docs/agent-state/ORCHESTRATION_PROTOCOL.md`
+- Manual producer ownership: `docs/agent-state/MANUAL_PRODUCER_PROTOCOL.md`
 
-`CURRENT_PROJECT_STATE.md` is a compact context cache, not an authority override. Read it early, then verify its snapshot boundary against current `main`, active issue/PR authority, controller ownership, tests, and merged history before relying on it. Update it in the same bounded tranche when a human/product boundary or primary next-work boundary materially changes.
+`CURRENT_PROJECT_STATE.md` is a compact context cache, not an authority override. Read it early, then verify its snapshot boundary against current `main`, active issue/PR ownership, tests, and merged history before relying on it. Update it in the same bounded tranche when a human/product boundary or primary next-work boundary materially changes.
 
 If summaries disagree with `main`, source/tests, or merged history, the repository evidence wins.
 
@@ -40,7 +40,7 @@ If summaries disagree with `main`, source/tests, or merged history, the reposito
 Read `docs/agent-state/EXECUTION_BOUNDARIES.md` before choosing where any command or validation runs. The short form is:
 
 ```text
-DigitalOcean Droplet = orchestration/control plane ONLY
+DigitalOcean Droplet = control-plane maintenance only
 GitHub / Actions      = project development + automated machine validation
 Nicholas local PC     = manual/interactive/human verification ONLY
 ```
@@ -48,7 +48,7 @@ Nicholas local PC     = manual/interactive/human verification ONLY
 There is **no fallback between these planes**. In particular:
 
 - never perform project implementation, producer edits, Gradle/Java/NeoForge builds, tests, benchmarks, or automated milestone verification on the DigitalOcean Droplet;
-- never treat the Droplet as a remote Codex development workspace or launch a hosted implementation worker there;
+- never treat the Droplet as a remote Codex development workspace or run project validation there;
 - if GitHub Actions is unavailable, wait/block rather than shifting automated work to the Droplet or local workstation;
 - if a human/manual gate is unavailable, leave the gate pending rather than substituting hosted automation;
 - Droplet maintenance may recover/export pre-existing legacy worker bytes, but recovery must not continue development or project validation there.
@@ -62,29 +62,25 @@ Older prompts/docs/manifests that describe a hosted worker or hosted JDK for pro
 - **Content / Experience** — mod integration, progression, gameplay capability, Bootstrap Province, player experience.
 - **Music / Audio** — score/audio authorship, source identity, production evidence and listening gates.
 - **Presentation** — accurate project communication/showcase packaging grounded in accepted project truth.
-- **Audit** — convergence, validation economy, session/process health, orchestration and human-gate escalation.
+- **Audit** — convergence, validation economy, process health, and human-gate escalation.
 
 Do not seize another lane's technical or product authority merely to keep work moving.
 
-## Orchestrator phase routing
+## Producer work selection
 
-The lightweight orchestrator still uses the fast path in `ORCHESTRATION_PROTOCOL.md`: current supervisory state plus relevant PR/issue/Actions movement first.
+Use the current issue/PR and lane state to select work:
 
-It must additionally read `PROGRAM_ROADMAP.md` **before** classifying the program as directionless/dormant or escalating merely because no pre-created next issue exists when:
-
-- the current primary milestone/phase has just reached an acceptance boundary;
-- a lane ledger names no next task after its accepted boundary;
-- the remaining work appears to be only future/speculative work;
-- a human-strategy trigger may have been superseded by an explicit owner-approved roadmap resolution;
-- multiple technically valid next tasks exist and product-convergence priority is unclear.
-
-Use the roadmap's state/entry/exit/missing-issue rules. Do not fully reread it on every ordinary wake when an active bounded issue/PR already determines the next action.
+- Finish or repair an already-active bounded issue/PR before starting another task in that scope.
+- Follow a lane ledger's explicit next bounded milestone.
+- Read `PROGRAM_ROADMAP.md` when a phase has reached an acceptance boundary, a lane ledger names no next task, the remaining work appears speculative, a human-strategy trigger may have been resolved, or multiple technically valid next tasks need product-priority guidance.
+- Use the roadmap's state, entry, exit, and missing-issue rules. Do not reread it on every ordinary task when an active bounded issue/PR already determines the next action.
+- Do not invent work merely because a lane is idle.
 
 ## Worker reconstruction
 
 A producer starting or resuming bounded work should:
 
-0. read `CURRENT_PROJECT_STATE.md`, verify its snapshot boundary against current `main` and live ownership, then inspect hosted-controller ownership, controller-managed PRs, active external-producer claims, and healthy manual producer PRs before selecting work; for an interactive/manual producer, follow `MANUAL_PRODUCER_PROTOCOL.md` and obtain/verify the issue claim before editing;
+0. read `CURRENT_PROJECT_STATE.md`, verify its snapshot boundary against current `main` and GitHub issue/PR ownership, then inspect active claims and healthy producer PRs before selecting work; for an interactive/manual producer, follow `MANUAL_PRODUCER_PROTOCOL.md` and record issue ownership before editing;
 1. verify current `main`, its branch/PR, and whether a newer accepted boundary exists;
 2. read the Program Charter;
 3. read the Program Roadmap when the task affects phase sequencing, next-work selection, or a cross-phase dependency;
@@ -101,8 +97,7 @@ Conversational history is supplementary.
 
 - Prefer one bounded active acceptance target per lane.
 - Preserve the Program Roadmap's primary convergence focus when selecting new work, while allowing already-authorized bounded cross-phase work to continue.
-- Manual/interactive producers may run in the same lane as the hosted controller only when they own a different governing issue and independent semantic scope; task ownership is exclusive even when lane ownership is shared.
-- Do not invent work merely because the lane is idle.
+- Manual/interactive producers may work in the same lane as another producer only when they own a different governing issue and independent semantic scope; task ownership is exclusive even when lane ownership is shared.
 - Do not synchronize only because a branch is numerically behind.
 - Do not rerun expensive evidence only to refresh a timestamp or SHA.
 - Cheap deterministic evidence: broad/exhaustive where practical.
