@@ -168,4 +168,5 @@ After terrain-domain isolation, structures have not yet been reintroduced as a p
 - [Engineered weapons systems stack v0.1](engineered-weapons-systems-stack-v0.1.md)
 - [General engineering power stack v0.1](general-engineering-power-stack-v0.1.md)
 - [General locomotion and physical actuation stack v0.1](general-locomotion-stack-v0.1.md)
+- [Structural and construction engineering stack v0.1](structural-construction-engineering-stack-v0.1.md)
 - [Working mod and to-build ledger](mod-and-build-ledger.md)
