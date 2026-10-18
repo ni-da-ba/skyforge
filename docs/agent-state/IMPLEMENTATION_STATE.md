@@ -1,12 +1,18 @@
 # Skyforge Implementation lane state
 
 **Canonical lane:** IMPLEMENTATION  
-**Updated:** 2026-09-25 (hydrology reset override; broader lane inventory below retains its historical milestone detail)
+**Updated:** 2026-10-18 (private-server alpha sequencing override; broader lane inventory below retains its historical milestone detail)
 **Repository snapshot observed at migration:** `main@3f300346e598a6bc87a3a1468ec028bdee7eec0b`  
 **Highest merged Implementation milestone:** **SF-IMP-0082**  
 **SF-IMP-0082 merge:** PR #273, `3c48828924b0cf4ac7f1184c493d60ef605bf84a`
 
 Always verify current `main` before starting work; the snapshot above records the migration point, not a claim that other lanes stopped advancing afterward.
+
+## Owner-approved private-server alpha sequencing — 2026-10-18
+
+Implementation may advance the provider-backed private-server alpha under #1514 without waiting for DR-70 / #754 or completion of the F4 hydrology sequence. The alpha target is a genuinely void Overworld with Skyforge-owned island/cluster/province composition and sky-biome meaning, while vanilla and selected modded providers contribute local terrain and generation inside exact island boundaries.
+
+This is a sequencing exception for the alpha path, not a technical approval of unfinished hydrology or a change to its ownership/safety contract. Keep accepted hydrology and meso-scale semantics available for reuse; defer and classify unfinished F4/multi-reach work against provider evidence. Do not weaken D2, expand excavation/removal authority, delete active work, or close its PRs as part of #1514. Track the provider boundary, void isolation, modded contribution, and classification in that issue.
 
 ## Current hydrology boundary — 2026-10-15
 
