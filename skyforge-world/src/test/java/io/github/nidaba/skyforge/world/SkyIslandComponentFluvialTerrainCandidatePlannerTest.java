@@ -224,7 +224,8 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
-    void postRealizationD2DiagnosticReportsMeasuredAndAllowedLongitudinalGrade() {
+    void postRealizationD2DiagnosticReportsMeasuredAndAllowedLongitudinalGrade()
+            throws Exception {
         SkyIslandComponentFluvialTerrainCandidatePlan candidate =
                 SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor(8L, 81L, 28L));
         String diagnostic = candidate.deferredQualifiedComponents().stream()
@@ -237,6 +238,11 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
         assertTrue(diagnostic.contains("maximum longitudinal grade="));
         assertTrue(diagnostic.contains("maximum longitudinal grade limit="));
+        Path report = Path.of(
+                "build", "evidence", "hydrology-join-diagnostics", "f4-network-d2-grade.txt");
+        Files.createDirectories(report.getParent());
+        Files.writeString(report, "key=28 seed=0x" + String.format("%016X", SEED)
+                + System.lineSeparator() + diagnostic + System.lineSeparator());
     }
 
     @Test

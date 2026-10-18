@@ -314,6 +314,7 @@ jobs:
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.ordinary77RealizesExactlyTheTwoQualifiedEdgeOutletComponents' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.accepted77TerrainFieldSamplesTheSameCoupledCandidateThatD2Qualifies' \
             --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.primary287ContributesExactlyZeroCandidateTerrain' \
+            --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.postRealizationD2DiagnosticReportsMeasuredAndAllowedLongitudinalGrade' \
             --tests '*SkyIslandComponentFluvialWorldSurfaceProjectionTest.ordinary77ProjectsOnlyTheQualifiedDeltaIntoCompiledWorldSpace' \
             --tests '*SkyIslandGeomorphicQualificationEvaluatorTest.firstEvidenceBackedEnvelopeSeparatesLowSurgeryControlsFromPrimaryFailure' \
             --tests '*SkyIslandHydraulicGeometrySkeletonPlannerTest.naturalKey700D2RefinementIsReportedAlongsideComponentSpanOutcomes' \
