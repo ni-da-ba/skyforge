@@ -4,8 +4,10 @@ on:
   pull_request:
     paths:
       - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
       - "skyforge-neoforge-1211/src/development/**"
@@ -14,8 +16,10 @@ on:
       - main
     paths:
       - ".github/workflows/sf-imp-0054-modded-biome.yml"
+      - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
       - "skyforge-neoforge-1211/src/development/**"
@@ -41,47 +45,20 @@ jobs:
       - name: Set up Java and Gradle
         uses: ./.github/actions/setup-java-gradle
 
-      - name: Configure the disposable Skyforge development server
+      - name: Run dedicated-server and remote-client acceptance
         shell: bash
-        run: |
-          set -euo pipefail
-          server_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server"
-          mkdir -p "$server_dir"
-          printf 'eula=true\n' > "$server_dir/eula.txt"
-          cat > "$server_dir/server.properties" <<'EOF'
-          level-name=sf-imp-0054-modded-biome
-          level-seed=592850352
-          level-type=skyforge:development
-          online-mode=false
-          enforce-secure-profile=false
-          spawn-protection=0
-          gamemode=creative
-          difficulty=peaceful
-          view-distance=5
-          simulation-distance=3
-          max-tick-time=0
-          max-players=1
-          EOF
+        run: bash scripts/sf-imp-0054-modded-biome-acceptance.sh
 
-      - name: Generate the exact-volume BOP biome specimen on a dedicated server
-        shell: bash
-        run: |
-          set -euo pipefail
-          timeout 35m ./gradlew :skyforge-neoforge-1211:runModdedBiomePopulationServer --no-daemon --stacktrace
-          result="skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/server.properties"
-          test -f "$result"
-          grep -Eq '^status=PASS$' "$result"
-          grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
-          grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
-          grep -Eq '^exteriorNonAirBlocks=0$' "$result"
-
-      - name: Preserve server and acceptance evidence
+      - name: Preserve server, client, and acceptance evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: sf-imp-0054-modded-biome-server
+          name: sf-imp-0054-modded-biome-server-client
           path: |
+            sf-imp-0054-modded-biome-server-task.log
+            sf-imp-0054-modded-biome-client-task.log
             skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
           if-no-files-found: warn
           retention-days: 14
