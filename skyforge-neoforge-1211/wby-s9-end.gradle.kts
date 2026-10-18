@@ -173,12 +173,46 @@ tasks.register("wbyS9ResolveEndProfile") {
                 .joinToString("") { "%02x".format(it) }
             println("WBY S9 DATAPACK PASS id=$packId sha256=$digest file=${pack.name}")
         }
-        check(clientFiles.map { it.name }.distinct().size == clientFiles.size) {
-            "WBY S9 client dependency filenames are not unique"
+        val modMetadataPaths = listOf("META-INF/neoforge.mods.toml", "META-INF/mods.toml")
+        val declaredModIdPattern = Regex("""^modId\\s*=\\s*"([^"]+)"\\s*(?:#.*)?$""")
+        fun isNeoForgeModJar(file: java.io.File): Boolean =
+            file.isFile && file.extension.equals("jar", ignoreCase = true) &&
+                runCatching {
+                    ZipFile(file).use { archive -> modMetadataPaths.any { archive.getEntry(it) != null } }
+                }.getOrDefault(false)
+        fun declaredModIds(file: java.io.File): Set<String> =
+            ZipFile(file).use { archive ->
+                modMetadataPaths.mapNotNull { path ->
+                    val entry = archive.getEntry(path) ?: return@mapNotNull null
+                    val text = archive.getInputStream(entry).bufferedReader().use { it.readText() }
+                    var inModSection = false
+                    val ids = mutableSetOf<String>()
+                    text.lineSequence().forEach { line ->
+                        val trimmed = line.trim()
+                        if (trimmed.startsWith("[")) {
+                            inModSection = trimmed == "[[mods]]"
+                        } else if (inModSection) {
+                            declaredModIdPattern.matchEntire(trimmed)?.groupValues?.get(1)?.let(ids::add)
+                        }
+                    }
+                    ids
+                }.flatten().toSet()
+            }
+        fun requireUniqueMods(files: Collection<java.io.File>, side: String) {
+            val modJars = files.filter(::isNeoForgeModJar)
+            val filenameCollisions = modJars.groupBy { it.name }.filterValues { it.size > 1 }
+            check(filenameCollisions.isEmpty()) {
+                "WBY S9 $side mod JAR filenames collide: " +
+                    filenameCollisions.mapValues { (_, jars) -> jars.map { it.absolutePath } }
+            }
+            val idCollisions = modJars.flatMap { jar -> declaredModIds(jar).map { it to jar.name } }
+                .groupBy({ it.first }, { it.second }).filterValues { it.size > 1 }
+            check(idCollisions.isEmpty()) {
+                "WBY S9 $side duplicate mod IDs: $idCollisions"
+            }
         }
-        check(serverFiles.map { it.name }.distinct().size == serverFiles.size) {
-            "WBY S9 server dependency filenames are not unique"
-        }
+        requireUniqueMods(clientFiles, "client")
+        requireUniqueMods(serverFiles, "server")
         println("WBY S9 END RESOLUTION PASS variant=$wbyS9EndVariant")
         println("  selectedMods=${wbyS9EndMods.joinToString()}")
         println("  clientModules=${clientModules.size} serverModules=${serverModules.size}")
