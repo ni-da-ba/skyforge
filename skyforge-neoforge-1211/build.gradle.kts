@@ -51,6 +51,32 @@ tasks.withType<Test>().configureEach {
 // keeping temporary world presets and UI tags out of distributable Skyforge artifacts.
 val development = sourceSets.create("development")
 
+// Isolated terrain-provider A/B runtimes keep Tectonic out of ordinary Skyforge and vanilla control runs.
+val tectonicTerrainControlRuntime = sourceSets.create("tectonicTerrainControlRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+val tectonicTerrainTreatmentRuntime = sourceSets.create("tectonicTerrainTreatmentRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
+}
+val tectonicTerrainPinFile = layout.projectDirectory.file("sf-imp-0054-tectonic-mods.properties")
+val tectonicTerrainPins = Properties().apply {
+    tectonicTerrainPinFile.asFile.inputStream().use(::load)
+}
+fun tectonicTerrainPin(mod: String, field: String): String =
+    requireNotNull(tectonicTerrainPins.getProperty("$mod.$field")) {
+        "missing SF-IMP-0054 Tectonic pin: $mod.$field"
+    }
+check(tectonicTerrainPin("minecraft", "version") == "1.21.1") {
+    "SF-IMP-0054 Tectonic pilot is defined only for Minecraft 1.21.1"
+}
+check(tectonicTerrainPin("neoforge", "version") == "21.1.249") {
+    "SF-IMP-0054 Tectonic pilot NeoForge pin must match the adapter runtime"
+}
+check(tectonicTerrainPin("tectonic", "versionId") == "n4iyW7aB")
+check(tectonicTerrainPin("lithostitched", "versionId") == "r3TO8PWe")
+
 
 // #495 real-provider probe must load Aerodynamics4MC as a discovered NeoForge mod. The older C3
 // AdditionalRuntimeClasspath profiles are sufficient for loader/dependency preflight but are a
@@ -701,6 +727,57 @@ neoForge {
             client()
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        // SF-IMP-0054 Tectonic terrain A/B. Both profiles use the same void-base Skyforge
+        // development preset, seed, island fixture, and registered minecraft:overworld settings
+        // key. Only the treatment source set discovers Tectonic and its required Lithostitched API.
+        create("tectonicTerrainVanillaServer") {
+            server()
+            sourceSet.set(tectonicTerrainControlRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-vanilla").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-vanilla")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/vanilla.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("tectonicTerrainTreatmentServer") {
+            server()
+            sourceSet.set(tectonicTerrainTreatmentRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-tectonic-treatment")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/treatment.properties").get().asFile.absolutePath,
+            )
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -7344,6 +7421,16 @@ tasks.register("waveC13ResolvePinnedMods") {
 
 
 dependencies {
+    // Keep this R&D provider pair confined to the modded treatment run source set.
+    add(
+        tectonicTerrainTreatmentRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("tectonic", "coordinate"),
+    )
+    add(
+        tectonicTerrainTreatmentRuntime.runtimeOnlyConfigurationName,
+        tectonicTerrainPin("lithostitched", "coordinate"),
+    )
+
     api(project(":skyforge-world"))
 
     // HS-03's reference:crescent specimen is implemented by a fixture-only provider in this
@@ -9022,6 +9109,97 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
     doLast {
         requireSkyforgeF4kHydrologyReviewPreparationPass()
         println("F4K HYDROLOGY PREPARATION PASS: persisted exact F4H water heads are ready for human review.")
+    }
+}
+
+
+val sfImp0054TectonicResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0054-tectonic")
+val sfImp0054TectonicServerProperties = """
+    level-name=acceptance
+    level-seed=600054
+    level-type=skyforge:development
+    online-mode=false
+    spawn-protection=0
+    gamemode=creative
+    difficulty=peaceful
+    view-distance=5
+    simulation-distance=3
+    max-tick-time=0
+    server-port=0
+""".trimIndent() + "\\n"
+
+fun prepareSfImp0054TectonicServerDirectory(relativePath: String) {
+    val directory = layout.projectDirectory.dir(relativePath).asFile
+    delete(directory)
+    directory.mkdirs()
+    directory.resolve("eula.txt").writeText("eula=true\\n")
+    directory.resolve("server.properties").writeText(sfImp0054TectonicServerProperties)
+}
+
+fun requireSfImp0054TectonicPass(resultName: String): Properties {
+    val file = sfImp0054TectonicResultDirectory.get().file("$resultName.properties").asFile
+    check(file.isFile) { "SF-IMP-0054 Tectonic result missing: $file" }
+    val properties = Properties()
+    file.inputStream().use(properties::load)
+    check(properties.getProperty("status") == "PASS") {
+        val detail = properties.getProperty("failure") ?: "status=${properties.getProperty("status")}"
+        "SF-IMP-0054 Tectonic case $resultName did not PASS: $detail"
+    }
+    return properties
+}
+
+tasks.named("runTectonicTerrainVanillaServer").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B owns a disposable dedicated-server world.")
+    doFirst {
+        delete(sfImp0054TectonicResultDirectory)
+        prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-vanilla")
+    }
+    doLast { requireSfImp0054TectonicPass("vanilla") }
+}
+
+tasks.named("runTectonicTerrainTreatmentServer").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B owns a disposable dedicated-server world.")
+    mustRunAfter("runTectonicTerrainVanillaServer")
+    doFirst { prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment") }
+    doLast { requireSfImp0054TectonicPass("treatment") }
+}
+
+tasks.register("sfImp0054TectonicTerrainAcceptance") {
+    group = "verification"
+    description = "Compare vanilla and Tectonic surface profiles inside one deterministic Skyforge void-island fixture."
+    dependsOn("runTectonicTerrainVanillaServer", "runTectonicTerrainTreatmentServer")
+    doLast {
+        val vanilla = requireSfImp0054TectonicPass("vanilla")
+        val treatment = requireSfImp0054TectonicPass("treatment")
+        check(vanilla.getProperty("worldSeed") == treatment.getProperty("worldSeed")) {
+            "SF-IMP-0054 Tectonic A/B seeds differ"
+        }
+        check(vanilla.getProperty("terrainProviderSettings") == "minecraft:overworld"
+                && treatment.getProperty("terrainProviderSettings") == "minecraft:overworld") {
+            "SF-IMP-0054 Tectonic A/B did not use the expected Overworld settings key"
+        }
+        check(vanilla.getProperty("profile") == "vanilla"
+                && vanilla.getProperty("tectonicModLoaded") == "false"
+                && vanilla.getProperty("exteriorNonAirBlocks") == "0"
+                && vanilla.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+            "SF-IMP-0054 vanilla control evidence is incomplete: $vanilla"
+        }
+        check(treatment.getProperty("profile") == "tectonic"
+                && treatment.getProperty("tectonicModLoaded") == "true"
+                && treatment.getProperty("tectonicPackSelected") == "true"
+                && treatment.getProperty("exteriorNonAirBlocks") == "0"
+                && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+            "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
+        }
+        check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
+            "SF-IMP-0054 Tectonic terrain profile did not differ from vanilla"
+        }
+        println("SF-IMP-0054 TECTONIC TERRAIN A/B PASS: vanilla="
+                + vanilla.getProperty("terrainProfileDigest")
+                + ", tectonic=" + treatment.getProperty("terrainProfileDigest")
+                + ", seed=" + treatment.getProperty("worldSeed")
+                + ", settings=" + treatment.getProperty("terrainProviderSettings")
+                + ", exactIslandUnderside=true, exteriorVoid=true")
     }
 }
 
