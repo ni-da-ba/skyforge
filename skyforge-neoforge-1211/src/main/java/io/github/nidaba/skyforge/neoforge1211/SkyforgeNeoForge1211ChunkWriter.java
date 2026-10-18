@@ -116,7 +116,25 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             DeferredSolidWriteCursor cursor,
             int maximumAssignedSolidWrites,
             boolean enforcePhysicalAdmission) {
+        return writeDeferredSolidOverlayPacket(
+                chunk,
+                materialization,
+                cursor,
+                maximumAssignedSolidWrites,
+                enforcePhysicalAdmission,
+                Map.of());
+    }
+
+    /** Advances a deferred provider packet under persisted exact-volume write claims. */
+    DeferredSolidWriteAdvance writeDeferredSolidOverlayPacket(
+            ChunkAccess chunk,
+            MinecraftChunkMaterialization materialization,
+            DeferredSolidWriteCursor cursor,
+            int maximumAssignedSolidWrites,
+            boolean enforcePhysicalAdmission,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
         validateOwnership(chunk, materialization);
+        Objects.requireNonNull(providerWriteClaims, "providerWriteClaims");
         Objects.requireNonNull(cursor, "cursor");
         if (maximumAssignedSolidWrites <= 0) {
             throw new IllegalArgumentException("deferred solid-write packet budget must be positive");
@@ -157,8 +175,11 @@ public final class SkyforgeNeoForge1211ChunkWriter {
             if (!SkyforgeMinecraftBlockPalette.AIR.equals(key)) {
                 int worldX = Math.addExact(minimumX, localX);
                 int worldZ = Math.addExact(minimumZ, localZ);
-                if (enforcePhysicalAdmission
-                        && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(
+                        providerWriteClaims, worldX, worldY, worldZ);
+                if ((enforcePhysicalAdmission || providerOwner.isPresent())
+                        && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                                worldX, worldY, worldZ, providerOwner)) {
                     DeferredSolidWriteCursor blockedCursor = new DeferredSolidWriteCursor(
                             nextLinearIndex,
                             Math.addExact(cursor.cumulativeAssignedSolidWrites(), assignedThisPacket),
@@ -181,14 +202,19 @@ public final class SkyforgeNeoForge1211ChunkWriter {
 
                 blockPos.set(worldX, worldY, worldZ);
                 BlockState previousState = chunk.getBlockState(blockPos);
-                chunk.setBlockState(blockPos, state, false);
-                BlockState stored = chunk.getBlockState(blockPos);
-                if (!stored.equals(state)) {
-                    throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                if (providerOwner.isPresent() && !previousState.isAir()) {
+                    // Preserve native content, but advance persisted progress past this occupied cell.
+                    assignedThisPacket++;
+                } else {
+                    chunk.setBlockState(blockPos, state, false);
+                    BlockState stored = chunk.getBlockState(blockPos);
+                    if (!stored.equals(state)) {
+                        throw new IllegalStateException("ChunkAccess did not retain the resolved BlockState");
+                    }
+                    SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
+                    assignedThisPacket++;
+                    solidThisPacket++;
                 }
-                SkyforgeDeferredChunkMutationLifecycle.afterWrite(chunk, blockPos, previousState, stored);
-                assignedThisPacket++;
-                solidThisPacket++;
             }
 
             nextLinearIndex++;
