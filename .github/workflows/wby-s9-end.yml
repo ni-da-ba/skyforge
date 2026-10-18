@@ -130,7 +130,7 @@ jobs:
           )
           ./gradlew :skyforge-neoforge-1211:wbyS9ResolveEndProfile "${common[@]}" | tee wby-s9-resolution.log
           ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
-          ./gradlew :skyforge-neoforge-1211:wbyS1StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
+          ./gradlew :skyforge-neoforge-1211:wbyS9StageEndClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
           ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
           ./gradlew :skyforge-neoforge-1211:wbyS8StageNetherDatapack "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
           ./gradlew :skyforge-neoforge-1211:wbyS9StageEndDatapacks "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}

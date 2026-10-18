@@ -7653,7 +7653,7 @@ tasks.register("wbyS1ResolvePinnedMods") {
         val expectedOtherStackNetherSharedMods =
             (if (wbyS7CombatVariant == "scorched") setOf("curios") else emptySet()) +
                 (if (wbyS1ThinAir) setOf("thinAirRelived") else emptySet()) +
-                (if (s9EndVariantForSharedDeps in s9BetterEndVariants) setOf("bclibNewDawn") else emptySet())
+                (if (s9EndVariantForSharedDeps in s9BetterEndVariants) setOf("bclibNewDawn", "wunderLibNewDawn", "worldWeaverNewDawn") else emptySet())
         ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) -
             wbyS8NetherMods - expectedOtherStackNetherSharedMods).forEach { mod ->
             val expected = wbyS8Token(mod)
@@ -10380,6 +10380,5 @@ tasks.register<Sync>("wbyS1StageServerMods") {
 
 // S9 End candidates stay isolated from the accepted S0-S8 production pins until qualified.
 apply(from = "wby-s9-end.gradle.kts")
-
 // S10 onboarding/operations/economy candidates remain an isolated opt-in profile.
 apply(from = "wby-s10-onboarding-operations.gradle.kts")
