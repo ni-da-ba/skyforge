@@ -295,6 +295,9 @@ jobs:
           if [[ "${{ matrix.variant }}" == "incendium" || "${{ matrix.variant }}" == "incendium-full" || "${{ matrix.variant }}" == "incendium-betternether" ]]; then
             export WBY_S8_NETHER_DATAPACK_SOURCE="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/datapacks/incendium-5.4.4.zip"
           fi
+          if [[ "${{ matrix.variant }}" == "incendium-betternether" ]]; then
+            export WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS=900
+          fi
           export WBY_S7_COMBAT_CONTROL_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-combat-control/server-mods"
           export WBY_S7_COMBAT_STAGED_MODS="$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s8-${{ matrix.variant }}/server-mods"
           export WBY_S7_PRODUCTION_SERVER_DIR="$GITHUB_WORKSPACE/s8-production-server"

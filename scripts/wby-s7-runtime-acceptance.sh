@@ -252,7 +252,12 @@ grep -Fq -- 'WbyS7Acceptance' wby-s7-client-program-args.txt
 
 server_latest_log="$server_dir/logs/latest.log"
 joined=false
-for _ in $(seq 1 600); do
+join_timeout_seconds="${WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS:-600}"
+if [[ ! "$join_timeout_seconds" =~ ^[0-9]+$ ]] || [[ "$join_timeout_seconds" -lt 1 ]]; then
+  echo "WBY_S7_CLIENT_JOIN_TIMEOUT_SECONDS must be a positive integer." >&2
+  exit 1
+fi
+for _ in $(seq 1 "$join_timeout_seconds"); do
   if grep -Fq 'WbyS7Acceptance joined the game' "$server_log" || \
     grep -Fq 'WbyS7Acceptance joined the game' "$server_latest_log" 2>/dev/null; then joined=true; break; fi
   if ! kill -0 "$client_pid" 2>/dev/null; then cat "$client_log"; exit 1; fi
@@ -260,7 +265,7 @@ for _ in $(seq 1 600); do
   sleep 1
 done
 if [[ "$joined" != true ]]; then
-  echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within 600 seconds." >&2
+  echo "WBY S7/S8 client join failed: WbyS7Acceptance did not join 127.0.0.1:25565 within ${join_timeout_seconds} seconds." >&2
   thread_dump="$GITHUB_WORKSPACE/wby-s7-client-thread-dump.txt"
   {
     echo "--- Java/Xvfb process state ---"
@@ -271,7 +276,7 @@ if [[ "$joined" != true ]]; then
         [[ -n "$client_java_pid" ]] || continue
         echo "### jcmd $client_java_pid Thread.print"
         jcmd "$client_java_pid" Thread.print || true
-      done < <(pgrep -f 'net.minecraft.client.main.Main' || true)
+      done < <(ps -eo pid=,args= | awk '/[c]pw\\.mods\\.bootstraplauncher\\.BootstrapLauncher/ {print $1}')
     else
       echo "jcmd unavailable"
     fi
@@ -326,6 +331,7 @@ if [[ "${WBY_S7_COMBAT_VARIANT:-none}" != "none" ]]; then
       ;;
     incendium-full)
       s8_profile_overlay_args+=(--expected-profile-overlay-mod-id mynethersdelight)
+      s8_profile_overlay_args+=(--expected-profile-overlay-mod-id curios)
       ;;
   esac
   if [[ -n "${WBY_S7_COMBAT_CONTROL_MODS:-}" || -n "${WBY_S7_COMBAT_STAGED_MODS:-}" ]]; then

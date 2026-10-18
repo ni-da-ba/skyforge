@@ -432,7 +432,11 @@ def main() -> int:
         raise SystemExit("--control-mods and --staged-mods must be supplied together")
 
     pins = read_properties(args.pins)
-    selected = set(ARMS[args.variant])
+    # Some S8 overlays (for example My Nether's Delight) depend on a mod that is also
+    # catalogued as a combat candidate. An explicitly declared overlay ID may select
+    # that exact pinned dependency without weakening the unselected-candidate guard.
+    overlay_candidate_ids = set(args.expected_profile_overlay_mod_id) & set(ALL_CANDIDATES)
+    selected = set(ARMS[args.variant]) | overlay_candidate_ids
     jars = sorted(args.mods.glob("*.jar"))
     report: list[list[object]] = [
         ["record", "variant", "coordinate", "jar", "sha256", "mod_id", "declared_version", "metadata_license", "required_dependencies", "worldgen_resources"],
