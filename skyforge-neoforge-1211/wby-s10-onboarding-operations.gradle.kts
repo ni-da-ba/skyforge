@@ -70,14 +70,20 @@ tasks.register("wbyS10ResolveProfile") {
     inputs.file(wbyS10PinFile)
     inputs.property("wbyS10Profile", wbyS10Profile)
     doLast {
-        if (wbyS10Profile == "none") {
-            println("WBY S10 profile none: inherited S0-S9 baseline only")
-            return@doLast
-        }
         val clientModules = wbyS10ClientConfiguration.incoming.resolutionResult.allComponents
             .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}:${it.version}" }.toSet()
         val serverModules = wbyS10ServerConfiguration.incoming.resolutionResult.allComponents
             .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}:${it.version}" }.toSet()
+        wbyS10All.filter { it !in wbyS10Mods }.forEach { mod ->
+            val excluded = wbyS10Parts(mod).joinToString(":")
+            check(excluded !in clientModules && excluded !in serverModules) {
+                "WBY S10 profile $wbyS10Profile leaked unselected candidate $mod: $excluded"
+            }
+        }
+        if (wbyS10Profile == "none") {
+            println("WBY S10 profile none: inherited S0-S9 baseline only; no S10 candidates resolved")
+            return@doLast
+        }
         wbyS10Mods.forEach { mod ->
             val parts = wbyS10Parts(mod)
             val expected = parts.joinToString(":")
