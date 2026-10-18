@@ -1,0 +1,58 @@
+diff --git a/src/main/java/dev/fallingcloud/windy/WindDirector.java b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+--- a/src/main/java/dev/fallingcloud/windy/WindDirector.java
++++ b/src/main/java/dev/fallingcloud/windy/WindDirector.java
+@@ -70,6 +70,18 @@
+ 
+     /** One-line weather report for the status command. */
+     public String describe() {
++        if (hasExternalWind()) {
++            Minecraft minecraft = Minecraft.getInstance();
++            if (minecraft.level == null || minecraft.player == null) {
++                return "external physical wind unavailable (no client world)";
++            }
++            WindStateProvider.Sample sample = sampleExternal(minecraft.level, minecraft.player.position());
++            if (!sample.available()) return "external physical wind unavailable (effects disabled)";
++            Vec3 velocity = sample.velocityMetersPerSecond();
++            return String.format(java.util.Locale.ROOT,
++                    "A4MC wind (%.2f, %.2f, %.2f) m/s; gust %.2f m/s",
++                    velocity.x, velocity.y, velocity.z, sample.gustMetersPerSecond());
++        }
+         float gust = gustEnvelope();
+         int heading = Math.floorMod(Math.round(Math.toDegrees(windYaw)), 360);
+         String state = gustTicksLeft > 0
+diff --git a/src/main/java/dev/fallingcloud/windy/WindyCommands.java b/src/main/java/dev/fallingcloud/windy/WindyCommands.java
+--- a/src/main/java/dev/fallingcloud/windy/WindyCommands.java
++++ b/src/main/java/dev/fallingcloud/windy/WindyCommands.java
+@@ -27,14 +27,24 @@
+                                 .executes(ctx -> gust(ctx.getSource(),
+                                         FloatArgumentType.getFloat(ctx, "strength")))))
+                 .then(Commands.literal("calm").executes(ctx -> {
+-                    WindDirector.INSTANCE.calm();
+-                    ctx.getSource().sendSuccess(
+-                            () -> Component.literal("[Windy] the air goes still."), false);
+-                    return 1;
+-                })));
+-    }
+-
+-    private static int gust(CommandSourceStack source, float strength) {
++                    if (WindDirector.hasExternalWind()) {
++                        ctx.getSource().sendFailure(Component.literal(
++                                "[Windy] airflow belongs to A4MC; use authoritative weather controls."));
++                        return 0;
++                    }
++                    WindDirector.INSTANCE.calm();
++                    ctx.getSource().sendSuccess(
++                            () -> Component.literal("[Windy] the air goes still."), false);
++                    return 1;
++                })));
++    }
++
++    private static int gust(CommandSourceStack source, float strength) {
++        if (WindDirector.hasExternalWind()) {
++            source.sendFailure(Component.literal(
++                    "[Windy] airflow belongs to A4MC; use authoritative weather controls."));
++            return 0;
++        }
+         WindDirector.INSTANCE.startGust(strength, 200);
+         source.sendSuccess(
+                 () -> Component.literal(String.format("[Windy] gust incoming at %.0f%%.", strength * 100)),
