@@ -12,7 +12,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     private static final long SEED = 0x534B59464F524745L;
@@ -257,83 +256,43 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                 + System.lineSeparator() + diagnostic + System.lineSeparator());
     }
 
-    @EnabledIfEnvironmentVariable(named = "SKYFORGE_F4_NETWORK_CENSUS", matches = "true")
     @Test
-    void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() throws Exception {
-        List<String> eligibleButUnrealized = new java.util.ArrayList<>();
-        long foundKey = -1L;
-        int foundTerminal = -1;
+    void key198CascadeFreeMultiReachUsesTheSameAssemblyForEligibilityAndRealization() {
+        SkyIslandDescriptor descriptor = descriptor(8L, 81L, 198L);
+        SkyIslandHydraulicNetworkAssemblyPlan assembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+        SkyIslandHydraulicTerminalComponent eligibleNetwork =
+                assembly.terminalComponents().stream()
+                        .filter(component -> component.reaches().size() > 1
+                                && component.reaches().stream()
+                                        .allMatch(reach -> reach.cascades().isEmpty())
+                                && SkyIslandComponentFluvialTerrainCandidatePlan
+                                        .isCandidateEligible(component))
+                        .findFirst()
+                        .orElseThrow(() -> new AssertionError(
+                                "key 198 must provide an eligible cascade-free multireach"));
 
-        for (long key = 0; key < 256 && foundKey < 0; key++) {
-            SkyIslandDescriptor descriptor = descriptor(8L, 81L, key);
-            SkyIslandHydraulicNetworkAssemblyPlan assembly;
-            try {
-                assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
-            } catch (IllegalStateException failure) {
-                throw new AssertionError(
-                        "network assembly failed before candidate census for key=" + key,
-                        failure);
-            }
-            boolean hasEligibleNetwork = assembly.terminalComponents().stream()
-                    .anyMatch(component ->
-                            component.reaches().size() > 1
-                                    && component.reaches().stream()
-                                            .allMatch(reach -> reach.cascades().isEmpty())
-                                    && SkyIslandComponentFluvialTerrainCandidatePlan
-                                            .isCandidateEligible(component));
-            if (!hasEligibleNetwork) {
-                continue;
-            }
-
-            SkyIslandComponentFluvialTerrainCandidatePlan candidate;
-            try {
-                candidate = SkyIslandComponentFluvialTerrainCandidatePlanner.plan(
+        SkyIslandComponentFluvialTerrainCandidatePlan candidate =
+                SkyIslandComponentFluvialTerrainCandidatePlanner.plan(
                         descriptor,
                         assembly,
                         SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
-            } catch (IllegalArgumentException | IllegalStateException failure) {
-                throw new AssertionError(
-                        "F4 candidate planning failed before specimen census for key=" + key,
-                        failure);
-            }
-            boolean postD2Rejected = candidate.deferredQualifiedComponents().stream()
-                    .anyMatch(deferral -> deferral.reasons().contains(
-                            SkyIslandComponentFluvialTerrainDeferralReason
-                                    .POST_REALIZATION_D2_REJECTED));
-            if (postD2Rejected) {
-                assertTrue(candidate.realizedComponents().isEmpty());
-                assertTrue(candidate.terrainField().acceptedReaches().isEmpty());
-                assertTrue(candidate.postRealizationQualifications().isEmpty());
-            }
-            var realized = candidate.realizedComponents().stream()
-                    .filter(component -> component.reaches().size() > 1
-                            && component.reaches().stream()
-                                    .allMatch(reach -> reach.cascades().isEmpty())
-                            && component.networkSolution().isPresent())
-                    .findFirst();
-            if (realized.isPresent()) {
-                foundKey = key;
-                foundTerminal = realized.get().terminalFate().channelTerminalCellIndex();
-            } else {
-                eligibleButUnrealized.add(key + ": " + candidate.deferredQualifiedComponents().stream()
-                        .map(deferral -> deferral.diagnostic())
-                        .toList());
-            }
-        }
 
-        String report = foundKey >= 0
-                ? "status=FOUND key=" + foundKey + " terminal=" + foundTerminal
-                        + " seed=0x" + String.format("%016X", SEED) + "\n"
-                : "status=NOT_FOUND keyRange=0..255 seed=0x"
-                        + String.format("%016X", SEED)
-                        + " eligibleButUnrealized=" + eligibleButUnrealized + "\n";
-        Path reportPath = Path.of("build", "evidence", "f4-cascade-free-network-specimen.txt");
-        Files.createDirectories(reportPath.getParent());
-        Files.writeString(reportPath, report);
-
-        assertTrue(foundKey >= 0,
-                "No cascade-free realized multireach specimen in keys 0..255; "
-                        + "eligible-but-unrealized=" + eligibleButUnrealized);
+        assertTrue(candidate.assemblyPlan() == assembly,
+                "candidate realization must use the exact assembly that was screened");
+        boolean realized = candidate.realizedComponents().stream()
+                .anyMatch(component ->
+                        component.terminalFate().channelTerminalCellIndex()
+                                == eligibleNetwork.terminalFate().channelTerminalCellIndex()
+                                && component.reaches().size() > 1
+                                && component.reaches().stream()
+                                        .allMatch(reach -> reach.cascades().isEmpty())
+                                && component.networkSolution().isPresent());
+        assertTrue(realized,
+                "key 198 should realize its eligible cascade-free network; deferrals="
+                        + candidate.deferredQualifiedComponents().stream()
+                                .map(deferral -> deferral.diagnostic())
+                                .toList());
     }
 
     @Test
