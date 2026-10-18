@@ -271,6 +271,7 @@ public final class SkyforgeNeoForge1211ChunkWriter {
         int minimumZ = materialization.chunkPos().getMinBlockZ();
         int assigned = 0;
         int solid = 0;
+        var providerClaims = SkyforgeNativeTerrainWriteAuthority.currentClaims();
         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
 
         for (int worldY = materialization.minimumY();
@@ -286,10 +287,15 @@ public final class SkyforgeNeoForge1211ChunkWriter {
                     }
 
                     int worldX = Math.addExact(minimumX, localX);
-                    var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ);
+                    var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(
+                            providerClaims,
+                            worldX,
+                            worldY,
+                            worldZ);
                     if (!expectedAir
                             && enforcePhysicalAdmission
-                            && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(worldX, worldY, worldZ)) {
+                            && !SkyforgePhysicalVolumeAdmissionStage.allowsWriteAt(
+                                    worldX, worldY, worldZ, providerOwner)) {
                         continue;
                     }
 
