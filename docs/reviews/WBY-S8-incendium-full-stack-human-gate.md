@@ -1,6 +1,6 @@
 # WBY S8 Incendium full Nether stack human gate
 
-This is the local gameplay gate for the cumulative Incendium profile. Run it only after the exact PR head passes the S8 GitHub Actions workflow and the owner decides the client is ready to review.
+This is the local gameplay gate for the cumulative Incendium profile. Run it after the exact PR head passes the six core S8 profiles (control, control-mnd, jne, jne-mnd, incendium, and incendium-full) in GitHub Actions and the owner decides the client is ready to review. The isolated `incendium-betternether` candidate is non-blocking and is not part of this gate; a failed candidate result must remain recorded and must not be described as compatible.
 
 The profile layers official Incendium 5.4.4 over the accepted S0-S7 stack, including TaCZ and Eternal Nether, then adds Nether Depths Upgrade 3.3, My Nether's Delight 1.10.4.1, Create: Nether Industry 0.2.3, ThinAir: ReLived 1.0.3 with Curios 9.5.1, and YUNG's Better Nether Fortresses 3.1.5. JNE and BetterNether are not in this gameplay profile. BetterNether remains a separate composition qualification. Better Bastions and Wither: Reincarnated are isolated local A/B profiles, not part of the core gate.
 
@@ -47,6 +47,8 @@ Record coordinates, screenshots, the item/recipe involved, and any suspected byp
 ## Separate A/B candidates
 
 Do not add BetterNether to the integrated profile or infer compatibility from launch success. It has its own `incendium-betternether` composition arm; a separate fresh-world review must establish biome/feature/structure ownership before it can be considered.
+
+The automated `incendium-betternether` client comparison remains unqualified: its server started and Nether locate probes completed, but the client stayed on a Wunderlib `LayoutScreen` and did not join within 900 seconds. Keep BetterNether out of this gameplay profile; a separate review must establish client startup and worldgen coexistence before reconsidering it.
 
 If the owner elects to review Better Bastions, compare the core `incendium-full` profile against `incendium-full-betterbastions` in separate fresh worlds with the same seed, keeping all other settings fixed. Its binary remains local-only pending license reconciliation.
 
