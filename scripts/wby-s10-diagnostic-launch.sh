@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-repo_root="$(cd "$(dirname "\${BASH_SOURCE[0]}")/.." && pwd)"
-profile="\${1:-}"
-s9_profile="\${2:-}"
-s9_diagnostics="\${3:-}"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+profile="${1:-}"
+s9_profile="${2:-}"
+s9_diagnostics="${3:-}"
 
 if [[ -z "$profile" || -z "$s9_profile" || -z "$s9_diagnostics" ]]; then
   echo "Usage: bash scripts/wby-s10-diagnostic-launch.sh <profile> <accepted-S9-profile> <accepted-S9-diagnostics> [--restore-backup /c/path/to/archive.zip]"
