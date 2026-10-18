@@ -123,6 +123,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 searchRoute, seed.points(), headEnvelopeGap, bankfullHalfWidthAtStation,
                 longitudinalHeadFeasibility);
         Candidate best = initial;
+        boolean bestWithinSemanticCorridor = withinSemanticCorridor(
+                best.points(), semanticGuidance, semanticCorridorHalfWidth);
         long lateralCandidateProposals = 0;
         long lateralCandidateAdmissible = 0;
         long lateralCandidateCorridorRejected = 0;
@@ -148,7 +150,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     semanticCorridorHalfWidth, minimumBendRadius,
                     bankfullHalfWidthAtStation, headEnvelopeGap,
                     longitudinalHeadFeasibility, best);
-            best = globalModes.candidate();
+            Candidate globalCandidate = globalModes.candidate();
+            boolean globalCandidateWithinSemanticCorridor = withinSemanticCorridor(
+                    globalCandidate.points(), semanticGuidance, semanticCorridorHalfWidth);
+            if (globalCandidateWithinSemanticCorridor || !bestWithinSemanticCorridor) {
+                best = globalCandidate;
+                bestWithinSemanticCorridor = globalCandidateWithinSemanticCorridor;
+            }
             globalModeSearchProposals = globalModes.proposals();
             globalModeSearchAdmissible = globalModes.admissible();
             globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
@@ -180,9 +188,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             Candidate candidate = evaluate(
                     searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation,
                     longitudinalHeadFeasibility);
-            int comparison = candidate.compareTo(best, minimumBendRadius);
+            boolean candidateWithinSemanticCorridor = withinSemanticCorridor(
+                    candidate.points(), semanticGuidance, semanticCorridorHalfWidth);
+            int comparison = candidateWithinSemanticCorridor != bestWithinSemanticCorridor
+                    ? candidateWithinSemanticCorridor ? -1 : 1
+                    : candidate.compareTo(best, minimumBendRadius);
             if (comparison < 0) {
                 best = candidate;
+                bestWithinSemanticCorridor = candidateWithinSemanticCorridor;
             } else if (headEnvelopeGap != null
                     && (candidate.maximumHeadEnvelopeGap()
                                     < best.maximumHeadEnvelopeGap() - EPSILON
@@ -196,13 +209,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             current = next;
 
             if (headEnvelopeGap == null
+                    && candidateWithinSemanticCorridor
                     && (minimumBendRadius <= EPSILON
                             || candidate.maximumCurvature() * minimumBendRadius
                                     <= 1.0 + EPSILON)) {
                 best = candidate;
+                bestWithinSemanticCorridor = true;
                 break;
             }
             if (headEnvelopeGap != null
+                    && candidateWithinSemanticCorridor
                     && (unchanged
                             || (candidate.maximumHeadEnvelopeGap() <= EPSILON
                                     && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
@@ -232,9 +248,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             sourceEndpointSearch = coupled.sourceEndpointSearch();
         }
 
-        for (SkyIslandLocalPosition point : best.points()) {
-            if (distanceToPolyline(point, semanticGuidance) > semanticCorridorHalfWidth + EPSILON) {
-                throw new IllegalStateException("relaxed centerline escaped semantic corridor");
+        for (int index = 0; index < best.points().size(); index++) {
+            SkyIslandLocalPosition point = best.points().get(index);
+            double corridorDistance = distanceToPolyline(point, semanticGuidance);
+            if (corridorDistance > semanticCorridorHalfWidth + EPSILON) {
+                throw new IllegalStateException(
+                        "relaxed centerline escaped semantic corridor at sample " + index
+                                + " (distance=" + corridorDistance
+                                + ", allowed=" + semanticCorridorHalfWidth + ")");
             }
         }
 
@@ -783,6 +804,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             point.z() + normal.z() * amplitude * weight));
         }
         return result;
+    }
+
+    private static boolean withinSemanticCorridor(
+            List<SkyIslandLocalPosition> points,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            double semanticCorridorHalfWidth) {
+        for (SkyIslandLocalPosition point : points) {
+            if (distanceToPolyline(point, semanticGuidance)
+                    > semanticCorridorHalfWidth + EPSILON) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private static boolean geometryAdmissible(
