@@ -121,7 +121,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 return Biomes.FOREST;
             }
             if (volumeId.equals(upperId)) {
-                return Biomes.TAIGA;
+                return UPPER_BIOME;
             }
             throw new IllegalArgumentException("unknown SF-IMP-0054 proof volume: " + volumeId.path());
         };
@@ -146,7 +146,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 MAXIMUM_ATTACHMENT_DEPTH);
 
         requireChunkResult("lower", lower, Biomes.FOREST);
-        requireChunkResult("upper", upper, Biomes.TAIGA);
+        requireChunkResult("upper", upper, UPPER_BIOME);
         if (lower.biomeKey().equals(upper.biomeKey())) {
             throw new IllegalStateException("stacked exact volumes resolved the same biome identity");
         }
@@ -181,7 +181,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
-        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
+        requireAggregate("upper", upperAggregate, UPPER_BIOME);
         completeProof(lowerId, upperId);
     }
 
@@ -192,7 +192,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
-        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
+        requireAggregate("upper", upperAggregate, UPPER_BIOME);
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
