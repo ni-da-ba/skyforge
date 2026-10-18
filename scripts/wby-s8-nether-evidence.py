@@ -167,8 +167,8 @@ def main() -> int:
         raise SystemExit(f"S8 {args.variant} profile leaked unselected JNE content: {sorted(leaked & found)}")
     if allowed_shared_dependencies & found:
         rows.append(
-            f"shared_dependency_allowance\\tbetterend-new-dawn\\t\\t"
-            f"{','.join(sorted(allowed_shared_dependencies & found))}\\t\\t"
+            f"shared_dependency_allowance\tbetterend-new-dawn\t\t"
+            f"{','.join(sorted(allowed_shared_dependencies & found))}\t\t"
             f"selected_s9_variant={s9_end_variant}"
         )
 
