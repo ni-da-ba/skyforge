@@ -79,6 +79,7 @@ jobs:
     needs: build-pinned-a4mc
     strategy:
       fail-fast: false
+      max-parallel: 4
       matrix:
         profile:
           - none
@@ -135,17 +136,17 @@ jobs:
           path: wby-s10-evidence/${{ matrix.profile }}/
           if-no-files-found: error
           retention-days: 14
-      - if: ${{ matrix.profile == 'full' }}
+      - if: ${{ contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile) }}
         name: Preserve Gradle JVM before installing the Java 21 production runtime
         shell: bash
         run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
-      - if: ${{ matrix.profile == 'full' }}
+      - if: ${{ contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile) }}
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
         with:
           distribution: temurin
           java-version: 21
           java-package: jdk
-      - if: ${{ matrix.profile == 'full' }}
+      - if: ${{ contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile) }}
         name: Stage shared client and server runtime directories
         shell: bash
         run: |
@@ -160,69 +161,73 @@ jobs:
             -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
             -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
             -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=incendium-full
-            -PwbyS9EndVariant=nullscape -PwbyS10Profile=full --no-configuration-cache
+            -PwbyS9EndVariant=nullscape -PwbyS10Profile=${{ matrix.profile }} --no-configuration-cache
           )
           ./gradlew :skyforge-neoforge-1211:wbyS10StageClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
           server="$GITHUB_WORKSPACE/s10-production-server"
-          profile="skyforge-neoforge-1211/run-wby-s10-full"
+          profile="skyforge-neoforge-1211/run-wby-s10-${{ matrix.profile }}"
           mkdir -p "$server" "$server/mods" "$server/config" "$server/kubejs/data" "$server/datapacks" "$server/s7-acceptance/datapacks"
           curl --fail --location --retry 3 https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar -o "$server/neoforge-installer.jar"
           (cd "$server" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
           cp "$profile/server-mods/"*.jar "$server/mods/"
           cp "$profile/config/"*.toml "$server/config/" || true
-          mkdir -p "$server/config/servercore"
-          cp skyforge-neoforge-1211/wby-s10-servercore-config.yml "$server/config/servercore/config.yml"
-          cp skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml "$server/config/servercore/optimizations.yml"
-          cp skyforge-neoforge-1211/wby-s10-simplebackups-common.toml "$server/config/simplebackups-common.toml"
-          # CI shortens the local-review cadence only to capture one backup inside this bounded run.
-          sed -i 's/^timer = 120$/timer = 1/' "$server/config/simplebackups-common.toml"
-          grep -Fxq 'timer = 1' "$server/config/simplebackups-common.toml"
+          if [[ "${{ matrix.profile }}" == "operations-stable" || "${{ matrix.profile }}" == "operations-beta" || "${{ matrix.profile }}" == "full" ]]; then
+            mkdir -p "$server/config/servercore"
+            cp skyforge-neoforge-1211/wby-s10-servercore-config.yml "$server/config/servercore/config.yml"
+            cp skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml "$server/config/servercore/optimizations.yml"
+            cp skyforge-neoforge-1211/wby-s10-simplebackups-common.toml "$server/config/simplebackups-common.toml"
+            # CI shortens the local-review cadence only to capture one backup inside this bounded run.
+            sed -i 's/^timer = 120$/timer = 1/' "$server/config/simplebackups-common.toml"
+            grep -Fxq 'timer = 1' "$server/config/simplebackups-common.toml"
+          fi
           cp -R "$profile/kubejs/data/." "$server/kubejs/data/"
           cp "$profile/datapacks/"*.zip "$server/s7-acceptance/datapacks/" || true
           printf 'eula=true\n' > "$server/eula.txt"
-      - if: ${{ matrix.profile == 'full' }}
+      - if: ${{ contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile) }}
         name: Prepare production-client launcher
         shell: bash
         run: |
           python3 -m venv "$RUNNER_TEMP/wby-s10-launcher"
           "$RUNNER_TEMP/wby-s10-launcher/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
           echo "WBY_S4_LAUNCHER_PYTHON=$RUNNER_TEMP/wby-s10-launcher/bin/python" >> "$GITHUB_ENV"
-      - if: ${{ matrix.profile == 'full' }}
-        name: Boot full profile, join client, and save/reopen
+      - if: ${{ contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile) }}
+        name: Boot S10 overlay, join client, and save/reopen
         shell: bash
         env:
           WBY_S7_ICE_AND_FIRE: "true"
           WBY_S7_BOMD: "true"
           WBY_S7_COMBAT_VARIANT: tacz
           WBY_S8_NETHER_VARIANT: incendium-full
-          WBY_S8_NETHER_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-full/datapacks/incendium-5.4.4.zip
+          WBY_S8_NETHER_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-${{ matrix.profile }}/datapacks/incendium-5.4.4.zip
           WBY_S9_END_VARIANT: nullscape
-          WBY_S9_NULLSCAPE_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-full/datapacks/nullscape-review.zip
+          WBY_S9_NULLSCAPE_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s10-${{ matrix.profile }}/datapacks/nullscape-review.zip
           WBY_S7_PRODUCTION_SERVER_DIR: ${{ github.workspace }}/s10-production-server
           WBY_S4_MINECRAFT_DIRECTORY: ${{ github.workspace }}/s10-minecraft
         run: |
           set -euo pipefail
-          cp "wby-s10-full-resolution.log" wby-s7-resolution.log
+          cp "wby-s10-${{ matrix.profile }}-resolution.log" wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
-          python3 scripts/wby-s10-backup-evidence.py \
-            --backups s10-production-server/simplebackups \
-            --output wby-s10-backup-restore-probe.tsv
+          if [[ "${{ matrix.profile }}" == "operations-stable" || "${{ matrix.profile }}" == "operations-beta" || "${{ matrix.profile }}" == "full" ]]; then
+            python3 scripts/wby-s10-backup-evidence.py \
+              --backups s10-production-server/simplebackups \
+              --output wby-s10-${{ matrix.profile }}-backup-restore-probe.tsv
+          fi
       - name: Emit metadata-only S10 runtime manifest
-        if: success() && matrix.profile == 'full'
+        if: success() && contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile)
         shell: bash
         run: |
           python3 scripts/wby-s9-package-review-profile.py \
-            --variant "s10-full" \
+            --variant "s10-${{ matrix.profile }}" \
             --client-mods skyforge-neoforge-1211/run-wby-s7-join-client/mods \
-            --server-mods skyforge-neoforge-1211/run-wby-s10-full/server-mods \
-            --datapacks skyforge-neoforge-1211/run-wby-s10-full/datapacks \
-            --output wby-s10-full-review-manifest.tsv
+            --server-mods skyforge-neoforge-1211/run-wby-s10-${{ matrix.profile }}/server-mods \
+            --datapacks skyforge-neoforge-1211/run-wby-s10-${{ matrix.profile }}/datapacks \
+            --output wby-s10-${{ matrix.profile }}-review-manifest.tsv
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        if: success() && matrix.profile == 'full'
+        if: success() && contains(fromJSON('["quests","quests-book","enchantment-industry","communications","operations-stable","operations-beta","adaptive-music","surface-audio","full"]'), matrix.profile)
         with:
-          name: wby-s10-full-review-manifest
+          name: wby-s10-${{ matrix.profile }}-review-manifest
           path: |
-            wby-s10-full-review-manifest.tsv
-            wby-s10-backup-restore-probe.tsv
+            wby-s10-${{ matrix.profile }}-review-manifest.tsv
+            wby-s10-${{ matrix.profile }}-backup-restore-probe.tsv
           if-no-files-found: error
           retention-days: 14
