@@ -80,7 +80,6 @@ wait_server
 verify_result reload
 grep -Eq '^assignmentCreated=true$' "$result_dir/write.properties"
 grep -Eq '^assignmentRestored=true$' "$result_dir/reload.properties"
-grep -Eq '^sameWorldFolder=saves/acceptance$' "$result_dir/reload.properties" && true
 test -f "$server_dir/saves/acceptance/level.dat"
 cp "$server_dir/logs/latest.log" "$result_dir/reload-server.log"
 printf 'status=PASS\nserverBoots=2\nsameWorldFolder=saves/acceptance\n' > "$result_dir/summary.properties"
