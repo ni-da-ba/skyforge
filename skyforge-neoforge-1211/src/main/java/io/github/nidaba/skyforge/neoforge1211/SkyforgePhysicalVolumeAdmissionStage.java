@@ -175,8 +175,20 @@ final class SkyforgePhysicalVolumeAdmissionStage {
      * cannot veto another admitted owner. If all exact owners are rejected, no Skyforge write occurs.
      */
     static boolean allowsWriteAt(int worldX, int worldY, int worldZ) {
+        return allowsWriteAt(
+                worldX,
+                worldY,
+                worldZ,
+                SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ));
+    }
+
+    static boolean allowsWriteAt(
+            int worldX,
+            int worldY,
+            int worldZ,
+            Optional<SkyIslandWorldVolumeId> providerOwner) {
+        Objects.requireNonNull(providerOwner, "providerOwner");
         Binding binding = ACTIVE.get();
-        var providerOwner = SkyforgeNativeTerrainWriteAuthority.ownerAt(worldX, worldY, worldZ);
         if (providerOwner.isPresent()) {
             if (binding == null) {
                 return false;
