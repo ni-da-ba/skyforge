@@ -7643,9 +7643,17 @@ tasks.register("wbyS1ResolvePinnedMods") {
         }
         // Curios can be present because the separate S7 Scorched arm selects it.
         // ThinAir can also be explicitly selected by the independent S1 overlay.
+        val s9EndVariantForSharedDeps = providers.gradleProperty("wbyS9EndVariant")
+            .orNull?.trim()?.lowercase() ?: "none"
+        val s9BetterEndVariants = setOf(
+            "nullscape-betterend", "betterend", "betterend-food", "betterend-unusual",
+            "betterend-edr", "betterend-flyhigher", "betterend-moogs",
+            "betterend-yungs-strongholds", "betterend-yungs-island", "betterend-structures",
+        )
         val expectedOtherStackNetherSharedMods =
             (if (wbyS7CombatVariant == "scorched") setOf("curios") else emptySet()) +
-                (if (wbyS1ThinAir) setOf("thinAirRelived") else emptySet())
+                (if (wbyS1ThinAir) setOf("thinAirRelived") else emptySet()) +
+                (if (s9EndVariantForSharedDeps in s9BetterEndVariants) setOf("bclibNewDawn") else emptySet())
         ((wbyS8JneMods + wbyS8MndMods + wbyS8FullMods + wbyS8BetterNetherMods) -
             wbyS8NetherMods - expectedOtherStackNetherSharedMods).forEach { mod ->
             val expected = wbyS8Token(mod)
