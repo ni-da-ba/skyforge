@@ -493,7 +493,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         super.buildSurface(level, structureManager, random, chunk);
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
-            SkyforgeNativeSurfaceSnapshotStage.capture(chunk);
+            SkyforgeNativeSurfaceSnapshotStage.capture(chunk, getSeaLevel());
         }
     }
 
