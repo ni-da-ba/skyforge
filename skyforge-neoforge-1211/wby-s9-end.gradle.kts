@@ -24,6 +24,7 @@ val wbyS9BetterEndMods = listOf(
 )
 val wbyS9BetterEndFoodMods = listOf("endsDelight", "farmersCuttingBetterEnd")
 val wbyS9DragonMods = listOf("enderDragonFightRemastered")
+val wbyS9PressureMods = listOf("flyHigher")
 val wbyS9StructureMods = listOf(
     "moogsEndStructures", "yungsBetterStrongholds", "yungsBetterEndIsland",
 )
@@ -32,6 +33,7 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
     "nullscape-betterend" -> wbyS9BetterEndMods
     "nullscape-phantasm" -> listOf("phantasm")
     "nullscape-edr" -> wbyS9DragonMods
+    "nullscape-flyhigher" -> wbyS9PressureMods
     "nullscape-unusual" -> listOf("unusualEnd")
     "nullscape-structures" -> wbyS9StructureMods
     "betterend" -> wbyS9BetterEndMods
@@ -41,12 +43,12 @@ val wbyS9EndMods = when (wbyS9EndVariant) {
     else -> emptyList()
 }
 val wbyS9UsesNullscape = wbyS9EndVariant in setOf(
-    "nullscape", "nullscape-betterend", "nullscape-phantasm", "nullscape-unusual", "nullscape-structures", "nullscape-edr",
+    "nullscape", "nullscape-betterend", "nullscape-phantasm", "nullscape-unusual", "nullscape-structures", "nullscape-edr", "nullscape-flyhigher",
 )
 val wbyS9UsesBetterEnd = wbyS9EndVariant in setOf("nullscape-betterend", "betterend", "betterend-food", "betterend-structures")
 val wbyS9AllMods = (
     wbyS9BetterEndMods + wbyS9BetterEndFoodMods + wbyS9StructureMods +
-        wbyS9DragonMods + listOf("phantasm", "unusualEnd")
+        wbyS9DragonMods + wbyS9PressureMods + listOf("phantasm", "unusualEnd")
 ).distinct()
 val wbyS9ClientMods = wbyS9EndMods.filter { mod ->
     wbyS9Pin(mod, "environment").split(",").any { it.trim() in setOf("client", "client-server") }
