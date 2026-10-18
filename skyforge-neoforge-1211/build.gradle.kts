@@ -75,7 +75,7 @@ check(tectonicTerrainPin("neoforge", "version") == "21.1.249") {
     "SF-IMP-0054 Tectonic pilot NeoForge pin must match the adapter runtime"
 }
 check(tectonicTerrainPin("tectonic", "versionId") == "n4iyW7aB")
-check(tectonicTerrainPin("lithostitched", "versionId") == "dGZOQXkv")
+check(tectonicTerrainPin("lithostitched", "versionId") == "a9fuYUVh")
 
 
 // #495 real-provider probe must load Aerodynamics4MC as a discovered NeoForge mod. The older C3
