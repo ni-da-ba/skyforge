@@ -37,7 +37,8 @@ final class SkyforgeAtmosphereReconstructionProvenanceAcceptance {
 
     private static final int[] XZ_OFFSETS = {-128, -64, 0, 64, 128};
     private static final long MIN_SETTLE_TICKS = 80L;
-    private static final long MAX_WAIT_TICKS = 1200L;
+    // Accepted A4MC terrain-provider evidence first became trusted after 1,907 relative ticks (#1142).
+    private static final long MAX_WAIT_TICKS = 2400L;
     private static final double GLIDER_BASELINE_Y = -0.05;
 
     private static final System.Logger LOGGER =
