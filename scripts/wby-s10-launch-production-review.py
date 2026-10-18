@@ -80,6 +80,14 @@ def sha256(body: bytes) -> str:
     return hashlib.sha256(body).hexdigest()
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def check_jar(body: bytes, filename: str) -> None:
     try:
         with zipfile.ZipFile(__import__("io").BytesIO(body)) as archive:
@@ -252,7 +260,7 @@ def stage_restore_copy(archive_path: Path, run: Path, diagnostics: Path) -> tupl
         regions = [path for path in destination.rglob("*.mca") if path.is_file()]
         if not regions:
             raise SystemExit("Disposable restore copy contains no region data")
-    digest = sha256(source.read_bytes())
+    digest = sha256_file(source)
     destination.parent.mkdir(parents=True, exist_ok=True)
     (diagnostics / "restore-probe.txt").write_text(
         f"source_archive={source}\nsha256={digest}\n"
