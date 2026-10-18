@@ -1,0 +1,21 @@
+# Owner-approved qualification defaults for ServerCore 1.5.19+1.21.1.
+# Derived from the upstream ver/1.21.1 default config; behavior-changing controls stay off.
+features:
+  prevent-moving-into-unloaded-chunks: false
+  lobotomize-villagers:
+    enabled: false
+dynamic:
+  enabled: false
+breeding-cap:
+  enabled: false
+mob-spawning:
+  zombie-reinforcements:
+    enforce-mobcap: false
+  nether-portal-randomticks:
+    enforce-mobcap: false
+  monster-spawners:
+    enforce-mobcap: false
+  infested:
+    enforce-mobcap: false
+activation-range:
+  enabled: false
