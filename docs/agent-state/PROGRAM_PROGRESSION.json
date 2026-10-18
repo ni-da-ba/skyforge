@@ -31,7 +31,7 @@
     {
       "id": "phase-3-primary-active-reconciliation",
       "kind": "strategic_gate",
-      "message": "Stop for explicit owner program/phase reconciliation before promoting Bootstrap Province to PRIMARY_ACTIVE.",
+      "message": "Post-DR-70 strategic reconciliation. Owner decisions #1063 / RM-R07 make Phase 2.5 Cohesive World / Production Stack Convergence the next intended primary product phase; do not promote Bootstrap directly from DR-70. After Phase 2.5, follow RM-R08/FIRST_PUBLIC_ALPHA_SCOPE.md: Bootstrap and alpha-critical airspace/presentation converge toward a systems-complete, content-light first public alpha before post-alpha bespoke content expansion.",
       "prerequisites": [
         "dr-human-exploration-rereview"
       ]
@@ -42,7 +42,7 @@
   "semantic_sources": [
     {
       "path": "docs/agent-state/PROGRAM_ROADMAP.md",
-      "sha256": "119070984137a320bf2589c2bb11ffdf77b66904d44ef86b63e718d6198170ee"
+      "sha256": "28a4c91fa90dbd9121bf6e23b83c3996c208f8320b90ca18c4141e668a2c1bea"
     },
     {
       "path": "docs/architecture/PRE_BOOTSTRAP_DEVELOPMENT_PLATFORM_GATE.md",
