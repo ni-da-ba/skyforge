@@ -288,14 +288,69 @@ def main() -> int:
     repo = Path(__file__).resolve().parents[1]
     base = normalize_path(args.accepted_s9_profile)
     s9_diagnostics = normalize_path(args.accepted_s9_diagnostics)
-    datapacks = s9_diagnostics / "world-datapacks"
+    baseline_stamp = re.fullmatch(r"run-wby-s9-nullscape-manual-(\\d{8}T\\d{6}Z)", base.name)
+    if not baseline_stamp:
+        raise SystemExit(
+            "S10 requires the S9 nullscape manual profile, not an experimental S9 overlay: "
+            f"{base}"
+        )
+    if s9_diagnostics.name != f"wby-s9-nullscape-{baseline_stamp.group(1)}":
+        raise SystemExit(
+            "S9 profile and diagnostics timestamps do not match: "
+            f"{base.name} versus {s9_diagnostics.name}"
+        )
     if not (base / "mods").is_dir() or not list((base / "mods").glob("*.jar")):
         raise SystemExit(f"Accepted S9 profile is missing staged mods: {base / 'mods'}")
+
+    manifest_path = s9_diagnostics / "manifest.txt"
+    if not manifest_path.is_file():
+        raise SystemExit(f"Accepted S9 diagnostics are missing manifest.txt: {manifest_path}")
+    manifest_lines = manifest_path.read_text(encoding="utf-8").splitlines()
+    metadata = {
+        key: value for line in manifest_lines
+        for key, sep, value in [line.partition("=")]
+        if sep and key in {"variant", "run_directory"}
+    }
+    if metadata.get("variant") != "nullscape":
+        raise SystemExit(
+            "S10 requires the isolated S9 nullscape baseline; "
+            f"manifest variant={metadata.get('variant', '<missing>')}"
+        )
+    if normalize_path(metadata.get("run_directory", "")) != base:
+        raise SystemExit(
+            "S9 manifest run_directory does not match the supplied profile: "
+            f"{metadata.get('run_directory', '<missing>')}"
+        )
+
+    sections: dict[str, list[str]] = {}
+    section = ""
+    for line in manifest_lines:
+        if line.startswith("[") and line.endswith("]"):
+            section = line[1:-1]
+            sections[section] = []
+        elif section and line:
+            sections[section].append(line)
+    if sections.get("S9 overlay mods: filename sha256"):
+        raise SystemExit(
+            "The S9 nullscape baseline must not contain experimental S9 overlay mods."
+        )
+
+    datapacks = s9_diagnostics / "world-datapacks"
     pack_files = sorted(path for path in datapacks.glob("*.zip") if path.is_file())
     if not any("incendium" in path.name.lower() for path in pack_files):
         raise SystemExit(f"Accepted S9 diagnostics must contain the S8 Incendium pack under {datapacks}")
     if not any("nullscape" in path.name.lower() for path in pack_files):
         raise SystemExit(f"Accepted S9 diagnostics must contain nullscape-review.zip under {datapacks}")
+
+    declared_packs = {}
+    for row in sections.get("world datapacks: filename sha256", []):
+        fields = row.split("\\t")
+        if len(fields) != 2:
+            raise SystemExit(f"Invalid S9 datapack manifest row: {row}")
+        declared_packs[fields[0]] = fields[1]
+    for pack in pack_files:
+        if declared_packs.get(pack.name) != sha256(pack.read_bytes()):
+            raise SystemExit(f"S9 datapack does not match its manifest SHA-256: {pack}")
 
     pins_path = repo / "skyforge-neoforge-1211" / "wby-s10-onboarding-operations.properties"
     pins = read_properties(pins_path)
