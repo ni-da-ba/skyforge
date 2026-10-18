@@ -77,6 +77,63 @@ final class SkyforgeNativeTerrainWriteAuthorityTest {
     }
 
     @Test
+    void deferredProviderPacketPreservesNativeContentAndAdvancesCursor() throws Exception {
+        var fixture = fixture();
+        var writer = new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
+        fixture.chunk().setBlockState(
+                fixture.providerPosition(),
+                Blocks.GOLD_BLOCK.defaultBlockState(),
+                false);
+        ResourceLocation[] keys = airMaterialization(fixture.chunk());
+        put(
+                keys,
+                fixture.chunk(),
+                fixture.providerPosition(),
+                ResourceLocation.withDefaultNamespace("stone"));
+        var materialization = new MinecraftChunkMaterialization(
+                fixture.chunk().getPos(),
+                fixture.chunk().getMinBuildHeight(),
+                fixture.chunk().getHeight(),
+                keys,
+                1);
+        Map<Long, SkyIslandWorldVolumeId> claims = Map.of(
+                fixture.providerPosition().asLong(),
+                fixture.volumeId());
+
+        try (AutoCloseable terrain = SkyforgeNeoForge1211SurfaceStage.install(
+                        fixture.adapter(),
+                        writer);
+                AutoCloseable admission = SkyforgePhysicalVolumeAdmissionStage.install(
+                        fixture.catalog(),
+                        Map.of(fixture.volumeId(), Set.of(fixture.chunk().getPos().toLong())))) {
+            assertNotNull(terrain);
+            assertNotNull(admission);
+            SkyforgePhysicalVolumeAdmissionStage.observeBeforeRealization(
+                    fixture.chunk(),
+                    Optional.empty());
+            assertEquals(
+                    SkyforgePhysicalVolumeAdmissionState.ADMITTED,
+                    SkyforgePhysicalVolumeAdmissionStage.snapshot(fixture.volumeId()).state());
+
+            var advance = writer.writeDeferredSolidOverlayPacket(
+                    fixture.chunk(),
+                    materialization,
+                    SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor.start(),
+                    1,
+                    true,
+                    claims);
+
+            assertTrue(advance.complete());
+            assertEquals(1, advance.assignedSolidWrites());
+            assertEquals(0, advance.solidWrites());
+            assertEquals(1, advance.cursor().cumulativeAssignedSolidWrites());
+            assertEquals(
+                    Blocks.GOLD_BLOCK.defaultBlockState(),
+                    fixture.chunk().getBlockState(fixture.providerPosition()));
+        }
+    }
+
+    @Test
     void providerWritePreservesLiveNativeBlockAtClaimedPosition() throws Exception {
         var fixture = fixture();
         var writer = new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver());
