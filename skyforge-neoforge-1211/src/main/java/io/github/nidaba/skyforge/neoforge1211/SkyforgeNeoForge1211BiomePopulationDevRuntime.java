@@ -21,6 +21,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -43,6 +44,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final int PROOF_RADIUS_CHUNKS = 4;
+    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(10, 0);
     private static final int CANDIDATE_PROOF_CHUNKS =
             (PROOF_RADIUS_CHUNKS * 2 + 1) * (PROOF_RADIUS_CHUNKS * 2 + 1);
     private static final int MINIMUM_ELIGIBLE_PROOF_CHUNKS = 25;
@@ -70,6 +72,13 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 || acceptanceCompletionRequested) {
             return;
         }
+        int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
+        if (exteriorNonAirBlocks != 0) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    event.getServer(),
+                    "void exterior witness chunk contained " + exteriorNonAirBlocks + " non-air blocks");
+            return;
+        }
         acceptanceCompletionRequested = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 event.getServer(),
@@ -81,7 +90,44 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         "lowerSuccessfulFeatures", lowerAggregate.successfulFeatures,
                         "lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence(),
                         "upperSuccessfulFeatures", upperAggregate.successfulFeatures,
-                        "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence()));
+                        "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence(),
+                        "exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK,
+                        "exteriorNonAirBlocks", exteriorNonAirBlocks));
+    }
+
+    private static void installServerAcceptanceWarmupChunks() {
+        Set<Long> chunkKeys = new HashSet<>();
+        for (int x = -PROOF_RADIUS_CHUNKS; x <= PROOF_RADIUS_CHUNKS; x++) {
+            for (int z = -PROOF_RADIUS_CHUNKS; z <= PROOF_RADIUS_CHUNKS; z++) {
+                chunkKeys.add(new ChunkPos(x, z).toLong());
+            }
+        }
+        chunkKeys.add(EXTERIOR_WITNESS_CHUNK.toLong());
+        SkyforgeAutomatedAcceptanceHarness.installWarmupChunkKeys(chunkKeys);
+    }
+
+    private static int countExteriorWitnessNonAirBlocks(ServerLevel level) {
+        ChunkAccess chunk = level.getChunkSource().getChunkNow(
+                EXTERIOR_WITNESS_CHUNK.x,
+                EXTERIOR_WITNESS_CHUNK.z);
+        if (chunk == null) {
+            throw new IllegalStateException("void exterior witness chunk was not loaded by acceptance warmup");
+        }
+        int nonAirBlocks = 0;
+        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+        int minimumY = level.getMinBuildHeight();
+        int maximumY = minimumY + level.getHeight();
+        for (int x = EXTERIOR_WITNESS_CHUNK.getMinBlockX(); x <= EXTERIOR_WITNESS_CHUNK.getMaxBlockX(); x++) {
+            for (int z = EXTERIOR_WITNESS_CHUNK.getMinBlockZ(); z <= EXTERIOR_WITNESS_CHUNK.getMaxBlockZ(); z++) {
+                for (int y = minimumY; y < maximumY; y++) {
+                    position.set(x, y, z);
+                    if (!chunk.getBlockState(position).isAir()) {
+                        nonAirBlocks++;
+                    }
+                }
+            }
+        }
+        return nonAirBlocks;
     }
 
     private SkyforgeNeoForge1211BiomePopulationDevRuntime() {}
@@ -100,6 +146,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         persistentBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter(),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+        if (SkyforgeAutomatedAcceptanceHarness.serverMode()) {
+            installServerAcceptanceWarmupChunks();
+        }
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0054 exact-volume biome specimen enabled. Create a NEW disposable "
