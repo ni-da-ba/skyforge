@@ -212,6 +212,15 @@ val wbyAlphaServerRuntime = sourceSets.create("wbyAlphaServerRuntime") {
         development.output
 }
 
+// Isolated FML-discovered runtime for the exact-volume modded-biome experiment.
+val moddedBiomePopulationClientRuntime = sourceSets.create("moddedBiomePopulationClientRuntime") {
+    compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
+    runtimeClasspath +=
+        sourceSets.main.get().output +
+        sourceSets.main.get().runtimeClasspath +
+        development.output
+}
+
 // S0.5A layers pack-integration authority onto the accepted S0 parent.
 val wbyS05ClientRuntime = sourceSets.create("wbyS05ClientRuntime") {
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
@@ -709,6 +718,7 @@ neoForge {
         // registered biome and vegetation features. The proof defaults to vanilla taiga elsewhere.
         create("moddedBiomePopulationClient") {
             client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome").asFile
             systemProperty("skyforge.dev.biomePopulation", "true")
             systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
@@ -7374,6 +7384,17 @@ dependencies {
     add("jarJar", project(":skyforge-recipes"))
     add("jarJar", project(":skyforge-world"))
 
+
+    // This isolated source set makes selected worldgen mods FML-discoverable in the alpha
+    // biome proof without adding them to normal development, tests, or the distributable mod.
+    // Pins match the staged S5 candidate: Biomes O' Plenty 21.1.0.14, TerraBlender 4.1.0.8,
+    // and GlitchCore 2.1.0.2. The provider-hosted artifacts remain platform-managed; do not rehost.
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "curse.maven:biomes-o-plenty-220318:8288121")
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:kkmrDlKT:6e8GCrLb")
+    add(moddedBiomePopulationClientRuntime.runtimeOnlyConfigurationName,
+        "maven.modrinth:s3dmwKy5:S2TfWrZR")
 
     // ModDevGradle creates a per-run <runName>AdditionalRuntimeClasspath configuration. On
     // Minecraft 1.21.1, mod jars placed there are discovered by FML while remaining isolated from
