@@ -115,15 +115,19 @@ final class SkyforgeNativeTerrainWriteAuthorityTest {
                     SkyforgePhysicalVolumeAdmissionState.ADMITTED,
                     SkyforgePhysicalVolumeAdmissionStage.snapshot(fixture.volumeId()).state());
 
+            int localX = fixture.providerPosition().getX() - fixture.chunk().getPos().getMinBlockX();
+            int localY = fixture.providerPosition().getY() - fixture.chunk().getMinBuildHeight();
+            int localZ = fixture.providerPosition().getZ() - fixture.chunk().getPos().getMinBlockZ();
+            int providerLinearIndex = localX + 16 * (localZ + 16 * localY);
             var advance = writer.writeDeferredSolidOverlayPacket(
                     fixture.chunk(),
                     materialization,
-                    SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor.start(),
+                    new SkyforgeNeoForge1211ChunkWriter.DeferredSolidWriteCursor(providerLinearIndex, 0, 0),
                     1,
                     true,
                     claims);
 
-            assertTrue(advance.complete());
+            assertFalse(advance.complete());
             assertEquals(1, advance.assignedSolidWrites());
             assertEquals(0, advance.solidWrites());
             assertEquals(1, advance.cursor().cumulativeAssignedSolidWrites());
