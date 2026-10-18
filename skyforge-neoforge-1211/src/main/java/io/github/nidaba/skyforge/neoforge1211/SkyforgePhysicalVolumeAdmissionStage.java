@@ -198,10 +198,16 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     .filter(volume -> volume.id().equals(ownerId))
                     .findFirst()
                     .orElse(null);
+            var support = owner == null
+                    ? Optional.<SkyforgeExactVoxelSupportBounds.ColumnRange>empty()
+                    : SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ);
             if (owner == null
                     || !binding.ledger().admitted(ownerId)
                     || !owner.bounds().contains(worldX, worldY, worldZ)
-                    || SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ).isEmpty()
+                    || support.isEmpty()
+                    // Provider terrain may extend the island's top but must not alter its interior
+                    // or underside, which remain exclusively Skyforge-authored.
+                    || worldY <= support.orElseThrow().maximumY()
                     || SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                                     ownerId, worldX, worldY, worldZ)
                             .orElseThrow(() -> new IllegalStateException(
