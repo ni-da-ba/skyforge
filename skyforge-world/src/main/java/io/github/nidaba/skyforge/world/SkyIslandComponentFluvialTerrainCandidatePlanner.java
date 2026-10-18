@@ -104,11 +104,12 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
                 new LinkedHashMap<>();
         Map<Long, SkyIslandSemanticField> coupledTerrainByIdentity = new LinkedHashMap<>();
 
-        for (SkyIslandHydraulicTerminalComponent component :
-                assemblyPlan.terminalComponents()) {
-            if (!SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(component)) {
-                continue;
-            }
+        List<SkyIslandHydraulicTerminalComponent> eligibleComponents =
+                assemblyPlan.terminalComponents().stream()
+                        .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+                        .toList();
+
+        for (SkyIslandHydraulicTerminalComponent component : eligibleComponents) {
 
             List<SkyIslandComponentFluvialTerrainDeferralReason> reasons =
                     supportReasons(component, network);
@@ -184,8 +185,7 @@ public final class SkyIslandComponentFluvialTerrainCandidatePlanner {
             realizedComponents.add(component);
         }
 
-        Set<Integer> eligibleTerminals = assemblyPlan.terminalComponents().stream()
-                .filter(SkyIslandComponentFluvialTerrainCandidatePlan::isCandidateEligible)
+        Set<Integer> eligibleTerminals = eligibleComponents.stream()
                 .map(component -> component.terminalFate().channelTerminalCellIndex())
                 .collect(java.util.stream.Collectors.toCollection(java.util.TreeSet::new));
         Set<Integer> classifiedTerminals = new HashSet<>();
