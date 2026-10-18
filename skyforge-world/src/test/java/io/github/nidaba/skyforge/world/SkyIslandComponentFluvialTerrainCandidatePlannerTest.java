@@ -214,8 +214,14 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
         for (long key = 0; key < 256 && foundKey < 0; key++) {
             SkyIslandDescriptor descriptor = descriptor(8L, 81L, key);
-            SkyIslandHydraulicNetworkAssemblyPlan assembly =
-                    SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+            SkyIslandHydraulicNetworkAssemblyPlan assembly;
+            try {
+                assembly = SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor);
+            } catch (IllegalStateException failure) {
+                throw new AssertionError(
+                        "network assembly failed before candidate census for key=" + key,
+                        failure);
+            }
             boolean hasEligibleNetwork = assembly.terminalComponents().stream()
                     .anyMatch(component ->
                             component.reaches().size() > 1

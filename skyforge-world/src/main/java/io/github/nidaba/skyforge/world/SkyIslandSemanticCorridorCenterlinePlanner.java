@@ -851,8 +851,31 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             0.5 * (previous.x() + next.x()),
                             0.5 * (previous.z() + next.z()));
             SkyIslandLocalPosition smoothed = lerp(point, midpoint, RELAXATION_FRACTION);
-            List<SkyIslandLocalPosition> options = new ArrayList<>(13);
+            List<SkyIslandLocalPosition> options = new ArrayList<>(20);
             options.add(smoothed);
+            AdmissionCheck currentAdmission = admissibilityCheck(
+                    point, searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth);
+            boolean recoveringInadmissiblePoint = !currentAdmission.allowed();
+            if (recoveringInadmissiblePoint) {
+                // A fine-route smoother can start outside the semantic corridor and a local
+                // midpoint move may remain outside indefinitely. Offer recovery candidates toward
+                // the authored guidance; each still passes the ordinary geometry admission gate.
+                Projection projection = project(point, semanticGuidance);
+                double guidanceDistance = projection.distance();
+                if (guidanceDistance > EPSILON) {
+                    double boundaryDistance = Math.min(
+                            guidanceDistance,
+                            semanticCorridorHalfWidth * (1.0 - 1.0e-9));
+                    double boundaryFraction = boundaryDistance / guidanceDistance;
+                    // Try the least displacement first, then move further toward guidance only
+                    // when terrain or interiority makes the boundary point inadmissible.
+                    for (int recoveryStep = 0; recoveryStep <= 8; recoveryStep++) {
+                        double fraction = boundaryFraction * (8 - recoveryStep) / 8.0;
+                        options.add(lerp(projection.position(), point, fraction));
+                    }
+                }
+            }
             Vector tangent = tangent(previous, next);
             Vector normal = new Vector(-tangent.z(), tangent.x());
             double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
@@ -932,12 +955,24 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     }
                 }
                 if (!admission.allowed() || !curvatureAllowed) continue;
+                boolean recoveryPrefersCandidate = recoveringInadmissiblePoint
+                        && headEnvelopeGap == null
+                        && longitudinalHeadFeasibility == null
+                        && (!selectedIsAdmissible
+                                || Math.hypot(option.x() - point.x(), option.z() - point.z())
+                                        < Math.hypot(selected.x() - point.x(), selected.z() - point.z())
+                                                - EPSILON);
                 if (!selectedIsAdmissible
-                        || (headEnvelopeGap == null && longitudinalHeadFeasibility == null)
-                        || compareLocalCandidates(
-                                        result, i, option, selected,
-                                        bankfullHalfWidthAtStation, headEnvelopeGap,
-                                        searchRoute, longitudinalHeadFeasibility) < 0) {
+                        || recoveryPrefersCandidate
+                        || (!recoveringInadmissiblePoint
+                                && headEnvelopeGap == null
+                                && longitudinalHeadFeasibility == null)
+                        || ((headEnvelopeGap != null
+                                        || longitudinalHeadFeasibility != null)
+                                && compareLocalCandidates(
+                                                result, i, option, selected,
+                                                bankfullHalfWidthAtStation, headEnvelopeGap,
+                                                searchRoute, longitudinalHeadFeasibility) < 0)) {
                     selected = option;
                     selectedIsAdmissible = true;
                     selectedOption = optionIndex;
