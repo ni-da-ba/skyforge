@@ -20,9 +20,10 @@ val wbyS10Profile = providers.gradleProperty("wbyS10Profile").orNull?.trim()?.lo
 val wbyS10Ftb = listOf("ftbLibrary", "ftbTeams", "ftbQuests")
 val wbyS10All = listOf(
     "ftbLibrary", "ftbTeams", "ftbQuests", "patchouli", "createEnchantmentIndustry",
-    "simpleVoiceChat", "walkieTalkiePlus", "simpleBackupsStable", "simpleBackupsBeta", "serverCore",
+    "simpleVoiceChat", "walkieTalkiePlus", "simpleBackupsStable", "serverCore",
     "trueAdaptiveMusic", "presenceFootsteps", "presenceFootstepsSable",
 )
+val wbyS10CandidateInventory = wbyS10All + "simpleBackupsBeta"
 val wbyS10Profiles = mapOf(
     "none" to emptyList(),
     "quests" to wbyS10Ftb,
@@ -74,7 +75,7 @@ tasks.register("wbyS10ResolveProfile") {
             .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}:${it.version}" }.toSet()
         val serverModules = wbyS10ServerConfiguration.incoming.resolutionResult.allComponents
             .mapNotNull { it.moduleVersion }.map { "${it.group}:${it.name}:${it.version}" }.toSet()
-        wbyS10All.filter { it !in wbyS10Mods }.forEach { mod ->
+        wbyS10CandidateInventory.filter { it !in wbyS10Mods }.forEach { mod ->
             val excluded = wbyS10Parts(mod).joinToString(":")
             check(excluded !in clientModules && excluded !in serverModules) {
                 "WBY S10 profile $wbyS10Profile leaked unselected candidate $mod: $excluded"
