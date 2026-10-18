@@ -1,0 +1,232 @@
+name: WBY S9 End Qualification
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/wby-s9-end.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.properties"
+      - "scripts/wby-s9-end-evidence.py"
+      - "scripts/wby-s7-runtime-acceptance.sh"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
+      - "scripts/wby-s9-package-review-profile.py"
+      - "scripts/wby-s9-launch-production-review.py"
+      - "scripts/wby-s9-diagnostic-launch.sh"
+  push:
+    branches:
+      - "codex/s9-end-full-stack"
+    paths:
+      - ".github/workflows/wby-s9-end.yml"
+      - "skyforge-neoforge-1211/build.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.gradle.kts"
+      - "skyforge-neoforge-1211/wby-s9-end.properties"
+      - "scripts/wby-s9-end-evidence.py"
+      - "scripts/wby-s7-runtime-acceptance.sh"
+      - "scripts/wby-s4-launch-production-client.py"
+      - "scripts/wby-s4-launcher-requirements.txt"
+      - "scripts/wby-s9-package-review-profile.py"
+      - "scripts/wby-s9-launch-production-review.py"
+      - "scripts/wby-s9-diagnostic-launch.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wby-s9-end-${{ github.event.pull_request.head.ref || github.ref_name }}
+  cancel-in-progress: true
+
+jobs:
+  build-pinned-a4mc:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+      - name: Checkout pinned Aerodynamics4MC source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: MozillaFiredoge/Aerodynamics4MC-Core
+          ref: 171d8dc593651d6b34e3bfecaf6469a11b53b433
+          path: upstream-a4mc
+          persist-credentials: false
+      - name: Apply bounded migration for retired A4MC build APIs
+        shell: bash
+        run: python3 scripts/wby-s7-patch-a4mc-build.py "$GITHUB_WORKSPACE/upstream-a4mc"
+      - name: Build pinned A4MC artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd upstream-a4mc && MOD_IS_RELEASE=true ./gradlew :1.21.1-neoforge:buildAndCollect --configure-on-demand --no-daemon)
+          mkdir -p a4mc-0.2.2
+          cp upstream-a4mc/build/libs/0.2.2/*.jar a4mc-0.2.2/
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: wby-s9-a4mc
+          path: a4mc-0.2.2/*.jar
+          if-no-files-found: error
+
+  qualify-end-profiles:
+    needs: build-pinned-a4mc
+    strategy:
+      fail-fast: false
+      matrix:
+        variant:
+          - control
+          - nullscape
+          - nullscape-betterend
+          - nullscape-unusual
+          - nullscape-moogs
+          - nullscape-yungs-strongholds
+          - nullscape-yungs-island
+          - nullscape-structures
+          - nullscape-edr
+          - nullscape-flyhigher
+          - betterend
+          - betterend-food
+          - betterend-unusual
+          - betterend-edr
+          - betterend-flyhigher
+          - betterend-moogs
+          - betterend-yungs-strongholds
+          - betterend-yungs-island
+          - betterend-structures
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-java-gradle
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: wby-s9-a4mc
+          path: a4mc-0.2.2
+      - name: Check S9 helper syntax
+        shell: bash
+        run: |
+          bash -n scripts/wby-s7-runtime-acceptance.sh
+          python3 -m py_compile scripts/wby-s9-end-evidence.py scripts/wby-s9-package-review-profile.py scripts/wby-s9-launch-production-review.py
+          bash -n scripts/wby-s9-diagnostic-launch.sh
+      - name: Resolve the exact cumulative S0-S9 candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          common=(
+            -PwbyS1A4mcBuiltModDir="$GITHUB_WORKSPACE/a4mc-0.2.2"
+            -PwbyS1Glider=combined -PwbyS1Clouds=simple-clouds
+            -PwbyS1ThinAir=true
+            -PwbyS2ComputingAvionics=true
+            -PwbyS3DieselGenerators=true -PwbyS3CreateBigCannons=true
+            -PwbyS4OrdinaryLife=true -PwbyS4Shaders=false
+            -PwbyS5OverworldEcology=true -PwbyS6StructuresCivilization=true
+            -PwbyS6D07Variant=both -PwbyS7IllagerThreats=true -PwbyS7IceAndFire=true
+            -PwbyS7Bomd=true -PwbyS7CombatVariant=tacz -PwbyS8NetherVariant=incendium-full
+            -PwbyS9EndVariant=${{ matrix.variant }} --no-configuration-cache
+          )
+          ./gradlew :skyforge-neoforge-1211:wbyS9ResolveEndProfile "${common[@]}" | tee wby-s9-resolution.log
+          ./gradlew :skyforge-neoforge-1211:wbyS1StageServerMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
+          ./gradlew :skyforge-neoforge-1211:wbyS9StageEndClientMods "${common[@]}" -PwbyS1RunDirectory=run-wby-s7-join-client
+          ./gradlew :skyforge-neoforge-1211:wbyS1StagePolicy "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
+          ./gradlew :skyforge-neoforge-1211:wbyS8StageNetherDatapack "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
+          ./gradlew :skyforge-neoforge-1211:wbyS9StageEndDatapacks "${common[@]}" -PwbyS1RunDirectory=run-wby-s9-${{ matrix.variant }}
+          python3 scripts/wby-s9-end-evidence.py --variant "${{ matrix.variant }}" \
+            --mods skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods \
+            --datapacks skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks \
+            --output wby-s9-end-evidence.tsv
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
+        name: Preserve Gradle JVM before installing the Java 21 production runtime
+        shell: bash
+        run: echo "WBY_S7_GRADLE_JAVA_HOME=$JAVA_HOME" >> "$GITHUB_ENV"
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
+        uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v4.7.1
+        with:
+          distribution: temurin
+          java-version: 21
+          java-package: jdk
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
+        name: Install NeoForge server and stage selected profile
+        shell: bash
+        run: |
+          set -euo pipefail
+          server="$GITHUB_WORKSPACE/s9-production-server"
+          mkdir -p "$server"
+          curl --fail --location --retry 3 https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.249/neoforge-21.1.249-installer.jar -o "$server/neoforge-installer.jar"
+          (cd "$server" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
+          mkdir -p "$server/mods" "$server/config" "$server/kubejs/data" "$server/datapacks" "$server/s7-acceptance/datapacks"
+          cp skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods/*.jar "$server/mods/"
+          cp skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/config/*.toml "$server/config/"
+          cp -R skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/kubejs/data/. "$server/kubejs/data/"
+          cp skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks/*.zip "$server/s7-acceptance/datapacks/" || true
+          printf 'eula=true\n' > "$server/eula.txt"
+          mkdir -p skyforge-neoforge-1211/run-wby-s7-join-client/mods
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
+        name: Prepare production-client launcher
+        shell: bash
+        run: |
+          python3 -m venv "$RUNNER_TEMP/wby-s9-launcher"
+          "$RUNNER_TEMP/wby-s9-launcher/bin/python" -m pip install --disable-pip-version-check -r scripts/wby-s4-launcher-requirements.txt
+          echo "WBY_S4_LAUNCHER_PYTHON=$RUNNER_TEMP/wby-s9-launcher/bin/python" >> "$GITHUB_ENV"
+      - if: ${{ contains(fromJSON('["control","nullscape","nullscape-betterend","nullscape-unusual","nullscape-structures","nullscape-edr","nullscape-flyhigher","betterend","betterend-food","betterend-unusual","betterend-edr","betterend-flyhigher","betterend-structures"]'), matrix.variant) }}
+        name: Boot server, generate End chunks, join client, and save/reopen
+        shell: bash
+        env:
+          WBY_S7_ICE_AND_FIRE: "true"
+          WBY_S7_BOMD: "true"
+          WBY_S7_COMBAT_VARIANT: tacz
+          WBY_S8_NETHER_VARIANT: incendium-full
+          WBY_S8_NETHER_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks/incendium-5.4.4.zip
+          WBY_S9_END_VARIANT: ${{ matrix.variant }}
+          WBY_S9_NULLSCAPE_DATAPACK_SOURCE: ${{ github.workspace }}/skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks/nullscape-review.zip
+          WBY_S7_PRODUCTION_SERVER_DIR: ${{ github.workspace }}/s9-production-server
+          WBY_S4_MINECRAFT_DIRECTORY: ${{ github.workspace }}/s4-minecraft
+        run: |
+          set -euo pipefail
+          [[ "${{ matrix.variant }}" == nullscape* ]] || unset WBY_S9_NULLSCAPE_DATAPACK_SOURCE
+          # WorldWeaver: New Dawn otherwise inserts a first-launch welcome screen that blocks CI quick-play.
+          # Seed only this disposable runner profile; leave user/client preferences untouched.
+          mkdir -p "$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-join-client/config/wover"
+          cat > "$GITHUB_WORKSPACE/skyforge-neoforge-1211/run-wby-s7-join-client/config/wover/client.json" <<'JSON'
+          {
+            "internal": {
+              "did_present_welcome_screen": true
+            },
+            "general": {
+              "check_for_new_versions": false
+            }
+          }
+          JSON
+          cp wby-s9-resolution.log wby-s7-resolution.log
+          bash scripts/wby-s7-runtime-acceptance.sh
+      - name: Emit license-safe review manifest without third-party binaries
+        if: success()
+        shell: bash
+        run: |
+          python3 scripts/wby-s9-package-review-profile.py \
+            --variant "${{ matrix.variant }}" \
+            --client-mods skyforge-neoforge-1211/run-wby-s7-join-client/mods \
+            --server-mods skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/server-mods \
+            --datapacks skyforge-neoforge-1211/run-wby-s9-${{ matrix.variant }}/datapacks \
+            --output wby-s9-review-manifest.tsv
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: success()
+        with:
+          name: wby-s9-${{ matrix.variant }}-review-manifest
+          path: wby-s9-review-manifest.tsv
+          if-no-files-found: error
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: wby-s9-${{ matrix.variant }}-evidence
+          path: |
+            wby-s9-*.log
+            wby-s9-end-evidence.tsv
+            wby-s7-join-server.log
+            wby-s7-join-client.log
+            s9-production-server/logs/latest.log
+            s9-production-server/config/*.toml
+          if-no-files-found: warn
