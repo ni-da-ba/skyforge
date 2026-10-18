@@ -126,6 +126,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         }
         return "PASS".equals(properties.getProperty("status"))
                 && "true".equals(properties.getProperty("remoteServerJoin"))
+                && "true".equals(properties.getProperty("spawnSupported"))
                 && "false".equals(properties.getProperty("singleplayerServer"));
     }
 
