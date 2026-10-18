@@ -11,14 +11,23 @@ import io.github.nidaba.skyforge.world.SkyIslandWorldCatalog;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolume;
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import io.github.nidaba.skyforge.world.WorldBounds;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.Set;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.WorldGenLevel;
@@ -28,12 +37,22 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Development-only proof that stacked exact volumes can consume different native biome settings. */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID)
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
+    static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
+    static final String WAIT_FOR_CLIENT_PROPERTY = "skyforge.dev.biomePopulation.waitForRemoteClient";
+    static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
+    private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
+            System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final int PROOF_RADIUS_CHUNKS = 4;
+    private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(10, 0);
     private static final int CANDIDATE_PROOF_CHUNKS =
             (PROOF_RADIUS_CHUNKS * 2 + 1) * (PROOF_RADIUS_CHUNKS * 2 + 1);
     private static final int MINIMUM_ELIGIBLE_PROOF_CHUNKS = 25;
@@ -51,6 +70,101 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final Aggregate upperAggregate = new Aggregate();
     private static AutoCloseable persistentBinding;
     private static boolean proofComplete;
+    private static boolean acceptanceCompletionRequested;
+
+    @SubscribeEvent
+    static synchronized void completeServerAcceptance(ServerTickEvent.Post event) {
+        if (!enabled()
+                || !SkyforgeAutomatedAcceptanceHarness.serverMode()
+                || !proofComplete
+                || acceptanceCompletionRequested) {
+            return;
+        }
+        if (!remoteClientJoinPassed()) {
+            return;
+        }
+        int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
+        if (exteriorNonAirBlocks != 0) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    event.getServer(),
+                    "void exterior witness chunk contained " + exteriorNonAirBlocks + " non-air blocks");
+            return;
+        }
+        acceptanceCompletionRequested = true;
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                event.getServer(),
+                Map.of(
+                        "selectedUpperBiome", UPPER_BIOME.location(),
+                        "scannedChunks", scannedProofChunks.size(),
+                        "eligibleChunks", eligibleProofChunks.size(),
+                        "lowerBiome", lowerAggregate.biomeKey().location(),
+                        "lowerSuccessfulFeatures", lowerAggregate.successfulFeatures,
+                        "lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence(),
+                        "upperSuccessfulFeatures", upperAggregate.successfulFeatures,
+                        "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence(),
+                        "exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK,
+                        "exteriorNonAirBlocks", exteriorNonAirBlocks));
+    }
+
+    private static boolean remoteClientJoinPassed() {
+        if (!Boolean.getBoolean(WAIT_FOR_CLIENT_PROPERTY)) {
+            return true;
+        }
+        String configured = System.getProperty(CLIENT_RESULT_FILE_PROPERTY);
+        if (configured == null || configured.isBlank()) {
+            throw new IllegalStateException(
+                    "remote-client acceptance requires system property " + CLIENT_RESULT_FILE_PROPERTY);
+        }
+        Path result = Path.of(configured).toAbsolutePath().normalize();
+        if (!Files.isRegularFile(result)) {
+            return false;
+        }
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(result)) {
+            properties.load(input);
+        } catch (IOException exception) {
+            throw new IllegalStateException("failed to read remote-client acceptance result " + result, exception);
+        }
+        return "PASS".equals(properties.getProperty("status"))
+                && "true".equals(properties.getProperty("remoteServerJoin"))
+                && "true".equals(properties.getProperty("spawnSupported"))
+                && "false".equals(properties.getProperty("singleplayerServer"));
+    }
+
+    private static void installServerAcceptanceWarmupChunks() {
+        Set<Long> chunkKeys = new HashSet<>();
+        for (int x = -PROOF_RADIUS_CHUNKS; x <= PROOF_RADIUS_CHUNKS; x++) {
+            for (int z = -PROOF_RADIUS_CHUNKS; z <= PROOF_RADIUS_CHUNKS; z++) {
+                chunkKeys.add(new ChunkPos(x, z).toLong());
+            }
+        }
+        chunkKeys.add(EXTERIOR_WITNESS_CHUNK.toLong());
+        SkyforgeAutomatedAcceptanceHarness.installWarmupChunkKeys(chunkKeys);
+    }
+
+    private static int countExteriorWitnessNonAirBlocks(ServerLevel level) {
+        ChunkAccess chunk = level.getChunkSource().getChunkNow(
+                EXTERIOR_WITNESS_CHUNK.x,
+                EXTERIOR_WITNESS_CHUNK.z);
+        if (chunk == null) {
+            throw new IllegalStateException("void exterior witness chunk was not loaded by acceptance warmup");
+        }
+        int nonAirBlocks = 0;
+        BlockPos.MutableBlockPos position = new BlockPos.MutableBlockPos();
+        int minimumY = level.getMinBuildHeight();
+        int maximumY = minimumY + level.getHeight();
+        for (int x = EXTERIOR_WITNESS_CHUNK.getMinBlockX(); x <= EXTERIOR_WITNESS_CHUNK.getMaxBlockX(); x++) {
+            for (int z = EXTERIOR_WITNESS_CHUNK.getMinBlockZ(); z <= EXTERIOR_WITNESS_CHUNK.getMaxBlockZ(); z++) {
+                for (int y = minimumY; y < maximumY; y++) {
+                    position.set(x, y, z);
+                    if (!chunk.getBlockState(position).isAir()) {
+                        nonAirBlocks++;
+                    }
+                }
+            }
+        }
+        return nonAirBlocks;
+    }
 
     private SkyforgeNeoForge1211BiomePopulationDevRuntime() {}
 
@@ -68,12 +182,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         persistentBinding = SkyforgeNeoForge1211SurfaceStage.install(
                 adapter(),
                 new SkyforgeNeoForge1211ChunkWriter(new MinecraftBlockStateResolver()));
+        if (SkyforgeAutomatedAcceptanceHarness.serverMode()) {
+            installServerAcceptanceWarmupChunks();
+        }
         LOGGER.log(
                 System.Logger.Level.INFO,
                 "Skyforge SF-IMP-0054 exact-volume biome specimen enabled. Create a NEW disposable "
                         + "Skyforge Development world and inspect the two vertically aligned tableland islands near "
                         + "x=" + PROOF_X + ", z=" + PROOF_Z
-                        + ". Lower resolves minecraft:forest; upper resolves minecraft:taiga. A deterministic "
+                        + ". Lower resolves minecraft:forest; upper resolves " + UPPER_BIOME.location() + ". A deterministic "
                         + (PROOF_RADIUS_CHUNKS * 2 + 1) + "x" + (PROOF_RADIUS_CHUNKS * 2 + 1)
                         + " candidate patch is scanned. A chunk is eligible only when at least "
                         + MINIMUM_SHARED_COLUMNS_PER_CHUNK
@@ -117,7 +234,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 return Biomes.FOREST;
             }
             if (volumeId.equals(upperId)) {
-                return Biomes.TAIGA;
+                return UPPER_BIOME;
             }
             throw new IllegalArgumentException("unknown SF-IMP-0054 proof volume: " + volumeId.path());
         };
@@ -142,12 +259,12 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 MAXIMUM_ATTACHMENT_DEPTH);
 
         requireChunkResult("lower", lower, Biomes.FOREST);
-        requireChunkResult("upper", upper, Biomes.TAIGA);
+        requireChunkResult("upper", upper, UPPER_BIOME);
         if (lower.biomeKey().equals(upper.biomeKey())) {
             throw new IllegalStateException("stacked exact volumes resolved the same biome identity");
         }
         if (lower.featureKeys().equals(upper.featureKeys())) {
-            throw new IllegalStateException("forest and taiga proof domains exposed identical vegetation feature lists");
+            throw new IllegalStateException("forest and configured-biome proof domains exposed identical vegetation feature lists");
         }
 
         VegetationEvidence lowerVegetation = scanVegetation(level, chunkPos, shared.lowerSurfaceY());
@@ -177,7 +294,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
-        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
+        requireAggregate("upper", upperAggregate, UPPER_BIOME);
         completeProof(lowerId, upperId);
     }
 
@@ -188,7 +305,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
-        requireAggregate("upper", upperAggregate, Biomes.TAIGA);
+        requireAggregate("upper", upperAggregate, UPPER_BIOME);
         proofComplete = true;
         LOGGER.log(
                 System.Logger.Level.INFO,
@@ -333,6 +450,19 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", attachments=" + aggregate.attachmentWrites
                     + ", successfulFeatures=" + aggregate.successfulFeatures
                     + ", features=" + aggregate.featureKeys);
+        }
+    }
+
+    static ResourceKey<Biome> configuredBiomeKey(String identifier) {
+        Objects.requireNonNull(identifier, "identifier");
+        String value = identifier.trim();
+        if (value.isEmpty()) {
+            throw new IllegalArgumentException("configured biome key must not be blank");
+        }
+        try {
+            return ResourceKey.create(Registries.BIOME, ResourceLocation.parse(value));
+        } catch (RuntimeException exception) {
+            throw new IllegalArgumentException("invalid configured biome key: " + identifier, exception);
         }
     }
 
