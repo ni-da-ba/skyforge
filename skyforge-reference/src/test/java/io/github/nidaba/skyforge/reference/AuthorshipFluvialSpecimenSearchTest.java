@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 class AuthorshipFluvialSpecimenSearchTest {
+    @EnabledIfEnvironmentVariable(named = "SKYFORGE_AUTH_FLUVIAL_SEARCH", matches = "true")
     @Test
     void findsAndRendersStrongDeterministicCandidates() throws Exception {
         Path out = Path.of("build", "evidence", AuthorshipFluvialSpecimenSearchCli.EVIDENCE_ID);

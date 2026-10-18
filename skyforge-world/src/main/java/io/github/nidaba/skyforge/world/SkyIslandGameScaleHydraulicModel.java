@@ -62,11 +62,10 @@ public final class SkyIslandGameScaleHydraulicModel {
             throw new IllegalArgumentException(
                     "authored bankfull width and depth cannot contain the calibrated trapezoidal section");
         }
-        double routeLengthMetres = reach.centerline().pathLength() * HORIZONTAL_METRES_PER_LOCAL_UNIT;
-        double startElevationMetres = terrain.sample(reach.centerline().points().getFirst()) * verticalScale;
-        double endElevationMetres = terrain.sample(reach.centerline().points().getLast()) * verticalScale;
-        double measuredGrade = (startElevationMetres - endElevationMetres) / routeLengthMetres;
-        double minimumGrade = Math.max(MINIMUM_BED_SLOPE, measuredGrade);
+        // The valley-surface grade is not a channel-bed boundary. The shared bed solve may
+        // incise within authored edit limits, so retain only a positive downstream bed-grade
+        // floor here; terrain and D2 constrain the resulting candidate.
+        double minimumGrade = MINIMUM_BED_SLOPE;
         SkyIslandGeomorphicProfileLimits limits = SkyIslandGeomorphicQualificationPolicy
                 .firstEvidenceBacked()
                 .limits(reach.geomorphicRoute().semanticReach());

@@ -18,6 +18,7 @@ on:
       - "skyforge-reference/src/test/java/io/github/nidaba/skyforge/reference/HydrologyDiscontinuityDiagnosticsCorpusTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_C2.md"
       - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlanner.java"
+      - "skyforge-world/src/main/java/io/github/nidaba/skyforge/world/SkyIslandGameScaleHydraulicModel.java"
       - "skyforge-world/src/test/java/io/github/nidaba/skyforge/world/SkyIslandSemanticCorridorCenterlinePlannerTest.java"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E0.md"
       - "docs/authorship/HYDROLOGY_RESET_TRANCHE_E1.md"
@@ -325,6 +326,23 @@ jobs:
             --tests '*SkyIslandQualifiedFluvialRealizationPlannerTest.retainedOpenWaterTerminalIsDeferredBeforeTerrainAuthority' \
             --tests '*SkyIslandContinuousWaterbodyDiagnosticsPlannerTest.fixedV5LakeCorpusReportsTerminalProfileClassification' \
             --no-configuration-cache
+      - name: Census cascade-free F4 multireach specimen
+        if: steps.scope.outputs.diagnostic_only != 'true'
+        env:
+          SKYFORGE_F4_NETWORK_CENSUS: "true"
+        run: >-
+          ./gradlew :skyforge-world:test
+          --tests '*SkyIslandComponentFluvialTerrainCandidatePlannerTest.boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate'
+          --no-configuration-cache
+      - name: Report F4 cascade-free network specimen census
+        if: always()
+        run: |
+          report=skyforge-world/build/evidence/f4-cascade-free-network-specimen.txt
+          if [ -f "$report" ]; then
+            cat "$report"
+          else
+            echo "F4 cascade-free network specimen census report was not produced"
+          fi
       - name: Print fixed retained-lake terminal profiles
         if: always()
         run: |
@@ -385,6 +403,7 @@ jobs:
           path: |
             skyforge-world/build/evidence/hydrology-join-diagnostics/
             skyforge-world/build/evidence/hydrology-retained-basin-transition-profiles/
+            skyforge-world/build/evidence/f4-cascade-free-network-specimen.txt
           if-no-files-found: warn
           retention-days: 14
       - name: Verify qualified static-water fence and writer-inert reload binding

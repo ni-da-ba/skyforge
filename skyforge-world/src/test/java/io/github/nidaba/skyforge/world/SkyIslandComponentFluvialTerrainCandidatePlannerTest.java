@@ -12,6 +12,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.condition.EnabledIfEnvironmentVariable;
 
 class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     private static final long SEED = 0x534B59464F524745L;
@@ -207,20 +208,31 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
     }
 
     @Test
-    void qualifiedCascadeNetworkIsNotEligibleForF4CandidateRealization() {
-        SkyIslandHydraulicNetworkAssemblyPlan assembly =
-                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor(8L, 81L, 198L));
-        SkyIslandHydraulicTerminalComponent cascadeComponent = assembly.terminalComponents().stream()
-                .filter(component -> component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED
-                        && component.reaches().size() > 1
-                        && component.reaches().stream().anyMatch(reach -> !reach.cascades().isEmpty()))
+    void cascadeBearingComponentIsNeverEligibleEvenIfMarkedQualified() {
+        SkyIslandHydraulicNetworkAssemblyPlan cascadeAssembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor(8L, 81L, 632L));
+        SkyIslandHydraulicTerminalComponent cascadeComponent = cascadeAssembly.terminalComponents().stream()
+                .filter(component -> component.reaches().stream()
+                        .anyMatch(reach -> !reach.cascades().isEmpty()))
                 .findFirst()
-                .orElseThrow(() -> new AssertionError(
-                        "key 198 must retain its qualified cascade-bearing network control"));
+                .orElseThrow(() -> new AssertionError("key 632 must contain a cascade control"));
+
+        SkyIslandHydraulicNetworkAssemblyPlan qualifiedAssembly =
+                SkyIslandHydraulicNetworkAssemblyPlanner.plan(descriptor(8L, 81L, 77L));
+        SkyIslandHydraulicTerminalComponent qualifiedComponent = qualifiedAssembly.terminalComponents().stream()
+                .filter(component -> component.status() == SkyIslandHydraulicAssemblyStatus.QUALIFIED)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("key 77 must provide a complete head solve"));
+        SkyIslandHydraulicTerminalComponent adversarial = new SkyIslandHydraulicTerminalComponent(
+                cascadeComponent.terminalFate(),
+                cascadeComponent.reaches(),
+                SkyIslandHydraulicAssemblyStatus.QUALIFIED,
+                List.of(),
+                qualifiedComponent.sharedHeadSolve());
 
         assertFalse(
-                SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(cascadeComponent),
-                "qualified assembly status must not bypass F4's cascade-free boundary");
+                SkyIslandComponentFluvialTerrainCandidatePlan.isCandidateEligible(adversarial),
+                "qualified status must not bypass F4's cascade-free boundary");
     }
 
     @Test
@@ -245,6 +257,7 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
                 + System.lineSeparator() + diagnostic + System.lineSeparator());
     }
 
+    @EnabledIfEnvironmentVariable(named = "SKYFORGE_F4_NETWORK_CENSUS", matches = "true")
     @Test
     void boundedSearchFindsCascadeFreeMultiReachNetworkReviewCandidate() throws Exception {
         List<String> eligibleButUnrealized = new java.util.ArrayList<>();
@@ -274,7 +287,10 @@ class SkyIslandComponentFluvialTerrainCandidatePlannerTest {
 
             SkyIslandComponentFluvialTerrainCandidatePlan candidate;
             try {
-                candidate = SkyIslandComponentFluvialTerrainCandidatePlanner.plan(descriptor);
+                candidate = SkyIslandComponentFluvialTerrainCandidatePlanner.plan(
+                        descriptor,
+                        assembly,
+                        SkyIslandGeomorphicQualificationPolicy.firstEvidenceBacked());
             } catch (IllegalArgumentException | IllegalStateException failure) {
                 throw new AssertionError(
                         "F4 candidate planning failed before specimen census for key=" + key,

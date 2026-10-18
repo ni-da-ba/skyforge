@@ -110,7 +110,7 @@ class SkyIslandGameScaleHydraulicModelTest {
         assertEquals(expectedDepth, configuration.bankfullDepthMetres(), EPSILON);
         assertEquals(expectedEdit, configuration.maximumTerrainEditMetres(), EPSILON);
         assertEquals(0.0, configuration.upstreamIncisionMetres(), EPSILON);
-        assertTrue(configuration.minimumBedSlope() > 0.0);
+        assertEquals(1.0e-5, configuration.minimumBedSlope(), EPSILON);
     }
 
     @Test
