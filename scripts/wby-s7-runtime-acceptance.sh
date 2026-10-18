@@ -239,6 +239,14 @@ if [[ -n "${WBY_S8_NETHER_VARIANT:-}" ]]; then
     --live --host 127.0.0.1 --port 25575 \
     --seed 817304 --output "$GITHUB_WORKSPACE/wby-s8-nether-evidence.tsv"
 fi
+if [[ -n "${WBY_S9_END_VARIANT:-}" ]]; then
+  python3 scripts/wby-s9-end-evidence.py \
+    --variant "$WBY_S9_END_VARIANT" \
+    --mods "$server_dir/mods" \
+    --datapacks "$server_dir/s7-acceptance/datapacks" \
+    --live --host 127.0.0.1 --port 25575 \
+    --output "$GITHUB_WORKSPACE/wby-s9-end-evidence.tsv"
+fi
 echo "WBY S7/S8 runtime: client joined; collecting live entity evidence"
 python3 scripts/wby-s7-illager-evidence.py \
   --mods "$server_dir/mods" --host 127.0.0.1 --port 25575 \
