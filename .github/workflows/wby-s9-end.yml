@@ -81,11 +81,17 @@ jobs:
           - nullscape-betterend
           - nullscape-phantasm
           - nullscape-unusual
+          - nullscape-moogs
+          - nullscape-yungs-strongholds
+          - nullscape-yungs-island
           - nullscape-structures
           - nullscape-edr
           - nullscape-flyhigher
           - betterend
           - betterend-food
+          - betterend-moogs
+          - betterend-yungs-strongholds
+          - betterend-yungs-island
           - betterend-structures
     runs-on: ubuntu-24.04
     timeout-minutes: 90

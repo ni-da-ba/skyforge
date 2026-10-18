@@ -41,11 +41,17 @@ VARIANTS = {
     "nullscape-betterend": BETTER_END,
     "nullscape-phantasm": ["phantasm"],
     "nullscape-unusual": ["unusual-end"],
+    "nullscape-moogs": ["moogs-end-structures"],
+    "nullscape-yungs-strongholds": ["yungs-better-strongholds"],
+    "nullscape-yungs-island": ["yungs-better-end-island"],
     "nullscape-structures": STRUCTURES,
     "nullscape-edr": ["ender-dragon-fight-remastered"],
     "nullscape-flyhigher": ["flyhigher"],
     "betterend": BETTER_END,
     "betterend-food": BETTER_END + ["ends-delight"],
+    "betterend-moogs": BETTER_END + ["moogs-end-structures"],
+    "betterend-yungs-strongholds": BETTER_END + ["yungs-better-strongholds"],
+    "betterend-yungs-island": BETTER_END + ["yungs-better-end-island"],
     "betterend-structures": BETTER_END + STRUCTURES,
 }
 CURSEFORGE = {
