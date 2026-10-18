@@ -14,6 +14,8 @@ on:
       - "skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml"
       - "skyforge-neoforge-1211/wby-s10-simplebackups-common.toml"
       - "scripts/wby-s10-backup-evidence.py"
+      - "scripts/wby-s10-launch-production-review.py"
+      - "scripts/wby-s10-diagnostic-launch.sh"
   push:
     branches:
       - "wby/s10-onboarding-operations"
@@ -25,6 +27,8 @@ on:
       - "skyforge-neoforge-1211/wby-s9-end.properties"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.gradle.kts"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.properties"
+      - "scripts/wby-s10-launch-production-review.py"
+      - "scripts/wby-s10-diagnostic-launch.sh"
   workflow_dispatch:
 
 permissions:
@@ -97,8 +101,9 @@ jobs:
       - name: Check WBY S10 helper syntax
         shell: bash
         run: |
-          python3 -m py_compile scripts/wby-s7-patch-a4mc-build.py scripts/wby-s10-backup-evidence.py
+          python3 -m py_compile scripts/wby-s7-patch-a4mc-build.py scripts/wby-s10-backup-evidence.py scripts/wby-s10-launch-production-review.py
           bash -n scripts/wby-s7-runtime-acceptance.sh
+          bash -n scripts/wby-s10-diagnostic-launch.sh
       - name: Resolve and stage the exact cumulative profile
         shell: bash
         run: |
