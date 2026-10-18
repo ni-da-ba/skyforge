@@ -65,7 +65,7 @@ verify_result() {
   grep -Eq '^status=PASS$' "$result"
   grep -Eq '^worldSeed=592850352$' "$result"
   grep -Eq '^zoneKey=534b5942494f4d45$' "$result"
-  grep -Fqx 'skyBiomeId=skyforge\\:cloud_shelf' "$result"
+  grep -Fqx 'skyBiomeId=skyforge\:cloud_shelf' "$result"
   grep -Eq '^assignmentCount=1$' "$result"
 }
 launch_server "$write_task"
