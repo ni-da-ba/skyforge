@@ -10,7 +10,6 @@ import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 
@@ -60,17 +59,8 @@ final class MinecraftNativeSurfaceSnapshot {
             int worldZ = chunk.getPos().getMinBlockZ() + localZ;
             for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
                 int worldX = chunk.getPos().getMinBlockX() + localX;
-                int firstFreeY = generator.getBaseHeight(
-                        worldX,
-                        worldZ,
-                        Heightmap.Types.OCEAN_FLOOR_WG,
-                        chunk,
-                        randomState);
-                if (firstFreeY <= chunk.getMinBuildHeight()) {
-                    continue;
-                }
                 NoiseColumn column = generator.getBaseColumn(worldX, worldZ, chunk, randomState);
-                for (int worldY = Math.min(firstFreeY - 1, chunk.getMaxBuildHeight() - 1);
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
                         worldY >= chunk.getMinBuildHeight();
                         worldY--) {
                     BlockState state = column.getBlock(worldY);
