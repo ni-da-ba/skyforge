@@ -9,6 +9,7 @@ import io.github.nidaba.skyforge.model.skyisland.SkyBiomeCatalog;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeId;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneAssignment;
 import io.github.nidaba.skyforge.model.skyisland.SkyBiomeZoneIdentity;
+import java.util.List;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
