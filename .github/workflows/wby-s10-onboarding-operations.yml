@@ -10,6 +10,10 @@ on:
       - "skyforge-neoforge-1211/wby-s9-end.properties"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.gradle.kts"
       - "skyforge-neoforge-1211/wby-s10-onboarding-operations.properties"
+      - "skyforge-neoforge-1211/wby-s10-servercore-config.yml"
+      - "skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml"
+      - "skyforge-neoforge-1211/wby-s10-simplebackups-common.toml"
+      - "scripts/wby-s10-backup-evidence.py"
   push:
     branches:
       - "wby/s10-onboarding-operations"
@@ -93,7 +97,7 @@ jobs:
       - name: Check WBY S10 helper syntax
         shell: bash
         run: |
-          python3 -m py_compile scripts/wby-s7-patch-a4mc-build.py
+          python3 -m py_compile scripts/wby-s7-patch-a4mc-build.py scripts/wby-s10-backup-evidence.py
           bash -n scripts/wby-s7-runtime-acceptance.sh
       - name: Resolve and stage the exact cumulative profile
         shell: bash
@@ -157,6 +161,10 @@ jobs:
           (cd "$server" && "$JAVA_HOME_21_X64/bin/java" -jar neoforge-installer.jar --installServer)
           cp "$profile/server-mods/"*.jar "$server/mods/"
           cp "$profile/config/"*.toml "$server/config/" || true
+          mkdir -p "$server/config/servercore"
+          cp skyforge-neoforge-1211/wby-s10-servercore-config.yml "$server/config/servercore/config.yml"
+          cp skyforge-neoforge-1211/wby-s10-servercore-optimizations.yml "$server/config/servercore/optimizations.yml"
+          cp skyforge-neoforge-1211/wby-s10-simplebackups-common.toml "$server/config/simplebackups-common.toml"
           cp -R "$profile/kubejs/data/." "$server/kubejs/data/"
           cp "$profile/datapacks/"*.zip "$server/s7-acceptance/datapacks/" || true
           printf 'eula=true\n' > "$server/eula.txt"
@@ -184,6 +192,9 @@ jobs:
           set -euo pipefail
           cp "wby-s10-full-resolution.log" wby-s7-resolution.log
           bash scripts/wby-s7-runtime-acceptance.sh
+          python3 scripts/wby-s10-backup-evidence.py \\
+            --backups s10-production-server/simplebackups \\
+            --output wby-s10-backup-restore-probe.tsv
       - name: Emit metadata-only S10 runtime manifest
         if: success() && matrix.profile == 'full'
         shell: bash
@@ -198,6 +209,8 @@ jobs:
         if: success() && matrix.profile == 'full'
         with:
           name: wby-s10-full-review-manifest
-          path: wby-s10-full-review-manifest.tsv
+          path: |
+            wby-s10-full-review-manifest.tsv
+            wby-s10-backup-restore-probe.tsv
           if-no-files-found: error
           retention-days: 14
