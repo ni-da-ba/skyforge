@@ -28,6 +28,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
+    private static final String REVIEW_SPAWN_PROPERTY = ENABLE_PROPERTY + ".reviewSpawn";
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static boolean complete;
@@ -36,6 +37,18 @@ final class SkyforgeTectonicTerrainAcceptance {
 
     static void installFromSystemProperty() {
         // This fixture is entirely inert unless a dedicated ModDev run opts in.
+    }
+
+    @SubscribeEvent
+    static void placeReviewPlayerAtSavedSpawn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (!Boolean.getBoolean(REVIEW_SPAWN_PROPERTY)
+                || !(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)
+                || !player.level().dimension().equals(Level.OVERWORLD)) {
+            return;
+        }
+        ServerLevel level = player.serverLevel();
+        BlockPos spawn = level.getSharedSpawnPos();
+        player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
     }
 
     @SubscribeEvent
@@ -137,6 +150,16 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island body or underside witness was not materialized at the origin");
                 return;
             }
+            BlockPos reviewSpawn = findReviewSpawn(islandChunk);
+            if (reviewSpawn == null) {
+                fail(server, "Skyforge origin island has no safe surface position for owner review spawn");
+                return;
+            }
+            // The review save is created by a dedicated server without players. Pin its shared
+            // spawn to an admitted island surface so the local quick-play reviewer does not enter
+            // the surrounding void. The review-client property also relocates an existing local
+            // player on login, since player data can outlive a replaced downloaded save.
+            level.setDefaultSpawnPos(reviewSpawn, 0.0F);
 
             ChunkAccess exteriorChunk = level.getChunk(new ChunkPos(EXTERIOR_CHUNK_X, 0).getMiddleBlockPosition(0));
             int exteriorNonAirBlocks = countNonAir(exteriorChunk);
@@ -189,6 +212,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("exteriorChunk", new ChunkPos(EXTERIOR_CHUNK_X, 0).toString());
             evidence.put("exteriorNonAirBlocks", exteriorNonAirBlocks);
             evidence.put("worldSeed", level.getSeed());
+            evidence.put("reviewSpawn", reviewSpawn.toShortString());
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
         } catch (RuntimeException failure) {
@@ -230,6 +254,42 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+    }
+
+    private static BlockPos findReviewSpawn(ChunkAccess chunk) {
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        BlockPos best = null;
+        int bestDistanceSquared = Integer.MAX_VALUE;
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 3;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockPos supportPos = cursor.set(worldX, worldY, worldZ).immutable();
+                    BlockState support = chunk.getBlockState(supportPos);
+                    if (support.isAir() || !support.getFluidState().isEmpty()
+                            || !support.isFaceSturdy(chunk, supportPos, net.minecraft.core.Direction.UP)) {
+                        continue;
+                    }
+                    BlockPos feetPos = new BlockPos(worldX, worldY + 1, worldZ);
+                    BlockPos headPos = new BlockPos(worldX, worldY + 2, worldZ);
+                    if (chunk.getBlockState(feetPos).isAir() && chunk.getBlockState(headPos).isAir()) {
+                        int distanceSquared = worldX * worldX + worldZ * worldZ;
+                        if (distanceSquared < bestDistanceSquared) {
+                            best = feetPos;
+                            bestDistanceSquared = distanceSquared;
+                        }
+                    }
+                    // Only consider the highest sturdy surface in this column; do not choose an
+                    // interior cave floor when the island's true top has insufficient clearance.
+                    break;
+                }
+            }
+        }
+        return best;
     }
 
     private static BlockPos findTopMaterial(ChunkAccess chunk, BlockState expected) {
