@@ -46,11 +46,13 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String ENABLE_PROPERTY = "skyforge.dev.biomePopulation";
     static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
+    static final String PROVIDER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.providerBiome";
     static final String WAIT_FOR_CLIENT_PROPERTY = "skyforge.dev.biomePopulation.waitForRemoteClient";
     static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
     private static final String REOPEN_ACCEPTANCE_CASE = "sf-imp-0054-modded-biome-reopen";
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
+    private static final int PROVIDER_MODE_MINIMUM_ELIGIBLE_CHUNKS = 1;
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final int PROOF_RADIUS_CHUNKS = 4;
     private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(10, 0);
@@ -72,6 +74,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static AutoCloseable persistentBinding;
     private static boolean proofComplete;
     private static boolean acceptanceCompletionRequested;
+    private static ResourceKey<Biome> providerBiomeSampleKey;
 
     @SubscribeEvent
     static synchronized void completeServerAcceptance(ServerTickEvent.Post event) {
@@ -102,6 +105,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 event.getServer(),
                 Map.of(
                         "selectedUpperBiome", UPPER_BIOME.location(),
+                        "providerBiomeSource", providerBiomeSampleKey == null
+                                ? "disabled" : providerBiomeSampleKey.location(),
+                        "providerBiomeMatchesPopulation", providerBiomeSampleKey != null
+                                && providerBiomeSampleKey.equals(upperAggregate.biomeKey()),
                         "scannedChunks", scannedProofChunks.size(),
                         "eligibleChunks", eligibleProofChunks.size(),
                         "lowerBiome", lowerAggregate.biomeKey().location(),
@@ -318,9 +325,24 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         SharedSurfaceSample shared = sample.orElseThrow();
+        boolean providerMode = Boolean.getBoolean(PROVIDER_BIOME_PROPERTY);
+        ResourceKey<Biome> providerUpperBiome = null;
+        if (providerMode) {
+            providerUpperBiome = level.getBiome(new BlockPos(shared.x(), shared.upperSurfaceY(), shared.z()))
+                    .unwrapKey()
+                    .orElseThrow(() -> new IllegalStateException(
+                            "provider returned an unregistered biome at the admitted upper surface sample"));
+            if (!UPPER_BIOME.equals(providerUpperBiome)) {
+                evaluateCompletion(lowerId, upperId);
+                return;
+            }
+            providerBiomeSampleKey = providerUpperBiome;
+        }
         eligibleProofChunks.add(chunkPos.toLong());
 
-        SkyforgeExactVolumeBiomeResolver resolver = (volumeId, x, y, z) -> {
+        SkyforgeExactVolumeBiomeResolver resolver = providerMode
+                ? providerBackedProofResolver(lowerId, upperId)
+                : (volumeId, x, y, z) -> {
             if (volumeId.equals(lowerId)) {
                 return Biomes.FOREST;
             }
@@ -368,7 +390,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static void evaluateCompletion(
             SkyIslandWorldVolumeId lowerId,
             SkyIslandWorldVolumeId upperId) {
-        boolean enoughEligibleChunks = eligibleProofChunks.size() >= MINIMUM_ELIGIBLE_PROOF_CHUNKS;
+        boolean enoughEligibleChunks = eligibleProofChunks.size() >= minimumEligibleProofChunks();
         boolean visibleTrees = lowerAggregate.hasTreeEvidence() && upperAggregate.hasTreeEvidence();
         if (enoughEligibleChunks && visibleTrees) {
             completeProof(lowerId, upperId);
@@ -378,7 +400,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             return;
         }
         if (!enoughEligibleChunks) {
-            throw new IllegalStateException("SF-IMP-0054 candidate region exposed too little substantial shared terrain: "
+            throw new IllegalStateException("SF-IMP-0054 candidate region exposed too little substantial shared terrain/provider biome: "
                     + "eligible=" + eligibleProofChunks.size()
                     + ", required=" + MINIMUM_ELIGIBLE_PROOF_CHUNKS
                     + ", scanned=" + scannedProofChunks.size()
@@ -387,6 +409,39 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
         requireAggregate("upper", upperAggregate, UPPER_BIOME);
         completeProof(lowerId, upperId);
+    }
+
+    private static int minimumEligibleProofChunks() {
+        return Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
+                ? PROVIDER_MODE_MINIMUM_ELIGIBLE_CHUNKS
+                : MINIMUM_ELIGIBLE_PROOF_CHUNKS;
+    }
+
+    private static SkyforgeExactVolumeBiomeResolver providerBackedProofResolver(
+            SkyIslandWorldVolumeId lowerId,
+            SkyIslandWorldVolumeId upperId) {
+        SkyforgeExactVolumeBiomeResolver providerResolver = SkyforgeProviderBiomeResolver.create();
+        return new SkyforgeExactVolumeBiomeResolver() {
+            @Override
+            public ResourceKey<Biome> resolve(SkyIslandWorldVolumeId volumeId, int x, int y, int z) {
+                if (volumeId.equals(lowerId)) {
+                    return Biomes.FOREST;
+                }
+                if (volumeId.equals(upperId)) {
+                    throw new IllegalStateException("upper provider biome requires live generation context");
+                }
+                throw new IllegalArgumentException("unknown SF-IMP-0054 proof volume: " + volumeId.path());
+            }
+
+            @Override
+            public ResourceKey<Biome> resolve(
+                    WorldGenLevel level, SkyIslandWorldVolumeId volumeId, int x, int y, int z) {
+                if (volumeId.equals(upperId)) {
+                    return providerResolver.resolve(level, volumeId, x, y, z);
+                }
+                return resolve(volumeId, x, y, z);
+            }
+        };
     }
 
     private static void completeProof(
