@@ -11,7 +11,6 @@ import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.gui.screens.DisconnectedScreen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
-import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.DisconnectionDetails;
@@ -92,7 +91,7 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
                     ServerAddress.parseString(server.ip),
                     server,
                     false,
-                    new TransferState(Map.of()));
+                    null);
         }
 
         if (minecraft.level == null
