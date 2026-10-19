@@ -745,6 +745,7 @@ neoForge {
             programArgument("acceptance")
             systemProperty("skyforge.dev.biomePopulation", "true")
             systemProperty("skyforge.dev.biomePopulation.upperBiome", "biomesoplenty:maple_woods")
+            systemProperty("skyforge.dev.biomePopulation.providerBiome", "true")
             systemProperty("skyforge.dev.biomePopulation.waitForRemoteClient", "true")
             systemProperty(
                 "skyforge.dev.biomePopulation.clientResultFile",
