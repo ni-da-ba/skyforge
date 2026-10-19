@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.WorldGenRegion;
@@ -12,7 +13,8 @@ import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
-import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.blending.Blender;
@@ -105,19 +107,25 @@ final class MinecraftNativeSurfaceSnapshot {
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(randomState, "randomState");
 
-        LevelChunk providerChunk = detachedProviderChunk(level, targetChunk.getPos());
-        generator.fillFromNoise(Blender.of(level), randomState, structureManager, providerChunk).join();
+        ProtoChunk providerChunk = detachedProviderChunk(level, targetChunk.getPos());
+        Blender blender = Blender.of(level);
+        generator.createBiomes(randomState, blender, structureManager, providerChunk).join();
+        generator.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
         generator.buildSurface(level, structureManager, randomState, providerChunk);
         return capture(providerChunk, generator.getSeaLevel());
     }
 
     /**
-     * The 1.21.1 LevelChunk constructor requires its owning Level, but WorldGenRegion's only
-     * accessor for that value is deprecated. Keep the compatibility use isolated here.
+     * A detached ProtoChunk retains worldgen postprocessing marks without exposing provider
+     * writes to the live region. Its biome registry and height range come from the same region.
      */
-    @SuppressWarnings("deprecation")
-    private static LevelChunk detachedProviderChunk(WorldGenRegion level, ChunkPos chunkPos) {
-        return new LevelChunk(level.getLevel(), chunkPos);
+    private static ProtoChunk detachedProviderChunk(WorldGenRegion level, ChunkPos chunkPos) {
+        return new ProtoChunk(
+                chunkPos,
+                UpgradeData.EMPTY,
+                level,
+                level.registryAccess().registryOrThrow(Registries.BIOME),
+                null);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
