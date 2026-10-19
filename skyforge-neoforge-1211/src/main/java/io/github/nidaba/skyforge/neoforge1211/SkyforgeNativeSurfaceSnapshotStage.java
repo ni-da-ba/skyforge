@@ -60,12 +60,44 @@ final class SkyforgeNativeSurfaceSnapshotStage {
         if (snapshot == null) {
             throw new IllegalStateException("missing native surface snapshot for chunk " + chunk.getPos());
         }
+        retainAcceptanceSnapshot(chunk, snapshot);
+        return snapshot;
+    }
+
+    /**
+     * Consumes the pre-decoration snapshot when the surface stage ran in this process. If a saved
+     * void-base world resumes chunk generation at FEATURES after a server/client restart, its
+     * short-lived snapshot was not persisted; deterministically rebuild the detached provider
+     * surface from the same live worldgen context instead of failing chunk generation.
+     */
+    static MinecraftNativeSurfaceSnapshot consumeOrCaptureProviderSurface(
+            net.minecraft.server.level.WorldGenRegion level,
+            net.minecraft.world.level.StructureManager structureManager,
+            ChunkAccess chunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(structureManager, "structureManager");
+        Objects.requireNonNull(chunk, "chunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(randomState, "randomState");
+        MinecraftNativeSurfaceSnapshot snapshot = SNAPSHOTS.remove(chunk.getPos().toLong());
+        if (snapshot == null) {
+            snapshot = MinecraftNativeSurfaceSnapshot.captureProviderSurface(
+                    level, structureManager, chunk, generator, randomState);
+        }
+        retainAcceptanceSnapshot(chunk, snapshot);
+        return snapshot;
+    }
+
+    private static void retainAcceptanceSnapshot(
+            ChunkAccess chunk,
+            MinecraftNativeSurfaceSnapshot snapshot) {
         if (Boolean.getBoolean(SkyforgeTectonicTerrainAcceptance.ENABLE_PROPERTY)
                 && chunk.getPos().x == 0
                 && chunk.getPos().z == 0) {
             ACCEPTANCE_SNAPSHOT.set(snapshot);
         }
-        return snapshot;
     }
 
     static Optional<MinecraftNativeSurfaceSnapshot> consumeAcceptanceSnapshot(ChunkAccess chunk) {
