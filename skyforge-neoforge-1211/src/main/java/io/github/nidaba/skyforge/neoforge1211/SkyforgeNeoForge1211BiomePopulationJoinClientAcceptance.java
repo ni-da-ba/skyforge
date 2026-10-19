@@ -43,12 +43,23 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
         if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
             SkyforgeAutomatedAcceptanceHarness.failClientCase(
-                    "modded-biome client did not join the dedicated server within 360 seconds");
+                    "modded-biome client did not join the dedicated server within 360 seconds"
+                            + "; screen="
+                            + (Minecraft.getInstance().screen == null
+                                    ? "none"
+                                    : Minecraft.getInstance().screen.getClass().getName())
+                            + "; connectionPresent="
+                            + (Minecraft.getInstance().getConnection() != null));
         }
 
         Minecraft minecraft = Minecraft.getInstance();
         if (!connectionStarted && minecraft.level == null && minecraft.screen instanceof TitleScreen) {
             connectionStarted = true;
+            System.getLogger(SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.class.getName())
+                    .log(
+                            System.Logger.Level.INFO,
+                            "Starting explicit modded-biome acceptance connection; screen={0}",
+                            minecraft.screen.getClass().getName());
             ServerData server = new ServerData(
                     "Skyforge Acceptance",
                     "127.0.0.1:25565",
