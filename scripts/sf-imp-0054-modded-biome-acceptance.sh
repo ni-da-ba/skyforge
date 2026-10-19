@@ -79,10 +79,8 @@ wait_server_ready() {
 verify_server_result() {
   local result="$1"
   test -f "$result"
-  echo "--- $result ---"
-  cat "$result"
   grep -Eq '^status=PASS$' "$result"
-  grep -Eq '^selectedUpperBiome=biomesoplenty:maple_woods$' "$result"
+  grep -Fq 'selectedUpperBiome=biomesoplenty\\:maple_woods' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
 }
