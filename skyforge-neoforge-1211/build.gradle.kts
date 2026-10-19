@@ -790,6 +790,8 @@ neoForge {
             client()
             sourceSet.set(moddedBiomePopulationClientRuntime)
             gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-join-client").asFile
+            programArgument("--quickPlayMultiplayer")
+            programArgument("127.0.0.1:25565")
             systemProperty("skyforge.dev.biomePopulationJoinClient", "true")
             systemProperty("skyforge.dev.acceptanceHarness", "true")
             systemProperty("skyforge.dev.acceptanceMode", "client")
