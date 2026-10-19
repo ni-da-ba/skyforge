@@ -208,11 +208,19 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge origin island has no safe surface position for owner review spawn");
                 return;
             }
-            BlockState reviewSpawnSupport = level.getBlockState(reviewSpawn.below());
-            if (reviewSpawnSupport.getBlock() instanceof FallingBlock
-                    || !reviewSpawnSupport.isFaceSturdy(level, reviewSpawn.below(), net.minecraft.core.Direction.UP)) {
-                fail(server, "Skyforge review spawn resolved onto unstable surface support: "
-                        + reviewSpawnSupport);
+            BlockPos reviewSpawnSupportPos = reviewSpawn.below();
+            BlockState reviewSpawnSupport = level.getBlockState(reviewSpawnSupportPos);
+            BlockPos reviewSpawnAnchorPos = reviewSpawnSupportPos.below();
+            BlockState reviewSpawnAnchor = level.getBlockState(reviewSpawnAnchorPos);
+            boolean fallingSupportUnanchored = reviewSpawnSupport.getBlock() instanceof FallingBlock
+                    && (reviewSpawnAnchor.getBlock() instanceof FallingBlock
+                            || !reviewSpawnAnchor.isFaceSturdy(
+                                    level, reviewSpawnAnchorPos, net.minecraft.core.Direction.UP));
+            if (fallingSupportUnanchored
+                    || !reviewSpawnSupport.isFaceSturdy(
+                            level, reviewSpawnSupportPos, net.minecraft.core.Direction.UP)) {
+                fail(server, "Skyforge review spawn resolved onto unstable surface support: support="
+                        + reviewSpawnSupport + ", anchor=" + reviewSpawnAnchor);
                 return;
             }
             // The review save is created by a dedicated server without players. Pin its shared
@@ -274,6 +282,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("worldSeed", level.getSeed());
             evidence.put("reviewSpawn", reviewSpawn.toShortString());
             evidence.put("reviewSpawnSupport", BuiltInRegistries.BLOCK.getKey(reviewSpawnSupport.getBlock()));
+            evidence.put("reviewSpawnAnchor", BuiltInRegistries.BLOCK.getKey(reviewSpawnAnchor.getBlock()));
             evidence.put("reviewSpawnSupportStable", true);
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
@@ -337,8 +346,13 @@ final class SkyforgeTectonicTerrainAcceptance {
                         continue;
                     }
                     if (support.getBlock() instanceof FallingBlock) {
-                        // Do not pin review spawn to a gravity block that can disappear after reopen.
-                        break;
+                        BlockPos anchorPos = supportPos.below();
+                        BlockState anchor = chunk.getBlockState(anchorPos);
+                        if (anchor.getBlock() instanceof FallingBlock
+                                || !anchor.isFaceSturdy(chunk, anchorPos, net.minecraft.core.Direction.UP)) {
+                            // Skip gravity surfaces without a stable block directly below them.
+                            break;
+                        }
                     }
                     BlockPos feetPos = new BlockPos(worldX, worldY + 1, worldZ);
                     BlockPos headPos = new BlockPos(worldX, worldY + 2, worldZ);
