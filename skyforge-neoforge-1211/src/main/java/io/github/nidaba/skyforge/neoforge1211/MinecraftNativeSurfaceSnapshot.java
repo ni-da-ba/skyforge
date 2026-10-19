@@ -6,10 +6,13 @@ import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 
@@ -79,6 +82,48 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         }
         return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+    }
+
+    /**
+     * Captures the selected provider's actual surface-rule result without exposing temporary
+     * provider terrain to the live chunk region.
+     *
+     * <p>The provider density columns are materialized into a detached in-memory chunk, then the
+     * provider's own {@code buildSurface} pipeline runs against that chunk using the live worldgen
+     * biome, structure, seed, and noise context. Only the immutable top-column snapshot escapes.
+     */
+    static MinecraftNativeSurfaceSnapshot captureProviderSurface(
+            WorldGenRegion level,
+            StructureManager structureManager,
+            ChunkAccess targetChunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(structureManager, "structureManager");
+        Objects.requireNonNull(targetChunk, "targetChunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(randomState, "randomState");
+
+        LevelChunk providerChunk = new LevelChunk(level.getLevel(), targetChunk.getPos());
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = targetChunk.getPos().getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = targetChunk.getPos().getMinBlockX() + localX;
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, targetChunk, randomState);
+                for (int worldY = targetChunk.getMaxBuildHeight() - 1;
+                        worldY >= targetChunk.getMinBuildHeight();
+                        worldY--) {
+                    var state = column.getBlock(worldY);
+                    if (!state.isAir()) {
+                        providerChunk.setBlockState(cursor.set(worldX, worldY, worldZ), state, false);
+                    }
+                }
+            }
+        }
+
+        generator.buildSurface(level, structureManager, randomState, providerChunk);
+        return capture(providerChunk, generator.getSeaLevel());
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
