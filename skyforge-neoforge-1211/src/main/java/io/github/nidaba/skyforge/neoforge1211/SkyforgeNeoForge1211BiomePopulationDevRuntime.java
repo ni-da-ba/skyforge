@@ -48,6 +48,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static final String UPPER_BIOME_PROPERTY = "skyforge.dev.biomePopulation.upperBiome";
     static final String WAIT_FOR_CLIENT_PROPERTY = "skyforge.dev.biomePopulation.waitForRemoteClient";
     static final String CLIENT_RESULT_FILE_PROPERTY = "skyforge.dev.biomePopulation.clientResultFile";
+    private static final String REOPEN_ACCEPTANCE_CASE = "sf-imp-0054-modded-biome-reopen";
     private static final ResourceKey<Biome> UPPER_BIOME = configuredBiomeKey(
             System.getProperty(UPPER_BIOME_PROPERTY, "minecraft:taiga"));
     private static final long ROOT_SEED = 0x5346494d50303054L;
@@ -76,11 +77,17 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     static synchronized void completeServerAcceptance(ServerTickEvent.Post event) {
         if (!enabled()
                 || !SkyforgeAutomatedAcceptanceHarness.serverMode()
-                || !proofComplete
                 || acceptanceCompletionRequested) {
             return;
         }
-        if (!remoteClientJoinPassed()) {
+        if (REOPEN_ACCEPTANCE_CASE.equals(SkyforgeAutomatedAcceptanceHarness.caseId())) {
+            if (!SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
+                return;
+            }
+            completePersistedReopenAcceptance(event.getServer().overworld());
+            return;
+        }
+        if (!proofComplete || !remoteClientJoinPassed()) {
             return;
         }
         int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(event.getServer().overworld());
@@ -104,6 +111,90 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence(),
                         "exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK,
                         "exteriorNonAirBlocks", exteriorNonAirBlocks));
+    }
+
+    /**
+     * Reopen verification reads the persisted proof footprint only. It deliberately does not invoke
+     * the native population runner, so a same-world boot cannot reapply generation over saved edits.
+     */
+    private static void completePersistedReopenAcceptance(ServerLevel level) {
+        List<SkyIslandWorldVolume> volumes = catalog().volumes();
+        if (volumes.size() != 2) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    level.getServer(),
+                    "SF-IMP-0054 reopen requires exactly two stacked proof volumes");
+            return;
+        }
+        SkyIslandWorldVolumeId lowerId = volumes.get(0).id();
+        SkyIslandWorldVolumeId upperId = volumes.get(1).id();
+        int scannedChunks = 0;
+        int eligibleChunks = 0;
+        int lowerLogBlocks = 0;
+        int lowerLeafBlocks = 0;
+        int upperLogBlocks = 0;
+        int upperLeafBlocks = 0;
+
+        for (int x = -PROOF_RADIUS_CHUNKS; x <= PROOF_RADIUS_CHUNKS; x++) {
+            for (int z = -PROOF_RADIUS_CHUNKS; z <= PROOF_RADIUS_CHUNKS; z++) {
+                ChunkPos chunkPos = new ChunkPos(x, z);
+                if (level.getChunkSource().getChunkNow(x, z) == null) {
+                    SkyforgeAutomatedAcceptanceHarness.fail(
+                            level.getServer(),
+                            "SF-IMP-0054 reopen proof chunk was not loaded: " + chunkPos);
+                    return;
+                }
+                scannedChunks++;
+                Optional<SharedSurfaceSample> sample = sharedSurfaceSample(level, lowerId, upperId, chunkPos);
+                if (sample.isEmpty()) {
+                    continue;
+                }
+                SharedSurfaceSample shared = sample.orElseThrow();
+                VegetationEvidence lower = scanVegetation(level, chunkPos, shared.lowerSurfaceY());
+                VegetationEvidence upper = scanVegetation(level, chunkPos, shared.upperSurfaceY());
+                eligibleChunks++;
+                lowerLogBlocks += lower.logBlocks();
+                lowerLeafBlocks += lower.leafBlocks();
+                upperLogBlocks += upper.logBlocks();
+                upperLeafBlocks += upper.leafBlocks();
+            }
+        }
+
+        boolean lowerTreeEvidence = lowerLogBlocks > 0 && lowerLeafBlocks > 0;
+        boolean upperTreeEvidence = upperLogBlocks > 0 && upperLeafBlocks > 0;
+        if (eligibleChunks < MINIMUM_ELIGIBLE_PROOF_CHUNKS || !lowerTreeEvidence || !upperTreeEvidence) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    level.getServer(),
+                    "SF-IMP-0054 reopen lost persisted native tree evidence: eligible="
+                            + eligibleChunks + ", lowerLogs=" + lowerLogBlocks
+                            + ", lowerLeaves=" + lowerLeafBlocks + ", upperLogs=" + upperLogBlocks
+                            + ", upperLeaves=" + upperLeafBlocks);
+            return;
+        }
+
+        int exteriorNonAirBlocks = countExteriorWitnessNonAirBlocks(level);
+        if (exteriorNonAirBlocks != 0) {
+            SkyforgeAutomatedAcceptanceHarness.fail(
+                    level.getServer(),
+                    "void exterior witness chunk contained " + exteriorNonAirBlocks + " non-air blocks after reopen");
+            return;
+        }
+
+        acceptanceCompletionRequested = true;
+        SkyforgeAutomatedAcceptanceHarness.completeServerCase(
+                level.getServer(),
+                Map.ofEntries(
+                        Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("scannedChunks", scannedChunks),
+                        Map.entry("eligibleChunks", eligibleChunks),
+                        Map.entry("lowerPersistentTreeEvidence", lowerTreeEvidence),
+                        Map.entry("lowerLogBlocks", lowerLogBlocks),
+                        Map.entry("lowerLeafBlocks", lowerLeafBlocks),
+                        Map.entry("upperPersistentTreeEvidence", upperTreeEvidence),
+                        Map.entry("upperLogBlocks", upperLogBlocks),
+                        Map.entry("upperLeafBlocks", upperLeafBlocks),
+                        Map.entry("generationReapplied", false),
+                        Map.entry("exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK),
+                        Map.entry("exteriorNonAirBlocks", exteriorNonAirBlocks)));
     }
 
     private static boolean remoteClientJoinPassed() {
