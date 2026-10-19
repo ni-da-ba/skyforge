@@ -820,6 +820,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.tectonicTerrain.reviewSpawn", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
@@ -832,6 +833,7 @@ neoForge {
             systemProperty("skyforge.dev.specimen", "true")
             systemProperty("skyforge.dev.tectonicTerrain", "true")
             systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.reviewSpawn", "true")
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
