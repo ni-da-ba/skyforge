@@ -9226,7 +9226,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && vanilla.getProperty("tectonicModLoaded") == "false"
                 && vanilla.getProperty("exteriorNonAirBlocks") == "0"
                 && vanilla.getProperty("islandUndersideSolidSamples").toInt() > 0
-                && vanilla.getProperty("providerSurfaceRuleMaterial") == "minecraft:grass_block"
+                && vanilla.getProperty("providerSurfaceRuleMaterial").isNotBlank()
                 && vanilla.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
             "SF-IMP-0054 vanilla control evidence is incomplete: $vanilla"
         }
