@@ -103,21 +103,21 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         acceptanceCompletionRequested = true;
         SkyforgeAutomatedAcceptanceHarness.completeServerCase(
                 event.getServer(),
-                Map.of(
-                        "selectedUpperBiome", UPPER_BIOME.location(),
-                        "providerBiomeSource", providerBiomeSampleKey == null
-                                ? "disabled" : providerBiomeSampleKey.location(),
-                        "providerBiomeMatchesPopulation", providerBiomeSampleKey != null
-                                && providerBiomeSampleKey.equals(upperAggregate.biomeKey()),
-                        "scannedChunks", scannedProofChunks.size(),
-                        "eligibleChunks", eligibleProofChunks.size(),
-                        "lowerBiome", lowerAggregate.biomeKey().location(),
-                        "lowerSuccessfulFeatures", lowerAggregate.successfulFeatures,
-                        "lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence(),
-                        "upperSuccessfulFeatures", upperAggregate.successfulFeatures,
-                        "upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence(),
-                        "exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK,
-                        "exteriorNonAirBlocks", exteriorNonAirBlocks));
+                Map.ofEntries(
+                        Map.entry("selectedUpperBiome", UPPER_BIOME.location()),
+                        Map.entry("providerBiomeSource", providerBiomeSampleKey == null
+                                ? "disabled" : providerBiomeSampleKey.location()),
+                        Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
+                                && providerBiomeSampleKey.equals(upperAggregate.biomeKey())),
+                        Map.entry("scannedChunks", scannedProofChunks.size()),
+                        Map.entry("eligibleChunks", eligibleProofChunks.size()),
+                        Map.entry("lowerBiome", lowerAggregate.biomeKey().location()),
+                        Map.entry("lowerSuccessfulFeatures", lowerAggregate.successfulFeatures),
+                        Map.entry("lowerPersistentTreeEvidence", lowerAggregate.hasTreeEvidence()),
+                        Map.entry("upperSuccessfulFeatures", upperAggregate.successfulFeatures),
+                        Map.entry("upperPersistentTreeEvidence", upperAggregate.hasTreeEvidence()),
+                        Map.entry("exteriorWitnessChunk", EXTERIOR_WITNESS_CHUNK),
+                        Map.entry("exteriorNonAirBlocks", exteriorNonAirBlocks)));
     }
 
     /**
