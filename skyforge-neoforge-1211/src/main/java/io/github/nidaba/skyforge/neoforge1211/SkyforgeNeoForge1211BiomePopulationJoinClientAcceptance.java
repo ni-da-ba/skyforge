@@ -14,6 +14,7 @@ import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.DisconnectionDetails;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
@@ -132,32 +133,35 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
 
         List<String> components = new ArrayList<>();
+        List<String> disconnectDetails = new ArrayList<>();
         for (Class<?> type = screen.getClass(); type != null; type = type.getSuperclass()) {
             for (Field field : type.getDeclaredFields()) {
-                if (Modifier.isStatic(field.getModifiers())
-                        || !Component.class.isAssignableFrom(field.getType())) {
+                if (Modifier.isStatic(field.getModifiers())) {
                     continue;
                 }
                 try {
                     if (!field.canAccess(screen)) {
                         field.setAccessible(true);
                     }
-                    Component value = (Component) field.get(screen);
-                    if (value != null) {
+                    Object fieldValue = field.get(screen);
+                    if (fieldValue instanceof Component value) {
                         String text = value.getString();
                         if (!text.isBlank()) {
                             components.add(field.getName() + "=" + text);
                         }
+                    } else if (fieldValue instanceof DisconnectionDetails details) {
+                        disconnectDetails.add(field.getName() + ".reason=" + details.reason().getString());
                     }
                 } catch (ReflectiveOperationException | RuntimeException inaccessible) {
-                    // The class name and title still identify a disconnect if mapping access changes.
+                    // Continue collecting any other visible disconnect details.
                 }
             }
         }
 
         return "screen=" + screen.getClass().getName()
                 + ", title=" + screen.getTitle().getString()
-                + ", componentFields=" + components;
+                + ", componentFields=" + components
+                + ", disconnectDetails=" + disconnectDetails;
     }
     private static Object networkConnection(Object packetListener) {
         if (packetListener == null) {
