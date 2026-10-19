@@ -3,17 +3,22 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.FallingBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -28,10 +33,10 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
-    private static final String REVIEW_SPAWN_PROPERTY = ENABLE_PROPERTY + ".reviewSpawn";
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static boolean complete;
+    private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
 
     private SkyforgeTectonicTerrainAcceptance() {}
 
@@ -40,13 +45,21 @@ final class SkyforgeTectonicTerrainAcceptance {
     }
 
     @SubscribeEvent
-    static void placeReviewPlayerAtSavedSpawn(net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
-        if (!Boolean.getBoolean(REVIEW_SPAWN_PROPERTY)
-                || !(event.getEntity() instanceof net.minecraft.server.level.ServerPlayer player)
+    static void placeReviewPlayerAtSavedSpawn(
+            net.neoforged.neoforge.event.entity.player.PlayerEvent.PlayerLoggedInEvent event) {
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)
+                || !(event.getEntity() instanceof ServerPlayer player)
                 || !player.level().dimension().equals(Level.OVERWORLD)) {
             return;
         }
-        ServerLevel level = player.serverLevel();
+        relocateReviewPlayer(player, player.serverLevel(), "login");
+    }
+
+    private static void relocateReviewPlayer(ServerPlayer player, ServerLevel level, String trigger) {
+        UUID playerId = player.getUUID();
+        if (REVIEW_RELOCATED_PLAYERS.contains(playerId)) {
+            return;
+        }
         BlockPos spawn = level.getSharedSpawnPos();
         boolean teleported = player.teleportTo(
                 level,
@@ -57,24 +70,42 @@ final class SkyforgeTectonicTerrainAcceptance {
                 player.getYRot(),
                 player.getXRot());
         java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
-                .info("Tectonic terrain review spawn relocation: success="
+                .info("Tectonic terrain review spawn relocation: trigger="
+                        + trigger
+                        + ", success="
                         + teleported
                         + ", target="
                         + spawn.toShortString()
                         + ", player="
                         + player.blockPosition().toShortString());
+        if (teleported) {
+            REVIEW_RELOCATED_PLAYERS.add(playerId);
+        }
     }
 
     @SubscribeEvent
     static void onServerTick(ServerTickEvent.Post event) {
-        if (!Boolean.getBoolean(ENABLE_PROPERTY)
-                || complete
+        if (!Boolean.getBoolean(ENABLE_PROPERTY)) {
+            return;
+        }
+
+        MinecraftServer server = event.getServer();
+        ServerLevel overworld = server.getLevel(Level.OVERWORLD);
+        if (overworld != null) {
+            for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                if (player.serverLevel() == overworld) {
+                    // Login can precede final player placement when opening an old local save.
+                    // Retry once on the server tick, using the exact saved review spawn.
+                    relocateReviewPlayer(player, overworld, "server-tick");
+                }
+            }
+        }
+        if (complete
                 || !SkyforgeAutomatedAcceptanceHarness.serverMode()
                 || !SkyforgeAutomatedAcceptanceHarness.warmupComplete()) {
             return;
         }
 
-        MinecraftServer server = event.getServer();
         try {
             ServerLevel level = server.getLevel(Level.OVERWORLD);
             if (level == null) {
@@ -169,6 +200,13 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge origin island has no safe surface position for owner review spawn");
                 return;
             }
+            BlockState reviewSpawnSupport = level.getBlockState(reviewSpawn.below());
+            if (reviewSpawnSupport.getBlock() instanceof FallingBlock
+                    || !reviewSpawnSupport.isFaceSturdy(level, reviewSpawn.below(), net.minecraft.core.Direction.UP)) {
+                fail(server, "Skyforge review spawn resolved onto unstable surface support: "
+                        + reviewSpawnSupport);
+                return;
+            }
             // The review save is created by a dedicated server without players. Pin its shared
             // spawn to an admitted island surface so the local quick-play reviewer does not enter
             // the surrounding void. The review-client property also relocates an existing local
@@ -227,6 +265,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("exteriorNonAirBlocks", exteriorNonAirBlocks);
             evidence.put("worldSeed", level.getSeed());
             evidence.put("reviewSpawn", reviewSpawn.toShortString());
+            evidence.put("reviewSpawnSupport", BuiltInRegistries.BLOCK.getKey(reviewSpawnSupport.getBlock()));
+            evidence.put("reviewSpawnSupportStable", true);
             complete = true;
             SkyforgeAutomatedAcceptanceHarness.completeServerCase(server, evidence);
         } catch (RuntimeException failure) {
@@ -287,6 +327,10 @@ final class SkyforgeTectonicTerrainAcceptance {
                     if (support.isAir() || !support.getFluidState().isEmpty()
                             || !support.isFaceSturdy(chunk, supportPos, net.minecraft.core.Direction.UP)) {
                         continue;
+                    }
+                    if (support.getBlock() instanceof FallingBlock) {
+                        // Do not pin review spawn to a gravity block that can disappear after reopen.
+                        break;
                     }
                     BlockPos feetPos = new BlockPos(worldX, worldY + 1, worldZ);
                     BlockPos headPos = new BlockPos(worldX, worldY + 2, worldZ);
