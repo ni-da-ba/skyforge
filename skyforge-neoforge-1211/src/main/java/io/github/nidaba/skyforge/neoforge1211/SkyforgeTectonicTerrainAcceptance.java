@@ -98,6 +98,22 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+            MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
+                    SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "provider surface snapshot was not retained for the acceptance fixture"));
+            var providerSurfaceRuleMaterial = providerSurfaceSnapshot.mostCommonSurfaceMaterial();
+            if (providerSurfaceRuleMaterial == null) {
+                fail(server, "selected provider produced no non-fluid surface material");
+                return;
+            }
+            int providerSurfaceRuleMaterialColumns = countMatchingProviderSurfaceTop(
+                    islandChunk, providerSurfaceSnapshot, providerSurfaceRuleMaterial);
+            if (providerSurfaceRuleMaterialColumns == 0) {
+                fail(server, "provider surface-rule material did not reach any admitted island top: "
+                        + providerSurfaceRuleMaterial);
+                return;
+            }
 
             int interiorSolidSamples = 0;
             int undersideSolidSamples = 0;
@@ -158,8 +174,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProfileSamples", profile.samples());
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
-            evidence.put("providerSurfaceRuleMaterial", "minecraft:grass_block");
-            evidence.put("providerSurfaceRuleMaterialColumns", grassSurfaceColumns);
+            evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial.toString());
+            evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
             evidence.put("reopenPass", reopening);
             evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);
             evidence.put("persistedPostGenerationMutationColumns", persistedMutationColumns);
@@ -233,6 +249,37 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return null;
+    }
+
+    private static int countMatchingProviderSurfaceTop(
+            ChunkAccess chunk,
+            MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot,
+            net.minecraft.resources.ResourceLocation expected) {
+        int matches = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                if (!providerSurfaceSnapshot.hasSurfaceMaterial(localX, localZ, expected)) {
+                    continue;
+                }
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()))) {
+                        matches++;
+                    }
+                    break;
+                }
+            }
+        }
+        return matches;
     }
 
     private static int countTopMaterial(ChunkAccess chunk, BlockState expected) {
