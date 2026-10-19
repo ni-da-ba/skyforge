@@ -48,7 +48,21 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
         ServerLevel level = player.serverLevel();
         BlockPos spawn = level.getSharedSpawnPos();
-        player.teleportTo(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5);
+        boolean teleported = player.teleportTo(
+                level,
+                spawn.getX() + 0.5,
+                spawn.getY(),
+                spawn.getZ() + 0.5,
+                java.util.Set.of(),
+                player.getYRot(),
+                player.getXRot());
+        java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
+                .info("Tectonic terrain review spawn relocation: success="
+                        + teleported
+                        + ", target="
+                        + spawn.toShortString()
+                        + ", player="
+                        + player.blockPosition().toShortString());
     }
 
     @SubscribeEvent
