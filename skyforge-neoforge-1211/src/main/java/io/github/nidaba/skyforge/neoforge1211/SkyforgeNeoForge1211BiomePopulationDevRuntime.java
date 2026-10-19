@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.TreeMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
@@ -71,6 +72,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final Set<Long> scannedProofChunks = new HashSet<>();
     private static final Set<Long> substantialTerrainProofChunks = new HashSet<>();
     private static final Set<Long> providerBiomeCandidateProofChunks = new HashSet<>();
+    private static final Map<String, Integer> providerBiomeColumnDistribution = new TreeMap<>();
     private static final Set<Long> eligibleProofChunks = new HashSet<>();
     private static final Aggregate lowerAggregate = new Aggregate();
     private static final Aggregate upperAggregate = new Aggregate();
@@ -112,6 +114,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                                 ? "disabled" : providerBiomeSampleKey.location()),
                         Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
                                 && providerBiomeSampleKey.equals(upperAggregate.biomeKey())),
+                        Map.entry("providerBiomeColumnDistribution", providerBiomeColumnDistribution.toString()),
                         Map.entry("scannedChunks", scannedProofChunks.size()),
                         Map.entry("substantialTerrainChunks", substantialTerrainProofChunks.size()),
                         Map.entry("providerBiomeCandidateChunks", providerBiomeCandidateProofChunks.size()),
@@ -420,7 +423,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", providerBiomeCandidateChunks=" + providerBiomeCandidateProofChunks.size()
                     + ", targetProviderBiome=" + (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
                             ? UPPER_BIOME.location() : "disabled")
-                    + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
+                    + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK
+                    + ", providerBiomeColumnDistribution=" + providerBiomeColumnDistribution);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
         requireAggregate("upper", upperAggregate, UPPER_BIOME);
@@ -551,6 +555,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                                 .orElseThrow(() -> new IllegalStateException(
                                         "provider returned an unregistered biome at an admitted upper surface sample"))
                         : null;
+                if (providerBiome != null) {
+                    providerBiomeColumnDistribution.merge(
+                            providerBiome.location().toString(), 1, Math::addExact);
+                }
                 sharedColumns.add(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
                         x, z, lowerSurfaceY, upperSurfaceY, providerBiome));
             }
