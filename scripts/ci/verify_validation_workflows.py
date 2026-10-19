@@ -29,7 +29,7 @@ CONTRACTS = (
         ".github/workflows/dr30-native-structure-acceptance.yml",
         (
             '- "skyforge-neoforge-1211/**"',
-            '- "!skyforge-neoforge-1211/src/main/java/**/Acceptance.java"',
+            '- "!skyforge-neoforge-1211/src/main/java/**/*Acceptance.java"',
             '- "!skyforge-neoforge-1211/src/test/**"',
             "workflow_dispatch:",
         ),
@@ -42,7 +42,7 @@ CONTRACTS = (
         (
             '- "skyforge-world/**"',
             '- "skyforge-neoforge-1211/**"',
-            '- "!skyforge-neoforge-1211/src/main/java/**/Acceptance.java"',
+            '- "!skyforge-neoforge-1211/src/main/java/**/*Acceptance.java"',
             '- "!skyforge-neoforge-1211/src/test/**"',
             '- "docs/agent-state/DR40_ECOLOGY_*.json"',
             "workflow_dispatch:",
@@ -56,7 +56,7 @@ CONTRACTS = (
         (
             '- "skyforge-world/**"',
             '- "skyforge-neoforge-1211/**"',
-            '- "!skyforge-neoforge-1211/src/main/java/**/Acceptance.java"',
+            '- "!skyforge-neoforge-1211/src/main/java/**/*Acceptance.java"',
             '- "!skyforge-neoforge-1211/src/test/**"',
             '- "docs/agent-state/DR50_INTEGRATED_REGION_EVIDENCE.json"',
             "workflow_dispatch:",
