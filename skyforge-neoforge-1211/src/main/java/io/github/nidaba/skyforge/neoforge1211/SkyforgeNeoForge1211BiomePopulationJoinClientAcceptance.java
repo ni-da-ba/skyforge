@@ -3,7 +3,6 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
-import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
@@ -53,7 +52,10 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
-        if (!connectionStarted && minecraft.level == null && minecraft.screen instanceof TitleScreen) {
+        if (!connectionStarted
+                && minecraft.level == null
+                && minecraft.getConnection() == null
+                && minecraft.screen != null) {
             connectionStarted = true;
             System.getLogger(SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.class.getName())
                     .log(
