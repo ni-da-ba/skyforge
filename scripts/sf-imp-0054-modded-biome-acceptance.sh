@@ -81,6 +81,7 @@ verify_server_result() {
   test -f "$result"
   grep -Eq '^status=PASS$' "$result"
   grep -Fq 'selectedUpperBiome=biomesoplenty\:maple_woods' "$result"
+  grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
 }
@@ -129,6 +130,7 @@ wait_server_ready "$reopen_task_log"
 wait "$server_pid"
 server_pid=""
 verify_server_result "$reopen_result"
+grep -Eq '^generationReapplied=false$' "$reopen_result"
 test -f "$server_dir/saves/acceptance/level.dat"
 
 printf 'status=PASS\nsameWorldFolder=saves/acceptance\nserverBoots=2\nremoteServerJoin=true\n' > "$reopen_summary"
