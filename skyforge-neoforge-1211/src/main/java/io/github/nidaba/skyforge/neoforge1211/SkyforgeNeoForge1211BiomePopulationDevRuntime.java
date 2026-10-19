@@ -402,7 +402,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         if (!enoughEligibleChunks) {
             throw new IllegalStateException("SF-IMP-0054 candidate region exposed too little substantial shared terrain/provider biome: "
                     + "eligible=" + eligibleProofChunks.size()
-                    + ", required=" + MINIMUM_ELIGIBLE_PROOF_CHUNKS
+                    + ", required=" + minimumEligibleProofChunks()
                     + ", scanned=" + scannedProofChunks.size()
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
         }
