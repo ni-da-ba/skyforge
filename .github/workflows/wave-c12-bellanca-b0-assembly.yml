@@ -41,7 +41,7 @@ jobs:
       - name: Resolve accepted C11 flight-only runtime
         run: ./gradlew :skyforge-neoforge-1211:waveC11ResolvePinnedMods --no-configuration-cache
 
-      - name: Assemble exact B0-A MAIN_BODY and measure live Sable mass/CG
+      - name: Assemble exact B0-A MAIN_BODY and measure live Sable mass/CG/lift sign
         shell: bash
         run: |
           set -euo pipefail
@@ -51,7 +51,8 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 240); do
-            if grep -Fq "WAVE_C12_BELLANCA_B0_ASSEMBLY PASS" "${log}" 2>/dev/null; then
+            if grep -Fq "WAVE_C12_BELLANCA_B0_ASSEMBLY PASS" "${log}" 2>/dev/null \\
+              && grep -Fq "WAVE_C12_BELLANCA_B0_LIFT PASS" "${log}" 2>/dev/null; then
               outcome="pass"
               break
             fi
@@ -67,6 +68,7 @@ jobs:
 
           if [[ "${outcome}" == "pass" ]]; then
             grep -F "WAVE_C12_BELLANCA_B0_ASSEMBLY PASS" "${log}"
+            grep -F "WAVE_C12_BELLANCA_B0_LIFT PASS" "${log}"
             kill -TERM -- "-${pid}" 2>/dev/null || true
             sleep 2
             kill -KILL -- "-${pid}" 2>/dev/null || true
@@ -74,7 +76,7 @@ jobs:
             exit 0
           fi
 
-          echo "FAIL C12 B0-A live assembly/mass gate"
+          echo "FAIL C12 B0-A live assembly/mass/lift-sign gate"
           cat "${log}"
           kill -TERM -- "-${pid}" 2>/dev/null || true
           sleep 1
