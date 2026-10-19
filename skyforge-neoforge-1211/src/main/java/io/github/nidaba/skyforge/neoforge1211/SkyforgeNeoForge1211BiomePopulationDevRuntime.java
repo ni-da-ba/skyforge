@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -68,6 +69,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             System.getLogger(SkyforgeNeoForge1211BiomePopulationDevRuntime.class.getName());
 
     private static final Set<Long> scannedProofChunks = new HashSet<>();
+    private static final Set<Long> substantialTerrainProofChunks = new HashSet<>();
+    private static final Set<Long> providerBiomeCandidateProofChunks = new HashSet<>();
     private static final Set<Long> eligibleProofChunks = new HashSet<>();
     private static final Aggregate lowerAggregate = new Aggregate();
     private static final Aggregate upperAggregate = new Aggregate();
@@ -110,6 +113,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
                                 && providerBiomeSampleKey.equals(upperAggregate.biomeKey())),
                         Map.entry("scannedChunks", scannedProofChunks.size()),
+                        Map.entry("substantialTerrainChunks", substantialTerrainProofChunks.size()),
+                        Map.entry("providerBiomeCandidateChunks", providerBiomeCandidateProofChunks.size()),
                         Map.entry("eligibleChunks", eligibleProofChunks.size()),
                         Map.entry("lowerBiome", lowerAggregate.biomeKey().location()),
                         Map.entry("lowerSuccessfulFeatures", lowerAggregate.successfulFeatures),
@@ -319,22 +324,29 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         SkyIslandWorldVolumeId lowerId = volumes.get(0).id();
         SkyIslandWorldVolumeId upperId = volumes.get(1).id();
 
-        Optional<SharedSurfaceSample> sample = sharedSurfaceSample(level, lowerId, upperId, chunkPos);
-        if (sample.isEmpty()) {
+        boolean providerMode = Boolean.getBoolean(PROVIDER_BIOME_PROPERTY);
+        SkyforgeSharedSurfaceBiomeSampleSelector.SearchResult search =
+                searchSharedSurface(level, lowerId, upperId, chunkPos, providerMode);
+        if (search.sharedColumns() >= MINIMUM_SHARED_COLUMNS_PER_CHUNK) {
+            substantialTerrainProofChunks.add(chunkPos.toLong());
+            if (providerMode && search.providerBiomeMatches() > 0) {
+                providerBiomeCandidateProofChunks.add(chunkPos.toLong());
+            }
+        }
+        if (search.selected().isEmpty()) {
             evaluateCompletion(lowerId, upperId);
             return;
         }
-        SharedSurfaceSample shared = sample.orElseThrow();
-        boolean providerMode = Boolean.getBoolean(PROVIDER_BIOME_PROPERTY);
+        SkyforgeSharedSurfaceBiomeSampleSelector.Column selected = search.selected().orElseThrow();
+        SharedSurfaceSample shared = new SharedSurfaceSample(
+                selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
+                search.sharedColumns(), selected.providerBiome());
         ResourceKey<Biome> providerUpperBiome = null;
         if (providerMode) {
-            providerUpperBiome = level.getBiome(new BlockPos(shared.x(), shared.upperSurfaceY(), shared.z()))
-                    .unwrapKey()
-                    .orElseThrow(() -> new IllegalStateException(
-                            "provider returned an unregistered biome at the admitted upper surface sample"));
+            providerUpperBiome = shared.providerBiome();
             if (!UPPER_BIOME.equals(providerUpperBiome)) {
-                evaluateCompletion(lowerId, upperId);
-                return;
+                throw new IllegalStateException("provider biome sample selector returned an unexpected biome: "
+                        + providerUpperBiome);
             }
             providerBiomeSampleKey = providerUpperBiome;
         }
@@ -404,6 +416,10 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + "eligible=" + eligibleProofChunks.size()
                     + ", required=" + minimumEligibleProofChunks()
                     + ", scanned=" + scannedProofChunks.size()
+                    + ", substantialTerrainChunks=" + substantialTerrainProofChunks.size()
+                    + ", providerBiomeCandidateChunks=" + providerBiomeCandidateProofChunks.size()
+                    + ", targetProviderBiome=" + (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
+                            ? UPPER_BIOME.location() : "disabled")
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
@@ -486,12 +502,20 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             SkyIslandWorldVolumeId lowerId,
             SkyIslandWorldVolumeId upperId,
             ChunkPos chunkPos) {
-        int middleX = chunkPos.getMiddleBlockX();
-        int middleZ = chunkPos.getMiddleBlockZ();
-        SharedSurfaceSample best = null;
-        int bestDistance = Integer.MAX_VALUE;
-        int sharedColumns = 0;
+        SkyforgeSharedSurfaceBiomeSampleSelector.SearchResult search =
+                searchSharedSurface(level, lowerId, upperId, chunkPos, false);
+        return search.selected().map(selected -> new SharedSurfaceSample(
+                selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
+                search.sharedColumns(), selected.providerBiome()));
+    }
 
+    private static SkyforgeSharedSurfaceBiomeSampleSelector.SearchResult searchSharedSurface(
+            WorldGenLevel level,
+            SkyIslandWorldVolumeId lowerId,
+            SkyIslandWorldVolumeId upperId,
+            ChunkPos chunkPos,
+            boolean requireProviderBiome) {
+        List<SkyforgeSharedSurfaceBiomeSampleSelector.Column> sharedColumns = new ArrayList<>(256);
         for (int x = chunkPos.getMinBlockX(); x <= chunkPos.getMaxBlockX(); x++) {
             for (int z = chunkPos.getMinBlockZ(); z <= chunkPos.getMaxBlockZ(); z++) {
                 var lowerClaim = SkyforgeNeoForge1211SurfaceStage.queryBaseHeightClaim(
@@ -515,25 +539,27 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     continue;
                 }
 
-                sharedColumns++;
                 int lowerSurfaceY = lowerClaim.orElseThrow().height();
                 int upperSurfaceY = upperClaim.orElseThrow().height();
                 if (lowerSurfaceY == upperSurfaceY) {
                     throw new IllegalStateException("SF-IMP-0054 stacked biome proof resolved one shared surface at x="
                             + x + ", z=" + z + ", chunk=" + chunkPos);
                 }
-                int distance = Math.abs(x - middleX) + Math.abs(z - middleZ);
-                if (distance < bestDistance) {
-                    best = new SharedSurfaceSample(x, z, lowerSurfaceY, upperSurfaceY, 0);
-                    bestDistance = distance;
-                }
+                ResourceKey<Biome> providerBiome = requireProviderBiome
+                        ? level.getBiome(new BlockPos(x, upperSurfaceY, z))
+                                .unwrapKey()
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "provider returned an unregistered biome at an admitted upper surface sample"))
+                        : null;
+                sharedColumns.add(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
+                        x, z, lowerSurfaceY, upperSurfaceY, providerBiome));
             }
         }
-        if (best == null || sharedColumns < MINIMUM_SHARED_COLUMNS_PER_CHUNK) {
-            return Optional.empty();
-        }
-        return Optional.of(new SharedSurfaceSample(
-                best.x(), best.z(), best.lowerSurfaceY(), best.upperSurfaceY(), sharedColumns));
+        return SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                chunkPos,
+                sharedColumns,
+                MINIMUM_SHARED_COLUMNS_PER_CHUNK,
+                requireProviderBiome ? UPPER_BIOME : null);
     }
 
     private static VegetationEvidence scanVegetation(
@@ -664,7 +690,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             int z,
             int lowerSurfaceY,
             int upperSurfaceY,
-            int sharedColumns) {}
+            int sharedColumns,
+            ResourceKey<Biome> providerBiome) {}
 
     private record VegetationEvidence(int logBlocks, int leafBlocks) {
         VegetationEvidence {

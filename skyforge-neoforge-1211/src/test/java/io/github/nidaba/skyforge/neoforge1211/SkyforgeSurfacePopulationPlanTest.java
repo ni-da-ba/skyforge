@@ -54,6 +54,39 @@ final class SkyforgeSurfacePopulationPlanTest {
                 IllegalStateException.class,
                 () -> resolver.resolve(VOLUME_ID, 4, 120, 9));
     }
+    @Test
+    void providerBiomeSelectorFindsTargetAcrossTheWholeSharedChunk() {
+        var chunk = new net.minecraft.world.level.ChunkPos(0, 0);
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                chunk,
+                List.of(
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.FOREST),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(15, 15, 101, 201, Biomes.TAIGA)),
+                2,
+                Biomes.TAIGA);
+
+        assertEquals(2, search.sharedColumns());
+        assertEquals(1, search.providerBiomeMatches());
+        var selected = search.selected().orElseThrow();
+        assertEquals(15, selected.x());
+        assertEquals(15, selected.z());
+        assertEquals(201, selected.upperSurfaceY());
+        assertEquals(Biomes.TAIGA, selected.providerBiome());
+    }
+
+    @Test
+    void providerBiomeSelectorKeepsTheSharedTerrainThreshold() {
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                new net.minecraft.world.level.ChunkPos(0, 0),
+                List.of(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.TAIGA)),
+                2,
+                Biomes.TAIGA);
+
+        assertEquals(1, search.sharedColumns());
+        assertEquals(1, search.providerBiomeMatches());
+        assertTrue(search.selected().isEmpty());
+    }
+
 
     @Test
     void planRejectsNonSurfaceOrDuplicatePhaseAdmission() {
