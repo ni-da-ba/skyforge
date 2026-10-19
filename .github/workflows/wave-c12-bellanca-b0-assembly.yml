@@ -51,7 +51,7 @@ jobs:
           outcome=""
 
           for _ in $(seq 1 240); do
-            if grep -Fq "WAVE_C12_BELLANCA_B0_ASSEMBLY PASS" "${log}" 2>/dev/null \\
+            if grep -Fq "WAVE_C12_BELLANCA_B0_ASSEMBLY PASS" "${log}" 2>/dev/null \
               && grep -Fq "WAVE_C12_BELLANCA_B0_LIFT PASS" "${log}" 2>/dev/null; then
               outcome="pass"
               break
