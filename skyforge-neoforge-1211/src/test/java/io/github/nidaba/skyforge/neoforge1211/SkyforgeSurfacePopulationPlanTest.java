@@ -47,6 +47,15 @@ final class SkyforgeSurfacePopulationPlanTest {
     }
 
     @Test
+    void providerBiomeResolverRequiresTheLiveGenerationContext() {
+        var resolver = SkyforgeProviderBiomeResolver.create();
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> resolver.resolve(VOLUME_ID, 4, 120, 9));
+    }
+
+    @Test
     void planRejectsNonSurfaceOrDuplicatePhaseAdmission() {
         assertThrows(
                 IllegalArgumentException.class,
