@@ -126,19 +126,21 @@ final class SkyforgeTectonicTerrainAcceptance {
             boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
             int persistedGrassColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
             int persistedMutationColumns = countTopMaterial(islandChunk, Blocks.COBBLESTONE.defaultBlockState());
-            if (reopening) {
-                if (persistedGrassColumns == 0 || persistedMutationColumns == 0) {
-                    fail(server, "provider surface or post-generation block mutation did not persist across reopen"
-                            + ": grass=" + persistedGrassColumns + ", mutation=" + persistedMutationColumns);
-                    return;
+            if (!treatment) {
+                if (reopening) {
+                    if (persistedGrassColumns == 0 || persistedMutationColumns == 0) {
+                        fail(server, "provider surface or post-generation block mutation did not persist across reopen"
+                                + ": grass=" + persistedGrassColumns + ", mutation=" + persistedMutationColumns);
+                        return;
+                    }
+                } else {
+                    BlockPos mutationPosition = findTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+                    if (mutationPosition == null) {
+                        fail(server, "vanilla provider produced no grass-block island top to mutate");
+                        return;
+                    }
+                    level.setBlock(mutationPosition, Blocks.COBBLESTONE.defaultBlockState(), 3);
                 }
-            } else {
-                BlockPos mutationPosition = findTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
-                if (mutationPosition == null) {
-                    fail(server, "vanilla provider produced no grass-block island top to mutate");
-                    return;
-                }
-                level.setBlock(mutationPosition, Blocks.COBBLESTONE.defaultBlockState(), 3);
             }
 
             Map<String, Object> evidence = new LinkedHashMap<>();
