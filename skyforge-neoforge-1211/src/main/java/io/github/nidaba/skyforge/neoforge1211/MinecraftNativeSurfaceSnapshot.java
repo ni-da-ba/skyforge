@@ -1,6 +1,8 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
@@ -161,6 +163,34 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         }
         return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+    }
+
+    /** Returns the most common non-fluid surface material produced by the selected provider. */
+    ResourceLocation mostCommonSurfaceMaterial() {
+        Map<ResourceLocation, Integer> counts = new HashMap<>();
+        for (ResourceLocation blockKey : blockKeys) {
+            if (blockKey != null) {
+                counts.merge(blockKey, 1, Integer::sum);
+            }
+        }
+        ResourceLocation mostCommon = null;
+        int mostCommonCount = 0;
+        for (var entry : counts.entrySet()) {
+            int count = entry.getValue();
+            if (count > mostCommonCount
+                    || (count == mostCommonCount
+                            && (mostCommon == null
+                                    || entry.getKey().toString().compareTo(mostCommon.toString()) < 0))) {
+                mostCommon = entry.getKey();
+                mostCommonCount = count;
+            }
+        }
+        return mostCommon;
+    }
+
+    boolean hasSurfaceMaterial(int localX, int localZ, ResourceLocation expected) {
+        Objects.requireNonNull(expected, "expected");
+        return surface(localX, localZ).map(NativeSurface::blockKey).filter(expected::equals).isPresent();
     }
 
     ChunkPos chunkPos() {
