@@ -104,7 +104,7 @@ final class MinecraftNativeSurfaceSnapshot {
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(randomState, "randomState");
 
-        LevelChunk providerChunk = new LevelChunk(level.getLevel(), targetChunk.getPos());
+        LevelChunk providerChunk = detachedProviderChunk(level, targetChunk.getPos());
         BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
         for (int localZ = 0; localZ < 16; localZ++) {
             int worldZ = targetChunk.getPos().getMinBlockZ() + localZ;
@@ -124,6 +124,15 @@ final class MinecraftNativeSurfaceSnapshot {
 
         generator.buildSurface(level, structureManager, randomState, providerChunk);
         return capture(providerChunk, generator.getSeaLevel());
+    }
+
+    /**
+     * The 1.21.1 LevelChunk constructor requires its owning Level, but WorldGenRegion's only
+     * accessor for that value is deprecated. Keep the compatibility use isolated here.
+     */
+    @SuppressWarnings("deprecation")
+    private static LevelChunk detachedProviderChunk(WorldGenRegion level, ChunkPos chunkPos) {
+        return new LevelChunk(level.getLevel(), chunkPos);
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
