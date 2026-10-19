@@ -537,6 +537,18 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 search.sharedColumns(), selected.providerBiome()));
     }
 
+    @SuppressWarnings("deprecation")
+    private static ServerLevel serverLevel(WorldGenLevel level) {
+        if (level instanceof ServerLevel serverLevel) {
+            return serverLevel;
+        }
+        if (level instanceof WorldGenRegion region) {
+            return region.getLevel();
+        }
+        throw new IllegalStateException(
+                "provider biome source diagnostics require ServerLevel or WorldGenRegion");
+    }
+
     private static SkyforgeSharedSurfaceBiomeSampleSelector.SearchResult searchSharedSurface(
             WorldGenLevel level,
             SkyIslandWorldVolumeId lowerId,
@@ -550,12 +562,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (generator == null) {
                 throw new IllegalArgumentException("provider biome source diagnostics require the active generator");
             }
-            ServerLevel serverLevel = level instanceof ServerLevel directLevel
-                    ? directLevel
-                    : level instanceof WorldGenRegion region ? region.getLevel() : null;
-            if (serverLevel == null) {
-                throw new IllegalStateException("provider biome source diagnostics require ServerLevel or WorldGenRegion");
-            }
+            ServerLevel serverLevel = serverLevel(level);
             providerBiomeSource = generator.getBiomeSource();
             providerBiomeSampler = serverLevel.getChunkSource().randomState().sampler();
         }
