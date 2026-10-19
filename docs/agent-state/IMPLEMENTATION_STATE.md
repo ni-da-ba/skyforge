@@ -232,7 +232,7 @@ SF-IMP-0083/#358 and its morphology gates remain separate.
 
 ### SF-IMP-0083 — AUTH-0083 built-in seed/scale Minecraft matrix
 
-Issue **#284** is the active next Implementation milestone.
+Issue **#284** remains a separate morphology milestone; it is not the current alpha routing while #1514 is active.
 
 Complete the remaining **20** built-in AUTH-0083 specimens in Minecraft:
 
@@ -247,7 +247,9 @@ Preserve exact AUTH-0083 member IDs, seeds, scales, provider identities, full bo
 
 This tranche is the evidence gate for **#267** and **#283**. Do not retune Massif or Tableland until multiple seeds/scales show whether the observed lumpiness/family similarity is systemic.
 
-## PROPOSED / priority order
+## Earlier morphology sequence — retained for later
+
+This sequence remains valid background, but the owner-approved #1514 private-alpha pilot takes routing priority while active.
 
 1. **Production morphology era / #214.** SF-IMP-0081/0082 have accepted all five SMALL / seed-skyforge built-in carriers. SF-IMP-0083 / #284 now completes the remaining 20 built-in AUTH-0083 seed/scale specimens before hybrids/provider composition and AUTH-0084 regional contexts. Preserve reference member/context IDs in Minecraft evidence.
 2. Add representative hybrids/provider composition, secondary morphology, bounded local detail, and regional/cluster composition through the current lifecycle.
@@ -302,18 +304,10 @@ This becomes the principal morphology-quality gate after representative producti
 
 Do not declare production morphology aesthetically accepted before this human gate.
 
-## Immediate recommended next work
+## Immediate recommended next work — 2026-10-19
 
-Begin **SF-IMP-0083 / issue #284** from merged SF-IMP-0082.
+Continue the owner-authorized provider-backed alpha pilot in issue #1514. The active implementation stack is #1518 (vanilla void base), #1522 (Tectonic A/B), #1533 (provider surface rules), #1535 (local review client), plus #1519/#1532/#1537 for modded biome contribution and #1525 for SkyBiome persistence.
 
-Use the exact AUTH-0083 built-in matrix rather than inventing new seeds/scales. The next tranche should:
+The Tectonic A/B machine artifact passes, but the owner's latest treatment review still spawned away from the island and found a visually scuffed surface. Keep the local spawn and surface-quality gates open; diagnose from the review-client log before changing generation behavior. The live provider-biome distribution run must also finish with evidence before changing its configured target or search scope.
 
-- complete MEDIUM seed-min / seed-zero / seed-skyforge and LARGE seed-skyforge for all five built-in families;
-- first measure each specimen's tight integer support and chunk footprint so runtime packaging is evidence-driven;
-- reuse/generalize the accepted exact carrier, explicit finite warmup, physical admission, top/underside digest, persistence, and mutation-inert actual-client reopen contracts;
-- preserve exact member IDs in all evidence and review commands;
-- add descriptive seed/scale/traversal diagnostics without hard aesthetic thresholds;
-- compare Massif and Tableland explicitly across seeds/scales to classify #267/#283 before any tuning;
-- retain a human #214 gate for family identity, macro/meso hierarchy, underside quality, repetition, and traversal character.
-
-After the built-in 25-member corpus is complete, proceed to AUTH-0083's 10 pairwise hybrids and 6 external-provider-axis specimens unless evidence first justifies a focused morphology tuning item.
+Preserve the #1514 disposition: exact-volume ownership and accepted hydrology safety invariants remain; provider hydrology is a local proposal subject to Skyforge admission; unfinished F4/multi-reach production work, broad DR-70 completion, and the full morphology atlas are not prerequisites. Do not delete or close those separate work lines. Reassess the smallest next playable-province gap after the provider and SkyBiome acceptance gates yield evidence.
