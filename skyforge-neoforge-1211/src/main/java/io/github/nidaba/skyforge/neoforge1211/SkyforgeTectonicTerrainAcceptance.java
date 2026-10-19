@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -96,6 +97,29 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
+            int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+            boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
+            String providerSurfaceRuleMaterial = "not-recomputed-on-reopen";
+            int providerSurfaceRuleMaterialColumns = 0;
+            if (!reopening) {
+                MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
+                        SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
+                                .orElseThrow(() -> new IllegalStateException(
+                                        "provider surface snapshot was not retained for the acceptance fixture"));
+                var generatedSurfaceMaterial = providerSurfaceSnapshot.mostCommonSurfaceMaterial();
+                if (generatedSurfaceMaterial == null) {
+                    fail(server, "selected provider produced no non-fluid surface material");
+                    return;
+                }
+                providerSurfaceRuleMaterialColumns = countMatchingProviderSurfaceTop(
+                        islandChunk, providerSurfaceSnapshot, generatedSurfaceMaterial);
+                if (providerSurfaceRuleMaterialColumns == 0) {
+                    fail(server, "provider surface-rule material did not reach any admitted island top: "
+                            + generatedSurfaceMaterial);
+                    return;
+                }
+                providerSurfaceRuleMaterial = generatedSurfaceMaterial.toString();
+            }
 
             int interiorSolidSamples = 0;
             int undersideSolidSamples = 0;
@@ -121,6 +145,25 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
+            int persistedGrassColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+            int persistedMutationColumns = countTopMaterial(islandChunk, Blocks.COBBLESTONE.defaultBlockState());
+            if (!treatment) {
+                if (reopening) {
+                    if (persistedGrassColumns == 0 || persistedMutationColumns == 0) {
+                        fail(server, "provider surface or post-generation block mutation did not persist across reopen"
+                                + ": grass=" + persistedGrassColumns + ", mutation=" + persistedMutationColumns);
+                        return;
+                    }
+                } else {
+                    BlockPos mutationPosition = findTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+                    if (mutationPosition == null) {
+                        fail(server, "vanilla provider produced no grass-block island top to mutate");
+                        return;
+                    }
+                    level.setBlock(mutationPosition, Blocks.COBBLESTONE.defaultBlockState(), 3);
+                }
+            }
+
             Map<String, Object> evidence = new LinkedHashMap<>();
             evidence.put(
                     "runtimeModSet",
@@ -136,6 +179,11 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProfileSamples", profile.samples());
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
+            evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
+            evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
+            evidence.put("reopenPass", reopening);
+            evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);
+            evidence.put("persistedPostGenerationMutationColumns", persistedMutationColumns);
             evidence.put("islandInteriorSolidSamples", interiorSolidSamples);
             evidence.put("islandUndersideSolidSamples", undersideSolidSamples);
             evidence.put("exteriorChunk", new ChunkPos(EXTERIOR_CHUNK_X, 0).toString());
@@ -182,6 +230,86 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+    }
+
+    private static BlockPos findTopMaterial(ChunkAccess chunk, BlockState expected) {
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(state)) {
+                        return cursor.immutable();
+                    }
+                    break;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static int countMatchingProviderSurfaceTop(
+            ChunkAccess chunk,
+            MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot,
+            net.minecraft.resources.ResourceLocation expected) {
+        int matches = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                if (!providerSurfaceSnapshot.hasSurfaceMaterial(localX, localZ, expected)) {
+                    continue;
+                }
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()))) {
+                        matches++;
+                    }
+                    break;
+                }
+            }
+        }
+        return matches;
+    }
+
+    private static int countTopMaterial(ChunkAccess chunk, BlockState expected) {
+        int matches = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(state)) {
+                        matches++;
+                    }
+                    break;
+                }
+            }
+        }
+        return matches;
     }
 
     private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {

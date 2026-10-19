@@ -757,6 +757,33 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Reopen the exact vanilla control save after the provider material is replaced by a
+        // post-generation world edit. The run checks persistence without regenerating the chunk.
+        create("tectonicTerrainVanillaReopenServer") {
+            server()
+            sourceSet.set(tectonicTerrainControlRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-vanilla").asFile
+            programArgument("--nogui")
+            programArgument("--universe")
+            programArgument("saves")
+            programArgument("--world")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            systemProperty("skyforge.dev.tectonicTerrain.reopen", "true")
+            systemProperty("skyforge.dev.acceptanceHarness", "true")
+            systemProperty("skyforge.dev.acceptanceMode", "server")
+            systemProperty("skyforge.dev.acceptanceCase", "sf-imp-0054-provider-surface-reopen")
+            systemProperty("skyforge.dev.acceptanceRadius", "0")
+            systemProperty("skyforge.dev.acceptanceTimeoutSeconds", "420")
+            systemProperty(
+                "skyforge.dev.acceptanceResultFile",
+                layout.buildDirectory.file("acceptance/sf-imp-0054-tectonic/reopen.properties").get().asFile.absolutePath,
+            )
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         create("tectonicTerrainTreatmentServer") {
             server()
             sourceSet.set(tectonicTerrainTreatmentRuntime)
@@ -9157,9 +9184,15 @@ tasks.named("runTectonicTerrainVanillaServer").configure {
     doLast { requireSfImp0054TectonicPass("vanilla") }
 }
 
+tasks.named("runTectonicTerrainVanillaReopenServer").configure {
+    notCompatibleWithConfigurationCache("SF-IMP-0054 provider surface reopen uses the first run's saved world.")
+    mustRunAfter("runTectonicTerrainVanillaServer")
+    doLast { requireSfImp0054TectonicPass("reopen") }
+}
+
 tasks.named("runTectonicTerrainTreatmentServer").configure {
     notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B owns a disposable dedicated-server world.")
-    mustRunAfter("runTectonicTerrainVanillaServer")
+    mustRunAfter("runTectonicTerrainVanillaReopenServer")
     doFirst { prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment") }
     doLast { requireSfImp0054TectonicPass("treatment") }
 }
@@ -9168,10 +9201,20 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
     notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B consumes disposable server-world evidence.")
     group = "verification"
     description = "Compare vanilla and Tectonic surface profiles inside one deterministic Skyforge void-island fixture."
-    dependsOn("runTectonicTerrainVanillaServer", "runTectonicTerrainTreatmentServer")
+    dependsOn(
+        "runTectonicTerrainVanillaServer",
+        "runTectonicTerrainVanillaReopenServer",
+        "runTectonicTerrainTreatmentServer",
+    )
     doLast {
         val vanilla = requireSfImp0054TectonicPass("vanilla")
         val treatment = requireSfImp0054TectonicPass("treatment")
+        val reopened = requireSfImp0054TectonicPass("reopen")
+        check(reopened.getProperty("reopenPass") == "true"
+                && reopened.getProperty("persistedProviderSurfaceColumns").toInt() > 0
+                && reopened.getProperty("persistedPostGenerationMutationColumns").toInt() > 0) {
+            "SF-IMP-0054 provider surface or post-generation edit did not persist on reopen: $reopened"
+        }
         check(vanilla.getProperty("worldSeed") == treatment.getProperty("worldSeed")) {
             "SF-IMP-0054 Tectonic A/B seeds differ"
         }
@@ -9182,14 +9225,18 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         check(vanilla.getProperty("profile") == "vanilla"
                 && vanilla.getProperty("tectonicModLoaded") == "false"
                 && vanilla.getProperty("exteriorNonAirBlocks") == "0"
-                && vanilla.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+                && vanilla.getProperty("islandUndersideSolidSamples").toInt() > 0
+                && vanilla.getProperty("providerSurfaceRuleMaterial").isNotBlank()
+                && vanilla.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
             "SF-IMP-0054 vanilla control evidence is incomplete: $vanilla"
         }
         check(treatment.getProperty("profile") == "tectonic"
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
-                && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+                && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
+                && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
+                && treatment.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
             "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {

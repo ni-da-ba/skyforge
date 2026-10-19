@@ -1,17 +1,25 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.StructureManager;
 import net.minecraft.world.level.NoiseColumn;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
+import net.minecraft.world.level.levelgen.blending.Blender;
 
 /**
  * Immutable native terrain-top representation captured after surface construction and before biome
@@ -81,6 +89,47 @@ final class MinecraftNativeSurfaceSnapshot {
         return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
     }
 
+    /**
+     * Captures the selected provider's actual surface-rule result without exposing temporary
+     * provider terrain to the live chunk region.
+     *
+     * <p>The provider's chunk-level density fill and {@code buildSurface} pipeline run against a
+     * detached in-memory chunk using the live worldgen biome, structure, seed, and noise context.
+     * Only the immutable top-column snapshot escapes.
+     */
+    static MinecraftNativeSurfaceSnapshot captureProviderSurface(
+            WorldGenRegion level,
+            StructureManager structureManager,
+            ChunkAccess targetChunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(structureManager, "structureManager");
+        Objects.requireNonNull(targetChunk, "targetChunk");
+        Objects.requireNonNull(generator, "generator");
+        Objects.requireNonNull(randomState, "randomState");
+
+        ProtoChunk providerChunk = detachedProviderChunk(level, targetChunk.getPos());
+        Blender blender = Blender.of(level);
+        generator.createBiomes(randomState, blender, structureManager, providerChunk).join();
+        generator.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
+        generator.buildSurface(level, structureManager, randomState, providerChunk);
+        return capture(providerChunk, generator.getSeaLevel());
+    }
+
+    /**
+     * A detached ProtoChunk retains worldgen postprocessing marks without exposing provider
+     * writes to the live region. Its biome registry and height range come from the same region.
+     */
+    private static ProtoChunk detachedProviderChunk(WorldGenRegion level, ChunkPos chunkPos) {
+        return new ProtoChunk(
+                chunkPos,
+                UpgradeData.EMPTY,
+                level,
+                level.registryAccess().registryOrThrow(Registries.BIOME),
+                null);
+    }
+
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
         return capture(chunk, 63);
     }
@@ -114,6 +163,34 @@ final class MinecraftNativeSurfaceSnapshot {
             }
         }
         return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
+    }
+
+    /** Returns the most common non-fluid surface material produced by the selected provider. */
+    ResourceLocation mostCommonSurfaceMaterial() {
+        Map<ResourceLocation, Integer> counts = new HashMap<>();
+        for (ResourceLocation blockKey : blockKeys) {
+            if (blockKey != null) {
+                counts.merge(blockKey, 1, Integer::sum);
+            }
+        }
+        ResourceLocation mostCommon = null;
+        int mostCommonCount = 0;
+        for (var entry : counts.entrySet()) {
+            int count = entry.getValue();
+            if (count > mostCommonCount
+                    || (count == mostCommonCount
+                            && (mostCommon == null
+                                    || entry.getKey().toString().compareTo(mostCommon.toString()) < 0))) {
+                mostCommon = entry.getKey();
+                mostCommonCount = count;
+            }
+        }
+        return mostCommon;
+    }
+
+    boolean hasSurfaceMaterial(int localX, int localZ, ResourceLocation expected) {
+        Objects.requireNonNull(expected, "expected");
+        return surface(localX, localZ).map(NativeSurface::blockKey).filter(expected::equals).isPresent();
     }
 
     ChunkPos chunkPos() {

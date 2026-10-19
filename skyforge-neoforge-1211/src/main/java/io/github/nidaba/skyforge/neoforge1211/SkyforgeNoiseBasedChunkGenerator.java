@@ -583,6 +583,8 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             if (voidBase) {
                 SkyforgeNativeSurfaceSnapshotStage.capture(
+                        level,
+                        structureManager,
                         chunk,
                         terrainProvider,
                         terrainProviderRandomState(level));
