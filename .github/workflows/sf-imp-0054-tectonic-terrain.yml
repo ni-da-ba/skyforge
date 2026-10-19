@@ -54,10 +54,13 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sf-imp-0054-tectonic-terrain-ab
+          # The owner opens CI-generated saves locally; the workstation does not run server acceptance.
           path: |
             sf-imp-0054-tectonic-terrain-task.log
             skyforge-neoforge-1211/build/acceptance/sf-imp-0054-tectonic/
             skyforge-neoforge-1211/run-sf-imp-0054-tectonic-vanilla/logs/
             skyforge-neoforge-1211/run-sf-imp-0054-tectonic-treatment/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-tectonic-vanilla/saves/acceptance/
+            skyforge-neoforge-1211/run-sf-imp-0054-tectonic-treatment/saves/acceptance/
           if-no-files-found: warn
           retention-days: 14
