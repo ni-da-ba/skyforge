@@ -25,6 +25,19 @@ final class SkyforgeNativeSurfaceSnapshotStage {
         capture(chunk, MinecraftNativeSurfaceSnapshot.capture(chunk, generator, randomState));
     }
 
+    static void capture(
+            net.minecraft.server.level.WorldGenRegion level,
+            net.minecraft.world.level.StructureManager structureManager,
+            ChunkAccess chunk,
+            NoiseBasedChunkGenerator generator,
+            RandomState randomState) {
+        Objects.requireNonNull(chunk, "chunk");
+        capture(
+                chunk,
+                MinecraftNativeSurfaceSnapshot.captureProviderSurface(
+                        level, structureManager, chunk, generator, randomState));
+    }
+
     static void capture(ChunkAccess chunk, int baselineY) {
         Objects.requireNonNull(chunk, "chunk");
         capture(chunk, MinecraftNativeSurfaceSnapshot.capture(chunk, baselineY));
