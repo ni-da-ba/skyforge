@@ -809,8 +809,8 @@ neoForge {
         }
 
         // Local review clients open the exact saves produced by the provider A/B servers.
-        // Run sfImp0054TectonicTerrainAcceptance first; these tasks do not regenerate or mutate
-        // the acceptance worlds before the owner inspects the terrain.
+        // Run sfImp0054TectonicTerrainAcceptance first; these clients skip the acceptance harness
+        // and open the saved worlds directly for interactive inspection.
         create("tectonicTerrainVanillaReviewClient") {
             client()
             sourceSet.set(tectonicTerrainControlRuntime)
