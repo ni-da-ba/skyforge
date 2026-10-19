@@ -9234,7 +9234,9 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
-                && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0) {
+                && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
+                && treatment.getProperty("providerSurfaceRuleMaterial") == "minecraft:grass_block"
+                && treatment.getProperty("providerSurfaceRuleMaterialColumns").toInt() > 0) {
             "SF-IMP-0054 Tectonic treatment evidence is incomplete: $treatment"
         }
         check(vanilla.getProperty("terrainProfileDigest") != treatment.getProperty("terrainProfileDigest")) {
