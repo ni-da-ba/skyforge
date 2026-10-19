@@ -27,7 +27,12 @@ class WorkflowContract:
 CONTRACTS = (
     WorkflowContract(
         ".github/workflows/dr30-native-structure-acceptance.yml",
-        ('- "skyforge-neoforge-1211/**"', '- "!skyforge-neoforge-1211/src/main/java/**/Acceptance.java"', '- "!skyforge-neoforge-1211/src/test/**"', "workflow_dispatch:"),
+        (
+            '- "skyforge-neoforge-1211/**"',
+            '- "!skyforge-neoforge-1211/src/main/java/**/Acceptance.java"',
+            '- "!skyforge-neoforge-1211/src/test/**"',
+            "workflow_dispatch:",
+        ),
         '- ".github/workflows/dr30-native-structure-acceptance.yml"',
         (":skyforge-neoforge-1211:dr30NativeStructureAcceptance",),
         1,
