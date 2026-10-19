@@ -2,7 +2,6 @@ package io.github.nidaba.skyforge.neoforge1211;
 
 import io.github.nidaba.skyforge.world.SkyIslandWorldVolumeId;
 import java.util.Objects;
-import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
