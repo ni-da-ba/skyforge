@@ -358,7 +358,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 resolver,
                 lowerId,
                 chunkPos,
-                shared.lowerSurfaceY(),
+                new BlockPos(shared.x(), shared.lowerSurfaceY(), shared.z()),
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 MAXIMUM_ATTACHMENT_DEPTH);
         var upper = SkyforgeNativeBiomePopulationRunner.populateStep(
@@ -367,7 +367,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 resolver,
                 upperId,
                 chunkPos,
-                shared.upperSurfaceY(),
+                new BlockPos(shared.x(), shared.upperSurfaceY(), shared.z()),
                 GenerationStep.Decoration.VEGETAL_DECORATION,
                 MAXIMUM_ATTACHMENT_DEPTH);
 
