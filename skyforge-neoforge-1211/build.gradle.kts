@@ -808,6 +808,33 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Local review clients open the exact saves produced by the provider A/B servers.
+        // Run sfImp0054TectonicTerrainAcceptance first; these tasks do not regenerate or mutate
+        // the acceptance worlds before the owner inspects the terrain.
+        create("tectonicTerrainVanillaReviewClient") {
+            client()
+            sourceSet.set(tectonicTerrainControlRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-vanilla").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "false")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
+        create("tectonicTerrainTreatmentReviewClient") {
+            client()
+            sourceSet.set(tectonicTerrainTreatmentRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            systemProperty("skyforge.dev.specimen", "true")
+            systemProperty("skyforge.dev.tectonicTerrain", "true")
+            systemProperty("skyforge.dev.tectonicTerrain.treatment", "true")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0055 reuses the accepted stacked forest/taiga specimen through the reusable native
         // surface-population stage. The fixture immediately replays each volume/chunk/phase request
         // and fails unless the coordinator performs zero duplicate native feature executions.
