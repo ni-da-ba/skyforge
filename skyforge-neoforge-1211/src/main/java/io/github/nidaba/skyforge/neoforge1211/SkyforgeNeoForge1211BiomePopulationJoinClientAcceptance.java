@@ -1,6 +1,7 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +34,7 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
     private static long firstClientTickNanos = Long.MIN_VALUE;
     private static boolean connectionStarted;
     private static boolean proofComplete;
+    private static Object lastNetworkConnection;
 
     private SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance() {}
 
@@ -49,10 +51,15 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         }
 
         Minecraft minecraft = Minecraft.getInstance();
+        Object activeConnection = networkConnection(minecraft.getConnection());
+        if (activeConnection != null) {
+            lastNetworkConnection = activeConnection;
+        }
         if (minecraft.screen instanceof DisconnectedScreen) {
             SkyforgeAutomatedAcceptanceHarness.failClientCase(
                     "modded-biome client was disconnected before acceptance joined; "
-                            + describeScreen(minecraft.screen));
+                            + describeScreen(minecraft.screen)
+                            + "; " + describeConnection(lastNetworkConnection));
             return;
         }
 
@@ -152,4 +159,63 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
                 + ", title=" + screen.getTitle().getString()
                 + ", componentFields=" + components;
     }
+    private static Object networkConnection(Object packetListener) {
+        if (packetListener == null) {
+            return null;
+        }
+        for (Method method : packetListener.getClass().getMethods()) {
+            if (!method.getName().equals("getConnection") || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                return method.invoke(packetListener);
+            } catch (ReflectiveOperationException | RuntimeException inaccessible) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static String describeConnection(Object connection) {
+        if (connection == null) {
+            return "networkConnection=unobserved";
+        }
+
+        List<String> details = new ArrayList<>();
+        for (Method method : connection.getClass().getMethods()) {
+            String name = method.getName().toLowerCase(java.util.Locale.ROOT);
+            if (!name.contains("disconnect") || method.getParameterCount() != 0) {
+                continue;
+            }
+            try {
+                Object value = method.invoke(connection);
+                if (value != null) {
+                    details.add(method.getName() + "=" + value);
+                }
+            } catch (ReflectiveOperationException | RuntimeException inaccessible) {
+                // Some connection state is available only through mapped fields.
+            }
+        }
+        for (Class<?> type = connection.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())
+                        || !field.getName().toLowerCase(java.util.Locale.ROOT).contains("disconnect")) {
+                    continue;
+                }
+                try {
+                    if (!field.canAccess(connection)) {
+                        field.setAccessible(true);
+                    }
+                    Object value = field.get(connection);
+                    if (value != null) {
+                        details.add(field.getName() + "=" + value);
+                    }
+                } catch (ReflectiveOperationException | RuntimeException inaccessible) {
+                    // Continue collecting any other available disconnect details.
+                }
+            }
+        }
+        return "networkConnection=" + connection.getClass().getName() + ", disconnectDetails=" + details;
+    }
+
 }
