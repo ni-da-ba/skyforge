@@ -3,6 +3,7 @@ package io.github.nidaba.skyforge.neoforge1211;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.LinkedHashMap;
@@ -37,6 +38,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
+    private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
 
     private SkyforgeTectonicTerrainAcceptance() {}
 
@@ -60,6 +62,7 @@ final class SkyforgeTectonicTerrainAcceptance {
         if (REVIEW_RELOCATED_PLAYERS.contains(playerId)) {
             return;
         }
+        int attempt = REVIEW_RELOCATION_ATTEMPTS.merge(playerId, 1, Math::addExact);
         BlockPos spawn = level.getSharedSpawnPos();
         boolean teleported = player.teleportTo(
                 level,
@@ -69,17 +72,22 @@ final class SkyforgeTectonicTerrainAcceptance {
                 java.util.Set.of(),
                 player.getYRot(),
                 player.getXRot());
-        java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
-                .info("Tectonic terrain review spawn relocation: trigger="
-                        + trigger
-                        + ", success="
-                        + teleported
-                        + ", target="
-                        + spawn.toShortString()
-                        + ", player="
-                        + player.blockPosition().toShortString());
-        if (teleported) {
+        if (teleported || attempt >= 20) {
+            java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
+                    .info("Tectonic terrain review spawn relocation: trigger="
+                            + trigger
+                            + ", attempt="
+                            + attempt
+                            + ", success="
+                            + teleported
+                            + ", target="
+                            + spawn.toShortString()
+                            + ", player="
+                            + player.blockPosition().toShortString());
+        }
+        if (teleported || attempt >= 20) {
             REVIEW_RELOCATED_PLAYERS.add(playerId);
+            REVIEW_RELOCATION_ATTEMPTS.remove(playerId);
         }
     }
 
