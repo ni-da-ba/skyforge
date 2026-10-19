@@ -123,6 +123,24 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
 
+            boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
+            int persistedGrassColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+            int persistedMutationColumns = countTopMaterial(islandChunk, Blocks.COBBLESTONE.defaultBlockState());
+            if (reopening) {
+                if (persistedGrassColumns == 0 || persistedMutationColumns == 0) {
+                    fail(server, "provider surface or post-generation block mutation did not persist across reopen"
+                            + ": grass=" + persistedGrassColumns + ", mutation=" + persistedMutationColumns);
+                    return;
+                }
+            } else {
+                BlockPos mutationPosition = findTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
+                if (mutationPosition == null) {
+                    fail(server, "vanilla provider produced no grass-block island top to mutate");
+                    return;
+                }
+                level.setBlock(mutationPosition, Blocks.COBBLESTONE.defaultBlockState(), 3);
+            }
+
             Map<String, Object> evidence = new LinkedHashMap<>();
             evidence.put(
                     "runtimeModSet",
@@ -140,6 +158,9 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
             evidence.put("providerSurfaceRuleMaterial", "minecraft:grass_block");
             evidence.put("providerSurfaceRuleMaterialColumns", grassSurfaceColumns);
+            evidence.put("reopenPass", reopening);
+            evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);
+            evidence.put("persistedPostGenerationMutationColumns", persistedMutationColumns);
             evidence.put("islandInteriorSolidSamples", interiorSolidSamples);
             evidence.put("islandUndersideSolidSamples", undersideSolidSamples);
             evidence.put("exteriorChunk", new ChunkPos(EXTERIOR_CHUNK_X, 0).toString());
@@ -186,6 +207,30 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+    }
+
+    private static BlockPos findTopMaterial(ChunkAccess chunk, BlockState expected) {
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(state)) {
+                        return cursor.immutable();
+                    }
+                    break;
+                }
+            }
+        }
+        return null;
     }
 
     private static int countTopMaterial(ChunkAccess chunk, BlockState expected) {
