@@ -13,6 +13,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.NoiseColumn;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
@@ -96,6 +97,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
+            int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
 
             int interiorSolidSamples = 0;
             int undersideSolidSamples = 0;
@@ -136,6 +138,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProfileSamples", profile.samples());
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
+            evidence.put("providerSurfaceRuleMaterial", "minecraft:grass_block");
+            evidence.put("providerSurfaceRuleMaterialColumns", grassSurfaceColumns);
             evidence.put("islandInteriorSolidSamples", interiorSolidSamples);
             evidence.put("islandUndersideSolidSamples", undersideSolidSamples);
             evidence.put("exteriorChunk", new ChunkPos(EXTERIOR_CHUNK_X, 0).toString());
@@ -182,6 +186,31 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+    }
+
+    private static int countTopMaterial(ChunkAccess chunk, BlockState expected) {
+        int matches = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(state)) {
+                        matches++;
+                    }
+                    break;
+                }
+            }
+        }
+        return matches;
     }
 
     private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {
