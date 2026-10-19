@@ -1,12 +1,19 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.ConnectScreen;
+import net.minecraft.client.gui.screens.DisconnectedScreen;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ServerData;
 import net.minecraft.client.multiplayer.TransferState;
 import net.minecraft.client.multiplayer.resolver.ServerAddress;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.Level;
 import net.neoforged.api.distmarker.Dist;
@@ -40,18 +47,23 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
         if (firstClientTickNanos == Long.MIN_VALUE) {
             firstClientTickNanos = System.nanoTime();
         }
-        if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
-            SkyforgeAutomatedAcceptanceHarness.failClientCase(
-                    "modded-biome client did not join the dedicated server within 360 seconds"
-                            + "; screen="
-                            + (Minecraft.getInstance().screen == null
-                                    ? "none"
-                                    : Minecraft.getInstance().screen.getClass().getName())
-                            + "; connectionPresent="
-                            + (Minecraft.getInstance().getConnection() != null));
-        }
 
         Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft.screen instanceof DisconnectedScreen) {
+            SkyforgeAutomatedAcceptanceHarness.failClientCase(
+                    "modded-biome client was disconnected before acceptance joined; "
+                            + describeScreen(minecraft.screen));
+            return;
+        }
+
+        if (System.nanoTime() - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
+            SkyforgeAutomatedAcceptanceHarness.failClientCase(
+                    "modded-biome client did not join the dedicated server within 360 seconds; "
+                            + describeScreen(minecraft.screen)
+                            + "; connectionPresent=" + (minecraft.getConnection() != null));
+            return;
+        }
+
         if (!connectionStarted
                 && minecraft.level == null
                 && minecraft.getConnection() == null
@@ -105,5 +117,39 @@ final class SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance {
                         "spawnSupported", true,
                         "singleplayerServer", false));
         minecraft.stop();
+    }
+
+    private static String describeScreen(Screen screen) {
+        if (screen == null) {
+            return "screen=none";
+        }
+
+        List<String> components = new ArrayList<>();
+        for (Class<?> type = screen.getClass(); type != null; type = type.getSuperclass()) {
+            for (Field field : type.getDeclaredFields()) {
+                if (Modifier.isStatic(field.getModifiers())
+                        || !Component.class.isAssignableFrom(field.getType())) {
+                    continue;
+                }
+                try {
+                    if (!field.canAccess(screen)) {
+                        field.setAccessible(true);
+                    }
+                    Component value = (Component) field.get(screen);
+                    if (value != null) {
+                        String text = value.getString();
+                        if (!text.isBlank()) {
+                            components.add(field.getName() + "=" + text);
+                        }
+                    }
+                } catch (ReflectiveOperationException | RuntimeException inaccessible) {
+                    // The class name and title still identify a disconnect if mapping access changes.
+                }
+            }
+        }
+
+        return "screen=" + screen.getClass().getName()
+                + ", title=" + screen.getTitle().getString()
+                + ", componentFields=" + components;
     }
 }
