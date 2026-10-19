@@ -249,23 +249,29 @@ final class SkyforgeWaveC12BellancaB0AssemblyAcceptance {
             Object queuedLift = oneArgMethod(subLevel, "getOrCreateQueuedForceGroup", liftGroup)
                     .invoke(subLevel, liftGroup);
             Object raw = publicMethod(queuedLift, "getRecordedPointForces").invoke(queuedLift);
-            if (!(raw instanceof List<?> pointForces)) {
+            if (!(raw instanceof List<?>)) {
                 fail("Sable LIFT point-force record has unexpected type=" + raw);
             }
-            recorded = List.copyOf(pointForces);
+            recorded = List.copyOf((List<?>) raw);
         } finally {
             tracking.invoke(subLevel, false);
         }
 
         assertTrue("regular-sail wing produced tracked Sable LIFT forces", !recorded.isEmpty());
+        Object bodyPose = publicMethod(subLevel, "logicalPose").invoke(subLevel);
         double forceX = 0.0;
         double forceY = 0.0;
         double forceZ = 0.0;
         for (Object pointForce : recorded) {
-            Object force = publicMethod(pointForce, "force").invoke(pointForce);
-            forceX += component(force, "x");
-            forceY += component(force, "y");
-            forceZ += component(force, "z");
+            Object localForce = publicMethod(pointForce, "force").invoke(pointForce);
+            Object worldForce = vector3d(
+                    component(localForce, "x"),
+                    component(localForce, "y"),
+                    component(localForce, "z"));
+            oneArgMethod(bodyPose, "transformNormal", worldForce).invoke(bodyPose, worldForce);
+            forceX += component(worldForce, "x");
+            forceY += component(worldForce, "y");
+            forceZ += component(worldForce, "z");
         }
         assertTrue(
                 "Sable LIFT force components are finite",
