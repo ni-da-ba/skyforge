@@ -102,6 +102,7 @@ final class SkyforgeNativeBiomePopulationRunner {
 
         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                 biomeResolver.resolve(
+                        level,
                         volumeId,
                         biomeSample.getX(),
                         biomeSample.getY(),
