@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+set -x
 
 server_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server"
 client_dir="skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client"
