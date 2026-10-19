@@ -801,6 +801,16 @@ neoForge {
             taskBefore(tasks.named(development.processResourcesTaskName))
         }
 
+        // Local owner review opens the exact CI-generated save without running its acceptance harness.
+        create("moddedBiomePopulationReviewClient") {
+            client()
+            sourceSet.set(moddedBiomePopulationClientRuntime)
+            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-modded-biome-server").asFile
+            programArgument("--quickPlaySingleplayer")
+            programArgument("acceptance")
+            taskBefore(tasks.named(development.processResourcesTaskName))
+        }
+
         // SF-IMP-0055 reuses the accepted stacked forest/taiga specimen through the reusable native
         // surface-population stage. The fixture immediately replays each volume/chunk/phase request
         // and fails unless the coordinator performs zero duplicate native feature executions.
