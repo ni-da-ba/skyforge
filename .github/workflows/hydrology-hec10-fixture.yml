@@ -21,7 +21,7 @@ jobs:
       - name: Fetch and extract the official HEC-RAS Example 10 input files
         run: python3 scripts/hydrology/extract_hec_example10_fixture.py "$RUNNER_TEMP/hec-example10-inputs.json"
       - name: Preserve compact extracted benchmark inputs
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v6.0.0
         with:
           name: hec-ras-example-10-inputs
           path: ${{ runner.temp }}/hec-example10-inputs.json

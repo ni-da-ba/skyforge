@@ -41,7 +41,7 @@ jobs:
 
       - name: Publish showcase preparation evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skyforge-showcase-${{ github.sha }}
           if-no-files-found: warn
@@ -79,7 +79,7 @@ jobs:
 
       - name: Publish ecology showcase evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skyforge-showcase-ecology-${{ github.sha }}
           if-no-files-found: warn
@@ -117,7 +117,7 @@ jobs:
 
       - name: Publish production morphology evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skyforge-production-morphology-massif-${{ github.sha }}
           if-no-files-found: warn
@@ -167,7 +167,7 @@ jobs:
 
       - name: Publish ${{ matrix.family }} morphology evidence
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: skyforge-production-morphology-atlas-${{ matrix.family }}-${{ github.sha }}
           if-no-files-found: warn

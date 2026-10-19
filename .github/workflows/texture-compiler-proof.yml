@@ -17,10 +17,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -46,7 +46,7 @@ jobs:
           --out build/texture-compiler-generic
 
       - name: Upload Guild clerk v0.1 baseline
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: texture-compiler-guild-clerk-v01
           path: build/texture-compiler-guild-clerk-v01
@@ -54,7 +54,7 @@ jobs:
           retention-days: 14
 
       - name: Upload Guild clerk v0.2 human-gate artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: texture-compiler-guild-clerk-v02
           path: build/texture-compiler-guild-clerk-v02
@@ -62,7 +62,7 @@ jobs:
           retention-days: 14
 
       - name: Upload generic proof artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: texture-compiler-generic-v01
           path: build/texture-compiler-generic
