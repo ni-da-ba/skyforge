@@ -73,6 +73,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final Set<Long> substantialTerrainProofChunks = new HashSet<>();
     private static final Set<Long> providerBiomeCandidateProofChunks = new HashSet<>();
     private static final Map<String, Integer> providerBiomeColumnDistribution = new TreeMap<>();
+    private static String providerBiomeSourceClass = "not-sampled";
+    private static List<String> providerBiomeSourcePossibleBiomes = List.of();
     private static final Set<Long> eligibleProofChunks = new HashSet<>();
     private static final Aggregate lowerAggregate = new Aggregate();
     private static final Aggregate upperAggregate = new Aggregate();
@@ -115,6 +117,8 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
                                 && providerBiomeSampleKey.equals(upperAggregate.biomeKey())),
                         Map.entry("providerBiomeColumnDistribution", providerBiomeColumnDistribution.toString()),
+                        Map.entry("providerBiomeSourceClass", providerBiomeSourceClass),
+                        Map.entry("providerBiomeSourcePossibleBiomes", providerBiomeSourcePossibleBiomes.toString()),
                         Map.entry("scannedChunks", scannedProofChunks.size()),
                         Map.entry("substantialTerrainChunks", substantialTerrainProofChunks.size()),
                         Map.entry("providerBiomeCandidateChunks", providerBiomeCandidateProofChunks.size()),
@@ -328,6 +332,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         SkyIslandWorldVolumeId upperId = volumes.get(1).id();
 
         boolean providerMode = Boolean.getBoolean(PROVIDER_BIOME_PROPERTY);
+        if (providerMode && "not-sampled".equals(providerBiomeSourceClass)) {
+            var biomeSource = generator.getBiomeSource();
+            providerBiomeSourceClass = biomeSource.getClass().getName();
+            providerBiomeSourcePossibleBiomes = biomeSource.possibleBiomes().stream()
+                    .map(holder -> holder.unwrapKey()
+                            .map(key -> key.location().toString())
+                            .orElse("unregistered"))
+                    .sorted()
+                    .toList();
+        }
         SkyforgeSharedSurfaceBiomeSampleSelector.SearchResult search =
                 searchSharedSurface(level, lowerId, upperId, chunkPos, providerMode);
         if (search.sharedColumns() >= MINIMUM_SHARED_COLUMNS_PER_CHUNK) {
@@ -424,7 +438,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", targetProviderBiome=" + (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
                             ? UPPER_BIOME.location() : "disabled")
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK
-                    + ", providerBiomeColumnDistribution=" + providerBiomeColumnDistribution);
+                    + ", providerBiomeColumnDistribution=" + providerBiomeColumnDistribution
+                    + ", providerBiomeSourceClass=" + providerBiomeSourceClass
+                    + ", providerBiomeSourcePossibleBiomes=" + providerBiomeSourcePossibleBiomes);
         }
         requireAggregate("lower", lowerAggregate, Biomes.FOREST);
         requireAggregate("upper", upperAggregate, UPPER_BIOME);
