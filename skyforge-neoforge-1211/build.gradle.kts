@@ -60,6 +60,47 @@ val tectonicTerrainTreatmentRuntime = sourceSets.create("tectonicTerrainTreatmen
     compileClasspath += sourceSets.main.get().output + sourceSets.main.get().compileClasspath
     runtimeClasspath += sourceSets.main.get().output + sourceSets.main.get().runtimeClasspath + development.output
 }
+
+val tectonicVanillaReviewGameDirectory =
+    layout.buildDirectory.dir("sf-imp-0054-tectonic/review-vanilla").get().asFile
+val tectonicTreatmentReviewGameDirectory =
+    layout.buildDirectory.dir("sf-imp-0054-tectonic/review-treatment").get().asFile
+
+fun prepareTectonicReviewSave(
+    taskName: String,
+    sourceDirectory: String,
+    profile: String,
+    targetGameDirectory: java.io.File,
+) = tasks.register<org.gradle.api.tasks.Sync>(taskName) {
+    val sourceSave = layout.projectDirectory.dir(sourceDirectory).asFile
+    val evidenceFile = layout.buildDirectory
+        .file("acceptance/sf-imp-0054-tectonic/$profile.properties")
+        .get()
+        .asFile
+    from(sourceSave)
+    into(targetGameDirectory.resolve("saves/acceptance"))
+    doFirst {
+        check(sourceSave.resolve("level.dat").isFile) {
+            "missing SF-IMP-0054 $profile review save; extract the latest A/B artifact first"
+        }
+        check(evidenceFile.isFile && evidenceFile.readLines().any { it.startsWith("reviewSpawn=") }) {
+            "SF-IMP-0054 $profile artifact lacks reviewSpawn evidence; download the latest A/B artifact"
+        }
+    }
+}
+
+val prepareTectonicVanillaReviewSave = prepareTectonicReviewSave(
+    "prepareTectonicVanillaReviewSave",
+    "run-sf-imp-0054-tectonic-vanilla/saves/acceptance",
+    "vanilla",
+    tectonicVanillaReviewGameDirectory,
+)
+val prepareTectonicTreatmentReviewSave = prepareTectonicReviewSave(
+    "prepareTectonicTreatmentReviewSave",
+    "run-sf-imp-0054-tectonic-treatment/saves/acceptance",
+    "treatment",
+    tectonicTreatmentReviewGameDirectory,
+)
 val tectonicTerrainPinFile = layout.projectDirectory.file("sf-imp-0054-tectonic-mods.properties")
 val tectonicTerrainPins = Properties().apply {
     tectonicTerrainPinFile.asFile.inputStream().use(::load)
@@ -814,7 +855,8 @@ neoForge {
         create("tectonicTerrainVanillaReviewClient") {
             client()
             sourceSet.set(tectonicTerrainControlRuntime)
-            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-vanilla").asFile
+            gameDirectory = tectonicVanillaReviewGameDirectory
+            taskBefore(prepareTectonicVanillaReviewSave)
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
             systemProperty("skyforge.dev.specimen", "true")
@@ -826,7 +868,8 @@ neoForge {
         create("tectonicTerrainTreatmentReviewClient") {
             client()
             sourceSet.set(tectonicTerrainTreatmentRuntime)
-            gameDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+            gameDirectory = tectonicTreatmentReviewGameDirectory
+            taskBefore(prepareTectonicTreatmentReviewSave)
             programArgument("--quickPlaySingleplayer")
             programArgument("acceptance")
             systemProperty("skyforge.dev.specimen", "true")
