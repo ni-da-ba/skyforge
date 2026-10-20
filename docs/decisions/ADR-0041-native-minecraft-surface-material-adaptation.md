@@ -135,3 +135,8 @@ The separate provider-profile path may shape the exposed Skyforge cap while pres
 ## Tectonic visible-relief datum follow-up — in progress
 
 The owner found consecutive Tectonic treatments visually too similar. Evidence from the pinned profile showed the origin-chunk median datum leaving the provider surface at or below the authored island cap, so the adapter mostly carved relief downward. The isolated experiment now uses the lower-quartile surface elevation from the provider origin chunk as its single world-fixed datum. This keeps cross-chunk continuity while allowing the upper part of the provider profile to rise above the authored cap; the existing 32-block rise ceiling, exact-volume claims, stable support rule, footprint, body, and underside remain unchanged. This is a tuning hypothesis pending exact-head A/B machine evidence and owner visual review.
+
+
+## Broad-window Tectonic datum and ridge acceptance — in progress
+
+Exact-head run [39511112544](https://github.com/ni-da-ba/skyforge/actions/runs/39511112544) passed its general terrain checks after switching to the origin-chunk lower quartile, but the realized Tectonic top still ended at Y=265, the same cap as the vanilla specimen. Relief alone had not made provider ridges visible above the authored cap. The next experiment samples a fixed 256-by-256-block window for its world-shared lower-quartile datum and requires the treatment's realized maximum top to reach Y=273. The existing exact-volume, footprint, underside, support, and 32-block extension rules remain in force. Visual acceptance remains pending.

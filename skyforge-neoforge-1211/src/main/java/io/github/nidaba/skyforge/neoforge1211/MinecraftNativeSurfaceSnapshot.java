@@ -33,6 +33,8 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
+    private static final int TERRAIN_DATUM_GRID_WIDTH = 16;
+    private static final int TERRAIN_DATUM_SAMPLE_SPACING = 16;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
     private final ChunkPos chunkPos;
@@ -122,12 +124,11 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     /**
-     * Uses a cached, world-fixed lower-quartile elevation from the provider's origin chunk as the
-     * terrain datum. Sea level is not a useful zero for raised providers such as Tectonic. A
-     * median can sit on a broad high plateau and leave nearly all transferred relief below the
-     * island cap; the lower quartile keeps the datum representative while letting higher provider
-     * terrain rise visibly above the authored cap. The same origin-derived value preserves
-     * cross-chunk continuity.
+     * Uses a cached, world-fixed lower-quartile elevation sampled over a 256-by-256-block window
+     * around the origin as the terrain datum. Sea level is not a useful zero for raised providers
+     * such as Tectonic. Sampling only the origin chunk can place the datum on a small high plateau
+     * and leave the island relief below its authored cap; a fixed broad window makes the datum
+     * representative while preserving cross-chunk continuity.
      */
     private static int providerTerrainDatumY(
             NoiseBasedChunkGenerator generator,
@@ -142,10 +143,14 @@ final class MinecraftNativeSurfaceSnapshot {
             NoiseBasedChunkGenerator generator,
             net.minecraft.world.level.LevelHeightAccessor level,
             RandomState randomState) {
-        int[] surfaceYs = new int[SAMPLE_COUNT];
+        int[] surfaceYs = new int[TERRAIN_DATUM_GRID_WIDTH * TERRAIN_DATUM_GRID_WIDTH];
         int samples = 0;
-        for (int worldZ = 0; worldZ < CHUNK_WIDTH; worldZ++) {
-            for (int worldX = 0; worldX < CHUNK_WIDTH; worldX++) {
+        for (int sampleZ = 0; sampleZ < TERRAIN_DATUM_GRID_WIDTH; sampleZ++) {
+            int worldZ = (sampleZ - TERRAIN_DATUM_GRID_WIDTH / 2)
+                    * TERRAIN_DATUM_SAMPLE_SPACING + TERRAIN_DATUM_SAMPLE_SPACING / 2;
+            for (int sampleX = 0; sampleX < TERRAIN_DATUM_GRID_WIDTH; sampleX++) {
+                int worldX = (sampleX - TERRAIN_DATUM_GRID_WIDTH / 2)
+                        * TERRAIN_DATUM_SAMPLE_SPACING + TERRAIN_DATUM_SAMPLE_SPACING / 2;
                 NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
                 for (int worldY = level.getMaxBuildHeight() - 1;
                         worldY >= level.getMinBuildHeight();
