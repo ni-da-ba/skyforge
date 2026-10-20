@@ -68,7 +68,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 adapter);
 
         int expectedTopY = Math.min(
-                support.maximumY() + providerSurfaceY - 63,
+                support.maximumY() + (providerSurfaceY - 63) * 2,
                 (int) Math.floor(volume.bounds().maximumY()));
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
