@@ -23,7 +23,7 @@ For each `(x, z)` column:
 5. when an exposed Skyforge top is above the native surface, inherit the sampled material only if it is not a gravity-affected `FallingBlock`;
 6. retain Skyforge's stable structural top when the sampled native material is gravity-affected;
 7. leave all other Skyforge materialization entries unchanged;
-7. perform the existing additive solid overlay into the real Minecraft chunk.
+8. perform the existing additive solid overlay into the real Minecraft chunk.
 
 Conceptually:
 
