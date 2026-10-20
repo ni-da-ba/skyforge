@@ -94,9 +94,12 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
 
-                long desiredY = (long) originalTopY
-                        + nativeSurface.orElseThrow().worldY()
-                        - snapshot.baselineY();
+                // Provider terrain is a local shape signal on a floating island, not
+                // an absolute elevation datum. Keep the authored island's mean height and
+                // transfer half of the provider's relief so small-scale native peaks do not
+                // overwhelm or clip the exact Skyforge top envelope.
+                long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
+                long desiredY = (long) originalTopY + Math.round(providerRelief * 0.5d);
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
@@ -177,8 +180,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Keeps gravity-affected provider materials only where the adapted top has a solid support
-     * block directly beneath it. Unsupported fringe remains Skyforge structural material.
+     * Excludes gravity-affected provider materials from floating island caps. Skyforge's
+     * structural surface remains at those columns to avoid seam-sensitive falling blocks.
      */
     private static boolean stableTerrainProfileMaterial(
             ResourceLocation[] blockKeys,
@@ -186,12 +189,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
             int localX,
             int localZ,
             ResourceLocation nativeBlockKey) {
-        if (!(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock)) {
-            return true;
-        }
-        return localY > 0
-                && !SkyforgeMinecraftBlockPalette.AIR.equals(
-                        blockKeys[linearIndex(localX, localY - 1, localZ)]);
+        // Falling blocks can look locally supported while still breaking across an
+        // island's hollow seams as neighboring columns/chunks are realized. Preserve the
+        // stable Skyforge cap material for these provider surfaces.
+        return !(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock);
     }
 
     /** Returns a materialization whose exposed Skyforge tops inherit the captured native surface. */
