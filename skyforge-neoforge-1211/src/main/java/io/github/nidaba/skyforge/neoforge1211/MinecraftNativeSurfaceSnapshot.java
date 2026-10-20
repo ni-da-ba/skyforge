@@ -155,11 +155,10 @@ final class MinecraftNativeSurfaceSnapshot {
             return generator.getSeaLevel();
         }
         Arrays.sort(originChunkSurfaceYs, 0, originChunkSamples);
-        // Use a low percentile rather than a median/lower quartile: the datum is a zero
-        // elevation for relief transfer, so this guarantees most source columns have positive
-        // relief while anchoring every island chunk to the same world-fixed origin profile.
-        int lowPercentileIndex = Math.max(0, (originChunkSamples - 1) / 20);
-        return originChunkSurfaceYs[lowPercentileIndex];
+        // Use the fixed origin profile's minimum as a zero baseline so the provider's full
+        // sampled relief maps above the authored Skyforge cap instead of mostly cutting it down.
+        // The 32-block cap-rise allowance bounds the effect of any low source outlier.
+        return originChunkSurfaceYs[0];
     }
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}

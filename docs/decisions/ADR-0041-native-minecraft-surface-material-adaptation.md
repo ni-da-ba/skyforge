@@ -145,3 +145,7 @@ Exact-head run [39511112544](https://github.com/ni-da-ba/skyforge/actions/runs/3
 ## Low-percentile origin datum — in progress
 
 The adaptive broad-window retry kept the vanilla control green but still left the Tectonic treatment flat at the authored Y=265 cap. Its 29-block provider source range produced zero realized island relief. The next mapping uses a world-fixed fifth-percentile datum sampled from the origin chunk: the same reference applies across island chunks, while most provider columns carry positive ridge relief above the authored cap. The acceptance now reports that datum on relief failures. The machine ridge threshold remains Y=273; visual acceptance remains pending.
+
+## Minimum-datum Tectonic follow-up — 2026-10-20
+
+The exact-head 5th-percentile experiment measured the datum at Y=292 against Tectonic source Y=271–300; realized island relief remained 21 blocks (Y=244–265), with no ridge above the authored cap. This confirms the source-height distribution is weighted toward its upper end and the 5th percentile remains too high. The next profile uses the minimum of the same fixed origin chunk as its datum, mapping the full sampled source relief upward. The existing 32-block cap-rise allowance limits outlier influence; the A/B still requires at least 24 blocks of realized relief and a ridge at Y≥273. Visual acceptance remains pending.
