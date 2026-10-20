@@ -210,17 +210,19 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         Objects.requireNonNull(providerOwner, "providerOwner");
         Binding binding = ACTIVE.get();
         if (providerOwner.isPresent()) {
+            // The physical-admission gate is an optional overlay on the historical realization
+            // path. Exact provider claims remain authorized by their owning surface adapter when
+            // that separate gate has not been installed.
+            if (binding == null) {
+                return true;
+            }
             SkyIslandWorldVolumeId ownerId = providerOwner.orElseThrow();
             String rejection = null;
-            var owner = binding == null
-                    ? null
-                    : binding.catalog().volumes().stream()
-                            .filter(volume -> volume.id().equals(ownerId))
-                            .findFirst()
-                            .orElse(null);
-            if (binding == null) {
-                rejection = "binding_missing";
-            } else if (owner == null) {
+            var owner = binding.catalog().volumes().stream()
+                    .filter(volume -> volume.id().equals(ownerId))
+                    .findFirst()
+                    .orElse(null);
+            if (owner == null) {
                 rejection = "owner_missing";
             } else if (!binding.ledger().admitted(ownerId)) {
                 rejection = "owner_not_admitted";
