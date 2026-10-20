@@ -287,8 +287,10 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicPackSelected", tectonicPackSelected);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDigest", profile.digest());
+            evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
+            evidence.put("realizedIslandSurfaceHeightDigest", realizedSurface.heightDigest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
             evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
@@ -324,6 +326,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator provider,
             RandomState randomState) {
         MessageDigest digest = newSha256();
+        MessageDigest heightDigest = newSha256();
         int samples = 0;
         ChunkPos chunkPos = chunk.getPos();
         for (int localZ = 0; localZ < 16; localZ++) {
@@ -342,13 +345,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                     if (key != null) {
                         digest.update((worldX + "," + worldY + "," + worldZ + ":" + key + "\n")
                                 .getBytes(StandardCharsets.UTF_8));
+                        heightDigest.update((worldX + "," + worldY + "," + worldZ + ":" + worldY + "\n")
+                                .getBytes(StandardCharsets.UTF_8));
                         samples++;
                     }
                     break;
                 }
             }
         }
-        return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+        return new ProfileEvidence(
+                HexFormat.of().formatHex(digest.digest()),
+                HexFormat.of().formatHex(heightDigest.digest()),
+                samples);
     }
 
     private static BlockPos findReviewSpawn(ChunkAccess chunk) {
@@ -521,6 +529,7 @@ final class SkyforgeTectonicTerrainAcceptance {
 
     private static ProfileEvidence captureRealizedIslandSurface(ChunkAccess chunk) {
         MessageDigest digest = newSha256();
+        MessageDigest heightDigest = newSha256();
         int samples = 0;
         ChunkPos chunkPos = chunk.getPos();
         for (int localZ = 0; localZ < 16; localZ++) {
@@ -538,13 +547,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                     if (key != null) {
                         digest.update((worldX + "," + worldY + "," + worldZ + ":" + key + "\\n")
                                 .getBytes(StandardCharsets.UTF_8));
+                        heightDigest.update((worldX + "," + worldY + "," + worldZ + ":" + worldY + "\\n")
+                                .getBytes(StandardCharsets.UTF_8));
                         samples++;
                     }
                     break;
                 }
             }
         }
-        return new ProfileEvidence(HexFormat.of().formatHex(digest.digest()), samples);
+        return new ProfileEvidence(
+                HexFormat.of().formatHex(digest.digest()),
+                HexFormat.of().formatHex(heightDigest.digest()),
+                samples);
     }
 
     private static int countNonAir(ChunkAccess chunk) {
@@ -577,5 +591,5 @@ final class SkyforgeTectonicTerrainAcceptance {
         SkyforgeAutomatedAcceptanceHarness.fail(server, reason);
     }
 
-    private record ProfileEvidence(String digest, int samples) {}
+    private record ProfileEvidence(String digest, String heightDigest, int samples) {}
 }
