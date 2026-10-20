@@ -122,10 +122,12 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     /**
-     * Uses a cached, world-fixed median elevation from the provider's origin chunk as the terrain
-     * datum. Sea level is not a useful zero for raised providers such as Tectonic. A single
-     * origin column can also be an extreme, which would flatten relief in one direction; the
-     * median keeps the datum representative while preserving cross-chunk continuity.
+     * Uses a cached, world-fixed lower-quartile elevation from the provider's origin chunk as the
+     * terrain datum. Sea level is not a useful zero for raised providers such as Tectonic. A
+     * median can sit on a broad high plateau and leave nearly all transferred relief below the
+     * island cap; the lower quartile keeps the datum representative while letting higher provider
+     * terrain rise visibly above the authored cap. The same origin-derived value preserves
+     * cross-chunk continuity.
      */
     private static int providerTerrainDatumY(
             NoiseBasedChunkGenerator generator,
@@ -160,10 +162,8 @@ final class MinecraftNativeSurfaceSnapshot {
             return generator.getSeaLevel();
         }
         Arrays.sort(surfaceYs, 0, samples);
-        int middle = samples / 2;
-        return samples % 2 == 0
-                ? (int) Math.floorDiv((long) surfaceYs[middle - 1] + surfaceYs[middle], 2L)
-                : surfaceYs[middle];
+        int lowerQuartile = (samples - 1) / 4;
+        return surfaceYs[lowerQuartile];
     }
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}
