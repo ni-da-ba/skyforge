@@ -59,7 +59,7 @@ final class MinecraftNativeSurfaceSnapshot {
         Objects.requireNonNull(chunk, "chunk");
         Objects.requireNonNull(generator, "generator");
         Objects.requireNonNull(randomState, "randomState");
-        int baselineY = generator.getSeaLevel();
+        int baselineY = providerTerrainDatumY(generator, chunk, randomState);
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
         ResourceLocation[] blockKeys = new ResourceLocation[SAMPLE_COUNT];
@@ -114,7 +114,31 @@ final class MinecraftNativeSurfaceSnapshot {
         generator.createBiomes(randomState, blender, structureManager, providerChunk).join();
         generator.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
         generator.buildSurface(level, structureManager, randomState, providerChunk);
-        return capture(providerChunk, generator.getSeaLevel());
+        return capture(
+                providerChunk,
+                providerTerrainDatumY(generator, level, randomState));
+    }
+
+    /**
+     * Uses one world-fixed provider elevation as the terrain datum. Sea level is not a useful
+     * zero for raised providers such as Tectonic: subtracting it shifts an island upward by the
+     * provider's entire regional mean elevation. A fixed origin sample preserves cross-chunk
+     * continuity while transferring terrain relief around Skyforge's authored island heights.
+     */
+    private static int providerTerrainDatumY(
+            NoiseBasedChunkGenerator generator,
+            net.minecraft.world.level.LevelHeightAccessor level,
+            RandomState randomState) {
+        NoiseColumn column = generator.getBaseColumn(0, 0, level, randomState);
+        for (int worldY = level.getMaxBuildHeight() - 1;
+                worldY >= level.getMinBuildHeight();
+                worldY--) {
+            BlockState state = column.getBlock(worldY);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                return worldY;
+            }
+        }
+        return generator.getSeaLevel();
     }
 
     /**
