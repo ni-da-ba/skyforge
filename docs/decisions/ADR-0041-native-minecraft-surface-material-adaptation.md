@@ -154,3 +154,8 @@ The exact-head 5th-percentile experiment measured the datum at Y=292 against Tec
 ## Provider-rise admission fix — in progress
 
 The minimum-datum A/B run measured datum Y=271 against source Y=271–300, but the realized cap remained flat at Y=265. The terrain adapter had emitted exact provider claims for added top cells, but physical admission still required every claimed cell to be inside the authored volume's vertical bounds; that contradicted the adapter's existing bounded 32-block top-rise allowance. Provider claims now authorize writes above the authored top only within the same island's horizontal bounds, above its existing solid support, and no more than 32 blocks above the authored Y maximum. Interior, underside, competing-volume, and unclaimed writes remain blocked. The next exact-head A/B must demonstrate the uplift; human visual acceptance remains pending.
+
+
+## Provider-write diagnosis — in progress
+
+At the failed exact head, the captured provider snapshot and base-column sampler agree at Y=271–300, with 255 of 256 columns above the Y=271 datum, yet the realized island is unchanged. This rules out provider snapshot and datum mismatch. The development writer now records exact claimed-cell counts, admission rejections, occupied positions, and successful provider writes in the Tectonic acceptance log. Use that accounting to isolate the remaining write-path failure before further terrain tuning.
