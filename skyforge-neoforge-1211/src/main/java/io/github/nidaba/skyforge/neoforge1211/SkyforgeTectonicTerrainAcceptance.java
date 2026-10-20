@@ -41,6 +41,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
+    private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 0.75;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
@@ -144,14 +145,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             String tectonicVerticalScale = "not-applicable";
+            String tectonicElevationBoost = "not-applicable";
             String tectonicOceanOffset = "not-applicable";
             if (treatment) {
                 tectonicVerticalScale = configuredTectonicVerticalScale();
+                tectonicElevationBoost = configuredTectonicElevationBoost();
                 tectonicOceanOffset = configuredTectonicOceanOffset();
                 if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)
+                        || !Double.toString(EXPECTED_TECTONIC_ELEVATION_BOOST).equals(tectonicElevationBoost)
                         || !Double.toString(EXPECTED_TECTONIC_OCEAN_OFFSET).equals(tectonicOceanOffset)) {
                     fail(server, "Tectonic treatment config differs from the pinned terrain profile: "
                             + "vertical_scale=" + tectonicVerticalScale
+                            + ", elevation_boost=" + tectonicElevationBoost
                             + ", ocean_offset=" + tectonicOceanOffset);
                     return;
                 }
@@ -318,6 +323,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicModLoaded", tectonicLoaded);
             evidence.put("tectonicPackSelected", tectonicPackSelected);
             evidence.put("tectonicVerticalScale", tectonicVerticalScale);
+            evidence.put("tectonicElevationBoost", tectonicElevationBoost);
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDigest", profile.digest());
@@ -368,6 +374,18 @@ final class SkyforgeTectonicTerrainAcceptance {
             return globalTerrain.get("vertical_scale").getAsString();
         } catch (IOException | RuntimeException failure) {
             throw new IllegalStateException("could not read the pinned Tectonic terrain configuration at "
+                    + configPath, failure);
+        }
+    }
+
+    private static String configuredTectonicElevationBoost() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject globalTerrain = config.getAsJsonObject("global_terrain");
+            return globalTerrain.get("elevation_boost").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic elevation configuration at "
                     + configPath, failure);
         }
     }
