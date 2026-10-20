@@ -101,6 +101,9 @@ val prepareTectonicTreatmentReviewSave = prepareTectonicReviewSave(
     "treatment",
     tectonicTreatmentReviewGameDirectory,
 )
+prepareTectonicTreatmentReviewSave.configure {
+    doLast { configureSfImp0054TectonicTreatment(tectonicTreatmentReviewGameDirectory) }
+}
 val tectonicTerrainPinFile = layout.projectDirectory.file("sf-imp-0054-tectonic-mods.properties")
 val tectonicTerrainPins = Properties().apply {
     tectonicTerrainPinFile.asFile.inputStream().use(::load)
@@ -9210,6 +9213,26 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
+val sfImp0054TectonicVerticalScale = 2.25
+val sfImp0054TectonicConfig = """
+    {
+      "minor_version": 1,
+      "general": {
+        "mod_enabled": true,
+        "snow_start_offset": 128
+      },
+      "global_terrain": {
+        "vertical_scale": $sfImp0054TectonicVerticalScale
+      }
+    }
+""".trimIndent() + "\n"
+
+fun configureSfImp0054TectonicTreatment(gameDirectory: java.io.File) {
+    val configFile = gameDirectory.resolve("config/tectonic.json")
+    configFile.parentFile.mkdirs()
+    configFile.writeText(sfImp0054TectonicConfig)
+}
+
 val sfImp0054TectonicResultDirectory = layout.buildDirectory.dir("acceptance/sf-imp-0054-tectonic")
 val sfImp0054TectonicServerProperties = """
     level-name=acceptance
@@ -9263,7 +9286,11 @@ tasks.named("runTectonicTerrainVanillaReopenServer").configure {
 tasks.named("runTectonicTerrainTreatmentServer").configure {
     notCompatibleWithConfigurationCache("SF-IMP-0054 Tectonic A/B owns a disposable dedicated-server world.")
     mustRunAfter("runTectonicTerrainVanillaReopenServer")
-    doFirst { prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment") }
+    doFirst {
+        val treatmentDirectory = layout.projectDirectory.dir("run-sf-imp-0054-tectonic-treatment").asFile
+        prepareSfImp0054TectonicServerDirectory("run-sf-imp-0054-tectonic-treatment")
+        configureSfImp0054TectonicTreatment(treatmentDirectory)
+    }
     doLast { requireSfImp0054TectonicPass("treatment") }
 }
 
