@@ -60,30 +60,39 @@ final class SkyforgeSurfacePopulationPlanTest {
         var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
                 chunk,
                 List.of(
-                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.FOREST),
-                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(15, 15, 101, 201, Biomes.TAIGA)),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.TAIGA, Biomes.TAIGA),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(12, 12, 102, 202, Biomes.FOREST, Biomes.TAIGA),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(15, 15, 101, 201, Biomes.FOREST, Biomes.FOREST)),
                 2,
+                Biomes.FOREST,
                 Biomes.TAIGA);
 
-        assertEquals(2, search.sharedColumns());
-        assertEquals(1, search.providerBiomeMatches());
+        assertEquals(3, search.sharedColumns());
+        assertEquals(2, search.lowerProviderBiomeMatches());
+        assertEquals(2, search.providerBiomeMatches());
+        assertEquals(1, search.providerBiomePairMatches());
         var selected = search.selected().orElseThrow();
-        assertEquals(15, selected.x());
-        assertEquals(15, selected.z());
-        assertEquals(201, selected.upperSurfaceY());
-        assertEquals(Biomes.TAIGA, selected.providerBiome());
+        assertEquals(12, selected.x());
+        assertEquals(12, selected.z());
+        assertEquals(102, selected.lowerSurfaceY());
+        assertEquals(202, selected.upperSurfaceY());
+        assertEquals(Biomes.FOREST, selected.lowerProviderBiome());
+        assertEquals(Biomes.TAIGA, selected.upperProviderBiome());
     }
 
     @Test
     void providerBiomeSelectorKeepsTheSharedTerrainThreshold() {
         var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
                 new net.minecraft.world.level.ChunkPos(0, 0),
-                List.of(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.TAIGA)),
+                List.of(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.FOREST, Biomes.TAIGA)),
                 2,
+                Biomes.FOREST,
                 Biomes.TAIGA);
 
         assertEquals(1, search.sharedColumns());
+        assertEquals(1, search.lowerProviderBiomeMatches());
         assertEquals(1, search.providerBiomeMatches());
+        assertEquals(1, search.providerBiomePairMatches());
         assertTrue(search.selected().isEmpty());
     }
 

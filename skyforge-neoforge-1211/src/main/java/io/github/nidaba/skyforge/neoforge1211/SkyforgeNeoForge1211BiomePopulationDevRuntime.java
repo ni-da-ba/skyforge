@@ -78,11 +78,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final Set<Long> substantialTerrainProofChunks = new HashSet<>();
     private static final Set<Long> providerBiomeCandidateProofChunks = new HashSet<>();
     private static final Set<Long> providerProofChunkKeys = new LinkedHashSet<>();
+    private static final Map<String, Integer> providerBiomeLowerColumnDistribution = new TreeMap<>();
     private static final Map<String, Integer> providerBiomeColumnDistribution = new TreeMap<>();
+    private static final Map<String, Integer> providerBiomeLowerNoiseSourceColumnDistribution = new TreeMap<>();
     private static final Map<String, Integer> providerBiomeNoiseSourceColumnDistribution = new TreeMap<>();
+    private static final Map<String, Integer> providerBiomePreflightLowerDistribution = new TreeMap<>();
     private static final Map<String, Integer> providerBiomePreflightDistribution = new TreeMap<>();
     private static int providerBiomePreflightSurfaceSamples;
+    private static int providerBiomePreflightLowerTargetSamples;
     private static int providerBiomePreflightTargetSamples;
+    private static int providerBiomePreflightPairSamples;
     private static int providerBiomeSourceLiveMismatches;
     private static String providerBiomeSourceClass = "not-sampled";
     private static List<String> providerBiomeSourcePossibleBiomes = List.of();
@@ -121,11 +126,15 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
             if (providerProofChunkKeys.isEmpty() || providerReviewSpawn == null) {
                 SkyforgeAutomatedAcceptanceHarness.fail(
                         event.getServer(),
-                        "SF-IMP-0054 provider-biome preflight found no target biome on a substantial "
-                                + "shared island surface: target=" + UPPER_BIOME.location()
+                        "SF-IMP-0054 provider-biome preflight found no matching biome pair on a substantial "
+                                + "shared island surface: lower=" + Biomes.FOREST.location()
+                                + ", upper=" + UPPER_BIOME.location()
                                 + ", sampledSurfacePoints=" + providerBiomePreflightSurfaceSamples
-                                + ", targetSurfacePoints=" + providerBiomePreflightTargetSamples
-                                + ", sourceDistribution=" + providerBiomePreflightDistribution
+                                + ", lowerForestSurfacePoints=" + providerBiomePreflightLowerTargetSamples
+                                + ", upperTargetSurfacePoints=" + providerBiomePreflightTargetSamples
+                                + ", matchingBiomePairSurfacePoints=" + providerBiomePreflightPairSamples
+                                + ", lowerSourceDistribution=" + providerBiomePreflightLowerDistribution
+                                + ", upperSourceDistribution=" + providerBiomePreflightDistribution
                                 + ", providerBiomeSourceClass=" + providerBiomeSourceClass
                                 + ", providerBiomeSourcePossibleBiomes=" + providerBiomeSourcePossibleBiomes);
                 return;
@@ -141,8 +150,11 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     "SF-IMP-0054 provider-biome preflight selected " + providerProofChunkKeys.size()
                             + " exact-volume proof chunks for " + UPPER_BIOME.location()
                             + "; sharedSurfaceSamples=" + providerBiomePreflightSurfaceSamples
-                            + ", targetSurfaceSamples=" + providerBiomePreflightTargetSamples
-                            + ", sourceDistribution=" + providerBiomePreflightDistribution
+                            + ", lowerForestSurfaceSamples=" + providerBiomePreflightLowerTargetSamples
+                            + ", upperTargetSurfaceSamples=" + providerBiomePreflightTargetSamples
+                            + ", matchingBiomePairSurfaceSamples=" + providerBiomePreflightPairSamples
+                            + ", lowerSourceDistribution=" + providerBiomePreflightLowerDistribution
+                            + ", upperSourceDistribution=" + providerBiomePreflightDistribution
                             + ", proofChunks=" + providerProofChunkKeys
                             + ", reviewSpawn=" + providerReviewSpawn.toShortString()
                             + ". The harness will warm only these proof chunks plus the exterior witness.");
@@ -187,13 +199,18 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                                 ? "disabled" : providerBiomeSampleKey.location()),
                         Map.entry("providerBiomeMatchesPopulation", providerBiomeSampleKey != null
                                 && providerBiomeSampleKey.equals(upperAggregate.biomeKey())),
+                        Map.entry("providerBiomeLowerColumnDistribution", providerBiomeLowerColumnDistribution.toString()),
                         Map.entry("providerBiomeColumnDistribution", providerBiomeColumnDistribution.toString()),
+                        Map.entry("providerBiomeLowerNoiseSourceColumnDistribution", providerBiomeLowerNoiseSourceColumnDistribution.toString()),
                         Map.entry("providerBiomeNoiseSourceColumnDistribution", providerBiomeNoiseSourceColumnDistribution.toString()),
                         Map.entry("providerBiomeSourceLiveMismatches", providerBiomeSourceLiveMismatches),
                         Map.entry("providerBiomeSourceClass", providerBiomeSourceClass),
                         Map.entry("providerBiomeSourcePossibleBiomes", providerBiomeSourcePossibleBiomes.toString()),
                         Map.entry("providerBiomePreflightSurfaceSamples", providerBiomePreflightSurfaceSamples),
+                        Map.entry("providerBiomePreflightLowerTargetSamples", providerBiomePreflightLowerTargetSamples),
                         Map.entry("providerBiomePreflightTargetSamples", providerBiomePreflightTargetSamples),
+                        Map.entry("providerBiomePreflightPairSamples", providerBiomePreflightPairSamples),
+                        Map.entry("providerBiomePreflightLowerDistribution", providerBiomePreflightLowerDistribution.toString()),
                         Map.entry("providerBiomePreflightDistribution", providerBiomePreflightDistribution.toString()),
                         Map.entry("providerBiomeProofChunks", providerProofChunkKeys.size()),
                         Map.entry("providerReviewSpawn", providerReviewSpawn == null
@@ -250,7 +267,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 var search = searchSharedSurface(level, lowerId, upperId, chunkPos, true, generator);
                 sample = search.selected().map(selected -> new SharedSurfaceSample(
                         selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
-                        search.sharedColumns(), selected.providerBiome()));
+                        search.sharedColumns(), selected.upperProviderBiome()));
             } else {
                 sample = sharedSurfaceSample(level, lowerId, upperId, chunkPos);
             }
@@ -412,26 +429,46 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 if (lowerClaim.isEmpty() || upperClaim.isEmpty()) {
                     continue;
                 }
+                int lowerSurfaceY = lowerClaim.orElseThrow().height();
                 int upperSurfaceY = upperClaim.orElseThrow().height();
-                if (lowerClaim.orElseThrow().height() == upperSurfaceY) {
+                if (lowerSurfaceY == upperSurfaceY) {
                     throw new IllegalStateException("SF-IMP-0054 provider preflight resolved coincident stacked surfaces at x="
                             + worldX + ", z=" + worldZ);
                 }
                 providerBiomePreflightSurfaceSamples = Math.addExact(providerBiomePreflightSurfaceSamples, 1);
-                ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
+                ResourceKey<Biome> lowerSourceBiome = providerBiomeSource.getNoiseBiome(
+                                QuartPos.fromBlock(worldX),
+                                QuartPos.fromBlock(lowerSurfaceY),
+                                QuartPos.fromBlock(worldZ),
+                                providerBiomeSampler)
+                        .unwrapKey()
+                        .orElseThrow(() -> new IllegalStateException(
+                                "active provider biome source returned an unregistered biome at lower preflight surface"));
+                ResourceKey<Biome> upperSourceBiome = providerBiomeSource.getNoiseBiome(
                                 QuartPos.fromBlock(worldX),
                                 QuartPos.fromBlock(upperSurfaceY),
                                 QuartPos.fromBlock(worldZ),
                                 providerBiomeSampler)
                         .unwrapKey()
                         .orElseThrow(() -> new IllegalStateException(
-                                "active provider biome source returned an unregistered biome at preflight surface sample"));
+                                "active provider biome source returned an unregistered biome at upper preflight surface"));
+                providerBiomePreflightLowerDistribution.merge(
+                        lowerSourceBiome.location().toString(), 1, Math::addExact);
                 providerBiomePreflightDistribution.merge(
-                        sourceBiome.location().toString(), 1, Math::addExact);
-                if (!UPPER_BIOME.equals(sourceBiome)) {
+                        upperSourceBiome.location().toString(), 1, Math::addExact);
+                boolean lowerForest = Biomes.FOREST.equals(lowerSourceBiome);
+                boolean upperTarget = UPPER_BIOME.equals(upperSourceBiome);
+                if (lowerForest) {
+                    providerBiomePreflightLowerTargetSamples =
+                            Math.addExact(providerBiomePreflightLowerTargetSamples, 1);
+                }
+                if (upperTarget) {
+                    providerBiomePreflightTargetSamples = Math.addExact(providerBiomePreflightTargetSamples, 1);
+                }
+                if (!lowerForest || !upperTarget) {
                     continue;
                 }
-                providerBiomePreflightTargetSamples = Math.addExact(providerBiomePreflightTargetSamples, 1);
+                providerBiomePreflightPairSamples = Math.addExact(providerBiomePreflightPairSamples, 1);
                 long chunkKey = new ChunkPos(worldX >> 4, worldZ >> 4).toLong();
                 BlockPos sample = new BlockPos(worldX, upperSurfaceY, worldZ);
                 candidateSamples.merge(chunkKey, sample, (left, right) ->
@@ -611,7 +648,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 searchSharedSurface(level, lowerId, upperId, chunkPos, providerMode, generator);
         if (search.sharedColumns() >= MINIMUM_SHARED_COLUMNS_PER_CHUNK) {
             substantialTerrainProofChunks.add(chunkPos.toLong());
-            if (providerMode && search.providerBiomeMatches() > 0) {
+            if (providerMode && search.providerBiomePairMatches() > 0) {
                 providerBiomeCandidateProofChunks.add(chunkPos.toLong());
             }
         }
@@ -622,7 +659,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
         SkyforgeSharedSurfaceBiomeSampleSelector.Column selected = search.selected().orElseThrow();
         SharedSurfaceSample shared = new SharedSurfaceSample(
                 selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
-                search.sharedColumns(), selected.providerBiome());
+                search.sharedColumns(), selected.upperProviderBiome());
         ResourceKey<Biome> providerUpperBiome = null;
         if (providerMode) {
             providerUpperBiome = shared.providerBiome();
@@ -706,7 +743,9 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     + ", targetProviderBiome=" + (Boolean.getBoolean(PROVIDER_BIOME_PROPERTY)
                             ? UPPER_BIOME.location() : "disabled")
                     + ", minimumSharedColumnsPerChunk=" + MINIMUM_SHARED_COLUMNS_PER_CHUNK
+                    + ", providerBiomeLowerColumnDistribution=" + providerBiomeLowerColumnDistribution
                     + ", providerBiomeColumnDistribution=" + providerBiomeColumnDistribution
+                    + ", providerBiomeLowerNoiseSourceColumnDistribution=" + providerBiomeLowerNoiseSourceColumnDistribution
                     + ", providerBiomeNoiseSourceColumnDistribution=" + providerBiomeNoiseSourceColumnDistribution
                     + ", providerBiomeSourceLiveMismatches=" + providerBiomeSourceLiveMismatches
                     + ", providerBiomeSourceClass=" + providerBiomeSourceClass
@@ -796,7 +835,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                 searchSharedSurface(level, lowerId, upperId, chunkPos, false, null);
         return search.selected().map(selected -> new SharedSurfaceSample(
                 selected.x(), selected.z(), selected.lowerSurfaceY(), selected.upperSurfaceY(),
-                search.sharedColumns(), selected.providerBiome()));
+                search.sharedColumns(), selected.upperProviderBiome()));
     }
 
     @SuppressWarnings("deprecation")
@@ -858,15 +897,29 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                     throw new IllegalStateException("SF-IMP-0054 stacked biome proof resolved one shared surface at x="
                             + x + ", z=" + z + ", chunk=" + chunkPos);
                 }
-                ResourceKey<Biome> providerBiome = requireProviderBiome
-                        ? level.getBiome(new BlockPos(x, upperSurfaceY, z))
-                                .unwrapKey()
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "provider returned an unregistered biome at an admitted upper surface sample"))
-                        : null;
-                if (providerBiome != null) {
+                ResourceKey<Biome> lowerProviderBiome = null;
+                ResourceKey<Biome> providerBiome = null;
+                if (requireProviderBiome) {
+                    lowerProviderBiome = level.getBiome(new BlockPos(x, lowerSurfaceY, z))
+                            .unwrapKey()
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "provider returned an unregistered biome at an admitted lower surface sample"));
+                    providerBiome = level.getBiome(new BlockPos(x, upperSurfaceY, z))
+                            .unwrapKey()
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "provider returned an unregistered biome at an admitted upper surface sample"));
+                    providerBiomeLowerColumnDistribution.merge(
+                            lowerProviderBiome.location().toString(), 1, Math::addExact);
                     providerBiomeColumnDistribution.merge(
                             providerBiome.location().toString(), 1, Math::addExact);
+                    ResourceKey<Biome> lowerSourceBiome = providerBiomeSource.getNoiseBiome(
+                                    QuartPos.fromBlock(x),
+                                    QuartPos.fromBlock(lowerSurfaceY),
+                                    QuartPos.fromBlock(z),
+                                    providerBiomeSampler)
+                            .unwrapKey()
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "active biome source returned an unregistered biome at an admitted lower surface sample"));
                     ResourceKey<Biome> sourceBiome = providerBiomeSource.getNoiseBiome(
                                     QuartPos.fromBlock(x),
                                     QuartPos.fromBlock(upperSurfaceY),
@@ -874,21 +927,27 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                                     providerBiomeSampler)
                             .unwrapKey()
                             .orElseThrow(() -> new IllegalStateException(
-                                    "active biome source returned an unregistered biome at an admitted surface sample"));
+                                    "active biome source returned an unregistered biome at an admitted upper surface sample"));
+                    providerBiomeLowerNoiseSourceColumnDistribution.merge(
+                            lowerSourceBiome.location().toString(), 1, Math::addExact);
                     providerBiomeNoiseSourceColumnDistribution.merge(
                             sourceBiome.location().toString(), 1, Math::addExact);
+                    if (!lowerProviderBiome.equals(lowerSourceBiome)) {
+                        providerBiomeSourceLiveMismatches = Math.addExact(providerBiomeSourceLiveMismatches, 1);
+                    }
                     if (!providerBiome.equals(sourceBiome)) {
                         providerBiomeSourceLiveMismatches = Math.addExact(providerBiomeSourceLiveMismatches, 1);
                     }
                 }
                 sharedColumns.add(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
-                        x, z, lowerSurfaceY, upperSurfaceY, providerBiome));
+                        x, z, lowerSurfaceY, upperSurfaceY, lowerProviderBiome, providerBiome));
             }
         }
         return SkyforgeSharedSurfaceBiomeSampleSelector.select(
                 chunkPos,
                 sharedColumns,
                 MINIMUM_SHARED_COLUMNS_PER_CHUNK,
+                requireProviderBiome ? Biomes.FOREST : null,
                 requireProviderBiome ? UPPER_BIOME : null);
     }
 

@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.biome.Biome;
 
-/** Selects an exact shared surface column, optionally requiring the active provider biome. */
+/** Selects exact shared surface columns against the active provider biome at both island surfaces. */
 final class SkyforgeSharedSurfaceBiomeSampleSelector {
     private SkyforgeSharedSurfaceBiomeSampleSelector() {}
 
@@ -16,13 +16,16 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
             ChunkPos chunkPos,
             List<Column> sharedColumns,
             int minimumSharedColumns,
-            ResourceKey<Biome> requiredProviderBiome) {
+            ResourceKey<Biome> requiredLowerProviderBiome,
+            ResourceKey<Biome> requiredUpperProviderBiome) {
         Objects.requireNonNull(chunkPos, "chunkPos");
         Objects.requireNonNull(sharedColumns, "sharedColumns");
         if (minimumSharedColumns <= 0 || minimumSharedColumns > 256) {
             throw new IllegalArgumentException("minimum shared columns must be within 1..256");
         }
-        int matches = 0;
+        int lowerMatches = 0;
+        int upperMatches = 0;
+        int pairMatches = 0;
         Column selected = null;
         Comparator<Column> preference = Comparator
                 .comparingInt((Column column) -> manhattanDistance(chunkPos, column))
@@ -34,23 +37,46 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
                     || column.z() < chunkPos.getMinBlockZ() || column.z() > chunkPos.getMaxBlockZ()) {
                 throw new IllegalArgumentException("shared surface candidate is outside its chunk");
             }
-            if (requiredProviderBiome != null) {
-                if (column.providerBiome() == null) {
-                    throw new IllegalArgumentException("provider biome is required for every provider-mode candidate");
+
+            boolean lowerMatchesRequired = requiredLowerProviderBiome == null;
+            if (requiredLowerProviderBiome != null) {
+                if (column.lowerProviderBiome() == null) {
+                    throw new IllegalArgumentException("lower provider biome is required for every provider-mode candidate");
                 }
-                if (!requiredProviderBiome.equals(column.providerBiome())) {
-                    continue;
+                lowerMatchesRequired = requiredLowerProviderBiome.equals(column.lowerProviderBiome());
+                if (lowerMatchesRequired) {
+                    lowerMatches++;
                 }
-                matches++;
             }
-            if (selected == null || preference.compare(column, selected) < 0) {
+
+            boolean upperMatchesRequired = requiredUpperProviderBiome == null;
+            if (requiredUpperProviderBiome != null) {
+                if (column.upperProviderBiome() == null) {
+                    throw new IllegalArgumentException("upper provider biome is required for every provider-mode candidate");
+                }
+                upperMatchesRequired = requiredUpperProviderBiome.equals(column.upperProviderBiome());
+                if (upperMatchesRequired) {
+                    upperMatches++;
+                }
+            }
+
+            if (requiredLowerProviderBiome != null
+                    && requiredUpperProviderBiome != null
+                    && lowerMatchesRequired
+                    && upperMatchesRequired) {
+                pairMatches++;
+            }
+            if (lowerMatchesRequired && upperMatchesRequired
+                    && (selected == null || preference.compare(column, selected) < 0)) {
                 selected = column;
             }
         }
         boolean enoughSharedTerrain = sharedColumns.size() >= minimumSharedColumns;
         return new SearchResult(
                 sharedColumns.size(),
-                matches,
+                lowerMatches,
+                upperMatches,
+                pairMatches,
                 enoughSharedTerrain && selected != null ? Optional.of(selected) : Optional.empty());
     }
 
@@ -59,7 +85,13 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
                 + Math.abs(column.z() - chunkPos.getMiddleBlockZ());
     }
 
-    record Column(int x, int z, int lowerSurfaceY, int upperSurfaceY, ResourceKey<Biome> providerBiome) {
+    record Column(
+            int x,
+            int z,
+            int lowerSurfaceY,
+            int upperSurfaceY,
+            ResourceKey<Biome> lowerProviderBiome,
+            ResourceKey<Biome> upperProviderBiome) {
         Column {
             if (lowerSurfaceY == upperSurfaceY) {
                 throw new IllegalArgumentException("stacked surface Y values must differ");
@@ -67,9 +99,20 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
         }
     }
 
-    record SearchResult(int sharedColumns, int providerBiomeMatches, Optional<Column> selected) {
+    record SearchResult(
+            int sharedColumns,
+            int lowerProviderBiomeMatches,
+            int providerBiomeMatches,
+            int providerBiomePairMatches,
+            Optional<Column> selected) {
         SearchResult {
-            if (sharedColumns < 0 || providerBiomeMatches < 0 || providerBiomeMatches > sharedColumns) {
+            if (sharedColumns < 0
+                    || lowerProviderBiomeMatches < 0
+                    || providerBiomeMatches < 0
+                    || providerBiomePairMatches < 0
+                    || lowerProviderBiomeMatches > sharedColumns
+                    || providerBiomeMatches > sharedColumns
+                    || providerBiomePairMatches > sharedColumns) {
                 throw new IllegalArgumentException("invalid shared surface search counts");
             }
             Objects.requireNonNull(selected, "selected");
