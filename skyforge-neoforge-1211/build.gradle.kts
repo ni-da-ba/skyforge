@@ -9213,7 +9213,7 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
-val sfImp0054TectonicVerticalScale = 9.0
+val sfImp0054TectonicVerticalScale = 6.0
 val sfImp0054TectonicConfig = """
     {
       "minor_version": 1,

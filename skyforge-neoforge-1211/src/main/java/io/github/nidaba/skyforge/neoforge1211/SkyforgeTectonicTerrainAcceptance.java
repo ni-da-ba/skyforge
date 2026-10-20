@@ -40,7 +40,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
-    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 9.0;
+    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
@@ -189,7 +189,10 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
                 fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
                         + realizedIslandRelief + " blocks (minimum "
-                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + ")");
+                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), provider source Y="
+                        + profile.minimumY() + ".." + profile.maximumY() + " ("
+                        + (profile.maximumY() - profile.minimumY()) + " blocks), realized island Y="
+                        + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
