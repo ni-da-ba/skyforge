@@ -9213,7 +9213,7 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
-val sfImp0054TectonicVerticalScale = 2.25
+val sfImp0054TectonicVerticalScale = 4.5
 val sfImp0054TectonicConfig = """
     {
       "minor_version": 1,
@@ -9342,7 +9342,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         check(treatment.getProperty("profile") == "tectonic"
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
-                && treatment.getProperty("tectonicVerticalScale") == "2.25"
+                && treatment.getProperty("tectonicVerticalScale") == "4.5"
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
