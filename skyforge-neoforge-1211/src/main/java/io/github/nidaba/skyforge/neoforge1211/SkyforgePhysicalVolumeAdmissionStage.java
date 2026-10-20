@@ -15,6 +15,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -30,6 +31,9 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 final class SkyforgePhysicalVolumeAdmissionStage {
     private static final AtomicReference<Binding> ACTIVE = new AtomicReference<>();
+    private static final AtomicInteger PROVIDER_REJECTION_SAMPLES = new AtomicInteger();
+    private static final java.util.logging.Logger LOGGER =
+            java.util.logging.Logger.getLogger(SkyforgePhysicalVolumeAdmissionStage.class.getName());
     private static final Comparator<Long> CHUNK_KEY_ORDER = Comparator
             .comparingInt((Long key) -> ChunkPos.getX(key))
             .thenComparingInt(key -> ChunkPos.getZ(key));
@@ -206,31 +210,51 @@ final class SkyforgePhysicalVolumeAdmissionStage {
         Objects.requireNonNull(providerOwner, "providerOwner");
         Binding binding = ACTIVE.get();
         if (providerOwner.isPresent()) {
-            if (binding == null) {
-                return false;
-            }
             SkyIslandWorldVolumeId ownerId = providerOwner.orElseThrow();
-            var owner = binding.catalog().volumes().stream()
-                    .filter(volume -> volume.id().equals(ownerId))
-                    .findFirst()
-                    .orElse(null);
+            String rejection = null;
+            var owner = binding == null
+                    ? null
+                    : binding.catalog().volumes().stream()
+                            .filter(volume -> volume.id().equals(ownerId))
+                            .findFirst()
+                            .orElse(null);
+            if (binding == null) {
+                rejection = "binding_missing";
+            } else if (owner == null) {
+                rejection = "owner_missing";
+            } else if (!binding.ledger().admitted(ownerId)) {
+                rejection = "owner_not_admitted";
+            } else if (!(owner.bounds().contains(worldX, worldY, worldZ)
+                    || withinProviderTerrainRiseEnvelope(owner.bounds(), worldX, worldY, worldZ))) {
+                rejection = "outside_owner_or_rise_envelope";
+            }
             var support = owner == null
                     ? Optional.<SkyforgeExactVoxelSupportBounds.ColumnRange>empty()
                     : SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ);
-            if (owner == null
-                    || !binding.ledger().admitted(ownerId)
-                    || !(owner.bounds().contains(worldX, worldY, worldZ)
-                            || (providerOwner.isPresent()
-                                    && withinProviderTerrainRiseEnvelope(
-                                            owner.bounds(), worldX, worldY, worldZ)))
-                    || support.isEmpty()
-                    // Provider terrain may extend the island's top but must not alter its interior
-                    // or underside, which remain exclusively Skyforge-authored.
-                    || worldY <= support.orElseThrow().maximumY()
-                    || SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
+            if (rejection == null && support.isEmpty()) {
+                rejection = "support_column_missing";
+            }
+            if (rejection == null && worldY <= support.orElseThrow().maximumY()) {
+                // Provider terrain may extend the island's top but must not alter its interior
+                // or underside, which remain exclusively Skyforge-authored.
+                rejection = "at_or_below_authored_support_top";
+            }
+            if (rejection == null
+                    && SkyforgeNeoForge1211SurfaceStage.isSolidOwnedByOtherVolume(
                                     ownerId, worldX, worldY, worldZ)
                             .orElseThrow(() -> new IllegalStateException(
                                     "Skyforge terrain binding disappeared during provider write admission"))) {
+                rejection = "owned_by_other_volume";
+            }
+            if (rejection != null) {
+                if (Boolean.getBoolean(SkyforgeTectonicTerrainAcceptance.ENABLE_PROPERTY)
+                        && PROVIDER_REJECTION_SAMPLES.getAndIncrement() < 12) {
+                    LOGGER.info("Tectonic provider admission rejection: owner=" + ownerId
+                            + ", pos=(" + worldX + "," + worldY + "," + worldZ + ")"
+                            + ", reason=" + rejection
+                            + ", ownerBounds=" + (owner == null ? "missing" : owner.bounds())
+                            + ", support=" + support);
+                }
                 return false;
             }
             return true;
