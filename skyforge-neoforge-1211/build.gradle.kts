@@ -9213,13 +9213,16 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 }
 
 
-val sfImp0054TectonicVerticalScale = 9.0
+val sfImp0054TectonicVerticalScale = 4.5
 val sfImp0054TectonicConfig = """
     {
       "minor_version": 1,
       "general": {
         "mod_enabled": true,
         "snow_start_offset": 128
+      },
+      "continents": {
+        "ocean_offset": -0.1
       },
       "global_terrain": {
         "vertical_scale": $sfImp0054TectonicVerticalScale
@@ -9342,7 +9345,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         check(treatment.getProperty("profile") == "tectonic"
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
-                && treatment.getProperty("tectonicVerticalScale") == "4.5"
+                && treatment.getProperty("tectonicVerticalScale") == sfImp0054TectonicVerticalScale.toString()
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
