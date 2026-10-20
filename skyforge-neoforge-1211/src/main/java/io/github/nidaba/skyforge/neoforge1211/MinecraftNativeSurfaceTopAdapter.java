@@ -19,6 +19,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
+    private static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 32;
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -38,8 +39,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
      *
      * <p>The provider's surface height is interpreted relative to its captured baseline (normally
      * sea level), then transferred at full strength onto the existing Skyforge surface. The result
-     * is clamped to the exact top volume's authored envelope. Only newly added positions receive
-     * provider claims; the compiled island footprint, lower body, and underside stay authoritative.
+     * is clamped to the chunk build range and a bounded 32-block extension above the authored
+     * top-volume bound. Only newly added positions receive provider claims; the compiled island
+     * footprint, lower body, and underside stay authoritative.
      */
     TerrainProfileAdaptation adaptTerrainProfile(
             MinecraftNativeSurfaceSnapshot snapshot,
@@ -86,7 +88,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     capBottomLocalY--;
                 }
                 int capBottomY = materialization.minimumY() + capBottomLocalY;
-                int maximumAllowedY = Math.min(maximumMaterializedY, floorToInt(volumeBounds.maximumY()));
+                int maximumAllowedY = Math.min(
+                        maximumMaterializedY,
+                        Math.addExact(floorToInt(volumeBounds.maximumY()), MAX_PROVIDER_SURFACE_RISE_BLOCKS));
                 int minimumAllowedY = Math.max(
                         materialization.minimumY(),
                         Math.max(capBottomY, ceilToInt(volumeBounds.minimumY())));
@@ -95,9 +99,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. Transfer its configured relief at full strength;
-                // the exact Skyforge top envelope remains the hard limit, and the authored
-                // island footprint/body/underside are untouched.
+                // an absolute elevation datum. Transfer its configured relief at full strength.
+                // The development profile path permits a bounded rise above the authored top
+                // volume so positive provider relief is not flattened at its original ceiling;
+                // Skyforge footprint, body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
                 long desiredY = (long) originalTopY + providerRelief;
                 int targetTopY = (int) Math.max(

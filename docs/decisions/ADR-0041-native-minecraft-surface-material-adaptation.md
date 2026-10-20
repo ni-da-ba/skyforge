@@ -126,3 +126,8 @@ All criteria above passed.
 Automated validation passed through `scripts\verify-sf-imp-0037-native-surface-adaptation.bat` and repository-wide `gradlew.bat check`, including the final regression diagnostic proving that preserved lower ground remains present while Minecraft's final single-valued world-surface heightmap selects the elevated Skyforge surface.
 
 In the real ModDev client, the Massif remained geometrically intact and persistent, native terrain remained additive, the exposed island top appeared remarkably like the surrounding Minecraft terrain, copied native material remained shallow rather than replacing the whole island interior, and later world-generation/lighting behavior remained functional. The sparse vegetation observed directly beneath the Massif is recorded as the heightmap/multi-surface integration boundary described above, not as a failure of native material adaptation.
+
+
+## SF-IMP-0054 provider height-profile experiment — in progress
+
+The separate provider-profile path may shape the exposed Skyforge cap while preserving its horizontal footprint and the authored lower body/underside. To prevent positive provider relief from being flattened at the original cap ceiling, this development experiment permits up to 32 blocks of additional height above the authored top-volume bound, constrained by Minecraft's build range. Added cells receive claims for the same exact Skyforge volume. This is experimental Implementation evidence and is not a production morphology or world-scale policy; acceptance requires exact-head A/B evidence and owner visual review.

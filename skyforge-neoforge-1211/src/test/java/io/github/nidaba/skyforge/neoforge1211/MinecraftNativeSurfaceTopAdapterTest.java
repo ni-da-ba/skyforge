@@ -67,9 +67,15 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 original,
                 adapter);
 
+        int authoredTopMaximumY = (int) Math.floor(volume.bounds().maximumY());
         int expectedTopY = Math.min(
                 support.maximumY() + providerSurfaceY - 63,
-                (int) Math.floor(volume.bounds().maximumY()));
+                authoredTopMaximumY + 32);
+        assertEquals(
+                support.maximumY() + providerSurfaceY - 63,
+                expectedTopY,
+                "the bounded provider cap allowance should retain the full 17-block rise");
+        assertTrue(expectedTopY > authoredTopMaximumY);
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(8, expectedTopY, 8));
