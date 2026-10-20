@@ -9342,6 +9342,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
         check(treatment.getProperty("profile") == "tectonic"
                 && treatment.getProperty("tectonicModLoaded") == "true"
                 && treatment.getProperty("tectonicPackSelected") == "true"
+                && treatment.getProperty("tectonicVerticalScale") == "2.25"
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
