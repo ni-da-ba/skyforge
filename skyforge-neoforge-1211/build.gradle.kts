@@ -9215,6 +9215,8 @@ tasks.register("f4kHydrologyReviewPrepareVerify") {
 
 val sfImp0054TectonicVerticalScale = 6.0
 val sfImp0054TectonicElevationBoost = 2.0
+val sfImp0054TectonicErosionScale = 0.1
+val sfImp0054TectonicElevationBoost = 2.0
 val sfImp0054TectonicConfig = """
     {
       "minor_version": 1,
@@ -9223,6 +9225,7 @@ val sfImp0054TectonicConfig = """
         "snow_start_offset": 128
       },
       "continents": {
+        "erosion_scale": $sfImp0054TectonicErosionScale,
         "ocean_offset": -0.1
       },
       "global_terrain": {
@@ -9349,6 +9352,7 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
                 && treatment.getProperty("tectonicPackSelected") == "true"
                 && treatment.getProperty("tectonicVerticalScale") == sfImp0054TectonicVerticalScale.toString()
                 && treatment.getProperty("tectonicElevationBoost") == sfImp0054TectonicElevationBoost.toString()
+                && treatment.getProperty("tectonicErosionScale") == sfImp0054TectonicErosionScale.toString()
                 && treatment.getProperty("exteriorNonAirBlocks") == "0"
                 && treatment.getProperty("islandUndersideSolidSamples").toInt() > 0
                 && treatment.getProperty("providerSurfaceRuleMaterial").isNotBlank()
