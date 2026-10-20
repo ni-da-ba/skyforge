@@ -23,14 +23,17 @@ final class MinecraftNativeSurfaceSnapshot {
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
 
     private final ChunkPos chunkPos;
+    private final int baselineY;
     private final int[] worldYs;
     private final ResourceLocation[] blockKeys;
 
     private MinecraftNativeSurfaceSnapshot(
             ChunkPos chunkPos,
+            int baselineY,
             int[] worldYs,
             ResourceLocation[] blockKeys) {
         this.chunkPos = Objects.requireNonNull(chunkPos, "chunkPos");
+        this.baselineY = baselineY;
         if (worldYs.length != SAMPLE_COUNT || blockKeys.length != SAMPLE_COUNT) {
             throw new IllegalArgumentException("native surface snapshot must contain exactly 256 columns");
         }
@@ -39,6 +42,10 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk) {
+        return capture(chunk, 63);
+    }
+
+    static MinecraftNativeSurfaceSnapshot capture(ChunkAccess chunk, int baselineY) {
         Objects.requireNonNull(chunk, "chunk");
         int[] worldYs = new int[SAMPLE_COUNT];
         Arrays.fill(worldYs, Integer.MIN_VALUE);
@@ -66,11 +73,15 @@ final class MinecraftNativeSurfaceSnapshot {
                 }
             }
         }
-        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), worldYs, blockKeys);
+        return new MinecraftNativeSurfaceSnapshot(chunk.getPos(), baselineY, worldYs, blockKeys);
     }
 
     ChunkPos chunkPos() {
         return chunkPos;
+    }
+
+    int baselineY() {
+        return baselineY;
     }
 
     Optional<NativeSurface> surface(int localX, int localZ) {

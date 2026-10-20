@@ -24,6 +24,7 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
 
     private final Map<Key, Progress> progressByObligation = new HashMap<>();
     private final Map<Key, MinecraftChunkMaterialization> activeMaterializationByObligation = new HashMap<>();
+    private final Map<Key, Map<Long, SkyIslandWorldVolumeId>> activeProviderClaimsByObligation = new HashMap<>();
     private ActivePreparation activePreparation;
 
     static SkyforgeDeferredTerrainWriteProgressData get(ServerLevel level) {
@@ -41,6 +42,13 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
             long chunkKey) {
         Objects.requireNonNull(volumeId, "volumeId");
         return Optional.ofNullable(activeMaterializationByObligation.get(new Key(volumeId, chunkKey)));
+    }
+
+    Map<Long, SkyIslandWorldVolumeId> cachedProviderWriteClaims(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey) {
+        Objects.requireNonNull(volumeId, "volumeId");
+        return activeProviderClaimsByObligation.getOrDefault(new Key(volumeId, chunkKey), Map.of());
     }
 
     SkyforgeDeferredExactMaterializationPreparation getOrCreatePreparation(
@@ -83,8 +91,18 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
             SkyIslandWorldVolumeId volumeId,
             long chunkKey,
             MinecraftChunkMaterialization materialization) {
+        cacheMaterialization(volumeId, chunkKey, materialization, Map.of());
+    }
+
+    void cacheMaterialization(
+            SkyIslandWorldVolumeId volumeId,
+            long chunkKey,
+            MinecraftChunkMaterialization materialization,
+            Map<Long, SkyIslandWorldVolumeId> providerWriteClaims) {
         Objects.requireNonNull(volumeId, "volumeId");
         Objects.requireNonNull(materialization, "materialization");
+        Map<Long, SkyIslandWorldVolumeId> claims = Map.copyOf(
+                Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         if (materialization.chunkPos().toLong() != chunkKey) {
             throw new IllegalArgumentException("cached deferred materialization differs from obligation chunk");
         }
@@ -93,12 +111,19 @@ final class SkyforgeDeferredTerrainWriteProgressData extends SavedData {
         if (previous != null && previous != materialization) {
             throw new IllegalStateException("deferred obligation already has a different active materialization");
         }
+        Map<Long, SkyIslandWorldVolumeId> previousClaims =
+                activeProviderClaimsByObligation.putIfAbsent(key, claims);
+        if (previousClaims != null && !previousClaims.equals(claims)) {
+            throw new IllegalStateException("deferred obligation already has different provider write claims");
+        }
         discardCachedPreparation(volumeId, chunkKey);
     }
 
     void discardCachedMaterialization(SkyIslandWorldVolumeId volumeId, long chunkKey) {
         Objects.requireNonNull(volumeId, "volumeId");
-        activeMaterializationByObligation.remove(new Key(volumeId, chunkKey));
+        Key key = new Key(volumeId, chunkKey);
+        activeMaterializationByObligation.remove(key);
+        activeProviderClaimsByObligation.remove(key);
     }
 
     Progress getOrCreate(
