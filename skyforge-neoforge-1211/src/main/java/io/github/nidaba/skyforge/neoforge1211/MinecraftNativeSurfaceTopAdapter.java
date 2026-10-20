@@ -118,27 +118,16 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                if (stableWhenAdapted(nativeBlockKey)) {
+                if (stableTerrainProfileMaterial(
+                        blockKeys, targetLocalY, localX, localZ, nativeBlockKey)) {
                     blockKeys[targetIndex] = nativeBlockKey;
                 }
             }
         }
 
-        for (int localZ = 0; localZ < CHUNK_WIDTH; localZ++) {
-            for (int localX = 0; localX < CHUNK_WIDTH; localX++) {
-                var nativeSurface = snapshot.surface(localX, localZ);
-                if (nativeSurface.isPresent()) {
-                    adaptExposedTops(
-                            blockKeys,
-                            materialization.minimumY(),
-                            materialization.height(),
-                            localX,
-                            localZ,
-                            nativeSurface.orElseThrow());
-                }
-            }
-        }
-
+        // The profile loop above already projects the native surface onto each column's
+        // selected cap. Reapplying provider material to every exposed Skyforge segment here
+        // can put gravity blocks on unsupported ledges above or beside the projected cap.
         MinecraftChunkMaterialization adapted = new MinecraftChunkMaterialization(
                 materialization.chunkPos(),
                 materialization.minimumY(),
@@ -185,6 +174,24 @@ public final class MinecraftNativeSurfaceTopAdapter {
             providerWriteClaims = Map.copyOf(
                     Objects.requireNonNull(providerWriteClaims, "providerWriteClaims"));
         }
+    }
+
+    /**
+     * Keeps gravity-affected provider materials only where the adapted top has a solid support
+     * block directly beneath it. Unsupported fringe remains Skyforge structural material.
+     */
+    private static boolean stableTerrainProfileMaterial(
+            ResourceLocation[] blockKeys,
+            int localY,
+            int localX,
+            int localZ,
+            ResourceLocation nativeBlockKey) {
+        if (!(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock)) {
+            return true;
+        }
+        return localY > 0
+                && !SkyforgeMinecraftBlockPalette.AIR.equals(
+                        blockKeys[linearIndex(localX, localY - 1, localZ)]);
     }
 
     /** Returns a materialization whose exposed Skyforge tops inherit the captured native surface. */
