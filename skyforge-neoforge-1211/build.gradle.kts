@@ -9306,6 +9306,9 @@ tasks.register("sfImp0054TectonicTerrainAcceptance") {
             treatment.getProperty("providerSurfaceRuleMaterialAdaptation")
         ) {
             "inherited" -> treatmentSurfaceMaterialColumns > 0
+            "supported_falling_material" ->
+                treatmentSurfaceMaterialColumns > 0
+                    && treatment.getProperty("providerSurfaceRuleMaterialUnsupportedColumns").toInt() == 0
             "skipped_falling_material" -> treatmentSurfaceMaterialColumns == 0
             else -> false
         }
