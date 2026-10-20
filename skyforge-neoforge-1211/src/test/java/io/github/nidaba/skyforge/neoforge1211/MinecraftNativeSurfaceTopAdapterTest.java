@@ -75,7 +75,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 support.maximumY() + providerSurfaceY - 63,
                 expectedTopY,
                 "the bounded provider cap allowance should retain the full 17-block rise");
-        assertTrue(expectedTopY > authoredTopMaximumY);
+        assertTrue(expectedTopY > support.maximumY(), "provider relief should raise the selected support column");
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
                 profile.materialization().blockKeyAt(8, expectedTopY, 8));
