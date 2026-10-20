@@ -168,6 +168,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             String providerSurfaceRuleMaterial = "not-recomputed-on-reopen";
             String providerSurfaceRuleMaterialAdaptation = "not-recomputed-on-reopen";
             int providerSurfaceRuleMaterialColumns = 0;
+            int providerSurfaceRuleMaterialUnsupportedColumns = 0;
             if (!reopening) {
                 MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
                         SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
@@ -182,10 +183,16 @@ final class SkyforgeTectonicTerrainAcceptance {
                         instanceof FallingBlock;
                 providerSurfaceRuleMaterialColumns = countMatchingProviderSurfaceTop(
                         islandChunk, providerSurfaceSnapshot, generatedSurfaceMaterial);
-                if (fallingProviderMaterial && providerSurfaceRuleMaterialColumns != 0) {
-                    fail(server, "falling provider surface material reached island tops: "
-                            + generatedSurfaceMaterial + " columns=" + providerSurfaceRuleMaterialColumns);
-                    return;
+                if (fallingProviderMaterial) {
+                    providerSurfaceRuleMaterialUnsupportedColumns = countUnsupportedFallingProviderSurfaceTop(
+                            level, islandChunk, providerSurfaceSnapshot, generatedSurfaceMaterial);
+                    if (providerSurfaceRuleMaterialUnsupportedColumns != 0) {
+                        fail(server, "falling provider surface material reached unsupported island tops: "
+                                + generatedSurfaceMaterial
+                                + " columns=" + providerSurfaceRuleMaterialColumns
+                                + " unsupported=" + providerSurfaceRuleMaterialUnsupportedColumns);
+                        return;
+                    }
                 }
                 if (!fallingProviderMaterial && providerSurfaceRuleMaterialColumns == 0) {
                     fail(server, "provider surface-rule material did not reach any admitted island top: "
@@ -194,7 +201,9 @@ final class SkyforgeTectonicTerrainAcceptance {
                 }
                 providerSurfaceRuleMaterial = generatedSurfaceMaterial.toString();
                 providerSurfaceRuleMaterialAdaptation = fallingProviderMaterial
-                        ? "skipped_falling_material"
+                        ? (providerSurfaceRuleMaterialColumns == 0
+                                ? "skipped_falling_material"
+                                : "supported_falling_material")
                         : "inherited";
             }
 
@@ -284,6 +293,9 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
             evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
             evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
+            evidence.put(
+                    "providerSurfaceRuleMaterialUnsupportedColumns",
+                    providerSurfaceRuleMaterialUnsupportedColumns);
             evidence.put("reopenPass", reopening);
             evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);
             evidence.put("persistedPostGenerationMutationColumns", persistedMutationColumns);
@@ -437,6 +449,49 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
         }
         return matches;
+    }
+
+    private static int countUnsupportedFallingProviderSurfaceTop(
+            ServerLevel level,
+            ChunkAccess chunk,
+            MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot,
+            net.minecraft.resources.ResourceLocation expected) {
+        int unsupported = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            int worldZ = chunkPos.getMinBlockZ() + localZ;
+            for (int localX = 0; localX < 16; localX++) {
+                if (!providerSurfaceSnapshot.hasSurfaceMaterial(localX, localZ, expected)) {
+                    continue;
+                }
+                int worldX = chunkPos.getMinBlockX() + localX;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockPos topPos = cursor.set(worldX, worldY, worldZ);
+                    BlockState state = chunk.getBlockState(topPos);
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (expected.equals(BuiltInRegistries.BLOCK.getKey(state.getBlock()))) {
+                        if (worldY <= chunk.getMinBuildHeight()) {
+                            unsupported++;
+                        } else {
+                            BlockPos supportPos = topPos.below();
+                            BlockState support = chunk.getBlockState(supportPos);
+                            if (support.getBlock() instanceof FallingBlock
+                                    || !support.isFaceSturdy(
+                                            level, supportPos, net.minecraft.core.Direction.UP)) {
+                                unsupported++;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+        return unsupported;
     }
 
     private static int countTopMaterial(ChunkAccess chunk, BlockState expected) {
