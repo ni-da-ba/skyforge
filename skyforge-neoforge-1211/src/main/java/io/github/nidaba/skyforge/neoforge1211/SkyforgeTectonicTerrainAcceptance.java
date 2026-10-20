@@ -196,6 +196,7 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
+            String providerTerrainDatumY = "not-recomputed-on-reopen";
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
             if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
                 fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
@@ -220,7 +221,6 @@ final class SkyforgeTectonicTerrainAcceptance {
             String providerSurfaceRuleMaterialAdaptation = "not-recomputed-on-reopen";
             int providerSurfaceRuleMaterialColumns = 0;
             int providerSurfaceRuleMaterialUnsupportedColumns = 0;
-            String providerTerrainDatumY = "not-recomputed-on-reopen";
             if (!reopening) {
                 MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
                         SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
