@@ -41,7 +41,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
-    private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 0.75;
+    private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
