@@ -131,8 +131,9 @@ final class MinecraftNativeSurfaceTopAdapterTest {
             capBottomY--;
         }
         assertEquals(
-                SkyforgeMinecraftBlockPalette.STONE,
-                unsupported.materialization().blockKeyAt(8, capBottomY, 8));
+                original.blockKeyAt(8, capBottomY, 8),
+                unsupported.materialization().blockKeyAt(8, capBottomY, 8),
+                "unsupported provider gravel must leave the authored Skyforge cap material intact");
         assertTrue(SkyforgeMinecraftBlockPalette.AIR.equals(
                 unsupported.materialization().blockKeyAt(8, capBottomY - 1, 8)));
     }
