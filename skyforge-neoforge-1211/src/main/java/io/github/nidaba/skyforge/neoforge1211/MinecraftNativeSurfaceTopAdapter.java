@@ -19,7 +19,6 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
-    private static final int PROVIDER_RELIEF_GAIN = 2;
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -38,10 +37,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
      * <p>The provider's surface height is interpreted relative to its captured baseline (normally
-     * sea level), amplified to make its local relief readable on the floating cap, then added to
-     * the existing Skyforge surface. The result is clamped to the exact top volume's authored
-     * envelope. Only newly added positions receive provider claims; the compiled island footprint,
-     * lower body, and underside stay authoritative.
+     * sea level), then transferred at full strength onto the existing Skyforge surface. The result
+     * is clamped to the exact top volume's authored envelope. Only newly added positions receive
+     * provider claims; the compiled island footprint, lower body, and underside stay authoritative.
      */
     TerrainProfileAdaptation adaptTerrainProfile(
             MinecraftNativeSurfaceSnapshot snapshot,
@@ -97,12 +95,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. A twofold gain makes broad provider relief
-                // legible on the authored cap; the exact Skyforge top envelope remains the
-                // hard limit, and the authored island footprint/body/underside are untouched.
+                // an absolute elevation datum. Transfer its configured relief at full strength;
+                // the exact Skyforge top envelope remains the hard limit, and the authored
+                // island footprint/body/underside are untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
-                long desiredY = (long) originalTopY
-                        + Math.multiplyExact(providerRelief, PROVIDER_RELIEF_GAIN);
+                long desiredY = (long) originalTopY + providerRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
