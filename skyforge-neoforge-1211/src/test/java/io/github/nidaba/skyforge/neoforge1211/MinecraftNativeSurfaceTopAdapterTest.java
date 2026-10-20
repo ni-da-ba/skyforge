@@ -68,7 +68,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 adapter);
 
         int expectedTopY = Math.min(
-                support.maximumY() + (int) Math.round((providerSurfaceY - 63) * 0.5d),
+                support.maximumY() + providerSurfaceY - 63,
                 (int) Math.floor(volume.bounds().maximumY()));
         assertEquals(
                 ResourceLocation.withDefaultNamespace("grass_block"),
@@ -84,7 +84,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void fallingTerrainProfileMaterialIsSkippedOnSupportedCapsAndUnsupportedFringe() {
+    void fallingTerrainProfileMaterialUsesDirectStableSupportAndSkipsUnsupportedFringe() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
         ChunkPos chunkPos = new ChunkPos(0, 0);
@@ -101,17 +101,14 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
         ResourceLocation gravel = ResourceLocation.withDefaultNamespace("gravel");
 
-        // Even a locally supported provider gravel surface is excluded from floating
-        // island caps because neighboring chunk realization can expose a hollow seam.
-        int supportedSurfaceY = 63;
-        chunk.setBlockState(new BlockPos(8, supportedSurfaceY, 8), Blocks.GRAVEL.defaultBlockState(), false);
+        // A provider gravel cap is safe when the material immediately below it is
+        // stable Skyforge structure.
+        chunk.setBlockState(new BlockPos(8, 63, 8), Blocks.GRAVEL.defaultBlockState(), false);
         var supported = new MinecraftNativeSurfaceTopAdapter().adaptTerrainProfile(
                 MinecraftNativeSurfaceSnapshot.capture(chunk, 63),
                 original,
                 adapter);
-        assertEquals(
-                SkyforgeMinecraftBlockPalette.STONE,
-                supported.materialization().blockKeyAt(8, support.maximumY(), 8));
+        assertEquals(gravel, supported.materialization().blockKeyAt(8, support.maximumY(), 8));
         assertFalse(SkyforgeMinecraftBlockPalette.AIR.equals(
                 supported.materialization().blockKeyAt(8, support.maximumY() - 1, 8)));
 
@@ -139,7 +136,6 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         assertTrue(SkyforgeMinecraftBlockPalette.AIR.equals(
                 unsupported.materialization().blockKeyAt(8, capBottomY - 1, 8)));
     }
-
     @Test
     void fallingNativeSurfaceIsSkippedEvenWhenTheSkyforgeTopHasSupport() {
         ProtoChunk chunk = MinecraftTestChunkFactory.protoChunk(new ChunkPos(0, 0));

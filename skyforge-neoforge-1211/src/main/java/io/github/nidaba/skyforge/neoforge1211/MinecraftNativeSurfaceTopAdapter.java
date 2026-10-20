@@ -95,11 +95,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. Keep the authored island's mean height and
-                // transfer half of the provider's relief so small-scale native peaks do not
-                // overwhelm or clip the exact Skyforge top envelope.
+                // an absolute elevation datum. Keep the authored island's mean height while
+                // transferring the provider's full relief; the exact Skyforge top envelope
+                // remains the hard limit.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
-                long desiredY = (long) originalTopY + Math.round(providerRelief * 0.5d);
+                long desiredY = (long) originalTopY + providerRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
@@ -121,7 +121,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                if (stableTerrainProfileMaterial(nativeBlockKey)) {
+                ResourceLocation supportBlockKey = targetLocalY > 0
+                        ? blockKeys[linearIndex(localX, targetLocalY - 1, localZ)]
+                        : SkyforgeMinecraftBlockPalette.AIR;
+                if (stableTerrainProfileMaterial(nativeBlockKey, supportBlockKey)) {
                     blockKeys[targetIndex] = nativeBlockKey;
                 }
             }
@@ -179,14 +182,19 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Excludes gravity-affected provider materials from floating island caps. Skyforge's
-     * structural surface remains at those columns to avoid seam-sensitive falling blocks.
+     * Admits gravity-affected provider materials only where the projected cap has direct,
+     * non-gravity structural support. Unsupported seam edges retain Skyforge's stable material.
      */
-    private static boolean stableTerrainProfileMaterial(ResourceLocation nativeBlockKey) {
-        // Falling blocks can look locally supported while still breaking across an
-        // island's hollow seams as neighboring columns/chunks are realized. Preserve the
-        // stable Skyforge cap material for these provider surfaces.
-        return !(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock);
+    private static boolean stableTerrainProfileMaterial(
+            ResourceLocation nativeBlockKey,
+            ResourceLocation supportBlockKey) {
+        if (!(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock)) {
+            return true;
+        }
+        if (SkyforgeMinecraftBlockPalette.AIR.equals(supportBlockKey)) {
+            return false;
+        }
+        return !(BuiltInRegistries.BLOCK.get(supportBlockKey) instanceof FallingBlock);
     }
 
     /** Returns a materialization whose exposed Skyforge tops inherit the captured native surface. */
