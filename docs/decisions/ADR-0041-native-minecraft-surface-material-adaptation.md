@@ -20,8 +20,9 @@ For each `(x, z)` column:
 2. ignore air and fluid blocks;
 3. record the first remaining block as that column's native surface-top material;
 4. inspect the accepted Skyforge materialization for exposed solid tops, defined as a Skyforge solid with Skyforge AIR immediately above it;
-5. when an exposed Skyforge top is above the native surface, replace only that top block key with the sampled native surface block key;
-6. leave all other Skyforge materialization entries unchanged;
+5. when an exposed Skyforge top is above the native surface, inherit the sampled material only if it is not a gravity-affected `FallingBlock`;
+6. retain Skyforge's stable structural top when the sampled native material is gravity-affected;
+7. leave all other Skyforge materialization entries unchanged;
 7. perform the existing additive solid overlay into the real Minecraft chunk.
 
 Conceptually:
@@ -52,7 +53,7 @@ This is intentionally a representation adapter, not a new environmental simulati
 
 ## Why only the exposed top block
 
-SF-IMP-0037 is the smallest useful proof. Replacing the exposed top gives Minecraft-native visual/environmental continuity while preserving accepted structural palette choices for the rest of the island.
+SF-IMP-0037 is the smallest useful proof. Replacing eligible exposed tops gives Minecraft-native visual/environmental continuity while preserving accepted structural palette choices for the rest of the island. Falling surface materials are excluded: owner review of the Tectonic treatment showed the gravel cap falling into a hollow seam, and local per-column support does not guarantee stability across a detached island edge.
 
 Copying an arbitrary depth of native filler material would require a separate policy for mantle thickness, falling blocks, shore/ocean columns and vertically varying biome context. Those concerns should be justified by observed results rather than folded into the first adapter.
 
@@ -82,9 +83,10 @@ A distinct native-surface-adapted binding opts into this representation behavior
 4. The adapter never changes Skyforge AIR into a solid block.
 5. The adapter never removes a Skyforge solid.
 6. Native fluid blocks are not copied as Skyforge surface solids.
-7. Native terrain at or above a Skyforge top prevents that top from being treated as a floating exposed surface.
-8. No planner/group/archipelago work enters the per-chunk hot path.
-9. The development world preset remains development-only and excluded from the production JAR.
+7. Gravity-affected native surface blocks are not copied onto Skyforge tops.
+8. Native terrain at or above a Skyforge top prevents that top from being treated as a floating exposed surface.
+9. No planner/group/archipelago work enters the per-chunk hot path.
+10. The development world preset remains development-only and excluded from the production JAR.
 
 ## Explicit limitations
 
@@ -94,6 +96,7 @@ SF-IMP-0037 does **not** claim that:
 - the sampled ground-level surface always represents a vertically different high-altitude biome perfectly;
 - native subsurface/filler depth has been reproduced;
 - beaches, ocean floors, snow layers, powder snow, fluids or shore transitions are production-tuned;
+- falling-block surface materials are inherited by floating island tops;
 - structure placement is Skyforge-aware;
 - every modded surface system is automatically compatible;
 - the current Massif morphology is final.

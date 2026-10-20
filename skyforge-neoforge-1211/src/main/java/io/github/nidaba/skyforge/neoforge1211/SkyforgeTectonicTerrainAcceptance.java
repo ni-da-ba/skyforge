@@ -166,6 +166,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
             boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
             String providerSurfaceRuleMaterial = "not-recomputed-on-reopen";
+            String providerSurfaceRuleMaterialAdaptation = "not-recomputed-on-reopen";
             int providerSurfaceRuleMaterialColumns = 0;
             if (!reopening) {
                 MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
@@ -177,14 +178,24 @@ final class SkyforgeTectonicTerrainAcceptance {
                     fail(server, "selected provider produced no non-fluid surface material");
                     return;
                 }
+                boolean fallingProviderMaterial = BuiltInRegistries.BLOCK.get(generatedSurfaceMaterial)
+                        instanceof FallingBlock;
                 providerSurfaceRuleMaterialColumns = countMatchingProviderSurfaceTop(
                         islandChunk, providerSurfaceSnapshot, generatedSurfaceMaterial);
-                if (providerSurfaceRuleMaterialColumns == 0) {
+                if (fallingProviderMaterial && providerSurfaceRuleMaterialColumns != 0) {
+                    fail(server, "falling provider surface material reached island tops: "
+                            + generatedSurfaceMaterial + " columns=" + providerSurfaceRuleMaterialColumns);
+                    return;
+                }
+                if (!fallingProviderMaterial && providerSurfaceRuleMaterialColumns == 0) {
                     fail(server, "provider surface-rule material did not reach any admitted island top: "
                             + generatedSurfaceMaterial);
                     return;
                 }
                 providerSurfaceRuleMaterial = generatedSurfaceMaterial.toString();
+                providerSurfaceRuleMaterialAdaptation = fallingProviderMaterial
+                        ? "skipped_falling_material"
+                        : "inherited";
             }
 
             int interiorSolidSamples = 0;
@@ -271,6 +282,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
+            evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
             evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
             evidence.put("reopenPass", reopening);
             evidence.put("persistedProviderSurfaceColumns", persistedGrassColumns);

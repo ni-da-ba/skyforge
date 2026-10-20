@@ -118,7 +118,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                if (stableWhenAdapted(blockKeys, targetLocalY, localX, localZ, nativeBlockKey)) {
+                if (stableWhenAdapted(nativeBlockKey)) {
                     blockKeys[targetIndex] = nativeBlockKey;
                 }
             }
@@ -244,12 +244,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
             int worldY = minimumY + localY;
             if (nativeSurface.worldY() < worldY
-                    && stableWhenAdapted(
-                            blockKeys,
-                            localY,
-                            localX,
-                            localZ,
-                            nativeSurface.blockKey())) {
+                    && stableWhenAdapted(nativeSurface.blockKey())) {
                 blockKeys[index] = nativeSurface.blockKey();
             }
         }
@@ -258,27 +253,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
     /**
      * Prevents concrete native representation from invalidating authoritative Skyforge occupancy.
      *
-     * <p>A gravity-affected native surface block may be copied onto an elevated Skyforge top only
-     * when the Skyforge materialization already contains a solid immediately below it. Otherwise a
-     * one-voxel fringe can fall after realization and disappear before/after save, violating the
-     * accepted ADR-0041 invariant that surface adaptation never removes a Skyforge solid.
-     * Non-falling native materials remain eligible exactly as before.
+     * <p>Gravity-affected native surface blocks are never copied onto floating Skyforge tops.
+     * Even when a sampled column has a local support block, the provider material can form a
+     * detached edge beside a hollow seam and fall after neighboring columns are realized. Keeping
+     * Skyforge's stable structural top at those columns prevents the native surface adapter from
+     * destabilizing island occupancy. Non-falling native materials remain eligible.
      */
-    private static boolean stableWhenAdapted(
-            ResourceLocation[] blockKeys,
-            int localY,
-            int localX,
-            int localZ,
-            ResourceLocation nativeBlockKey) {
-        var nativeBlock = BuiltInRegistries.BLOCK.get(nativeBlockKey);
-        if (!(nativeBlock instanceof FallingBlock)) {
-            return true;
-        }
-        if (localY == 0) {
-            return false;
-        }
-        return !SkyforgeMinecraftBlockPalette.AIR.equals(
-                blockKeys[linearIndex(localX, localY - 1, localZ)]);
+    private static boolean stableWhenAdapted(ResourceLocation nativeBlockKey) {
+        return !(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock);
     }
 
     private static int linearIndex(int localX, int localY, int localZ) {
