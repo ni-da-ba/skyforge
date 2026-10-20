@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.Registries;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
+    private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
     private final ChunkPos chunkPos;
     private final int baselineY;
@@ -120,26 +122,51 @@ final class MinecraftNativeSurfaceSnapshot {
     }
 
     /**
-     * Uses one world-fixed provider elevation as the terrain datum. Sea level is not a useful
-     * zero for raised providers such as Tectonic: subtracting it shifts an island upward by the
-     * provider's entire regional mean elevation. A fixed origin sample preserves cross-chunk
-     * continuity while transferring terrain relief around Skyforge's authored island heights.
+     * Uses a cached, world-fixed median elevation from the provider's origin chunk as the terrain
+     * datum. Sea level is not a useful zero for raised providers such as Tectonic. A single
+     * origin column can also be an extreme, which would flatten relief in one direction; the
+     * median keeps the datum representative while preserving cross-chunk continuity.
      */
     private static int providerTerrainDatumY(
             NoiseBasedChunkGenerator generator,
             net.minecraft.world.level.LevelHeightAccessor level,
             RandomState randomState) {
-        NoiseColumn column = generator.getBaseColumn(0, 0, level, randomState);
-        for (int worldY = level.getMaxBuildHeight() - 1;
-                worldY >= level.getMinBuildHeight();
-                worldY--) {
-            BlockState state = column.getBlock(worldY);
-            if (!state.isAir() && state.getFluidState().isEmpty()) {
-                return worldY;
+        return PROVIDER_TERRAIN_DATUMS.computeIfAbsent(
+                new ProviderDatumKey(generator, randomState),
+                ignored -> calculateProviderTerrainDatumY(generator, level, randomState));
+    }
+
+    private static int calculateProviderTerrainDatumY(
+            NoiseBasedChunkGenerator generator,
+            net.minecraft.world.level.LevelHeightAccessor level,
+            RandomState randomState) {
+        int[] surfaceYs = new int[SAMPLE_COUNT];
+        int samples = 0;
+        for (int worldZ = 0; worldZ < CHUNK_WIDTH; worldZ++) {
+            for (int worldX = 0; worldX < CHUNK_WIDTH; worldX++) {
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
+                for (int worldY = level.getMaxBuildHeight() - 1;
+                        worldY >= level.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = column.getBlock(worldY);
+                    if (!state.isAir() && state.getFluidState().isEmpty()) {
+                        surfaceYs[samples++] = worldY;
+                        break;
+                    }
+                }
             }
         }
-        return generator.getSeaLevel();
+        if (samples == 0) {
+            return generator.getSeaLevel();
+        }
+        Arrays.sort(surfaceYs, 0, samples);
+        int middle = samples / 2;
+        return samples % 2 == 0
+                ? (int) Math.floorDiv((long) surfaceYs[middle - 1] + surfaceYs[middle], 2L)
+                : surfaceYs[middle];
     }
+
+    private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}
 
     /**
      * A detached ProtoChunk retains worldgen postprocessing marks without exposing provider

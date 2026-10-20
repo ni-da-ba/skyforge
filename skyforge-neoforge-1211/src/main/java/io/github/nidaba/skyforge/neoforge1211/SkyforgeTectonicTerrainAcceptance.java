@@ -44,6 +44,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
+    private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 4;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
@@ -182,6 +183,13 @@ final class SkyforgeTectonicTerrainAcceptance {
             ProfileEvidence realizedSurface = captureRealizedIslandSurface(islandChunk);
             if (realizedSurface.samples() == 0) {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
+                return;
+            }
+            int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
+            if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
+                fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
+                        + realizedIslandRelief + " blocks (minimum "
+                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + ")");
                 return;
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
