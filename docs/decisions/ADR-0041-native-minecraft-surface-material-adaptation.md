@@ -131,3 +131,7 @@ In the real ModDev client, the Massif remained geometrically intact and persiste
 ## SF-IMP-0054 provider height-profile experiment — in progress
 
 The separate provider-profile path may shape the exposed Skyforge cap while preserving its horizontal footprint and the authored lower body/underside. To prevent positive provider relief from being flattened at the original cap ceiling, this development experiment permits up to 32 blocks of additional height above the authored top-volume bound, constrained by Minecraft's build range. Added cells receive claims for the same exact Skyforge volume. This is experimental Implementation evidence and is not a production morphology or world-scale policy; acceptance requires exact-head A/B evidence and owner visual review.
+
+## Tectonic visible-relief datum follow-up — in progress
+
+The owner found consecutive Tectonic treatments visually too similar. Evidence from the pinned profile showed the origin-chunk median datum leaving the provider surface at or below the authored island cap, so the adapter mostly carved relief downward. The isolated experiment now uses the lower-quartile surface elevation from the provider origin chunk as its single world-fixed datum. This keeps cross-chunk continuity while allowing the upper part of the provider profile to rise above the authored cap; the existing 32-block rise ceiling, exact-volume claims, stable support rule, footprint, body, and underside remain unchanged. This is a tuning hypothesis pending exact-head A/B machine evidence and owner visual review.
