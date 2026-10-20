@@ -121,8 +121,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                if (stableTerrainProfileMaterial(
-                        blockKeys, targetLocalY, localX, localZ, nativeBlockKey)) {
+                if (stableTerrainProfileMaterial(nativeBlockKey)) {
                     blockKeys[targetIndex] = nativeBlockKey;
                 }
             }
@@ -183,12 +182,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
      * Excludes gravity-affected provider materials from floating island caps. Skyforge's
      * structural surface remains at those columns to avoid seam-sensitive falling blocks.
      */
-    private static boolean stableTerrainProfileMaterial(
-            ResourceLocation[] blockKeys,
-            int localY,
-            int localX,
-            int localZ,
-            ResourceLocation nativeBlockKey) {
+    private static boolean stableTerrainProfileMaterial(ResourceLocation nativeBlockKey) {
         // Falling blocks can look locally supported while still breaking across an
         // island's hollow seams as neighboring columns/chunks are realized. Preserve the
         // stable Skyforge cap material for these provider surfaces.
