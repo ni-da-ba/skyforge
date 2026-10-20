@@ -572,6 +572,8 @@ final class SkyforgeTectonicTerrainAcceptance {
         MessageDigest digest = newSha256();
         MessageDigest heightDigest = newSha256();
         int samples = 0;
+        int minimumY = Integer.MAX_VALUE;
+        int maximumY = Integer.MIN_VALUE;
         ChunkPos chunkPos = chunk.getPos();
         for (int localZ = 0; localZ < 16; localZ++) {
             int worldZ = chunkPos.getMinBlockZ() + localZ;
@@ -591,6 +593,8 @@ final class SkyforgeTectonicTerrainAcceptance {
                         heightDigest.update((worldX + "," + worldY + "," + worldZ + ":" + worldY + "\\n")
                                 .getBytes(StandardCharsets.UTF_8));
                         samples++;
+                        minimumY = Math.min(minimumY, worldY);
+                        maximumY = Math.max(maximumY, worldY);
                     }
                     break;
                 }
@@ -599,7 +603,9 @@ final class SkyforgeTectonicTerrainAcceptance {
         return new ProfileEvidence(
                 HexFormat.of().formatHex(digest.digest()),
                 HexFormat.of().formatHex(heightDigest.digest()),
-                samples);
+                samples,
+                minimumY,
+                maximumY);
     }
 
     private static int countNonAir(ChunkAccess chunk) {
