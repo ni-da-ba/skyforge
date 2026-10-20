@@ -206,12 +206,16 @@ final class SkyforgeTectonicTerrainAcceptance {
                     ? "not-recomputed-on-reopen"
                     : Integer.toString(providerSurfaceSnapshot.baselineY());
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
+            String capturedProviderSurfaceRange = providerSurfaceSnapshot == null
+                    ? "not-recomputed-on-reopen"
+                    : describeProviderSurfaceRange(providerSurfaceSnapshot);
             if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
                 fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
                         + realizedIslandRelief + " blocks (minimum "
-                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), provider source Y="
+                        + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), provider base-column source Y="
                         + profile.minimumY() + ".." + profile.maximumY() + " ("
-                        + (profile.maximumY() - profile.minimumY()) + " blocks), datum Y="
+                        + (profile.maximumY() - profile.minimumY()) + " blocks), captured provider surface="
+                        + capturedProviderSurfaceRange + ", datum Y="
                         + providerTerrainDatumY + ", realized island Y="
                         + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
@@ -482,6 +486,31 @@ final class SkyforgeTectonicTerrainAcceptance {
                 samples,
                 minimumY,
                 maximumY);
+    }
+
+    private static String describeProviderSurfaceRange(MinecraftNativeSurfaceSnapshot snapshot) {
+        int samples = 0;
+        int belowDatum = 0;
+        int minimumY = Integer.MAX_VALUE;
+        int maximumY = Integer.MIN_VALUE;
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                var surface = snapshot.surface(localX, localZ);
+                if (surface.isEmpty()) {
+                    continue;
+                }
+                int worldY = surface.orElseThrow().worldY();
+                samples++;
+                minimumY = Math.min(minimumY, worldY);
+                maximumY = Math.max(maximumY, worldY);
+                if (worldY <= snapshot.baselineY()) {
+                    belowDatum++;
+                }
+            }
+        }
+        return "Y=" + minimumY + ".." + maximumY
+                + ", samples=" + samples
+                + ", at-or-below-datum=" + belowDatum;
     }
 
     private static BlockPos findReviewSpawn(ChunkAccess chunk) {
