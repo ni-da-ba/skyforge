@@ -140,3 +140,8 @@ The owner found consecutive Tectonic treatments visually too similar. Evidence f
 ## Broad-window Tectonic datum and ridge acceptance — in progress
 
 Exact-head run [39511112544](https://github.com/ni-da-ba/skyforge/actions/runs/39511112544) passed its general terrain checks after switching to the origin-chunk lower quartile, but the realized Tectonic top still ended at Y=265, the same cap as the vanilla specimen. Relief alone had not made provider ridges visible above the authored cap. The next experiment samples a fixed 256-by-256-block window for its world-shared lower-quartile datum and requires the treatment's realized maximum top to reach Y=273. The existing exact-volume, footprint, underside, support, and 32-block extension rules remain in force. Visual acceptance remains pending.
+
+
+## Preserve the vanilla datum — in progress
+
+The first broad-window retry failed the vanilla control before Tectonic ran: the provider's sampled surface material did not reach any island top. This shows that the broad-window datum must not be applied indiscriminately to low-elevation providers. The current retry uses the origin-chunk lower quartile when that profile is within 32 blocks of provider sea level, and uses the fixed broad window only for substantially elevated terrain. The acceptance failure now includes datum/source/realized heights to make any remaining mismatch diagnosable.

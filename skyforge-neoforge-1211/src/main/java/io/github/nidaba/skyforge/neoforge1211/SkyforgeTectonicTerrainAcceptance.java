@@ -249,7 +249,10 @@ final class SkyforgeTectonicTerrainAcceptance {
                 }
                 if (!fallingProviderMaterial && providerSurfaceRuleMaterialColumns == 0) {
                     fail(server, "provider surface-rule material did not reach any admitted island top: "
-                            + generatedSurfaceMaterial);
+                            + generatedSurfaceMaterial
+                            + ", datum Y=" + providerTerrainDatumY
+                            + ", source Y=" + profile.minimumY() + ".." + profile.maximumY()
+                            + ", realized Y=" + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                     return;
                 }
                 providerSurfaceRuleMaterial = generatedSurfaceMaterial.toString();
@@ -344,7 +347,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "fixed_256_block_window_lower_quartile");
+            evidence.put("terrainProfileDatumSampling", "origin_or_elevated_fixed_256_window_lower_quartile");
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());

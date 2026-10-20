@@ -143,6 +143,34 @@ final class MinecraftNativeSurfaceSnapshot {
             NoiseBasedChunkGenerator generator,
             net.minecraft.world.level.LevelHeightAccessor level,
             RandomState randomState) {
+        int[] originChunkSurfaceYs = new int[SAMPLE_COUNT];
+        int originChunkSamples = 0;
+        for (int worldZ = 0; worldZ < CHUNK_WIDTH; worldZ++) {
+            for (int worldX = 0; worldX < CHUNK_WIDTH; worldX++) {
+                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
+                for (int worldY = level.getMaxBuildHeight() - 1;
+                        worldY >= level.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = column.getBlock(worldY);
+                    if (!state.isAir() && state.getFluidState().isEmpty()) {
+                        originChunkSurfaceYs[originChunkSamples++] = worldY;
+                        break;
+                    }
+                }
+            }
+        }
+        if (originChunkSamples == 0) {
+            return generator.getSeaLevel();
+        }
+        Arrays.sort(originChunkSurfaceYs, 0, originChunkSamples);
+        int originChunkLowerQuartile = originChunkSurfaceYs[(originChunkSamples - 1) / 4];
+        // Low-elevation providers such as vanilla already have a useful local datum near sea
+        // level. Raised providers can place the entire origin chunk on a plateau, so use a
+        // broader fixed sample window only when the local profile is substantially elevated.
+        if (originChunkLowerQuartile <= generator.getSeaLevel() + 32) {
+            return originChunkLowerQuartile;
+        }
+
         int[] surfaceYs = new int[TERRAIN_DATUM_GRID_WIDTH * TERRAIN_DATUM_GRID_WIDTH];
         int samples = 0;
         for (int sampleZ = 0; sampleZ < TERRAIN_DATUM_GRID_WIDTH; sampleZ++) {
@@ -162,9 +190,6 @@ final class MinecraftNativeSurfaceSnapshot {
                     }
                 }
             }
-        }
-        if (samples == 0) {
-            return generator.getSeaLevel();
         }
         Arrays.sort(surfaceYs, 0, samples);
         int lowerQuartile = (samples - 1) / 4;
