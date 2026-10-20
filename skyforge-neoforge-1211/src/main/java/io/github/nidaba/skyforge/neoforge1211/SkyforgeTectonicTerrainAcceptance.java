@@ -40,7 +40,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
-    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 4.5;
+    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 9.0;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static boolean complete;
@@ -306,9 +306,15 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());
+            evidence.put("terrainProfileMinimumSurfaceY", profile.minimumY());
+            evidence.put("terrainProfileMaximumSurfaceY", profile.maximumY());
+            evidence.put("terrainProfileReliefRangeBlocks", profile.maximumY() - profile.minimumY());
             evidence.put("realizedIslandSurfaceDigest", realizedSurface.digest());
             evidence.put("realizedIslandSurfaceHeightDigest", realizedSurface.heightDigest());
             evidence.put("realizedIslandSurfaceColumns", realizedSurface.samples());
+            evidence.put("realizedIslandSurfaceMinimumY", realizedSurface.minimumY());
+            evidence.put("realizedIslandSurfaceMaximumY", realizedSurface.maximumY());
+            evidence.put("realizedIslandSurfaceReliefRangeBlocks", realizedSurface.maximumY() - realizedSurface.minimumY());
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
             evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
             evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
@@ -357,6 +363,8 @@ final class SkyforgeTectonicTerrainAcceptance {
         MessageDigest digest = newSha256();
         MessageDigest heightDigest = newSha256();
         int samples = 0;
+        int minimumY = Integer.MAX_VALUE;
+        int maximumY = Integer.MIN_VALUE;
         ChunkPos chunkPos = chunk.getPos();
         for (int localZ = 0; localZ < 16; localZ++) {
             int worldZ = chunkPos.getMinBlockZ() + localZ;
@@ -377,6 +385,8 @@ final class SkyforgeTectonicTerrainAcceptance {
                         heightDigest.update((worldX + "," + worldY + "," + worldZ + ":" + worldY + "\n")
                                 .getBytes(StandardCharsets.UTF_8));
                         samples++;
+                        minimumY = Math.min(minimumY, worldY);
+                        maximumY = Math.max(maximumY, worldY);
                     }
                     break;
                 }
@@ -385,7 +395,9 @@ final class SkyforgeTectonicTerrainAcceptance {
         return new ProfileEvidence(
                 HexFormat.of().formatHex(digest.digest()),
                 HexFormat.of().formatHex(heightDigest.digest()),
-                samples);
+                samples,
+                minimumY,
+                maximumY);
     }
 
     private static BlockPos findReviewSpawn(ChunkAccess chunk) {
@@ -620,5 +632,6 @@ final class SkyforgeTectonicTerrainAcceptance {
         SkyforgeAutomatedAcceptanceHarness.fail(server, reason);
     }
 
-    private record ProfileEvidence(String digest, String heightDigest, int samples) {}
+    private record ProfileEvidence(
+            String digest, String heightDigest, int samples, int minimumY, int maximumY) {}
 }
