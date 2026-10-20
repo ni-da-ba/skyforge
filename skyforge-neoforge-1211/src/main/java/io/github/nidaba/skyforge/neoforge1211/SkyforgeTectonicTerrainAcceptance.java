@@ -40,11 +40,11 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
-    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 4.5;
+    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 9.0;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
-    private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 4;
+    private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 24;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
