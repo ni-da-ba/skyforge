@@ -19,7 +19,7 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
-    private static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 32;
+    static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 32;
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.

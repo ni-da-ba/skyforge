@@ -168,6 +168,22 @@ final class SkyforgePhysicalVolumeAdmissionStage {
     }
 
     /**
+     * A provider claim may authorize the adapter's bounded extension above the authored top-volume
+     * bound. The claim is emitted only for the exact island column selected by the adapter; this
+     * helper preserves the authored horizontal bounds and caps the vertical rise.
+     */
+    private static boolean withinProviderTerrainRiseEnvelope(
+            WorldBounds bounds, int worldX, int worldY, int worldZ) {
+        return worldX >= bounds.minimumX()
+                && worldX <= bounds.maximumX()
+                && worldZ >= bounds.minimumZ()
+                && worldZ <= bounds.maximumZ()
+                && worldY >= bounds.minimumY()
+                && worldY <= Math.floor(bounds.maximumY())
+                        + MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS;
+    }
+
+    /**
      * Fail-closed position gate used by the solid-overlay writer.
      *
      * <p>A PLANNED exact owner blocks the coordinate because its eventual physical presence is not
@@ -203,7 +219,10 @@ final class SkyforgePhysicalVolumeAdmissionStage {
                     : SkyforgeNeoForge1211SurfaceStage.integerSolidRange(ownerId, worldX, worldZ);
             if (owner == null
                     || !binding.ledger().admitted(ownerId)
-                    || !owner.bounds().contains(worldX, worldY, worldZ)
+                    || !(owner.bounds().contains(worldX, worldY, worldZ)
+                            || (providerOwner.isPresent()
+                                    && withinProviderTerrainRiseEnvelope(
+                                            owner.bounds(), worldX, worldY, worldZ)))
                     || support.isEmpty()
                     // Provider terrain may extend the island's top but must not alter its interior
                     // or underside, which remain exclusively Skyforge-authored.

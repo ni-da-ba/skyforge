@@ -149,3 +149,8 @@ The adaptive broad-window retry kept the vanilla control green but still left th
 ## Minimum-datum Tectonic follow-up — 2026-10-20
 
 The exact-head 5th-percentile experiment measured the datum at Y=292 against Tectonic source Y=271–300; realized island relief remained 21 blocks (Y=244–265), with no ridge above the authored cap. This confirms the source-height distribution is weighted toward its upper end and the 5th percentile remains too high. The next profile uses the minimum of the same fixed origin chunk as its datum, mapping the full sampled source relief upward. The existing 32-block cap-rise allowance limits outlier influence; the A/B still requires at least 24 blocks of realized relief and a ridge at Y≥273. Visual acceptance remains pending.
+
+
+## Provider-rise admission fix — in progress
+
+The minimum-datum A/B run measured datum Y=271 against source Y=271–300, but the realized cap remained flat at Y=265. The terrain adapter had emitted exact provider claims for added top cells, but physical admission still required every claimed cell to be inside the authored volume's vertical bounds; that contradicted the adapter's existing bounded 32-block top-rise allowance. Provider claims now authorize writes above the authored top only within the same island's horizontal bounds, above its existing solid support, and no more than 32 blocks above the authored Y maximum. Interior, underside, competing-volume, and unclaimed writes remain blocked. The next exact-head A/B must demonstrate the uplift; human visual acceptance remains pending.
