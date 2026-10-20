@@ -1,6 +1,11 @@
 package io.github.nidaba.skyforge.neoforge1211;
 
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
@@ -27,6 +32,7 @@ import net.minecraft.world.level.levelgen.RandomState;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModList;
 import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 /** Isolated dedicated-server A/B probe for Tectonic's active Overworld terrain profile. */
@@ -34,6 +40,7 @@ import net.neoforged.neoforge.event.tick.ServerTickEvent;
 final class SkyforgeTectonicTerrainAcceptance {
     static final String ENABLE_PROPERTY = "skyforge.dev.tectonicTerrain";
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
+    private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 2.25;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static boolean complete;
@@ -133,6 +140,15 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment && !tectonicPackSelected) {
                 fail(server, "Tectonic mod loaded but its bundled server data pack is not selected");
                 return;
+            }
+            String tectonicVerticalScale = "not-applicable";
+            if (treatment) {
+                tectonicVerticalScale = configuredTectonicVerticalScale();
+                if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)) {
+                    fail(server, "Tectonic treatment config differs from the pinned terrain profile: vertical_scale="
+                            + tectonicVerticalScale);
+                    return;
+                }
             }
 
             ChunkGenerator activeGenerator = level.getChunkSource().getGenerator();
@@ -285,6 +301,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("profile", treatment ? "tectonic" : "vanilla");
             evidence.put("tectonicModLoaded", tectonicLoaded);
             evidence.put("tectonicPackSelected", tectonicPackSelected);
+            evidence.put("tectonicVerticalScale", tectonicVerticalScale);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
@@ -317,6 +334,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                     server,
                     "Tectonic terrain acceptance failed: "
                             + failure.getClass().getSimpleName() + ": " + failure.getMessage());
+        }
+    }
+
+    private static String configuredTectonicVerticalScale() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject globalTerrain = config.getAsJsonObject("global_terrain");
+            return globalTerrain.get("vertical_scale").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic terrain configuration at "
+                    + configPath, failure);
         }
     }
 
