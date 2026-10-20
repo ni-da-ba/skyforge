@@ -196,14 +196,23 @@ final class SkyforgeTectonicTerrainAcceptance {
                 fail(server, "Skyforge island has no realized top-surface columns in the origin chunk");
                 return;
             }
-            String providerTerrainDatumY = "not-recomputed-on-reopen";
+            boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
+            MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot = reopening
+                    ? null
+                    : SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
+                            .orElseThrow(() -> new IllegalStateException(
+                                    "provider surface snapshot was not retained for the acceptance fixture"));
+            String providerTerrainDatumY = providerSurfaceSnapshot == null
+                    ? "not-recomputed-on-reopen"
+                    : Integer.toString(providerSurfaceSnapshot.baselineY());
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
             if (treatment && realizedIslandRelief < MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS) {
                 fail(server, "Tectonic provider profile did not create meaningful realized island relief: "
                         + realizedIslandRelief + " blocks (minimum "
                         + MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS + "), provider source Y="
                         + profile.minimumY() + ".." + profile.maximumY() + " ("
-                        + (profile.maximumY() - profile.minimumY()) + " blocks), realized island Y="
+                        + (profile.maximumY() - profile.minimumY()) + " blocks), datum Y="
+                        + providerTerrainDatumY + ", realized island Y="
                         + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
             }
@@ -216,17 +225,11 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
-            boolean reopening = Boolean.getBoolean(ENABLE_PROPERTY + ".reopen");
             String providerSurfaceRuleMaterial = "not-recomputed-on-reopen";
             String providerSurfaceRuleMaterialAdaptation = "not-recomputed-on-reopen";
             int providerSurfaceRuleMaterialColumns = 0;
             int providerSurfaceRuleMaterialUnsupportedColumns = 0;
             if (!reopening) {
-                MinecraftNativeSurfaceSnapshot providerSurfaceSnapshot =
-                        SkyforgeNativeSurfaceSnapshotStage.consumeAcceptanceSnapshot(islandChunk)
-                                .orElseThrow(() -> new IllegalStateException(
-                                        "provider surface snapshot was not retained for the acceptance fixture"));
-                providerTerrainDatumY = Integer.toString(providerSurfaceSnapshot.baselineY());
                 var generatedSurfaceMaterial = providerSurfaceSnapshot.mostCommonSurfaceMaterial();
                 if (generatedSurfaceMaterial == null) {
                     fail(server, "selected provider produced no non-fluid surface material");
@@ -347,7 +350,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "origin_or_elevated_fixed_256_window_lower_quartile");
+            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_5th_percentile");
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());

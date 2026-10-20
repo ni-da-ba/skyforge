@@ -33,8 +33,6 @@ import net.minecraft.world.level.levelgen.blending.Blender;
 final class MinecraftNativeSurfaceSnapshot {
     private static final int CHUNK_WIDTH = 16;
     private static final int SAMPLE_COUNT = CHUNK_WIDTH * CHUNK_WIDTH;
-    private static final int TERRAIN_DATUM_GRID_WIDTH = 16;
-    private static final int TERRAIN_DATUM_SAMPLE_SPACING = 16;
     private static final Map<ProviderDatumKey, Integer> PROVIDER_TERRAIN_DATUMS = new ConcurrentHashMap<>();
 
     private final ChunkPos chunkPos;
@@ -123,13 +121,7 @@ final class MinecraftNativeSurfaceSnapshot {
                 providerTerrainDatumY(generator, level, randomState));
     }
 
-    /**
-     * Uses a cached, world-fixed lower-quartile elevation sampled over a 256-by-256-block window
-     * around the origin as the terrain datum. Sea level is not a useful zero for raised providers
-     * such as Tectonic. Sampling only the origin chunk can place the datum on a small high plateau
-     * and leave the island relief below its authored cap; a fixed broad window makes the datum
-     * representative while preserving cross-chunk continuity.
-     */
+    /** Uses a cached, world-fixed low-percentile origin profile as the provider-relative datum. */
     private static int providerTerrainDatumY(
             NoiseBasedChunkGenerator generator,
             net.minecraft.world.level.LevelHeightAccessor level,
@@ -163,37 +155,11 @@ final class MinecraftNativeSurfaceSnapshot {
             return generator.getSeaLevel();
         }
         Arrays.sort(originChunkSurfaceYs, 0, originChunkSamples);
-        int originChunkLowerQuartile = originChunkSurfaceYs[(originChunkSamples - 1) / 4];
-        // Low-elevation providers such as vanilla already have a useful local datum near sea
-        // level. Raised providers can place the entire origin chunk on a plateau, so use a
-        // broader fixed sample window only when the local profile is substantially elevated.
-        if (originChunkLowerQuartile <= generator.getSeaLevel() + 32) {
-            return originChunkLowerQuartile;
-        }
-
-        int[] surfaceYs = new int[TERRAIN_DATUM_GRID_WIDTH * TERRAIN_DATUM_GRID_WIDTH];
-        int samples = 0;
-        for (int sampleZ = 0; sampleZ < TERRAIN_DATUM_GRID_WIDTH; sampleZ++) {
-            int worldZ = (sampleZ - TERRAIN_DATUM_GRID_WIDTH / 2)
-                    * TERRAIN_DATUM_SAMPLE_SPACING + TERRAIN_DATUM_SAMPLE_SPACING / 2;
-            for (int sampleX = 0; sampleX < TERRAIN_DATUM_GRID_WIDTH; sampleX++) {
-                int worldX = (sampleX - TERRAIN_DATUM_GRID_WIDTH / 2)
-                        * TERRAIN_DATUM_SAMPLE_SPACING + TERRAIN_DATUM_SAMPLE_SPACING / 2;
-                NoiseColumn column = generator.getBaseColumn(worldX, worldZ, level, randomState);
-                for (int worldY = level.getMaxBuildHeight() - 1;
-                        worldY >= level.getMinBuildHeight();
-                        worldY--) {
-                    BlockState state = column.getBlock(worldY);
-                    if (!state.isAir() && state.getFluidState().isEmpty()) {
-                        surfaceYs[samples++] = worldY;
-                        break;
-                    }
-                }
-            }
-        }
-        Arrays.sort(surfaceYs, 0, samples);
-        int lowerQuartile = (samples - 1) / 4;
-        return surfaceYs[lowerQuartile];
+        // Use a low percentile rather than a median/lower quartile: the datum is a zero
+        // elevation for relief transfer, so this guarantees most source columns have positive
+        // relief while anchoring every island chunk to the same world-fixed origin profile.
+        int lowPercentileIndex = Math.max(0, (originChunkSamples - 1) / 20);
+        return originChunkSurfaceYs[lowPercentileIndex];
     }
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}
