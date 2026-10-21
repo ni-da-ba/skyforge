@@ -211,6 +211,8 @@ final class SkyforgeTectonicTerrainAcceptance {
                     ? "not-recomputed-on-reopen"
                     : Integer.toString(providerSurfaceSnapshot.baselineY());
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
+            int realizedIslandColumnsAtOrAboveRidge = countSurfaceColumnsAtOrAbove(
+                    islandChunk, MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y);
             String capturedProviderSurfaceRange = providerSurfaceSnapshot == null
                     ? "not-recomputed-on-reopen"
                     : describeProviderSurfaceRange(providerSurfaceSnapshot);
@@ -373,6 +375,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("realizedIslandSurfaceMinimumY", realizedSurface.minimumY());
             evidence.put("realizedIslandSurfaceMaximumY", realizedSurface.maximumY());
             evidence.put("realizedIslandSurfaceReliefRangeBlocks", realizedSurface.maximumY() - realizedSurface.minimumY());
+            evidence.put("realizedIslandColumnsAtOrAboveRidge", realizedIslandColumnsAtOrAboveRidge);
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
             evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
             evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);
@@ -690,6 +693,31 @@ final class SkyforgeTectonicTerrainAcceptance {
                         continue;
                     }
                     if (expected.equals(state)) {
+                        matches++;
+                    }
+                    break;
+                }
+            }
+        }
+        return matches;
+    }
+
+    private static int countSurfaceColumnsAtOrAbove(ChunkAccess chunk, int minimumSurfaceY) {
+        int matches = 0;
+        ChunkPos chunkPos = chunk.getPos();
+        BlockPos.MutableBlockPos cursor = new BlockPos.MutableBlockPos();
+        for (int localZ = 0; localZ < 16; localZ++) {
+            for (int localX = 0; localX < 16; localX++) {
+                int worldX = chunkPos.getMinBlockX() + localX;
+                int worldZ = chunkPos.getMinBlockZ() + localZ;
+                for (int worldY = chunk.getMaxBuildHeight() - 1;
+                        worldY >= chunk.getMinBuildHeight();
+                        worldY--) {
+                    BlockState state = chunk.getBlockState(cursor.set(worldX, worldY, worldZ));
+                    if (state.isAir() || !state.getFluidState().isEmpty()) {
+                        continue;
+                    }
+                    if (worldY >= minimumSurfaceY) {
                         matches++;
                     }
                     break;
