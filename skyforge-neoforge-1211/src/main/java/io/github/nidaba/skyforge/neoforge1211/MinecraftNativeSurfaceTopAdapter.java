@@ -19,7 +19,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
  */
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
-    static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 32;
+    static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
+    static final int PROVIDER_RELIEF_SCALE = 2;
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -104,7 +105,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 // volume so positive provider relief is not flattened at its original ceiling;
                 // Skyforge footprint, body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
-                long desiredY = (long) originalTopY + providerRelief;
+                long desiredY = (long) originalTopY + PROVIDER_RELIEF_SCALE * providerRelief;
                 int targetTopY = (int) Math.max(
                         (long) minimumAllowedY,
                         Math.min((long) maximumAllowedY, desiredY));
