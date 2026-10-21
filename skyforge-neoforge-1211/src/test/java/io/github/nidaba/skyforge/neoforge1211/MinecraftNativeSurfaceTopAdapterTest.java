@@ -43,8 +43,8 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     @Test
     void providerReliefCurveKeepsLowlandsNearTheCapAndConcentratesHighRelief() {
         assertEquals(10, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(17));
-        assertEquals(48, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(29));
-        assertEquals(-48, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-29));
+        assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(29));
+        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-29));
         assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(100));
     }
 
@@ -81,7 +81,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
         int expectedTopY = Math.min(
                 support.maximumY() + projectedRise,
                 authoredTopMaximumY + 64);
-        assertEquals(48, projectedRise, "the upper source profile should form a visible island peak");
+        assertEquals(64, projectedRise, "the upper source profile should form a bounded visible island peak");
         assertTrue(expectedTopY > authoredTopMaximumY + 32,
                 "the expanded but bounded profile should use more than the former 32-block rise");
         assertEquals(

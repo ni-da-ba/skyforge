@@ -20,8 +20,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
-    static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 32;
-    static final String PROVIDER_RELIEF_MAPPING = "signed_cubic";
+    static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 29;
+    static final String PROVIDER_RELIEF_MAPPING = "signed_eighth_power";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -40,7 +40,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
      * <p>The provider's surface height is interpreted relative to its captured world-fixed
-     * baseline, then passed through a signed cubic relief curve onto the existing Skyforge
+     * baseline, then passed through a signed eighth-power relief curve onto the existing Skyforge
      * surface. The result is clamped to the chunk build range and a bounded 64-block extension
      * above the authored top-volume bound. Only newly added positions receive provider claims; the
      * compiled island footprint, lower body, and underside stay authoritative.
@@ -101,8 +101,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. A fixed cubic curve concentrates high provider
-                // relief into peaks while keeping modest relief close to the authored cap.
+                // an absolute elevation datum. A steep eighth-power curve keeps broad source
+                // plateaus near the authored cap and reserves tall peaks for the highest relief.
                 // Provider-owned rises remain bounded above the authored top; Skyforge footprint,
                 // body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
@@ -151,9 +151,9 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Concentrates positive provider relief into higher, narrower terrain while retaining a
-     * deterministic world-fixed mapping for every column. The cubic curve keeps the lowlands
-     * near the authored cap and gives the provider's upper tail enough range to form peaks.
+     * Concentrates provider relief into the source profile's upper tail while retaining a
+     * deterministic world-fixed mapping for every column. The eighth-power curve suppresses
+     * broad plateaus while preserving the bounded height of the highest peaks.
      */
     static long projectProviderRelief(long providerRelief) {
         long magnitude = Math.min(
@@ -161,7 +161,7 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
         double normalized = magnitude / (double) PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
         long projectedMagnitude = Math.round(MAX_PROVIDER_SURFACE_RISE_BLOCKS
-                * normalized * normalized * normalized);
+                * Math.pow(normalized, 8));
         return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
     }
 
