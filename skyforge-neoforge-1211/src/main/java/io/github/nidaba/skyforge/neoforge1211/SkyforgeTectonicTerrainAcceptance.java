@@ -42,15 +42,16 @@ final class SkyforgeTectonicTerrainAcceptance {
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
-    private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.13;
-    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 0.25;
-    private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 0.25;
+    private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.5;
+    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 1.0;
+    private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 1.0;
     private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = 0.1;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y = 300;
+    private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE = 128;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
@@ -243,6 +244,18 @@ final class SkyforgeTectonicTerrainAcceptance {
                         + " (minimum " + MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y + "), datum Y="
                         + providerTerrainDatumY + ", provider source Y="
                         + profile.minimumY() + ".." + profile.maximumY());
+                return;
+            }
+            if (treatment
+                    && realizedIslandColumnsAtOrAboveRidge
+                            > MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE) {
+                fail(server, "Tectonic treatment remains too plateau-like: "
+                        + realizedIslandColumnsAtOrAboveRidge + "/"
+                        + realizedSurface.samples() + " island columns reached ridge height Y="
+                        + MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y + " (maximum "
+                        + MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE + "), provider source Y="
+                        + profile.minimumY() + ".." + profile.maximumY() + ", realized island Y="
+                        + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
             }
             int grassSurfaceColumns = countTopMaterial(islandChunk, Blocks.GRASS_BLOCK.defaultBlockState());
