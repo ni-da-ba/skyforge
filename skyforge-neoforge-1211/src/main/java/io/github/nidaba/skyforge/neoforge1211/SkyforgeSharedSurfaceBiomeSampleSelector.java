@@ -28,7 +28,8 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
         int pairMatches = 0;
         Column selected = null;
         Comparator<Column> preference = Comparator
-                .comparingInt((Column column) -> manhattanDistance(chunkPos, column))
+                .comparing(Column::lowerTreePlantingSupport).reversed()
+                .thenComparingInt(column -> manhattanDistance(chunkPos, column))
                 .thenComparingInt(Column::x)
                 .thenComparingInt(Column::z);
         for (Column column : sharedColumns) {
@@ -91,7 +92,18 @@ final class SkyforgeSharedSurfaceBiomeSampleSelector {
             int lowerSurfaceY,
             int upperSurfaceY,
             ResourceKey<Biome> lowerProviderBiome,
-            ResourceKey<Biome> upperProviderBiome) {
+            ResourceKey<Biome> upperProviderBiome,
+            boolean lowerTreePlantingSupport) {
+        Column(
+                int x,
+                int z,
+                int lowerSurfaceY,
+                int upperSurfaceY,
+                ResourceKey<Biome> lowerProviderBiome,
+                ResourceKey<Biome> upperProviderBiome) {
+            this(x, z, lowerSurfaceY, upperSurfaceY, lowerProviderBiome, upperProviderBiome, false);
+        }
+
         Column {
             if (lowerSurfaceY == upperSurfaceY) {
                 throw new IllegalArgumentException("stacked surface Y values must differ");
