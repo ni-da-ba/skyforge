@@ -226,7 +226,11 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
             WorldGenRegion level,
             ChunkPos chunkPos) {
         RandomState randomState = terrainProviderRandomState(level);
-        var structureManager = level.getLevel().structureManager().forWorldGenRegion(level);
+        var server = Objects.requireNonNull(level.getServer(), "Worldgen server unavailable");
+        var serverLevel = Objects.requireNonNull(
+                server.getLevel(level.dimension()),
+                "Worldgen dimension unavailable");
+        var structureManager = serverLevel.structureManager().forWorldGenRegion(level);
         ProtoChunk providerChunk = new ProtoChunk(
                 chunkPos,
                 UpgradeData.EMPTY,
