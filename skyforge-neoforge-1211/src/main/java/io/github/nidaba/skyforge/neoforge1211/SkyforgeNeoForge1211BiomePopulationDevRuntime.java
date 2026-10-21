@@ -40,6 +40,7 @@ import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.levelgen.GenerationStep;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.neoforged.bus.api.SubscribeEvent;
@@ -942,8 +943,16 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
                         providerBiomeUpperSourceMismatches = Math.addExact(providerBiomeUpperSourceMismatches, 1);
                     }
                 }
+                boolean lowerTreePlantingSupport = Blocks.OAK_SAPLING.defaultBlockState().canSurvive(
+                        level, new BlockPos(x, lowerSurfaceY, z));
                 sharedColumns.add(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
-                        x, z, lowerSurfaceY, upperSurfaceY, lowerProviderBiome, providerBiome));
+                        x,
+                        z,
+                        lowerSurfaceY,
+                        upperSurfaceY,
+                        lowerProviderBiome,
+                        providerBiome,
+                        lowerTreePlantingSupport));
             }
         }
         return SkyforgeSharedSurfaceBiomeSampleSelector.select(
