@@ -191,13 +191,15 @@ final class SkyforgeNativeBiomePopulationRunner {
                         false,
                         0,
                         0,
-                        0));
+                        0,
+                        null));
                 SkyforgeRuntimePerformanceMetrics.recordSample(
                         "surfacePopulation.treeHeadroomRejected", 1L);
                 continue;
             }
+            SkyforgeNativePlacedFeatureRunner.TreePrerequisiteProbe treeProbe = null;
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
-                var probe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
+                treeProbe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
                         level,
                         biome,
                         operation,
@@ -288,7 +290,8 @@ final class SkyforgeNativeBiomePopulationRunner {
                     result.placed(),
                     result.attachmentWrites(),
                     result.writePreflightRejections(),
-                    result.writeDecisionRejections()));
+                    result.writeDecisionRejections(),
+                    treeProbe));
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,
@@ -400,7 +403,8 @@ final class SkyforgeNativeBiomePopulationRunner {
             boolean placed,
             int attachmentWrites,
             int writePreflightRejections,
-            int writeDecisionRejections) {
+            int writeDecisionRejections,
+            SkyforgeNativePlacedFeatureRunner.TreePrerequisiteProbe treeProbe) {
         FeatureResult {
             Objects.requireNonNull(featureKey, "featureKey");
             if (attachmentWrites < 0 || writePreflightRejections < 0 || writeDecisionRejections < 0) {
