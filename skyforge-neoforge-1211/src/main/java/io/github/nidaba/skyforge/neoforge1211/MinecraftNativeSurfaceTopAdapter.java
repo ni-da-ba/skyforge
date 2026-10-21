@@ -72,6 +72,8 @@ public final class MinecraftNativeSurfaceTopAdapter {
                     continue;
                 }
                 int originalTopY = materialization.minimumY() + topLocalY;
+                ResourceLocation authoredCapSurfaceMaterial =
+                        blockKeys[linearIndex(localX, topLocalY, localZ)];
                 var owners = adapter.claimingVolumeIds(worldX, originalTopY, worldZ);
                 if (owners.size() != 1) {
                     continue;
@@ -129,11 +131,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
 
                 int targetIndex = linearIndex(localX, targetLocalY, localZ);
                 ResourceLocation nativeBlockKey = nativeSurface.orElseThrow().blockKey();
-                ResourceLocation supportBlockKey = targetLocalY > 0
-                        ? blockKeys[linearIndex(localX, targetLocalY - 1, localZ)]
-                        : SkyforgeMinecraftBlockPalette.AIR;
-                if (stableTerrainProfileMaterial(nativeBlockKey, supportBlockKey)) {
-                    blockKeys[targetIndex] = nativeBlockKey;
+                ResourceLocation selectedSurfaceMaterial = stableTerrainProfileMaterial(nativeBlockKey)
+                        ? nativeBlockKey
+                        : authoredCapSurfaceMaterial;
+                if (stableTerrainProfileMaterial(selectedSurfaceMaterial)) {
+                    blockKeys[targetIndex] = selectedSurfaceMaterial;
                 }
             }
         }
@@ -206,19 +208,16 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Admits gravity-affected provider materials only where the projected cap has direct,
-     * non-gravity structural support. Unsupported seam edges retain Skyforge's stable material.
+     * Falling provider surfaces keep the authored Skyforge cap's stable surface material.
+     *
+     * <p>Even directly supported gravel can form a visually isolated island-sized patch when a
+     * provider's surface rule selects it across a distinct feature region. The provider still
+     * controls the projected height profile; Skyforge's authored cap supplies a coherent stable
+     * surface at those columns.
      */
-    private static boolean stableTerrainProfileMaterial(
-            ResourceLocation nativeBlockKey,
-            ResourceLocation supportBlockKey) {
-        if (!(BuiltInRegistries.BLOCK.get(nativeBlockKey) instanceof FallingBlock)) {
-            return true;
-        }
-        if (SkyforgeMinecraftBlockPalette.AIR.equals(supportBlockKey)) {
-            return false;
-        }
-        return !(BuiltInRegistries.BLOCK.get(supportBlockKey) instanceof FallingBlock);
+    private static boolean stableTerrainProfileMaterial(ResourceLocation materialKey) {
+        return !SkyforgeMinecraftBlockPalette.AIR.equals(materialKey)
+                && !(BuiltInRegistries.BLOCK.get(materialKey) instanceof FallingBlock);
     }
 
     /** Returns a materialization whose exposed Skyforge tops inherit the captured native surface. */
