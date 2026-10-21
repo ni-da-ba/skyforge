@@ -61,7 +61,7 @@ final class SkyforgeNeoForge1211BiomePopulationDevRuntime {
     private static final long ROOT_SEED = 0x5346494d50303054L;
     private static final int PROOF_RADIUS_CHUNKS = 4;
     private static final ChunkPos EXTERIOR_WITNESS_CHUNK = new ChunkPos(10, 0);
-    private static final int MAXIMUM_PROVIDER_PROOF_CHUNKS = 4;
+    private static final int MAXIMUM_PROVIDER_PROOF_CHUNKS = 16;
     private static final int PROVIDER_PREFLIGHT_QUART_STEP = 4;
     private static final int CANDIDATE_PROOF_CHUNKS =
             (PROOF_RADIUS_CHUNKS * 2 + 1) * (PROOF_RADIUS_CHUNKS * 2 + 1);
