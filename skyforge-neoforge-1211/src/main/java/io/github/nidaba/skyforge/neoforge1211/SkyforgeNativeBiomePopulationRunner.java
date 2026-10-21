@@ -128,9 +128,12 @@ final class SkyforgeNativeBiomePopulationRunner {
         }
 
         var placedFeatureRegistry = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+        int featureOriginY = generationStep == GenerationStep.Decoration.VEGETAL_DECORATION
+                ? biomeSample.getY()
+                : level.getMinBuildHeight();
         BlockPos nativeChunkOrigin = new BlockPos(
                 originChunk.getMinBlockX(),
-                level.getMinBuildHeight(),
+                featureOriginY,
                 originChunk.getMinBlockZ());
         List<FeatureResult> featureResults = new ArrayList<>();
         int attempted = 0;
