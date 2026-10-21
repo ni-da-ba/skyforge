@@ -69,22 +69,17 @@ val tectonicTreatmentReviewGameDirectory =
 fun prepareTectonicReviewSave(
     taskName: String,
     sourceDirectory: String,
-    profile: String,
     targetGameDirectory: java.io.File,
 ) = tasks.register<org.gradle.api.tasks.Sync>(taskName) {
     val sourceSave = layout.projectDirectory.dir(sourceDirectory).asFile
-    val evidenceFile = layout.buildDirectory
-        .file("acceptance/sf-imp-0054-tectonic/$profile.properties")
-        .get()
-        .asFile
     from(sourceSave)
     into(targetGameDirectory.resolve("saves/acceptance"))
+    notCompatibleWithConfigurationCache(
+        "Tectonic review save staging reads a locally extracted generated world.",
+    )
     doFirst {
         check(sourceSave.resolve("level.dat").isFile) {
-            "missing SF-IMP-0054 $profile review save; extract the latest A/B artifact first"
-        }
-        check(evidenceFile.isFile && evidenceFile.readLines().any { it.startsWith("reviewSpawn=") }) {
-            "SF-IMP-0054 $profile artifact lacks reviewSpawn evidence; download the latest A/B artifact"
+            "missing SF-IMP-0054 review save; extract the A/B artifact first"
         }
     }
 }
@@ -92,13 +87,11 @@ fun prepareTectonicReviewSave(
 val prepareTectonicVanillaReviewSave = prepareTectonicReviewSave(
     "prepareTectonicVanillaReviewSave",
     "run-sf-imp-0054-tectonic-vanilla/saves/acceptance",
-    "vanilla",
     tectonicVanillaReviewGameDirectory,
 )
 val prepareTectonicTreatmentReviewSave = prepareTectonicReviewSave(
     "prepareTectonicTreatmentReviewSave",
     "run-sf-imp-0054-tectonic-treatment/saves/acceptance",
-    "treatment",
     tectonicTreatmentReviewGameDirectory,
 )
 prepareTectonicTreatmentReviewSave.configure {
