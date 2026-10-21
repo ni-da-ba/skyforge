@@ -242,17 +242,32 @@ final class SkyforgePopulationExecutionStage {
          *
          * <p>Same-volume solid terrain in a neighboring chunk must not expose its live materialization
          * state: that chunk may or may not have completed deferred Skyforge realization yet, depending
-         * on Minecraft scheduling. Present it as an inert solid barrier. Non-owner exterior keeps the
-         * phase-specific historical virtualization (AIR for surface vegetation, BEDROCK for sensitive
-         * underground phases), so cross-chunk canopy attachments remain possible without reading
-         * neighboring terrain realization order.
+         * on Minecraft scheduling. For exposed vegetation support only, use the bounded immutable
+         * pre-decoration provider-surface snapshot; all other neighboring owner terrain remains an
+         * inert solid barrier. Non-owner exterior keeps the phase-specific virtualization (AIR for
+         * surface vegetation, BEDROCK for sensitive underground phases), so native attachments can
+         * cross chunk seams without observing neighboring materialization order.
          */
         BlockState hiddenBlockState(BlockPos position) {
             Objects.requireNonNull(position, "position");
             if (ownerSolid.test(position)) {
+                if (isVegetalDecoration()
+                        && !originChunkContains(position)
+                        && !ownerSolid.test(position.above())
+                        && level.isPresent()) {
+                    var providerSurface = SkyforgeNativeSurfaceSnapshotStage.surfaceBlockAt(position);
+                    if (providerSurface.isPresent()) {
+                        return providerSurface.orElseThrow();
+                    }
+                }
                 return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
             }
             return SkyforgeNativeInteriorPlacementPolicy.hiddenExteriorBlockState(operation);
+        }
+
+        private boolean isVegetalDecoration() {
+            return operation.generationStep()
+                    == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
         }
 
         private boolean originChunkContains(BlockPos position) {
