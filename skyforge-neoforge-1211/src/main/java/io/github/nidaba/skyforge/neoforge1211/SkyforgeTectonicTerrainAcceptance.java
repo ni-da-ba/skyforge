@@ -154,10 +154,10 @@ final class SkyforgeTectonicTerrainAcceptance {
             if (treatment) {
                 // Tectonic's pinned command evaluates its own mountain-range predicates and searches
                 // the same world seed, exposing whether this fixture is sampling an ordinary region.
-                int locateStatus = server.getCommands().performPrefixedCommand(
+                server.getCommands().performPrefixedCommand(
                         server.createCommandSourceStack(), "tectonic locate mountain_range");
                 java.util.logging.Logger.getLogger(SkyforgeTectonicTerrainAcceptance.class.getName())
-                        .info("Tectonic mountain-range locate returned status=" + locateStatus);
+                        .info("Issued Tectonic mountain-range locate from the acceptance origin");
             }
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
