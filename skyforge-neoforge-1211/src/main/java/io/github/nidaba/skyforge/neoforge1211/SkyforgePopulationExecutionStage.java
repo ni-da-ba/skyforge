@@ -11,6 +11,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
@@ -285,6 +286,32 @@ final class SkyforgePopulationExecutionStage {
             return adjacentOwnerCells;
         }
 
+        private String liveHeightEvidence(BlockPos position) {
+            if (level.isEmpty()) {
+                return "heightmaps=unavailable";
+            }
+            WorldGenLevel activeLevel = level.orElseThrow();
+            return "heightmaps[motionBlocking=" + safeHeight(activeLevel, Heightmap.Types.MOTION_BLOCKING, position)
+                    + ", motionBlockingNoLeaves="
+                    + safeHeight(activeLevel, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, position)
+                    + ", oceanFloor=" + safeHeight(activeLevel, Heightmap.Types.OCEAN_FLOOR, position)
+                    + ", oceanFloorWg=" + safeHeight(activeLevel, Heightmap.Types.OCEAN_FLOOR_WG, position)
+                    + ", worldSurface=" + safeHeight(activeLevel, Heightmap.Types.WORLD_SURFACE, position)
+                    + ", worldSurfaceWg=" + safeHeight(activeLevel, Heightmap.Types.WORLD_SURFACE_WG, position)
+                    + "]";
+        }
+
+        private static String safeHeight(
+                WorldGenLevel level,
+                Heightmap.Types type,
+                BlockPos position) {
+            try {
+                return Integer.toString(level.getHeight(type, position.getX(), position.getZ()));
+            } catch (RuntimeException failure) {
+                return "error:" + failure.getClass().getSimpleName();
+            }
+        }
+
         void recordWritePreflightRejection(BlockPos position, String reason) {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(reason, "reason");
@@ -312,7 +339,8 @@ final class SkyforgePopulationExecutionStage {
                                     + ", ownerSolid=" + ownerSolid.test(position)
                                     + ", foreignSolid=" + foreignSolid.test(position)
                                     + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position)
-                                    + ", " + ownerColumnEvidence);
+                                    + ", " + ownerColumnEvidence
+                                    + ", " + liveHeightEvidence(position));
                 }
             }
         }
