@@ -263,6 +263,21 @@ final class SkyforgePopulationExecutionStage {
             return "owner-or-attachment-envelope";
         }
 
+        private int adjacentOwnerSolidCount(BlockPos position) {
+            int adjacentOwnerCells = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if ((dx != 0 || dy != 0 || dz != 0)
+                                && ownerSolid.test(position.offset(dx, dy, dz))) {
+                            adjacentOwnerCells = Math.addExact(adjacentOwnerCells, 1);
+                        }
+                    }
+                }
+            }
+            return adjacentOwnerCells;
+        }
+
         void recordWritePreflightRejection(BlockPos position, String reason) {
             Objects.requireNonNull(position, "position");
             Objects.requireNonNull(reason, "reason");
@@ -276,7 +291,8 @@ final class SkyforgePopulationExecutionStage {
                                 + ", position=" + position.toShortString()
                                 + ", reason=" + reason
                                 + ", ownerSolid=" + ownerSolid.test(position)
-                                + ", foreignSolid=" + foreignSolid.test(position));
+                                + ", foreignSolid=" + foreignSolid.test(position)
+                                + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position));
             }
         }
 
