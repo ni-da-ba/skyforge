@@ -1,0 +1,33 @@
+{
+  "required": true,
+  "minVersion": "0.8.6",
+  "package": "io.github.nidaba.skyforge.neoforge1211.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "SkyforgeWorldGenRegionDomainMixin",
+    "SkyforgeLevelDomainMixin",
+    "SkyforgePopulationFeatureLightDomainMixin",
+    "SkyforgeServerLevelWorldGenDomainMixin",
+    "SkyforgeBiomeManagerDomainMixin",
+    "SkyforgeChunkPostProcessingMixin",
+    "SkyforgeHeightRangePlacementDomainMixin",
+    "SkyforgeCarverHeightProviderDomainMixin",
+    "SkyforgeChunkAccessPopulationHeightMixin",
+    "SkyforgeLevelChunkPopulationReadMixin",
+    "SkyforgeLevelChunkCarverDomainMixin",
+    "SkyforgeWorldCarverDomainMixin",
+    "SkyforgeFlowingFluidDomainMixin",
+    "SkyforgeLevelTicksFluidProvenanceMixin",
+    "SkyforgeWorldGenTickAccessFluidProvenanceMixin",
+    "SkyforgeLakeFeatureAdmissionMixin",
+    "SkyforgeCocoaDecoratorDomainMixin",
+    "SkyforgePortableEngineBlockEntityMixin",
+    "SkyforgePortableEngineBlockMixin",
+    "SkyforgeDieselPumpjackOilAuthorityMixin",
+    "SkyforgeDieselNativeOilSuppressionMixin",
+    "SkyforgeSableSubLevelTrackingOrderingMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

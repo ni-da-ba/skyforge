@@ -1,0 +1,313 @@
+package io.github.nidaba.skyforge.neoforge1211;
+
+import java.lang.reflect.Method;
+import java.util.LinkedHashMap;
+import java.util.UUID;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.InteractionResult;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.Vec3;
+import net.neoforged.api.distmarker.Dist;
+import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.fml.common.EventBusSubscriber;
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+
+/** Actual-client half of PLATFORM-011 Create seat/passenger qualification. */
+@EventBusSubscriber(modid = SkyforgeNeoForge1211Mod.MOD_ID, value = Dist.CLIENT)
+final class SkyforgeSeatPassengerOnSableClientAcceptance {
+    private static final long CLIENT_TIMEOUT_NANOS = 120_000_000_000L;
+    private static final int MOUNT_RETRY_INTERVAL_TICKS = 4;
+    private static final int MOUNT_CLIENT_DEADLINE_TICKS = 260;
+    private static final int DISMOUNT_CLIENT_DEADLINE_TICKS = 180;
+    private static final int CLEANUP_CLIENT_DEADLINE_TICKS = 100;
+    private static final double CLIENT_SERVER_POSE_TOLERANCE_BLOCKS = 0.25;
+
+    private static long firstClientTickNanos = Long.MIN_VALUE;
+    private static int stage;
+    private static int stageTicks;
+    private static boolean clientSubLevelReady;
+    private static boolean clientGameplayReady;
+    private static boolean clientServerPoseConverged;
+    private static boolean clientSetupRepositioningUsed;
+    private static boolean clientSeatMounted;
+    private static boolean clientSeatDismounted;
+    private static boolean clientComplete;
+    private static InteractionResult seatUseResult;
+    private static UUID clientSeatEntityId;
+
+    private SkyforgeSeatPassengerOnSableClientAcceptance() {}
+
+    @SubscribeEvent
+    static void onClientTick(ClientTickEvent.Post event) {
+        if (!Boolean.getBoolean(SkyforgeSeatPassengerOnSableLifecycleAcceptance.ENABLE_PROPERTY)
+                || !SkyforgeAutomatedAcceptanceHarness.clientMode()
+                || clientComplete) {
+            return;
+        }
+
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        SkyforgeSeatPassengerOnSableBridge.Snapshot snapshot = SkyforgeSeatPassengerOnSableBridge.snapshot();
+        long now = System.nanoTime();
+        if (firstClientTickNanos == Long.MIN_VALUE) {
+            firstClientTickNanos = now;
+        }
+        if (now - firstClientTickNanos > CLIENT_TIMEOUT_NANOS) {
+            releaseCrouch(minecraft);
+            fail("actual-client Create seat lifecycle did not complete within 120 seconds"
+                    + " readiness={level=" + (minecraft.level != null)
+                    + ",player=" + (player != null)
+                    + ",gameMode=" + (minecraft.gameMode != null)
+                    + ",bridge=" + (snapshot != null)
+                    + ",serverPlayerPositioned=" + SkyforgeSeatPassengerOnSableLifecycleAcceptance.playerPositioned()
+                    + ",clientSubLevelReady=" + clientSubLevelReady
+                    + ",clientGameplayReady=" + clientGameplayReady
+                    + ",clientServerPoseConverged=" + clientServerPoseConverged
+                    + ",stage=" + stage + ",stageTicks=" + stageTicks + "}");
+            return;
+        }
+        if (minecraft.level == null || player == null || minecraft.gameMode == null || snapshot == null) {
+            return;
+        }
+        if (!SkyforgeSeatPassengerOnSableLifecycleAcceptance.playerPositioned()) {
+            return;
+        }
+
+        try {
+            stageTicks++;
+            switch (stage) {
+                case 0 -> awaitMount(minecraft, player, snapshot);
+                case 1 -> awaitDismount(minecraft, player);
+                case 2 -> awaitCleanup(minecraft, player, snapshot);
+                default -> fail("invalid PLATFORM-011 client stage " + stage);
+            }
+        } catch (RuntimeException failure) {
+            releaseCrouch(minecraft);
+            fail("actual-client Create seat lifecycle failed: " + failure);
+        }
+    }
+
+    private static void awaitMount(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeSeatPassengerOnSableBridge.Snapshot snapshot) {
+        BlockPos seatPos = snapshot.seatPos();
+        if (!clientSubLevelReady) {
+            if (!sableSubLevelReady(minecraft.level, seatPos)) {
+                stageTicks = 0;
+                return;
+            }
+            clientSubLevelReady = true;
+            stageTicks = 0;
+            return;
+        }
+        if (minecraft.screen != null) {
+            stageTicks = 0;
+            return;
+        }
+        clientGameplayReady = true;
+        if (!minecraft.level.getBlockState(seatPos).getBlock().getClass().getName().endsWith("SeatBlock")) {
+            stageTicks = 0;
+            return;
+        }
+        if (!player.getItemInHand(InteractionHand.MAIN_HAND).isEmpty()) {
+            fail("PLATFORM-011 requires an empty main hand for ordinary Create seat interaction");
+            return;
+        }
+
+        float partialTick = minecraft.getTimer().getGameTimeDeltaPartialTick(true);
+        Vec3 renderedSeatCenter = projectOutOfClientRenderPose(
+                minecraft.level, seatPos, Vec3.atCenterOf(seatPos), partialTick);
+        if (renderedSeatCenter.distanceTo(snapshot.expectedGlobalSeatCenter())
+                > CLIENT_SERVER_POSE_TOLERANCE_BLOCKS) {
+            stageTicks = 0;
+            return;
+        }
+        clientServerPoseConverged = true;
+
+        UUID serverSeatId = SkyforgeSeatPassengerOnSableLifecycleAcceptance.seatEntityId();
+        Entity vehicle = player.getVehicle();
+        if (SkyforgeSeatPassengerOnSableLifecycleAcceptance.seatMountObserved()) {
+            if (vehicle == null || !player.isPassenger()) {
+                if (stageTicks > MOUNT_CLIENT_DEADLINE_TICKS) {
+                    fail("server observed Create SeatEntity mount but LocalPlayer never synchronized passenger state");
+                }
+                return;
+            }
+            if (!vehicle.getClass().getName().endsWith("SeatEntity")) {
+                fail("LocalPlayer synchronized unexpected vehicle after Create seat use: " + vehicle.getClass().getName());
+                return;
+            }
+            if (serverSeatId == null || !serverSeatId.equals(vehicle.getUUID())) {
+                fail("client/server Create SeatEntity UUID mismatch: server=" + serverSeatId
+                        + " client=" + vehicle.getUUID());
+                return;
+            }
+            clientSeatEntityId = vehicle.getUUID();
+            clientSeatMounted = true;
+            minecraft.options.keyShift.setDown(true);
+            advanceStage();
+            return;
+        }
+
+        if (player.isPassenger()) {
+            fail("LocalPlayer became passenger before server accepted PLATFORM-011 SeatEntity mount");
+            return;
+        }
+
+        if (stageTicks == 1 || stageTicks % MOUNT_RETRY_INTERVAL_TICKS == 0) {
+            positionClientAtRenderedStand(minecraft, player, snapshot, partialTick);
+            lookAt(player, renderedSeatCenter);
+            Vec3 seatPlotCenter = Vec3.atCenterOf(seatPos);
+            BlockHitResult hit = new BlockHitResult(seatPlotCenter, Direction.UP, seatPos, false);
+            minecraft.hitResult = hit;
+            seatUseResult = minecraft.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit);
+        }
+
+        if (stageTicks > MOUNT_CLIENT_DEADLINE_TICKS) {
+            fail("ordinary MultiPlayerGameMode.useItemOn did not reach client/server Create SeatEntity mount agreement"
+                    + " lastUseResult=" + seatUseResult);
+        }
+    }
+
+    private static void awaitDismount(Minecraft minecraft, LocalPlayer player) {
+        minecraft.options.keyShift.setDown(true);
+        boolean serverDismounted = SkyforgeSeatPassengerOnSableLifecycleAcceptance.seatDismountObserved();
+        if (serverDismounted && !player.isPassenger()) {
+            clientSeatDismounted = true;
+            releaseCrouch(minecraft);
+            advanceStage();
+            return;
+        }
+        if (stageTicks > DISMOUNT_CLIENT_DEADLINE_TICKS) {
+            releaseCrouch(minecraft);
+            fail("ordinary client crouch input did not produce client/server Create seat dismount agreement"
+                    + " serverDismounted=" + serverDismounted
+                    + " clientPassenger=" + player.isPassenger());
+        }
+    }
+
+    private static void awaitCleanup(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeSeatPassengerOnSableBridge.Snapshot snapshot) {
+        if (player.isPassenger()) {
+            fail("LocalPlayer regained passenger state after agreed Create seat dismount");
+            return;
+        }
+        if (SkyforgeSeatPassengerOnSableLifecycleAcceptance.seatEntityCleanupObserved()) {
+            complete(minecraft, snapshot);
+            return;
+        }
+        if (stageTicks > CLEANUP_CLIENT_DEADLINE_TICKS) {
+            fail("server did not discard empty Create SeatEntity after agreed dismount");
+        }
+    }
+
+    private static void complete(
+            Minecraft minecraft,
+            SkyforgeSeatPassengerOnSableBridge.Snapshot snapshot) {
+        if (clientComplete) {
+            return;
+        }
+        releaseCrouch(minecraft);
+        clientComplete = true;
+        LinkedHashMap<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("actualClient", true);
+        evidence.put("bodyId", snapshot.bodyId());
+        evidence.put("movedSeat", snapshot.seatPos());
+        evidence.put("clientSableSubLevelReady", clientSubLevelReady);
+        evidence.put("clientGameplayReady", clientGameplayReady);
+        evidence.put("clientServerPoseConverged", clientServerPoseConverged);
+        evidence.put("clientTestSetupRepositioning", clientSetupRepositioningUsed);
+        evidence.put("seatUseResult", String.valueOf(seatUseResult));
+        evidence.put("seatMountClientServerAgreement", clientSeatMounted);
+        evidence.put("seatEntityId", clientSeatEntityId);
+        evidence.put("seatDismountClientServerAgreement", clientSeatDismounted);
+        evidence.put("seatEntityCleanupObserved", SkyforgeSeatPassengerOnSableLifecycleAcceptance.seatEntityCleanupObserved());
+        evidence.put("samePersistentSableUuid", true);
+        evidence.put("fixtureLivenessTicketReleased", SkyforgeSeatPassengerOnSableLifecycleAcceptance.fixtureLivenessTicketReleased());
+        evidence.put("playerSableTrackingQualified", false);
+        evidence.put("flightQualified", false);
+        SkyforgeAutomatedAcceptanceHarness.completeClientCase(evidence);
+        minecraft.stop();
+    }
+
+    private static void positionClientAtRenderedStand(
+            Minecraft minecraft,
+            LocalPlayer player,
+            SkyforgeSeatPassengerOnSableBridge.Snapshot snapshot,
+            float partialTick) {
+        Vec3 renderedStand = projectOutOfClientRenderPose(
+                minecraft.level, snapshot.seatPos(), snapshot.standPlotPosition(), partialTick);
+        player.setPos(renderedStand.x, renderedStand.y, renderedStand.z);
+        player.setDeltaMovement(Vec3.ZERO);
+        clientSetupRepositioningUsed = true;
+    }
+
+    private static void lookAt(LocalPlayer player, Vec3 target) {
+        Vec3 delta = target.subtract(player.getEyePosition());
+        double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+        float yaw = (float) Math.toDegrees(Math.atan2(-delta.x, delta.z));
+        float pitch = (float) -Math.toDegrees(Math.atan2(delta.y, horizontal));
+        player.yRotO = yaw;
+        player.xRotO = pitch;
+        player.setYRot(yaw);
+        player.setXRot(pitch);
+        player.setYHeadRot(yaw);
+    }
+
+    private static boolean sableSubLevelReady(Level level, BlockPos plotPosition) {
+        try {
+            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
+            Object helper = sable.getField("HELPER").get(null);
+            Method method = helper.getClass().getMethod("getContaining", Level.class, double.class, double.class);
+            return method.invoke(helper, level, plotPosition.getX() + 0.5, plotPosition.getZ() + 0.5) != null;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("could not resolve PLATFORM-011 client Sable sublevel readiness", failure);
+        }
+    }
+
+    private static Vec3 projectOutOfClientRenderPose(
+            Level level, BlockPos plotAnchor, Vec3 plotPosition, float partialTick) {
+        try {
+            Class<?> sable = Class.forName("dev.ryanhcode.sable.Sable");
+            Object helper = sable.getField("HELPER").get(null);
+            Method containingMethod = helper.getClass().getMethod(
+                    "getContaining", Level.class, double.class, double.class);
+            Object subLevel = containingMethod.invoke(
+                    helper, level, plotAnchor.getX() + 0.5, plotAnchor.getZ() + 0.5);
+            if (subLevel == null || !subLevel.getClass().getName().endsWith("ClientSubLevel")) {
+                throw new IllegalStateException("Sable ClientSubLevel unavailable for seat render-pose projection: " + subLevel);
+            }
+            Object renderPose = subLevel.getClass().getMethod("renderPose", float.class).invoke(subLevel, partialTick);
+            Object projected = renderPose.getClass().getMethod("transformPosition", Vec3.class)
+                    .invoke(renderPose, plotPosition);
+            if (!(projected instanceof Vec3 globalPosition)) {
+                throw new IllegalStateException("Sable client renderPose transformPosition returned " + projected);
+            }
+            return globalPosition;
+        } catch (ReflectiveOperationException failure) {
+            throw new IllegalStateException("could not project PLATFORM-011 plot position through client renderPose", failure);
+        }
+    }
+
+    private static void advanceStage() {
+        stage++;
+        stageTicks = 0;
+    }
+
+    private static void releaseCrouch(Minecraft minecraft) {
+        minecraft.options.keyShift.setDown(false);
+    }
+
+    private static void fail(String reason) {
+        SkyforgeAutomatedAcceptanceHarness.failClientCase(reason);
+    }
+}
