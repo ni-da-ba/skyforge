@@ -222,15 +222,12 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         return Optional.empty();
     }
 
+    @SuppressWarnings("deprecation")
     private MinecraftNativeSurfaceSnapshot captureDetachedProviderSurface(
             WorldGenRegion level,
             ChunkPos chunkPos) {
         RandomState randomState = terrainProviderRandomState(level);
-        var server = Objects.requireNonNull(level.getServer(), "Worldgen server unavailable");
-        var serverLevel = Objects.requireNonNull(
-                server.getLevel(level.dimension()),
-                "Worldgen dimension unavailable");
-        var structureManager = serverLevel.structureManager().forWorldGenRegion(level);
+        var structureManager = level.getLevel().structureManager().forWorldGenRegion(level);
         ProtoChunk providerChunk = new ProtoChunk(
                 chunkPos,
                 UpgradeData.EMPTY,
