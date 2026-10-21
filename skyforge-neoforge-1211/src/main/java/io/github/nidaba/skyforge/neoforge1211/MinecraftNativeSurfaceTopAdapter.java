@@ -38,11 +38,11 @@ public final class MinecraftNativeSurfaceTopAdapter {
     /**
      * Projects native provider relief onto the exposed top cap of composite Skyforge terrain.
      *
-     * <p>The provider's surface height is interpreted relative to its captured baseline (normally
-     * sea level), then transferred at full strength onto the existing Skyforge surface. The result
-     * is clamped to the chunk build range and a bounded 32-block extension above the authored
-     * top-volume bound. Only newly added positions receive provider claims; the compiled island
-     * footprint, lower body, and underside stay authoritative.
+     * <p>The provider's surface height is interpreted relative to its captured world-fixed
+     * baseline, then passed through a signed cubic relief curve onto the existing Skyforge
+     * surface. The result is clamped to the chunk build range and a bounded 64-block extension
+     * above the authored top-volume bound. Only newly added positions receive provider claims; the
+     * compiled island footprint, lower body, and underside stay authoritative.
      */
     TerrainProfileAdaptation adaptTerrainProfile(
             MinecraftNativeSurfaceSnapshot snapshot,
@@ -100,10 +100,10 @@ public final class MinecraftNativeSurfaceTopAdapter {
                 }
 
                 // Provider terrain is a local shape signal on a floating island, not
-                // an absolute elevation datum. Transfer its configured relief at full strength.
-                // The development profile path permits a bounded rise above the authored top
-                // volume so positive provider relief is not flattened at its original ceiling;
-                // Skyforge footprint, body, and underside remain untouched.
+                // an absolute elevation datum. A fixed cubic curve concentrates high provider
+                // relief into peaks while keeping modest relief close to the authored cap.
+                // Provider-owned rises remain bounded above the authored top; Skyforge footprint,
+                // body, and underside remain untouched.
                 long providerRelief = (long) nativeSurface.orElseThrow().worldY() - snapshot.baselineY();
                 long projectedProviderRelief = projectProviderRelief(providerRelief);
                 long desiredY = (long) originalTopY + projectedProviderRelief;
