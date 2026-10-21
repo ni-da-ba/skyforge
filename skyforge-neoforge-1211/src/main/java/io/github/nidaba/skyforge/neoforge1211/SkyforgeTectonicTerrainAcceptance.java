@@ -388,7 +388,15 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
             evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_minimum");
-            evidence.put("providerReliefScale", MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_SCALE);
+            evidence.put(
+                    "providerReliefMapping",
+                    MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);
+            evidence.put(
+                    "providerReliefCurveReferenceBlocks",
+                    MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
+            evidence.put(
+                    "providerReliefMaximumRiseBlocks",
+                    MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS);
             evidence.put("terrainProfileDigest", profile.digest());
             evidence.put("terrainProfileHeightDigest", profile.heightDigest());
             evidence.put("terrainProfileSamples", profile.samples());
