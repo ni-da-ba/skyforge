@@ -20,8 +20,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 public final class MinecraftNativeSurfaceTopAdapter {
     private static final int CHUNK_WIDTH = 16;
     static final int MAX_PROVIDER_SURFACE_RISE_BLOCKS = 64;
-    static final int PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS = 29;
-    static final String PROVIDER_RELIEF_MAPPING = "signed_eighth_power";
+    static final int PROVIDER_RELIEF_GAIN = 2;
+    static final String PROVIDER_RELIEF_MAPPING = "signed_centered_double";
 
     /**
      * Compatibility overload for isolated tests and direct adapter usage.
@@ -151,18 +151,14 @@ public final class MinecraftNativeSurfaceTopAdapter {
     }
 
     /**
-     * Concentrates provider relief into the source profile's upper tail while retaining a
-     * deterministic world-fixed mapping for every column. The eighth-power curve suppresses
-     * broad plateaus while preserving the bounded height of the highest peaks.
+     * Transfers provider relief around the shared world-fixed median datum with a bounded linear gain.
+     * Negative relief cuts valleys into the authored cap; positive relief raises peaks while the
+     * exact Skyforge top-volume envelope continues to bound every column.
      */
     static long projectProviderRelief(long providerRelief) {
-        long magnitude = Math.min(
-                Math.abs(providerRelief),
-                PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
-        double normalized = magnitude / (double) PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS;
-        long projectedMagnitude = Math.round(MAX_PROVIDER_SURFACE_RISE_BLOCKS
-                * Math.pow(normalized, 8));
-        return providerRelief < 0 ? -projectedMagnitude : projectedMagnitude;
+        return Math.max(
+                -MAX_PROVIDER_SURFACE_RISE_BLOCKS,
+                Math.min(MAX_PROVIDER_SURFACE_RISE_BLOCKS, providerRelief * PROVIDER_RELIEF_GAIN));
     }
 
     private static int highestSolidLocalY(

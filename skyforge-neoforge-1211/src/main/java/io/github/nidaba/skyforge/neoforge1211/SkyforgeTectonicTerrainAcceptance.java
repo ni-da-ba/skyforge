@@ -51,7 +51,7 @@ final class SkyforgeTectonicTerrainAcceptance {
     private static final int PROFILE_RADIUS = 8;
     private static final int MINIMUM_TECTONIC_ISLAND_RELIEF_BLOCKS = 48;
     private static final int MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y = 300;
-    private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE = 128;
+    private static final int MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK = 128;
     private static boolean complete;
     private static final Set<UUID> REVIEW_RELOCATED_PLAYERS = new HashSet<>();
     private static final Map<UUID, Integer> REVIEW_RELOCATION_ATTEMPTS = new HashMap<>();
@@ -222,8 +222,9 @@ final class SkyforgeTectonicTerrainAcceptance {
                     ? "not-recomputed-on-reopen"
                     : Integer.toString(providerSurfaceSnapshot.baselineY());
             int realizedIslandRelief = realizedSurface.maximumY() - realizedSurface.minimumY();
-            int realizedIslandColumnsAtOrAboveRidge = countSurfaceColumnsAtOrAbove(
-                    islandChunk, MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y);
+            int peakNeighborhoodFloorY = realizedSurface.maximumY() - 8;
+            int realizedIslandColumnsNearPeak =
+                    countSurfaceColumnsAtOrAbove(islandChunk, peakNeighborhoodFloorY);
             String capturedProviderSurfaceRange = providerSurfaceSnapshot == null
                     ? "not-recomputed-on-reopen"
                     : describeProviderSurfaceRange(providerSurfaceSnapshot);
@@ -247,13 +248,11 @@ final class SkyforgeTectonicTerrainAcceptance {
                 return;
             }
             if (treatment
-                    && realizedIslandColumnsAtOrAboveRidge
-                            > MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE) {
+                    && realizedIslandColumnsNearPeak > MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK) {
                 fail(server, "Tectonic treatment remains too plateau-like: "
-                        + realizedIslandColumnsAtOrAboveRidge + "/"
-                        + realizedSurface.samples() + " island columns reached ridge height Y="
-                        + MINIMUM_TECTONIC_ISLAND_RIDGE_TOP_Y + " (maximum "
-                        + MAXIMUM_TECTONIC_ISLAND_COLUMNS_AT_OR_ABOVE_RIDGE + "), provider source Y="
+                        + realizedIslandColumnsNearPeak + "/" + realizedSurface.samples()
+                        + " island columns lie within 8 blocks of its highest peak (maximum "
+                        + MAXIMUM_TECTONIC_ISLAND_COLUMNS_NEAR_PEAK + "), provider source Y="
                         + profile.minimumY() + ".." + profile.maximumY() + ", realized island Y="
                         + realizedSurface.minimumY() + ".." + realizedSurface.maximumY());
                 return;
@@ -387,13 +386,11 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
-            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_minimum");
+            evidence.put("terrainProfileDatumSampling", "world_fixed_origin_chunk_median");
             evidence.put(
                     "providerReliefMapping",
                     MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_MAPPING);
-            evidence.put(
-                    "providerReliefCurveReferenceBlocks",
-                    MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_CURVE_REFERENCE_BLOCKS);
+            evidence.put("providerReliefGain", MinecraftNativeSurfaceTopAdapter.PROVIDER_RELIEF_GAIN);
             evidence.put(
                     "providerReliefMaximumRiseBlocks",
                     MinecraftNativeSurfaceTopAdapter.MAX_PROVIDER_SURFACE_RISE_BLOCKS);
@@ -409,7 +406,8 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("realizedIslandSurfaceMinimumY", realizedSurface.minimumY());
             evidence.put("realizedIslandSurfaceMaximumY", realizedSurface.maximumY());
             evidence.put("realizedIslandSurfaceReliefRangeBlocks", realizedSurface.maximumY() - realizedSurface.minimumY());
-            evidence.put("realizedIslandColumnsAtOrAboveRidge", realizedIslandColumnsAtOrAboveRidge);
+            evidence.put("realizedIslandPeakNeighborhoodFloorY", peakNeighborhoodFloorY);
+            evidence.put("realizedIslandColumnsNearPeak", realizedIslandColumnsNearPeak);
             evidence.put("providerSurfaceRuleMaterial", providerSurfaceRuleMaterial);
             evidence.put("providerSurfaceRuleMaterialAdaptation", providerSurfaceRuleMaterialAdaptation);
             evidence.put("providerSurfaceRuleMaterialColumns", providerSurfaceRuleMaterialColumns);

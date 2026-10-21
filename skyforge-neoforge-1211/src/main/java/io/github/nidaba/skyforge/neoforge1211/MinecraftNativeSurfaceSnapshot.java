@@ -121,7 +121,7 @@ final class MinecraftNativeSurfaceSnapshot {
                 providerTerrainDatumY(generator, level, randomState));
     }
 
-    /** Uses a cached, world-fixed low-percentile origin profile as the provider-relative datum. */
+    /** Uses a cached, world-fixed median origin profile as the neutral provider-relative datum. */
     private static int providerTerrainDatumY(
             NoiseBasedChunkGenerator generator,
             net.minecraft.world.level.LevelHeightAccessor level,
@@ -155,10 +155,10 @@ final class MinecraftNativeSurfaceSnapshot {
             return generator.getSeaLevel();
         }
         Arrays.sort(originChunkSurfaceYs, 0, originChunkSamples);
-        // Use the fixed origin profile's minimum as a zero baseline so the provider's full
-        // sampled relief maps above the authored Skyforge cap instead of mostly cutting it down.
-        // The 32-block cap-rise allowance bounds the effect of any low source outlier.
-        return originChunkSurfaceYs[0];
+        // Center the fixed origin profile so source heights on either side of its median can
+        // shape both ridges and valleys. Using the minimum made every column a positive uplift
+        // and turned a broad provider elevation band into a raised shelf.
+        return originChunkSurfaceYs[originChunkSamples / 2];
     }
 
     private record ProviderDatumKey(NoiseBasedChunkGenerator generator, RandomState randomState) {}

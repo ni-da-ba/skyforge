@@ -41,11 +41,12 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
-    void providerReliefCurveKeepsLowlandsNearTheCapAndConcentratesHighRelief() {
-        assertEquals(10, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(17));
-        assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(29));
-        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-29));
+    void centeredProviderReliefRaisesPeaksAndCutsValleysWithABoundedGain() {
+        assertEquals(14, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(7));
+        assertEquals(30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(15));
+        assertEquals(-30, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-15));
         assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(100));
+        assertEquals(-64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-100));
     }
 
     @Test
