@@ -81,6 +81,24 @@ final class SkyforgeSurfacePopulationPlanTest {
     }
 
     @Test
+    void providerBiomeSelectorPrefersTreeSupportingLowerSurface() {
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                new net.minecraft.world.level.ChunkPos(0, 0),
+                List.of(
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
+                                8, 8, 100, 200, null, Biomes.TAIGA, false),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
+                                13, 13, 101, 201, null, Biomes.TAIGA, true)),
+                2,
+                null,
+                Biomes.TAIGA);
+
+        var selected = search.selected().orElseThrow();
+        assertEquals(13, selected.x());
+        assertEquals(13, selected.z());
+    }
+
+    @Test
     void providerBiomeSelectorKeepsTheSharedTerrainThreshold() {
         var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
                 new net.minecraft.world.level.ChunkPos(0, 0),
