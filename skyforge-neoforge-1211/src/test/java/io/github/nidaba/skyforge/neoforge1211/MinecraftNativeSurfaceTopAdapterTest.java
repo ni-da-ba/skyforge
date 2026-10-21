@@ -41,6 +41,14 @@ final class MinecraftNativeSurfaceTopAdapterTest {
     }
 
     @Test
+    void providerReliefCurveKeepsLowlandsNearTheCapAndConcentratesHighRelief() {
+        assertEquals(10, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(17));
+        assertEquals(48, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(29));
+        assertEquals(-48, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(-29));
+        assertEquals(64, MinecraftNativeSurfaceTopAdapter.projectProviderRelief(100));
+    }
+
+    @Test
     void nativeReliefRaisesOnlyTheExactIslandTopCapAndClaimsAddedCells() {
         var catalog = SkyforgeNeoForge1211PopulationDevRuntime.catalog();
         var volume = catalog.volumes().getFirst();
@@ -56,7 +64,7 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 chunk.getMinBuildHeight(),
                 chunk.getHeight());
         var support = adapter.integerSolidRange(volume.id(), 8, 8).orElseThrow();
-        int providerSurfaceY = 80;
+        int providerSurfaceY = 92;
         chunk.setBlockState(
                 new BlockPos(8, providerSurfaceY, 8),
                 Blocks.GRASS_BLOCK.defaultBlockState(),
@@ -68,13 +76,12 @@ final class MinecraftNativeSurfaceTopAdapterTest {
                 adapter);
 
         int authoredTopMaximumY = (int) Math.floor(volume.bounds().maximumY());
+        int projectedRise = Math.toIntExact(
+                MinecraftNativeSurfaceTopAdapter.projectProviderRelief(providerSurfaceY - 63L));
         int expectedTopY = Math.min(
-                support.maximumY() + 2 * (providerSurfaceY - 63),
+                support.maximumY() + projectedRise,
                 authoredTopMaximumY + 64);
-        assertEquals(
-                support.maximumY() + 2 * (providerSurfaceY - 63),
-                expectedTopY,
-                "double provider relief should retain the full 34-block rise");
+        assertEquals(48, projectedRise, "the upper source profile should form a visible island peak");
         assertTrue(expectedTopY > authoredTopMaximumY + 32,
                 "the expanded but bounded profile should use more than the former 32-block rise");
         assertEquals(
