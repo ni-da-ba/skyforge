@@ -146,18 +146,15 @@ final class SkyforgePopulationExecutionStage {
         CachedBlockPredicate cachedOwnerSolid = new CachedBlockPredicate(ownerSolid);
         CachedBlockPredicate cachedForeignSolid = new CachedBlockPredicate(foreignSolid);
         Predicate<BlockPos> attachmentOwnerSolid = cachedOwnerSolid;
-        Predicate<BlockPos> attachmentBarrierSolid = cachedForeignSolid;
+        Predicate<BlockPos> attachmentRootSolid = cachedOwnerSolid;
         if (operation.generationStep()
                 == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
-            // Surface ecology may extend canopy across chunk boundaries, but another chunk's
-            // same-volume terrain is not this operation's direct write authority. Treat it as a
-            // write barrier so neighboring population cannot mutate owner-solid cells that a later
-            // operation would otherwise expose as live origin-chunk state. Exterior air remains
-            // reachable through the ordinary bounded attachment envelope.
+            // Surface ecology may attach to an exposed same-volume surface across a chunk boundary,
+            // but the neighboring terrain remains outside this operation's write authority. Keep
+            // foreign volumes as hard barriers and admit only bounded attachments rooted in this
+            // operation's owner terrain or read-only neighboring owner terrain.
             attachmentOwnerSolid =
                     position -> cachedOwnerSolid.test(position) && originChunkContains(operation, position);
-            attachmentBarrierSolid = position -> cachedForeignSolid.test(position)
-                    || (cachedOwnerSolid.test(position) && !originChunkContains(operation, position));
         }
         Execution execution = new Execution(
                 level,
@@ -167,7 +164,8 @@ final class SkyforgePopulationExecutionStage {
                 cachedForeignSolid,
                 new SkyforgePopulationAttachmentEnvelope(
                         attachmentOwnerSolid,
-                        attachmentBarrierSolid,
+                        cachedForeignSolid,
+                        attachmentRootSolid,
                         maximumAttachmentDepth));
         ACTIVE.set(execution);
         return new Scope(execution);
