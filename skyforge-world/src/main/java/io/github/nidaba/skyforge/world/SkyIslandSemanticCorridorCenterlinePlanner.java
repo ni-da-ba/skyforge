@@ -123,6 +123,8 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                 searchRoute, seed.points(), headEnvelopeGap, bankfullHalfWidthAtStation,
                 longitudinalHeadFeasibility);
         Candidate best = initial;
+        boolean bestWithinSemanticCorridor = withinSemanticCorridor(
+                best.points(), semanticGuidance, semanticCorridorHalfWidth);
         long lateralCandidateProposals = 0;
         long lateralCandidateAdmissible = 0;
         long lateralCandidateCorridorRejected = 0;
@@ -148,7 +150,13 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     semanticCorridorHalfWidth, minimumBendRadius,
                     bankfullHalfWidthAtStation, headEnvelopeGap,
                     longitudinalHeadFeasibility, best);
-            best = globalModes.candidate();
+            Candidate globalCandidate = globalModes.candidate();
+            boolean globalCandidateWithinSemanticCorridor = withinSemanticCorridor(
+                    globalCandidate.points(), semanticGuidance, semanticCorridorHalfWidth);
+            if (globalCandidateWithinSemanticCorridor || !bestWithinSemanticCorridor) {
+                best = globalCandidate;
+                bestWithinSemanticCorridor = globalCandidateWithinSemanticCorridor;
+            }
             globalModeSearchProposals = globalModes.proposals();
             globalModeSearchAdmissible = globalModes.admissible();
             globalModeSearchAcceptedMoves = globalModes.acceptedMoves();
@@ -180,9 +188,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             Candidate candidate = evaluate(
                     searchRoute, next, headEnvelopeGap, bankfullHalfWidthAtStation,
                     longitudinalHeadFeasibility);
-            int comparison = candidate.compareTo(best, minimumBendRadius);
+            boolean candidateWithinSemanticCorridor = withinSemanticCorridor(
+                    candidate.points(), semanticGuidance, semanticCorridorHalfWidth);
+            int comparison = candidateWithinSemanticCorridor != bestWithinSemanticCorridor
+                    ? candidateWithinSemanticCorridor ? -1 : 1
+                    : candidate.compareTo(best, minimumBendRadius);
             if (comparison < 0) {
                 best = candidate;
+                bestWithinSemanticCorridor = candidateWithinSemanticCorridor;
             } else if (headEnvelopeGap != null
                     && (candidate.maximumHeadEnvelopeGap()
                                     < best.maximumHeadEnvelopeGap() - EPSILON
@@ -196,13 +209,16 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             current = next;
 
             if (headEnvelopeGap == null
+                    && candidateWithinSemanticCorridor
                     && (minimumBendRadius <= EPSILON
                             || candidate.maximumCurvature() * minimumBendRadius
                                     <= 1.0 + EPSILON)) {
                 best = candidate;
+                bestWithinSemanticCorridor = true;
                 break;
             }
             if (headEnvelopeGap != null
+                    && candidateWithinSemanticCorridor
                     && (unchanged
                             || (candidate.maximumHeadEnvelopeGap() <= EPSILON
                                     && candidate.integratedSquaredHeadEnvelopeGap() <= EPSILON
@@ -232,9 +248,14 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             sourceEndpointSearch = coupled.sourceEndpointSearch();
         }
 
-        for (SkyIslandLocalPosition point : best.points()) {
-            if (distanceToPolyline(point, semanticGuidance) > semanticCorridorHalfWidth + EPSILON) {
-                throw new IllegalStateException("relaxed centerline escaped semantic corridor");
+        for (int index = 0; index < best.points().size(); index++) {
+            SkyIslandLocalPosition point = best.points().get(index);
+            double corridorDistance = distanceToPolyline(point, semanticGuidance);
+            if (corridorDistance > semanticCorridorHalfWidth + EPSILON) {
+                throw new IllegalStateException(
+                        "relaxed centerline escaped semantic corridor at sample " + index
+                                + " (distance=" + corridorDistance
+                                + ", allowed=" + semanticCorridorHalfWidth + ")");
             }
         }
 
@@ -785,6 +806,19 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
         return result;
     }
 
+    private static boolean withinSemanticCorridor(
+            List<SkyIslandLocalPosition> points,
+            List<SkyIslandLocalPosition> semanticGuidance,
+            double semanticCorridorHalfWidth) {
+        for (SkyIslandLocalPosition point : points) {
+            if (distanceToPolyline(point, semanticGuidance)
+                    > semanticCorridorHalfWidth + EPSILON) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     private static boolean geometryAdmissible(
             List<SkyIslandLocalPosition> points,
             SkyIslandGeomorphicCandidateRoute searchRoute,
@@ -851,8 +885,31 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                             0.5 * (previous.x() + next.x()),
                             0.5 * (previous.z() + next.z()));
             SkyIslandLocalPosition smoothed = lerp(point, midpoint, RELAXATION_FRACTION);
-            List<SkyIslandLocalPosition> options = new ArrayList<>(13);
+            List<SkyIslandLocalPosition> options = new ArrayList<>(20);
             options.add(smoothed);
+            AdmissionCheck currentAdmission = admissibilityCheck(
+                    point, searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth);
+            boolean recoveringInadmissiblePoint = !currentAdmission.allowed();
+            if (recoveringInadmissiblePoint) {
+                // A fine-route smoother can start outside the semantic corridor and a local
+                // midpoint move may remain outside indefinitely. Offer recovery candidates toward
+                // the authored guidance; each still passes the ordinary geometry admission gate.
+                Projection projection = project(point, semanticGuidance);
+                double guidanceDistance = projection.distance();
+                if (guidanceDistance > EPSILON) {
+                    double boundaryDistance = Math.min(
+                            guidanceDistance,
+                            semanticCorridorHalfWidth * (1.0 - 1.0e-9));
+                    double boundaryFraction = boundaryDistance / guidanceDistance;
+                    // Try the least displacement first, then move further toward guidance only
+                    // when terrain or interiority makes the boundary point inadmissible.
+                    for (int recoveryStep = 0; recoveryStep <= 8; recoveryStep++) {
+                        double fraction = boundaryFraction * (8 - recoveryStep) / 8.0;
+                        options.add(lerp(projection.position(), point, fraction));
+                    }
+                }
+            }
             Vector tangent = tangent(previous, next);
             Vector normal = new Vector(-tangent.z(), tangent.x());
             double halfWidth = bankfullHalfWidthAtStation.applyAsDouble(station);
@@ -901,6 +958,12 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
             }
 
             SkyIslandLocalPosition selected = point;
+            AdmissionCheck selectedAdmission = admissibilityCheck(
+                    selected, searchRoute, semanticGuidance, terrain, interiority,
+                    semanticCorridorHalfWidth);
+            boolean selectedIsAdmissible = selectedAdmission.allowed()
+                    && (headEnvelopeGap == null
+                            || curvatureAdmissible(result, i, selected, minimumBendRadius));
             int selectedOption = -1;
             for (int optionIndex = 0; optionIndex < options.size(); optionIndex++) {
                 SkyIslandLocalPosition option = options.get(optionIndex);
@@ -926,12 +989,26 @@ public final class SkyIslandSemanticCorridorCenterlinePlanner {
                     }
                 }
                 if (!admission.allowed() || !curvatureAllowed) continue;
-                if ((headEnvelopeGap == null && longitudinalHeadFeasibility == null)
-                        || compareLocalCandidates(
-                                        result, i, option, selected,
-                                        bankfullHalfWidthAtStation, headEnvelopeGap,
-                                        searchRoute, longitudinalHeadFeasibility) < 0) {
+                boolean recoveryPrefersCandidate = recoveringInadmissiblePoint
+                        && headEnvelopeGap == null
+                        && longitudinalHeadFeasibility == null
+                        && (!selectedIsAdmissible
+                                || Math.hypot(option.x() - point.x(), option.z() - point.z())
+                                        < Math.hypot(selected.x() - point.x(), selected.z() - point.z())
+                                                - EPSILON);
+                if (!selectedIsAdmissible
+                        || recoveryPrefersCandidate
+                        || (!recoveringInadmissiblePoint
+                                && headEnvelopeGap == null
+                                && longitudinalHeadFeasibility == null)
+                        || ((headEnvelopeGap != null
+                                        || longitudinalHeadFeasibility != null)
+                                && compareLocalCandidates(
+                                                result, i, option, selected,
+                                                bankfullHalfWidthAtStation, headEnvelopeGap,
+                                                searchRoute, longitudinalHeadFeasibility) < 0)) {
                     selected = option;
+                    selectedIsAdmissible = true;
                     selectedOption = optionIndex;
                 }
             }
