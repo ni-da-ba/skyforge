@@ -42,7 +42,8 @@ final class SkyforgeTectonicTerrainAcceptance {
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
-    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 0.35;
+    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 0.5;
+    private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = -0.5;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
@@ -149,20 +150,24 @@ final class SkyforgeTectonicTerrainAcceptance {
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
             String tectonicErosionScale = "not-applicable";
+            String tectonicFlatTerrainSkew = "not-applicable";
             String tectonicOceanOffset = "not-applicable";
             if (treatment) {
                 tectonicVerticalScale = configuredTectonicVerticalScale();
                 tectonicElevationBoost = configuredTectonicElevationBoost();
                 tectonicErosionScale = configuredTectonicErosionScale();
+                tectonicFlatTerrainSkew = configuredTectonicFlatTerrainSkew();
                 tectonicOceanOffset = configuredTectonicOceanOffset();
                 if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)
                         || !Double.toString(EXPECTED_TECTONIC_ELEVATION_BOOST).equals(tectonicElevationBoost)
                         || !Double.toString(EXPECTED_TECTONIC_EROSION_SCALE).equals(tectonicErosionScale)
+                        || !Double.toString(EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW).equals(tectonicFlatTerrainSkew)
                         || !Double.toString(EXPECTED_TECTONIC_OCEAN_OFFSET).equals(tectonicOceanOffset)) {
                     fail(server, "Tectonic treatment config differs from the pinned terrain profile: "
                             + "vertical_scale=" + tectonicVerticalScale
                             + ", elevation_boost=" + tectonicElevationBoost
                             + ", erosion_scale=" + tectonicErosionScale
+                            + ", flat_terrain_skew=" + tectonicFlatTerrainSkew
                             + ", ocean_offset=" + tectonicOceanOffset);
                     return;
                 }
@@ -351,6 +356,7 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicVerticalScale", tectonicVerticalScale);
             evidence.put("tectonicElevationBoost", tectonicElevationBoost);
             evidence.put("tectonicErosionScale", tectonicErosionScale);
+            evidence.put("tectonicFlatTerrainSkew", tectonicFlatTerrainSkew);
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
             evidence.put("terrainProfileDatumY", providerTerrainDatumY);
@@ -427,6 +433,18 @@ final class SkyforgeTectonicTerrainAcceptance {
             return continents.get("erosion_scale").getAsString();
         } catch (IOException | RuntimeException failure) {
             throw new IllegalStateException("could not read the pinned Tectonic erosion configuration at "
+                    + configPath, failure);
+        }
+    }
+
+    private static String configuredTectonicFlatTerrainSkew() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject continents = config.getAsJsonObject("continents");
+            return continents.get("flat_terrain_skew").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic flat-terrain configuration at "
                     + configPath, failure);
         }
     }
