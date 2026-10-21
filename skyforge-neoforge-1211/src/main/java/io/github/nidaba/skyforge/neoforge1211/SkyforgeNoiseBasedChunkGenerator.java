@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -31,6 +32,8 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.ChunkGeneratorStructureState;
 import net.minecraft.world.level.chunk.LevelChunk;
+import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.chunk.UpgradeData;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
@@ -72,6 +75,9 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     private final NoiseBasedChunkGenerator terrainProvider;
     private final boolean voidBase;
     private final ConcurrentHashMap<Long, RandomState> terrainProviderRandomStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, RandomState> baseTerrainRandomStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<ProviderSurfaceKey, MinecraftNativeSurfaceSnapshot> detachedProviderSurfaceCache =
+            new ConcurrentHashMap<>();
 
     public SkyforgeNoiseBasedChunkGenerator(
             BiomeSource biomeSource,
@@ -165,6 +171,74 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         terrainProviderSettings.value(),
                         level.registryAccess().lookupOrThrow(Registries.NOISE),
                         seed));
+    }
+
+    private RandomState baseTerrainRandomState(WorldGenRegion level) {
+        long seed = level.getSeed();
+        return baseTerrainRandomStates.computeIfAbsent(
+                seed,
+                ignored -> RandomState.create(
+                        settings.value(),
+                        level.registryAccess().lookupOrThrow(Registries.NOISE),
+                        seed));
+    }
+
+    Optional<BlockState> nativeSurfaceBlockAt(WorldGenLevel level, BlockPos position) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(position, "position");
+        if (!(level instanceof WorldGenRegion region)) {
+            return Optional.empty();
+        }
+        if (voidBase) {
+            ChunkPos chunkPos = new ChunkPos(position.getX() >> 4, position.getZ() >> 4);
+            ProviderSurfaceKey key = new ProviderSurfaceKey(region.getSeed(), chunkPos.toLong());
+            if (detachedProviderSurfaceCache.size() > 4096 && !detachedProviderSurfaceCache.containsKey(key)) {
+                detachedProviderSurfaceCache.clear();
+            }
+            MinecraftNativeSurfaceSnapshot snapshot = detachedProviderSurfaceCache.computeIfAbsent(
+                    key,
+                    ignored -> captureDetachedProviderSurface(region, chunkPos));
+            int localX = Math.floorMod(position.getX(), 16);
+            int localZ = Math.floorMod(position.getZ(), 16);
+            return snapshot.surface(localX, localZ)
+                    .flatMap(surface -> net.minecraft.core.registries.BuiltInRegistries.BLOCK
+                            .getOptional(surface.blockKey()))
+                    .map(net.minecraft.world.level.block.Block::defaultBlockState);
+        }
+
+        NoiseColumn column = getBaseColumn(
+                position.getX(),
+                position.getZ(),
+                level,
+                baseTerrainRandomState(region));
+        for (int worldY = level.getMaxBuildHeight() - 1;
+                worldY >= level.getMinBuildHeight();
+                worldY--) {
+            BlockState state = column.getBlock(worldY);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                return Optional.of(state);
+            }
+        }
+        return Optional.empty();
+    }
+
+    @SuppressWarnings("deprecation")
+    private MinecraftNativeSurfaceSnapshot captureDetachedProviderSurface(
+            WorldGenRegion level,
+            ChunkPos chunkPos) {
+        RandomState randomState = terrainProviderRandomState(level);
+        var structureManager = level.getLevel().structureManager().forWorldGenRegion(level);
+        ProtoChunk providerChunk = new ProtoChunk(
+                chunkPos,
+                UpgradeData.EMPTY,
+                level,
+                level.registryAccess().registryOrThrow(Registries.BIOME),
+                null);
+        Blender blender = Blender.of(level);
+        terrainProvider.createBiomes(randomState, blender, structureManager, providerChunk).join();
+        terrainProvider.fillFromNoise(blender, randomState, structureManager, providerChunk).join();
+        terrainProvider.buildSurface(level, structureManager, randomState, providerChunk);
+        return MinecraftNativeSurfaceSnapshot.capture(providerChunk, terrainProvider.getSeaLevel());
     }
 
     /**
@@ -566,10 +640,20 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         if (SkyforgeNeoForge1211SurfaceStage.hasNativeSurfaceAdaptation()
                 && SkyforgeNeoForge1211SurfaceStage.hasCandidateVolume(chunk)) {
             if (voidBase) {
+                RandomState providerRandom = terrainProviderRandomState(level);
+                ProtoChunk providerChunk = new ProtoChunk(
+                        chunk.getPos(),
+                        UpgradeData.EMPTY,
+                        level,
+                        level.registryAccess().registryOrThrow(Registries.BIOME),
+                        null);
+                Blender blender = Blender.of(level);
+                terrainProvider.createBiomes(providerRandom, blender, structureManager, providerChunk).join();
+                terrainProvider.fillFromNoise(blender, providerRandom, structureManager, providerChunk).join();
+                terrainProvider.buildSurface(level, structureManager, providerRandom, providerChunk);
                 SkyforgeNativeSurfaceSnapshotStage.capture(
-                        chunk,
-                        terrainProvider,
-                        terrainProviderRandomState(level));
+                        providerChunk,
+                        terrainProvider.getSeaLevel());
             } else {
                 SkyforgeNativeSurfaceSnapshotStage.capture(chunk, getSeaLevel());
             }
@@ -604,4 +688,6 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
         // property is enabled; production population orchestration will replace this fixture seam.
         SkyforgeNeoForge1211PopulationDevRuntime.populate(level, chunk, this);
     }
+    private record ProviderSurfaceKey(long seed, long chunkPos) {}
+
 }

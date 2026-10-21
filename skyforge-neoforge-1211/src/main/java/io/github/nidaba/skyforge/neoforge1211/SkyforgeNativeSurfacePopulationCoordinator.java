@@ -72,7 +72,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
             PopulationKey key = new PopulationKey(plan.volumeId(), chunkPos.toLong(), phase);
             CachedPhase cached = completed.get(key);
             if (cached != null) {
-                requireStableReplay(plan, sample, cached);
+                requireStableReplay(level, plan, sample, cached);
                 phaseResults.add(new PhaseResult(phase, false, cached.surface(), cached.result()));
                 continue;
             }
@@ -241,6 +241,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
     }
 
     private static void requireStableReplay(
+            WorldGenLevel level,
             SkyforgeNativeSurfacePopulationPlan plan,
             SurfaceSample currentSurface,
             CachedPhase cached) {
@@ -252,6 +253,7 @@ final class SkyforgeNativeSurfacePopulationCoordinator {
         }
         ResourceKey<Biome> currentBiome = Objects.requireNonNull(
                 plan.biomeResolver().resolve(
+                        level,
                         plan.volumeId(),
                         currentSurface.x(),
                         currentSurface.firstFreeY(),

@@ -3,16 +3,40 @@ package io.github.nidaba.skyforge.neoforge1211;
 import it.unimi.dsi.fastutil.longs.Long2ByteOpenHashMap;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.feature.configurations.RandomPatchConfiguration;
+import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.Heightmap;
 
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
+    private static final ThreadLocal<ChunkGenerator> ACTIVE_GENERATOR = new ThreadLocal<>();
+    private static final int MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES = 32;
+    private static final AtomicInteger WRITE_PREFLIGHT_EVIDENCE_COUNT = new AtomicInteger();
+    private static final ConcurrentLinkedQueue<String> WRITE_PREFLIGHT_EVIDENCE = new ConcurrentLinkedQueue<>();
+    private static final boolean SURFACE_SUPPORT_DIAGNOSTICS =
+            Boolean.getBoolean("skyforge.dev.biomePopulation");
+    private static final int MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES = 16;
+    private static final AtomicInteger SURFACE_SUPPORT_READ_COUNT = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_READ_HITS = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_READ_MISSES = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_SNAPSHOT_MISSES = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_EMPTY_COLUMNS = new AtomicInteger();
+    private static final AtomicInteger SURFACE_SUPPORT_UNREGISTERED_BLOCKS = new AtomicInteger();
+    private static final ConcurrentLinkedQueue<String> SURFACE_SUPPORT_READ_EVIDENCE =
+            new ConcurrentLinkedQueue<>();
 
     private SkyforgePopulationExecutionStage() {}
 
@@ -52,6 +76,49 @@ final class SkyforgePopulationExecutionStage {
                 operation,
                 Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
                 maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            int maximumAttachmentDepth) {
+        return openWithGenerator(level, generator, operation, Optional.empty(), maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            Holder<Biome> domainBiome,
+            int maximumAttachmentDepth) {
+        return openWithGenerator(
+                level,
+                generator,
+                operation,
+                Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
+                maximumAttachmentDepth);
+    }
+
+    private static Scope openWithGenerator(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            Optional<Holder<Biome>> domainBiome,
+            int maximumAttachmentDepth) {
+        Objects.requireNonNull(generator, "generator");
+        if (ACTIVE_GENERATOR.get() != null) {
+            throw new IllegalStateException("nested Skyforge population generator contexts are not supported");
+        }
+        ACTIVE_GENERATOR.set(generator);
+        try {
+            return domainBiome.isPresent()
+                    ? open(level, operation, domainBiome.orElseThrow(), maximumAttachmentDepth)
+                    : open(level, operation, maximumAttachmentDepth);
+        } catch (RuntimeException | Error failure) {
+            ACTIVE_GENERATOR.remove();
+            throw failure;
+        }
     }
 
     private static Scope open(
@@ -106,6 +173,44 @@ final class SkyforgePopulationExecutionStage {
         return Optional.ofNullable(ACTIVE.get());
     }
 
+    static String writePreflightRejectionEvidence() {
+        return String.join(" | ", WRITE_PREFLIGHT_EVIDENCE)
+                + "; surfaceSupportReads=" + SURFACE_SUPPORT_READ_COUNT.get()
+                + ", surfaceSupportHits=" + SURFACE_SUPPORT_READ_HITS.get()
+                + ", surfaceSupportMisses=" + SURFACE_SUPPORT_READ_MISSES.get()
+                + ", surfaceSupportSnapshotMisses=" + SURFACE_SUPPORT_SNAPSHOT_MISSES.get()
+                + ", surfaceSupportEmptyColumns=" + SURFACE_SUPPORT_EMPTY_COLUMNS.get()
+                + ", surfaceSupportUnregisteredBlocks=" + SURFACE_SUPPORT_UNREGISTERED_BLOCKS.get()
+                + ", surfaceSupportEvidence=" + String.join(" | ", SURFACE_SUPPORT_READ_EVIDENCE);
+    }
+
+    private static void recordSurfaceSupportRead(
+            BlockPos position,
+            SkyforgeNativeSurfaceSnapshotStage.SurfaceLookup lookup) {
+        if (!SURFACE_SUPPORT_DIAGNOSTICS) {
+            return;
+        }
+        int sampleIndex = SURFACE_SUPPORT_READ_COUNT.getAndIncrement();
+        Optional<BlockState> state = lookup.state();
+        if (state.isPresent()) {
+            SURFACE_SUPPORT_READ_HITS.incrementAndGet();
+        } else {
+            SURFACE_SUPPORT_READ_MISSES.incrementAndGet();
+            switch (lookup.status()) {
+                case SNAPSHOT_MISSING -> SURFACE_SUPPORT_SNAPSHOT_MISSES.incrementAndGet();
+                case EMPTY_COLUMN -> SURFACE_SUPPORT_EMPTY_COLUMNS.incrementAndGet();
+                case BLOCK_UNREGISTERED -> SURFACE_SUPPORT_UNREGISTERED_BLOCKS.incrementAndGet();
+                case PRESENT -> throw new IllegalStateException("present surface lookup has no block state");
+            }
+        }
+        if (sampleIndex >= MAX_SURFACE_SUPPORT_READ_EVIDENCE_SAMPLES) {
+            return;
+        }
+        String blockKey = state.map(value -> String.valueOf(BuiltInRegistries.BLOCK.getKey(value.getBlock())))
+                .orElse("missing:" + lookup.status());
+        SURFACE_SUPPORT_READ_EVIDENCE.add(position.toShortString() + "=" + blockKey);
+    }
+
     private static boolean originChunkContains(
             SkyforgePopulationOperation operation,
             BlockPos position) {
@@ -132,18 +237,15 @@ final class SkyforgePopulationExecutionStage {
         CachedBlockPredicate cachedOwnerSolid = new CachedBlockPredicate(ownerSolid);
         CachedBlockPredicate cachedForeignSolid = new CachedBlockPredicate(foreignSolid);
         Predicate<BlockPos> attachmentOwnerSolid = cachedOwnerSolid;
-        Predicate<BlockPos> attachmentBarrierSolid = cachedForeignSolid;
+        Predicate<BlockPos> attachmentRootSolid = cachedOwnerSolid;
         if (operation.generationStep()
                 == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
-            // Surface ecology may extend canopy across chunk boundaries, but another chunk's
-            // same-volume terrain is not this operation's direct write authority. Treat it as a
-            // write barrier so neighboring population cannot mutate owner-solid cells that a later
-            // operation would otherwise expose as live origin-chunk state. Exterior air remains
-            // reachable through the ordinary bounded attachment envelope.
+            // Surface ecology may attach to an exposed same-volume surface across a chunk boundary,
+            // but the neighboring terrain remains outside this operation's write authority. Keep
+            // foreign volumes as hard barriers and admit only bounded attachments rooted in this
+            // operation's owner terrain or read-only neighboring owner terrain.
             attachmentOwnerSolid =
                     position -> cachedOwnerSolid.test(position) && originChunkContains(operation, position);
-            attachmentBarrierSolid = position -> cachedForeignSolid.test(position)
-                    || (cachedOwnerSolid.test(position) && !originChunkContains(operation, position));
         }
         Execution execution = new Execution(
                 level,
@@ -153,7 +255,8 @@ final class SkyforgePopulationExecutionStage {
                 cachedForeignSolid,
                 new SkyforgePopulationAttachmentEnvelope(
                         attachmentOwnerSolid,
-                        attachmentBarrierSolid,
+                        cachedForeignSolid,
+                        attachmentRootSolid,
                         maximumAttachmentDepth));
         ACTIVE.set(execution);
         return new Scope(execution);
@@ -166,6 +269,9 @@ final class SkyforgePopulationExecutionStage {
         private final CachedBlockPredicate ownerSolid;
         private final CachedBlockPredicate foreignSolid;
         private final SkyforgePopulationAttachmentEnvelope attachmentEnvelope;
+        private final int surfaceRandomPatchHeightSpread;
+        private int writePreflightRejections;
+        private int writeDecisionRejections;
 
         private Execution(
                 Optional<WorldGenLevel> level,
@@ -180,6 +286,30 @@ final class SkyforgePopulationExecutionStage {
             this.ownerSolid = Objects.requireNonNull(ownerSolid, "ownerSolid");
             this.foreignSolid = Objects.requireNonNull(foreignSolid, "foreignSolid");
             this.attachmentEnvelope = Objects.requireNonNull(attachmentEnvelope, "attachmentEnvelope");
+            this.surfaceRandomPatchHeightSpread = resolveSurfaceRandomPatchHeightSpread(this.level, this.operation);
+        }
+
+        private static int resolveSurfaceRandomPatchHeightSpread(
+                Optional<WorldGenLevel> level,
+                SkyforgePopulationOperation operation) {
+            if (level.isEmpty()
+                    || operation.generationStep()
+                            != net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal()) {
+                return 0;
+            }
+            var activeLevel = level.orElseThrow();
+            var registry = activeLevel.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+            var key = ResourceKey.create(Registries.PLACED_FEATURE, operation.nativeDefinitionKey());
+            return registry.getHolder(key)
+                    .map(holder -> holder.value().feature().value().config())
+                    .filter(RandomPatchConfiguration.class::isInstance)
+                    .map(RandomPatchConfiguration.class::cast)
+                    .map(RandomPatchConfiguration::ySpread)
+                    .orElse(0);
+        }
+
+        int surfaceRandomPatchHeightSpread() {
+            return surfaceRandomPatchHeightSpread;
         }
 
         SkyforgePopulationOperation operation() {
@@ -201,17 +331,39 @@ final class SkyforgePopulationExecutionStage {
          *
          * <p>Same-volume solid terrain in a neighboring chunk must not expose its live materialization
          * state: that chunk may or may not have completed deferred Skyforge realization yet, depending
-         * on Minecraft scheduling. Present it as an inert solid barrier. Non-owner exterior keeps the
-         * phase-specific historical virtualization (AIR for surface vegetation, BEDROCK for sensitive
-         * underground phases), so cross-chunk canopy attachments remain possible without reading
-         * neighboring terrain realization order.
+         * on Minecraft scheduling. For exposed vegetation support only, use the bounded immutable
+         * pre-decoration provider-surface snapshot; all other neighboring owner terrain remains an
+         * inert solid barrier. Non-owner exterior keeps the phase-specific virtualization (AIR for
+         * surface vegetation, BEDROCK for sensitive underground phases), so native attachments can
+         * cross chunk seams without observing neighboring materialization order.
          */
         BlockState hiddenBlockState(BlockPos position) {
             Objects.requireNonNull(position, "position");
             if (ownerSolid.test(position)) {
+                if (isVegetalDecoration()
+                        && !originChunkContains(position)
+                        && !ownerSolid.test(position.above())
+                        && level.isPresent()) {
+                    ChunkGenerator generator = ACTIVE_GENERATOR.get();
+                    var providerSurface = generator == null
+                            ? SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(position)
+                            : SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(
+                                    position,
+                                    level.orElseThrow(),
+                                    generator);
+                    recordSurfaceSupportRead(position, providerSurface);
+                    if (providerSurface.state().isPresent()) {
+                        return providerSurface.state().orElseThrow();
+                    }
+                }
                 return net.minecraft.world.level.block.Blocks.BEDROCK.defaultBlockState();
             }
             return SkyforgeNativeInteriorPlacementPolicy.hiddenExteriorBlockState(operation);
+        }
+
+        private boolean isVegetalDecoration() {
+            return operation.generationStep()
+                    == net.minecraft.world.level.levelgen.GenerationStep.Decoration.VEGETAL_DECORATION.ordinal();
         }
 
         private boolean originChunkContains(BlockPos position) {
@@ -246,6 +398,131 @@ final class SkyforgePopulationExecutionStage {
                 return false;
             }
             return attachmentEnvelope.acceptWrite(position);
+        }
+
+        String writePreflightRejectionReason(BlockPos position) {
+            Objects.requireNonNull(position, "position");
+            if (!SkyforgeNativeInteriorPlacementPolicy.canWrite(operation, position, ownerSolid)) {
+                return "native-interior-policy";
+            }
+            if (foreignSolid.test(position)) {
+                return "foreign-island-volume";
+            }
+            return "owner-or-attachment-envelope";
+        }
+
+        private int adjacentOwnerSolidCount(BlockPos position) {
+            int adjacentOwnerCells = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if ((dx != 0 || dy != 0 || dz != 0)
+                                && ownerSolid.test(position.offset(dx, dy, dz))) {
+                            adjacentOwnerCells = Math.addExact(adjacentOwnerCells, 1);
+                        }
+                    }
+                }
+            }
+            return adjacentOwnerCells;
+        }
+
+        private String adjacentOwnerChunkEvidence(BlockPos position) {
+            int originChunkOwnerCells = 0;
+            int neighboringChunkOwnerCells = 0;
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        if (dx == 0 && dy == 0 && dz == 0) {
+                            continue;
+                        }
+                        BlockPos neighbor = position.offset(dx, dy, dz);
+                        if (!ownerSolid.test(neighbor)) {
+                            continue;
+                        }
+                        if (originChunkContains(neighbor)) {
+                            originChunkOwnerCells = Math.addExact(originChunkOwnerCells, 1);
+                        } else {
+                            neighboringChunkOwnerCells = Math.addExact(neighboringChunkOwnerCells, 1);
+                        }
+                    }
+                }
+            }
+            return "attachmentOriginChunk=" + operation.originChunk()
+                    + ", adjacentOwnerSolidInOriginChunk=" + originChunkOwnerCells
+                    + ", adjacentOwnerSolidOutsideOriginChunk=" + neighboringChunkOwnerCells;
+        }
+
+        private String liveHeightEvidence(BlockPos position) {
+            if (level.isEmpty()) {
+                return "heightmaps=unavailable";
+            }
+            WorldGenLevel activeLevel = level.orElseThrow();
+            return "heightmaps[motionBlocking=" + safeHeight(activeLevel, Heightmap.Types.MOTION_BLOCKING, position)
+                    + ", motionBlockingNoLeaves="
+                    + safeHeight(activeLevel, Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, position)
+                    + ", oceanFloor=" + safeHeight(activeLevel, Heightmap.Types.OCEAN_FLOOR, position)
+                    + ", oceanFloorWg=" + safeHeight(activeLevel, Heightmap.Types.OCEAN_FLOOR_WG, position)
+                    + ", worldSurface=" + safeHeight(activeLevel, Heightmap.Types.WORLD_SURFACE, position)
+                    + ", worldSurfaceWg=" + safeHeight(activeLevel, Heightmap.Types.WORLD_SURFACE_WG, position)
+                    + "]";
+        }
+
+        private static String safeHeight(
+                WorldGenLevel level,
+                Heightmap.Types type,
+                BlockPos position) {
+            try {
+                return Integer.toString(level.getHeight(type, position.getX(), position.getZ()));
+            } catch (RuntimeException failure) {
+                return "error:" + failure.getClass().getSimpleName();
+            }
+        }
+
+        void recordWritePreflightRejection(BlockPos position, String reason) {
+            Objects.requireNonNull(position, "position");
+            Objects.requireNonNull(reason, "reason");
+            writePreflightRejections = Math.addExact(writePreflightRejections, 1);
+            if (writePreflightRejections == 1
+                    && Boolean.getBoolean(SkyforgeNeoForge1211BiomePopulationDevRuntime.ENABLE_PROPERTY)) {
+                int sampleIndex = WRITE_PREFLIGHT_EVIDENCE_COUNT.getAndIncrement();
+                if (sampleIndex < MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES) {
+                    var ownerColumn = SkyforgeNeoForge1211SurfaceStage.integerSolidRange(
+                            operation.volumeId(), position.getX(), position.getZ());
+                    String ownerColumnEvidence = ownerColumn
+                            .map(range -> {
+                                int firstFreeY = Math.addExact(range.maximumY(), 1);
+                                return "ownerColumnRange=" + range.minimumY() + ".." + range.maximumY()
+                                        + ", ownerFirstFreeY=" + firstFreeY
+                                        + ", positionDeltaFromFirstFreeY="
+                                        + Math.subtractExact(position.getY(), firstFreeY);
+                            })
+                            .orElse("ownerColumnRange=empty");
+                    WRITE_PREFLIGHT_EVIDENCE.add(
+                            "volume=" + operation.volumeId().path()
+                                    + ", feature=" + operation.nativeDefinitionKey()
+                                    + ", position=" + position.toShortString()
+                                    + ", reason=" + reason
+                                    + ", ownerSolid=" + ownerSolid.test(position)
+                                    + ", foreignSolid=" + foreignSolid.test(position)
+                                    + ", adjacentOwnerSolidBlocks=" + adjacentOwnerSolidCount(position)
+                                    + ", " + adjacentOwnerChunkEvidence(position)
+                                    + ", " + ownerColumnEvidence
+                                    + ", " + attachmentEnvelope.rejectionEvidence(position)
+                                    + ", " + liveHeightEvidence(position));
+                }
+            }
+        }
+
+        void recordWriteDecisionRejection() {
+            writeDecisionRejections = Math.addExact(writeDecisionRejections, 1);
+        }
+
+        int writePreflightRejections() {
+            return writePreflightRejections;
+        }
+
+        int writeDecisionRejections() {
+            return writeDecisionRejections;
         }
 
         int attachmentCount() {
@@ -329,6 +606,7 @@ final class SkyforgePopulationExecutionStage {
             execution.recordPerformanceEvidence();
             closed = true;
             ACTIVE.remove();
+            ACTIVE_GENERATOR.remove();
         }
     }
 }

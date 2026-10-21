@@ -26,7 +26,7 @@ enforce-secure-profile=false
 spawn-protection=0
 gamemode=creative
 difficulty=peaceful
-view-distance=5
+view-distance=2
 simulation-distance=3
 max-tick-time=0
 max-players=1
@@ -80,7 +80,7 @@ verify_server_result() {
   local result="$1"
   test -f "$result"
   grep -Eq '^status=PASS$' "$result"
-  grep -Fq 'selectedUpperBiome=biomesoplenty\:maple_woods' "$result"
+  grep -Fq 'selectedUpperBiome=biomesoplenty\:rocky_shrubland' "$result"
   grep -Eq '^lowerPersistentTreeEvidence=true$' "$result"
   grep -Eq '^upperPersistentTreeEvidence=true$' "$result"
   grep -Eq '^exteriorNonAirBlocks=0$' "$result"
@@ -120,7 +120,8 @@ grep -Eq '^spawnSupported=true$' "$client_result"
 wait "$server_pid"
 server_pid=""
 verify_server_result "$server_result"
-test -f "$server_dir/saves/acceptance/level.dat"
+grep -Fq 'providerBiomeSource=biomesoplenty\:rocky_shrubland' "$server_result"
+grep -Eq '^providerBiomeMatchesPopulation=true$' "$server_result"
 cp "$server_result" "$acceptance_dir/server-initial.properties"
 cp "$server_dir/logs/latest.log" "$acceptance_dir/server-initial.log"
 

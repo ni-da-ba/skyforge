@@ -102,6 +102,7 @@ final class SkyforgeNativeBiomePopulationRunner {
 
         ResourceKey<Biome> biomeKey = Objects.requireNonNull(
                 biomeResolver.resolve(
+                        level,
                         volumeId,
                         biomeSample.getX(),
                         biomeSample.getY(),
@@ -127,9 +128,12 @@ final class SkyforgeNativeBiomePopulationRunner {
         }
 
         var placedFeatureRegistry = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+        int featureOriginY = generationStep == GenerationStep.Decoration.VEGETAL_DECORATION
+                ? biomeSample.getY()
+                : level.getMinBuildHeight();
         BlockPos nativeChunkOrigin = new BlockPos(
                 originChunk.getMinBlockX(),
-                level.getMinBuildHeight(),
+                featureOriginY,
                 originChunk.getMinBlockZ());
         List<FeatureResult> featureResults = new ArrayList<>();
         int attempted = 0;
@@ -182,13 +186,20 @@ final class SkyforgeNativeBiomePopulationRunner {
             }
             if (treeFeature && !treeHeadroomAdmitted) {
                 attempted++;
-                featureResults.add(new FeatureResult(featureKey, false, 0));
+                featureResults.add(new FeatureResult(
+                        featureKey,
+                        false,
+                        0,
+                        0,
+                        0,
+                        null));
                 SkyforgeRuntimePerformanceMetrics.recordSample(
                         "surfacePopulation.treeHeadroomRejected", 1L);
                 continue;
             }
+            SkyforgeNativePlacedFeatureRunner.TreePrerequisiteProbe treeProbe = null;
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
-                var probe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
+                treeProbe = SkyforgeNativePlacedFeatureRunner.probeTreePrerequisites(
                         level,
                         biome,
                         operation,
@@ -199,14 +210,14 @@ final class SkyforgeNativeBiomePopulationRunner {
                                 + ", chunk=" + originChunk
                                 + ", biome=" + biomeKey.location()
                                 + ", feature=" + featureKey
-                                + ", sample=(" + probe.x() + "," + probe.firstFreeY() + "," + probe.z() + ")"
-                                + ", oceanFloorY=" + probe.oceanFloorY()
-                                + ", blockBelow=" + probe.blockBelow()
-                                + ", blockAt=" + probe.blockAt()
-                                + ", expectedBiome=" + probe.observedExpectedBiome()
-                                + ", oakSurvives=" + probe.oakSurvives()
-                                + ", birchSurvives=" + probe.birchSurvives()
-                                + ", spruceSurvives=" + probe.spruceSurvives());
+                                + ", sample=(" + treeProbe.x() + "," + treeProbe.firstFreeY() + "," + treeProbe.z() + ")"
+                                + ", oceanFloorY=" + treeProbe.oceanFloorY()
+                                + ", blockBelow=" + treeProbe.blockBelow()
+                                + ", blockAt=" + treeProbe.blockAt()
+                                + ", expectedBiome=" + treeProbe.observedExpectedBiome()
+                                + ", oakSurvives=" + treeProbe.oakSurvives()
+                                + ", birchSurvives=" + treeProbe.birchSurvives()
+                                + ", spruceSurvives=" + treeProbe.spruceSurvives());
             }
 
             long featurePerformanceStart = performanceMetricsEnabled
@@ -274,7 +285,13 @@ final class SkyforgeNativeBiomePopulationRunner {
                     rejectedLakeOrigins.addAll(lake.rejectedOrigins());
                 }
             }
-            featureResults.add(new FeatureResult(featureKey, result.placed(), result.attachmentWrites()));
+            featureResults.add(new FeatureResult(
+                    featureKey,
+                    result.placed(),
+                    result.attachmentWrites(),
+                    result.writePreflightRejections(),
+                    result.writeDecisionRejections(),
+                    treeProbe));
             if (Boolean.getBoolean(BIOME_PROOF_PROPERTY) && treeFeature) {
                 LOGGER.log(
                         System.Logger.Level.INFO,
@@ -384,11 +401,14 @@ final class SkyforgeNativeBiomePopulationRunner {
     record FeatureResult(
             ResourceLocation featureKey,
             boolean placed,
-            int attachmentWrites) {
+            int attachmentWrites,
+            int writePreflightRejections,
+            int writeDecisionRejections,
+            SkyforgeNativePlacedFeatureRunner.TreePrerequisiteProbe treeProbe) {
         FeatureResult {
             Objects.requireNonNull(featureKey, "featureKey");
-            if (attachmentWrites < 0) {
-                throw new IllegalArgumentException("feature attachmentWrites must be non-negative");
+            if (attachmentWrites < 0 || writePreflightRejections < 0 || writeDecisionRejections < 0) {
+                throw new IllegalArgumentException("feature write evidence counts must be non-negative");
             }
         }
     }

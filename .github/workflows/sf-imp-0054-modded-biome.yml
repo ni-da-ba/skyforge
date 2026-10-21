@@ -7,6 +7,10 @@ on:
       - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeExactVolumeBiomeResolver.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProviderBiomeResolver.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeSurfacePopulationCoordinator.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
@@ -19,6 +23,10 @@ on:
       - "scripts/sf-imp-0054-modded-biome-acceptance.sh"
       - "skyforge-neoforge-1211/build.gradle.kts"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationDevRuntime.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeExactVolumeBiomeResolver.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeProviderBiomeResolver.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeBiomePopulationRunner.java"
+      - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNativeSurfacePopulationCoordinator.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeNeoForge1211BiomePopulationJoinClientAcceptance.java"
       - "skyforge-neoforge-1211/src/main/java/io/github/nidaba/skyforge/neoforge1211/SkyforgeAutomatedAcceptanceHarness.java"
       - "skyforge-neoforge-1211/src/main/resources/**"
@@ -60,5 +68,6 @@ jobs:
             skyforge-neoforge-1211/build/acceptance/sf-imp-0054-modded-biome/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/logs/
             skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-join-client/logs/
+            skyforge-neoforge-1211/run-sf-imp-0054-modded-biome-server/saves/acceptance/
           if-no-files-found: warn
           retention-days: 14

@@ -47,6 +47,75 @@ final class SkyforgeSurfacePopulationPlanTest {
     }
 
     @Test
+    void providerBiomeResolverRequiresTheLiveGenerationContext() {
+        var resolver = SkyforgeProviderBiomeResolver.create();
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> resolver.resolve(VOLUME_ID, 4, 120, 9));
+    }
+    @Test
+    void providerBiomeSelectorFindsTargetAcrossTheWholeSharedChunk() {
+        var chunk = new net.minecraft.world.level.ChunkPos(0, 0);
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                chunk,
+                List.of(
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.TAIGA, Biomes.TAIGA),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(12, 12, 102, 202, Biomes.FOREST, Biomes.TAIGA),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(15, 15, 101, 201, Biomes.FOREST, Biomes.FOREST)),
+                2,
+                Biomes.FOREST,
+                Biomes.TAIGA);
+
+        assertEquals(3, search.sharedColumns());
+        assertEquals(2, search.lowerProviderBiomeMatches());
+        assertEquals(2, search.providerBiomeMatches());
+        assertEquals(1, search.providerBiomePairMatches());
+        var selected = search.selected().orElseThrow();
+        assertEquals(12, selected.x());
+        assertEquals(12, selected.z());
+        assertEquals(102, selected.lowerSurfaceY());
+        assertEquals(202, selected.upperSurfaceY());
+        assertEquals(Biomes.FOREST, selected.lowerProviderBiome());
+        assertEquals(Biomes.TAIGA, selected.upperProviderBiome());
+    }
+
+    @Test
+    void providerBiomeSelectorPrefersTreeSupportingLowerSurface() {
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                new net.minecraft.world.level.ChunkPos(0, 0),
+                List.of(
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
+                                8, 8, 100, 200, null, Biomes.TAIGA, false),
+                        new SkyforgeSharedSurfaceBiomeSampleSelector.Column(
+                                13, 13, 101, 201, null, Biomes.TAIGA, true)),
+                2,
+                null,
+                Biomes.TAIGA);
+
+        var selected = search.selected().orElseThrow();
+        assertEquals(13, selected.x());
+        assertEquals(13, selected.z());
+    }
+
+    @Test
+    void providerBiomeSelectorKeepsTheSharedTerrainThreshold() {
+        var search = SkyforgeSharedSurfaceBiomeSampleSelector.select(
+                new net.minecraft.world.level.ChunkPos(0, 0),
+                List.of(new SkyforgeSharedSurfaceBiomeSampleSelector.Column(8, 8, 100, 200, Biomes.FOREST, Biomes.TAIGA)),
+                2,
+                Biomes.FOREST,
+                Biomes.TAIGA);
+
+        assertEquals(1, search.sharedColumns());
+        assertEquals(1, search.lowerProviderBiomeMatches());
+        assertEquals(1, search.providerBiomeMatches());
+        assertEquals(1, search.providerBiomePairMatches());
+        assertTrue(search.selected().isEmpty());
+    }
+
+
+    @Test
     void planRejectsNonSurfaceOrDuplicatePhaseAdmission() {
         assertThrows(
                 IllegalArgumentException.class,
