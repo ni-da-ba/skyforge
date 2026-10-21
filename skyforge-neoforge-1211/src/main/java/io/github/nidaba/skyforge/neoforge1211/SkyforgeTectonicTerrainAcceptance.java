@@ -42,8 +42,10 @@ final class SkyforgeTectonicTerrainAcceptance {
     static final String TREATMENT_PROPERTY = ENABLE_PROPERTY + ".treatment";
     private static final double EXPECTED_TECTONIC_VERTICAL_SCALE = 6.0;
     private static final double EXPECTED_TECTONIC_ELEVATION_BOOST = 2.0;
-    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 0.5;
-    private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = -0.5;
+    private static final double EXPECTED_TECTONIC_CONTINENTS_SCALE = 0.13;
+    private static final double EXPECTED_TECTONIC_EROSION_SCALE = 0.25;
+    private static final double EXPECTED_TECTONIC_RIDGE_SCALE = 0.25;
+    private static final double EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW = 0.1;
     private static final double EXPECTED_TECTONIC_OCEAN_OFFSET = -0.1;
     private static final int EXTERIOR_CHUNK_X = 12;
     private static final int PROFILE_RADIUS = 8;
@@ -149,24 +151,32 @@ final class SkyforgeTectonicTerrainAcceptance {
             }
             String tectonicVerticalScale = "not-applicable";
             String tectonicElevationBoost = "not-applicable";
+            String tectonicContinentsScale = "not-applicable";
             String tectonicErosionScale = "not-applicable";
+            String tectonicRidgeScale = "not-applicable";
             String tectonicFlatTerrainSkew = "not-applicable";
             String tectonicOceanOffset = "not-applicable";
             if (treatment) {
                 tectonicVerticalScale = configuredTectonicVerticalScale();
                 tectonicElevationBoost = configuredTectonicElevationBoost();
+                tectonicContinentsScale = configuredTectonicContinentsScale();
                 tectonicErosionScale = configuredTectonicErosionScale();
+                tectonicRidgeScale = configuredTectonicRidgeScale();
                 tectonicFlatTerrainSkew = configuredTectonicFlatTerrainSkew();
                 tectonicOceanOffset = configuredTectonicOceanOffset();
                 if (!Double.toString(EXPECTED_TECTONIC_VERTICAL_SCALE).equals(tectonicVerticalScale)
                         || !Double.toString(EXPECTED_TECTONIC_ELEVATION_BOOST).equals(tectonicElevationBoost)
+                        || !Double.toString(EXPECTED_TECTONIC_CONTINENTS_SCALE).equals(tectonicContinentsScale)
                         || !Double.toString(EXPECTED_TECTONIC_EROSION_SCALE).equals(tectonicErosionScale)
+                        || !Double.toString(EXPECTED_TECTONIC_RIDGE_SCALE).equals(tectonicRidgeScale)
                         || !Double.toString(EXPECTED_TECTONIC_FLAT_TERRAIN_SKEW).equals(tectonicFlatTerrainSkew)
                         || !Double.toString(EXPECTED_TECTONIC_OCEAN_OFFSET).equals(tectonicOceanOffset)) {
                     fail(server, "Tectonic treatment config differs from the pinned terrain profile: "
                             + "vertical_scale=" + tectonicVerticalScale
                             + ", elevation_boost=" + tectonicElevationBoost
+                            + ", continents_scale=" + tectonicContinentsScale
                             + ", erosion_scale=" + tectonicErosionScale
+                            + ", ridge_scale=" + tectonicRidgeScale
                             + ", flat_terrain_skew=" + tectonicFlatTerrainSkew
                             + ", ocean_offset=" + tectonicOceanOffset);
                     return;
@@ -357,7 +367,9 @@ final class SkyforgeTectonicTerrainAcceptance {
             evidence.put("tectonicPackSelected", tectonicPackSelected);
             evidence.put("tectonicVerticalScale", tectonicVerticalScale);
             evidence.put("tectonicElevationBoost", tectonicElevationBoost);
+            evidence.put("tectonicContinentsScale", tectonicContinentsScale);
             evidence.put("tectonicErosionScale", tectonicErosionScale);
+            evidence.put("tectonicRidgeScale", tectonicRidgeScale);
             evidence.put("tectonicFlatTerrainSkew", tectonicFlatTerrainSkew);
             evidence.put("tectonicOceanOffset", tectonicOceanOffset);
             evidence.put("terrainProviderSettings", settingsKey);
@@ -429,6 +441,18 @@ final class SkyforgeTectonicTerrainAcceptance {
         }
     }
 
+    private static String configuredTectonicContinentsScale() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject continents = config.getAsJsonObject("continents");
+            return continents.get("continents_scale").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic continents configuration at "
+                    + configPath, failure);
+        }
+    }
+
     private static String configuredTectonicErosionScale() {
         Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
         try {
@@ -437,6 +461,18 @@ final class SkyforgeTectonicTerrainAcceptance {
             return continents.get("erosion_scale").getAsString();
         } catch (IOException | RuntimeException failure) {
             throw new IllegalStateException("could not read the pinned Tectonic erosion configuration at "
+                    + configPath, failure);
+        }
+    }
+
+    private static String configuredTectonicRidgeScale() {
+        Path configPath = FMLPaths.CONFIGDIR.get().resolve("tectonic.json");
+        try {
+            JsonObject config = JsonParser.parseString(Files.readString(configPath)).getAsJsonObject();
+            JsonObject continents = config.getAsJsonObject("continents");
+            return continents.get("ridge_scale").getAsString();
+        } catch (IOException | RuntimeException failure) {
+            throw new IllegalStateException("could not read the pinned Tectonic ridge configuration at "
                     + configPath, failure);
         }
     }
