@@ -9,7 +9,9 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkAccess;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 
@@ -86,6 +88,21 @@ final class SkyforgeNativeSurfaceSnapshotStage {
             return new SurfaceLookup(Optional.empty(), SurfaceLookupStatus.BLOCK_UNREGISTERED);
         }
         return new SurfaceLookup(state, SurfaceLookupStatus.PRESENT);
+    }
+
+    static SurfaceLookup surfaceLookupAt(
+            BlockPos position,
+            WorldGenLevel level,
+            ChunkGenerator generator) {
+        SurfaceLookup captured = surfaceLookupAt(position);
+        if (captured.status() != SurfaceLookupStatus.SNAPSHOT_MISSING
+                || !(generator instanceof SkyforgeNoiseBasedChunkGenerator skyforgeGenerator)) {
+            return captured;
+        }
+        Optional<BlockState> generatedSurface = skyforgeGenerator.nativeSurfaceBlockAt(level, position);
+        return generatedSurface
+                .map(state -> new SurfaceLookup(Optional.of(state), SurfaceLookupStatus.PRESENT))
+                .orElseGet(() -> new SurfaceLookup(Optional.empty(), SurfaceLookupStatus.EMPTY_COLUMN));
     }
 
     enum SurfaceLookupStatus {

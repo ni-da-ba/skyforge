@@ -12,6 +12,7 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.configurations.RandomPatchConfiguration;
 import net.minecraft.world.level.levelgen.placement.PlacedFeature;
 import net.minecraft.world.level.biome.Biome;
@@ -21,6 +22,7 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /** Thread-confined execution state for one exact-volume native population attempt. */
 final class SkyforgePopulationExecutionStage {
     private static final ThreadLocal<Execution> ACTIVE = new ThreadLocal<>();
+    private static final ThreadLocal<ChunkGenerator> ACTIVE_GENERATOR = new ThreadLocal<>();
     private static final int MAX_WRITE_PREFLIGHT_EVIDENCE_SAMPLES = 32;
     private static final AtomicInteger WRITE_PREFLIGHT_EVIDENCE_COUNT = new AtomicInteger();
     private static final ConcurrentLinkedQueue<String> WRITE_PREFLIGHT_EVIDENCE = new ConcurrentLinkedQueue<>();
@@ -74,6 +76,49 @@ final class SkyforgePopulationExecutionStage {
                 operation,
                 Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
                 maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            int maximumAttachmentDepth) {
+        return openWithGenerator(level, generator, operation, Optional.empty(), maximumAttachmentDepth);
+    }
+
+    static Scope open(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            Holder<Biome> domainBiome,
+            int maximumAttachmentDepth) {
+        return openWithGenerator(
+                level,
+                generator,
+                operation,
+                Optional.of(Objects.requireNonNull(domainBiome, "domainBiome")),
+                maximumAttachmentDepth);
+    }
+
+    private static Scope openWithGenerator(
+            WorldGenLevel level,
+            ChunkGenerator generator,
+            SkyforgePopulationOperation operation,
+            Optional<Holder<Biome>> domainBiome,
+            int maximumAttachmentDepth) {
+        Objects.requireNonNull(generator, "generator");
+        if (ACTIVE_GENERATOR.get() != null) {
+            throw new IllegalStateException("nested Skyforge population generator contexts are not supported");
+        }
+        ACTIVE_GENERATOR.set(generator);
+        try {
+            return domainBiome.isPresent()
+                    ? open(level, operation, domainBiome.orElseThrow(), maximumAttachmentDepth)
+                    : open(level, operation, maximumAttachmentDepth);
+        } catch (RuntimeException | Error failure) {
+            ACTIVE_GENERATOR.remove();
+            throw failure;
+        }
     }
 
     private static Scope open(
@@ -299,7 +344,13 @@ final class SkyforgePopulationExecutionStage {
                         && !originChunkContains(position)
                         && !ownerSolid.test(position.above())
                         && level.isPresent()) {
-                    var providerSurface = SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(position);
+                    ChunkGenerator generator = ACTIVE_GENERATOR.get();
+                    var providerSurface = generator == null
+                            ? SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(position)
+                            : SkyforgeNativeSurfaceSnapshotStage.surfaceLookupAt(
+                                    position,
+                                    level.orElseThrow(),
+                                    generator);
                     recordSurfaceSupportRead(position, providerSurface);
                     if (providerSurface.state().isPresent()) {
                         return providerSurface.state().orElseThrow();
@@ -555,6 +606,7 @@ final class SkyforgePopulationExecutionStage {
             execution.recordPerformanceEvidence();
             closed = true;
             ACTIVE.remove();
+            ACTIVE_GENERATOR.remove();
         }
     }
 }

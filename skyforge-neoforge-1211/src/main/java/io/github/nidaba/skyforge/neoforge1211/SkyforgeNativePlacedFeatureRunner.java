@@ -177,7 +177,7 @@ final class SkyforgeNativePlacedFeatureRunner {
         }
 
         try (var domain = SkyforgeGenerationDomainStage.openIsland(operation.volumeId());
-                var execution = openExecution(level, operation, domainBiome, maximumAttachmentDepth);
+                var execution = openExecution(level, generator, operation, domainBiome, maximumAttachmentDepth);
                 var verticalFrame = SkyforgeVerticalPlacementFrame.open(level, operation);
                 var generatedFluid = SkyforgeGeneratedFluidPropagationStage.openPopulation(level, operation);
                 var lakeAdmission = SkyforgeNativeLakeAdmissionStage.open(operation)) {
@@ -212,17 +212,20 @@ final class SkyforgeNativePlacedFeatureRunner {
 
     private static SkyforgePopulationExecutionStage.Scope openExecution(
             WorldGenLevel level,
+            ChunkGenerator generator,
             SkyforgePopulationOperation operation,
             Optional<Holder<Biome>> domainBiome,
             int maximumAttachmentDepth) {
         return domainBiome.isPresent()
                 ? SkyforgePopulationExecutionStage.open(
                         level,
+                        generator,
                         operation,
                         domainBiome.orElseThrow(),
                         maximumAttachmentDepth)
                 : SkyforgePopulationExecutionStage.open(
                         level,
+                        generator,
                         operation,
                         maximumAttachmentDepth);
     }

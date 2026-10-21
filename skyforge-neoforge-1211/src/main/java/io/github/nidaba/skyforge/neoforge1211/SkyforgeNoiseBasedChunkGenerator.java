@@ -72,6 +72,7 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
     private final NoiseBasedChunkGenerator terrainProvider;
     private final boolean voidBase;
     private final ConcurrentHashMap<Long, RandomState> terrainProviderRandomStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, RandomState> baseTerrainRandomStates = new ConcurrentHashMap<>();
 
     public SkyforgeNoiseBasedChunkGenerator(
             BiomeSource biomeSource,
@@ -165,6 +166,42 @@ public final class SkyforgeNoiseBasedChunkGenerator extends NoiseBasedChunkGener
                         terrainProviderSettings.value(),
                         level.registryAccess().lookupOrThrow(Registries.NOISE),
                         seed));
+    }
+
+    private RandomState baseTerrainRandomState(WorldGenRegion level) {
+        long seed = level.getSeed();
+        return baseTerrainRandomStates.computeIfAbsent(
+                seed,
+                ignored -> RandomState.create(
+                        settings.value(),
+                        level.registryAccess().lookupOrThrow(Registries.NOISE),
+                        seed));
+    }
+
+    Optional<BlockState> nativeSurfaceBlockAt(WorldGenLevel level, BlockPos position) {
+        Objects.requireNonNull(level, "level");
+        Objects.requireNonNull(position, "position");
+        if (!(level instanceof WorldGenRegion region)) {
+            return Optional.empty();
+        }
+        NoiseBasedChunkGenerator provider = voidBase ? terrainProvider : this;
+        RandomState randomState = voidBase
+                ? terrainProviderRandomState(region)
+                : baseTerrainRandomState(region);
+        NoiseColumn column = provider.getBaseColumn(
+                position.getX(),
+                position.getZ(),
+                level,
+                randomState);
+        for (int worldY = level.getMaxBuildHeight() - 1;
+                worldY >= level.getMinBuildHeight();
+                worldY--) {
+            BlockState state = column.getBlock(worldY);
+            if (!state.isAir() && state.getFluidState().isEmpty()) {
+                return Optional.of(state);
+            }
+        }
+        return Optional.empty();
     }
 
     /**
